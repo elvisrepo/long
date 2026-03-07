@@ -16,7 +16,7 @@
 - Secondary: Biohackers and quantified-self enthusiasts who want one dashboard for all their health data sources
 
 **1.1.3 What makes it valuable?**
-- Unified view across manual entries + wearable devices (Samsung Health, Health Connect, Apple Health)
+- Unified view across manual entries + supported wearable providers (Garmin, Fitbit, Oura, Withings in MVP)
 - Long-term trend analysis — not just today's data, but months/years of context
 - Clean, premium, dark-mode UX — most health apps are cluttered and ugly
 
@@ -26,7 +26,7 @@
 
 1. **Users should be able to log health metrics** — manually enter data points (heart rate, VO2 Max, weight, etc.) with timestamps
 2. **Users should be able to view their metrics on a dashboard with trend analytics** — see current values, 7/30/90-day trends, averages, min/max
-3. **Users should be able to connect wearable devices** — sync data automatically from Samsung Health, Health Connect, Apple Health
+3. **Users should be able to connect wearable providers** — sync data automatically from supported providers via a server-side aggregator + webhook flow
 
 **Secondary features (needed for a complete product, but not the core system design challenge):**
 - Register / login / logout / password reset (auth)
@@ -34,7 +34,9 @@
 - Export all data / delete account (GDPR compliance)
 - Define custom metrics beyond the defaults
 - Receive alerts on anomalous values
-- View real-time streaming from wearables (WebSocket)
+- Receive live dashboard updates when new wearable data lands (WebSocket)
+
+**Provider scope note:** MVP wearable sync is server-side only for providers with real web APIs, linked through a wearable aggregator. Apple Health, Health Connect, and Samsung Health are explicitly deferred until we commit to a native mobile product.
 
 ### 1.3 Non-Functional Requirements
 
@@ -49,7 +51,7 @@ In practice: single PostgreSQL primary (strong consistency for writes), Redis ca
 | 1 | **Low-latency analytics queries** | < 200ms p95 for 30-day metric range queries | Users interact with trends constantly — slow charts kill the experience. Drives the TimescaleDB choice. |
 | 2 | **Data durability & security** | Zero data loss, field-level encryption for PII, OWASP Top 10 addressed | Health data is sensitive and irreplaceable. Losing it or leaking it destroys trust. |
 | 3 | **Consistency for writes** | All metric writes are ACID-committed before returning success | A user logs their blood pressure — it must be there when they check. No eventual consistency for writes. |
-| 4 | **GDPR compliance** | Full data export and account deletion within 72 hours | Legal requirement for EU users. Must be designed in, not bolted on. |
+| 4 | **GDPR compliance** | Full data export and account deletion without undue delay, within 30 days | Legal requirement for EU users. Must be designed in, not bolted on. |
 | 5 | **Availability** | 99.5% uptime (pragmatic MVP) | Important but secondary to consistency. Brief downtime is tolerable; wrong data is not. |
 
 **Capacity estimation**: Deferred. We're building a time-series health tracker — it's a write-moderate, read-heavy system with predictable load. We'll do targeted math if a specific design decision requires it (e.g., partition size, cache sizing).
@@ -62,10 +64,10 @@ We derived entities from the functional requirements by asking: *"What data must
 
 | Entity | Exists because... | Key design decision |
 |---|---|---|
-| **User** | Every feature requires knowing *who*. Multi-tenant system — all data is scoped to a user. | PII (email, name, DOB) encrypted at field level. UUID PKs to avoid exposing sequential IDs. |
+| **User** | Every feature requires knowing *who*. Multi-tenant system — all data is scoped to a user. | PII encrypted at field level. Email stored as ciphertext plus `email_lookup_hash` (HMAC of normalized email) for uniqueness + login lookups. UUID PKs avoid exposing sequential IDs. |
 | **MetricDefinition** | Users need to know *what* they can track. System needs validation rules (unit, min/max range) per metric type. | Separated from MetricEntry to avoid duplicating metadata on every data point. `user_id=NULL` for system defaults, FK to user for custom metrics. |
 | **MetricEntry** | Core requirement #1 — the actual data points users log. This is where 99% of storage and query load lives. | TimescaleDB hypertable partitioned by `recorded_at` for efficient time-range queries. Denormalized `user_id` for fast row-level filtering. |
-| **ConnectedDevice** | Core requirement #3 — stores OAuth tokens and sync state for each connected wearable provider. | Need to track per-device: which provider, access/refresh tokens (encrypted), last sync timestamp, active status. One user can have multiple devices. |
+| **WearableConnection** | Core requirement #3 — represents a linked wearable provider account and sync state. | Stores provider, aggregator connection ID, hashed provider user identifier, status, and sync timestamps. We do not store raw Apple/Android health-store tokens in the backend. |
 | **Subscription** | Paid tiers gate features (custom metrics, integrations, streaming). Stripe state must be tracked server-side. | Single source of truth for entitlements. Decoupled from User to cleanly track subscription lifecycle (trialing → active → cancelled → past_due). |
 | **AuditLog** | GDPR compliance requires knowing who changed what and when. Also useful for debugging and security forensics. | Append-only. Stores diffs (`jsonb changes`), not full snapshots. |
 
@@ -74,12 +76,12 @@ We derived entities from the functional requirements by asking: *"What data must
 | Relationship | Cardinality | Meaning |
 |---|---|---|
 | User → MetricEntry | **1 : M** | A user logs many data points. An entry belongs to exactly one user. |
-| User → ConnectedDevice | **1 : M** | A user connects multiple wearables. Each device belongs to one user. |
+| User → WearableConnection | **1 : M** | A user links multiple wearable providers. Each connection belongs to one user. |
 | User → Subscription | **1 : M** | A user has subscription history (trialing → active → cancelled). Typically one active at a time, but we keep history. |
 | User → MetricDefinition | **1 : M** | A user can create custom metrics. System defaults have `user_id=NULL` (shared across all users). |
 | User → AuditLog | **1 : M** | A user generates many audit entries. Append-only, never updated. |
 | MetricDefinition → MetricEntry | **1 : M** | Each entry is "of" exactly one metric type (e.g., every heart rate reading points to the "Resting Heart Rate" definition). |
-| ConnectedDevice → MetricEntry | **1 : M** (optional) | Entries *can* be sourced from a device (`source_device_id` is nullable). Manual entries have no device. |
+| WearableConnection → MetricEntry | **1 : M** (optional) | Entries *can* be sourced from a linked provider connection (`source_connection_id` is nullable). Manual entries have no source connection. |
 
 > The `MetricDefinition → MetricEntry` split is the most important design choice: separating *what a metric is* (definition) from *each recorded value* (entry) gives us clean normalization, per-metric validation rules, and the ability to add custom metrics without schema changes.
 
@@ -87,14 +89,17 @@ We derived entities from the functional requirements by asking: *"What data must
 
 | MVP (R1) | Nice-to-Have (R2+) |
 |---|---|
-| Register / login / logout / password reset | OAuth social login (Google, Apple) |
+| Register / login / logout | OAuth social login (Google, Apple) |
 | Manual metric logging (default metrics) | Custom metric definitions |
 | Dashboard with latest values + 7/30-day trends | Advanced analytics (percentiles, anomaly detection) |
-| GDPR export + account deletion | Data comparison between metrics |
-| Audit logging | MFA (TOTP) |
-| Basic CI/CD + Docker | Real-time WebSocket streaming |
+| Basic CI/CD + Docker | Password reset |
+| | GDPR export + account deletion |
+| | Audit logging |
+| | Data comparison between metrics |
+| | MFA (TOTP) |
+| | Real-time WebSocket streaming |
 | | Stripe subscriptions |
-| | Wearable device integrations |
+| | Wearable provider integrations |
 | | Premium API access |
 
 ### 1.7 API Design
@@ -139,20 +144,20 @@ GET /api/v1/metrics/entries/?metric=resting_hr&limit=20
 
 {
   "results": [
-    {"id": 984312, "value": 58, "recorded_at": "2026-03-05T07:15:00Z", "source": "samsung_health"},
+    {"id": 984312, "value": 58, "recorded_at": "2026-03-05T07:15:00Z", "source": "garmin"},
     ...
   ],
-  "next_cursor": "eyJpZCI6IDk4NDI5Mn0=",
+  "next_cursor": "eyJyZWNvcmRlZF9hdCI6ICIyMDI2LTAzLTA1VDA3OjE1OjAwWiIsICJpZCI6IDk4NDMxMn0=",
   "has_more": true
 }
 
 // Next page:
-GET /api/v1/metrics/entries/?metric=resting_hr&cursor=eyJpZCI6IDk4NDI5Mn0=&limit=20
+GET /api/v1/metrics/entries/?metric=resting_hr&cursor=eyJyZWNvcmRlZF9hdCI6ICIyMDI2LTAzLTA1VDA3OjE1OjAwWiIsICJpZCI6IDk4NDMxMn0=&limit=20
 ```
-Cursor-based (not offset-based) because metric entries are time-series data — new entries are constantly added, and offset pagination would cause duplicates/gaps. The cursor encodes the last entry's ID.
+Cursor-based (not offset-based) because metric entries are time-series data — new entries are constantly added, and offset pagination would cause duplicates/gaps. Results are ordered by `recorded_at DESC, id DESC`, and the cursor encodes both values so backfills and out-of-order inserts don't skip or duplicate rows.
 
 **Data passing convention:**
-- **Path params** → required resource identifiers (`/analytics/{slug}/`, `/devices/{id}/`)
+- **Path params** → required resource identifiers (`/analytics/{slug}/`, `/wearables/connections/{id}/`)
 - **Query params** → optional filters and modifiers (`?metric=resting_hr&from=2026-01-01&range=30d&limit=20`)
 - **Request body** → data payloads for creating/updating resources
 
@@ -188,47 +193,51 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 | POST | `/api/v1/subscriptions/portal/` | Stripe Customer Portal link | |
 | POST | `/api/v1/webhooks/stripe/` | Stripe webhook receiver | No JWT — uses Stripe signature verification instead |
 
-#### Devices (R3+, JWT required)
+#### Wearables (R3+, JWT required)
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
-| GET | `/api/v1/devices/` | List connected devices | |
-| POST | `/api/v1/devices/connect/{provider}/` | Initiate OAuth | `provider` is required — path param |
-| GET | `/api/v1/devices/callback/{provider}/` | OAuth callback | |
-| DELETE | `/api/v1/devices/{id}/` | Disconnect | Idempotent |
-| POST | `/api/v1/devices/{id}/sync/` | Trigger manual sync | Returns 202 Accepted — async via Celery |
+| GET | `/api/v1/wearables/connections/` | List linked wearable providers | |
+| POST | `/api/v1/wearables/connect/{provider}/` | Start hosted link flow | `provider` is required — path param. MVP providers: Garmin, Fitbit, Oura, Withings |
+| DELETE | `/api/v1/wearables/connections/{id}/` | Disconnect provider | Idempotent |
+| POST | `/api/v1/wearables/connections/{id}/resync/` | Trigger backfill / resync | Returns 202 Accepted — async via Celery if provider supports it |
+| POST | `/api/v1/webhooks/wearables/` | Wearable aggregator webhook receiver | No JWT — signed webhook verification |
 
 #### Real-Time Streaming (R4+)
 ```
 ws://host/ws/metrics/stream/
 ```
-Not REST — persistent WebSocket connection. Ticket-based auth (short-lived token from REST endpoint, included in WS handshake). Token-bucket backpressure (10 pts/sec max), server sends `SLOW_DOWN` frame on overflow.
+Not REST — persistent WebSocket connection. Ticket-based auth (short-lived token from REST endpoint, included in WS handshake). Used for live dashboard updates when new manual or wearable data lands; not for direct device-to-server streaming in MVP.
 
 ### 1.8 Data Flow
 
 ```mermaid
 sequenceDiagram
-    participant U as User/Wearable
+    participant U as User
     participant API as Django API
-    participant DB as PostgreSQL + TimescaleDB
+    participant DB as TimescaleDB
     participant R as Redis
     participant C as Celery Worker
-    participant S as External Service
+    participant W as Wearable Aggregator
 
-    Note over U,S: Manual Metric Logging
+    Note over U,W: Manual Metric Logging
     U->>API: POST /metrics/entries/ (JWT)
     API->>API: Validate input, check permissions
     API->>DB: INSERT metric_entry
     API->>R: Invalidate dashboard cache
     API-->>U: 201 Created
 
-    Note over U,S: Device Sync (Background)
-    C->>S: Fetch latest data (OAuth token)
-    S-->>C: Health data response
-    C->>C: Deduplicate, normalize timestamps
+    Note over U,W: Wearable Sync (Webhook + Backfill)
+    U->>API: POST /wearables/connect/{provider}/ (JWT)
+    API-->>U: Hosted link URL
+    W->>API: POST /webhooks/wearables/ (signed event)
+    API->>C: Enqueue normalization job
+    C->>W: Fetch incremental data / backfill
+    W-->>C: Wearable payload
+    C->>C: Deduplicate, normalize units + timestamps
     C->>DB: Bulk insert metric_entries
     C->>R: Invalidate user cache
 
-    Note over U,S: Dashboard Load
+    Note over U,W: Dashboard Load
     U->>API: GET /metrics/analytics/ (JWT)
     API->>R: Check cache
     alt Cache hit
@@ -270,18 +279,17 @@ graph TB
         USER["Users / Browsers"]
     end
 
-    subgraph "Cloud Provider - AWS"
+    subgraph "App Hosting - AWS"
         subgraph "Edge"
-            GW["API Gateway / ALB"]
+            GW["ALB"]
         end
 
         subgraph "Compute"
-            APP["Django App<br/>(App Runner / ECS)"]
+            APP["Django App<br/>(ECS Fargate Service)"]
             WORKER["Celery Worker<br/>(ECS Task)"]
         end
 
-        subgraph "Data"
-            RDS[("RDS PostgreSQL<br/>+ TimescaleDB")]
+        subgraph "App Data"
             ELASTICACHE[("ElastiCache Redis")]
             S3["S3 Bucket<br/>(Backups, Static)"]
         end
@@ -293,8 +301,11 @@ graph TB
 
         subgraph "Ops"
             CW["CloudWatch<br/>(Logs + Metrics)"]
-            BACKUP["Automated RDS Backups"]
         end
+    end
+
+    subgraph "Managed Database"
+        TSDB[("Timescale Cloud<br/>(Managed PostgreSQL + TimescaleDB)")]
     end
 
     subgraph "CI/CD"
@@ -303,31 +314,27 @@ graph TB
     end
 
     USER --> GW --> APP
-    APP --> RDS
+    APP --> TSDB
     APP --> ELASTICACHE
     APP --> SECRETS
-    WORKER --> RDS
+    WORKER --> TSDB
     WORKER --> ELASTICACHE
     GHA --> ECR --> APP
-    RDS --> BACKUP
-    BACKUP --> S3
     APP --> CW
 ```
 
 #### Full Requirements Architecture (Target — All Features)
 
-This is the architecture when all releases (R1–R5) are complete: auth, metrics, subscriptions, device integrations, real-time streaming, analytics — everything running in production.
+This is the architecture when all releases (R1–R5) are complete: auth, metrics, subscriptions, wearable integrations, real-time streaming, analytics — everything running in production.
 
 ```mermaid
 graph TB
     subgraph "Client Layer"
         WEB["React SPA<br/>(Vite)"]
-        MOBILE["Companion Mobile App<br/>(Health Connect + HealthKit sync)"]
-        WEARABLE["Wearable Devices<br/>(Samsung Watch, etc.)"]
     end
 
     subgraph "Edge"
-        NGINX["ALB / API Gateway<br/>(TLS, CORS, Rate Limiting)"]
+        NGINX["ALB<br/>(TLS, CORS, Rate Limiting)"]
     end
 
     subgraph "Application Layer"
@@ -338,21 +345,19 @@ graph TB
     end
 
     subgraph "Data Layer"
-        PG[("PostgreSQL + TimescaleDB<br/>(Metrics, Users, Subscriptions)")]
+        PG[("Timescale Cloud<br/>(PostgreSQL + TimescaleDB)")]
         REDIS[("Redis<br/>(Cache + Broker + Pub/Sub)")]
         S3["S3<br/>(Exports, Backups, Static)"]
     end
 
     subgraph "External Services"
         STRIPE["Stripe API<br/>(Checkout, Webhooks, Portal)"]
-        SAMSUNG["Samsung Health Data SDK"]
-        HC["Health Connect / HealthKit<br/>(via Companion App)"]
+        AGG["Wearable Aggregator API<br/>(Link flow, webhooks, backfills)"]
+        PROVIDERS["Wearable Providers<br/>(Garmin, Fitbit, Oura, Withings)"]
         SENTRY_EXT["Sentry<br/>(Error Tracking)"]
     end
 
     WEB -- "HTTPS" --> NGINX
-    MOBILE -- "HTTPS" --> NGINX
-    WEARABLE -- "WSS" --> NGINX
 
     NGINX -- "REST" --> DJANGO
     NGINX -- "WebSocket" --> CHANNELS
@@ -360,6 +365,7 @@ graph TB
     DJANGO --> PG
     DJANGO --> REDIS
     DJANGO --> STRIPE
+    DJANGO --> AGG
     DJANGO --> SENTRY_EXT
 
     CHANNELS --> REDIS
@@ -367,21 +373,22 @@ graph TB
 
     CELERY --> PG
     CELERY --> REDIS
-    CELERY --> SAMSUNG
-    CELERY --> HC
+    CELERY --> AGG
     CELERY --> S3
 
     BEAT --> REDIS
 
     STRIPE -- "Webhooks" --> DJANGO
+    AGG -- "Webhooks" --> DJANGO
+    AGG --> PROVIDERS
 ```
 
 **How traffic flows:**
 - **REST requests** (login, log metric, fetch analytics) → ALB → Django (Gunicorn/WSGI)
-- **WebSocket connections** (live streaming from wearable) → ALB → Django Channels (Uvicorn/ASGI) → Redis Pub/Sub → all connected dashboards
-- **Background work** (device sync, analytics computation, Stripe webhooks, GDPR exports) → Celery Workers ← Redis broker
+- **WebSocket connections** (live dashboard updates) → ALB → Django Channels (Uvicorn/ASGI) → Redis Pub/Sub → connected dashboards
+- **Background work** (wearable backfills, analytics computation, Stripe webhooks, GDPR exports) → Celery Workers ← Redis broker
 - **Scheduled jobs** (nightly aggregates, token refresh) → Celery Beat → Redis → Workers
-- **External calls** → Celery Workers connect to Samsung Health SDK, Health Connect (via companion app), Stripe
+- **External calls** → Celery Workers connect to the wearable aggregator + Stripe
 
 #### Scaled Architecture (1M+ Users — For Reference)
 
@@ -409,7 +416,7 @@ graph TB
     end
 
     subgraph "Data - Sharded + Replicated"
-        PG_PRIMARY[("RDS Primary<br/>(Writes only)")]
+        PG_PRIMARY[("PostgreSQL / Timescale Primary<br/>(Writes only)")]
         PG_READ1[("Read Replica 1")]
         PG_READ2[("Read Replica 2")]
         REDIS_CLUSTER[("ElastiCache Cluster<br/>(3-node, failover)")]
@@ -451,7 +458,7 @@ graph TB
 | **Database writes** | Single primary | Still single primary | PostgreSQL doesn't support multi-primary writes. For writes beyond one primary, you'd need to shard by user_id (e.g., users A-M → shard 1, N-Z → shard 2). |
 | **Redis** | Single instance | 3-node cluster with failover | Single Redis = single point of failure. Cluster gives replication + automatic failover. |
 | **WebSockets** | Part of Django app | Separate Channels instances | WebSocket connections are long-lived and memory-heavy. Separating them lets you scale WS independently from REST API. |
-| **Celery** | 1 worker | Auto-scaled worker pool | Device syncs and analytics jobs scale with user count. ECS auto-scales workers based on queue depth. |
+| **Celery** | 1 worker | Auto-scaled worker pool | Wearable syncs and analytics jobs scale with user count. ECS auto-scales workers based on queue depth. |
 | **CDN** | Optional | Required | At scale, serving static assets and caching API responses at the edge saves massive bandwidth and reduces latency globally. |
 | **WAF** | Basic | Required | At 1M+ users, you're a target for DDoS, credential stuffing, and abuse. WAF filters malicious traffic before it reaches your servers. |
 | **Monitoring** | CloudWatch + Sentry | Prometheus + Grafana + Sentry | CloudWatch is fine for MVP. At scale, Prometheus gives you custom metrics (requests/sec per endpoint, p99 latency, queue depths) and Grafana gives you dashboards to spot problems before users notice. |
@@ -464,7 +471,7 @@ graph TB
 #### Security (OWASP Top 10 addressed)
 | OWASP Risk | Mitigation |
 |---|---|
-| A01 Broken Access Control | Row-level security (all queries scoped by `user_id`), permission classes per view |
+| A01 Broken Access Control | User-scoped querysets / service methods plus permission classes per view |
 | A02 Cryptographic Failures | Argon2 passwords, field-level encryption for PII, TLS 1.3, no secrets in code |
 | A03 Injection | Django ORM (parameterized queries), strict serializer validation |
 | A04 Insecure Design | Threat modeling in this plan, rate limiting, audit logging |
@@ -473,17 +480,17 @@ graph TB
 | A07 Auth Failures | JWT with short TTL (15 min), rate-limited login (5/min), refresh token rotation |
 | A08 Data Integrity Failures | Stripe webhook signature verification, input validation with range checks |
 | A09 Logging Failures | `django-auditlog` on all models, structured logging, CloudWatch |
-| A10 SSRF | No user-supplied URLs in server-side requests, OAuth callbacks whitelisted |
+| A10 SSRF | No user-supplied URLs in server-side requests, outbound calls restricted to allowlisted provider / aggregator hosts |
 
 #### Edge Cases
-- **Duplicate data from device sync**: Dedup by `(user_id, metric_definition_id, recorded_at, source)` unique constraint. If a duplicate arrives, upsert (ignore or update).
+- **Duplicate data from wearable sync**: Dedup by `(user_id, metric_definition_id, recorded_at, source, source_connection_id)` unique constraint. If a duplicate arrives, upsert (ignore or update). If the provider supplies a stable external event ID, store it and enforce idempotency there too.
 - **Timezone hell**: All timestamps stored as UTC (`timestamptz`). User's timezone stored on profile for display only. `recorded_at` is always UTC — the frontend converts for display.
 - **Metric value out of range**: Rejected at serializer level. MetricDefinition has `min_value` and `max_value` — a heart rate of 500 bpm gets a 400 error.
 - **Stripe webhook replay**: Idempotency key check. Store processed Stripe event IDs in a `StripeEvent` table. If we see the same event ID twice, skip processing.
 - **Token expiry during WebSocket session**: Server sends `AUTH_EXPIRED` frame. Client must close the socket, re-authenticate via REST, get a new WS ticket, and reconnect.
 - **User deletes account mid-sync**: Celery task checks `user.is_active` before writing data. If user is deleted, task aborts gracefully.
-- **Concurrent metric writes for same timestamp**: The unique constraint on `(user_id, metric_definition_id, recorded_at, source)` prevents silent overwrites. Second write gets a conflict error.
-- **Wearable sends data during network outage**: WebSocket client should buffer locally and retry. Server accepts out-of-order data (sorted by `recorded_at`, not arrival time).
+- **Concurrent metric writes for same timestamp**: The unique constraint on `(user_id, metric_definition_id, recorded_at, source, source_connection_id)` prevents silent overwrites for provider-synced data. Manual duplicate submissions still need explicit product policy (allow vs reject).
+- **Aggregator webhook delivery failure**: Signed webhooks should retry, and a scheduled backfill job should repair missed intervals. Server accepts out-of-order data (sorted by `recorded_at`, not arrival time).
 
 #### Bottlenecks & Mitigations
 | Bottleneck | Symptom | Mitigation |
@@ -491,7 +498,7 @@ graph TB
 | Dashboard analytics on millions of rows | Slow dashboard loads (> 1s) | TimescaleDB `time_bucket()` + pre-computed daily aggregates via nightly Celery task. Cache results in Redis (10 min TTL). |
 | Single Postgres primary under write load | Connection pool exhaustion, write latency spikes | Read replicas for analytics queries. Only writes go to primary. Connection pooling via PgBouncer. |
 | Redis as single point of failure | Cache miss storm, Celery stalls, WS drops | ElastiCache cluster with automatic failover. App degrades gracefully (skip cache, serve from DB). |
-| Third-party API rate limits (Samsung, Health Connect) | Sync jobs fail in bursts | Celery retry with exponential backoff + jitter. Per-user rate limiting on sync requests. Provider-level circuit breaker. |
+| Third-party API rate limits (aggregator / provider APIs) | Sync jobs fail in bursts | Celery retry with exponential backoff + jitter. Per-user rate limiting on resync requests. Provider-level circuit breaker. |
 | WebSocket connection memory (1000+ concurrent) | OOM on app instance | Token-bucket backpressure. Max 3 connections per user. Separate WS instances from REST API at scale. |
 | Large GDPR export (user with 100K+ entries) | Request timeout | Async export via Celery. Return 202 Accepted + poll endpoint. Stream results to S3, send download link via email. |
 
@@ -502,14 +509,15 @@ erDiagram
     User ||--o{ Subscription : has
     User ||--o{ MetricDefinition : creates
     User ||--o{ MetricEntry : logs
-    User ||--o{ ConnectedDevice : connects
+    User ||--o{ WearableConnection : connects
     User ||--o{ AuditLog : generates
     MetricDefinition ||--o{ MetricEntry : "defines type for"
-    ConnectedDevice ||--o{ MetricEntry : sources
+    WearableConnection ||--o{ MetricEntry : sources
 
     User {
         uuid id PK
-        string email "encrypted, unique"
+        string email_ciphertext "encrypted"
+        string email_lookup_hash "unique, indexed"
         string password_hash "argon2"
         string first_name "encrypted"
         string last_name "encrypted"
@@ -552,21 +560,21 @@ erDiagram
         uuid metric_definition_id FK
         float value
         timestamptz recorded_at "hypertable partition key"
-        uuid source_device_id FK "nullable"
-        string source "manual|samsung_health|health_connect|apple_health|device_stream"
+        uuid source_connection_id FK "nullable"
+        string source "manual|garmin|fitbit|oura|withings|csv_import"
         jsonb context
         timestamptz created_at
     }
 
-    ConnectedDevice {
+    WearableConnection {
         uuid id PK
         uuid user_id FK
-        string provider "samsung_health|health_connect|apple_health|aggregator"
-        string external_user_id "encrypted"
-        string access_token "encrypted"
-        string refresh_token "encrypted"
-        datetime token_expires_at
+        string provider "garmin|fitbit|oura|withings"
+        string aggregator_connection_id "unique"
+        string provider_user_id_hash
+        string status "pending|active|error|revoked"
         datetime last_synced_at
+        datetime last_webhook_at
         boolean is_active
     }
 
@@ -610,7 +618,7 @@ erDiagram
 │                                                     │
 │  Recent Entries                        [+ Log]      │
 │  VO2 Max      42.5 ml/kg/min   manual   5 Mar     │
-│  Rest HR      58 bpm           samsung  5 Mar     │
+│  Rest HR      58 bpm           garmin   5 Mar     │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -623,7 +631,7 @@ erDiagram
 | Layer | Choice | Why |
 |---|---|---|
 | **Backend** | Python / Django + DRF | Know it well, batteries-included, great ORM |
-| **Database** | PostgreSQL + TimescaleDB | Best relational DB + time-series extension, no extra service |
+| **Database** | Timescale Cloud (PostgreSQL + TimescaleDB) | Keeps TimescaleDB features without relying on unsupported RDS extensions |
 | **Cache / Broker** | Redis | Cache + Celery broker + Channels pub/sub in one |
 | **Task Queue** | Celery + Celery Beat | Mature, Django-native, handles scheduled + async tasks |
 | **WebSockets** | Django Channels | Stays in Django ecosystem, ASGI support |
@@ -633,7 +641,7 @@ erDiagram
 | **Containerization** | Docker + Docker Compose | Local dev parity, easy cloud deployment |
 | **CI/CD** | GitHub Actions | Free for public repos, simple YAML config |
 | **IaC** | Terraform | Cloud-agnostic, version-controlled infrastructure |
-| **Cloud** | AWS (App Runner / ECS, RDS, ElastiCache, S3) | Most job-relevant, pragmatic managed services |
+| **Cloud** | AWS (ECS Fargate, ElastiCache, S3) + Timescale Cloud | Pragmatic split: AWS for app hosting, managed Timescale for time-series DB |
 | **Monitoring** | CloudWatch (MVP) → Prometheus + Grafana (later) | Start simple, upgrade when needed |
 | **Error Tracking** | Sentry | Free tier, Django integration, best-in-class |
 
@@ -641,7 +649,7 @@ erDiagram
 
 | KPI | Target | How to measure |
 |---|---|---|
-| MVP shipped | Within 4 weeks | Deployed, functional, passing tests |
+| MVP shipped | Within 6 weeks | Deployed, functional, passing tests |
 | API p95 latency | < 300ms | Sentry performance monitoring |
 | Test coverage | > 80% | `pytest-cov` in CI |
 | Zero critical security findings | 0 P0/P1 | `pip-audit` + manual OWASP review |
@@ -670,7 +678,7 @@ erDiagram
 See §1.11 for full ERD. Key decisions:
 - `MetricEntry` = TimescaleDB hypertable, partitioned by `recorded_at`
 - UUIDs for all PKs (no sequential ID exposure)
-- PII encrypted at field level
+- PII encrypted at field level; email lookup via `email_lookup_hash`
 - `Subscription` is the single source of truth for entitlements
 
 #### What is `recorded_at`?
@@ -694,22 +702,22 @@ Splitting into MetricDefinition (the *template*) + MetricEntry (the *data*) give
 3. **Custom metrics without schema changes**: Just `INSERT` a new MetricDefinition row
 4. **Queryability**: "Get all cardiovascular metrics" = join on definition's category
 
-#### What does "MetricEntry sources ConnectedDevice" mean?
+#### What does "MetricEntry sources WearableConnection" mean?
 
-The `source_device_id` FK on MetricEntry answers: **"Where did this data point come from?"**
+The `source_connection_id` FK on MetricEntry answers: **"Where did this data point come from?"**
 
-- A manual entry (user typed it in): `source_device_id = NULL`, `source = 'manual'`
-- An auto-synced entry from Samsung watch: `source_device_id = 'uuid-of-samsung-device'`, `source = 'samsung_health'`
+- A manual entry (user typed it in): `source_connection_id = NULL`, `source = 'manual'`
+- An auto-synced entry from Garmin: `source_connection_id = 'uuid-of-garmin-connection'`, `source = 'garmin'`
 
-This lets us show provenance ("this reading came from your Galaxy Watch 6"), filter by source, and detect duplicates across sync jobs.
+This lets us show provenance ("this reading came from your Garmin connection"), filter by source, and detect duplicates across sync jobs.
 
 #### Sample Data Across All Tables
 
 **Users:**
-| id | email | first_name | timezone | is_active |
-|---|---|---|---|---|
-| `a1b2c3d4-...` | `alice@enc...` | `Alice (enc)` | `Europe/Berlin` | true |
-| `e5f6g7h8-...` | `bob@enc...` | `Bob (enc)` | `America/New_York` | true |
+| id | email_lookup_hash | email_ciphertext | first_name | timezone | is_active |
+|---|---|---|---|---|---|
+| `a1b2c3d4-...` | `hmac(alice@example.com)` | `alice@enc...` | `Alice (enc)` | `Europe/Berlin` | true |
+| `e5f6g7h8-...` | `hmac(bob@example.com)` | `bob@enc...` | `Bob (enc)` | `America/New_York` | true |
 
 **MetricDefinitions (system defaults, `user_id = NULL`):**
 | id | user_id | name | slug | unit | category | min | max | is_default |
@@ -721,22 +729,22 @@ This lets us show provenance ("this reading came from your Galaxy Watch 6"), fil
 | `def-005` | NULL | Blood Pressure (Systolic) | `bp_systolic` | mmHg | cardiovascular | 60 | 250 | true |
 | `def-custom` | `a1b2c3d4-...` | Cold Plunge Duration | `cold_plunge` | minutes | recovery | 0 | 60 | false |
 
-**ConnectedDevices:**
+**WearableConnections:**
 | id | user_id | provider | last_synced_at | is_active |
 |---|---|---|---|---|
-| `dev-001` | `a1b2c3d4-...` | samsung_health | 2026-03-06 07:00 UTC | true |
-| `dev-002` | `e5f6g7h8-...` | health_connect | 2026-03-05 22:30 UTC | true |
+| `conn-001` | `a1b2c3d4-...` | garmin | 2026-03-06 07:00 UTC | true |
+| `conn-002` | `e5f6g7h8-...` | oura | 2026-03-05 22:30 UTC | true |
 
 **MetricEntries (the actual data points):**
-| id | user_id | metric_definition_id | value | recorded_at | source_device_id | source |
+| id | user_id | metric_definition_id | value | recorded_at | source_connection_id | source |
 |---|---|---|---|---|---|---|
-| 1 | `a1b2c3d4-...` | `def-001` (Resting HR) | 58 | 2026-03-06 07:15 UTC | `dev-001` | samsung_health |
+| 1 | `a1b2c3d4-...` | `def-001` (Resting HR) | 58 | 2026-03-06 07:15 UTC | `conn-001` | garmin |
 | 2 | `a1b2c3d4-...` | `def-002` (VO2 Max) | 42.5 | 2026-03-06 08:30 UTC | NULL | manual |
-| 3 | `a1b2c3d4-...` | `def-003` (Sleep) | 7.5 | 2026-03-06 06:30 UTC | `dev-001` | samsung_health |
+| 3 | `a1b2c3d4-...` | `def-003` (Sleep) | 7.5 | 2026-03-06 06:30 UTC | `conn-001` | garmin |
 | 4 | `a1b2c3d4-...` | `def-custom` (Cold Plunge) | 3.5 | 2026-03-06 09:00 UTC | NULL | manual |
-| 5 | `e5f6g7h8-...` | `def-001` (Resting HR) | 65 | 2026-03-05 22:00 UTC | `dev-002` | health_connect |
+| 5 | `e5f6g7h8-...` | `def-001` (Resting HR) | 65 | 2026-03-05 22:00 UTC | `conn-002` | oura |
 
-Notice row 1: Alice's resting HR of 58 bpm was *auto-synced* from her Samsung device (`source_device_id = dev-001`). Row 2: her VO2 Max was *manually entered* (`source_device_id = NULL`). Row 4: her custom "Cold Plunge" metric uses a definition she created herself.
+Notice row 1: Alice's resting HR of 58 bpm was *auto-synced* from her Garmin connection (`source_connection_id = conn-001`). Row 2: her VO2 Max was *manually entered* (`source_connection_id = NULL`). Row 4: her custom "Cold Plunge" metric uses a definition she created herself.
 
 **Subscriptions:**
 | id | user_id | plan | status | current_period_end |
@@ -755,8 +763,9 @@ See §1.7. REST with DRF. OpenAPI spec auto-generated via `drf-spectacular`.
 
 ### 2.4 Auth Strategy
 - **JWT** (short-lived access 15 min + HTTP-only refresh 7 days)
+- **Email storage** = encrypted ciphertext + `email_lookup_hash` for uniqueness / lookup
 - **OAuth social login** (Google, Apple) in R2
-- **OAuth 2.0** for device integrations (Samsung Health, Health Connect)
+- **Hosted link flow + signed webhooks** for wearable integrations via aggregator
 - **Rate limiting** on auth endpoints (5 login attempts/min)
 
 ### 2.5 Scalability Approach
@@ -786,9 +795,9 @@ Never changes.            Infra grows in place.    This is the goal.         Onl
 **Your ultimate target is #3 — Full Requirements Architecture.** #4 is for reference / interviews / if you get massive traction.
 
 **Key insight: #2 evolves into #3 naturally.** You don't "migrate" — you add components to the same cloud infrastructure as you ship each release:
-- **R1**: Django + Postgres + Redis on cloud → **architecture #2**
+- **R1**: Django + Timescale + Redis on cloud → **architecture #2**
 - **R2**: Add Stripe webhook endpoint → same infra, just new code
-- **R3**: Add Celery tasks calling Samsung Health, add OAuth flow → same infra, add a Celery worker ECS task
+- **R3**: Add wearable aggregator link flow, webhook receiver, and backfill jobs → same infra, add more Celery capacity
 - **R4**: Add Django Channels, add Uvicorn alongside Gunicorn → same infra, add ASGI routing
 - **R5**: Add analytics endpoints → same infra, just new code
 - **End result: architecture #3 — without ever "migrating"**
@@ -804,19 +813,21 @@ Build features end-to-end (model → serializer → view → test → deploy), n
 | Week 3: Build ALL views | Week 3: Build dashboard analytics end-to-end |
 | Week 4: Try to connect everything | Each week delivers a working, tested, deployed feature |
 
-**R1 MVP vertical slices (~2-4 days each):**
+**R1 MVP vertical slices (~3-5 days each):**
 
 | Slice | What you build | Shippable result |
 |---|---|---|
 | **1. Scaffold** | Django project, Docker Compose, CI pipeline, deploy pipeline | Empty app deployed to cloud, CI runs on push |
-| **2. Auth** | User model, register, login, refresh, logout, password reset, rate limiting | Users can create accounts and log in |
+| **2. Auth** | User model, encrypted PII, `email_lookup_hash`, register, login, refresh, logout, rate limiting | Users can create accounts and log in |
 | **3. Metric definitions** | MetricDefinition model, seed data migration, list endpoint | API returns available metrics |
 | **4. Metric logging** | MetricEntry model, TimescaleDB hypertable, create/list/filter endpoints | Users can log and retrieve metrics |
 | **5. Analytics** | time_bucket queries, analytics endpoint, Redis caching | Users can see 7/30-day trends |
-| **6. GDPR + Audit** | Export endpoint, deletion endpoint, audit logging | Users can export/delete data |
-| **7. Polish** | Error handling, API docs, security headers, test coverage to 80% | Production-ready MVP |
+| **6. Deploy + Monitoring** | Health check, structured logging, CI/CD deploy, basic monitoring | Working MVP deployed to cloud |
+| **7. Docs + Hardening** | Error handling, API docs, security headers, test coverage hardening | Production-ready MVP |
 
 Each slice: code → test → PR → CI green → merge → deploy.
+
+**Post-MVP hardening (R1.1):** Password reset, GDPR export/delete, and audit logging. Important, but not required to prove the core product loop.
 
 #### Tech Learning Timeline
 
@@ -827,7 +838,7 @@ You don't need to learn everything before starting. Learn each tech right before
 | **Before Slice 1** | Docker Compose, GitHub Actions CI, Terraform basics | 1-2 days |
 | **Slices 2-7 (R1)** | Django + DRF, PostgreSQL + TimescaleDB, pytest, Redis (cache), JWT auth | Core skills — should already know Django/DRF |
 | **R2 (Monetization)** | Stripe API (Checkout, webhooks), Celery basics | 1-2 days |
-| **R3 (Integrations)** | OAuth 2.0 flow, Celery (retries, backoff, scheduling), Samsung Health SDK | 2-3 days |
+| **R3 (Integrations)** | Aggregator link flow, webhook verification, Celery (retries, backoff, scheduling), provider normalization | 2-4 days |
 | **R4 (Real-Time)** | Django Channels, WebSocket protocol, Redis Pub/Sub | 2-4 days (steepest curve) |
 | **R5 (Advanced)** | Data analysis patterns (percentiles, anomaly detection), advanced caching | 1-2 days |
 
@@ -886,11 +897,11 @@ longevity/
 ├── config/           # Settings, URLs, ASGI, Celery
 │   └── settings/     # base.py, dev.py, prod.py, test.py
 ├── apps/
-│   ├── accounts/     # User model, auth, profile, GDPR
-│   ├── metrics/      # MetricDefinition, MetricEntry, analytics
+│   ├── accounts/       # User model, auth, profile, GDPR
+│   ├── metrics/        # MetricDefinition, MetricEntry, analytics
 │   ├── subscriptions/  # Stripe (R2+)
-│   ├── devices/      # Wearable integrations (R3+)
-│   └── streaming/    # WebSocket consumers (R4+)
+│   ├── wearables/      # Wearable integrations (R3+)
+│   └── streaming/      # WebSocket consumers (R4+)
 ├── common/           # Shared utils, middleware, permissions
 ├── docker-compose.yml
 ├── Dockerfile
@@ -939,43 +950,47 @@ SENTRY_DSN=
 
 Follows the progressive rollout (R1→R5):
 
-### R1 — Foundation (Weeks 1-4, MVP)
+### R1 — Foundation (Weeks 1-6, MVP)
 1. Django project scaffold with split settings (base/dev/prod/test)
-2. Custom User model with encrypted PII fields
-3. JWT auth (register, login, refresh, logout, password reset)
-4. Rate limiting on auth endpoints
+2. Custom User model with encrypted PII fields + `email_lookup_hash`
+3. JWT auth (register, login, refresh, logout)
+4. Basic rate limiting on auth endpoints
 5. Security middleware (CORS, CSP, HSTS headers)
 6. MetricDefinition model + default seed data migration
 7. MetricEntry model + TimescaleDB hypertable
-8. Metrics CRUD API with row-level security
+8. Metrics CRUD API with user scoping
 9. Basic analytics endpoint (time_bucket queries)
-10. GDPR endpoints (export, deletion)
-11. Audit logging
-12. API docs via `drf-spectacular`
+10. API docs via `drf-spectacular`
+11. Health endpoint, structured logging, deploy pipeline
 
-### R2 — Monetization (Weeks 5-6)
-13. Stripe Checkout + Customer Portal integration
-14. Subscription model + webhook handler (signature verification, idempotent processing)
-15. Tier-based permission enforcement
-16. Retention policy Celery task
+### R1.1 — Compliance Hardening (Weeks 7-8)
+12. Password reset
+13. GDPR endpoints (export, deletion)
+14. Audit logging
 
-### R3 — Integrations (Weeks 7-8)
-17. OAuth flow for Samsung Health / Health Connect
-18. Token storage with field encryption
-19. Periodic sync Celery task with dedup
-20. Data reconciliation (timestamp + source unique constraint)
+### R2 — Monetization (Weeks 9-10)
+15. Stripe Checkout + Customer Portal integration
+16. Subscription model + webhook handler (signature verification, idempotent processing)
+17. Tier-based permission enforcement
+18. Retention policy Celery task
 
-### R4 — Real-Time (Weeks 9-10)
-21. Django Channels ASGI setup
-22. WebSocket consumer with ticket-based auth
-23. Token-bucket backpressure
-24. Live dashboard push
+### R3 — Wearable Integrations (Weeks 11-13)
+19. Wearable aggregator hosted link flow
+20. Signed webhook receiver + idempotent processing
+21. Periodic backfill Celery task with dedup
+22. Data reconciliation (timestamp + source_connection unique constraint)
 
-### R5 — Advanced (Weeks 11-12)
-25. Advanced analytics (percentiles, anomaly detection)
-26. Full caching layer
-27. Custom metric definitions for premium users
-28. Premium API access tier
+### R4 — Real-Time (Weeks 14-15)
+23. Django Channels ASGI setup
+24. WebSocket consumer with ticket-based auth
+25. Token-bucket backpressure
+26. Live dashboard push
+
+### R5 — Advanced (Weeks 16-18)
+27. Advanced analytics (percentiles, anomaly detection)
+28. Full caching layer
+29. Custom metric definitions for premium users
+30. Premium API access tier
 
 ---
 
@@ -991,7 +1006,7 @@ Follows the progressive rollout (R1→R5):
 ### 5.3 Routing: React Router
 - `/` → Dashboard
 - `/metrics/:slug` → Metric detail
-- `/settings` → Profile, connected devices, subscription
+- `/settings` → Profile, wearable connections, subscription
 - `/login`, `/register` → Auth pages
 
 ### 5.4 API Integration: Axios / fetch + JWT interceptor for auto-refresh
@@ -1025,9 +1040,9 @@ Follows the progressive rollout (R1→R5):
 
 Terraform manages:
 - VPC + subnets + security groups
-- RDS (PostgreSQL + TimescaleDB)
+- Timescale Cloud service (PostgreSQL + TimescaleDB)
 - ElastiCache (Redis)
-- App Runner or ECS (Django + Celery)
+- ECS Fargate (Django + Celery)
 - S3 (backups, static files)
 - Secrets Manager
 - IAM roles
@@ -1061,13 +1076,13 @@ jobs:
     steps:
       - # Build Docker image
       - # Push to ECR
-      - # Deploy to App Runner / ECS
+      - # Deploy to ECS
 ```
 
 ### 7.3 Containers
 - Single `Dockerfile` (multi-stage: build → prod)
 - Docker Compose for local dev (§3.2)
-- ECS or App Runner for cloud (not Kubernetes — overkill for solo dev)
+- ECS Fargate for cloud (not Kubernetes — overkill for solo dev)
 
 ### 7.4 Secrets
 See §3.6.
@@ -1075,11 +1090,11 @@ See §3.6.
 ### 7.5 Backups
 
 > [!IMPORTANT]
-> **Yes, backups from day 1 in production.** RDS automated backups are free (up to DB size), zero effort.
+> **Yes, backups from day 1 in production.** Use managed database backups plus periodic logical exports. The exact retention can vary by provider plan, so document the real numbers when provisioning.
 
 | What | How | Retention |
 |---|---|---|
-| Database | RDS automated daily snapshots | 30 days |
+| Database | Timescale Cloud automated backups | Provider-managed retention |
 | Database (extra) | `pg_dump` to S3 via Celery task (weekly) | 90 days |
 | `.env` / Terraform state | Terraform Cloud or S3 + versioning | Indefinite |
 | User uploads (if any) | S3 with versioning | Indefinite |
@@ -1092,15 +1107,15 @@ See §3.6.
 
 | Component | Service | Why |
 |---|---|---|
-| **Backend** | AWS App Runner or ECS Fargate | Managed containers, auto-scaling, no servers to patch |
-| **Database** | AWS RDS (PostgreSQL 16 + TimescaleDB) | Managed, automated backups, failover |
+| **Backend** | AWS ECS Fargate + ALB | Managed containers, clear path to workers + WebSockets |
+| **Database** | Timescale Cloud (PostgreSQL + TimescaleDB) | Managed TimescaleDB without unsupported RDS extension assumptions |
 | **Cache** | AWS ElastiCache (Redis) | Managed, automatic failover |
 | **Static/Media** | S3 + CloudFront CDN | Global delivery, cheap storage |
 | **Frontend** | Vercel or CloudFront + S3 | Free tier, global CDN, auto-deploy from git |
 
 ### 8.2 Domain & SSL
 - Domain via Route53 or Cloudflare
-- SSL auto-provisioned by App Runner / ALB (ACM certificate)
+- SSL auto-provisioned by ALB (ACM certificate)
 
 ### 8.3 Production Environment
 - `DEBUG=False`, `ALLOWED_HOSTS` set, `SECURE_*` Django settings
@@ -1113,12 +1128,12 @@ See §3.6.
 
 ### 8.5 Database Migrations in Production
 ```bash
-# Run as a one-off ECS task or App Runner command before deploy
+# Run as a one-off ECS task before deploy
 python manage.py migrate --no-input
 ```
 
 ### 8.6 Rate Limiting & DDoS
-- AWS WAF on API Gateway/ALB (basic DDoS protection)
+- AWS WAF on ALB (basic DDoS protection)
 - Django-level rate limiting (`django-ratelimit`) for auth endpoints
 - CloudFront for static asset protection
 
@@ -1172,7 +1187,7 @@ Follow the progressive rollout (R1→R5) with gates between releases:
 | **R4 → R5** | WS stability under load test, fallback-to-polling verified |
 
 ### 10.5 Scale When Needed
-- Vertical first (bigger RDS instance, bigger App Runner container)
+- Vertical first (bigger Timescale plan, bigger ECS task size)
 - Then: read replicas, CDN, Celery worker auto-scaling
 - Kubernetes only if you have a team and need multi-region
 
@@ -1187,10 +1202,10 @@ Follow the progressive rollout (R1→R5) with gates between releases:
 **Kanban** (solo developer). No sprints, no ceremonies. A simple board: Backlog → In Progress → Review → Done. Move cards as you go. Use GitHub Projects.
 
 ### API Gateway from the start?
-**Locally: No.** Django dev server is fine. **In production: Yes** — ALB or App Runner handles routing, TLS, and basic DDoS protection. It's included by default with managed services.
+**Locally: No.** Django dev server is fine. **In production: Yes** — ALB in front of ECS handles routing, TLS, and basic DDoS protection.
 
 ### Backups immediately?
-**In production: Yes, day 1.** RDS automated backups are free and zero-config. **Locally: No** — your data is disposable test data.
+**In production: Yes, day 1.** Managed DB backups plus logical exports are non-negotiable. **Locally: No** — your data is disposable test data.
 
 ### Full architecture vs MVP?
 **MVP architecture first**, with the full architecture as a target. Don't build what you don't need yet. The pragmatic MVP (§1.9) includes the essentials (reverse proxy, backups, secrets management, CI/CD) without the expensive stuff (multi-AZ, Kubernetes, autoscaling groups).
