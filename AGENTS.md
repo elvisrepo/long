@@ -6,6 +6,8 @@
 - Ignore `reference_docs/knowledge/planning.md` . Do not load/look at it.
 - When you run into a problem you didn't expect, write yoursel some exploratory code piect to see what's going on.
 - Use 'playground' folder in the project, create it if it doesn't exist and make sure it's in .gitignore
+- Code should simple and minimal - it does only what’s needed, in a way that both humans and machines can understand now and maintain in the future. 
+- Code should adhere to Coding best practices, clean, maintainable, efficient, and secure software. 
 
 ## Reference docs at `reference_docs/`
 
