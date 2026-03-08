@@ -2,7 +2,10 @@
 
 - Be honest, tell me something I need to know, even if I don't want to hear it.
 - Be proactive and flag issues before they become problems.
+- When sth doesn't work, stop and think deeper. Describe me the thing that didn't work.
 - Ignore `reference_docs/knowledge/planning.md` . Do not load/look at it.
+- When you run into a problem you didn't expect, write yoursel some exploratory code piect to see what's going on.
+- Use 'playground' folder in the project, create it if it doesn't exist and make sure it's in .gitignore
 
 ## Reference docs at `reference_docs/`
 
