@@ -3,12 +3,16 @@
 - Be honest, tell me something I need to know, even if I don't want to hear it.
 - Be proactive and flag issues before they become problems.
 - When sth doesn't work, stop and think deeper. Describe me the thing that didn't work.
+- Push back when something seems wrong - don't agree with mistakes. 
 - Ignore `reference_docs/knowledge/planning.md` . Do not load/look at it.
 - When you run into a problem you didn't expect, write yoursel some exploratory code piect to see what's going on.
+- Ask questions if something is not clear and you need to make a choice. Don't choose randomly if it's important for what we're doing.
+- When you show me a potential error or mis, start your response with ❗️ emoji.
 - Use 'playground' folder in the project, create it if it doesn't exist and make sure it's in .gitignore
 - Code should simple and minimal - it does only what’s needed, in a way that both humans and machines can understand now and maintain in the future. 
 - Code should adhere to Coding best practices, clean, maintainable, efficient, and secure software. 
 - Use Test-Driven Development
+- ALWAYS start replies with STARTER_CHARACTER + space (default: 🍀).
 
 ## Reference docs at `reference_docs/`
 
