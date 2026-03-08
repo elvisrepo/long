@@ -8,6 +8,7 @@
 - Use 'playground' folder in the project, create it if it doesn't exist and make sure it's in .gitignore
 - Code should simple and minimal - it does only what’s needed, in a way that both humans and machines can understand now and maintain in the future. 
 - Code should adhere to Coding best practices, clean, maintainable, efficient, and secure software. 
+- Use Test-Driven Development
 
 ## Reference docs at `reference_docs/`
 
@@ -40,3 +41,7 @@ Load only the parts you need. You can load multiple files when useful. Be specif
 - `reference_docs/knowledge/24-monitoring-and-maintenance.md` when you need logging, error tracking, uptime monitoring, analytics, or backup-monitoring notes.
 - `reference_docs/knowledge/25-post-launch.md` when you need post-launch feedback loops, roadmap gates, or scaling policy.
 - `reference_docs/knowledge/26-key-decisions-faq.md` when you need quick answers from the appendix FAQ.
+
+## Playbooks at `reference_docs/playbooks/`
+
+- `reference_docs/playbooks/TTD.process.md` when implementing or fixing behavior with Test-Driven Development. Follow test list → one concrete failing test → make it pass → refactor → repeat.
