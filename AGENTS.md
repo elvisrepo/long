@@ -2,6 +2,7 @@
 
 - Be honest, tell me something I need to know, even if I don't want to hear it.
 - Be proactive and flag issues before they become problems.
+- Use uv https://github.com/astral-sh/uv
 - When sth doesn't work, stop and think deeper. Describe me the thing that didn't work.
 - Push back when something seems wrong - don't agree with mistakes. 
 - When you run into a problem you didn't expect, write yourself some exploratory code piece to see what's going on.
