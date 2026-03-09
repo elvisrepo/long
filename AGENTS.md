@@ -30,8 +30,6 @@ Load only the parts you need. You can load multiple files when useful. Be specif
 - `reference_docs/knowledge/09-entity-relationship-diagram-database-design-sample-data.md` when you need the ERD, database design notes, or sample data.
 - `reference_docs/knowledge/10-wireframes-frontend-design.md` when you need the frontend design and the 5 main views.
 - `reference_docs/knowledge/11-tech-stack.md` when you need the chosen tech stack.
-- `reference_docs/knowledge/12-success-metrics.md` when you need KPIs and success metrics.
-- `reference_docs/knowledge/13-api-contracts.md` when you need the architecture-level API contracts note from section 2.3.
 - `reference_docs/knowledge/14-auth-strategy.md` when you need the auth strategy.
 - `reference_docs/knowledge/15-scalability-approach.md` when you need the scalability approach.
 - `reference_docs/knowledge/16-security-owasp-top10-reference.md` when you need the section 2.6 security pointer back to the deeper security material.
