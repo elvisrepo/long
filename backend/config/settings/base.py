@@ -2,14 +2,22 @@
 Base Django settings shared across environments.
 """
 
+import os
 from pathlib import Path
 
+import dj_database_url
+from dotenv import load_dotenv
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY = "django-insecure-0hv1@2-0nsdk+2v3s2oelfkj5_bkc*caoe=*3)_scw6vp4nd3d"
+BASE_DIR = Path(__file__).resolve().parent.parent.parent  #points to backend
+REPO_ROOT = BASE_DIR.parent  # points to longevity folder
+DEFAULT_DATABASE_URL = f"sqlite:///{(BASE_DIR / 'db.sqlite3').as_posix()}"
 
-DEBUG = False
+load_dotenv(REPO_ROOT / ".env")
+
+SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-insecure-secret-key")
+
+DEBUG = os.environ.get("DEBUG", "False").strip().lower() in {"1", "true", "yes", "on"}
 
 ALLOWED_HOSTS: list[str] = []
 
@@ -53,11 +61,12 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    "default": dj_database_url.config(
+        default=DEFAULT_DATABASE_URL,
+        conn_max_age=60,
+    )
 }
+REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")
 
 AUTH_PASSWORD_VALIDATORS = [
     {
