@@ -15,6 +15,7 @@
 - ALWAYS start replies with STARTER_CHARACTER + space (default: 🍀).
 - If you think there is something worth adding to the reference_docs (which acts as knowledge/memory) for you, let me know in chat.
 - If you see anything fit to be stored as a reference in reference_docs, let me know.
+- When you to create or edit a file, state the full path first.
 
 ## Reference docs at `reference_docs/`
 
