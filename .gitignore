@@ -1,6 +1,7 @@
 # Secrets
 .env
 .env.*
+!backend/.env.example
 
 # Python
 __pycache__/

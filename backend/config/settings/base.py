@@ -10,16 +10,20 @@ from dotenv import load_dotenv
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  #points to backend
-REPO_ROOT = BASE_DIR.parent  # points to longevity folder
+ENV_FILE = BASE_DIR / ".env"
 DEFAULT_DATABASE_URL = f"sqlite:///{(BASE_DIR / 'db.sqlite3').as_posix()}"
 
-load_dotenv(REPO_ROOT / ".env")
+load_dotenv(ENV_FILE)
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-insecure-secret-key")
 
 DEBUG = os.environ.get("DEBUG", "False").strip().lower() in {"1", "true", "yes", "on"}
 
-ALLOWED_HOSTS: list[str] = []
+ALLOWED_HOSTS = [
+      host.strip()
+      for host in os.environ.get("ALLOWED_HOSTS", "").split(",")
+      if host.strip()
+  ]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
