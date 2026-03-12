@@ -17,7 +17,6 @@ Services:
 
 Named volumes:
 - `pgdata`: persistent PostgreSQL data
-- `venv`: persistent Python virtual environment inside the `web` container
 
 ### Runtime Model
 
@@ -35,7 +34,7 @@ Named volumes:
 
 - **Image**: a built package/template. `backend/Dockerfile` produces the `web` image.
 - **Container**: a running instance created from an image. `web`, `db`, and `redis` are containers.
-- **Named volume**: Docker-managed persistent storage outside the container filesystem. `pgdata` and `venv` are named volumes.
+- **Named volume**: Docker-managed persistent storage outside the container filesystem. `pgdata` is a named volume.
 - **Bind mount**: a direct mapping from a host path into a container path. `.:/app` is a bind mount.
 
 ### Port Mapping and "Exposed"
@@ -63,7 +62,7 @@ Inside Docker:
 - PostgreSQL / TimescaleDB process (`db`)
 - Redis process (`redis`)
 - Container filesystem at `/app`
-- Python virtual environment stored in the named volume `venv`
+- Python dependencies baked into the image and installed in `/opt/venv`
 - PostgreSQL data stored in the named volume `pgdata`
 
 On the host machine:
@@ -98,27 +97,19 @@ In practice:
 - is mounted into container path `/app`
 - so yes, inside the running `web` container, `/app` shows the same project files as your local `backend/` folder
 
-### Named Volume for Python Environment
+### Python Environment Location
 
-The `web` service also has:
-
-```yaml
-volumes:
-  - venv:/app/.venv
-```
+The `web` image installs Python dependencies at build time into `/opt/venv`.
 
 This means:
-- inside the container, `/app/.venv` is backed by a Docker named volume called `venv`
-- it is **not** the same thing as your local `/home/sevi/longevity/backend/.venv`
-- it is **not** synced with your local `.venv`
+- the container does **not** rely on a runtime-created `.venv` under `/app`
+- your host `/home/sevi/longevity/backend/.venv` is separate from Docker
+- the source-code bind mount `.:/app` does not overwrite the container's installed dependencies, because those dependencies live outside `/app`
 
-Reason:
-- the code is shared from the host with `.:/app`
-- but the Python environment inside Docker should stay Docker-specific
-- container-installed packages may differ from host-installed packages
-- keeping them separate avoids corrupting one environment with the other
-
-The named volume `venv` lives on your local machine, but not as a normal folder in the project tree. Docker stores it in Docker-managed storage.
+Why this is better:
+- dependencies are baked into the image
+- container startup is simpler
+- the bind mount is used only for source code, not for the Python environment
 
 ### Named Volume for PostgreSQL Data
 
@@ -149,10 +140,12 @@ What it does:
 1. Starts from a base image that already includes `uv`
 2. Sets `/app` as the working directory
 3. Sets Python-related environment flags for cleaner container behavior
-4. Copies dependency files (`pyproject.toml`, `uv.lock`)
-5. Installs Python dependencies with `uv sync --frozen`
+4. Configures `uv` to create the project environment at `/opt/venv`
+5. Copies dependency files (`pyproject.toml`, `uv.lock`)
+6. Installs Python dependencies with `uv sync --frozen`
+7. Adds `/opt/venv/bin` to `PATH`
 6. Copies the backend project into the image
-7. Defines the default command to run Django
+8. Defines the default command to run Django
 
 The key build-time line is:
 
@@ -219,14 +212,13 @@ Already present:
 - Django in Docker
 - PostgreSQL/TimescaleDB in Docker
 - Redis in Docker
+- `.dockerignore`
 - `backend/.env` convention
 - Health endpoint
 
 Still missing:
 - Celery worker
 - Celery Beat
-- `.dockerignore`
-- Cleanup of repeated `uv sync` during container startup
 - Domain apps (`accounts`, `metrics`)
 
 ### Mermaid Diagram
@@ -245,14 +237,13 @@ graph TB
     end
 
     subgraph NET["Docker Compose Network"]
-        WEB["web container<br/>Django dev server<br/>/app"]
+        WEB["web container<br/>Django dev server<br/>/app source mount<br/>deps in /opt/venv"]
         DB["db container<br/>PostgreSQL + TimescaleDB"]
         REDIS["redis container<br/>Redis server"]
     end
 
     subgraph VOLS["Docker Named Volumes"]
         PGDATA["pgdata<br/>persistent Postgres data"]
-        VENV["venv<br/>container Python virtualenv"]
     end
 
     DC --> DOCKER
@@ -268,7 +259,6 @@ graph TB
     WEB -->|REDIS_URL = redis://redis:6379/0| REDIS
 
     DB -->|named volume pgdata:/var/lib/postgresql/data| PGDATA
-    WEB -->|named volume venv:/app/.venv| VENV
 
     BROWSER -->|8000:8000| WEB
     HOST -.->|5432:5432| DB
@@ -281,6 +271,6 @@ graph TB
 
     class SRC,ENV,DC,DF,BROWSER host;
     class WEB,DB,REDIS service;
-    class PGDATA,VENV volume;
+    class PGDATA volume;
     class DOCKER runtime;
 ```
