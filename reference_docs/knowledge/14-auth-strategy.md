@@ -8,6 +8,7 @@
 
 - **JWT** (short-lived access 15 min + HTTP-only refresh 7 days)
 - **Email storage** = encrypted ciphertext + `email_lookup_hash` for uniqueness / lookup
-- **OAuth social login** (Google, Apple) in R2
-- **Hosted link flow + signed webhooks** for wearable integrations via aggregator
+- **OAuth social login** (Google, Apple) after MVP
+- **Samsung sync auth** = Android companion app uses our JWT and asks for Samsung Health / Health Connect permissions on device
+- **Future cloud-provider sync auth** = hosted link flow + signed webhooks through an aggregator or direct provider OAuth where appropriate
 - **Rate limiting** on auth endpoints (5 login attempts/min)

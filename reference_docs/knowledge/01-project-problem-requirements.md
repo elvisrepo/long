@@ -21,7 +21,7 @@
 - Secondary: Biohackers and quantified-self enthusiasts who want one dashboard for all their health data sources
 
 **1.1.3 What makes it valuable?**
-- Unified view across manual entries + supported wearable providers (Garmin, Fitbit, Oura, Withings in MVP)
+- Unified view across manual entries + Samsung Health sync on Android in MVP, with additional providers added later
 - Long-term trend analysis — not just today's data, but months/years of context
 - Clean, premium, dark-mode UX — most health apps are cluttered and ugly
 
@@ -31,17 +31,18 @@
 
 1. **Users should be able to log health metrics** — manually enter data points (heart rate, VO2 Max, weight, etc.) with timestamps
 2. **Users should be able to view their metrics on a dashboard with trend analytics** — see current values, 7/30/90-day trends, averages, min/max
-3. **Users should be able to connect wearable providers** — sync data automatically from supported providers via a server-side aggregator + webhook flow
+3. **Users should be able to connect Samsung Health on Android** — sync data automatically through an Android companion app that reads on-device health data and uploads it securely to our backend
 
 **Secondary features (needed for a complete product, but not the core system design challenge):**
 - Register / login / logout / password reset (auth)
 - Subscribe to paid tiers for advanced features (Stripe)
 - Export all data / delete account (GDPR compliance)
 - Define custom metrics beyond the defaults
+- Connect additional wearable providers later through cloud APIs, an aggregator, or more mobile integrations
 - Receive alerts on anomalous values
 - Receive live dashboard updates when new wearable data lands (WebSocket)
 
-**Provider scope note:** MVP wearable sync is server-side only for providers with real web APIs, linked through a wearable aggregator. Apple Health, Health Connect, and Samsung Health are explicitly deferred until we commit to a native mobile product.
+**Provider scope note:** The current foundation phase is manual-entry only. The MVP adds Samsung Health sync on Android through a companion app and device-bridge flow (preferably Samsung Health → Health Connect → Android app → backend). Aggregator-backed providers such as Garmin, Fitbit, Oura, and Withings are full-requirements work, not MVP.
 
 ### 1.3 Non-Functional Requirements
 

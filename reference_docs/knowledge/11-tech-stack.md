@@ -13,7 +13,9 @@
 | **Cache / Broker** | Redis | Cache + Celery broker + Channels pub/sub in one |
 | **Task Queue** | Celery + Celery Beat | Mature, Django-native, handles scheduled + async tasks |
 | **WebSockets** | Django Channels | Stays in Django ecosystem, ASGI support |
-| **Frontend** | React (Vite) | Fast, huge ecosystem, Recharts for data viz |
+| **Web Frontend** | React (Vite) | Fast, huge ecosystem, Recharts for data viz |
+| **Mobile** | Kotlin Android app | Required for Samsung-sync MVP because Samsung data is read on device |
+| **On-Device Health Access** | Health Connect (preferred) / Samsung Health Data SDK if required | Health Connect reduces Samsung-specific coupling; direct Samsung SDK is a fallback for metrics not exposed through Health Connect |
 | **Payments** | Stripe | Best docs, Checkout + Customer Portal = minimal frontend work |
 | **Auth** | djangorestframework-simplejwt | JWT, stays in DRF ecosystem |
 | **Containerization** | Docker + Docker Compose | Local dev parity, easy cloud deployment |

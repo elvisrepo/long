@@ -10,11 +10,20 @@
 |---|---|---|---|
 | **Unit** | pytest + pytest-django | Models, services, serializers, validators | Every PR (CI) |
 | **Integration** | pytest + DRF `APIClient` | Full API endpoint flows (auth → create metric → query analytics) | Every PR (CI) |
+| **Sync Contract** | pytest + fixture payloads | Wearable upload idempotency, dedupe, sync cursors, replay requests | Every PR during R2/R3 |
+| **Mobile** | Android unit/instrumented tests | Permission flow, Health Connect reads, upload retries, sync state | Every R2/R3 change and pre-release |
 | **E2E** | Playwright | Login → log metric → see on dashboard → export data | Pre-release |
-| **Performance** | Locust | Load test: 100 concurrent users, metrics CRUD + analytics queries | Pre-R2 launch |
+| **Performance** | Locust | Load test: 100 concurrent users, metrics CRUD + analytics queries | Pre-R3 launch |
 | **Security** | pip-audit + bandit | Dependency vulnerabilities + code security patterns | Every PR (CI) |
 
 **Coverage target**: 80%+ via `pytest-cov`, enforced in CI.
+
+### Wearable Sync Test Focus
+
+When testing Samsung-sync behavior:
+- Use canned Samsung / Health Connect fixture payloads in backend tests. Do not depend on live Samsung services in CI.
+- Verify `upload_id` idempotency, `external_source_id` deduplication, cursor advancement, and replay behavior.
+- Keep at least one manual device validation pass in the release checklist because full Samsung Health behavior is not realistically reproducible in CI.
 
 ### Task-Triggering Endpoint Tests
 
@@ -104,4 +113,4 @@ What this test does not prove:
 - the Celery worker executed the task
 - the task returned `"pong"`
 
-Those runtime concerns should be verified separately through manual Docker checks or broader integration tests.
+Those runtime concerns should be verified separately through manual Docker checks, Android device validation, or broader integration tests.

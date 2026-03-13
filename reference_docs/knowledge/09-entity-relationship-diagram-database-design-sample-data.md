@@ -64,7 +64,8 @@ erDiagram
         float value
         timestamptz recorded_at "hypertable partition key"
         uuid source_connection_id FK "nullable"
-        string source "manual|garmin|fitbit|oura|withings|csv_import"
+        string source "manual|samsung_health|garmin|fitbit|oura|withings|csv_import"
+        string external_source_id "nullable, stable dedupe key"
         jsonb context
         timestamptz created_at
     }
@@ -72,12 +73,18 @@ erDiagram
     WearableConnection {
         uuid id PK
         uuid user_id FK
-        string provider "garmin|fitbit|oura|withings"
-        string aggregator_connection_id "unique"
-        string provider_user_id_hash
+        string provider "samsung_health|garmin|fitbit|oura|withings"
+        string connection_mode "device_bridge|aggregator|direct_cloud"
+        string platform "android|ios|server"
+        string source_app "health_connect|samsung_health|aggregator"
+        string aggregator_connection_id "nullable, unique"
+        string provider_user_id_hash "nullable"
         string status "pending|active|error|revoked"
         datetime last_synced_at
+        datetime last_uploaded_at
         datetime last_webhook_at
+        string sync_cursor "nullable, opaque"
+        string last_error_code "nullable"
         boolean is_active
     }
 
@@ -102,6 +109,7 @@ erDiagram
 - UUIDs for all PKs (no sequential ID exposure)
 - PII encrypted at field level; email lookup via `email_lookup_hash`
 - `Subscription` is the single source of truth for entitlements
+- `WearableConnection` supports both MVP device-bridge sync and future aggregator/cloud integrations without changing the rest of the schema
 
 #### What is `recorded_at`?
 
@@ -129,9 +137,9 @@ Splitting into MetricDefinition (the *template*) + MetricEntry (the *data*) give
 The `source_connection_id` FK on MetricEntry answers: **"Where did this data point come from?"**
 
 - A manual entry (user typed it in): `source_connection_id = NULL`, `source = 'manual'`
-- An auto-synced entry from Garmin: `source_connection_id = 'uuid-of-garmin-connection'`, `source = 'garmin'`
+- An auto-synced entry from Samsung Health on Android: `source_connection_id = 'uuid-of-samsung-connection'`, `source = 'samsung_health'`
 
-This lets us show provenance ("this reading came from your Garmin connection"), filter by source, and detect duplicates across sync jobs.
+This lets us show provenance ("this reading came from your Samsung Health connection"), filter by source, and detect duplicates across sync jobs. If the provider or client can supply a stable source identifier, we store that in `external_source_id` for stronger idempotency.
 
 #### Sample Data Across All Tables
 
@@ -152,21 +160,21 @@ This lets us show provenance ("this reading came from your Garmin connection"), 
 | `def-custom` | `a1b2c3d4-...` | Cold Plunge Duration | `cold_plunge` | minutes | recovery | 0 | 60 | false |
 
 **WearableConnections:**
-| id | user_id | provider | last_synced_at | is_active |
-|---|---|---|---|---|
-| `conn-001` | `a1b2c3d4-...` | garmin | 2026-03-06 07:00 UTC | true |
-| `conn-002` | `e5f6g7h8-...` | oura | 2026-03-05 22:30 UTC | true |
+| id | user_id | provider | connection_mode | source_app | last_synced_at | is_active |
+|---|---|---|---|---|---|---|
+| `conn-001` | `a1b2c3d4-...` | samsung_health | device_bridge | health_connect | 2026-03-06 07:00 UTC | true |
+| `conn-002` | `e5f6g7h8-...` | oura | aggregator | aggregator | 2026-03-05 22:30 UTC | true |
 
 **MetricEntries (the actual data points):**
-| id | user_id | metric_definition_id | value | recorded_at | source_connection_id | source |
-|---|---|---|---|---|---|---|
-| 1 | `a1b2c3d4-...` | `def-001` (Resting HR) | 58 | 2026-03-06 07:15 UTC | `conn-001` | garmin |
-| 2 | `a1b2c3d4-...` | `def-002` (VO2 Max) | 42.5 | 2026-03-06 08:30 UTC | NULL | manual |
-| 3 | `a1b2c3d4-...` | `def-003` (Sleep) | 7.5 | 2026-03-06 06:30 UTC | `conn-001` | garmin |
-| 4 | `a1b2c3d4-...` | `def-custom` (Cold Plunge) | 3.5 | 2026-03-06 09:00 UTC | NULL | manual |
-| 5 | `e5f6g7h8-...` | `def-001` (Resting HR) | 65 | 2026-03-05 22:00 UTC | `conn-002` | oura |
+| id | user_id | metric_definition_id | value | recorded_at | source_connection_id | source | external_source_id |
+|---|---|---|---|---|---|---|---|
+| 1 | `a1b2c3d4-...` | `def-001` (Resting HR) | 58 | 2026-03-06 07:15 UTC | `conn-001` | samsung_health | `samsung:heart_rate:1741245300` |
+| 2 | `a1b2c3d4-...` | `def-002` (VO2 Max) | 42.5 | 2026-03-06 08:30 UTC | NULL | manual | NULL |
+| 3 | `a1b2c3d4-...` | `def-003` (Sleep) | 7.5 | 2026-03-06 06:30 UTC | `conn-001` | samsung_health | `samsung:sleep:1741242600` |
+| 4 | `a1b2c3d4-...` | `def-custom` (Cold Plunge) | 3.5 | 2026-03-06 09:00 UTC | NULL | manual | NULL |
+| 5 | `e5f6g7h8-...` | `def-001` (Resting HR) | 65 | 2026-03-05 22:00 UTC | `conn-002` | oura | `agg:oura:resting_hr:1741212000` |
 
-Notice row 1: Alice's resting HR of 58 bpm was *auto-synced* from her Garmin connection (`source_connection_id = conn-001`). Row 2: her VO2 Max was *manually entered* (`source_connection_id = NULL`). Row 4: her custom "Cold Plunge" metric uses a definition she created herself.
+Notice row 1: Alice's resting HR of 58 bpm was *auto-synced* from her Samsung Health connection (`source_connection_id = conn-001`). Row 2: her VO2 Max was *manually entered* (`source_connection_id = NULL`). Row 4: her custom "Cold Plunge" metric uses a definition she created herself.
 
 **Subscriptions:**
 | id | user_id | plan | status | current_period_end |

@@ -48,6 +48,8 @@ Load only the parts you need. You can load multiple files when useful. Be specif
 - `reference_docs/knowledge/24-monitoring-and-maintenance.md` when you need logging, error tracking, uptime monitoring, analytics, or backup-monitoring notes.
 - `reference_docs/knowledge/25-post-launch.md` when you need post-launch feedback loops, roadmap gates, or scaling policy.
 - `reference_docs/knowledge/26-key-decisions-faq.md` when you need quick answers from the appendix FAQ.
+- `reference_docs/knowledge/27-integration-modes.md` when you need the canonical distinction between manual entry, device-bridge sync, direct cloud APIs, and aggregator-based integrations.
+
 
 ## Playbooks at `reference_docs/playbooks/`
 

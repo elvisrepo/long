@@ -24,9 +24,9 @@ Follow the progressive rollout (R1→R5) with gates between releases:
 | Release | Gate to move forward |
 |---|---|
 | **R1 → R2** | p95 < 300ms, no P0/P1 security findings, 5+ beta users actively logging for 2+ weeks |
-| **R2 → R3** | Stripe webhook reliability > 99.9%, entitlement tests green |
-| **R3 → R4** | Sync correctness validated, provider kill-switch tested |
-| **R4 → R5** | WS stability under load test, fallback-to-polling verified |
+| **R2 → R3** | Samsung upload contract proven end-to-end on a real Android device |
+| **R3 → R4** | Sync correctness validated, replay/retry flow tested, Samsung kill-switch verified |
+| **R4 → R5** | Stripe webhook reliability > 99.9%, entitlement tests green |
 
 ### 10.5 Scale When Needed
 - Vertical first (bigger Timescale plan, bigger ECS task size)

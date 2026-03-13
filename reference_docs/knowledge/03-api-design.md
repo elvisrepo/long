@@ -34,7 +34,7 @@
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
 | GET | `/api/v1/metrics/definitions/` | List available metrics | Includes defaults + user's custom ones |
-| POST | `/api/v1/metrics/definitions/` | Create custom metric (R2+) | |
+| POST | `/api/v1/metrics/definitions/` | Create custom metric (R5+) | |
 | GET | `/api/v1/metrics/entries/?metric=resting_hr&from=2026-01-01&to=2026-03-01` | Query entries | Cursor-based pagination. Path params not needed — all filters are optional |
 | POST | `/api/v1/metrics/entries/` | Log a metric entry | Not idempotent — repeated calls create duplicate entries |
 | POST | `/api/v1/metrics/entries/bulk/` | Bulk import | |
@@ -46,7 +46,7 @@ GET /api/v1/metrics/entries/?metric=resting_hr&limit=20
 
 {
   "results": [
-    {"id": 984312, "value": 58, "recorded_at": "2026-03-05T07:15:00Z", "source": "garmin"},
+    {"id": 984312, "value": 58, "recorded_at": "2026-03-05T07:15:00Z", "source": "samsung_health"},
     ...
   ],
   "next_cursor": "eyJyZWNvcmRlZF9hdCI6ICIyMDI2LTAzLTA1VDA3OjE1OjAwWiIsICJpZCI6IDk4NDMxMn0=",
@@ -87,7 +87,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 }
 ```
 
-#### Subscriptions (R2+, JWT required)
+#### Subscriptions (R4+, JWT required)
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
 | GET | `/api/v1/subscriptions/plans/` | Available plans | Public-ish — could be unauthenticated |
@@ -95,16 +95,47 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 | POST | `/api/v1/subscriptions/portal/` | Stripe Customer Portal link | |
 | POST | `/api/v1/webhooks/stripe/` | Stripe webhook receiver | No JWT — uses Stripe signature verification instead |
 
-#### Wearables (R3+, JWT required)
+#### Samsung / Wearables (R2 internal spike, R3 MVP, JWT required)
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
-| GET | `/api/v1/wearables/connections/` | List linked wearable providers | |
-| POST | `/api/v1/wearables/connect/{provider}/` | Start hosted link flow | `provider` is required — path param. MVP providers: Garmin, Fitbit, Oura, Withings |
+| GET | `/api/v1/wearables/connections/` | List linked sync connections | MVP returns Samsung/Android device-bridge connections |
+| POST | `/api/v1/wearables/connections/` | Register or refresh a wearable connection | Body includes `provider`, `connection_mode`, `platform`, and client metadata |
+| GET | `/api/v1/wearables/connections/{id}/status/` | Fetch sync state for one connection | Includes `status`, `last_synced_at`, and last error details |
+| POST | `/api/v1/wearables/uploads/` | Upload a normalized wearable metric batch | Idempotent via `upload_id`; called by the Android companion app |
 | DELETE | `/api/v1/wearables/connections/{id}/` | Disconnect provider | Idempotent |
-| POST | `/api/v1/wearables/connections/{id}/resync/` | Trigger backfill / resync | Returns 202 Accepted — async via Celery if provider supports it |
-| POST | `/api/v1/webhooks/wearables/` | Wearable aggregator webhook receiver | No JWT — signed webhook verification |
+| POST | `/api/v1/wearables/connections/{id}/resync/` | Request replay / resync from the client | Returns 202 Accepted — backend records replay intent and the Android client performs the upload |
 
-#### Real-Time Streaming (R4+)
+MVP Samsung sync does **not** use provider webhooks or a hosted provider link flow. The Android companion app reads Samsung-originated data on device, uploads batches to our API, and the backend handles validation, deduplication, and persistence. A future aggregator webhook receiver can be added later for providers with cloud-friendly APIs.
+
+**Example: Uploading a Samsung sync batch**
+```json
+POST /api/v1/wearables/uploads/
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+
+{
+  "connection_id": "conn-001",
+  "upload_id": "9ea2c91d-63f4-40eb-a6bb-7fbd90c12a34",
+  "cursor": "2026-03-05T07:15:00Z",
+  "entries": [
+    {
+      "metric_definition": "resting_hr",
+      "value": 58,
+      "recorded_at": "2026-03-05T07:15:00Z",
+      "source": "samsung_health",
+      "external_source_id": "samsung:heart_rate:1741168500"
+    }
+  ]
+}
+
+// Response: 202 Accepted
+{
+  "connection_id": "conn-001",
+  "upload_id": "9ea2c91d-63f4-40eb-a6bb-7fbd90c12a34",
+  "status": "queued"
+}
+```
+
+#### Real-Time Streaming (R5+)
 ```
 ws://host/ws/metrics/stream/
 ```

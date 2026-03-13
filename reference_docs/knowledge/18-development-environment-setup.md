@@ -14,6 +14,8 @@ git init
 ```
 
 ### 3.2 Docker Compose
+**Current scope:** Docker Compose covers the backend development loop for the manual-entry foundation phase. Samsung sync work adds an Android companion app and emulator/device setup later, but that is intentionally separate from the backend topology described here.
+
 ```yaml
 # docker-compose.yml (simplified)
 services:
@@ -56,12 +58,13 @@ volumes:
 longevity/
 ├── config/           # Settings, URLs, ASGI, Celery
 │   └── settings/     # base.py, dev.py, prod.py, test.py
+├── android/          # Android companion app for Samsung sync (R2/R3+)
 ├── apps/
 │   ├── accounts/       # User model, auth, profile, GDPR
 │   ├── metrics/        # MetricDefinition, MetricEntry, analytics
-│   ├── subscriptions/  # Stripe (R2+)
-│   ├── wearables/      # Wearable integrations (R3+)
-│   └── streaming/      # WebSocket consumers (R4+)
+│   ├── subscriptions/  # Stripe (R4+)
+│   ├── wearables/      # Device-bridge sync first, aggregator/cloud integrations later
+│   └── streaming/      # WebSocket consumers (R5+)
 ├── common/           # Shared utils, middleware, permissions
 ├── docker-compose.yml
 ├── Dockerfile
@@ -94,6 +97,8 @@ STRIPE_SECRET_KEY=sk_test_xxx
 STRIPE_WEBHOOK_SECRET=whsec_xxx
 SENTRY_DSN=
 ```
+
+For MVP Samsung sync, the backend does **not** need Samsung cloud credentials because the Android companion app uploads data directly to our API after reading it on device.
 
 ### 3.6 Secrets Management
 

@@ -8,7 +8,7 @@
 
 Follows the progressive rollout (R1→R5):
 
-### R1 — Foundation (Weeks 1-6, MVP)
+### R1 — Foundation (Weeks 1-6, Manual-Entry Release)
 1. Django project scaffold with split settings (base/dev/prod/test)
 2. Custom User model with encrypted PII fields + `email_lookup_hash`
 3. JWT auth (register, login, refresh, logout)
@@ -26,26 +26,26 @@ Follows the progressive rollout (R1→R5):
 13. GDPR endpoints (export, deletion)
 14. Audit logging
 
-### R2 — Monetization (Weeks 9-10)
-15. Stripe Checkout + Customer Portal integration
-16. Subscription model + webhook handler (signature verification, idempotent processing)
-17. Tier-based permission enforcement
-18. Retention policy Celery task
+### R2 — Samsung Validation Spike (Weeks 9-10)
+15. Expand `WearableConnection` model for device-bridge sync state
+16. Authenticated wearable upload endpoint with `upload_id` idempotency
+17. Dedup + normalization service with sync cursor handling
+18. Internal Android companion prototype proves `Samsung Health -> app -> backend`
 
-### R3 — Wearable Integrations (Weeks 11-13)
-19. Wearable aggregator hosted link flow
-20. Signed webhook receiver + idempotent processing
-21. Periodic backfill Celery task with dedup
-22. Data reconciliation (timestamp + source_connection unique constraint)
+### R3 — Samsung Sync MVP (Weeks 11-13)
+19. User-facing connection/list/status endpoints for Samsung sync
+20. Replay / resync request flow and connection disconnect handling
+21. Background ingestion, reconciliation, and repair Celery tasks
+22. Sync error surfacing, retries, and connection health reporting
 
-### R4 — Real-Time (Weeks 14-15)
-23. Django Channels ASGI setup
-24. WebSocket consumer with ticket-based auth
-25. Token-bucket backpressure
-26. Live dashboard push
+### R4 — Monetization (Weeks 14-15)
+23. Stripe Checkout + Customer Portal integration
+24. Subscription model + webhook handler (signature verification, idempotent processing)
+25. Tier-based permission enforcement
+26. Retention policy Celery task
 
-### R5 — Advanced (Weeks 16-18)
-27. Advanced analytics (percentiles, anomaly detection)
-28. Full caching layer
-29. Custom metric definitions for premium users
-30. Premium API access tier
+### R5 — Real-Time + Advanced (Weeks 16-18)
+27. Django Channels ASGI setup
+28. WebSocket consumer with ticket-based auth
+29. Advanced analytics, richer caching, and premium custom metrics
+30. Premium API access tier + live dashboard push

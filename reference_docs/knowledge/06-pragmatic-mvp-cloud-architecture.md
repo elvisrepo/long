@@ -10,7 +10,13 @@
 ```mermaid
 graph TB
     subgraph "Internet"
-        USER["Users / Browsers"]
+        WEB["Web Users / Browsers"]
+    end
+
+    subgraph "User Device"
+        SH["Samsung Health"]
+        HC["Health Connect"]
+        ANDROID["Android Companion App"]
     end
 
     subgraph "App Hosting - AWS"
@@ -21,6 +27,7 @@ graph TB
         subgraph "Compute"
             APP["Django App<br/>(ECS Fargate Service)"]
             WORKER["Celery Worker<br/>(ECS Task)"]
+            BEAT["Celery Beat<br/>(ECS Task)"]
         end
 
         subgraph "App Data"
@@ -47,12 +54,20 @@ graph TB
         ECR["ECR<br/>(Container Registry)"]
     end
 
-    USER --> GW --> APP
+    WEB --> GW --> APP
+    SH --> HC --> ANDROID
+    ANDROID --> GW
     APP --> TSDB
     APP --> ELASTICACHE
     APP --> SECRETS
     WORKER --> TSDB
     WORKER --> ELASTICACHE
+    BEAT --> ELASTICACHE
     GHA --> ECR --> APP
     APP --> CW
 ```
+
+**MVP notes**
+- Samsung sync is client-initiated: Samsung Health data is read on device, then uploaded by the Android companion app.
+- No Samsung cloud webhook or provider-hosted link flow is assumed in MVP.
+- Celery handles ingestion normalization, deduplication, retries, and repair tasks after uploads hit Django.

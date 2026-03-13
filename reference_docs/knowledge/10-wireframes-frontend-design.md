@@ -9,7 +9,7 @@
 ```
 import { useState } from "react";
 
-const SCREENS = ["Auth", "Dashboard", "Log Metric", "Metric Detail", "Wearables"];
+const SCREENS = ["Auth", "Dashboard", "Log Metric", "Metric Detail", "Samsung Sync"];
 
 // ─── Design tokens ──────────────────────────────────────────────
 const C = {
@@ -645,8 +645,8 @@ function DashboardScreen() {
         <div className="section-head">Recent Entries</div>
         {[
           { label: "Resting HR", val: "58 bpm", time: "Today 07:15", source: "manual" },
-          { label: "HRV", val: "72 ms", time: "Today 07:14", source: "garmin" },
-          { label: "Weight", val: "74.2 kg", time: "Yesterday", source: "withings" },
+          { label: "HRV", val: "72 ms", time: "Today 07:14", source: "samsung_health" },
+          { label: "Weight", val: "74.2 kg", time: "Yesterday", source: "manual" },
         ].map((e, i) => (
           <div key={i} className="entry-row">
             <div>
@@ -808,10 +808,10 @@ function MetricDetailScreen() {
         </div>
         {[
           { val: "58", time: "Mar 7 07:15", source: "manual", tag: "manual" },
-          { val: "57", time: "Mar 6 07:22", source: "garmin", tag: "garmin" },
-          { val: "56", time: "Mar 5 07:18", source: "garmin", tag: "garmin" },
+          { val: "57", time: "Mar 6 07:22", source: "samsung_health", tag: "samsung" },
+          { val: "56", time: "Mar 5 07:18", source: "samsung_health", tag: "samsung" },
           { val: "60", time: "Mar 4 08:01", source: "manual", tag: "manual" },
-          { val: "59", time: "Mar 3 07:45", source: "oura", tag: "oura" },
+          { val: "59", time: "Mar 3 07:45", source: "samsung_health", tag: "samsung" },
         ].map((e, i) => (
           <div key={i} className="entry-row">
             <div>
@@ -845,26 +845,25 @@ function MetricDetailScreen() {
   );
 }
 
-// ─── Screen 5: Wearables ─────────────────────────────────────────
+// ─── Screen 5: Samsung Sync ───────────────────────────────────────
 function WearablesScreen() {
   const connected = [
-    { name: "Garmin", icon: "⌚", color: "#22d3ee", bg: "rgba(34,211,238,0.12)", lastSync: "2 min ago", status: true },
-    { name: "Oura Ring", icon: "◎", color: C.purple, bg: "rgba(139,92,246,0.12)", lastSync: "1 hr ago", status: true },
+    { name: "Samsung Health", icon: "◎", color: C.accent, bg: "rgba(0,229,160,0.12)", lastSync: "2 min ago", status: true },
   ];
   const available = [
-    { name: "Fitbit", icon: "♥", color: "#fb923c", bg: "rgba(251,146,60,0.12)" },
-    { name: "Withings", icon: "⊕", color: C.blue, bg: "rgba(59,130,246,0.12)" },
+    { name: "Health Connect Permission", icon: "◌", color: C.blue, bg: "rgba(59,130,246,0.12)" },
+    { name: "Android Companion App", icon: "⌁", color: C.purple, bg: "rgba(139,92,246,0.12)" },
   ];
   return (
     <div className="phone">
       <div className="status-bar"><span>9:41</span><span>●●●</span></div>
       <div className="top-nav">
-        <div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 18, color: C.text }}>Wearables</div>
-        <div className="tag">2 Connected</div>
+        <div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 18, color: C.text }}>Samsung Sync</div>
+        <div className="tag">Android MVP</div>
       </div>
 
       <div className="scroll-area" style={{ paddingBottom: 100 }}>
-        <div className="section-sub">Your linked providers sync data automatically via webhooks.</div>
+        <div className="section-sub">Samsung data is read on device, then uploaded securely by the Android companion app.</div>
 
         {/* Connected */}
         <div className="section-head" style={{ marginTop: 4 }}>Connected</div>
@@ -885,30 +884,30 @@ function WearablesScreen() {
 
         <div className="annotation">POST /api/v1/wearables/connections/{"{id}"}/resync/ → 202 Accepted</div>
 
-        {/* Available to connect */}
-        <div className="section-head">Available Providers</div>
+        {/* Setup */}
+        <div className="section-head">Setup</div>
         {available.map((p, i) => (
           <div key={i} className="provider-card" style={{ opacity: 0.7 }}>
             <div className="provider-logo" style={{ background: p.bg, fontSize: 22 }}>{p.icon}</div>
             <div>
               <div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 600, fontSize: 15, color: C.text }}>{p.name}</div>
-              <div style={{ fontSize: 11, color: C.muted, fontFamily: "'DM Mono', monospace", marginTop: 2 }}>Not connected</div>
+              <div style={{ fontSize: 11, color: C.muted, fontFamily: "'DM Mono', monospace", marginTop: 2 }}>Required for Samsung sync</div>
             </div>
             <div style={{ marginLeft: "auto" }}>
               <div style={{ padding: "7px 14px", borderRadius: 10, border: `1px solid ${C.accent}`, color: C.accent, fontSize: 12, fontFamily: "'DM Mono', monospace", cursor: "pointer" }}>
-                Connect
+                Open
               </div>
             </div>
           </div>
         ))}
 
-        <div className="annotation" style={{ marginTop: 4 }}>POST /api/v1/wearables/connect/{"{provider}"}/ → hosted link URL</div>
+        <div className="annotation" style={{ marginTop: 4 }}>POST /api/v1/wearables/connections/ → register/update device bridge</div>
 
         {/* Disconnect */}
         <div className="divider" />
         <div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 600, fontSize: 14, color: C.text, marginBottom: 8 }}>Data Flow</div>
         <div style={{ fontSize: 12, color: C.textDim, lineHeight: 1.6 }}>
-          Webhooks from providers → Celery worker → normalize + deduplicate → bulk insert → cache invalidated → dashboard updated.
+          Samsung Health → Health Connect → Android app → upload → deduplicate → dashboard updated.
         </div>
       </div>
 
@@ -916,7 +915,7 @@ function WearablesScreen() {
         {[
           { icon: "⊡", label: "home", active: false },
           { icon: "◈", label: "metrics", active: false },
-          { icon: "◎", label: "wearables", active: true },
+          { icon: "◎", label: "sync", active: true },
           { icon: "⊙", label: "profile", active: false },
         ].map((n, i) => (
           <div key={i} className={`bnav-item ${n.active ? "active" : ""}`}>
@@ -935,7 +934,7 @@ const SCREEN_LABELS = [
   "Screen 2 — Dashboard",
   "Screen 3 — Log Metric (Modal)",
   "Screen 4 — Metric Detail",
-  "Screen 5 — Wearables",
+  "Screen 5 — Samsung Sync",
 ];
 
 // ─── Root ────────────────────────────────────────────────────────

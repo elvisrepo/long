@@ -12,6 +12,11 @@ This is the architecture when all releases (R1–R5) are complete: auth, metrics
 graph TB
     subgraph "Client Layer"
         WEB["React SPA<br/>(Vite)"]
+        MOBILE["Mobile Companion Apps<br/>(Android first, iOS later)"]
+    end
+
+    subgraph "On-Device Health Data"
+        STORES["Samsung Health / Health Connect / Apple Health"]
     end
 
     subgraph "Edge"
@@ -33,12 +38,14 @@ graph TB
 
     subgraph "External Services"
         STRIPE["Stripe API<br/>(Checkout, Webhooks, Portal)"]
-        AGG["Wearable Aggregator API<br/>(Link flow, webhooks, backfills)"]
-        PROVIDERS["Wearable Providers<br/>(Garmin, Fitbit, Oura, Withings)"]
+        AGG["Wearable Aggregator API<br/>(Link flow, webhooks, normalized payloads)"]
+        PROVIDERS["Provider Cloud APIs<br/>(Garmin, Fitbit, Oura, Withings, others)"]
         SENTRY_EXT["Sentry<br/>(Error Tracking)"]
     end
 
     WEB -- "HTTPS" --> NGINX
+    MOBILE -- "HTTPS" --> NGINX
+    STORES --> MOBILE
 
     NGINX -- "REST" --> DJANGO
     NGINX -- "WebSocket" --> CHANNELS
@@ -66,8 +73,9 @@ graph TB
 
 
 **How traffic flows:**
-- **REST requests** (login, log metric, fetch analytics) → ALB → Django (Gunicorn/WSGI)
+- **REST requests** (login, log metric, fetch analytics, sync status) → ALB → Django (Gunicorn/WSGI)
+- **Device-bridge sync** (Samsung Health / Health Connect / Apple Health class sources) → mobile app reads on-device data → Django upload endpoint → Celery normalization + dedupe → PostgreSQL
 - **WebSocket connections** (live dashboard updates) → ALB → Django Channels (Uvicorn/ASGI) → Redis Pub/Sub → connected dashboards
-- **Background work** (wearable backfills, analytics computation, Stripe webhooks, GDPR exports) → Celery Workers ← Redis broker
+- **Background work** (wearable uploads, cloud-provider backfills, analytics computation, Stripe webhooks, GDPR exports) → Celery Workers ← Redis broker
 - **Scheduled jobs** (nightly aggregates, token refresh) → Celery Beat → Redis → Workers
-- **External calls** → Celery Workers connect to the wearable aggregator + Stripe
+- **Cloud-provider integrations** → Celery Workers connect to the wearable aggregator + Stripe when the provider supports server-side APIs
