@@ -19,6 +19,22 @@ services:
         redis:
           condition: service_started
 
+    celery:
+      build:
+        context: .
+        dockerfile: Dockerfile
+      working_dir: /app
+      command: ["celery", "-A", "config", "worker", "-l", "info"]
+      env_file:
+        - .env
+      volumes:
+        - .:/app
+      depends_on:
+        db:
+          condition: service_healthy
+        redis:
+          condition: service_started
+
     db:
       image: timescale/timescaledb:latest-pg16
       environment:
