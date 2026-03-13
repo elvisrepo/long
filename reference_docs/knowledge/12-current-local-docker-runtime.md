@@ -12,6 +12,8 @@ The backend local setup currently runs with Docker Compose from `backend/docker-
 
 Services:
 - `web`: Django development server container
+- `celery`: Celery worker container
+- `celery-beat`: Celery Beat scheduler container
 - `db`: TimescaleDB / PostgreSQL container
 - `redis`: Redis container
 
@@ -25,6 +27,8 @@ Named volumes:
 - Inside that Docker network, service names become hostnames:
   - Django connects to PostgreSQL at `db:5432`
   - Django connects to Redis at `redis:6379`
+  - Celery worker connects to Redis at `redis:6379`
+  - Celery Beat connects to Redis at `redis:6379`
 - Ports are published from containers to the host:
   - `8000:8000` = host `localhost:8000` -> container `web:8000`
   - `5432:5432` = host `localhost:5432` -> container `db:5432`
@@ -32,8 +36,8 @@ Named volumes:
 
 ### Image vs Container vs Volume vs Bind Mount
 
-- **Image**: a built package/template. `backend/Dockerfile` produces the `web` image.
-- **Container**: a running instance created from an image. `web`, `db`, and `redis` are containers.
+- **Image**: a built package/template. `backend/Dockerfile` is used to build the application image consumed by `web`, `celery`, and `celery-beat`.
+- **Container**: a running instance created from an image. `web`, `celery`, `celery-beat`, `db`, and `redis` are containers.
 - **Named volume**: Docker-managed persistent storage outside the container filesystem. `pgdata` is a named volume.
 - **Bind mount**: a direct mapping from a host path into a container path. `.:/app` is a bind mount.
 
@@ -59,6 +63,8 @@ Read it as:
 
 Inside Docker:
 - Django process (`web`)
+- Celery worker process (`celery`)
+- Celery Beat process (`celery-beat`)
 - PostgreSQL / TimescaleDB process (`db`)
 - Redis process (`redis`)
 - Container filesystem at `/app`
@@ -78,7 +84,7 @@ On the host machine:
 
 ### Bind Mount Behavior
 
-The `web` service mounts the host `backend/` directory into the container at `/app`:
+The application services mount the host `backend/` directory into the container at `/app`:
 
 ```yaml
 volumes:
@@ -89,6 +95,7 @@ That means:
 - Editing code on the host changes the code the container sees immediately
 - The Django development server can reload on file changes
 - For development, the files used at runtime come from your host machine through the bind mount
+- `web`, `celery`, and `celery-beat` all see the same source tree at `/app`
 
 `/app` is simply a path inside the container filesystem.
 
@@ -134,7 +141,7 @@ Why we do this:
 
 ### Dockerfile Purpose
 
-`backend/Dockerfile` builds the image used by the `web` service.
+`backend/Dockerfile` builds the image used by the application services.
 
 What it does:
 1. Starts from a base image that already includes `uv`
@@ -146,6 +153,11 @@ What it does:
 7. Adds `/opt/venv/bin` to `PATH`
 6. Copies the backend project into the image
 8. Defines the default command to run Django
+
+In Compose:
+- `web` overrides the default command to run migrations and then `runserver`
+- `celery` runs `celery -A config worker -l info`
+- `celery-beat` runs `celery -A config beat -l info`
 
 The key build-time line is:
 
@@ -169,19 +181,23 @@ So yes, the files get copied into the image during build, but for local developm
 
 What it does:
 - Builds the `web` image from `backend/Dockerfile`
+- Builds the `celery` and `celery-beat` application images from the same Dockerfile
 - Starts PostgreSQL/TimescaleDB
 - Starts Redis
+- Starts a Celery worker
+- Starts Celery Beat
 - Wires service startup ordering
 - Loads environment variables from `backend/.env`
-- Mounts the project source code into the Django container
+- Mounts the project source code into the application containers
 - Publishes container ports to the host machine
 
 ### How Compose, Env Vars, and Django Fit Together
 
 Relationship between Compose, env vars, and services:
 - Compose reads `backend/.env` and injects those values into the `web` container through `env_file`
+- Compose also injects the same env vars into `celery` and `celery-beat`
 - the `db` service separately reads `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` through Compose variable substitution
-- Django then reads `DATABASE_URL` and `REDIS_URL` from the environment inside the `web` container
+- Django and Celery then read `DATABASE_URL`, `REDIS_URL`, and `CELERY_BROKER_URL` from the environment inside the application containers
 - Docker itself does **not** choose the Django database; Django chooses it based on the env vars Docker injected
 
 Example:
@@ -210,15 +226,16 @@ The local-dev architecture is partially implemented, not complete yet.
 
 Already present:
 - Django in Docker
+- Celery worker in Docker
+- Celery Beat in Docker
 - PostgreSQL/TimescaleDB in Docker
 - Redis in Docker
 - `.dockerignore`
 - `backend/.env` convention
 - Health endpoint
+- Celery task discovery via `autodiscover_tasks()`
 
 Still missing:
-- Celery worker
-- Celery Beat
 - Domain apps (`accounts`, `metrics`)
 
 ### Mermaid Diagram
@@ -238,6 +255,8 @@ graph TB
 
     subgraph NET["Docker Compose Network"]
         WEB["web container<br/>Django dev server<br/>/app source mount<br/>deps in /opt/venv"]
+        CELERY["celery container<br/>Celery worker<br/>/app source mount<br/>deps in /opt/venv"]
+        BEAT["celery-beat container<br/>Celery Beat scheduler<br/>/app source mount<br/>deps in /opt/venv"]
         DB["db container<br/>PostgreSQL + TimescaleDB"]
         REDIS["redis container<br/>Redis server"]
     end
@@ -249,14 +268,22 @@ graph TB
     DC --> DOCKER
     DF --> DOCKER
     DOCKER --> WEB
+    DOCKER --> CELERY
+    DOCKER --> BEAT
     DOCKER --> DB
     DOCKER --> REDIS
 
     SRC -->|bind mount .:/app| WEB
+    SRC -->|bind mount .:/app| CELERY
+    SRC -->|bind mount .:/app| BEAT
     ENV -->|env_file .env| WEB
+    ENV -->|env_file .env| CELERY
+    ENV -->|env_file .env| BEAT
 
     WEB -->|DATABASE_URL = postgres://...@db:5432/...| DB
     WEB -->|REDIS_URL = redis://redis:6379/0| REDIS
+    CELERY -->|CELERY_BROKER_URL = redis://redis:6379/0| REDIS
+    BEAT -->|CELERY_BROKER_URL = redis://redis:6379/0| REDIS
 
     DB -->|named volume pgdata:/var/lib/postgresql/data| PGDATA
 
@@ -270,7 +297,7 @@ graph TB
     classDef runtime fill:#ffe2c7,stroke:#c05621,color:#5b2508,stroke-width:2px;
 
     class SRC,ENV,DC,DF,BROWSER host;
-    class WEB,DB,REDIS service;
+    class WEB,CELERY,BEAT,DB,REDIS service;
     class PGDATA volume;
     class DOCKER runtime;
 ```

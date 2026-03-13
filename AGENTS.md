@@ -34,6 +34,7 @@ Load only the parts you need. You can load multiple files when useful. Be specif
 - `reference_docs/knowledge/10-wireframes-frontend-design.md` when you need the frontend design and the 5 main views.
 - `reference_docs/knowledge/11-tech-stack.md` when you need the chosen tech stack.
 - `reference_docs/knowledge/12-current-local-docker-runtime.md` when you need the current Docker-based local runtime, what runs in containers vs on the host, or how `backend/Dockerfile` and `backend/docker-compose.yml` work.
+- `reference_docs/knowledge/13-architecture-decision-notes.md` when you need architecture tradeoffs, alternatives considered, or the rationale behind technical decisions.
 - `reference_docs/knowledge/14-auth-strategy.md` when you need the auth strategy.
 - `reference_docs/knowledge/15-scalability-approach.md` when you need the scalability approach.
 - `reference_docs/knowledge/16-security-owasp-top10-reference.md` when you need the section 2.6 security pointer back to the deeper security material.
