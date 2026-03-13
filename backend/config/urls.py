@@ -17,9 +17,10 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
-from common.views import health_view
+from common.views import health_view, ping_task_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path("health/", health_view, name="health")
+    path("health/", health_view, name="health"),
+    path("tasks/ping/", ping_task_view, name="tasks-ping"),
 ]
