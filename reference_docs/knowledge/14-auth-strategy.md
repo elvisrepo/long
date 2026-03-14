@@ -45,3 +45,9 @@
 - JWT can be equally secure, but only with careful implementation: short access-token lifetime, protected refresh-token storage, and refresh rotation / blacklist strategy when stronger logout semantics are required.
 - For web clients, avoid storing long-lived JWTs in JavaScript-readable storage.
 - For this project, use JWT for product APIs and Django sessions for admin rather than forcing one mechanism onto every surface.
+
+### Encrypted Email Storage
+
+- User email is stored encrypted at rest instead of plaintext.
+- Login lookup and uniqueness should rely on a normalized-email lookup hash, not plaintext email queries.
+- When verifying this behavior in tests, inspect the raw database column value rather than relying only on ORM reads, because ORM field conversion may return the decrypted application value.

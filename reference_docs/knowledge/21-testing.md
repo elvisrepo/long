@@ -32,6 +32,23 @@ When testing Django endpoints that enqueue Celery tasks:
 - do not depend on a live Redis broker or running Celery worker
 - verify HTTP response shape and that `.delay()` was called correctly
 
+### Encrypted-At-Rest Field Tests
+
+When testing fields that should be encrypted in the database:
+- do not rely only on ORM reads, because model field conversion may deserialize or decrypt values before assertions run
+- use a raw database cursor and direct SQL to inspect the literal stored column value
+- assert that plaintext is not stored directly in the database row
+
+What this proves:
+- the persisted database value is not plaintext
+
+What this does not prove by itself:
+- key management is correct
+- the encryption scheme is production-ready
+- decryption paths work correctly in every application flow
+
+Use this pattern for sensitive fields where storage-at-rest behavior matters, such as encrypted email storage on the custom user model.
+
 Example:
 - `tests/test_task_ping.py` patches `common.views.ping.delay`
 - the view under test imports `ping` inside `common.views`
