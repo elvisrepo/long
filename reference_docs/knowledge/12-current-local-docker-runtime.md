@@ -245,6 +245,7 @@ Current local runtime with color coding and port mappings:
 ```mermaid
 graph TB
     subgraph HOST["Host Machine"]
+        direction LR
         SRC["backend/ source code"]
         ENV["backend/.env"]
         DC["docker-compose.yml"]
@@ -254,11 +255,18 @@ graph TB
     end
 
     subgraph NET["Docker Compose Network"]
-        WEB["web container<br/>Django dev server<br/>/app source mount<br/>deps in /opt/venv"]
-        CELERY["celery container<br/>Celery worker<br/>/app source mount<br/>deps in /opt/venv"]
-        BEAT["celery-beat container<br/>Celery Beat scheduler<br/>/app source mount<br/>deps in /opt/venv"]
-        DB["db container<br/>PostgreSQL + TimescaleDB"]
-        REDIS["redis container<br/>Redis server"]
+        direction TB
+        subgraph APPS["Application Containers"]
+            direction LR
+            WEB["web container<br/>Django dev server<br/>/app source mount<br/>deps in /opt/venv"]
+            CELERY["celery container<br/>Celery worker<br/>/app source mount<br/>deps in /opt/venv"]
+            BEAT["celery-beat container<br/>Celery Beat scheduler<br/>/app source mount<br/>deps in /opt/venv"]
+        end
+        subgraph DATA["Data Containers"]
+            direction LR
+            DB["db container<br/>PostgreSQL + TimescaleDB"]
+            REDIS["redis container<br/>Redis server"]
+        end
     end
 
     subgraph VOLS["Docker Named Volumes"]
@@ -274,14 +282,15 @@ graph TB
     DOCKER --> REDIS
 
     SRC -->|bind mount .:/app| WEB
-    SRC -->|bind mount .:/app| CELERY
-    SRC -->|bind mount .:/app| BEAT
+    SRC -.-> CELERY
+    SRC -.-> BEAT
     ENV -->|env_file .env| WEB
-    ENV -->|env_file .env| CELERY
-    ENV -->|env_file .env| BEAT
+    ENV -.-> CELERY
+    ENV -.-> BEAT
 
     WEB -->|DATABASE_URL = postgres://...@db:5432/...| DB
     WEB -->|REDIS_URL = redis://redis:6379/0| REDIS
+    CELERY -->|DATABASE_URL = postgres://...@db:5432/...| DB
     CELERY -->|CELERY_BROKER_URL = redis://redis:6379/0| REDIS
     BEAT -->|CELERY_BROKER_URL = redis://redis:6379/0| REDIS
 

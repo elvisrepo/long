@@ -120,8 +120,23 @@
 - Alternatives considered:
   Explicit Celery task module includes.
 - Why we chose it:
-  This matches normal Django app structure and scales naturally as `accounts`, `metrics`, and future apps add `tasks.py`.
+  This matches normal Django app structure and scales naturally as `users`, `metrics`, and future apps add `tasks.py`.
 - Downsides:
   Tasks must live in installed Django apps to be discovered automatically.
 - Revisit when:
   Non-Django task modules become a primary part of the architecture.
+
+### ADR-009: Use JWT for Product API Auth and Django Sessions for Admin
+
+- Status: Accepted
+- Date: 2026-03-14
+- Decision:
+  Use JWT for product-facing API authentication and keep Django's built-in session authentication for Django admin.
+- Alternatives considered:
+  Use Django sessions everywhere, or use JWT everywhere including admin.
+- Why we chose it:
+  The product has API clients beyond the browser, especially the planned Android app, so JWT is the better fit for the product surface. Django admin remains server-rendered and already aligns well with session auth.
+- Downsides:
+  The system carries two auth mechanisms with different operational concerns. JWT logout and token invalidation are more complex than session invalidation and require explicit refresh-token handling.
+- Revisit when:
+  The product surface changes enough that a single auth transport becomes clearly preferable across both admin and client applications.
