@@ -12,7 +12,8 @@
       "psycopg[binary]>=3.3.3",
       "python-dotenv>=1.2.2",
       "redis>=7.3.0",
-  ]
+      "cryptography>=44.0.0",
+]
 
   [dependency-groups]
   dev = [

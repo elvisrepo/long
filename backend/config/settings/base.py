@@ -92,6 +92,10 @@ AUTH_PASSWORD_VALIDATORS = [
 
 AUTH_USER_MODEL = "users.User"
 
+AUTHENTICATION_BACKENDS = [
+      "apps.users.backends.EmailLookupHashBackend",
+  ]
+
 LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = "UTC"

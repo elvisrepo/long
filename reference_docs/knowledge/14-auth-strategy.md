@@ -50,4 +50,47 @@
 
 - User email is stored encrypted at rest instead of plaintext.
 - Login lookup and uniqueness should rely on a normalized-email lookup hash, not plaintext email queries.
+- The lookup value should be a keyed HMAC of the normalized email, not a plain unsalted hash.
+- The encrypted email column is for confidentiality at rest; the lookup hash is for stable exact-match queries.
+- Because encrypted email is not the database lookup field, authentication should use a custom backend that resolves users by `email_lookup_hash`.
+- At the model/API level, `email` still remains the user-facing identifier and `USERNAME_FIELD`.
+- Use a real Fernet key for `PII_ENCRYPTION_KEY`; do not derive one ad hoc from `SECRET_KEY`.
+- Use a separate dedicated `EMAIL_LOOKUP_KEY` for the keyed lookup hash.
+- Missing crypto keys should fail fast instead of silently falling back to broad defaults.
+- Field behavior should follow this pattern:
+  - encrypt on database write
+  - decrypt on ORM read
 - When verifying this behavior in tests, inspect the raw database column value rather than relying only on ORM reads, because ORM field conversion may return the decrypted application value.
+
+### Current Create and Login Flows
+
+```mermaid
+flowchart TD
+    A["Caller calls create_user with email and password"] --> B["UserManager create_user"]
+    B --> C["Normalize email"]
+    C --> D["Create User instance"]
+    D --> E["Hash password with set_password"]
+    E --> F["Save user"]
+    F --> G["Normalize email again"]
+    G --> H["Compute email lookup hash with HMAC"]
+    H --> I["Prepare email field for database write"]
+    I --> J["Encrypt email with Fernet"]
+    J --> K[("users_user table")]
+    K --> L["email stores ciphertext"]
+    K --> M["email_lookup_hash stores keyed HMAC"]
+    K --> N["password stores Django password hash"]
+```
+
+```mermaid
+flowchart TD
+    A["User submits email and password"] --> B["Custom auth backend authenticate"]
+    B --> C["Normalize email inside lookup hash builder"]
+    C --> D["Compute keyed email lookup hash"]
+    D --> E["Query user by email_lookup_hash"]
+    E --> F["Load matching user row"]
+    F --> G["Decrypt email during ORM read"]
+    G --> H["Check password with Django"]
+    H --> J{"Password valid and user active?"}
+    J -- Yes --> K[Return authenticated user]
+    J -- No --> L[Return None]
+```

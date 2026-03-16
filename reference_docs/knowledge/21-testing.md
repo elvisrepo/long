@@ -38,6 +38,7 @@ When testing fields that should be encrypted in the database:
 - do not rely only on ORM reads, because model field conversion may deserialize or decrypt values before assertions run
 - use a raw database cursor and direct SQL to inspect the literal stored column value
 - assert that plaintext is not stored directly in the database row
+- keep deterministic test-only crypto settings in Django test settings instead of depending on developer-local `.env` values
 
 What this proves:
 - the persisted database value is not plaintext

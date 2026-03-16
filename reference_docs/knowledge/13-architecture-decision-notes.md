@@ -140,3 +140,18 @@
   The system carries two auth mechanisms with different operational concerns. JWT logout and token invalidation are more complex than session invalidation and require explicit refresh-token handling.
 - Revisit when:
   The product surface changes enough that a single auth transport becomes clearly preferable across both admin and client applications.
+
+### ADR-010: Encrypt User Email at Rest and Authenticate via Lookup Hash
+
+- Status: Accepted
+- Date: 2026-03-16
+- Decision:
+  Store user email encrypted at rest, keep a keyed `email_lookup_hash` for exact-match lookup and uniqueness, and authenticate through a custom Django auth backend that resolves users by that lookup hash. Require dedicated crypto secrets instead of reusing `SECRET_KEY`.
+- Alternatives considered:
+  Store plaintext email, use a plain unsalted hash for lookup, require authentication against the encrypted email column directly, or derive encryption keys ad hoc from `SECRET_KEY`.
+- Why we chose it:
+  Email is user PII and should not sit in the database as plaintext. At the same time, login and uniqueness checks need a stable query key. A keyed lookup hash provides that stable key, and a custom backend avoids forcing authentication through a unique plaintext-style email column. Requiring explicit crypto keys keeps encryption and lookup concerns decoupled from Django's general-purpose `SECRET_KEY`.
+- Downsides:
+  The auth path is more complex than Django's default setup, and key management becomes a real operational concern. Fernet key rotation and ciphertext migration are not solved just by introducing the encrypted field.
+- Revisit when:
+  The project adopts a more formal field-encryption/key-rotation system or a different identity model.
