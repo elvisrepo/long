@@ -47,3 +47,14 @@ def test_email_is_encrypted_at_rest():
     
     assert stored_value != "alice@example.com"
     assert "alice@example.com" not in stored_value
+
+def test_manager_can_find_user_by_plaintext_email():
+     User = get_user_model()
+
+     user = User.objects.create_user(
+          email="alice@example.com",
+          password="strong-password-123",
+     )
+
+     fetched = User.objects.get_by_natural_key("ALICE@example.com")
+     assert fetched.pk == user.pk
