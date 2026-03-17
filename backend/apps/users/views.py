@@ -6,7 +6,7 @@ from django.http import HttpResponseNotAllowed, JsonResponse
 
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-
+from django.contrib.auth.password_validation import validate_password
 from apps.users.models import build_email_lookup_hash
 
 
@@ -34,6 +34,16 @@ def register_view(request):
           return JsonResponse(
               {
                   "email": ["Enter a valid email address."],
+              },
+              status=400,
+          )
+    
+    try:
+          validate_password(password)
+    except ValidationError as exc:
+          return JsonResponse(
+              {
+                  "password": list(exc.messages),
               },
               status=400,
           )

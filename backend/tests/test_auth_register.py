@@ -85,3 +85,24 @@ def test_register_rejects_invalid_email():
       assert response.json() == {
           "email": ["Enter a valid email address."],
       }
+
+def test_register_rejects_password_that_fails_django_validation():
+      client = APIClient()
+
+      response = client.post(
+          "/api/auth/register/",
+          {
+              "email": "alice@example.com",
+              "password": "123",
+          },
+          format="json",
+      )
+
+      assert response.status_code == 400
+      assert response.json() == {
+      "password": [
+          "This password is too short. It must contain at least 8 characters.",
+          "This password is too common.",
+          "This password is entirely numeric.",
+      ],
+  }
