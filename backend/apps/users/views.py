@@ -4,6 +4,9 @@ from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.http import HttpResponseNotAllowed, JsonResponse
 
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+
 from apps.users.models import build_email_lookup_hash
 
 
@@ -24,6 +27,16 @@ def register_view(request):
 
     if errors:
           return JsonResponse(errors, status=400)
+    
+    try:
+          validate_email(email)
+    except ValidationError:
+          return JsonResponse(
+              {
+                  "email": ["Enter a valid email address."],
+              },
+              status=400,
+          )
 
     if get_user_model().objects.filter(
           email_lookup_hash=build_email_lookup_hash(email)

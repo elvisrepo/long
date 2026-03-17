@@ -68,3 +68,20 @@ def test_register_requires_email_and_password():
           "email": ["This field is required."],
           "password": ["This field is required."],
       }
+
+def test_register_rejects_invalid_email():
+      client = APIClient()
+
+      response = client.post(
+          "/api/auth/register/",
+          {
+              "email": "not-an-email",
+              "password": "strong-password-123",
+          },
+          format="json",
+      )
+
+      assert response.status_code == 400
+      assert response.json() == {
+          "email": ["Enter a valid email address."],
+      }
