@@ -12,7 +12,18 @@ def register_view(request):
           return HttpResponseNotAllowed(["POST"])
     
     payload = json.loads(request.body or "{}")
-    email = payload["email"]
+
+    errors = {}
+    email = payload.get("email")
+    password = payload.get("password")
+
+    if not email:
+          errors["email"] = ["This field is required."]
+    if not password:
+          errors["password"] = ["This field is required."]
+
+    if errors:
+          return JsonResponse(errors, status=400)
 
     if get_user_model().objects.filter(
           email_lookup_hash=build_email_lookup_hash(email)

@@ -52,3 +52,19 @@ def test_register_rejects_duplicate_email():
       assert response.json() == {
         "email": ["A user with that email already exists."],
   }
+      
+
+def test_register_requires_email_and_password():
+      client = APIClient()
+
+      response = client.post(
+          "/api/auth/register/",
+          {},
+          format="json",
+      )
+
+      assert response.status_code == 400
+      assert response.json() == {
+          "email": ["This field is required."],
+          "password": ["This field is required."],
+      }
