@@ -78,3 +78,16 @@ def test_authenticate_returns_user_for_valid_email_and_password():
 
      assert authenticated_user is not None
      assert authenticated_user.pk == user.pk
+
+def test_create_superuser_sets_required_flags():
+     
+     User = get_user_model()
+
+     superuser = User.objects.create_superuser(
+          email="admin@example.com",
+          password="strong-password-123",
+      )
+
+     assert superuser.is_staff is True
+     assert superuser.is_superuser is True
+     assert superuser.is_active is True

@@ -50,6 +50,18 @@ What this does not prove by itself:
 
 Use this pattern for sensitive fields where storage-at-rest behavior matters, such as encrypted email storage on the custom user model.
 
+### Custom User Foundation Checks
+
+Before moving from the custom user model slice into auth endpoints, keep the following covered and green:
+- creating a user normalizes email and populates the lookup hash
+- the stored email column is encrypted at rest
+- manager lookup by plaintext email resolves through the lookup hash
+- Django authentication resolves through the custom backend with email + password
+- superuser creation sets the required admin flags
+- `makemigrations --check` reports no drift after model changes
+
+For this project, test-only crypto settings should live in `config/settings/test.py` so the suite does not depend on a developer's local `.env`.
+
 Example:
 - `tests/test_task_ping.py` patches `common.views.ping.delay`
 - the view under test imports `ping` inside `common.views`

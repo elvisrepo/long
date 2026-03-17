@@ -57,6 +57,7 @@
 - Use a real Fernet key for `PII_ENCRYPTION_KEY`; do not derive one ad hoc from `SECRET_KEY`.
 - Use a separate dedicated `EMAIL_LOOKUP_KEY` for the keyed lookup hash.
 - Missing crypto keys should fail fast instead of silently falling back to broad defaults.
+- Django's `auth.W004` warning about a non-unique `USERNAME_FIELD` is expected in this design because authentication is delegated to the custom backend using `email_lookup_hash`.
 - Field behavior should follow this pattern:
   - encrypt on database write
   - decrypt on ORM read

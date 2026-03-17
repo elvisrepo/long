@@ -152,6 +152,6 @@
 - Why we chose it:
   Email is user PII and should not sit in the database as plaintext. At the same time, login and uniqueness checks need a stable query key. A keyed lookup hash provides that stable key, and a custom backend avoids forcing authentication through a unique plaintext-style email column. Requiring explicit crypto keys keeps encryption and lookup concerns decoupled from Django's general-purpose `SECRET_KEY`.
 - Downsides:
-  The auth path is more complex than Django's default setup, and key management becomes a real operational concern. Fernet key rotation and ciphertext migration are not solved just by introducing the encrypted field.
+  The auth path is more complex than Django's default setup, and key management becomes a real operational concern. Fernet key rotation and ciphertext migration are not solved just by introducing the encrypted field. The design also accepts Django's `auth.W004` warning because `USERNAME_FIELD` remains `email` while actual lookup is handled by the custom backend.
 - Revisit when:
   The project adopts a more formal field-encryption/key-rotation system or a different identity model.
