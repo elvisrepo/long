@@ -62,6 +62,24 @@ Before moving from the custom user model slice into auth endpoints, keep the fol
 
 For this project, test-only crypto settings should live in `config/settings/test.py` so the suite does not depend on a developer's local `.env`.
 
+### Why These Were Integration Tests
+
+The custom user foundation should be tested mostly at the integration level, not as isolated unit tests.
+
+Why:
+- the main risk is framework wiring, not just helper correctness
+- the slice depends on Django model lifecycle hooks, database persistence, custom field behavior, auth backend configuration, and migration state all working together
+- pure unit tests would miss failures such as using the wrong user model, not encrypting at the persistence boundary, or not actually wiring the custom backend into `authenticate()`
+
+Use integration-heavy tests here to prove:
+- Django is using the custom user model
+- manager methods persist the intended state
+- encrypted fields store ciphertext in the real database
+- authentication resolves through the configured backend
+- schema and migration state remain aligned
+
+Use unit tests instead for small pure helpers or validators where framework wiring is not the main source of risk.
+
 Example:
 - `tests/test_task_ping.py` patches `common.views.ping.delay`
 - the view under test imports `ping` inside `common.views`
