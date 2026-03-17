@@ -1,79 +1,22 @@
-import json
+from rest_framework import status
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
 
-from django.contrib.auth import get_user_model
-from django.db import IntegrityError
-from django.http import HttpResponseNotAllowed, JsonResponse
-
-from django.core.exceptions import ValidationError
-from django.core.validators import validate_email
-from django.contrib.auth.password_validation import validate_password
-from apps.users.models import build_email_lookup_hash
+from apps.users.serializers import RegisterSerializer
 
 
+@api_view(["POST"])
 def register_view(request):
-    if request.method != "POST":
-          return HttpResponseNotAllowed(["POST"])
-    
-    payload = json.loads(request.body or "{}")
+      serializer = RegisterSerializer(data=request.data)
 
-    errors = {}
-    email = payload.get("email")
-    password = payload.get("password")
+      if not serializer.is_valid():
+          return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    if not email:
-          errors["email"] = ["This field is required."]
-    if not password:
-          errors["password"] = ["This field is required."]
+      user = serializer.save()
 
-    if errors:
-          return JsonResponse(errors, status=400)
-    
-    try:
-          validate_email(email)
-    except ValidationError:
-          return JsonResponse(
-              {
-                  "email": ["Enter a valid email address."],
-              },
-              status=400,
-          )
-    
-    try:
-          validate_password(password)
-    except ValidationError as exc:
-          return JsonResponse(
-              {
-                  "password": list(exc.messages),
-              },
-              status=400,
-          )
-
-    if get_user_model().objects.filter(
-          email_lookup_hash=build_email_lookup_hash(email)
-      ).exists():
-          return JsonResponse(
-              {
-                  "email": ["A user with that email already exists."],
-              },
-              status=400,
-          )
-
-    try:
-          user = get_user_model().objects.create_user(
-              email=email,
-              password=payload["password"],
-          )
-    except IntegrityError:
-          return JsonResponse(
-                {
-                  "email": ["A user with that email already exists."],
-              },
-              status=400,
-          )
-    
-    return JsonResponse(
+      return Response(
           {
               "email": user.email,
           },
-          status=201,
+          status=status.HTTP_201_CREATED,
       )

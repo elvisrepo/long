@@ -95,3 +95,42 @@ flowchart TD
     J -- Yes --> K[Return authenticated user]
     J -- No --> L[Return None]
 ```
+
+### API Layering for Auth Endpoints
+
+For auth endpoints, keep responsibilities split cleanly:
+- **Model**: database and domain contract
+  - defines what a `User` is in the system
+  - owns persistence behavior such as encrypted email storage and lookup-hash synchronization
+- **Serializer**: API input/output contract
+  - defines which fields an endpoint accepts or returns
+  - validates request data
+  - can create the domain object for the endpoint use case
+- **View**: HTTP orchestration layer
+  - receives the request
+  - passes request data to the serializer
+  - returns the HTTP response with the right status code
+
+For the register endpoint:
+- use DRF `@api_view(["POST"])`
+- parse request payloads through `request.data`
+- keep validation and object creation in the serializer instead of manually growing view logic
+
+### Serialization and Deserialization
+
+- **Deserialization**: taking incoming external data such as JSON and turning it into validated Python-native data that the application can use.
+- **Serialization**: taking Python objects or domain data and turning them into external response data such as JSON.
+
+Roughly:
+- JSON -> Python data = deserialization
+- Python data -> JSON = serialization
+
+In DRF, deserialization usually includes validation, and serialization usually includes shaping the response into the API contract, not just raw type conversion.
+
+In this project:
+- register request body -> serializer validation -> validated data = deserialization
+- created user -> response payload such as `{"email": "alice@example.com"}` = serialization
+
+The important design rule is:
+- models are not the API contract
+- serializers define the API contract for each endpoint

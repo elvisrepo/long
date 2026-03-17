@@ -80,6 +80,21 @@ Use integration-heavy tests here to prove:
 
 Use unit tests instead for small pure helpers or validators where framework wiring is not the main source of risk.
 
+### Auth Endpoint Testing Notes
+
+Auth endpoint tests in this project are API integration tests.
+
+They should prove:
+- routing reaches the intended endpoint
+- DRF request parsing and response shaping work correctly
+- serializer validation preserves the API contract
+- view, serializer, model, and auth backend wiring all cooperate correctly
+
+When refactoring auth endpoints:
+- keep existing endpoint tests green while moving validation from views into serializers
+- prefer DRF views for JSON API endpoints so `request.data` is available naturally
+- treat serializer adoption as an internal refactor, not an excuse to drift the public API contract unless the tests are intentionally updated first
+
 Example:
 - `tests/test_task_ping.py` patches `common.views.ping.delay`
 - the view under test imports `ping` inside `common.views`
