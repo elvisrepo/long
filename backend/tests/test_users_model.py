@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.db import connection
 
 from apps.users.models import build_email_lookup_hash
+from django.contrib.auth import authenticate
 
 pytestmark = pytest.mark.django_db
 
@@ -58,3 +59,22 @@ def test_manager_can_find_user_by_plaintext_email():
 
      fetched = User.objects.get_by_natural_key("ALICE@example.com")
      assert fetched.pk == user.pk
+
+
+def test_authenticate_returns_user_for_valid_email_and_password():
+     # create a user  and compare it to the user returned by authenticate
+
+     User = get_user_model()
+
+     user = User.objects.create_user(
+          email="alice@example.com",
+          password="strong-password-123",
+     )
+
+     authenticated_user = authenticate(
+          email="ALICE@example.com",
+          password="strong-password-123",
+     )
+
+     assert authenticated_user is not None
+     assert authenticated_user.pk == user.pk
