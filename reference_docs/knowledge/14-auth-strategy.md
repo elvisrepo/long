@@ -45,6 +45,7 @@
 - JWT can be equally secure, but only with careful implementation: short access-token lifetime, protected refresh-token storage, and refresh rotation / blacklist strategy when stronger logout semantics are required.
 - For web clients, avoid storing long-lived JWTs in JavaScript-readable storage.
 - For this project, use JWT for product APIs and Django sessions for admin rather than forcing one mechanism onto every surface.
+- JWT signing strength still depends on key quality. For HS256-based signing, test and runtime keys should be sufficiently long and not treated as throwaway short strings.
 
 ### Encrypted Email Storage
 

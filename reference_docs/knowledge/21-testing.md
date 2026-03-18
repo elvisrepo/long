@@ -62,6 +62,11 @@ Before moving from the custom user model slice into auth endpoints, keep the fol
 
 For this project, test-only crypto settings should live in `config/settings/test.py` so the suite does not depend on a developer's local `.env`.
 
+`config/settings/test.py` is the active Django settings module for pytest because `pyproject.toml` sets:
+- `DJANGO_SETTINGS_MODULE = "config.settings.test"`
+
+That means automated tests should rely on explicit test settings overrides instead of assuming local development settings or local shell environment state.
+
 ### Why These Were Integration Tests
 
 The custom user foundation should be tested mostly at the integration level, not as isolated unit tests.
@@ -94,6 +99,11 @@ When refactoring auth endpoints:
 - keep existing endpoint tests green while moving validation from views into serializers
 - prefer DRF views for JSON API endpoints so `request.data` is available naturally
 - treat serializer adoption as an internal refactor, not an excuse to drift the public API contract unless the tests are intentionally updated first
+
+For JWT-based auth tests:
+- keep a sufficiently long test `SECRET_KEY` in `config/settings/test.py`
+- otherwise HS256 signing may emit insecure-key-length warnings
+- fixing the warning in test settings is better than normalizing weak signing keys in the test environment
 
 Example:
 - `tests/test_task_ping.py` patches `common.views.ping.delay`
