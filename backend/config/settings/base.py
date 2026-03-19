@@ -8,6 +8,8 @@ from pathlib import Path
 import dj_database_url
 from dotenv import load_dotenv
 
+from datetime import timedelta
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  #points to backend
 ENV_FILE = BASE_DIR / ".env"
@@ -33,7 +35,8 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "apps.users",
-    "common"
+    "common",
+    "rest_framework_simplejwt.token_blacklist",
 ]
 
 MIDDLEWARE = [
@@ -112,4 +115,12 @@ REST_FRAMEWORK = {
       "DEFAULT_AUTHENTICATION_CLASSES": (
           "rest_framework_simplejwt.authentication.JWTAuthentication",
       ),
+  }
+
+SIMPLE_JWT = {
+      "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+      "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+      "ROTATE_REFRESH_TOKENS": True,
+      "BLACKLIST_AFTER_ROTATION": True,
+      "SIGNING_KEY": os.environ.get("JWT_SIGNING_KEY", default=SECRET_KEY),
   }

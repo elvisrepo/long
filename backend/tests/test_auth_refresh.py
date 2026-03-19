@@ -33,7 +33,7 @@ def test_refresh_returns_new_access_token_for_valid_refresh_token():
       )
 
     assert response.status_code == 200
-    assert set(response.json().keys()) == {"access"}
+    assert set(response.json().keys()) == {"access", "refresh"}
 
 
 def test_refresh_rejects_invalid_refresh_token():
