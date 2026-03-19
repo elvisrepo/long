@@ -2,7 +2,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from apps.users.serializers import RegisterSerializer
+from apps.users.serializers import LoginSerializer,RegisterSerializer
 
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -26,10 +26,14 @@ def register_view(request):
 
 @api_view(["POST"])
 def login_view(request):
-      email = request.data.get("email")
-      password = request.data.get("password")
+      
+      serializer = LoginSerializer(data=request.data)  
+      if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-      user = authenticate(email=email, password=password)
+    
+      
+      user = authenticate(**serializer.validated_data)
       if user is None:
           return Response(
               {"detail": "Invalid credentials."},

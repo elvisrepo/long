@@ -105,6 +105,15 @@ For JWT-based auth tests:
 - otherwise HS256 signing may emit insecure-key-length warnings
 - fixing the warning in test settings is better than normalizing weak signing keys in the test environment
 
+Current auth endpoint coverage includes:
+- register happy path, duplicate email, required fields, invalid email, and Django password validation
+- login happy path JWT issuance, invalid credentials, and required fields
+
+For the login slice specifically:
+- keep input validation in `LoginSerializer`
+- keep the view focused on orchestration: validate input, call `authenticate(...)`, mint JWTs, and shape the HTTP response
+- prefer serializer-based required-field handling over manually branching on missing keys in the view
+
 Example:
 - `tests/test_task_ping.py` patches `common.views.ping.delay`
 - the view under test imports `ping` inside `common.views`

@@ -50,3 +50,21 @@ def test_login_rejects_invalid_credentials():
       assert response.json() == {
           "detail": "Invalid credentials.",
       }
+
+def test_login_requires_email_and_password():
+     client = APIClient()
+
+     response = client.post(
+          "/api/auth/login/",
+          {},
+          format="json",
+     )
+
+     assert response.status_code == 400
+     assert response.json() == {
+          "email": ["This field is required."],
+          "password": ["This field is required."],
+      }
+
+
+     

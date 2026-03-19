@@ -117,6 +117,20 @@ For the register endpoint:
 - parse request payloads through `request.data`
 - keep validation and object creation in the serializer instead of manually growing view logic
 
+For the login endpoint:
+- use DRF `@api_view(["POST"])`
+- validate request fields through a dedicated `LoginSerializer`
+- authenticate with Django `authenticate(...)` so the custom email-lookup backend remains the source of truth
+- mint JWTs through `RefreshToken.for_user(user)` from `djangorestframework-simplejwt` instead of hand-rolling token logic
+
+### Current Login API Behavior
+
+- `POST /api/auth/login/`
+- request body: `email`, `password`
+- success response: `200` with `access` and `refresh`
+- invalid credentials response: `400` with `{"detail": "Invalid credentials."}`
+- missing required fields response: `400` with field errors from the serializer
+
 ### Serialization and Deserialization
 
 - **Deserialization**: taking incoming external data such as JSON and turning it into validated Python-native data that the application can use.

@@ -29,3 +29,7 @@ class RegisterSerializer(serializers.Serializer):
 
       def create(self, validated_data):
           return get_user_model().objects.create_user(**validated_data)
+      
+class LoginSerializer(serializers.Serializer):
+      email = serializers.CharField(required=True)
+      password = serializers.CharField(required=True, write_only=True)
