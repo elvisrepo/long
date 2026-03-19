@@ -142,6 +142,21 @@ Current boundary:
 - keep login custom because the app authenticates by email through the custom Django backend
 - keep refresh on the library default path until there is a real reason to customize claims, rotation, blacklist behavior, or transport
 
+### Current Protected `me` Endpoint Behavior
+
+- `GET /api/auth/me/`
+- request header: `Authorization: Bearer <access-token>`
+- success response: `200` with the authenticated user's email
+- unauthenticated response: `401`
+
+How `/api/auth/me/` is protected:
+- `@api_view` makes the endpoint run through DRF request handling
+- DRF uses `REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"]`
+- `JWTAuthentication` reads and validates the bearer access token
+- on success, DRF sets `request.user`
+- the view returns data from `request.user`
+
+
 ### Serialization and Deserialization
 
 - **Deserialization**: taking incoming external data such as JSON and turning it into validated Python-native data that the application can use.

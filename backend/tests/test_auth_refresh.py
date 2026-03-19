@@ -34,3 +34,16 @@ def test_refresh_returns_new_access_token_for_valid_refresh_token():
 
     assert response.status_code == 200
     assert set(response.json().keys()) == {"access"}
+
+
+def test_refresh_rejects_invalid_refresh_token():
+      client = APIClient()
+
+      response = client.post(
+          "/api/auth/refresh/",
+          {
+              "refresh": "not-a-real-refresh-token",
+          },
+      )
+
+      assert response.status_code == 401

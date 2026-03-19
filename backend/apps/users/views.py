@@ -56,3 +56,19 @@ def refresh_view(request):
           return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
       return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+def me_view(request):
+      if not request.user.is_authenticated:
+          return Response(
+              {"detail": "Authentication credentials were not provided."},
+              status=status.HTTP_401_UNAUTHORIZED,
+          )
+
+      return Response(
+          {
+              "email": request.user.email,
+          },
+          status=status.HTTP_200_OK,
+      )
