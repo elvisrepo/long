@@ -6,6 +6,7 @@ from apps.users.serializers import LoginSerializer,RegisterSerializer
 
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 
 
 @api_view(["POST"])
@@ -31,8 +32,6 @@ def login_view(request):
       if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    
-      
       user = authenticate(**serializer.validated_data)
       if user is None:
           return Response(
@@ -49,3 +48,11 @@ def login_view(request):
           },
           status=status.HTTP_200_OK,
       )
+
+@api_view(["POST"])
+def refresh_view(request):
+      serializer = TokenRefreshSerializer(data=request.data)
+      if not serializer.is_valid():
+          return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+      return Response(serializer.validated_data, status=status.HTTP_200_OK)

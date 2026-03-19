@@ -108,11 +108,16 @@ For JWT-based auth tests:
 Current auth endpoint coverage includes:
 - register happy path, duplicate email, required fields, invalid email, and Django password validation
 - login happy path JWT issuance, invalid credentials, and required fields
+- refresh happy path for a valid refresh token
 
 For the login slice specifically:
 - keep input validation in `LoginSerializer`
 - keep the view focused on orchestration: validate input, call `authenticate(...)`, mint JWTs, and shape the HTTP response
 - prefer serializer-based required-field handling over manually branching on missing keys in the view
+
+For the refresh slice specifically:
+- prefer the built-in SimpleJWT `TokenRefreshView` over custom view code unless custom token behavior is actually needed
+- test the public refresh endpoint contract rather than re-testing the library internals at a lower level
 
 Example:
 - `tests/test_task_ping.py` patches `common.views.ping.delay`

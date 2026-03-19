@@ -131,6 +131,17 @@ For the login endpoint:
 - invalid credentials response: `400` with `{"detail": "Invalid credentials."}`
 - missing required fields response: `400` with field errors from the serializer
 
+### Current Refresh API Behavior
+
+- `POST /api/auth/refresh/`
+- request body: `refresh`
+- success response: `200` with a new `access` token
+- use SimpleJWT's built-in `TokenRefreshView` instead of custom refresh logic
+
+Current boundary:
+- keep login custom because the app authenticates by email through the custom Django backend
+- keep refresh on the library default path until there is a real reason to customize claims, rotation, blacklist behavior, or transport
+
 ### Serialization and Deserialization
 
 - **Deserialization**: taking incoming external data such as JSON and turning it into validated Python-native data that the application can use.
