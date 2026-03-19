@@ -155,3 +155,18 @@
   The auth path is more complex than Django's default setup, and key management becomes a real operational concern. Fernet key rotation and ciphertext migration are not solved just by introducing the encrypted field. The design also accepts Django's `auth.W004` warning because `USERNAME_FIELD` remains `email` while actual lookup is handled by the custom backend.
 - Revisit when:
   The project adopts a more formal field-encryption/key-rotation system or a different identity model.
+
+### ADR-011: Use Hardened JWT Transport and Server-Side Refresh Revocation
+
+- Status: Accepted
+- Date: 2026-03-19
+- Decision:
+  Use short-lived JWT access tokens in the `Authorization` header, use refresh-token rotation and blacklist/revocation, transport the web refresh token in an `HttpOnly`, `Secure` cookie, and keep Android tokens in secure platform storage.
+- Alternatives considered:
+  Pure client-managed logout, returning both tokens only in JSON for every client, storing long-lived tokens in browser-readable storage, or inventing custom refresh-token revocation logic.
+- Why we chose it:
+  This gives stronger logout semantics, reduces XSS exposure for the long-lived refresh token on the web, and stays aligned with SimpleJWT's intended extension points instead of introducing custom token infrastructure too early.
+- Downsides:
+  The implementation is more complex than a minimal stateless JWT setup. Cookie-based refresh and logout flows require explicit CSRF handling, and web/mobile token transport rules must stay intentionally different.
+- Revisit when:
+  The product transport model changes enough that cookie-based web refresh or server-side refresh revocation no longer fit the client mix.

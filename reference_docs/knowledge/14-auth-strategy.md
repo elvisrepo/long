@@ -155,6 +155,64 @@ How `/api/auth/me/` is protected:
 - `JWTAuthentication` reads and validates the bearer access token
 - on success, DRF sets `request.user`
 - the view returns data from `request.user`
+- both happy-path and unauthenticated behavior are covered by tests
+
+### Current MVP Logout State
+
+- logout is not implemented yet
+- current JWT behavior is stateless on the access-token side
+- that means a previously issued access token remains valid until expiry unless a stronger revocation design is added
+
+Two viable logout models:
+- minimal logout: client deletes stored access and refresh tokens
+- stronger logout: enable refresh-token rotation and blacklist/revocation so refresh tokens can be invalidated server-side
+
+MVP recommendation:
+- for the backend slice, keep login, refresh, and `me` first
+- choose logout policy explicitly before implementing it
+- if the product needs stronger logout semantics, use SimpleJWT's rotation/blacklist path rather than inventing custom revocation logic
+
+### HttpOnly Cookie Role
+
+- `HttpOnly` cookies matter mainly for web-client refresh-token storage
+- the main idea is:
+  - keep the short-lived access token in the authorization header
+  - keep the longer-lived refresh token in an `HttpOnly`, `Secure` cookie
+- this reduces JavaScript access to the long-lived token and lowers XSS exposure for refresh-token theft
+
+Current project state:
+- tokens are currently returned in the JSON response body
+- cookie transport has not been implemented yet
+- this is acceptable for the current backend auth slice, but web-token storage policy still needs an explicit decision before frontend integration hardens
+
+### Chosen Hardened Token Policy
+
+Chosen direction for the product auth flow:
+- access token:
+  - short-lived JWT
+  - sent in `Authorization: Bearer <token>`
+  - web client should keep it in memory, not persistent browser storage
+  - Android client should keep it in secure platform storage
+- refresh token:
+  - web client should receive it in an `HttpOnly`, `Secure` cookie
+  - Android client should keep it in secure platform storage
+  - frontend JavaScript should not read the refresh token on web
+- refresh behavior:
+  - enable refresh-token rotation
+  - enable blacklist/revocation
+  - when a refresh succeeds, issue a new refresh token and invalidate the old one
+  - logout should revoke the current refresh token server-side
+
+Why this policy was chosen:
+- it gives stronger logout semantics than client-only token deletion
+- it reduces XSS exposure for the long-lived refresh token on web
+- it limits replay value of old refresh tokens
+- it stays close to SimpleJWT's intended extension points instead of inventing custom token machinery
+
+Security implications:
+- cookie-based refresh/logout flows need explicit CSRF handling
+- access-token expiry should stay short because access tokens remain stateless until expiry
+- web and Android token transport are intentionally different because their threat models and storage primitives differ
 
 
 ### Serialization and Deserialization

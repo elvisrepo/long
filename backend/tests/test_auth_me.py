@@ -34,3 +34,10 @@ def test_me_returns_authenticated_user_email():
           "email": "alice@example.com",
       }
 
+
+def test_me_requires_authentication():
+      client = APIClient()
+
+      response = client.get("/api/auth/me/")
+
+      assert response.status_code == 401
