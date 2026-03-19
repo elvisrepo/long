@@ -137,6 +137,8 @@ For the login endpoint:
 - request body: `refresh`
 - success response: `200` with a new `access` token
 - use SimpleJWT's built-in `TokenRefreshView` instead of custom refresh logic
+- avoid keeping a parallel custom `refresh_view` wrapper unless refresh behavior is intentionally being customized
+- a hand-written wrapper around `TokenRefreshSerializer` is functionally just a thin reimplementation of the built-in view and adds maintenance noise without improving security
 
 Current boundary:
 - keep login custom because the app authenticates by email through the custom Django backend
