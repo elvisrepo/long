@@ -180,6 +180,7 @@ Current logout behavior:
 - backend blacklists the submitted refresh token using SimpleJWT's blacklist support
 - response is `204 No Content`
 - if `refresh` is missing, response is `400` with a field error
+- if `refresh` is malformed or invalid, response is `400`
 - after logout, that same refresh token can no longer be used at `/api/auth/refresh/`
 - logout currently revokes refresh capability, not already-issued access tokens
 
@@ -245,6 +246,7 @@ Current implementation gap:
 - the backend currently still returns refresh tokens in JSON responses
 - cookie-based refresh/logout transport is not implemented yet
 - logout is implemented with request-body refresh submission, but cookie-based logout transport is not implemented yet
+- the backend auth foundation is green across register, login, refresh, logout, and `me`
 
 
 ### Serialization and Deserialization

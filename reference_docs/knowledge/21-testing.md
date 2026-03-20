@@ -114,6 +114,7 @@ Current auth endpoint coverage includes:
 - `me` unauthenticated protection
 - logout blacklists a refresh token and prevents reuse at the refresh endpoint
 - logout requires the `refresh` field and rejects missing input with `400`
+- logout rejects malformed refresh tokens with `400`
 
 For the login slice specifically:
 - keep input validation in `LoginSerializer`
@@ -128,6 +129,7 @@ Current auth foundation status:
 - the full backend test suite is green after register, login, refresh, and `me` were added
 - logout refresh-token revocation is also covered now
 - use that stable point before introducing cookie-based refresh handling or CSRF-sensitive logout transport changes
+- current backend suite status at this checkpoint: `24 passed`
 
 Example:
 - `tests/test_task_ping.py` patches `common.views.ping.delay`

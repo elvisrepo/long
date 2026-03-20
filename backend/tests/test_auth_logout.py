@@ -54,3 +54,16 @@ def test_logout_requires_refresh_token():
       )
 
       assert response.status_code == 400
+
+def test_logout_rejects_invalid_refresh_token():
+      client = APIClient()
+
+      response = client.post(
+          "/api/auth/logout/",
+          {
+              "refresh": "not-a-real-refresh-token",
+          },
+          format="json",
+      )
+
+      assert response.status_code == 400

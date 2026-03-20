@@ -6,6 +6,7 @@ from apps.users.serializers import LoginSerializer,RegisterSerializer
 
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 
 
 @api_view(["POST"])
@@ -73,7 +74,15 @@ def logout_view(request):
               {"refresh": ["This field is required."]},
               status=status.HTTP_400_BAD_REQUEST,
           )
+      
+      try:
+        token = RefreshToken(refresh_token)
+        token.blacklist()
 
-      token = RefreshToken(refresh_token)
-      token.blacklist()
+      except TokenError:
+        return Response(
+              {"refresh": ["Token is invalid."]},
+              status=status.HTTP_400_BAD_REQUEST,
+          )
+      
       return Response(status=status.HTTP_204_NO_CONTENT)
