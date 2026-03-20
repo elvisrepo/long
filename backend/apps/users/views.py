@@ -41,13 +41,24 @@ def login_view(request):
 
       refresh = RefreshToken.for_user(user)
 
-      return Response(
+      response = Response(
           {
               "access": str(refresh.access_token),
               "refresh": str(refresh),
           },
           status=status.HTTP_200_OK,
       )
+
+      response.set_cookie(
+          key="refresh_token",
+          value=str(refresh),
+          httponly=True,
+          secure=True,
+          samesite="Lax",
+      )
+      return response
+
+    
 
 
 @api_view(["GET"])

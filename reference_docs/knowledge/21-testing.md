@@ -108,6 +108,7 @@ For JWT-based auth tests:
 Current auth endpoint coverage includes:
 - register happy path, duplicate email, required fields, invalid email, and Django password validation
 - login happy path JWT issuance, invalid credentials, and required fields
+- login sets a `refresh_token` cookie
 - refresh happy path for a valid refresh token
 - refresh invalid-token rejection
 - `me` happy path with bearer authentication

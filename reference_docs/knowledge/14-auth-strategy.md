@@ -243,7 +243,8 @@ Cookie-related expectations:
 - clear the refresh cookie on logout
 
 Current implementation gap:
-- the backend currently still returns refresh tokens in JSON responses
+- login now sets a `refresh_token` cookie
+- the backend still returns refresh tokens in JSON responses during the transition to the hardened web flow
 - cookie-based refresh/logout transport is not implemented yet
 - logout is implemented with request-body refresh submission, but cookie-based logout transport is not implemented yet
 - the backend auth foundation is green across register, login, refresh, logout, and `me`

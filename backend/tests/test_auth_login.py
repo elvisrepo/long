@@ -67,4 +67,23 @@ def test_login_requires_email_and_password():
       }
 
 
-     
+def test_login_sets_refresh_token_cookie():
+      client = APIClient()
+      User = get_user_model()
+
+      User.objects.create_user(
+        email="alice@example.com",
+        password="strong-password-123",
+    )
+
+      response = client.post(
+          "/api/auth/login/",
+          {
+              "email": "alice@example.com",
+              "password": "strong-password-123",
+          },
+          format="json",
+      )
+
+      assert response.status_code == 200
+      assert "refresh_token" in response.cookies
