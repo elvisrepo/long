@@ -161,9 +161,9 @@ How `/api/auth/me/` is protected:
 
 ### Current MVP Logout State
 
-- logout is not implemented yet
-- current JWT behavior is stateless on the access-token side
-- that means a previously issued access token remains valid until expiry unless a stronger revocation design is added
+- logout is implemented for refresh-token revocation
+- current JWT behavior is still stateless on the access-token side
+- that means a previously issued access token remains valid until expiry unless a stronger access-token revocation design is added
 
 Two viable logout models:
 - minimal logout: client deletes stored access and refresh tokens
@@ -173,6 +173,14 @@ MVP recommendation:
 - for the backend slice, keep login, refresh, and `me` first
 - choose logout policy explicitly before implementing it
 - if the product needs stronger logout semantics, use SimpleJWT's rotation/blacklist path rather than inventing custom revocation logic
+
+Current logout behavior:
+- `POST /api/auth/logout/`
+- request body currently includes `refresh`
+- backend blacklists the submitted refresh token using SimpleJWT's blacklist support
+- response is `204 No Content`
+- after logout, that same refresh token can no longer be used at `/api/auth/refresh/`
+- logout currently revokes refresh capability, not already-issued access tokens
 
 ### HttpOnly Cookie Role
 
@@ -216,6 +224,27 @@ Security implications:
 - access-token expiry should stay short because access tokens remain stateless until expiry
 - web and Android token transport are intentionally different because their threat models and storage primitives differ
 
+### Web Token Transport Contract
+
+For the web client, the intended contract is:
+- login response returns the short-lived `access` token in the response body
+- login also sets the long-lived refresh token in an `HttpOnly`, `Secure` cookie
+- frontend JavaScript should use the `access` token for the `Authorization` header
+- frontend JavaScript should not read the refresh token directly
+- refresh endpoint should read the refresh token from the cookie on the web path
+- logout endpoint should revoke the refresh token currently held in the cookie on the web path
+
+Cookie-related expectations:
+- use `HttpOnly`
+- use `Secure`
+- choose `SameSite` deliberately based on the final frontend deployment topology
+- clear the refresh cookie on logout
+
+Current implementation gap:
+- the backend currently still returns refresh tokens in JSON responses
+- cookie-based refresh/logout transport is not implemented yet
+- logout is implemented with request-body refresh submission, but cookie-based logout transport is not implemented yet
+
 
 ### Serialization and Deserialization
 
@@ -235,3 +264,34 @@ In this project:
 The important design rule is:
 - models are not the API contract
 - serializers define the API contract for each endpoint
+
+### JWT Representation and Validation Notes
+
+- a JWT is not a Python object on the wire; it is a compact token string with three dot-separated parts
+- in application code, SimpleJWT exposes helper classes such as `RefreshToken`
+- `str(refresh_token_object)` produces the actual JWT string sent in HTTP requests or responses
+- `RefreshToken.for_user(user)` creates the token helper object; the client ultimately receives token strings
+
+In this project:
+- login uses SimpleJWT helper objects in Python
+- clients send and receive JWT strings over HTTP
+- low-level token work such as signing, signature verification, expiry checking, claim parsing, and blacklist checks is handled by SimpleJWT / PyJWT rather than custom code
+
+### Stateless vs Stateful Token Behavior
+
+- access tokens are currently stateless
+  - the server validates them from their signed contents and expiry
+  - the server does not need a persistent per-access-token record to accept them
+  - that is why an already-issued access token usually remains valid until expiration
+- refresh tokens are effectively stateful for revocation in the current hardened setup
+  - outstanding/blacklist records exist in the backend
+  - that is why a refresh token can be revoked server-side
+
+This is the practical consequence:
+- logout blacklists the refresh token
+- the same refresh token can no longer be used to mint new access tokens
+- already-issued access tokens are not revoked immediately and remain usable until their short expiry window ends
+
+Stateful session contrast:
+- classic Django session auth is stateful because the server stores session state directly
+- deleting the session record invalidates access immediately

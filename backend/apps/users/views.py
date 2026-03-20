@@ -63,3 +63,10 @@ def me_view(request):
           },
           status=status.HTTP_200_OK,
       )
+
+@api_view(["POST"])
+def logout_view(request):
+      refresh_token = request.data.get("refresh")
+      token = RefreshToken(refresh_token)
+      token.blacklist()
+      return Response(status=status.HTTP_204_NO_CONTENT)

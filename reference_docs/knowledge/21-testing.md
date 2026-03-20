@@ -112,6 +112,7 @@ Current auth endpoint coverage includes:
 - refresh invalid-token rejection
 - `me` happy path with bearer authentication
 - `me` unauthenticated protection
+- logout blacklists a refresh token and prevents reuse at the refresh endpoint
 
 For the login slice specifically:
 - keep input validation in `LoginSerializer`
@@ -124,7 +125,8 @@ For the refresh slice specifically:
 
 Current auth foundation status:
 - the full backend test suite is green after register, login, refresh, and `me` were added
-- use that stable point before introducing logout semantics or token-transport changes such as cookie-based refresh handling
+- logout refresh-token revocation is also covered now
+- use that stable point before introducing cookie-based refresh handling or CSRF-sensitive logout transport changes
 
 Example:
 - `tests/test_task_ping.py` patches `common.views.ping.delay`
