@@ -179,6 +179,7 @@ Current logout behavior:
 - request body currently includes `refresh`
 - backend blacklists the submitted refresh token using SimpleJWT's blacklist support
 - response is `204 No Content`
+- if `refresh` is missing, response is `400` with a field error
 - after logout, that same refresh token can no longer be used at `/api/auth/refresh/`
 - logout currently revokes refresh capability, not already-issued access tokens
 

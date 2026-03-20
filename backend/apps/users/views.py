@@ -67,6 +67,13 @@ def me_view(request):
 @api_view(["POST"])
 def logout_view(request):
       refresh_token = request.data.get("refresh")
+
+      if not refresh_token:
+          return Response(
+              {"refresh": ["This field is required."]},
+              status=status.HTTP_400_BAD_REQUEST,
+          )
+
       token = RefreshToken(refresh_token)
       token.blacklist()
       return Response(status=status.HTTP_204_NO_CONTENT)

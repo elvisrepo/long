@@ -43,3 +43,14 @@ def test_logout_blacklists_refresh_token():
       )
 
     assert refresh_response.status_code == 401
+
+def test_logout_requires_refresh_token():
+      client = APIClient()
+
+      response = client.post(
+          "/api/auth/logout/",
+          {},
+          format="json",
+      )
+
+      assert response.status_code == 400
