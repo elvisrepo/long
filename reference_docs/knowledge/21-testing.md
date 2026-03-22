@@ -110,6 +110,7 @@ Current auth endpoint coverage includes:
 - login happy path JWT issuance, invalid credentials, and required fields
 - login sets a `refresh_token` cookie
 - refresh happy path for a valid refresh token
+- refresh happy path for a valid `refresh_token` cookie
 - refresh invalid-token rejection
 - `me` happy path with bearer authentication
 - `me` unauthenticated protection
@@ -131,6 +132,10 @@ Current auth foundation status:
 - logout refresh-token revocation is also covered now
 - use that stable point before introducing cookie-based refresh handling or CSRF-sensitive logout transport changes
 - current backend suite status at this checkpoint: `24 passed`
+
+Refresh implementation note:
+- a custom refresh view is justified once refresh-token transport must support `HttpOnly` cookies
+- keep SimpleJWT token validation in `TokenRefreshSerializer`; customize only the transport/orchestration layer
 
 Example:
 - `tests/test_task_ping.py` patches `common.views.ping.delay`

@@ -1,12 +1,16 @@
 from rest_framework import status
 from rest_framework.decorators import api_view
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.users.serializers import LoginSerializer,RegisterSerializer
 
 from django.contrib.auth import authenticate
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
+
+REFRESH_TOKEN_COOKIE_NAME = "refresh_token"
 
 
 @api_view(["POST"])
@@ -50,7 +54,7 @@ def login_view(request):
       )
 
       response.set_cookie(
-          key="refresh_token",
+          key=REFRESH_TOKEN_COOKIE_NAME,
           value=str(refresh),
           httponly=True,
           secure=True,
@@ -97,3 +101,41 @@ def logout_view(request):
           )
       
       return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(["POST"])
+def refresh_view(request: Request) -> Response:
+      refresh_token = request.data.get("refresh") or request.COOKIES.get(
+          REFRESH_TOKEN_COOKIE_NAME
+      )
+      if not refresh_token:
+          return Response(
+              {"refresh": ["This field is required."]},
+              status=status.HTTP_400_BAD_REQUEST,
+          )
+
+      try:
+          serializer = TokenRefreshSerializer(data={"refresh": refresh_token})
+          serializer.is_valid(raise_exception=True)
+      except TokenError:
+          return Response(
+              {"detail": "Token is invalid."},
+              status=status.HTTP_401_UNAUTHORIZED,
+          )
+
+      response = Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+      rotated_refresh = serializer.validated_data.get("refresh")
+      if rotated_refresh:
+          response.set_cookie(
+              key=REFRESH_TOKEN_COOKIE_NAME,
+              value=rotated_refresh,
+              httponly=True,
+              secure=True,
+              samesite="Lax",
+          )
+
+      return response
+
+
+    
