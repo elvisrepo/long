@@ -103,7 +103,12 @@ def logout_view(request):
               status=status.HTTP_400_BAD_REQUEST,
           )
       
-      return Response(status=status.HTTP_204_NO_CONTENT)
+      response = Response(status=status.HTTP_204_NO_CONTENT)
+      response.delete_cookie(
+          key=REFRESH_TOKEN_COOKIE_NAME,
+          samesite="Lax",
+      )
+      return response
 
 
 @api_view(["POST"])

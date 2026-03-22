@@ -181,6 +181,7 @@ Current logout behavior:
 - request can supply `refresh` either in the JSON body or through the `refresh_token` cookie
 - backend blacklists the submitted refresh token using SimpleJWT's blacklist support
 - response is `204 No Content`
+- on successful logout, the backend clears the `refresh_token` cookie
 - if `refresh` is missing, response is `400` with a field error
 - if `refresh` is malformed or invalid, response is `400`
 - after logout, that same refresh token can no longer be used at `/api/auth/refresh/`
@@ -247,9 +248,9 @@ Cookie-related expectations:
 Current implementation gap:
 - login now sets a `refresh_token` cookie
 - the backend still returns refresh tokens in JSON responses during the transition to the hardened web flow
-- cookie-based refresh/logout transport is not implemented yet
 - cookie-based refresh and logout transport are now implemented alongside the transitional JSON-body path
 - the backend auth foundation is green across register, login, refresh, logout, and `me`
+- CSRF protection for cookie-driven refresh/logout still needs to be made explicit before calling the web flow hardened
 
 
 ### Serialization and Deserialization
