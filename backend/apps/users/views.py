@@ -82,7 +82,10 @@ def me_view(request):
 
 @api_view(["POST"])
 def logout_view(request):
-      refresh_token = request.data.get("refresh")
+      
+      refresh_token = request.data.get("refresh") or request.COOKIES.get(
+          REFRESH_TOKEN_COOKIE_NAME
+      )
 
       if not refresh_token:
           return Response(

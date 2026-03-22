@@ -117,6 +117,7 @@ Current auth endpoint coverage includes:
 - logout blacklists a refresh token and prevents reuse at the refresh endpoint
 - logout requires the `refresh` field and rejects missing input with `400`
 - logout rejects malformed refresh tokens with `400`
+- logout accepts the refresh token from the `refresh_token` cookie
 
 For the login slice specifically:
 - keep input validation in `LoginSerializer`

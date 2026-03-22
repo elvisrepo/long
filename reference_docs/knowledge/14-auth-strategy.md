@@ -178,7 +178,7 @@ MVP recommendation:
 
 Current logout behavior:
 - `POST /api/auth/logout/`
-- request body currently includes `refresh`
+- request can supply `refresh` either in the JSON body or through the `refresh_token` cookie
 - backend blacklists the submitted refresh token using SimpleJWT's blacklist support
 - response is `204 No Content`
 - if `refresh` is missing, response is `400` with a field error
@@ -248,7 +248,7 @@ Current implementation gap:
 - login now sets a `refresh_token` cookie
 - the backend still returns refresh tokens in JSON responses during the transition to the hardened web flow
 - cookie-based refresh/logout transport is not implemented yet
-- logout is implemented with request-body refresh submission, but cookie-based logout transport is not implemented yet
+- cookie-based refresh and logout transport are now implemented alongside the transitional JSON-body path
 - the backend auth foundation is green across register, login, refresh, logout, and `me`
 
 
