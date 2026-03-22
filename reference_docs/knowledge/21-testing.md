@@ -138,6 +138,7 @@ Current auth foundation status:
 Refresh implementation note:
 - a custom refresh view is justified once refresh-token transport must support `HttpOnly` cookies
 - keep SimpleJWT token validation in `TokenRefreshSerializer`; customize only the transport/orchestration layer
+- refresh-token rotation should be tested at the HTTP contract level by asserting the response updates the `refresh_token` cookie, not by reimplementing serializer internals in the test
 
 Example:
 - `tests/test_task_ping.py` patches `common.views.ping.delay`

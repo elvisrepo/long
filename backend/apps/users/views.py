@@ -130,7 +130,7 @@ def refresh_view(request: Request) -> Response:
               {"detail": "Token is invalid."},
               status=status.HTTP_401_UNAUTHORIZED,
           )
-
+      # because rotation is enabled in SIMPLE_JWT, it generates new refresh/access tokens
       response = Response(serializer.validated_data, status=status.HTTP_200_OK)
 
       rotated_refresh = serializer.validated_data.get("refresh")

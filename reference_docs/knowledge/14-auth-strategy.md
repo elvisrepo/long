@@ -141,6 +141,7 @@ For the login endpoint:
 - invalid refresh token response: `401`
 - refresh now uses a custom wrapper view because cookie transport is an application concern
 - the custom view should still delegate token mechanics to SimpleJWT's `TokenRefreshSerializer`
+- with rotation enabled, the new refresh token is generated inside `TokenRefreshSerializer` during validation; the custom view only transports the rotated token back to the client, including updating the cookie
 
 Current boundary:
 - keep login custom because the app authenticates by email through the custom Django backend

@@ -75,3 +75,33 @@ def test_refresh_accepts_refresh_token_from_cookie():
 
       assert response.status_code == 200
       assert "access" in response.json()
+
+
+def test_refresh_rotates_refresh_token_cookie():
+      client = APIClient()
+      get_user_model().objects.create_user(
+          email="alice@example.com",
+          password="strong-password-123",
+      )
+
+      login_response = client.post(
+          "/api/auth/login/",
+          {
+              "email": "alice@example.com",
+              "password": "strong-password-123",
+          },
+          format="json",
+      )
+
+      original_refresh = login_response.cookies["refresh_token"].value
+
+      response = client.post(
+          "/api/auth/refresh/",
+          {},
+          format="json",
+          HTTP_COOKIE=f"refresh_token={original_refresh}",
+      )
+
+      assert response.status_code == 200
+      assert "refresh_token" in response.cookies
+      assert response.cookies["refresh_token"].value != original_refresh
