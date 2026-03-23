@@ -123,6 +123,7 @@ Current auth endpoint coverage includes:
 - logout accepts the refresh token from the `refresh_token` cookie
 - logout clears the `refresh_token` cookie on success
 - logout rejects cookie-based requests without CSRF
+- logout succeeds with `refresh_token` cookie plus `X-CSRFToken`
 
 For the login slice specifically:
 - keep input validation in `LoginSerializer`

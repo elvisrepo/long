@@ -261,6 +261,7 @@ Current proven SPA browser path:
 - frontend can call `GET /api/auth/csrf/` to bootstrap the CSRF cookie
 - login sets the `refresh_token` cookie
 - cookie-based refresh succeeds when the browser supplies the refresh cookie and the frontend supplies `X-CSRFToken`
+- cookie-based logout succeeds when the browser supplies the refresh cookie and the frontend supplies `X-CSRFToken`
 
 ### Cookie vs Token
 
