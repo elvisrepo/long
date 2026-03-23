@@ -95,9 +95,13 @@ def me_view(request):
 @api_view(["POST"])
 def logout_view(request):
       
-      refresh_token = request.data.get("refresh") or request.COOKIES.get(
-          REFRESH_TOKEN_COOKIE_NAME
-      )
+      body_refresh_token = request.data.get("refresh")
+      cookie_refresh_token = request.COOKIES.get(REFRESH_TOKEN_COOKIE_NAME)
+
+      if not body_refresh_token and cookie_refresh_token:
+          enforce_csrf(request)
+
+      refresh_token = body_refresh_token or cookie_refresh_token
 
       if not refresh_token:
           return Response(

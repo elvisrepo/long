@@ -120,6 +120,7 @@ Current auth endpoint coverage includes:
 - logout rejects malformed refresh tokens with `400`
 - logout accepts the refresh token from the `refresh_token` cookie
 - logout clears the `refresh_token` cookie on success
+- logout rejects cookie-based requests without CSRF
 
 For the login slice specifically:
 - keep input validation in `LoginSerializer`

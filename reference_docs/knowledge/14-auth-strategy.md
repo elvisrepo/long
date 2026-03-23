@@ -188,6 +188,7 @@ Current logout behavior:
 - if `refresh` is malformed or invalid, response is `400`
 - after logout, that same refresh token can no longer be used at `/api/auth/refresh/`
 - logout currently revokes refresh capability, not already-issued access tokens
+- when the refresh token comes from the cookie path, logout now performs an explicit CSRF check before revoking the token
 
 ### HttpOnly Cookie Role
 
@@ -254,6 +255,7 @@ Current implementation gap:
 - cookie-based refresh and logout transport are now implemented alongside the transitional JSON-body path
 - the backend auth foundation is green across register, login, refresh, logout, and `me`
 - CSRF protection for cookie-driven refresh/logout still needs to be made explicit before calling the web flow hardened
+- frontend CSRF bootstrap still needs a clean supported path so legitimate SPA refresh/logout requests can supply `X-CSRFToken`
 
 ### Cookie vs Token
 

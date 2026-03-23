@@ -124,3 +124,31 @@ def test_logout_clears_refresh_token_cookie():
       assert response.status_code == 204
       assert "refresh_token" in response.cookies
       assert response.cookies["refresh_token"].value == ""
+
+
+def test_logout_cookie_requires_csrf():
+      client = APIClient(enforce_csrf_checks=True)
+      get_user_model().objects.create_user(
+          email="alice@example.com",
+          password="strong-password-123",
+      )
+
+      login_response = client.post(
+          "/api/auth/login/",
+          {
+              "email": "alice@example.com",
+              "password": "strong-password-123",
+          },
+          format="json",
+      )
+
+      refresh_token = login_response.cookies["refresh_token"].value
+
+      response = client.post(
+          "/api/auth/logout/",
+          {},
+          format="json",
+          HTTP_COOKIE=f"refresh_token={refresh_token}",
+      )
+
+      assert response.status_code == 403
