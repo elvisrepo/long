@@ -170,3 +170,18 @@
   The implementation is more complex than a minimal stateless JWT setup. Cookie-based refresh and logout flows require explicit CSRF handling, and web/mobile token transport rules must stay intentionally different.
 - Revisit when:
   The product transport model changes enough that cookie-based web refresh or server-side refresh revocation no longer fit the client mix.
+
+### ADR-012: Split Web and Mobile Auth Transport Contracts
+
+- Status: Accepted
+- Date: 2026-03-23
+- Decision:
+  Serve both web and Android from the same Django backend, but split the refresh/logout transport contracts. Web refresh/logout will use cookie-only, CSRF-protected endpoints. Mobile refresh/logout will use explicit token submission and will not depend on browser cookie behavior.
+- Alternatives considered:
+  Keep one shared refresh/logout endpoint supporting both cookie-based and body-token transport indefinitely.
+- Why we chose it:
+  The browser and mobile threat models are different. Keeping one endpoint permanently dual-mode increases attack surface, weakens contract clarity, and makes the web security posture harder to reason about. Explicitly split contracts keep the hardened web flow strict while still supporting the Android client cleanly.
+- Downsides:
+  More endpoints and slightly more client-specific documentation. The backend must maintain two transport contracts over the same core token mechanics.
+- Revisit when:
+  The product client mix changes enough that one transport model clearly dominates or a gateway/client layer absorbs the distinction.

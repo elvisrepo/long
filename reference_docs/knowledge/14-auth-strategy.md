@@ -249,6 +249,14 @@ Cookie-related expectations:
 - choose `SameSite` deliberately based on the final frontend deployment topology
 - clear the refresh cookie on logout
 
+Chosen contract split:
+- web and Android use the same Django backend service
+- web auth transport and mobile auth transport are intentionally different
+- web refresh/logout should be cookie-only and CSRF-protected
+- mobile refresh/logout should use explicit token submission, not browser cookies
+- do not keep one endpoint supporting both transport models indefinitely
+- prefer explicit web endpoints and explicit mobile/API endpoints when the contracts diverge
+
 Current implementation gap:
 - login now sets a `refresh_token` cookie
 - the backend still returns refresh tokens in JSON responses during the transition to the hardened web flow
