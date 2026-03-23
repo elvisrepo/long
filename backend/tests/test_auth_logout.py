@@ -25,7 +25,7 @@ def test_logout_blacklists_refresh_token():
     refresh_token = login_response.json()["refresh"]
 
     logout_response = client.post(
-          "/api/auth/logout/",
+          "/api/auth/mobile/logout/",
           {
               "refresh": refresh_token,
           },
@@ -35,7 +35,7 @@ def test_logout_blacklists_refresh_token():
     assert logout_response.status_code == 204
 
     refresh_response = client.post(
-          "/api/auth/refresh/",
+          "/api/auth/mobile/refresh/",
           {
               "refresh": refresh_token,
           },
@@ -48,7 +48,7 @@ def test_logout_requires_refresh_token():
       client = APIClient()
 
       response = client.post(
-          "/api/auth/logout/",
+          "/api/auth/mobile/logout/",
           {},
           format="json",
       )
@@ -59,7 +59,7 @@ def test_logout_rejects_invalid_refresh_token():
       client = APIClient()
 
       response = client.post(
-          "/api/auth/logout/",
+          "/api/auth/mobile/logout/",
           {
               "refresh": "not-a-real-refresh-token",
           },
@@ -84,13 +84,16 @@ def test_logout_accepts_refresh_token_from_cookie():
           format="json",
       )
 
+      csrf_response = client.get("/api/auth/csrf/")
+      csrf_token = csrf_response.cookies["csrftoken"].value
       refresh_token = login_response.cookies["refresh_token"].value
 
       response = client.post(
-          "/api/auth/logout/",
+          "/api/auth/web/logout/",
           {},
           format="json",
-          HTTP_COOKIE=f"refresh_token={refresh_token}",
+          HTTP_COOKIE=f"csrftoken={csrf_token}; refresh_token={refresh_token}",
+          HTTP_X_CSRFTOKEN=csrf_token,
       )
 
       assert response.status_code == 204
@@ -112,13 +115,16 @@ def test_logout_clears_refresh_token_cookie():
           format="json",
       )
 
+      csrf_response = client.get("/api/auth/csrf/")
+      csrf_token = csrf_response.cookies["csrftoken"].value
       refresh_token = login_response.cookies["refresh_token"].value
 
       response = client.post(
-          "/api/auth/logout/",
+          "/api/auth/web/logout/",
           {},
           format="json",
-          HTTP_COOKIE=f"refresh_token={refresh_token}",
+          HTTP_COOKIE=f"csrftoken={csrf_token}; refresh_token={refresh_token}",
+          HTTP_X_CSRFTOKEN=csrf_token,
       )
 
       assert response.status_code == 204
@@ -145,7 +151,7 @@ def test_logout_cookie_requires_csrf():
       refresh_token = login_response.cookies["refresh_token"].value
 
       response = client.post(
-          "/api/auth/logout/",
+          "/api/auth/web/logout/",
           {},
           format="json",
           HTTP_COOKIE=f"refresh_token={refresh_token}",

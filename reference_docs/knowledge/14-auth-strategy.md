@@ -131,18 +131,28 @@ For the login endpoint:
 - invalid credentials response: `400` with `{"detail": "Invalid credentials."}`
 - missing required fields response: `400` with field errors from the serializer
 
-### Current Refresh API Behavior
+### Current Mobile Refresh API Behavior
 
-- `POST /api/auth/refresh/`
-- request can supply `refresh` either in the JSON body or through the `refresh_token` cookie
+- `POST /api/auth/mobile/refresh/`
+- request supplies `refresh` in the JSON body
 - success response: `200` with a new `access` token
 - with rotation enabled, refresh may also issue a new refresh token and the backend should update the refresh cookie
 - missing refresh token response: `400`
 - invalid refresh token response: `401`
-- refresh now uses a custom wrapper view because cookie transport is an application concern
+- mobile refresh uses a custom wrapper view because the project now owns the transport contract split
 - the custom view should still delegate token mechanics to SimpleJWT's `TokenRefreshSerializer`
 - with rotation enabled, the new refresh token is generated inside `TokenRefreshSerializer` during validation; the custom view only transports the rotated token back to the client, including updating the cookie
-- when the refresh token comes from the `refresh_token` cookie, the custom view performs an explicit CSRF check before allowing refresh
+
+### Current Web Refresh API Behavior
+
+- `POST /api/auth/web/refresh/`
+- refresh token is read only from the `refresh_token` cookie
+- request must also supply a valid CSRF token
+- success response: `200` with a new `access` token
+- with rotation enabled, refresh may also issue a new refresh token and the backend updates the refresh cookie
+- missing refresh token response: `400`
+- invalid refresh token response: `401`
+- failed CSRF response: `403`
 
 Current boundary:
 - keep login custom because the app authenticates by email through the custom Django backend
@@ -178,17 +188,27 @@ MVP recommendation:
 - choose logout policy explicitly before implementing it
 - if the product needs stronger logout semantics, use SimpleJWT's rotation/blacklist path rather than inventing custom revocation logic
 
-Current logout behavior:
-- `POST /api/auth/logout/`
-- request can supply `refresh` either in the JSON body or through the `refresh_token` cookie
+Current mobile logout behavior:
+- `POST /api/auth/mobile/logout/`
+- request supplies `refresh` in the JSON body
 - backend blacklists the submitted refresh token using SimpleJWT's blacklist support
 - response is `204 No Content`
 - on successful logout, the backend clears the `refresh_token` cookie
 - if `refresh` is missing, response is `400` with a field error
 - if `refresh` is malformed or invalid, response is `400`
-- after logout, that same refresh token can no longer be used at `/api/auth/refresh/`
+- after logout, that same refresh token can no longer be used at `/api/auth/mobile/refresh/`
 - logout currently revokes refresh capability, not already-issued access tokens
-- when the refresh token comes from the cookie path, logout now performs an explicit CSRF check before revoking the token
+
+Current web logout behavior:
+- `POST /api/auth/web/logout/`
+- refresh token is read only from the `refresh_token` cookie
+- request must also supply a valid CSRF token
+- backend blacklists the cookie refresh token using SimpleJWT's blacklist support
+- response is `204 No Content`
+- on successful logout, the backend clears the `refresh_token` cookie
+- missing refresh token response: `400`
+- invalid refresh token response: `400`
+- failed CSRF response: `403`
 
 ### HttpOnly Cookie Role
 
@@ -263,7 +283,7 @@ Current split implementation:
 - it is cookie-only and CSRF-protected
 - it does not accept refresh tokens from the JSON body
 - `/api/auth/mobile/refresh/` and `/api/auth/mobile/logout/` are explicit body-token endpoints for non-browser clients such as Android
-- the older generic `/api/auth/refresh/` and `/api/auth/logout/` paths remain as compatibility aliases during the transition
+- the older generic `/api/auth/refresh/` and `/api/auth/logout/` paths have been removed to avoid transport ambiguity
 
 Practical difference between web and mobile:
 - web refresh/logout rely on the browser cookie transport for the refresh token
@@ -274,10 +294,9 @@ Practical difference between web and mobile:
 Current implementation gap:
 - login now sets a `refresh_token` cookie
 - the backend still returns refresh tokens in JSON responses during the transition to the hardened web flow
-- cookie-based refresh and logout transport are now implemented alongside the transitional JSON-body path
 - the backend auth foundation is green across register, login, refresh, logout, and `me`
-- CSRF protection for cookie-driven refresh/logout still needs to be made explicit before calling the web flow hardened
-- frontend CSRF bootstrap still needs a clean supported path so legitimate SPA refresh/logout requests can supply `X-CSRFToken`
+- frontend CSRF bootstrap now exists through `/api/auth/csrf/`
+- the remaining hardening decision is whether login should keep returning the refresh token in JSON for non-browser clients or split login transport too
 
 Current proven SPA browser path:
 - frontend can call `GET /api/auth/csrf/` to bootstrap the CSRF cookie
@@ -325,7 +344,7 @@ flowchart TD
     C["Backend issues refresh_token cookie as HttpOnly"] --> D["Browser stores refresh cookie"]
     E["Frontend keeps access token in memory"] --> F["Frontend sends Authorization Bearer access-token on normal API calls"]
 
-    B --> G["Frontend sends POST /api/auth/refresh/ or POST /api/auth/logout/"]
+    B --> G["Frontend sends POST /api/auth/web/refresh/ or POST /api/auth/web/logout/"]
     D --> G
     G --> H["Browser automatically includes refresh_token cookie"]
     G --> I["Frontend includes X-CSRFToken header"]

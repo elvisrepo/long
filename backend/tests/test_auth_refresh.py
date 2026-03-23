@@ -25,7 +25,7 @@ def test_refresh_returns_new_access_token_for_valid_refresh_token():
 
 
     response = client.post(
-          "/api/auth/refresh/",
+          "/api/auth/mobile/refresh/",
           {
               "refresh": refresh_token,
           },
@@ -40,7 +40,7 @@ def test_refresh_rejects_invalid_refresh_token():
       client = APIClient()
 
       response = client.post(
-          "/api/auth/refresh/",
+          "/api/auth/mobile/refresh/",
           {
               "refresh": "not-a-real-refresh-token",
           },
@@ -64,13 +64,16 @@ def test_refresh_accepts_refresh_token_from_cookie():
           format="json",
       )
 
+      csrf_response = client.get("/api/auth/csrf/")
+      csrf_token = csrf_response.cookies["csrftoken"].value
       refresh_token = login_response.cookies["refresh_token"].value
 
       response = client.post(
-          "/api/auth/refresh/",
+          "/api/auth/web/refresh/",
           {},
           format="json",
-          HTTP_COOKIE=f"refresh_token={refresh_token}",
+          HTTP_COOKIE=f"csrftoken={csrf_token}; refresh_token={refresh_token}",
+          HTTP_X_CSRFTOKEN=csrf_token,
       )
 
       assert response.status_code == 200
@@ -93,13 +96,16 @@ def test_refresh_rotates_refresh_token_cookie():
           format="json",
       )
 
+      csrf_response = client.get("/api/auth/csrf/")
+      csrf_token = csrf_response.cookies["csrftoken"].value
       original_refresh = login_response.cookies["refresh_token"].value
 
       response = client.post(
-          "/api/auth/refresh/",
+          "/api/auth/web/refresh/",
           {},
           format="json",
-          HTTP_COOKIE=f"refresh_token={original_refresh}",
+          HTTP_COOKIE=f"csrftoken={csrf_token}; refresh_token={original_refresh}",
+          HTTP_X_CSRFTOKEN=csrf_token,
       )
 
       assert response.status_code == 200
@@ -126,7 +132,7 @@ def test_refresh_cookie_requires_csrf():
       refresh_token = login_response.cookies["refresh_token"].value
 
       response = client.post(
-          "/api/auth/refresh/",
+          "/api/auth/web/refresh/",
           {},
           format="json",
           HTTP_COOKIE=f"refresh_token={refresh_token}",
@@ -156,7 +162,7 @@ def test_refresh_cookie_succeeds_with_csrf():
       refresh_token = login_response.cookies["refresh_token"].value
 
       response = client.post(
-          "/api/auth/refresh/",
+          "/api/auth/web/refresh/",
           {},
           format="json",
           HTTP_COOKIE=f"csrftoken={csrf_token}; refresh_token={refresh_token}",

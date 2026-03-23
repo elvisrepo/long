@@ -112,20 +112,21 @@ Current auth endpoint coverage includes:
 - csrf bootstrap endpoint sets the CSRF cookie
 - mobile refresh succeeds with refresh token in request body
 - mobile logout succeeds with refresh token in request body
-- refresh happy path for a valid refresh token
-- refresh happy path for a valid `refresh_token` cookie
-- refresh invalid-token rejection
-- refresh rejects cookie-based refresh attempts without CSRF
-- refresh succeeds with `refresh_token` cookie plus `X-CSRFToken`
+- mobile refresh happy path for a valid refresh token
+- mobile refresh invalid-token rejection
+- web refresh happy path for a valid `refresh_token` cookie
+- web refresh rotates the `refresh_token` cookie
+- web refresh rejects cookie-based refresh attempts without CSRF
+- web refresh succeeds with `refresh_token` cookie plus `X-CSRFToken`
 - `me` happy path with bearer authentication
 - `me` unauthenticated protection
-- logout blacklists a refresh token and prevents reuse at the refresh endpoint
-- logout requires the `refresh` field and rejects missing input with `400`
-- logout rejects malformed refresh tokens with `400`
-- logout accepts the refresh token from the `refresh_token` cookie
-- logout clears the `refresh_token` cookie on success
-- logout rejects cookie-based requests without CSRF
-- logout succeeds with `refresh_token` cookie plus `X-CSRFToken`
+- mobile logout blacklists a refresh token and prevents reuse at the mobile refresh endpoint
+- mobile logout requires the `refresh` field and rejects missing input with `400`
+- mobile logout rejects malformed refresh tokens with `400`
+- web logout accepts the refresh token from the `refresh_token` cookie
+- web logout clears the `refresh_token` cookie on success
+- web logout rejects cookie-based requests without CSRF
+- web logout succeeds with `refresh_token` cookie plus `X-CSRFToken`
 
 For the login slice specifically:
 - keep input validation in `LoginSerializer`
@@ -137,10 +138,10 @@ For the refresh slice specifically:
 - test the public refresh endpoint contract rather than re-testing the library internals at a lower level
 
 Current auth foundation status:
-- the full backend test suite is green after register, login, refresh, and `me` were added
-- logout refresh-token revocation is also covered now
-- use that stable point before introducing cookie-based refresh handling or CSRF-sensitive logout transport changes
-- current backend suite status at this checkpoint: `24 passed`
+- the backend suite now covers the explicit web/mobile auth transport split
+- logout refresh-token revocation, cookie clearing, csrf bootstrap, and web csrf enforcement are covered
+- the transitional generic refresh/logout aliases have been removed so tests prove the explicit contract surface
+- current backend suite status at this checkpoint: `37 passed`
 
 Refresh implementation note:
 - a custom refresh view is justified once refresh-token transport must support `HttpOnly` cookies

@@ -1,19 +1,16 @@
+from django.contrib.auth import authenticate
+from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import status
+from rest_framework.authentication import CSRFCheck
 from rest_framework.decorators import api_view
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.request import Request
 from rest_framework.response import Response
-
-from apps.users.serializers import LoginSerializer,RegisterSerializer
-
-from django.contrib.auth import authenticate
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.exceptions import TokenError
 
-from django.views.decorators.csrf import ensure_csrf_cookie
-
-from rest_framework.authentication import CSRFCheck
-from rest_framework.exceptions import PermissionDenied
+from apps.users.serializers import LoginSerializer, RegisterSerializer
 
 REFRESH_TOKEN_COOKIE_NAME = "refresh_token"
 
@@ -94,16 +91,8 @@ def me_view(request):
       )
 
 @api_view(["POST"])
-def logout_view(request):
-      
-      body_refresh_token = request.data.get("refresh")
-      cookie_refresh_token = request.COOKIES.get(REFRESH_TOKEN_COOKIE_NAME)
-
-      if not body_refresh_token and cookie_refresh_token:
-          enforce_csrf(request)
-
-      refresh_token = body_refresh_token or cookie_refresh_token
-
+def mobile_logout_view(request: Request) -> Response:
+      refresh_token = request.data.get("refresh")
       if not refresh_token:
           return Response(
               {"refresh": ["This field is required."]},
@@ -129,15 +118,8 @@ def logout_view(request):
 
 
 @api_view(["POST"])
-def refresh_view(request: Request) -> Response:
-      body_refresh_token = request.data.get("refresh")
-      cookie_refresh_token = request.COOKIES.get(REFRESH_TOKEN_COOKIE_NAME)
-
-      if not body_refresh_token and cookie_refresh_token:
-          enforce_csrf(request)
-
-      refresh_token = body_refresh_token or cookie_refresh_token
-          
+def mobile_refresh_view(request: Request) -> Response:
+      refresh_token = request.data.get("refresh")
       if not refresh_token:
           return Response(
               {"refresh": ["This field is required."]},
