@@ -255,6 +255,51 @@ Current implementation gap:
 - the backend auth foundation is green across register, login, refresh, logout, and `me`
 - CSRF protection for cookie-driven refresh/logout still needs to be made explicit before calling the web flow hardened
 
+### Cookie vs Token
+
+- a token is a credential value, usually represented as a string
+- a cookie is a browser storage/transport mechanism for a name/value pair plus attributes such as `HttpOnly`, `Secure`, and `SameSite`
+- a JWT access token is a string
+- a JWT refresh token is a string
+- a Django CSRF token is also a string
+- a cookie can carry one of those token strings, but the cookie itself is not the token
+
+Examples:
+- `Authorization: Bearer <access-token>` uses a token directly in an HTTP header
+- `Set-Cookie: refresh_token=<jwt>; HttpOnly; Secure; SameSite=Lax` stores a token inside a cookie
+
+### SPA CSRF Flow
+
+For the hardened web flow:
+- the access token stays in frontend memory and is sent in the `Authorization` header
+- the refresh token lives in an `HttpOnly` cookie and is sent automatically by the browser
+- the CSRF token is a separate cookie value that frontend JavaScript can read
+- frontend sends that CSRF token back in the `X-CSRFToken` header on cookie-driven unsafe requests
+
+Why this split exists:
+- the refresh token should not be readable by frontend JavaScript
+- the CSRF token must be readable so the frontend can echo it back
+- a secret cookie by itself is not enough because browsers send cookies automatically on requests
+
+Current browser flow:
+
+```mermaid
+flowchart TD
+    A["Backend issues csrftoken cookie"] --> B["Frontend reads csrftoken cookie"]
+    C["Backend issues refresh_token cookie as HttpOnly"] --> D["Browser stores refresh cookie"]
+    E["Frontend keeps access token in memory"] --> F["Frontend sends Authorization Bearer access-token on normal API calls"]
+
+    B --> G["Frontend sends POST /api/auth/refresh/ or POST /api/auth/logout/"]
+    D --> G
+    G --> H["Browser automatically includes refresh_token cookie"]
+    G --> I["Frontend includes X-CSRFToken header"]
+    H --> J["Backend receives cookie-driven unsafe request"]
+    I --> J
+    J --> K{"CSRF valid?"}
+    K -- No --> L["403 Forbidden"]
+    K -- Yes --> M["Proceed with refresh or logout logic"]
+```
+
 
 ### Serialization and Deserialization
 
