@@ -112,6 +112,7 @@ Current auth endpoint coverage includes:
 - refresh happy path for a valid refresh token
 - refresh happy path for a valid `refresh_token` cookie
 - refresh invalid-token rejection
+- refresh rejects cookie-based refresh attempts without CSRF
 - `me` happy path with bearer authentication
 - `me` unauthenticated protection
 - logout blacklists a refresh token and prevents reuse at the refresh endpoint
@@ -139,6 +140,7 @@ Refresh implementation note:
 - a custom refresh view is justified once refresh-token transport must support `HttpOnly` cookies
 - keep SimpleJWT token validation in `TokenRefreshSerializer`; customize only the transport/orchestration layer
 - refresh-token rotation should be tested at the HTTP contract level by asserting the response updates the `refresh_token` cookie, not by reimplementing serializer internals in the test
+- explicit CSRF enforcement may be needed in the custom view because a naive `@csrf_protect` attempt on the DRF function-based refresh endpoint did not produce the expected failing test behavior
 
 Example:
 - `tests/test_task_ping.py` patches `common.views.ping.delay`

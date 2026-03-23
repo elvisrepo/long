@@ -142,6 +142,7 @@ For the login endpoint:
 - refresh now uses a custom wrapper view because cookie transport is an application concern
 - the custom view should still delegate token mechanics to SimpleJWT's `TokenRefreshSerializer`
 - with rotation enabled, the new refresh token is generated inside `TokenRefreshSerializer` during validation; the custom view only transports the rotated token back to the client, including updating the cookie
+- when the refresh token comes from the `refresh_token` cookie, the custom view performs an explicit CSRF check before allowing refresh
 
 Current boundary:
 - keep login custom because the app authenticates by email through the custom Django backend
@@ -229,6 +230,7 @@ Security implications:
 - cookie-based refresh/logout flows need explicit CSRF handling
 - access-token expiry should stay short because access tokens remain stateless until expiry
 - web and Android token transport are intentionally different because their threat models and storage primitives differ
+- a simple `@csrf_protect` attempt did not produce the expected behavior on the DRF function-based refresh endpoint, so CSRF enforcement is applied explicitly inside the custom refresh view for the cookie-driven path
 
 ### Web Token Transport Contract
 

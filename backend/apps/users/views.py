@@ -10,8 +10,20 @@ from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 
+from django.views.decorators.csrf import csrf_protect
+from rest_framework.authentication import CSRFCheck
+from rest_framework.exceptions import PermissionDenied
+
 REFRESH_TOKEN_COOKIE_NAME = "refresh_token"
 
+# run django's csrf checks, if they fail raise a permission error
+def enforce_csrf(request: Request) -> None:
+      check = CSRFCheck(lambda request: None)
+      check.process_request(request)
+      reason = check.process_view(request, None, (), {})
+      if reason:
+          raise PermissionDenied(f"CSRF Failed: {reason}")
+      
 
 @api_view(["POST"])
 def register_view(request):
@@ -113,9 +125,14 @@ def logout_view(request):
 
 @api_view(["POST"])
 def refresh_view(request: Request) -> Response:
-      refresh_token = request.data.get("refresh") or request.COOKIES.get(
-          REFRESH_TOKEN_COOKIE_NAME
-      )
+      body_refresh_token = request.data.get("refresh")
+      cookie_refresh_token = request.COOKIES.get(REFRESH_TOKEN_COOKIE_NAME)
+
+      if not body_refresh_token and cookie_refresh_token:
+          enforce_csrf(request)
+
+      refresh_token = body_refresh_token or cookie_refresh_token
+          
       if not refresh_token:
           return Response(
               {"refresh": ["This field is required."]},
