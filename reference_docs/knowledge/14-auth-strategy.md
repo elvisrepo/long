@@ -257,6 +257,11 @@ Current implementation gap:
 - CSRF protection for cookie-driven refresh/logout still needs to be made explicit before calling the web flow hardened
 - frontend CSRF bootstrap still needs a clean supported path so legitimate SPA refresh/logout requests can supply `X-CSRFToken`
 
+Current proven SPA browser path:
+- frontend can call `GET /api/auth/csrf/` to bootstrap the CSRF cookie
+- login sets the `refresh_token` cookie
+- cookie-based refresh succeeds when the browser supplies the refresh cookie and the frontend supplies `X-CSRFToken`
+
 ### Cookie vs Token
 
 - a token is a credential value, usually represented as a string

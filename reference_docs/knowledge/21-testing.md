@@ -114,6 +114,7 @@ Current auth endpoint coverage includes:
 - refresh happy path for a valid `refresh_token` cookie
 - refresh invalid-token rejection
 - refresh rejects cookie-based refresh attempts without CSRF
+- refresh succeeds with `refresh_token` cookie plus `X-CSRFToken`
 - `me` happy path with bearer authentication
 - `me` unauthenticated protection
 - logout blacklists a refresh token and prevents reuse at the refresh endpoint
