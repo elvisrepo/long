@@ -189,3 +189,5 @@
 Current implementation progress:
 - the split is no longer just conceptual
 - `/api/auth/web/refresh/` is the first dedicated web-only endpoint using cookie transport plus CSRF
+- `/api/auth/web/logout/` also follows the dedicated web-only cookie plus CSRF contract
+- `/api/auth/mobile/refresh/` and `/api/auth/mobile/logout/` provide the explicit non-browser token-submission contract

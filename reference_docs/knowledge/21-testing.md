@@ -110,6 +110,8 @@ Current auth endpoint coverage includes:
 - login happy path JWT issuance, invalid credentials, and required fields
 - login sets a `refresh_token` cookie
 - csrf bootstrap endpoint sets the CSRF cookie
+- mobile refresh succeeds with refresh token in request body
+- mobile logout succeeds with refresh token in request body
 - refresh happy path for a valid refresh token
 - refresh happy path for a valid `refresh_token` cookie
 - refresh invalid-token rejection

@@ -259,9 +259,17 @@ Chosen contract split:
 
 Current split implementation:
 - `/api/auth/web/refresh/` is now a dedicated web refresh endpoint
+- `/api/auth/web/logout/` is now a dedicated web logout endpoint
 - it is cookie-only and CSRF-protected
 - it does not accept refresh tokens from the JSON body
-- the older `/api/auth/refresh/` path remains available during the transition as the non-web/mobile-style token submission path
+- `/api/auth/mobile/refresh/` and `/api/auth/mobile/logout/` are explicit body-token endpoints for non-browser clients such as Android
+- the older generic `/api/auth/refresh/` and `/api/auth/logout/` paths remain as compatibility aliases during the transition
+
+Practical difference between web and mobile:
+- web refresh/logout rely on the browser cookie transport for the refresh token
+- web refresh/logout also require the frontend to send `X-CSRFToken`
+- mobile refresh/logout do not rely on browser cookies or CSRF
+- mobile clients send the refresh token explicitly in the JSON body
 
 Current implementation gap:
 - login now sets a `refresh_token` cookie
