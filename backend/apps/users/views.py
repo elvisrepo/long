@@ -1,4 +1,5 @@
 from django.contrib.auth import authenticate
+from django.contrib.auth.base_user import AbstractBaseUser
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import status
 from rest_framework.authentication import CSRFCheck
@@ -21,6 +22,41 @@ def enforce_csrf(request: Request) -> None:
       reason = check.process_view(request, None, (), {})
       if reason:
           raise PermissionDenied(f"CSRF Failed: {reason}")
+
+
+def build_refresh_cookie_response(
+    response_data: dict[str, str],
+    refresh_token: str,
+) -> Response:
+      response = Response(response_data, status=status.HTTP_200_OK)
+      response.set_cookie(
+          key=REFRESH_TOKEN_COOKIE_NAME,
+          value=refresh_token,
+          httponly=True,
+          secure=True,
+          samesite="Lax",
+      )
+      return response
+
+
+def authenticate_login_request(
+    request: Request,
+) -> tuple[AbstractBaseUser | None, Response | None]:
+      serializer = LoginSerializer(data=request.data)
+      if not serializer.is_valid():
+            return None, Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+      user = authenticate(**serializer.validated_data)
+      if user is None:
+          return None, Response(
+              {"detail": "Invalid credentials."},
+              status=status.HTTP_400_BAD_REQUEST,
+          )
+
+      return user, None
       
 
 @api_view(["POST"])
@@ -40,22 +76,14 @@ def register_view(request):
       )
 
 @api_view(["POST"])
-def login_view(request):
-      
-      serializer = LoginSerializer(data=request.data)  
-      if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-      user = authenticate(**serializer.validated_data)
-      if user is None:
-          return Response(
-              {"detail": "Invalid credentials."},
-              status=status.HTTP_400_BAD_REQUEST,
-          )
+def mobile_login_view(request: Request) -> Response:
+      user, error_response = authenticate_login_request(request)
+      if error_response is not None:
+          return error_response
 
       refresh = RefreshToken.for_user(user)
 
-      response = Response(
+      return Response(
           {
               "access": str(refresh.access_token),
               "refresh": str(refresh),
@@ -63,14 +91,17 @@ def login_view(request):
           status=status.HTTP_200_OK,
       )
 
-      response.set_cookie(
-          key=REFRESH_TOKEN_COOKIE_NAME,
-          value=str(refresh),
-          httponly=True,
-          secure=True,
-          samesite="Lax",
+@api_view(["POST"])
+def web_login_view(request: Request) -> Response:
+      user, error_response = authenticate_login_request(request)
+      if error_response is not None:
+          return error_response
+
+      refresh = RefreshToken.for_user(user)
+      return build_refresh_cookie_response(
+          response_data={"access": str(refresh.access_token)},
+          refresh_token=str(refresh),
       )
-      return response
 
     
 
@@ -108,13 +139,8 @@ def mobile_logout_view(request: Request) -> Response:
               {"refresh": ["Token is invalid."]},
               status=status.HTTP_400_BAD_REQUEST,
           )
-      
-      response = Response(status=status.HTTP_204_NO_CONTENT)
-      response.delete_cookie(
-          key=REFRESH_TOKEN_COOKIE_NAME,
-          samesite="Lax",
-      )
-      return response
+
+      return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(["POST"])
@@ -134,20 +160,8 @@ def mobile_refresh_view(request: Request) -> Response:
               {"detail": "Token is invalid."},
               status=status.HTTP_401_UNAUTHORIZED,
           )
-      # because rotation is enabled in SIMPLE_JWT, it generates new refresh/access tokens
-      response = Response(serializer.validated_data, status=status.HTTP_200_OK)
 
-      rotated_refresh = serializer.validated_data.get("refresh")
-      if rotated_refresh:
-          response.set_cookie(
-              key=REFRESH_TOKEN_COOKIE_NAME,
-              value=rotated_refresh,
-              httponly=True,
-              secure=True,
-              samesite="Lax",
-          )
-
-      return response
+      return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
 
     
@@ -177,19 +191,14 @@ def web_refresh_view(request: Request) -> Response:
               status=status.HTTP_401_UNAUTHORIZED,
           )
 
-      response = Response(serializer.validated_data, status=status.HTTP_200_OK)
-
       rotated_refresh = serializer.validated_data.get("refresh")
       if rotated_refresh:
-          response.set_cookie(
-              key=REFRESH_TOKEN_COOKIE_NAME,
-              value=rotated_refresh,
-              httponly=True,
-              secure=True,
-              samesite="Lax",
+          return build_refresh_cookie_response(
+              response_data=serializer.validated_data,
+              refresh_token=rotated_refresh,
           )
 
-      return response
+      return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
 
 

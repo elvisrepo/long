@@ -10,17 +10,21 @@
 
 **Versioning:** URL-based (`/api/v1/`). Explicit, easy to test, easy to route.
 
-**Auth:** All endpoints except register/login require a valid JWT in the `Authorization: Bearer <token>` header. Rate limiting applied at the auth layer (5 login attempts/min, 3 password resets/hour).
+**Auth:** The current backend auth implementation is split by client transport. Mobile auth uses explicit JWT token submission. Web auth uses JWT access tokens plus cookie-based refresh/logout with CSRF. Rate limiting should still be applied at the auth layer (5 login attempts/min, 3 password resets/hour).
 
 #### Auth (public — no JWT required)
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
-| POST | `/api/v1/auth/register/` | User registration | Returns 201 + user object |
-| POST | `/api/v1/auth/login/` | JWT token pair | Returns access + refresh tokens |
-| POST | `/api/v1/auth/refresh/` | Refresh access token | Idempotent — same refresh token gives same access token |
-| POST | `/api/v1/auth/logout/` | Blacklist refresh token | |
-| POST | `/api/v1/auth/password/reset/` | Password reset email | Rate limited: 3/hour |
-| POST | `/api/v1/auth/password/confirm/` | Confirm password reset | |
+| POST | `/api/auth/register/` | User registration | Returns 201 + user object |
+| GET | `/api/auth/csrf/` | Issue CSRF cookie for SPA bootstrap | Web clients call this before cookie-based refresh/logout |
+| POST | `/api/auth/web/login/` | Web login | Returns `access` only in JSON and sets the refresh token in an `HttpOnly` cookie |
+| POST | `/api/auth/web/refresh/` | Web refresh | Cookie-only, CSRF-protected |
+| POST | `/api/auth/web/logout/` | Web logout | Cookie-only, CSRF-protected, blacklists refresh token |
+| POST | `/api/auth/mobile/login/` | Mobile login | Returns access + refresh tokens in JSON |
+| POST | `/api/auth/mobile/refresh/` | Mobile refresh | Refresh token supplied explicitly in request body |
+| POST | `/api/auth/mobile/logout/` | Mobile logout | Refresh token supplied explicitly in request body |
+| POST | `/api/v1/auth/password/reset/` | Password reset email | Planned, rate limited: 3/hour |
+| POST | `/api/v1/auth/password/confirm/` | Confirm password reset | Planned |
 
 #### User & Profile (JWT required)
 | Method | Endpoint | Description | Notes |

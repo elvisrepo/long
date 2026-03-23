@@ -14,7 +14,7 @@ def test_mobile_logout_succeeds_with_refresh_token_in_body():
     )
 
     login_response = client.post(
-        "/api/auth/login/",
+        "/api/auth/mobile/login/",
         {
             "email": "alice@example.com",
             "password": "strong-password-123",

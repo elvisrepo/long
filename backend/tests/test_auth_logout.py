@@ -14,7 +14,7 @@ def test_logout_blacklists_refresh_token():
       )
     
     login_response = client.post(
-          "/api/auth/login/",
+          "/api/auth/mobile/login/",
           {
               "email": "alice@example.com",
               "password": "strong-password-123",
@@ -76,7 +76,7 @@ def test_logout_accepts_refresh_token_from_cookie():
       )
 
       login_response = client.post(
-          "/api/auth/login/",
+          "/api/auth/web/login/",
           {
               "email": "alice@example.com",
               "password": "strong-password-123",
@@ -107,7 +107,7 @@ def test_logout_clears_refresh_token_cookie():
       )
 
       login_response = client.post(
-          "/api/auth/login/",
+          "/api/auth/web/login/",
           {
               "email": "alice@example.com",
               "password": "strong-password-123",
@@ -140,7 +140,7 @@ def test_logout_cookie_requires_csrf():
       )
 
       login_response = client.post(
-          "/api/auth/login/",
+          "/api/auth/web/login/",
           {
               "email": "alice@example.com",
               "password": "strong-password-123",

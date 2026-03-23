@@ -107,8 +107,8 @@ For JWT-based auth tests:
 
 Current auth endpoint coverage includes:
 - register happy path, duplicate email, required fields, invalid email, and Django password validation
-- login happy path JWT issuance, invalid credentials, and required fields
-- login sets a `refresh_token` cookie
+- mobile login happy path JWT issuance, invalid credentials, and required fields
+- web login returns only `access` in JSON and sets a `refresh_token` cookie
 - csrf bootstrap endpoint sets the CSRF cookie
 - mobile refresh succeeds with refresh token in request body
 - mobile logout succeeds with refresh token in request body
@@ -134,13 +134,14 @@ For the login slice specifically:
 - prefer serializer-based required-field handling over manually branching on missing keys in the view
 
 For the refresh slice specifically:
-- prefer the built-in SimpleJWT `TokenRefreshView` over custom view code unless custom token behavior is actually needed
+- keep SimpleJWT token validation inside `TokenRefreshSerializer`
+- keep the custom project views focused on transport and security rules for the explicit web/mobile split
 - test the public refresh endpoint contract rather than re-testing the library internals at a lower level
 
 Current auth foundation status:
 - the backend suite now covers the explicit web/mobile auth transport split
+- generic login, refresh, and logout aliases have been removed
 - logout refresh-token revocation, cookie clearing, csrf bootstrap, and web csrf enforcement are covered
-- the transitional generic refresh/logout aliases have been removed so tests prove the explicit contract surface
 - current backend suite status at this checkpoint: `37 passed`
 
 Refresh implementation note:

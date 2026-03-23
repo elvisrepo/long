@@ -13,7 +13,7 @@ def test_refresh_returns_new_access_token_for_valid_refresh_token():
       )
     
     login_response = client.post(
-          "/api/auth/login/",
+          "/api/auth/mobile/login/",
           {
               "email": "alice@example.com",
               "password": "strong-password-123",
@@ -56,7 +56,7 @@ def test_refresh_accepts_refresh_token_from_cookie():
       )
 
       login_response = client.post(
-          "/api/auth/login/",
+          "/api/auth/web/login/",
           {
               "email": "alice@example.com",
               "password": "strong-password-123",
@@ -88,7 +88,7 @@ def test_refresh_rotates_refresh_token_cookie():
       )
 
       login_response = client.post(
-          "/api/auth/login/",
+          "/api/auth/web/login/",
           {
               "email": "alice@example.com",
               "password": "strong-password-123",
@@ -121,7 +121,7 @@ def test_refresh_cookie_requires_csrf():
       )
 
       login_response = client.post(
-          "/api/auth/login/",
+          "/api/auth/web/login/",
           {
               "email": "alice@example.com",
               "password": "strong-password-123",
@@ -152,7 +152,7 @@ def test_refresh_cookie_succeeds_with_csrf():
       csrf_token = csrf_response.cookies["csrftoken"].value
 
       login_response = client.post(
-          "/api/auth/login/",
+          "/api/auth/web/login/",
           {
               "email": "alice@example.com",
               "password": "strong-password-123",

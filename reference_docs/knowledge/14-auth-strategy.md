@@ -123,11 +123,20 @@ For the login endpoint:
 - authenticate with Django `authenticate(...)` so the custom email-lookup backend remains the source of truth
 - mint JWTs through `RefreshToken.for_user(user)` from `djangorestframework-simplejwt` instead of hand-rolling token logic
 
-### Current Login API Behavior
+### Current Mobile Login API Behavior
 
-- `POST /api/auth/login/`
+- `POST /api/auth/mobile/login/`
 - request body: `email`, `password`
 - success response: `200` with `access` and `refresh`
+- invalid credentials response: `400` with `{"detail": "Invalid credentials."}`
+- missing required fields response: `400` with field errors from the serializer
+
+### Current Web Login API Behavior
+
+- `POST /api/auth/web/login/`
+- request body: `email`, `password`
+- success response: `200` with `access`
+- backend also sets the `refresh_token` cookie
 - invalid credentials response: `400` with `{"detail": "Invalid credentials."}`
 - missing required fields response: `400` with field errors from the serializer
 
@@ -136,12 +145,12 @@ For the login endpoint:
 - `POST /api/auth/mobile/refresh/`
 - request supplies `refresh` in the JSON body
 - success response: `200` with a new `access` token
-- with rotation enabled, refresh may also issue a new refresh token and the backend should update the refresh cookie
+- with rotation enabled, refresh may also issue a new refresh token in the JSON response body
 - missing refresh token response: `400`
 - invalid refresh token response: `401`
 - mobile refresh uses a custom wrapper view because the project now owns the transport contract split
 - the custom view should still delegate token mechanics to SimpleJWT's `TokenRefreshSerializer`
-- with rotation enabled, the new refresh token is generated inside `TokenRefreshSerializer` during validation; the custom view only transports the rotated token back to the client, including updating the cookie
+- with rotation enabled, the new refresh token is generated inside `TokenRefreshSerializer` during validation; the custom view only transports the rotated token back to the client in the JSON response
 
 ### Current Web Refresh API Behavior
 
@@ -193,7 +202,6 @@ Current mobile logout behavior:
 - request supplies `refresh` in the JSON body
 - backend blacklists the submitted refresh token using SimpleJWT's blacklist support
 - response is `204 No Content`
-- on successful logout, the backend clears the `refresh_token` cookie
 - if `refresh` is missing, response is `400` with a field error
 - if `refresh` is malformed or invalid, response is `400`
 - after logout, that same refresh token can no longer be used at `/api/auth/mobile/refresh/`
@@ -278,12 +286,17 @@ Chosen contract split:
 - prefer explicit web endpoints and explicit mobile/API endpoints when the contracts diverge
 
 Current split implementation:
+- `/api/auth/web/login/` is now a dedicated web login endpoint
+- it returns only the short-lived `access` token in JSON
+- it sets the long-lived refresh token only in the `refresh_token` cookie
+- `/api/auth/mobile/login/` is now a dedicated mobile login endpoint
+- it returns `access` and `refresh` in JSON for non-browser clients
 - `/api/auth/web/refresh/` is now a dedicated web refresh endpoint
 - `/api/auth/web/logout/` is now a dedicated web logout endpoint
 - it is cookie-only and CSRF-protected
 - it does not accept refresh tokens from the JSON body
 - `/api/auth/mobile/refresh/` and `/api/auth/mobile/logout/` are explicit body-token endpoints for non-browser clients such as Android
-- the older generic `/api/auth/refresh/` and `/api/auth/logout/` paths have been removed to avoid transport ambiguity
+- the older generic `/api/auth/login/`, `/api/auth/refresh/`, and `/api/auth/logout/` paths have been removed to avoid transport ambiguity
 
 Practical difference between web and mobile:
 - web refresh/logout rely on the browser cookie transport for the refresh token
@@ -292,11 +305,11 @@ Practical difference between web and mobile:
 - mobile clients send the refresh token explicitly in the JSON body
 
 Current implementation gap:
-- login now sets a `refresh_token` cookie
-- the backend still returns refresh tokens in JSON responses during the transition to the hardened web flow
+- web login now sets a `refresh_token` cookie and keeps the refresh token out of the JSON body
+- mobile login still returns refresh tokens in JSON by design for non-browser clients
 - the backend auth foundation is green across register, login, refresh, logout, and `me`
 - frontend CSRF bootstrap now exists through `/api/auth/csrf/`
-- the remaining hardening decision is whether login should keep returning the refresh token in JSON for non-browser clients or split login transport too
+- the remaining auth transport decision is whether register should also be split explicitly by client type or stay shared
 
 Current proven SPA browser path:
 - frontend can call `GET /api/auth/csrf/` to bootstrap the CSRF cookie

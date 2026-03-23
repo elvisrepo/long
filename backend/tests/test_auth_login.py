@@ -6,7 +6,7 @@ from rest_framework.test import APIClient
 pytestmark = pytest.mark.django_db
 
 
-def test_login_returns_jwt_tokens_for_valid_credentials():
+def test_mobile_login_returns_jwt_tokens_for_valid_credentials():
     client = APIClient()
     User = get_user_model()
 
@@ -16,7 +16,7 @@ def test_login_returns_jwt_tokens_for_valid_credentials():
       )
     
     response = client.post(
-        "/api/auth/login/",
+        "/api/auth/mobile/login/",
         {
             "email": "ALICE@example.com",
             "password": "strong-password-123",
@@ -25,10 +25,11 @@ def test_login_returns_jwt_tokens_for_valid_credentials():
 
     assert response.status_code == 200
     assert set(response.json().keys()) == {"access", "refresh"}
+    assert "refresh_token" not in response.cookies
 
 
 
-def test_login_rejects_invalid_credentials():
+def test_mobile_login_rejects_invalid_credentials():
       client = APIClient()
       User = get_user_model()
 
@@ -38,7 +39,7 @@ def test_login_rejects_invalid_credentials():
       )
 
       response = client.post(
-          "/api/auth/login/",
+          "/api/auth/mobile/login/",
           {
               "email": "alice@example.com",
               "password": "wrong-password",
@@ -55,7 +56,7 @@ def test_login_requires_email_and_password():
      client = APIClient()
 
      response = client.post(
-          "/api/auth/login/",
+          "/api/auth/mobile/login/",
           {},
           format="json",
      )
@@ -67,7 +68,7 @@ def test_login_requires_email_and_password():
       }
 
 
-def test_login_sets_refresh_token_cookie():
+def test_web_login_returns_access_only_and_sets_refresh_cookie():
       client = APIClient()
       User = get_user_model()
 
@@ -77,7 +78,7 @@ def test_login_sets_refresh_token_cookie():
     )
 
       response = client.post(
-          "/api/auth/login/",
+          "/api/auth/web/login/",
           {
               "email": "alice@example.com",
               "password": "strong-password-123",
@@ -86,4 +87,5 @@ def test_login_sets_refresh_token_cookie():
       )
 
       assert response.status_code == 200
+      assert set(response.json().keys()) == {"access"}
       assert "refresh_token" in response.cookies
