@@ -109,6 +109,7 @@ Current auth endpoint coverage includes:
 - register happy path, duplicate email, required fields, invalid email, and Django password validation
 - login happy path JWT issuance, invalid credentials, and required fields
 - login sets a `refresh_token` cookie
+- csrf bootstrap endpoint sets the CSRF cookie
 - refresh happy path for a valid refresh token
 - refresh happy path for a valid `refresh_token` cookie
 - refresh invalid-token rejection

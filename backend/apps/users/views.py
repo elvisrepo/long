@@ -10,7 +10,8 @@ from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 
-from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.csrf import ensure_csrf_cookie
+
 from rest_framework.authentication import CSRFCheck
 from rest_framework.exceptions import PermissionDenied
 
@@ -168,3 +169,7 @@ def refresh_view(request: Request) -> Response:
 
 
     
+@ensure_csrf_cookie
+@api_view(["GET"])
+def csrf_view(request: Request) -> Response:
+      return Response(status=status.HTTP_200_OK)

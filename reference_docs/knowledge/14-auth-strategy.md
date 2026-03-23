@@ -283,6 +283,12 @@ Why this split exists:
 - the CSRF token must be readable so the frontend can echo it back
 - a secret cookie by itself is not enough because browsers send cookies automatically on requests
 
+SPA bootstrap role:
+- the frontend is a single-page app and does not rely on Django-rendered HTML forms for CSRF setup
+- that means the frontend needs an explicit startup step to obtain the CSRF cookie
+- `GET /api/auth/csrf/` exists for that bootstrap purpose
+- the endpoint uses Django's CSRF cookie machinery so later cookie-based refresh/logout requests can include `X-CSRFToken`
+
 Current browser flow:
 
 ```mermaid
