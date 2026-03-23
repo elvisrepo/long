@@ -208,3 +208,32 @@ def web_refresh_view(request: Request) -> Response:
           )
 
       return response
+
+
+
+@api_view(["POST"])
+def web_logout_view(request: Request) -> Response:
+      refresh_token = request.COOKIES.get(REFRESH_TOKEN_COOKIE_NAME)
+      if not refresh_token:
+          return Response(
+              {"refresh": ["This field is required."]},
+              status=status.HTTP_400_BAD_REQUEST,
+          )
+
+      enforce_csrf(request)
+
+      try:
+          token = RefreshToken(refresh_token)
+          token.blacklist()
+      except TokenError:
+          return Response(
+              {"refresh": ["Token is invalid."]},
+              status=status.HTTP_400_BAD_REQUEST,
+          )
+
+      response = Response(status=status.HTTP_204_NO_CONTENT)
+      response.delete_cookie(
+          key=REFRESH_TOKEN_COOKIE_NAME,
+          samesite="Lax",
+      )
+      return response
