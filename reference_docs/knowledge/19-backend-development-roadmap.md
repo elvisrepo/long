@@ -26,6 +26,10 @@ Follows the progressive rollout (R1→R5):
 13. GDPR endpoints (export, deletion)
 14. Audit logging
 
+Current checkpoint note:
+- the R1 auth foundation is complete enough to move into frontend work
+- deferred user-backend scope still includes password reset, profile/account lifecycle work, and any optional email-verification flow
+
 ### R2 — Samsung Validation Spike (Weeks 9-10)
 15. Expand `WearableConnection` model for device-bridge sync state
 16. Authenticated wearable upload endpoint with `upload_id` idempotency

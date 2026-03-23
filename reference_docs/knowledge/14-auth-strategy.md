@@ -311,6 +311,13 @@ Current implementation gap:
 - frontend CSRF bootstrap now exists through `/api/auth/csrf/`
 - the remaining auth transport decision is whether register should also be split explicitly by client type or stay shared
 
+Deferred user-backend scope:
+- password reset is not implemented yet
+- profile update and account deletion flows are not implemented yet
+- email verification is not implemented; add it later only if the product or abuse profile justifies it
+- richer user-profile domain behavior beyond auth basics is still deferred
+- this means the current backend user slice should be treated as an auth foundation, not a complete user-account system
+
 Current proven SPA browser path:
 - frontend can call `GET /api/auth/csrf/` to bootstrap the CSRF cookie
 - login sets the `refresh_token` cookie
