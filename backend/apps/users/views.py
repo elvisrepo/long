@@ -173,3 +173,38 @@ def refresh_view(request: Request) -> Response:
 @api_view(["GET"])
 def csrf_view(request: Request) -> Response:
       return Response(status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+def web_refresh_view(request: Request) -> Response:
+      refresh_token = request.COOKIES.get(REFRESH_TOKEN_COOKIE_NAME)
+      if not refresh_token:
+          return Response(
+              {"refresh": ["This field is required."]},
+              status=status.HTTP_400_BAD_REQUEST,
+          )
+
+      enforce_csrf(request)
+
+      try:
+          serializer = TokenRefreshSerializer(data={"refresh": refresh_token})
+          serializer.is_valid(raise_exception=True)
+      except TokenError:
+          return Response(
+              {"detail": "Token is invalid."},
+              status=status.HTTP_401_UNAUTHORIZED,
+          )
+
+      response = Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+      rotated_refresh = serializer.validated_data.get("refresh")
+      if rotated_refresh:
+          response.set_cookie(
+              key=REFRESH_TOKEN_COOKIE_NAME,
+              value=rotated_refresh,
+              httponly=True,
+              secure=True,
+              samesite="Lax",
+          )
+
+      return response

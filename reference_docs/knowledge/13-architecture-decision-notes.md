@@ -185,3 +185,7 @@
   More endpoints and slightly more client-specific documentation. The backend must maintain two transport contracts over the same core token mechanics.
 - Revisit when:
   The product client mix changes enough that one transport model clearly dominates or a gateway/client layer absorbs the distinction.
+
+Current implementation progress:
+- the split is no longer just conceptual
+- `/api/auth/web/refresh/` is the first dedicated web-only endpoint using cookie transport plus CSRF

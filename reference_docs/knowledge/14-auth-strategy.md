@@ -257,6 +257,12 @@ Chosen contract split:
 - do not keep one endpoint supporting both transport models indefinitely
 - prefer explicit web endpoints and explicit mobile/API endpoints when the contracts diverge
 
+Current split implementation:
+- `/api/auth/web/refresh/` is now a dedicated web refresh endpoint
+- it is cookie-only and CSRF-protected
+- it does not accept refresh tokens from the JSON body
+- the older `/api/auth/refresh/` path remains available during the transition as the non-web/mobile-style token submission path
+
 Current implementation gap:
 - login now sets a `refresh_token` cookie
 - the backend still returns refresh tokens in JSON responses during the transition to the hardened web flow
