@@ -41,8 +41,8 @@ def test_email_is_encrypted_at_rest():
     # opens a raw database cursor - this bypasses normal ORM field conversion logic
     with connection.cursor() as cursor:
           cursor.execute(
-              "SELECT email FROM users_user WHERE id = %s",
-              [str(user.id)],
+              "SELECT email FROM users_user WHERE email_lookup_hash = %s",
+              [user.email_lookup_hash],
           )
           (stored_value,) = cursor.fetchone()
     
