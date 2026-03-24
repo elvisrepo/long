@@ -1,0 +1,76 @@
+services:
+    web:
+      build:
+        context: .
+        dockerfile: Dockerfile
+      working_dir: /app
+      command: >
+        sh -c "python manage.py migrate &&
+        python manage.py runserver 0.0.0.0:8000"
+      env_file:
+        - .env
+      volumes:
+        - .:/app
+      ports:
+        - "8000:8000"
+      depends_on:
+        db:
+          condition: service_healthy
+        redis:
+          condition: service_started
+
+    celery:
+      build:
+        context: .
+        dockerfile: Dockerfile
+      working_dir: /app
+      command: ["celery", "-A", "config", "worker", "-l", "info"]
+      env_file:
+        - .env
+      volumes:
+        - .:/app
+      depends_on:
+        db:
+          condition: service_healthy
+        redis:
+          condition: service_started
+
+    celery-beat:
+      build:
+        context: .
+        dockerfile: Dockerfile
+      working_dir: /app
+      command: ["celery", "-A", "config", "beat", "-l", "info"]
+      env_file:
+        - .env
+      volumes:
+        - .:/app
+      depends_on:
+        db:
+          condition: service_healthy
+        redis:
+          condition: service_started
+
+    db:
+      image: timescale/timescaledb:latest-pg16
+      environment:
+        POSTGRES_DB: ${POSTGRES_DB}
+        POSTGRES_USER: ${POSTGRES_USER}
+        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      ports:
+        - "5432:5432"
+      volumes:
+        - pgdata:/var/lib/postgresql/data
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+        interval: 5s
+        timeout: 5s
+        retries: 20
+
+    redis:
+      image: redis:7-alpine
+      ports:
+        - "6379:6379"
+
+volumes:
+  pgdata:
