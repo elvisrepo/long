@@ -23,6 +23,20 @@ Terraform manages:
 
 ### 7.2 CI/CD (GitHub Actions)
 
+Current implemented state:
+- backend CI is now implemented in `.github/workflows/backend-ci.yml`
+- it uses:
+  - `actions/checkout`
+  - `actions/setup-python`
+  - `astral-sh/setup-uv`
+- it currently runs:
+  - `uv sync --group dev`
+  - `uv run ruff check .`
+  - `uv run mypy`
+  - `uv run pytest tests`
+- this is CI only, not CD
+- no deployment pipeline is implemented yet
+
 ```yaml
 # .github/workflows/ci.yml (simplified)
 name: CI
@@ -51,6 +65,14 @@ jobs:
       - # Push to ECR
       - # Deploy to ECS
 ```
+
+Practical note from the current project:
+- local Docker tests use the containerized stack
+- GitHub Actions currently runs backend tests directly on the runner with the test settings fallback database
+- raw SQL tests should avoid depending on database-specific storage details when CI and local environments differ
+- the current backend CI job does not use Postgres or Redis services because the present test suite does not require them to pass
+- this is a current-project simplification, not a permanent architectural assumption
+- if future backend slices start depending on real Postgres or Redis behavior, CI should grow matching services instead of relying only on the runner environment
 
 ### 7.3 Containers
 - Single `Dockerfile` (multi-stage: build → prod)

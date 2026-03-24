@@ -14,8 +14,8 @@
   - `backend/common/`
   - `backend/config/`
   - `backend/tests/`
-- The backend uses Docker locally and has `uv.lock`, but there is currently no GitHub Actions workflow in `.github/`.
-- The backend `pyproject.toml` includes `pytest`, `pytest-django`, and `ruff`, but there is no configured type-checking, pre-commit, security scan, or CI pipeline yet.
+- The backend uses Docker locally and now also has a working GitHub Actions backend CI workflow.
+- The backend `pyproject.toml` now includes `pytest`, `pytest-django`, `ruff`, and `mypy`.
 
 ### What Is Done
 
@@ -43,8 +43,8 @@
 - Email verification is not implemented.
 - No richer user-profile domain exists yet beyond auth basics.
 - No frontend app exists yet.
-- No CI/CD pipeline exists yet.
-- No lint/type/security automation is wired yet.
+- No CD pipeline exists yet.
+- Security automation beyond lint, type-checking, and tests is not wired yet.
 
 ### How We Implemented The Backend Slice
 
@@ -75,6 +75,9 @@
 - SimpleJWT handles token mechanics well, but transport and browser security are still application responsibilities.
 - Updating implementation without updating canonical docs causes drift quickly.
 - Route/path changes should always be followed by a grep for stale references before the full test run.
+- CI is currently running on a GitHub-hosted Ubuntu runner, not on the local Docker Compose stack.
+- The current backend suite is light enough to pass there without Postgres or Redis services because test settings fall back to SQLite and broker-backed behavior is not exercised end to end.
+- That is good enough for the current auth slice, but it should be revisited once database- or Redis-specific behavior becomes part of the tested contract.
 
 ### AGENTS.md Review
 
@@ -135,15 +138,14 @@ Recommended next automation additions:
   - `lint`
   - `typecheck`
   - `docs-grep`
-- Add `ruff` configuration and make linting mandatory.
-- Add `mypy` or `pyright` for production code type-checking.
+- Keep `ruff` as a mandatory lint gate.
+- Keep `mypy` as the first type-checking gate.
 - Add `bandit` and `pip-audit` to security automation.
 - Add `pre-commit` so formatting/linting runs before commits.
-- Add GitHub Actions for:
-  - lint
-  - tests
+- Expand GitHub Actions with:
   - security scans
   - optional docs consistency checks
+  - frontend CI once the React app exists
 
 Recommended CI order:
 1. install dependencies
@@ -154,8 +156,7 @@ Recommended CI order:
 6. run security checks
 
 When to add CI vs CD:
-- add CI now, before the frontend slice grows
-- CI should become the default quality gate for backend changes immediately
+- backend CI is now in place and should remain the default quality gate for backend changes
 - expand CI later to include frontend once the first React slice exists
 - add CD only after the deployment shape, secrets handling, and release flow are stable enough
 - do not rush CD before the project has a reliable test and lint gate
@@ -178,7 +179,7 @@ Too early right now:
 
 Practical sequencing:
 - add basic structured logging now
-- add CI next if it is not already in place
+- keep CI green while the backend grows
 - add richer monitoring later when the frontend exists and deployments are becoming routine
 
 ### Reviewer / Agent Workflow

@@ -18,6 +18,15 @@
 
 **Coverage target**: 80%+ via `pytest-cov`, enforced in CI.
 
+Current CI quality gate for the backend:
+- GitHub Actions backend workflow is now in place
+- the workflow currently runs:
+  - `ruff`
+  - `mypy`
+  - `pytest`
+- the workflow is triggered on backend-related pushes and pull requests
+- the current backend CI workflow is green
+
 ### Wearable Sync Test Focus
 
 When testing Samsung-sync behavior:
