@@ -2,6 +2,7 @@ import hmac
 import uuid
 from functools import lru_cache
 from hashlib import sha256
+from typing import Any
 
 from cryptography.fernet import Fernet, InvalidToken
 from django.conf import settings
@@ -46,30 +47,40 @@ def build_email_lookup_hash(email: str) -> str:
 
 
 class EncryptedEmailField(models.EmailField):
-    def from_db_value(self, value, expression, connection):
+    def from_db_value(
+        self,
+        value: str | None,
+        expression: Any,
+        connection: Any,
+    ) -> str | None:
         if value in {None, ""}:
             return value
         # ORM reads should expose plaintext to app code.
         return decrypt_value(value)
 
-    def get_prep_value(self, value):
-        value = super().get_prep_value(value)
-        if value in {None, ""}:
-            return value
+    def get_prep_value(self, value: str | None) -> str | None:
+        prepared_value = super().get_prep_value(value)
+        if prepared_value in {None, ""}:
+            return prepared_value
         # Database writes should store ciphertext, not plaintext.
-        return encrypt_value(value)
+        return encrypt_value(prepared_value)
 
 
 class UserManager(BaseUserManager):
     use_in_migrations = True
 
-    def normalize_email(self, email):
+    def normalize_email(self, email: str) -> str:
         return normalize_email(email)
 
-    def get_by_natural_key(self, username):
+    def get_by_natural_key(self, username: str) -> "User":
         return self.get(email_lookup_hash=build_email_lookup_hash(username))
 
-    def create_user(self, email: str, password: str | None = None, **extra_fields):
+    def create_user(
+        self,
+        email: str,
+        password: str | None = None,
+        **extra_fields: Any,
+    ) -> "User":
         if not email:
             raise ValueError("The email field is required.")
 
@@ -83,8 +94,8 @@ class UserManager(BaseUserManager):
         self,
         email: str,
         password: str | None = None,
-        **extra_fields,
-    ):
+        **extra_fields: Any,
+    ) -> "User":
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("is_active", True)
@@ -99,25 +110,25 @@ class UserManager(BaseUserManager):
 
 class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    email = EncryptedEmailField()
-    email_lookup_hash = models.CharField(max_length=64, unique=True, editable=False)
-    is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
+    email: str = EncryptedEmailField()
+    email_lookup_hash: str = models.CharField(max_length=64, unique=True, editable=False)
+    is_active: bool = models.BooleanField(default=True)
+    is_staff: bool = models.BooleanField(default=False)
 
     objects = UserManager()
 
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = []
+    REQUIRED_FIELDS: list[str] = []
 
     class Meta:
         db_table = "users_user"
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         if self.email:
             self.email = normalize_email(self.email)
             # Keep the lookup key aligned even when callers bypass the manager.
             self.email_lookup_hash = build_email_lookup_hash(self.email)
-        return super().save(*args, **kwargs)
+        super().save(*args, **kwargs)
 
     def __str__(self) -> str:
         return self.email
