@@ -3,6 +3,7 @@ Test settings for the automated test suite.
 """
 
 from .base import *  # noqa: F403
+from .base import SIMPLE_JWT as BASE_SIMPLE_JWT
 
 
 DEBUG = False
@@ -17,6 +18,6 @@ SECRET_KEY = "test-secret-key-at-least-32-bytes-long-for-jwt"
 
 JWT_SIGNING_KEY = "test-jwt-signing-key-at-least-32-bytes-long"
 SIMPLE_JWT = {
-      **SIMPLE_JWT,
+      **BASE_SIMPLE_JWT,
       "SIGNING_KEY": JWT_SIGNING_KEY,
   }

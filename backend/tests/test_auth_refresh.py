@@ -7,7 +7,7 @@ pytestmark = pytest.mark.django_db
 
 def test_refresh_returns_new_access_token_for_valid_refresh_token():
     client = APIClient()
-    user = get_user_model().objects.create_user(
+    get_user_model().objects.create_user(
           email="alice@example.com",
           password="strong-password-123",
       )

@@ -60,7 +60,7 @@ def authenticate_login_request(
       
 
 @api_view(["POST"])
-def register_view(request):
+def register_view(request: Request) -> Response:
       serializer = RegisterSerializer(data=request.data)
 
       if not serializer.is_valid():
@@ -107,7 +107,7 @@ def web_login_view(request: Request) -> Response:
 
 
 @api_view(["GET"])
-def me_view(request):
+def me_view(request: Request) -> Response:
       if not request.user.is_authenticated:
           return Response(
               {"detail": "Authentication credentials were not provided."},

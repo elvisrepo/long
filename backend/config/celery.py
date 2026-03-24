@@ -1,4 +1,5 @@
 import os
+from celery import Celery
 
 '''
 - .env provides REDIS_URL
@@ -6,8 +7,6 @@ import os
   - Django settings define CELERY_BROKER_URL = REDIS_URL
   - Celery loads CELERY_BROKER_URL from Django settings
 '''
-
-from celery import Celery
 
 # which Django settings module to load
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.dev")
