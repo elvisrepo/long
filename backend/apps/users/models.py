@@ -47,23 +47,25 @@ def build_email_lookup_hash(email: str) -> str:
 
 
 class EncryptedEmailField(models.EmailField):
-    def from_db_value(
-        self,
-        value: str | None,
-        expression: Any,
-        connection: Any,
-    ) -> str | None:
-        if value in {None, ""}:
-            return value
-        # ORM reads should expose plaintext to app code.
-        return decrypt_value(value)
+      def from_db_value(
+          self,
+          value: str | None,
+          expression: Any,
+          connection: Any,
+      ) -> str | None:
+          if value is None or value == "":
+              return value
 
-    def get_prep_value(self, value: str | None) -> str | None:
-        prepared_value = super().get_prep_value(value)
-        if prepared_value in {None, ""}:
-            return prepared_value
-        # Database writes should store ciphertext, not plaintext.
-        return encrypt_value(prepared_value)
+          decrypted_value: str = decrypt_value(value)
+          return decrypted_value
+
+      def get_prep_value(self, value: str | None) -> str | None:
+          prepared_value = super().get_prep_value(value)
+          if prepared_value is None or prepared_value == "":
+              return prepared_value
+
+          encrypted_value: str = encrypt_value(prepared_value)
+          return encrypted_value
 
 
 class UserManager(BaseUserManager):
