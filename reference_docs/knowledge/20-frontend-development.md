@@ -26,6 +26,19 @@
 - Web: Axios / fetch + JWT interceptor for auto-refresh
 - Android: same REST API with JWT auth plus idempotent upload endpoints for sync batches
 
+Current build order:
+- web frontend comes before the Android companion app
+- the first frontend slice should connect to the already-implemented web auth backend
+- manual metric entry and dashboard reads should be implemented on web before Health Connect sync work begins
+
+First web slice:
+- `GET /api/auth/csrf/`
+- `POST /api/auth/web/login/`
+- `POST /api/auth/web/refresh/`
+- `POST /api/auth/web/logout/`
+- `GET /api/auth/me/`
+- access token kept in memory on web
+
 ### 5.5 State Management
 - Web: Zustand (simpler than Redux for this scale)
 - Android: native local sync state + background work coordination

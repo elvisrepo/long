@@ -32,6 +32,12 @@ Never changes.            R3 MVP deploy here.      This is the goal.         Onl
 
 Build features end-to-end (model → serializer → view → test → deploy), not layer-by-layer.
 
+Working rule for the current phase:
+- build slices locally in the Docker runtime from `05-local-development-architecture.md`
+- make implementation choices that remain compatible with `06-pragmatic-mvp-cloud-architecture.md`
+- do not try to "build local first, then redesign for cloud later"
+- instead, treat local as the development runtime and MVP cloud as the deployment target for the same slices
+
 | Horizontal (❌ don't do this) | Vertical (✅ do this) |
 |---|---|
 | Week 1: Build ALL models | Week 1: Build auth end-to-end |
@@ -54,6 +60,13 @@ Build features end-to-end (model → serializer → view → test → deploy), n
 Each slice: code → test → PR → CI green → merge → deploy.
 
 **R1.1 hardening:** Password reset, GDPR export/delete, and audit logging. Important, but not required to prove the manual-entry foundation loop.
+
+Recommended near-term delivery order:
+- finish the backend auth foundation and local developer quality gates
+- add basic structured backend logging
+- scaffold the React frontend and wire the web auth flow end to end
+- implement manual metric definitions, metric logging, and dashboard reads next
+- only after the manual tracking loop works well, move on to the Android companion app and Health Connect sync slices
 
 **R2 / R3 Samsung slices:**
 - **R2 spike**: prove `Samsung Health -> Health Connect/direct SDK -> Android app -> backend` with JWT auth, one upload endpoint, and a small set of core metrics.

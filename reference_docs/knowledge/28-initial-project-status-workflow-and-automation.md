@@ -80,6 +80,9 @@
 - That is good enough for the current auth slice, but it should be revisited once database- or Redis-specific behavior becomes part of the tested contract.
 - C4 component diagrams should be added only once container internals are rich and stable enough to justify them; before that, context/container views plus sequence diagrams are the better tradeoff.
 - Dynamic views should document implemented behavior only; for the current project state that means the hardened web auth flows, not future metrics or sync flows that have not been built yet.
+- Local Docker is the development runtime, not a throwaway prototype; slices should be built there in a way that stays compatible with the MVP cloud target.
+- The project should advance by vertical product slices, not by prematurely implementing every future subsystem.
+- Manual metric tracking should be proven end to end before Android Health Connect sync is attempted.
 
 ### AGENTS.md Review
 
@@ -129,6 +132,22 @@ Use this as the default slice workflow:
 9. Move to the next slice.
 
 Do not skip steps 6 and 7. They are where regressions and documentation drift are caught.
+
+### Next Product Sequence
+
+Recommended execution order from this checkpoint:
+
+1. add basic structured backend logging
+2. scaffold the React frontend
+3. integrate the web auth slice end to end
+4. implement manual metric definitions and manual metric logging
+5. implement dashboard read flows
+6. only then start the Android companion app and Health Connect sync spike
+
+Architecture rule:
+- keep using the local Docker runtime for development
+- keep `06-pragmatic-mvp-cloud-architecture.md` as the MVP deployment target
+- move slices from local development toward MVP deployment incrementally instead of treating cloud as a later rewrite
 
 ### Linting, CI/CD, and Automation
 
