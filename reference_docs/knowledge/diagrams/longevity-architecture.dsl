@@ -2,7 +2,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
     !identifiers hierarchical
 
     model {
-        user = person "User" "Uses the Longevity web experience and the Android companion app."
+        user = person "Longevity User" "Uses the platform to view metrics, manage account data, and review synced health information."
 
         samsung = softwareSystem "Samsung Health / Health Connect" "On-device health data source used by the Android companion app."
 
@@ -16,7 +16,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             redis = container "Redis" "Broker and cache-style infrastructure for Celery and future coordination." "Redis"
         }
 
-        user -> longevity "Uses to view data, manage account, and track metrics"
+        user -> longevity "Views metrics, manages account, and reviews health data"
         samsung -> longevity "Supplies health data indirectly via the Android companion app"
 
         user -> longevity.webapp "Uses"
@@ -49,7 +49,10 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
 
           styles {
               element "Person" {
-                  color #ffffff
+                  shape Person
+                  background #d5f5d1
+                  color #111111
+                  stroke #2d7d2f
               }
 
               element "Software System" {
