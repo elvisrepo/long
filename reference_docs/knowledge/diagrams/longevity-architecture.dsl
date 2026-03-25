@@ -35,21 +35,36 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
 
             mvpCloud = deploymentEnvironment "MVP Cloud" {
                 userDevices = deploymentNode "User Devices" "Where end users run the browser and Android clients." {
+                    tags "ClientZone"
+
                     browserNode = deploymentNode "Browser" "Web browser runtime" {
-                        browserClient = infrastructureNode "Web Browser" "Loads and runs the React web application."
+                        tags "ClientZone"
+                        browserClient = infrastructureNode "Web Browser" "Loads and runs the React web application." {
+                            tags "ClientRuntime"
+                        }
                     }
 
                     androidNode = deploymentNode "Android Phone" "Android runtime for the companion app" {
-                        androidClient = infrastructureNode "Android Companion App" "Installed mobile application for Samsung sync and future mobile workflows."
+                        tags "ClientZone"
+                        androidClient = infrastructureNode "Android Companion App" "Installed mobile application for Samsung sync and future mobile workflows." {
+                            tags "ClientRuntime"
+                        }
                     }
                 }
 
             aws = deploymentNode "AWS" "Primary MVP cloud hosting environment." {
+                tags "CloudZone"
+
                 edge = deploymentNode "Edge" {
-                    alb = infrastructureNode "ALB" "Application Load Balancer"
+                    tags "EdgeZone"
+                    alb = infrastructureNode "ALB" "Application Load Balancer" {
+                        tags "EdgeService"
+                    }
                 }
 
                 compute = deploymentNode "Compute" {
+                    tags "ComputeZone"
+
                     apiNode = deploymentNode "ECS Fargate Service" {
                         apiInstance = containerInstance longevity.api
                     }
@@ -64,24 +79,39 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 }
 
                 appData = deploymentNode "App Data" {
-                    redisNode = infrastructureNode "ElastiCache Redis" "Redis"
+                    tags "DataZone"
+                    redisNode = infrastructureNode "ElastiCache Redis" "Redis" {
+                        tags "DataService"
+                    }
                 }
 
                 security = deploymentNode "Security & Config" {
-                    secretsNode = infrastructureNode "AWS Secrets Manager" "Stores application secrets and configuration values."
+                    tags "SecurityZone"
+                    secretsNode = infrastructureNode "AWS Secrets Manager" "Stores application secrets and configuration values." {
+                        tags "SecurityService"
+                    }
                 }
 
                 ops = deploymentNode "Ops" {
-                    monitoringNode = infrastructureNode "CloudWatch" "Operational logs and metrics sink for the deployed MVP runtime."
+                    tags "OpsZone"
+                    monitoringNode = infrastructureNode "CloudWatch" "Operational logs and metrics sink for the deployed MVP runtime." {
+                        tags "OpsService"
+                    }
                 }
 
                 storage = deploymentNode "Storage" {
-                    backupsNode = infrastructureNode "S3 Bucket" "Stores backups and static assets."
+                    tags "StorageZone"
+                    backupsNode = infrastructureNode "S3 Bucket" "Stores backups and static assets." {
+                        tags "StorageService"
+                    }
                 }
             }
 
             managedDatabase = deploymentNode "Managed Database" {
-                timescaleNode = infrastructureNode "Timescale Cloud" "Managed PostgreSQL + TimescaleDB"
+                tags "ManagedZone"
+                timescaleNode = infrastructureNode "Timescale Cloud" "Managed PostgreSQL + TimescaleDB" {
+                    tags "ManagedDataService"
+                }
             }
 
             mvpCloud.userDevices.browserNode.browserClient -> mvpCloud.aws.edge.alb "Uses HTTPS"
@@ -167,6 +197,127 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
               element "Container" {
                   background #438dd5
                   color #ffffff
+              }
+
+              element "Deployment Node" {
+                  background #f7f9fc
+                  color #243447
+                  stroke #8a9bad
+              }
+
+              element "Infrastructure Node" {
+                  background #fff8e8
+                  color #3b2f00
+                  stroke #d4a017
+              }
+
+              element "Container Instance" {
+                  background #2f6fb3
+                  color #ffffff
+                  stroke #1d4e80
+              }
+
+              element "ClientZone" {
+                  background #eef8ec
+                  color #1f3b22
+                  stroke #6ea36a
+              }
+
+              element "CloudZone" {
+                  background #f4f7fb
+                  color #243447
+                  stroke #6f8aa6
+              }
+
+              element "EdgeZone" {
+                  background #eaf3fb
+                  color #13324b
+                  stroke #5c92c7
+              }
+
+              element "ComputeZone" {
+                  background #edf2ff
+                  color #1b2f55
+                  stroke #6980c7
+              }
+
+              element "DataZone" {
+                  background #eef6fb
+                  color #163647
+                  stroke #5f95b5
+              }
+
+              element "SecurityZone" {
+                  background #fff1e6
+                  color #4a2a16
+                  stroke #d68a45
+              }
+
+              element "OpsZone" {
+                  background #fbeef2
+                  color #4a2030
+                  stroke #b86b84
+              }
+
+              element "StorageZone" {
+                  background #fff7df
+                  color #4c3a0b
+                  stroke #c9a227
+              }
+
+              element "ManagedZone" {
+                  background #eef8f7
+                  color #163b39
+                  stroke #63a39b
+              }
+
+              element "ClientRuntime" {
+                  background #dff1dc
+                  color #15301a
+                  stroke #5d9a61
+              }
+
+              element "EdgeService" {
+                  background #dcecff
+                  color #163a63
+                  stroke #4f83c2
+              }
+
+              element "DataService" {
+                  background #dff3f8
+                  color #123846
+                  stroke #4d91a7
+              }
+
+              element "SecurityService" {
+                  background #ffe6cc
+                  color #4a2b12
+                  stroke #d48733
+              }
+
+              element "OpsService" {
+                  background #f8dfe7
+                  color #471d2a
+                  stroke #b25d79
+              }
+
+              element "StorageService" {
+                  background #fff0b8
+                  color #49370b
+                  stroke #c49b1f
+              }
+
+              element "ManagedDataService" {
+                  background #d9f3ef
+                  color #12423f
+                  stroke #4d9f93
+              }
+
+              relationship "Relationship" {
+                  color #5b6770
+                  thickness 2
+                  routing Orthogonal
+                  fontSize 18
               }
           }
       }
