@@ -114,23 +114,61 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 }
             }
 
-            mvpCloud.userDevices.browserNode.browserClient -> mvpCloud.aws.edge.alb "Uses HTTPS"
-            mvpCloud.userDevices.androidNode.androidClient -> mvpCloud.aws.edge.alb "Uses HTTPS"
-            mvpCloud.aws.edge.alb -> mvpCloud.aws.compute.apiNode.apiInstance "Routes HTTPS requests"
+            mvpCloud.userDevices.browserNode.browserClient -> mvpCloud.aws.edge.alb "Uses HTTPS" {
+                tags "ClientTraffic"
+            }
 
-            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.managedDatabase.timescaleNode "Reads and writes data"
-            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.aws.appData.redisNode "Uses"
-            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.aws.security.secretsNode "Reads secrets and config"
-            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.aws.ops.monitoringNode "Writes logs and metrics"
-            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.aws.storage.backupsNode "Uses for static assets and backups"
+            mvpCloud.userDevices.androidNode.androidClient -> mvpCloud.aws.edge.alb "Uses HTTPS" {
+                tags "ClientTraffic"
+            }
 
-            mvpCloud.aws.compute.workerNode.workerInstance -> mvpCloud.managedDatabase.timescaleNode "Reads and writes data"
-            mvpCloud.aws.compute.workerNode.workerInstance -> mvpCloud.aws.appData.redisNode "Uses as broker"
-            mvpCloud.aws.compute.workerNode.workerInstance -> mvpCloud.aws.ops.monitoringNode "Writes logs and metrics"
-            mvpCloud.aws.compute.workerNode.workerInstance -> mvpCloud.aws.storage.backupsNode "Writes backups and repair outputs"
+            mvpCloud.aws.edge.alb -> mvpCloud.aws.compute.apiNode.apiInstance "Routes HTTPS requests" {
+                tags "EdgeTraffic"
+            }
 
-            mvpCloud.aws.compute.beatNode.beatInstance -> mvpCloud.aws.appData.redisNode "Publishes scheduled work"
-            mvpCloud.aws.compute.beatNode.beatInstance -> mvpCloud.aws.ops.monitoringNode "Writes logs and metrics"
+            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.managedDatabase.timescaleNode "Reads and writes data" {
+                tags "DataTraffic"
+            }
+
+            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.aws.appData.redisNode "Uses" {
+                tags "DataTraffic"
+            }
+
+            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.aws.security.secretsNode "Reads secrets and config" {
+                tags "SecurityTraffic"
+            }
+
+            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.aws.ops.monitoringNode "Writes logs and metrics" {
+                tags "OpsTraffic"
+            }
+
+            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.aws.storage.backupsNode "Uses for static assets and backups" {
+                tags "StorageTraffic"
+            }
+
+            mvpCloud.aws.compute.workerNode.workerInstance -> mvpCloud.managedDatabase.timescaleNode "Reads and writes data" {
+                tags "DataTraffic"
+            }
+
+            mvpCloud.aws.compute.workerNode.workerInstance -> mvpCloud.aws.appData.redisNode "Uses as broker" {
+                tags "DataTraffic"
+            }
+
+            mvpCloud.aws.compute.workerNode.workerInstance -> mvpCloud.aws.ops.monitoringNode "Writes logs and metrics" {
+                tags "OpsTraffic"
+            }
+
+            mvpCloud.aws.compute.workerNode.workerInstance -> mvpCloud.aws.storage.backupsNode "Writes backups and repair outputs" {
+                tags "StorageTraffic"
+            }
+
+            mvpCloud.aws.compute.beatNode.beatInstance -> mvpCloud.aws.appData.redisNode "Publishes scheduled work" {
+                tags "DataTraffic"
+            }
+
+            mvpCloud.aws.compute.beatNode.beatInstance -> mvpCloud.aws.ops.monitoringNode "Writes logs and metrics" {
+                tags "OpsTraffic"
+            }
         }
     }
 
@@ -318,6 +356,42 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                   thickness 2
                   routing Orthogonal
                   fontSize 18
+              }
+
+              relationship "ClientTraffic" {
+                  color #4f8a4c
+                  thickness 3
+                  routing Orthogonal
+              }
+
+              relationship "EdgeTraffic" {
+                  color #3f74b5
+                  thickness 3
+                  routing Orthogonal
+              }
+
+              relationship "DataTraffic" {
+                  color #3f8c9d
+                  thickness 3
+                  routing Orthogonal
+              }
+
+              relationship "SecurityTraffic" {
+                  color #d07a1f
+                  thickness 3
+                  routing Orthogonal
+              }
+
+              relationship "OpsTraffic" {
+                  color #b04f74
+                  thickness 3
+                  routing Orthogonal
+              }
+
+              relationship "StorageTraffic" {
+                  color #c19a16
+                  thickness 3
+                  routing Orthogonal
               }
           }
       }
