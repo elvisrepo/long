@@ -88,3 +88,20 @@ Until then:
 - keep the context and container diagrams
 - prefer sequence diagrams for important flows
 - avoid a premature component diagram that would mostly restate a small file tree and go stale quickly
+
+### Current Dynamic View Scope
+
+Current implemented dynamic views should stay limited to the auth flows that actually exist in the backend:
+- web auth login
+- web auth refresh
+- web auth logout
+
+That is enough for the current project state.
+
+Do not add more dynamic views until the corresponding slices are actually implemented.
+
+Good future candidates once real code exists:
+- Samsung sync upload flow
+- metric logging flow
+- dashboard read flow
+- future password-reset flow

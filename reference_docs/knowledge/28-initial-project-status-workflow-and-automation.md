@@ -79,6 +79,7 @@
 - The current backend suite is light enough to pass there without Postgres or Redis services because test settings fall back to SQLite and broker-backed behavior is not exercised end to end.
 - That is good enough for the current auth slice, but it should be revisited once database- or Redis-specific behavior becomes part of the tested contract.
 - C4 component diagrams should be added only once container internals are rich and stable enough to justify them; before that, context/container views plus sequence diagrams are the better tradeoff.
+- Dynamic views should document implemented behavior only; for the current project state that means the hardened web auth flows, not future metrics or sync flows that have not been built yet.
 
 ### AGENTS.md Review
 

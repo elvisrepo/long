@@ -58,6 +58,24 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             user -> longevity.webapp "Uses authenticated web session"
         }
 
+        dynamic longevity "web-auth-refresh" "Dynamic view of the current web refresh flow." {
+            user -> longevity.webapp "Continues an existing authenticated web session"
+            longevity.webapp -> longevity.api "POST /api/auth/web/refresh/ with X-CSRFToken header"
+            longevity.api -> longevity.db "Validates refresh token and loads token-related user state"
+            longevity.db -> longevity.api "Returns user and token state"
+            longevity.api -> longevity.webapp "Returns new access token in JSON and rotated refresh_token cookie"
+            user -> longevity.webapp "Continues authenticated session with refreshed access token"
+        }
+
+        dynamic longevity "web-auth-logout" "Dynamic view of the current web logout flow." {
+            user -> longevity.webapp "Chooses to sign out from an authenticated web session"
+            longevity.webapp -> longevity.api "POST /api/auth/web/logout/ with X-CSRFToken header"
+            longevity.api -> longevity.db "Validates refresh token state and revokes refresh capability"
+            longevity.db -> longevity.api "Returns token-related user state"
+            longevity.api -> longevity.webapp "Returns 204 and clears refresh_token cookie"
+            user -> longevity.webapp "Returns to an unauthenticated web state"
+        }
+
           styles {
               element "Person" {
                   shape Person
