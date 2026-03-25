@@ -33,16 +33,16 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
           longevity.worker -> longevity.redis "Uses as broker"
           longevity.beat -> longevity.redis "Publishes scheduled work"
 
-        mvpCloud = deploymentEnvironment "MVP Cloud" {
-            userDevices = deploymentNode "User Devices" "Where end users run the browser and Android clients." {
-                browserNode = deploymentNode "Browser" "Web browser runtime" {
-                    webappInstance = containerInstance longevity.webapp
-                }
+            mvpCloud = deploymentEnvironment "MVP Cloud" {
+                userDevices = deploymentNode "User Devices" "Where end users run the browser and Android clients." {
+                    browserNode = deploymentNode "Browser" "Web browser runtime" {
+                        browserClient = infrastructureNode "Web Browser" "Loads and runs the React web application."
+                    }
 
-                androidNode = deploymentNode "Android Phone" "Android runtime for the companion app" {
-                    androidInstance = containerInstance longevity.android
+                    androidNode = deploymentNode "Android Phone" "Android runtime for the companion app" {
+                        androidClient = infrastructureNode "Android Companion App" "Installed mobile application for Samsung sync and future mobile workflows."
+                    }
                 }
-            }
 
             aws = deploymentNode "AWS" "Primary MVP cloud hosting environment." {
                 edge = deploymentNode "Edge" {
@@ -84,8 +84,8 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 timescaleNode = infrastructureNode "Timescale Cloud" "Managed PostgreSQL + TimescaleDB"
             }
 
-            mvpCloud.userDevices.browserNode.webappInstance -> mvpCloud.aws.edge.alb "Uses HTTPS"
-            mvpCloud.userDevices.androidNode.androidInstance -> mvpCloud.aws.edge.alb "Uses HTTPS"
+            mvpCloud.userDevices.browserNode.browserClient -> mvpCloud.aws.edge.alb "Uses HTTPS"
+            mvpCloud.userDevices.androidNode.androidClient -> mvpCloud.aws.edge.alb "Uses HTTPS"
             mvpCloud.aws.edge.alb -> mvpCloud.aws.compute.apiNode.apiInstance "Routes HTTPS requests"
 
             mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.managedDatabase.timescaleNode "Reads and writes data"
