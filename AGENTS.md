@@ -17,6 +17,7 @@
 - If you see anything fit to be stored as a reference in reference_docs, let me know.
 - When you to create or edit a file, state the full path first.
 - Use python type hints.
+- Use Structurizr DSL as the source of truth for C4 diagrams instead of Mermaid when creating or updating C4 architecture views.
 - When changing public API contracts or route paths, update the canonical docs in the same slice. At minimum check `reference_docs/knowledge/03-api-design.md`, the relevant domain/security doc, and `reference_docs/knowledge/21-testing.md`.
 - After changing route names or endpoint paths, grep for stale references before running the broad suite.
 - Prefer focused tests for the touched slice first, then run the broader relevant suite.
@@ -55,6 +56,8 @@ Load only the parts you need. You can load multiple files when useful. Be specif
 - `reference_docs/knowledge/26-key-decisions-faq.md` when you need quick answers from the appendix FAQ.
 - `reference_docs/knowledge/27-integration-modes.md` when you need the canonical distinction between manual entry, device-bridge sync, direct cloud APIs, and aggregator-based integrations.
 - `reference_docs/knowledge/28-initial-project-status-workflow-and-automation.md` when you need the first concise project checkpoint, current implementation status, workflow guidance, testing posture, or automation recommendations.
+- `reference_docs/knowledge/30-c4-container-diagram.md` when you need the high-level container/runtime view of clients, backend pieces, data stores, and CI.
+- `reference_docs/knowledge/diagrams/longevity-architecture.dsl` when you need the Structurizr DSL source of truth for C4 architecture views.
 
 
 ## Playbooks at `reference_docs/playbooks/`
