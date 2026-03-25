@@ -32,6 +32,76 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
           longevity.worker -> longevity.db "Reads and writes data"
           longevity.worker -> longevity.redis "Uses as broker"
           longevity.beat -> longevity.redis "Publishes scheduled work"
+
+        mvpCloud = deploymentEnvironment "MVP Cloud" {
+            userDevices = deploymentNode "User Devices" "Where end users run the browser and Android clients." {
+                browserNode = deploymentNode "Browser" "Web browser runtime" {
+                    webappInstance = containerInstance longevity.webapp
+                }
+
+                androidNode = deploymentNode "Android Phone" "Android runtime for the companion app" {
+                    androidInstance = containerInstance longevity.android
+                }
+            }
+
+            aws = deploymentNode "AWS" "Primary MVP cloud hosting environment." {
+                edge = deploymentNode "Edge" {
+                    alb = infrastructureNode "ALB" "Application Load Balancer"
+                }
+
+                compute = deploymentNode "Compute" {
+                    apiNode = deploymentNode "ECS Fargate Service" {
+                        apiInstance = containerInstance longevity.api
+                    }
+
+                    workerNode = deploymentNode "ECS Task - Worker" {
+                        workerInstance = containerInstance longevity.worker
+                    }
+
+                    beatNode = deploymentNode "ECS Task - Beat" {
+                        beatInstance = containerInstance longevity.beat
+                    }
+                }
+
+                appData = deploymentNode "App Data" {
+                    redisNode = infrastructureNode "ElastiCache Redis" "Redis"
+                }
+
+                security = deploymentNode "Security & Config" {
+                    secretsNode = infrastructureNode "AWS Secrets Manager" "Stores application secrets and configuration values."
+                }
+
+                ops = deploymentNode "Ops" {
+                    monitoringNode = infrastructureNode "CloudWatch" "Operational logs and metrics sink for the deployed MVP runtime."
+                }
+
+                storage = deploymentNode "Storage" {
+                    backupsNode = infrastructureNode "S3 Bucket" "Stores backups and static assets."
+                }
+            }
+
+            managedDatabase = deploymentNode "Managed Database" {
+                timescaleNode = infrastructureNode "Timescale Cloud" "Managed PostgreSQL + TimescaleDB"
+            }
+
+            mvpCloud.userDevices.browserNode.webappInstance -> mvpCloud.aws.edge.alb "Uses HTTPS"
+            mvpCloud.userDevices.androidNode.androidInstance -> mvpCloud.aws.edge.alb "Uses HTTPS"
+            mvpCloud.aws.edge.alb -> mvpCloud.aws.compute.apiNode.apiInstance "Routes HTTPS requests"
+
+            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.managedDatabase.timescaleNode "Reads and writes data"
+            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.aws.appData.redisNode "Uses"
+            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.aws.security.secretsNode "Reads secrets and config"
+            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.aws.ops.monitoringNode "Writes logs and metrics"
+            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.aws.storage.backupsNode "Uses for static assets and backups"
+
+            mvpCloud.aws.compute.workerNode.workerInstance -> mvpCloud.managedDatabase.timescaleNode "Reads and writes data"
+            mvpCloud.aws.compute.workerNode.workerInstance -> mvpCloud.aws.appData.redisNode "Uses as broker"
+            mvpCloud.aws.compute.workerNode.workerInstance -> mvpCloud.aws.ops.monitoringNode "Writes logs and metrics"
+            mvpCloud.aws.compute.workerNode.workerInstance -> mvpCloud.aws.storage.backupsNode "Writes backups and repair outputs"
+
+            mvpCloud.aws.compute.beatNode.beatInstance -> mvpCloud.aws.appData.redisNode "Publishes scheduled work"
+            mvpCloud.aws.compute.beatNode.beatInstance -> mvpCloud.aws.ops.monitoringNode "Writes logs and metrics"
+        }
     }
 
     views {
@@ -74,6 +144,11 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.db -> longevity.api "Returns token-related user state"
             longevity.api -> longevity.webapp "Returns 204 and clears refresh_token cookie"
             user -> longevity.webapp "Returns to an unauthenticated web state"
+        }
+
+        deployment * mvpCloud "mvp-cloud-deployment" "Deployment view for the pragmatic MVP cloud runtime." {
+            include *
+            autolayout tb
         }
 
           styles {

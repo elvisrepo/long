@@ -57,6 +57,7 @@ Load only the parts you need. You can load multiple files when useful. Be specif
 - `reference_docs/knowledge/27-integration-modes.md` when you need the canonical distinction between manual entry, device-bridge sync, direct cloud APIs, and aggregator-based integrations.
 - `reference_docs/knowledge/28-initial-project-status-workflow-and-automation.md` when you need the first concise project checkpoint, current implementation status, workflow guidance, testing posture, or automation recommendations.
 - `reference_docs/knowledge/30-c4-container-diagram.md` when you need the high-level container/runtime view of clients, backend pieces, data stores, and CI.
+- `reference_docs/knowledge/36-c4-deployment-diagram.md` when you need the C4 deployment view for the pragmatic MVP cloud runtime.
 - `reference_docs/knowledge/diagrams/longevity-architecture.dsl` when you need the Structurizr DSL source of truth for C4 architecture views.
 
 
