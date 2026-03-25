@@ -67,3 +67,24 @@ Use separate diagrams for those:
 - component diagram for backend internals
 - sequence diagrams for auth and sync flows
 - deployment diagram for cloud/runtime placement later
+
+### When To Add A C4 Component Diagram
+
+Do not add a component diagram too early.
+
+It becomes worth adding when:
+- one container has enough internal structure that people repeatedly need an internal map
+- module responsibilities are stabilizing
+- the diagram would help implementation or review decisions
+
+For this project, a backend component diagram becomes useful once the Django API has clearer internal module boundaries such as:
+- users/auth
+- metrics
+- wearables ingestion
+- analytics
+- common/tasks
+
+Until then:
+- keep the context and container diagrams
+- prefer sequence diagrams for important flows
+- avoid a premature component diagram that would mostly restate a small file tree and go stale quickly
