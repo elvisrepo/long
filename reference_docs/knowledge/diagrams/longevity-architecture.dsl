@@ -47,6 +47,17 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             autolayout lr
         }
 
+        dynamic longevity "web-auth-login" "Dynamic view of the current web login flow." {
+            user -> longevity.webapp "Enters credentials and starts sign in"
+            longevity.webapp -> longevity.api "GET /api/auth/csrf/ to bootstrap CSRF cookie"
+            longevity.api -> longevity.webapp "Returns CSRF cookie"
+            longevity.webapp -> longevity.api "POST /api/auth/web/login/ with email and password"
+            longevity.api -> longevity.db "Loads user record and verifies credentials"
+            longevity.db -> longevity.api "Returns user data"
+            longevity.api -> longevity.webapp "Returns access token in JSON and refresh_token cookie"
+            user -> longevity.webapp "Uses authenticated web session"
+        }
+
           styles {
               element "Person" {
                   shape Person
