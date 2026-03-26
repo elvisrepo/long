@@ -153,6 +153,11 @@ Current auth foundation status:
 - logout refresh-token revocation, cookie clearing, csrf bootstrap, and web csrf enforcement are covered
 - current backend suite status at this checkpoint: `37 passed`
 
+Logging visibility note during tests:
+- normal pytest output captures logs by default
+- to see logs live during a focused run, use `-s --log-cli-level=INFO`
+- this is useful when verifying newly added auth or request logging without waiting for a failure case
+
 Refresh implementation note:
 - a custom refresh view is justified once refresh-token transport must support `HttpOnly` cookies
 - keep SimpleJWT token validation in `TokenRefreshSerializer`; customize only the transport/orchestration layer

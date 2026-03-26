@@ -124,3 +124,40 @@ SIMPLE_JWT = {
       "BLACKLIST_AFTER_ROTATION": True,
       "SIGNING_KEY": os.environ.get("JWT_SIGNING_KEY", default=SECRET_KEY),
   }
+
+
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
+DJANGO_LOG_LEVEL = os.environ.get("DJANGO_LOG_LEVEL", "INFO").upper()
+
+LOGGING = {
+      "version": 1,
+      "disable_existing_loggers": False,
+      "formatters": {
+          "standard": {
+              "format": "{asctime} {levelname} {name} {message}",
+              "style": "{",
+          },
+      },
+      "handlers": {
+          "console": {
+              "class": "logging.StreamHandler",
+              "formatter": "standard",
+          },
+      },
+      "root": {
+          "handlers": ["console"],
+          "level": LOG_LEVEL,
+      },
+      "loggers": {
+          "django": {
+              "handlers": ["console"],
+              "level": LOG_LEVEL,
+              "propagate": False,
+          },
+          "apps.users": {
+              "handlers": ["console"],
+              "level": LOG_LEVEL,
+              "propagate": False,
+          },
+      },
+  }

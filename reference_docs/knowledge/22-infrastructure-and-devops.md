@@ -79,6 +79,11 @@ Practical note from the current project:
 - Docker Compose for local dev (§3.2)
 - ECS Fargate for cloud (not Kubernetes — overkill for solo dev)
 
+Logging note:
+- local and deployed containers should prefer stdout/stderr logging
+- do not default to writing Django logs to local files inside containers
+- let Docker handle local log collection and CloudWatch handle the MVP cloud sink later
+
 ### 7.4 Secrets
 See §3.6.
 

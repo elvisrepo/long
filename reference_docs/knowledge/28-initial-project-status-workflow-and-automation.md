@@ -34,6 +34,8 @@
   - refresh and logout use request-body refresh token submission
 - `me` endpoint works with bearer access token auth.
 - Refresh token rotation and blacklist are in place.
+- Baseline console/stdout backend logging is now in place.
+- Web login success is logged through `apps.users.views`.
 - Full backend suite is green at this checkpoint: `37 passed`.
 
 ### What Is Not Done Yet
@@ -83,6 +85,7 @@
 - Local Docker is the development runtime, not a throwaway prototype; slices should be built there in a way that stays compatible with the MVP cloud target.
 - The project should advance by vertical product slices, not by prematurely implementing every future subsystem.
 - Manual metric tracking should be proven end to end before Android Health Connect sync is attempted.
+- Normal pytest runs capture logs; use `-s --log-cli-level=INFO` when verifying logging behavior during focused tests.
 
 ### AGENTS.md Review
 
@@ -187,7 +190,8 @@ When to add CI vs CD:
 Basic logging is not too early.
 
 Good to add now:
-- structured backend logs
+- console/stdout backend logs
+- simple formatter with env-controlled log levels
 - request and error logging
 - auth/security-relevant event logging
 - clear Docker-local log output
@@ -197,11 +201,13 @@ Too early right now:
 - centralized log aggregation
 - uptime alerting
 - heavy dashboarding
+- file-based container logging as the default pattern
 
 Practical sequencing:
-- add basic structured logging now
+- add basic console logging now
+- keep file handlers out of the default container path
 - keep CI green while the backend grows
-- add richer monitoring later when the frontend exists and deployments are becoming routine
+- add structured JSON logging, request IDs, and cloud log shipping later when deployments are becoming routine
 
 ### Reviewer / Agent Workflow
 

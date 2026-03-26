@@ -13,7 +13,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.users.serializers import LoginSerializer, RegisterSerializer
 
+import logging
+
 REFRESH_TOKEN_COOKIE_NAME = "refresh_token"
+
+logger = logging.getLogger(__name__)
 
 # run django's csrf checks, if they fail raise a permission error
 def enforce_csrf(request: Request) -> None:
@@ -95,9 +99,13 @@ def mobile_login_view(request: Request) -> Response:
 def web_login_view(request: Request) -> Response:
       user, error_response = authenticate_login_request(request)
       if error_response is not None:
+          logger.warning("Web login failed")
           return error_response
 
+      
       refresh = RefreshToken.for_user(user)
+      logger.info("Web login succeeded for user_id=%s", user.id)
+
       return build_refresh_cookie_response(
           response_data={"access": str(refresh.access_token)},
           refresh_token=str(refresh),
