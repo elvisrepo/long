@@ -37,6 +37,12 @@
 - Baseline console/stdout backend logging is now in place.
 - Web login success is logged through `apps.users.views`.
 - Full backend suite is green at this checkpoint: `37 passed`.
+- Frontend stack direction is now explicitly chosen, though the app is not scaffolded yet:
+  - Vite
+  - React + TypeScript
+  - TanStack Router
+  - TanStack Query
+  - ESLint + Prettier
 
 ### What Is Not Done Yet
 
@@ -146,6 +152,12 @@ Recommended execution order from this checkpoint:
 4. implement manual metric definitions and manual metric logging
 5. implement dashboard read flows
 6. only then start the Android companion app and Health Connect sync spike
+
+Frontend implementation rule:
+- start with a Vite SPA
+- use route-level code splitting
+- keep React Compiler out of the first slice
+- use TanStack Query for backend-facing server state rather than building a custom fetch/cache layer first
 
 Architecture rule:
 - keep using the local Docker runtime for development

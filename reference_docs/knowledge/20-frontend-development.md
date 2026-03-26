@@ -7,7 +7,7 @@
 - Derived from `reference_docs/knowledge/planning.md` section 5.
 
 ### 5.1 Clients
-- Web dashboard: React (Vite)
+- Web dashboard: React (Vite + TypeScript)
 - Samsung-sync companion app: Kotlin Android app (R2/R3)
 ### 5.2 Component Library
 - Metric Cards (glassmorphic, colored left border)
@@ -16,14 +16,19 @@
 - Navigation (side nav desktop, bottom tabs mobile)
 - Samsung sync status cards, permission prompts, and replay/error states
 
-### 5.3 Routing: React Router
+### 5.3 Routing: TanStack Router
+- Use `TanStack Router` for the web app routing layer.
+- Prefer route-based layouts and protected routes for the auth shell.
+- Use route-level lazy loading/code splitting for heavier pages.
 - `/` → Dashboard
 - `/metrics/:slug` → Metric detail
 - `/settings` → Profile, Samsung sync status, subscription
 - `/login`, `/register` → Auth pages
 
 ### 5.4 API Integration
-- Web: Axios / fetch + JWT interceptor for auto-refresh
+- Web: central API client + `TanStack Query` for server state, caching, retries, and invalidation
+- Avoid scattering raw `fetch()` calls across components
+- Prefer query hooks and targeted mutations around the backend API contract
 - Android: same REST API with JWT auth plus idempotent upload endpoints for sync batches
 
 Current build order:
@@ -40,9 +45,39 @@ First web slice:
 - access token kept in memory on web
 
 ### 5.5 State Management
-- Web: Zustand (simpler than Redux for this scale)
+- Web:
+  - `TanStack Query` for server state
+  - minimal client state for auth/session UI and local interaction state
+  - add Zustand only if a real client-state need appears beyond server-state concerns
 - Android: native local sync state + background work coordination
 
 ### 5.6 Responsive
 - Web: mobile-first CSS, 4-col → 2-col → 1-col grid
 - Sync itself is Android-only in MVP; the web app surfaces status and synced data after upload
+
+### 5.7 Tooling
+- Build tool: `Vite`
+- Language: `TypeScript`
+- Linting: `ESLint`
+- Formatting: `Prettier`
+- Testing later:
+  - `Vitest`
+  - `React Testing Library`
+  - `MSW`
+  - `Playwright` for end-to-end
+
+### 5.8 Code Splitting and Performance
+- Do route-level code splitting from the start.
+- Split heavier routes such as:
+  - dashboard
+  - settings
+  - future metric detail pages
+- Do not over-split tiny shared components.
+- Reason:
+  - reduce initial bundle size
+  - keep auth pages and first load lighter
+  - avoid unnecessary client-side waterfalls by coordinating route loading and data fetching carefully
+
+### 5.9 React Compiler
+- Do not make React Compiler part of the first frontend slice.
+- Revisit it after the auth shell is working and the base frontend architecture is stable.
