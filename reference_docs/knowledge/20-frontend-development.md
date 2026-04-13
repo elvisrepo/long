@@ -26,6 +26,21 @@
 - `/settings` → Profile, Samsung sync status, subscription
 - `/login`, `/register` → Auth pages
 
+Current frontend routing checkpoint:
+- the Vite plugin-based TanStack Router setup is now in place
+- `src/main.tsx` bootstraps React and renders `RouterProvider`
+- `src/routes/__root.tsx` provides the current top-level layout shell
+- the route skeleton currently includes:
+  - `/`
+  - `/login`
+  - `/register`
+  - `/settings`
+- `src/routeTree.gen.ts` is generated from the file-based route modules and should not be edited by hand
+- production builds are already code-splitting these route files into separate chunks
+
+Current limitation:
+- `/settings` is still only a route placeholder and is not yet protected by auth
+
 ### 5.4 API Integration
 - Web: central API client + `TanStack Query` for server state, caching, retries, and invalidation
 - Avoid scattering raw `fetch()` calls across components
@@ -45,6 +60,13 @@ First web slice:
 - `GET /api/auth/me/`
 - access token kept in memory on web
 - invalidate or refetch `me` after login, logout, and refresh transitions where needed
+
+Immediate next frontend step from this checkpoint:
+- keep the current route skeleton
+- replace placeholder page bodies with auth-aware UI
+- add a small API client and in-memory session layer
+- wire `/login` and `/register` to the backend auth endpoints
+- protect authenticated routes such as `/settings` once `me` and session state are available
 
 ### 5.5 State Management
 - Web:

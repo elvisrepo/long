@@ -8,12 +8,16 @@
 
 ### Current Project Snapshot
 
-- The project is still backend-first. There is no React frontend scaffold in the repo yet.
+- The project is still backend-first, but a React frontend scaffold now exists.
 - The implemented backend code is currently concentrated in:
   - `backend/apps/users/`
   - `backend/common/`
   - `backend/config/`
   - `backend/tests/`
+- The implemented frontend code is currently concentrated in:
+  - `frontend/src/main.tsx`
+  - `frontend/src/routes/`
+  - `frontend/src/routeTree.gen.ts`
 - The backend uses Docker locally and now also has a working GitHub Actions backend CI workflow.
 - The backend `pyproject.toml` now includes `pytest`, `pytest-django`, `ruff`, and `mypy`.
 
@@ -37,7 +41,7 @@
 - Baseline console/stdout backend logging is now in place.
 - Web login success is logged through `apps.users.views`.
 - Full backend suite is green at this checkpoint: `37 passed`.
-- Frontend stack direction is now explicitly chosen, though the app is not scaffolded yet:
+- Frontend stack direction is now explicitly chosen and scaffolded:
   - Vite
   - React + TypeScript
   - TanStack Router
@@ -46,6 +50,14 @@
   - shadcn/ui
   - Tailwind CSS
   - ESLint + Prettier
+- TanStack Router is wired through the Vite plugin and `RouterProvider`.
+- The frontend route skeleton now includes:
+  - `/`
+  - `/login`
+  - `/register`
+  - `/settings`
+- The current route tree is generated from file-based routes under `frontend/src/routes/`.
+- Frontend production build is green and confirms route-level code splitting for the current route files.
 
 ### What Is Not Done Yet
 
@@ -53,7 +65,9 @@
 - Profile update and account/account-deletion flows are still deferred.
 - Email verification is not implemented.
 - No richer user-profile domain exists yet beyond auth basics.
-- No frontend app exists yet.
+- The frontend auth flow is not integrated with the backend yet.
+- Frontend pages are still placeholders rather than real auth or dashboard screens.
+- Protected-route behavior is not implemented yet.
 - No CD pipeline exists yet.
 - Security automation beyond lint, type-checking, and tests is not wired yet.
 
@@ -155,6 +169,18 @@ Recommended execution order from this checkpoint:
 4. implement manual metric definitions and manual metric logging
 5. implement dashboard read flows
 6. only then start the Android companion app and Health Connect sync spike
+
+Updated checkpoint interpretation:
+- step 1 is done
+- step 2 is now done at the routing-shell level
+- the immediate next step is step 3: integrate the web auth slice end to end
+
+Immediate frontend auth integration target:
+- replace route placeholder bodies with real login/register UI
+- add a frontend API client for the existing auth endpoints
+- keep the access token in memory
+- fetch `GET /api/auth/me/` into TanStack Query after successful auth transitions
+- add route protection for authenticated pages such as `/settings`
 
 Frontend implementation rule:
 - start with a Vite SPA
