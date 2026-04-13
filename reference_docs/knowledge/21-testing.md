@@ -18,6 +18,26 @@
 
 **Coverage target**: 80%+ via `pytest-cov`, enforced in CI.
 
+Current frontend testing checkpoint:
+- the frontend now has a basic Vitest test harness
+- the current setup uses:
+  - `Vitest`
+  - `jsdom`
+  - `@testing-library/react`
+  - `@testing-library/jest-dom`
+- `src/test/setup.ts` configures shared frontend test setup
+- the first route-level frontend test is in place and proves the dashboard route renders at `/`
+
+Recommended frontend test progression from this checkpoint:
+- keep using route-level tests to prove TanStack Router behavior
+- add focused login-route tests next:
+  - login heading renders at `/login`
+  - email input renders
+  - password input renders
+  - submit button renders
+- introduce `MSW` when frontend tests begin exercising auth API requests
+- keep Playwright for later end-to-end verification of the complete login flow
+
 Current CI quality gate for the backend:
 - GitHub Actions backend workflow is now in place
 - the workflow currently runs:
@@ -152,6 +172,10 @@ Current auth foundation status:
 - generic login, refresh, and logout aliases have been removed
 - logout refresh-token revocation, cookie clearing, csrf bootstrap, and web csrf enforcement are covered
 - current backend suite status at this checkpoint: `37 passed`
+
+Frontend test harness note:
+- route tests use `window.history.pushState(...)` to set the active URL before mounting `RouterProvider`
+- `render(...)` from React Testing Library mounts the routed React tree into jsdom so assertions can target user-visible DOM output
 
 Logging visibility note during tests:
 - normal pytest output captures logs by default

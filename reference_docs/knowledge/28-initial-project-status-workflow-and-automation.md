@@ -58,6 +58,8 @@
   - `/settings`
 - The current route tree is generated from file-based routes under `frontend/src/routes/`.
 - Frontend production build is green and confirms route-level code splitting for the current route files.
+- A frontend test harness now exists with Vitest, jsdom, and React Testing Library.
+- The first frontend route test is green and verifies the dashboard route renders at `/`.
 
 ### What Is Not Done Yet
 
@@ -181,6 +183,12 @@ Immediate frontend auth integration target:
 - keep the access token in memory
 - fetch `GET /api/auth/me/` into TanStack Query after successful auth transitions
 - add route protection for authenticated pages such as `/settings`
+
+Immediate TDD sequence for the frontend auth slice:
+1. keep the frontend test harness green
+2. add one failing login-route test at a time
+3. implement the smallest UI change to pass
+4. only then add API-facing auth behavior tests and implementation
 
 Frontend implementation rule:
 - start with a Vite SPA
