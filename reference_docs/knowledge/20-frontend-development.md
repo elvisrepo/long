@@ -10,6 +10,7 @@
 - Web dashboard: React (Vite + TypeScript)
 - Samsung-sync companion app: Kotlin Android app (R2/R3)
 ### 5.2 Component Library
+- UI primitives: `shadcn/ui`
 - Metric Cards (glassmorphic, colored left border)
 - Charts (Recharts — area charts with gradient fills)
 - Form inputs (metric logging modal)
@@ -43,13 +44,31 @@ First web slice:
 - `POST /api/auth/web/logout/`
 - `GET /api/auth/me/`
 - access token kept in memory on web
+- invalidate or refetch `me` after login, logout, and refresh transitions where needed
 
 ### 5.5 State Management
 - Web:
   - `TanStack Query` for server state
-  - minimal client state for auth/session UI and local interaction state
-  - add Zustand only if a real client-state need appears beyond server-state concerns
+  - `TanStack Router` for route state
+  - plain React state for local UI state
+  - React context only for small cross-cutting app concerns if needed
+  - add Zustand only if a real client-state need appears beyond server-state and route-state concerns
 - Android: native local sync state + background work coordination
+
+Working rule:
+- do not introduce a general-purpose global client store unless the app proves it needs one
+- most current complexity belongs either to server state or route state, not a separate app-wide store
+
+Auth/session split for the web app:
+- `TanStack Query` owns backend-authenticated user state such as `GET /api/auth/me/`
+- `TanStack Router` owns route protection and redirect flow
+- plain React state owns form inputs and transient auth UI state
+- a small auth/session layer owns the in-memory access token and auth actions such as login, refresh, and logout
+
+Do not:
+- store the access token inside query cache
+- pretend the cached `me` object is the same thing as the access token/session state
+- introduce a large global auth store before the app proves it needs one
 
 ### 5.6 Responsive
 - Web: mobile-first CSS, 4-col → 2-col → 1-col grid
@@ -58,6 +77,8 @@ First web slice:
 ### 5.7 Tooling
 - Build tool: `Vite`
 - Language: `TypeScript`
+- Validation: `Zod`
+- Styling: `Tailwind CSS`
 - Linting: `ESLint`
 - Formatting: `Prettier`
 - Testing later:
@@ -81,3 +102,9 @@ First web slice:
 ### 5.9 React Compiler
 - Do not make React Compiler part of the first frontend slice.
 - Revisit it after the auth shell is working and the base frontend architecture is stable.
+
+### 5.10 Deliberate Non-Choices
+- Do not use `Drizzle` in the web frontend.
+- Reason:
+  - the frontend talks to the Django API, not directly to the database
+  - `Drizzle` solves a different architecture problem

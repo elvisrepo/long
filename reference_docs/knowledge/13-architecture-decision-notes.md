@@ -192,3 +192,48 @@ Current implementation progress:
 - `/api/auth/web/logout/` also follows the dedicated web-only cookie plus CSRF contract
 - `/api/auth/mobile/refresh/` and `/api/auth/mobile/logout/` provide the explicit non-browser token-submission contract
 - the older generic `/api/auth/refresh/` and `/api/auth/logout/` aliases were removed so route names and transport rules now match
+
+### ADR-013: Use TanStack Router and TanStack Query as the First Frontend App Primitives
+
+- Status: Accepted
+- Date: 2026-03-28
+- Decision:
+  Use TanStack Router for web routing and route state, TanStack Query for server state, plain React state for local UI state, and avoid introducing a general-purpose global client store in the first frontend slice.
+- Alternatives considered:
+  React Router, Zustand from day one, Redux, or a custom fetch/cache layer.
+- Why we chose it:
+  The web app is a TypeScript SPA talking to a separate Django API. Most complexity is route-aware UI and API-driven server state, not arbitrary client-only global state. TanStack Router and TanStack Query match that shape directly and reduce custom plumbing.
+- Downsides:
+  Adds two opinionated libraries up front and requires the team to learn their patterns early.
+- Revisit when:
+  Client-only shared state grows enough that plain React state and focused context stop being sufficient.
+
+### ADR-014: Use Tailwind CSS, shadcn/ui, and Zod for the Web Frontend; Do Not Use Drizzle
+
+- Status: Accepted
+- Date: 2026-03-28
+- Decision:
+  Use Tailwind CSS for styling, shadcn/ui for editable UI primitives, and Zod for validation. Do not use Drizzle in the frontend.
+- Alternatives considered:
+  Hand-rolled CSS without a utility framework, a black-box component library, ad hoc form validation, or adding a frontend ORM/database toolkit.
+- Why we chose it:
+  Tailwind and shadcn/ui speed up app-shell work while keeping the component code editable. Zod fits the TypeScript-first frontend and is useful for form validation and input contracts. Drizzle does not fit the chosen architecture because the frontend talks to the Django API rather than the database directly.
+- Downsides:
+  Tailwind and shadcn/ui add frontend tooling and convention overhead, and Zod introduces another library to learn.
+- Revisit when:
+  The frontend architecture changes away from a Django-backed SPA, or the team decides a different design system or validation stack is clearly superior in practice.
+
+### ADR-015: Split Frontend Auth State by Responsibility
+
+- Status: Accepted
+- Date: 2026-03-28
+- Decision:
+  Keep backend-authenticated user data in TanStack Query, route protection and redirect state in TanStack Router, transient form state in plain React state, and the web access token in a small in-memory auth/session layer.
+- Alternatives considered:
+  Put all auth-related concerns into one global client store, store the access token in query cache, or treat the `me` response as the entire session model.
+- Why we chose it:
+  The frontend has three distinct state concerns: server state, route state, and local UI state. The web access token is a separate in-memory session concern used to call the Django API. Keeping these responsibilities separate makes the auth flow easier to reason about and avoids creating a global store that mixes unrelated concerns.
+- Downsides:
+  Auth behavior spans multiple layers instead of living in one store, so the team must understand the boundaries clearly.
+- Revisit when:
+  The frontend proves it has substantial shared client-only state that justifies a dedicated app-wide state store.

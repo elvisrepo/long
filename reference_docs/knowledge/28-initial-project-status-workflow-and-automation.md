@@ -42,6 +42,9 @@
   - React + TypeScript
   - TanStack Router
   - TanStack Query
+  - Zod
+  - shadcn/ui
+  - Tailwind CSS
   - ESLint + Prettier
 
 ### What Is Not Done Yet
@@ -158,6 +161,10 @@ Frontend implementation rule:
 - use route-level code splitting
 - keep React Compiler out of the first slice
 - use TanStack Query for backend-facing server state rather than building a custom fetch/cache layer first
+- use TanStack Router for route state
+- keep local UI state in React unless a real shared client-state need appears
+- do not add Drizzle to the frontend stack
+- keep `me` in Query, access token in a small in-memory session layer, and auth redirects in the router
 
 Architecture rule:
 - keep using the local Docker runtime for development

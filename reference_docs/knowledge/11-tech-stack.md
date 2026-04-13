@@ -16,6 +16,9 @@
 | **Web Frontend** | React + Vite + TypeScript | Fast SPA development, strong ecosystem, good fit for a separate Django backend |
 | **Web Routing** | TanStack Router | Type-safe route/layout foundation with strong integration patterns for modern React apps |
 | **Web Server State** | TanStack Query | Caching, retries, invalidation, and API-driven UI state for the Django backend |
+| **Web Validation** | Zod | Type-safe schema validation for forms and frontend input contracts |
+| **Web UI Primitives** | shadcn/ui | Editable component primitives instead of a black-box component package |
+| **Web Styling** | Tailwind CSS | Works naturally with shadcn/ui and speeds app-shell styling |
 | **Web Lint/Format** | ESLint + Prettier | Separate correctness checks from formatting, matches React guidance |
 | **Mobile** | Kotlin Android app | Required for Samsung-sync MVP because Samsung data is read on device |
 | **On-Device Health Access** | Health Connect (preferred) / Samsung Health Data SDK if required | Health Connect reduces Samsung-specific coupling; direct Samsung SDK is a fallback for metrics not exposed through Health Connect |
