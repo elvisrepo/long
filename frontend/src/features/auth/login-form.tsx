@@ -12,21 +12,34 @@ interface LoginFormProps {
 export function LoginForm({ onSubmit }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState('')
 
   function handleSubmit(event: { preventDefault: () => void }) {
     event.preventDefault();
-
     const trimmedEmail = email.trim();
 
     if (!trimmedEmail || !password) {
+        setErrorMessage('Email and password are required.')
       return;
     }
+
+     setErrorMessage('')
 
     onSubmit({
       email: trimmedEmail,
       password,
     });
   }
+
+  function handleEmailChange(value: string) {
+      setEmail(value)
+      setErrorMessage('')
+    }
+
+    function handlePasswordChange(value: string) {
+      setPassword(value)
+      setErrorMessage('')
+    }
 
   return (
     <form onSubmit={handleSubmit}>
@@ -36,7 +49,7 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
         name="email"
         type="email"
         value={email}
-        onChange={(event) => setEmail(event.target.value)}
+        onChange={(event) => handleEmailChange(event.target.value)}
       />
 
       <label htmlFor="password">Password</label>
@@ -45,8 +58,10 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
         name="password"
         type="password"
         value={password}
-        onChange={(event) => setPassword(event.target.value)}
+        onChange={(event) => handlePasswordChange(event.target.value)}
       />
+
+      {errorMessage ? <p>{errorMessage}</p> : null}
 
       <button type="submit">Login</button>
     </form>
