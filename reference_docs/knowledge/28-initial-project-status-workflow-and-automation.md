@@ -60,6 +60,12 @@
 - Frontend production build is green and confirms route-level code splitting for the current route files.
 - A frontend test harness now exists with Vitest, jsdom, and React Testing Library.
 - The first frontend route test is green and verifies the dashboard route renders at `/`.
+- Frontend route tests now also verify the login screen shell at `/login`.
+- Frontend component tests now verify `LoginForm` value submission and the current empty-submit guard.
+- Frontend formatting is now wired with Prettier scripts:
+  - `npm run format`
+  - `npm run format:check`
+- Frontend generated router output is excluded from Prettier through `.prettierignore`.
 
 ### What Is Not Done Yet
 
@@ -189,6 +195,18 @@ Immediate TDD sequence for the frontend auth slice:
 2. add one failing login-route test at a time
 3. implement the smallest UI change to pass
 4. only then add API-facing auth behavior tests and implementation
+
+Current frontend TDD checkpoint:
+- route structure is covered first at the screen level
+- reusable form behavior is now being covered separately from route wiring
+- the next useful red test is visible validation feedback on invalid login submit
+- frontend coverage reporting is not wired yet; `@vitest/coverage-v8` is still missing
+
+Current frontend tooling checkpoint:
+- linting and formatting are now split cleanly:
+  - ESLint for linting
+  - Prettier for formatting
+- this avoids spending manual effort on indentation-only cleanup in frontend files
 
 Frontend implementation rule:
 - start with a Vite SPA

@@ -25,18 +25,68 @@ Current frontend testing checkpoint:
   - `jsdom`
   - `@testing-library/react`
   - `@testing-library/jest-dom`
+  - `@testing-library/user-event`
 - `src/test/setup.ts` configures shared frontend test setup
 - the first route-level frontend test is in place and proves the dashboard route renders at `/`
+- route-level tests also now cover the login route shell:
+  - heading
+  - email input
+  - password input
+  - submit button
+- a focused component test now covers `LoginForm` submission behavior with typed values
+- a focused component test now covers the current empty-submit guard for the login form
 
 Recommended frontend test progression from this checkpoint:
 - keep using route-level tests to prove TanStack Router behavior
-- add focused login-route tests next:
-  - login heading renders at `/login`
-  - email input renders
-  - password input renders
-  - submit button renders
+- keep route-level tests narrow and structural:
+  - correct route renders for the current URL
+  - expected screen-level elements are present
+- keep form behavior tests at the reusable component boundary:
+  - typed values propagate correctly
+  - invalid empty submit is blocked
+- add visible validation-message tests next so the form does not fail silently
 - introduce `MSW` when frontend tests begin exercising auth API requests
 - keep Playwright for later end-to-end verification of the complete login flow
+
+Current frontend test classification:
+- route tests are frontend integration/component tests, not pure unit tests
+- `LoginForm` tests are component behavior tests
+- these tests verify UI structure and local user interaction behavior before backend integration exists
+- backend-connected frontend tests have not started yet
+
+What the current frontend tests are proving:
+- route tests prove that the correct routed screen renders for the active URL
+- route tests also prove that expected screen-level elements exist, such as headings, inputs, and submit buttons
+- `LoginForm` tests prove local component behavior:
+  - typed values are captured
+  - submit passes the expected values to the component boundary
+  - invalid empty submit is currently blocked
+
+What the current frontend tests are not proving:
+- no real backend requests are being made yet
+- no frontend-to-backend auth contract is being exercised yet
+- no redirect-on-success or authenticated route protection behavior is covered yet
+- no browser-level end-to-end flow is covered yet
+
+Practical test-level guidance for the current frontend slice:
+- use route tests for screen presence and router wiring
+- use focused component tests for local form behavior
+- do not jump to mocked API or real backend integration until the local screen and form contract are stable
+- once auth submission behavior is ready, add mocked-network integration tests with `MSW`
+- once the full auth flow is stable, add Playwright end-to-end coverage for the real user journey
+
+Frontend test code hygiene:
+- route tests may start with repeated setup such as:
+  - setting the URL with `window.history.pushState(...)`
+  - creating a router with `createRouter({ routeTree })`
+  - rendering `RouterProvider`
+- that repetition is acceptable at first while the pattern is still being learned
+- once several route tests share the same setup, extract a small helper so the tests stay readable without hiding intent
+
+Current frontend coverage state:
+- frontend coverage is not wired yet
+- `vitest run --coverage` currently fails because `@vitest/coverage-v8` is not installed
+- coverage should be added after the initial auth slice has a few more stable behaviors worth measuring
 
 Current CI quality gate for the backend:
 - GitHub Actions backend workflow is now in place

@@ -109,6 +109,21 @@ Do not:
   - `MSW`
   - `Playwright` for end-to-end
 
+Current frontend formatting checkpoint:
+- `Prettier` is now installed in the frontend toolchain
+- `package.json` now includes:
+  - `format`
+  - `format:check`
+- `.prettierignore` excludes:
+  - `dist`
+  - `node_modules`
+  - `src/routeTree.gen.ts`
+
+Working rule:
+- use ESLint for correctness-oriented linting
+- use Prettier for code formatting
+- do not hand-edit formatting in generated files such as `src/routeTree.gen.ts`
+
 ### 5.8 Code Splitting and Performance
 - Do route-level code splitting from the start.
 - Split heavier routes such as:
