@@ -12,7 +12,7 @@ import { loginWeb } from '../features/auth/auth-api'
 describe("login route", () => {
 
   afterEach(() => {
-      vi.clearAllMocks()
+       vi.resetAllMocks()
     })
 
   it("renders the login heading at /login", async () => {
@@ -128,5 +128,59 @@ describe("login route", () => {
     expect(submitButton).toBeDisabled()
 
     resolveLogin?.({ access: 'test-access-token' })
+  })
+
+  it('clears a previous login error after a successful submit', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(loginWeb)
+      .mockRejectedValueOnce(new Error('Invalid credentials.'))
+      .mockResolvedValueOnce({ access: 'test-access-token' })
+
+    renderRoute('/login')
+
+    const emailInput = await screen.findByLabelText(/email/i)
+    const passwordInput = await screen.findByLabelText(/password/i)
+    const submitButton = await screen.findByRole('button', { name: /login/i })
+
+    await user.type(emailInput, 'user@example.com')
+    await user.type(passwordInput, 'wrong-password')
+    await user.click(submitButton)
+
+    expect(
+      await screen.findByText(/invalid credentials\./i),
+    ).toBeInTheDocument()
+
+    await user.clear(passwordInput)
+    await user.type(passwordInput, 'secret123')
+    await user.click(submitButton)
+
+    await waitFor(() => {
+      expect(
+        screen.queryByText(/invalid credentials\./i),
+      ).not.toBeInTheDocument()
+    })
+  })
+
+  it('redirects to the dashboard after a successful login', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(loginWeb).mockResolvedValue({
+      access: 'test-access-token',
+    })
+
+    renderRoute('/login')
+
+    const emailInput = await screen.findByLabelText(/email/i)
+    const passwordInput = await screen.findByLabelText(/password/i)
+    const submitButton = await screen.findByRole('button', { name: /login/i })
+
+    await user.type(emailInput, 'user@example.com')
+    await user.type(passwordInput, 'secret123')
+    await user.click(submitButton)
+
+    expect(
+      await screen.findByRole('heading', { name: /dashboard/i }),
+    ).toBeInTheDocument()
   })
 });

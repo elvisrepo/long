@@ -35,6 +35,12 @@ Current frontend testing checkpoint:
   - submit button
 - a focused component test now covers `LoginForm` submission behavior with typed values
 - a focused component test now covers the current empty-submit guard for the login form
+- route-level tests now also cover the current login orchestration behavior:
+  - `/login` submits credentials to `loginWeb(...)`
+  - route-level error message renders when `loginWeb(...)` rejects
+  - login button disables while the route is awaiting the async login request
+  - a previous login error clears after a later successful submit
+  - successful login redirects to `/`
 
 Recommended frontend test progression from this checkpoint:
 - keep using route-level tests to prove TanStack Router behavior
@@ -51,8 +57,9 @@ Recommended frontend test progression from this checkpoint:
 Current frontend test classification:
 - route tests are frontend integration/component tests, not pure unit tests
 - `LoginForm` tests are component behavior tests
+- `auth-api` tests are frontend API helper contract tests
 - these tests verify UI structure and local user interaction behavior before backend integration exists
-- backend-connected frontend tests have not started yet
+- real backend-connected frontend tests have not started yet
 
 What the current frontend tests are proving:
 - route tests prove that the correct routed screen renders for the active URL
@@ -61,16 +68,30 @@ What the current frontend tests are proving:
   - typed values are captured
   - submit passes the expected values to the component boundary
   - invalid empty submit is currently blocked
+- `auth-api` tests prove the frontend helper contract for the backend web login endpoint:
+  - correct endpoint path
+  - correct HTTP method
+  - cookie-aware request transport with `credentials: 'include'`
+  - access-token response parsing
+  - backend `detail` preservation when available
+  - generic fallback error when the response is unsuccessful and has no usable detail
+- login route tests now prove route-level orchestration behavior:
+  - route calls `loginWeb(...)`
+  - route surfaces async auth errors
+  - route disables re-submit while pending
+  - route redirects after successful login
 
 What the current frontend tests are not proving:
 - no real backend requests are being made yet
-- no frontend-to-backend auth contract is being exercised yet
-- no redirect-on-success or authenticated route protection behavior is covered yet
+- no real frontend-to-backend auth request is being executed yet; the network boundary is still mocked
+- no authenticated user bootstrap (`GET /api/auth/me/`) is covered yet
+- no protected-route behavior is covered yet
 - no browser-level end-to-end flow is covered yet
 
 Practical test-level guidance for the current frontend slice:
 - use route tests for screen presence and router wiring
 - use focused component tests for local form behavior
+- use small API helper contract tests for `fetch`-based backend wrappers
 - do not jump to mocked API or real backend integration until the local screen and form contract are stable
 - once auth submission behavior is ready, add mocked-network integration tests with `MSW`
 - once the full auth flow is stable, add Playwright end-to-end coverage for the real user journey

@@ -62,6 +62,13 @@
 - The first frontend route test is green and verifies the dashboard route renders at `/`.
 - Frontend route tests now also verify the login screen shell at `/login`.
 - Frontend component tests now verify `LoginForm` value submission and the current empty-submit guard.
+- Frontend auth helper tests now verify the `loginWeb(...)` request/response contract and error handling.
+- Frontend login route now:
+  - submits through `loginWeb(...)`
+  - displays backend auth errors
+  - disables the submit button while pending
+  - clears prior auth errors after a later successful submit
+  - redirects to `/` on success
 - Frontend formatting is now wired with Prettier scripts:
   - `npm run format`
   - `npm run format:check`
@@ -76,6 +83,8 @@
 - The frontend auth flow is not integrated with the backend yet.
 - Frontend pages are still placeholders rather than real auth or dashboard screens.
 - Protected-route behavior is not implemented yet.
+- Frontend session state for the returned access token is not implemented yet.
+- `GET /api/auth/me/` bootstrap is not implemented on the frontend yet.
 - No CD pipeline exists yet.
 - Security automation beyond lint, type-checking, and tests is not wired yet.
 
@@ -199,7 +208,8 @@ Immediate TDD sequence for the frontend auth slice:
 Current frontend TDD checkpoint:
 - route structure is covered first at the screen level
 - reusable form behavior is now being covered separately from route wiring
-- the next useful red test is visible validation feedback on invalid login submit
+- login route orchestration is now covered through redirect, error, and pending-state behavior
+- the next useful slice is frontend session/auth state after successful login
 - frontend coverage reporting is not wired yet; `@vitest/coverage-v8` is still missing
 
 Current frontend tooling checkpoint:

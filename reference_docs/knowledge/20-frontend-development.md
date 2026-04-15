@@ -68,6 +68,18 @@ Immediate next frontend step from this checkpoint:
 - wire `/login` and `/register` to the backend auth endpoints
 - protect authenticated routes such as `/settings` once `me` and session state are available
 
+Current login-route checkpoint:
+- `/login` now uses the reusable `LoginForm`
+- the route calls the frontend `loginWeb(...)` helper on submit
+- route-level auth failures are displayed on the page
+- the login button is disabled while the async login request is in progress
+- successful login currently redirects to `/`
+
+Current limitation:
+- successful login does not yet persist the access token in a frontend session layer
+- authenticated user bootstrap via `GET /api/auth/me/` is not wired yet
+- authenticated route protection is not wired yet
+
 ### 5.5 State Management
 - Web:
   - `TanStack Query` for server state
