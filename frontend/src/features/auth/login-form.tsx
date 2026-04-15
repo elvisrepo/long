@@ -6,10 +6,11 @@ interface LoginFormValues {
 }
 
 interface LoginFormProps {
-  onSubmit: (values: LoginFormValues) => void;
-}
+    onSubmit: (values: LoginFormValues) => void | Promise<void>
+    disabled?: boolean
+  }
 
-export function LoginForm({ onSubmit }: LoginFormProps) {
+export function LoginForm({ onSubmit, disabled = false  }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState('')
@@ -63,7 +64,8 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
 
       {errorMessage ? <p>{errorMessage}</p> : null}
 
-      <button type="submit">Login</button>
+      <button type="submit" disabled={disabled}>
+        Login</button>
     </form>
   );
 }
