@@ -200,6 +200,18 @@ Immediate frontend auth integration target:
 - fetch `GET /api/auth/me/` into TanStack Query after successful auth transitions
 - add route protection for authenticated pages such as `/settings`
 
+Important frontend auth distinction:
+- storing the access token after login is necessary, but it is not enough to represent authenticated user state by itself
+- the token is only a credential string
+- `GET /api/auth/me/` is the backend-confirmed answer to "who is the current logged-in user?"
+- the next frontend slice should therefore build on the current session layer by fetching `me` and using that result for authenticated UI and route protection
+
+Important backend auth detail for the `me` endpoint:
+- in the current backend implementation, `me_view` relies on DRF authentication having already populated `request.user`
+- the configured DRF default authentication class is SimpleJWT JWT authentication
+- so the frontend `me` request must include the bearer access token in the `Authorization` header
+- `me_view` is therefore a confirmation endpoint for the current token-backed session, not a separate login mechanism
+
 Immediate TDD sequence for the frontend auth slice:
 1. keep the frontend test harness green
 2. add one failing login-route test at a time

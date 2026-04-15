@@ -61,6 +61,33 @@ First web slice:
 - access token kept in memory on web
 - invalidate or refetch `me` after login, logout, and refresh transitions where needed
 
+Role of `GET /api/auth/me/` on the frontend:
+- the access token is only the client-held credential
+- `GET /api/auth/me/` is the backend-confirmed source of truth for the current authenticated user
+- the frontend should not treat "we have a token string" as the same thing as "we know who the user is"
+- `me` is what the frontend should use to:
+  - confirm the stored token is still valid
+  - know which user is currently authenticated
+  - populate authenticated UI such as current user email
+  - drive protected-route decisions
+  - recover cleanly from invalid or expired auth state by clearing session when `me` fails
+
+Practical auth model:
+- access token in memory = credential for authenticated requests
+- `GET /api/auth/me/` = current-user identity/resource fetched from the backend
+- TanStack Query should own the cached `me` result
+- the auth/session layer should own the access token itself
+
+How the backend `me` endpoint authenticates in the current implementation:
+- DRF runs authentication before `me_view` executes
+- the project currently uses `rest_framework_simplejwt.authentication.JWTAuthentication` as the default DRF authentication class
+- the frontend must therefore send `Authorization: Bearer <access-token>` when calling `GET /api/auth/me/`
+- SimpleJWT validates the token and resolves the user
+- `me_view` itself does not verify the JWT directly; it checks the already-populated `request.user`
+- if `request.user.is_authenticated` is false, the endpoint returns `401`
+- if authentication succeeded, the endpoint returns the current user payload, currently just:
+  - `email`
+
 Immediate next frontend step from this checkpoint:
 - keep the current route skeleton
 - replace placeholder page bodies with auth-aware UI

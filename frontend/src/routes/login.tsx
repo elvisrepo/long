@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { loginWeb } from '../features/auth/auth-api'
 import { LoginForm } from '../features/auth/login-form'
 
+import { setAccessToken } from '../features/auth/auth-session'
+
 interface LoginValues {
   email: string
   password: string
@@ -22,7 +24,8 @@ function LoginRoute() {
     try {
       setErrorMessage('')
       setIsSubmitting(true)
-      await loginWeb(values)
+      const result = await loginWeb(values)
+      setAccessToken(result.access)
       await navigate({ to: '/' })
     } catch (error) {
       if (error instanceof Error) {
