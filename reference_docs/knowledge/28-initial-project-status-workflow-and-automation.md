@@ -63,10 +63,12 @@
 - Frontend route tests now also verify the login screen shell at `/login`.
 - Frontend component tests now verify `LoginForm` value submission and the current empty-submit guard.
 - Frontend auth helper tests now verify the `loginWeb(...)` request/response contract and error handling.
+- Frontend auth session tests now verify the in-memory access token layer.
 - Frontend login route now:
   - submits through `loginWeb(...)`
   - displays backend auth errors
   - disables the submit button while pending
+  - stores the returned access token in the current in-memory session layer
   - clears prior auth errors after a later successful submit
   - redirects to `/` on success
 - Frontend formatting is now wired with Prettier scripts:
@@ -83,7 +85,6 @@
 - The frontend auth flow is not integrated with the backend yet.
 - Frontend pages are still placeholders rather than real auth or dashboard screens.
 - Protected-route behavior is not implemented yet.
-- Frontend session state for the returned access token is not implemented yet.
 - `GET /api/auth/me/` bootstrap is not implemented on the frontend yet.
 - No CD pipeline exists yet.
 - Security automation beyond lint, type-checking, and tests is not wired yet.
@@ -209,7 +210,8 @@ Current frontend TDD checkpoint:
 - route structure is covered first at the screen level
 - reusable form behavior is now being covered separately from route wiring
 - login route orchestration is now covered through redirect, error, and pending-state behavior
-- the next useful slice is frontend session/auth state after successful login
+- the in-memory access-token session layer is now in place and covered
+- the next useful slice is authenticated user bootstrap via `GET /api/auth/me/`
 - frontend coverage reporting is not wired yet; `@vitest/coverage-v8` is still missing
 
 Current frontend tooling checkpoint:

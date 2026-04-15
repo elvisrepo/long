@@ -41,6 +41,10 @@ Current frontend testing checkpoint:
   - login button disables while the route is awaiting the async login request
   - a previous login error clears after a later successful submit
   - successful login redirects to `/`
+- a focused session test now covers the in-memory auth session layer:
+  - access token can be stored
+  - access token can be read back
+  - access token can be cleared
 
 Recommended frontend test progression from this checkpoint:
 - keep using route-level tests to prove TanStack Router behavior
@@ -79,6 +83,7 @@ What the current frontend tests are proving:
   - route calls `loginWeb(...)`
   - route surfaces async auth errors
   - route disables re-submit while pending
+  - route stores the returned access token before continuing the success path
   - route redirects after successful login
 
 What the current frontend tests are not proving:

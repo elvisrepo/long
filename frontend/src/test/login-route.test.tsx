@@ -1,9 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { setAccessToken } from '../features/auth/auth-session'
 
 vi.mock('../features/auth/auth-api', () => ({
     loginWeb: vi.fn(),
+  }))
+
+vi.mock('../features/auth/auth-session', () => ({
+    setAccessToken: vi.fn(),
   }))
 
 import { renderRoute } from "./render-route";
@@ -182,5 +187,27 @@ describe("login route", () => {
     expect(
       await screen.findByRole('heading', { name: /dashboard/i }),
     ).toBeInTheDocument()
+  })
+
+  it('stores the access token after a successful login', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(loginWeb).mockResolvedValue({
+      access: 'test-access-token',
+    })
+
+    renderRoute('/login')
+
+    const emailInput = await screen.findByLabelText(/email/i)
+    const passwordInput = await screen.findByLabelText(/password/i)
+    const submitButton = await screen.findByRole('button', { name: /login/i })
+
+    await user.type(emailInput, 'user@example.com')
+    await user.type(passwordInput, 'secret123')
+    await user.click(submitButton)
+
+    await waitFor(() => {
+      expect(setAccessToken).toHaveBeenCalledWith('test-access-token')
+    })
   })
 });
