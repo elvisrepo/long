@@ -38,8 +38,10 @@ Current frontend routing checkpoint:
 - `src/routeTree.gen.ts` is generated from the file-based route modules and should not be edited by hand
 - production builds are already code-splitting these route files into separate chunks
 
-Current limitation:
-- `/settings` is still only a route placeholder and is not yet protected by auth
+Current routing/auth checkpoint:
+- `/` is now treated as an authenticated dashboard route
+- `/settings` is also protected by the same current-user query pattern
+- protected-route behavior is still duplicated route by route and has not yet been extracted into a shared auth guard/layout
 
 ### 5.4 API Integration
 - Web: central API client + `TanStack Query` for server state, caching, retries, and invalidation
@@ -119,9 +121,16 @@ Current login-route checkpoint:
 - successful login stores the returned access token in the current in-memory session layer
 - successful login currently redirects to `/`
 
+Current protected-route checkpoint:
+- after login, the frontend stores the returned access token in memory
+- `getMe()` uses that bearer token to call `GET /api/auth/me/`
+- `useMeQuery()` exposes the current authenticated user resource, currently including `email`
+- a logged-in user can render the protected dashboard route at `/`
+- unauthenticated or errored current-user state redirects protected routes to `/login`
+
 Current limitation:
 - authenticated user bootstrap is still route-local rather than app-wide
-- protected-route behavior currently exists on `/settings`, but is not yet abstracted into a shared auth guard/layout
+- protected-route behavior currently exists on both `/` and `/settings`, but is not yet abstracted into a shared auth guard/layout
 
 ### 5.5 State Management
 - Web:

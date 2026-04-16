@@ -27,7 +27,7 @@ Current frontend testing checkpoint:
   - `@testing-library/jest-dom`
   - `@testing-library/user-event`
 - `src/test/setup.ts` configures shared frontend test setup
-- the first route-level frontend test is in place and proves the dashboard route renders at `/`
+- dashboard route tests now prove protected-route behavior at `/`
 - route-level tests also now cover the login route shell:
   - heading
   - email input
@@ -108,6 +108,9 @@ What the current frontend tests are proving:
 - settings route tests now prove the first protected-route behavior:
   - unauthenticated/error state redirects to `/login`
   - authenticated state renders settings content and the current user email
+- dashboard route tests now prove the protected dashboard behavior:
+  - unauthenticated/error state redirects to `/login`
+  - authenticated state renders the dashboard at `/`
 
 What the current frontend tests are not proving:
 - no real backend requests are being made yet

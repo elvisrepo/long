@@ -59,7 +59,7 @@
 - The current route tree is generated from file-based routes under `frontend/src/routes/`.
 - Frontend production build is green and confirms route-level code splitting for the current route files.
 - A frontend test harness now exists with Vitest, jsdom, and React Testing Library.
-- The first frontend route test is green and verifies the dashboard route renders at `/`.
+- Frontend dashboard route tests now verify the protected-route behavior at `/`.
 - Frontend route tests now also verify the login screen shell at `/login`.
 - Frontend component tests now verify `LoginForm` value submission and the current empty-submit guard.
 - Frontend auth helper tests now verify the `loginWeb(...)` request/response contract and error handling.
@@ -76,6 +76,9 @@
 - Frontend `/settings` is now the first protected route:
   - unauthenticated state redirects to `/login`
   - authenticated state renders settings content and current user email
+- Frontend `/` is now also a protected route:
+  - unauthenticated state redirects to `/login`
+  - authenticated state renders the dashboard
 - Frontend formatting is now wired with Prettier scripts:
   - `npm run format`
   - `npm run format:check`
@@ -87,10 +90,13 @@
 - Profile update and account/account-deletion flows are still deferred.
 - Email verification is not implemented.
 - No richer user-profile domain exists yet beyond auth basics.
-- The frontend auth flow is not integrated with the backend yet.
+- The frontend auth flow is partially integrated with the backend auth contract:
+  - login stores the returned access token in memory
+  - `getMe()` uses that access token to call `GET /api/auth/me/`
+  - protected routes now depend on current-user query state rather than only on login redirect behavior
 - Frontend pages are still placeholders rather than real auth or dashboard screens.
 - TanStack Query-based current-user state now exists, but bootstrap is still route-local rather than centralized at the app/auth-shell level.
-- Protected-route behavior exists for `/settings`, but there is no shared auth guard/layout yet.
+- Protected-route behavior exists for both `/` and `/settings`, but there is no shared auth guard/layout yet.
 - No CD pipeline exists yet.
 - Security automation beyond lint, type-checking, and tests is not wired yet.
 
@@ -230,7 +236,7 @@ Current frontend TDD checkpoint:
 - the in-memory access-token session layer is now in place and covered
 - the raw `getMe()` helper contract is now in place and covered
 - the first TanStack Query-backed current-user hook is now in place and covered
-- the first protected route (`/settings`) is now in place and covered
+- protected routes are now in place and covered on both `/` and `/settings`
 - the next useful slice is extracting auth protection out of individual routes into a shared guard/layout
 - frontend coverage reporting is not wired yet; `@vitest/coverage-v8` is still missing
 
