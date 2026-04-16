@@ -64,6 +64,7 @@
 - Frontend component tests now verify `LoginForm` value submission and the current empty-submit guard.
 - Frontend auth helper tests now verify the `loginWeb(...)` request/response contract and error handling.
 - Frontend auth session tests now verify the in-memory access token layer.
+- Frontend current-user helper tests now verify the `getMe()` request/response contract and error handling.
 - Frontend login route now:
   - submits through `loginWeb(...)`
   - displays backend auth errors
@@ -85,7 +86,7 @@
 - The frontend auth flow is not integrated with the backend yet.
 - Frontend pages are still placeholders rather than real auth or dashboard screens.
 - Protected-route behavior is not implemented yet.
-- `GET /api/auth/me/` bootstrap is not implemented on the frontend yet.
+- TanStack Query-based `GET /api/auth/me/` bootstrap is not implemented on the frontend yet.
 - No CD pipeline exists yet.
 - Security automation beyond lint, type-checking, and tests is not wired yet.
 
@@ -223,7 +224,8 @@ Current frontend TDD checkpoint:
 - reusable form behavior is now being covered separately from route wiring
 - login route orchestration is now covered through redirect, error, and pending-state behavior
 - the in-memory access-token session layer is now in place and covered
-- the next useful slice is authenticated user bootstrap via `GET /api/auth/me/`
+- the raw `getMe()` helper contract is now in place and covered
+- the next useful slice is authenticated user bootstrap via TanStack Query
 - frontend coverage reporting is not wired yet; `@vitest/coverage-v8` is still missing
 
 Current frontend tooling checkpoint:

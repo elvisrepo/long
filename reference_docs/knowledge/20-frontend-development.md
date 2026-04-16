@@ -88,6 +88,14 @@ How the backend `me` endpoint authenticates in the current implementation:
 - if authentication succeeded, the endpoint returns the current user payload, currently just:
   - `email`
 
+Current frontend `me` helper checkpoint:
+- the frontend now has a `getMe()` helper that:
+  - reads the in-memory access token
+  - calls `/api/auth/me/` with `Authorization: Bearer <token>`
+  - throws if the token is missing
+  - preserves backend auth `detail` when available
+  - falls back to a generic current-user error when detail is unavailable
+
 Immediate next frontend step from this checkpoint:
 - keep the current route skeleton
 - replace placeholder page bodies with auth-aware UI
@@ -104,7 +112,7 @@ Current login-route checkpoint:
 - successful login currently redirects to `/`
 
 Current limitation:
-- authenticated user bootstrap via `GET /api/auth/me/` is not wired yet
+- authenticated user bootstrap via TanStack Query is not wired yet
 - authenticated route protection is not wired yet
 
 ### 5.5 State Management

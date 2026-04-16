@@ -45,6 +45,12 @@ Current frontend testing checkpoint:
   - access token can be stored
   - access token can be read back
   - access token can be cleared
+- a focused `getMe()` helper test set now covers the current-user API helper contract:
+  - uses the stored access token
+  - sends the bearer token to `/api/auth/me/`
+  - throws when there is no access token in session
+  - preserves backend auth `detail` when the endpoint returns an auth error
+  - falls back to a generic current-user error when no usable detail exists
 
 Recommended frontend test progression from this checkpoint:
 - keep using route-level tests to prove TanStack Router behavior
@@ -79,6 +85,13 @@ What the current frontend tests are proving:
   - access-token response parsing
   - backend `detail` preservation when available
   - generic fallback error when the response is unsuccessful and has no usable detail
+- `getMe()` tests prove the frontend helper contract for the backend current-user endpoint:
+  - reads the current access token from the session layer
+  - sends `Authorization: Bearer <token>`
+  - parses the authenticated user payload
+  - rejects when session state is missing
+  - rejects with backend error detail when available
+  - rejects with a sane fallback error when detail is unavailable
 - login route tests now prove route-level orchestration behavior:
   - route calls `loginWeb(...)`
   - route surfaces async auth errors
@@ -89,7 +102,7 @@ What the current frontend tests are proving:
 What the current frontend tests are not proving:
 - no real backend requests are being made yet
 - no real frontend-to-backend auth request is being executed yet; the network boundary is still mocked
-- no authenticated user bootstrap (`GET /api/auth/me/`) is covered yet
+- no TanStack Query-backed authenticated user bootstrap (`GET /api/auth/me/`) is covered yet
 - no protected-route behavior is covered yet
 - no browser-level end-to-end flow is covered yet
 
