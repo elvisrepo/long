@@ -96,6 +96,14 @@ Current frontend `me` helper checkpoint:
   - preserves backend auth `detail` when available
   - falls back to a generic current-user error when detail is unavailable
 
+Current authenticated-user Query checkpoint:
+- the frontend now has a `useMeQuery()` hook backed by TanStack Query
+- `useMeQuery()` is the first frontend boundary that exposes current-user server state to routed UI
+- this is the intended direction for authenticated UI:
+  - session layer owns the access token
+  - `getMe()` owns the HTTP contract
+  - TanStack Query owns the cached current-user resource
+
 Immediate next frontend step from this checkpoint:
 - keep the current route skeleton
 - replace placeholder page bodies with auth-aware UI
@@ -112,8 +120,8 @@ Current login-route checkpoint:
 - successful login currently redirects to `/`
 
 Current limitation:
-- authenticated user bootstrap via TanStack Query is not wired yet
-- authenticated route protection is not wired yet
+- authenticated user bootstrap is still route-local rather than app-wide
+- protected-route behavior currently exists on `/settings`, but is not yet abstracted into a shared auth guard/layout
 
 ### 5.5 State Management
 - Web:

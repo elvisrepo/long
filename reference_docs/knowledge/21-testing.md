@@ -51,6 +51,9 @@ Current frontend testing checkpoint:
   - throws when there is no access token in session
   - preserves backend auth `detail` when the endpoint returns an auth error
   - falls back to a generic current-user error when no usable detail exists
+- a focused `useMeQuery()` hook test set now covers the first TanStack Query-backed authenticated-user state:
+  - returns the current user when `getMe()` succeeds
+  - exposes an error state when `getMe()` fails
 
 Recommended frontend test progression from this checkpoint:
 - keep using route-level tests to prove TanStack Router behavior
@@ -92,18 +95,25 @@ What the current frontend tests are proving:
   - rejects when session state is missing
   - rejects with backend error detail when available
   - rejects with a sane fallback error when detail is unavailable
+- `useMeQuery()` tests prove the first Query-backed authenticated-user boundary:
+  - the hook reaches success state when `getMe()` resolves
+  - the hook exposes the current user payload through Query state
+  - the hook reaches error state when `getMe()` rejects
 - login route tests now prove route-level orchestration behavior:
   - route calls `loginWeb(...)`
   - route surfaces async auth errors
   - route disables re-submit while pending
   - route stores the returned access token before continuing the success path
   - route redirects after successful login
+- settings route tests now prove the first protected-route behavior:
+  - unauthenticated/error state redirects to `/login`
+  - authenticated state renders settings content and the current user email
 
 What the current frontend tests are not proving:
 - no real backend requests are being made yet
 - no real frontend-to-backend auth request is being executed yet; the network boundary is still mocked
-- no TanStack Query-backed authenticated user bootstrap (`GET /api/auth/me/`) is covered yet
-- no protected-route behavior is covered yet
+- no app-wide authenticated user bootstrap lifecycle is covered yet
+- no shared reusable auth-guard/layout abstraction is covered yet
 - no browser-level end-to-end flow is covered yet
 
 Practical test-level guidance for the current frontend slice:

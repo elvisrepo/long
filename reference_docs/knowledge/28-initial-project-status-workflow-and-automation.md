@@ -65,6 +65,7 @@
 - Frontend auth helper tests now verify the `loginWeb(...)` request/response contract and error handling.
 - Frontend auth session tests now verify the in-memory access token layer.
 - Frontend current-user helper tests now verify the `getMe()` request/response contract and error handling.
+- Frontend current-user Query tests now verify `useMeQuery()` success and error states.
 - Frontend login route now:
   - submits through `loginWeb(...)`
   - displays backend auth errors
@@ -72,6 +73,9 @@
   - stores the returned access token in the current in-memory session layer
   - clears prior auth errors after a later successful submit
   - redirects to `/` on success
+- Frontend `/settings` is now the first protected route:
+  - unauthenticated state redirects to `/login`
+  - authenticated state renders settings content and current user email
 - Frontend formatting is now wired with Prettier scripts:
   - `npm run format`
   - `npm run format:check`
@@ -85,8 +89,8 @@
 - No richer user-profile domain exists yet beyond auth basics.
 - The frontend auth flow is not integrated with the backend yet.
 - Frontend pages are still placeholders rather than real auth or dashboard screens.
-- Protected-route behavior is not implemented yet.
-- TanStack Query-based `GET /api/auth/me/` bootstrap is not implemented on the frontend yet.
+- TanStack Query-based current-user state now exists, but bootstrap is still route-local rather than centralized at the app/auth-shell level.
+- Protected-route behavior exists for `/settings`, but there is no shared auth guard/layout yet.
 - No CD pipeline exists yet.
 - Security automation beyond lint, type-checking, and tests is not wired yet.
 
@@ -225,7 +229,9 @@ Current frontend TDD checkpoint:
 - login route orchestration is now covered through redirect, error, and pending-state behavior
 - the in-memory access-token session layer is now in place and covered
 - the raw `getMe()` helper contract is now in place and covered
-- the next useful slice is authenticated user bootstrap via TanStack Query
+- the first TanStack Query-backed current-user hook is now in place and covered
+- the first protected route (`/settings`) is now in place and covered
+- the next useful slice is extracting auth protection out of individual routes into a shared guard/layout
 - frontend coverage reporting is not wired yet; `@vitest/coverage-v8` is still missing
 
 Current frontend tooling checkpoint:
