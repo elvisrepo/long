@@ -2,15 +2,16 @@
 
   vi.mock('./auth-session', () => ({
     setAccessToken: vi.fn(),
+    clearAccessToken: vi.fn(),
   }))
 
-  import { setAccessToken } from './auth-session'
+  import { clearAccessToken, setAccessToken } from './auth-session'
   import { restoreWebSession } from './auth-bootstrap'
 
   describe('restoreWebSession', () => {
     afterEach(() => {
-      vi.restoreAllMocks()
-      document.cookie = 'csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/'
+        vi.resetAllMocks()
+        document.cookie = 'csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/'
     })
 
     it('bootstraps csrf, refreshes the web session, and stores the access token', async () => {
@@ -48,4 +49,37 @@
         access: 'test-access-token',
       })
     })
+
+    it('clears auth state and throws when web refresh fails', async () => {
+    document.cookie = 'csrftoken=test-csrf-token'
+
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(null, { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ detail: 'Token is invalid.' }), {
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      )
+
+    await expect(restoreWebSession()).rejects.toThrow('Token is invalid.')
+
+    expect(clearAccessToken).toHaveBeenCalledTimes(1)
+    expect(setAccessToken).not.toHaveBeenCalled()
+  })
+
+  it('clears auth state and throws when csrf bootstrap fails', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(null, {
+        status: 500,
+      }),
+    )
+
+    await expect(restoreWebSession()).rejects.toThrow('Session restore failed')
+
+    expect(clearAccessToken).toHaveBeenCalledTimes(1)
+    expect(setAccessToken).not.toHaveBeenCalled()
+  })
   })
