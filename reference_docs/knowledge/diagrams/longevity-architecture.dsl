@@ -214,6 +214,15 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             user -> longevity.webapp "Returns to an unauthenticated web state"
         }
 
+        dynamic longevity "web-auth-current-user" "Dynamic view of current-user bootstrap and protected route access on the web app." {
+            user -> longevity.webapp "Navigates to a protected route such as / or /settings"
+            longevity.webapp -> longevity.api "GET /api/auth/me/ with Authorization: Bearer <access-token>, e.g. Bearer eyJhbGciOi..."
+            longevity.api -> longevity.db "Loads authenticated user for the token-backed request, e.g. user id 42 -> email user@example.com"
+            longevity.db -> longevity.api "Returns current user data, e.g. email user@example.com"
+            longevity.api -> longevity.webapp "Returns 200 JSON, e.g. {\"email\":\"user@example.com\"}"
+            user -> longevity.webapp "RequireAuth allows the protected route and the user sees Dashboard or Settings"
+        }
+
         deployment * mvpCloud "mvp-cloud-deployment" "Deployment view for the pragmatic MVP cloud runtime." {
             include *
             autolayout tb

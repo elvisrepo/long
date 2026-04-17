@@ -95,6 +95,7 @@ Current implemented dynamic views should stay limited to the auth flows that act
 - web auth login
 - web auth refresh
 - web auth logout
+- web current-user bootstrap and protected-route access
 
 That is enough for the current project state.
 

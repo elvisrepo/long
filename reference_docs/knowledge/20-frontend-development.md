@@ -125,12 +125,16 @@ Current protected-route checkpoint:
 - after login, the frontend stores the returned access token in memory
 - `getMe()` uses that bearer token to call `GET /api/auth/me/`
 - `useMeQuery()` exposes the current authenticated user resource, currently including `email`
+- `RequireAuth` now centralizes the shared protected-route check:
+  - loading state renders a loading fallback
+  - error or missing current-user data redirects to `/login`
+  - success passes the resolved `CurrentUser` into protected route content
 - a logged-in user can render the protected dashboard route at `/`
 - unauthenticated or errored current-user state redirects protected routes to `/login`
 
 Current limitation:
 - authenticated user bootstrap is still route-local rather than app-wide
-- protected-route behavior currently exists on both `/` and `/settings`, but is not yet abstracted into a shared auth guard/layout
+- the shared auth guard currently exists as a reusable component (`RequireAuth`), not yet as a TanStack Router auth layout
 
 ### 5.5 State Management
 - Web:
@@ -150,6 +154,12 @@ Auth/session split for the web app:
 - `TanStack Router` owns route protection and redirect flow
 - plain React state owns form inputs and transient auth UI state
 - a small auth/session layer owns the in-memory access token and auth actions such as login, refresh, and logout
+
+Current protected-route composition pattern:
+- use `RequireAuth` to consume `useMeQuery()` once for a protected route boundary
+- pass protected page content as children
+- use a render-function child when the page needs the resolved `CurrentUser`, such as showing `currentUser.email`
+- do not add a separate React auth context while TanStack Query already owns the shared current-user server state
 
 Do not:
 - store the access token inside query cache

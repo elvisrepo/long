@@ -1,42 +1,42 @@
 import { getAccessToken } from './auth-session'
 
-  interface MeResponse {
-    email: string
+export interface CurrentUser {
+  email: string
+}
+
+interface ErrorResponse {
+  detail?: string
+}
+
+export async function getMe(): Promise<CurrentUser> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    throw new Error('Missing access token')
   }
 
-  interface ErrorResponse {
-    detail? : string
-  }
+  const response = await fetch('/api/auth/me/', {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
 
-  export async function getMe(): Promise<MeResponse> {
-    const accessToken = getAccessToken()
+  if (!response.ok) {
+    let errorMessage = 'Failed to fetch current user'
 
-    if (!accessToken) {
-      throw new Error('Missing access token')
-    }
+    try {
+      const errorData = (await response.json()) as ErrorResponse
 
-    const response = await fetch('/api/auth/me/', {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    })
-
-    if (!response.ok) {
-      let errorMessage = 'Failed to fetch current user'
-
-      try {
-        const errorData = (await response.json()) as ErrorResponse
-
-        if (errorData.detail) {
-          errorMessage = errorData.detail
-        }
-      } catch {
-        // Keep fallback error
+      if (errorData.detail) {
+        errorMessage = errorData.detail
       }
-
-      throw new Error(errorMessage)
+    } catch {
+      // Keep fallback error
     }
 
-    return response.json() as Promise<MeResponse>
+    throw new Error(errorMessage)
   }
+
+  return response.json() as Promise<CurrentUser>
+}

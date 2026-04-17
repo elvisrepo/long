@@ -1,26 +1,20 @@
-import { Navigate, createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 
-  import { useMeQuery } from '../features/auth/use-me-query'
+import { RequireAuth } from '../features/auth/require-auth'
 
-  export const Route = createFileRoute('/settings')({
-    component: SettingsRoute,
-  })
+export const Route = createFileRoute('/settings')({
+  component: SettingsRoute,
+})
 
-  function SettingsRoute() {
-    const meQuery = useMeQuery()
-
-    if (meQuery.isLoading) {
-      return <p>Loading...</p>
-    }
-
-    if (meQuery.isError || !meQuery.data) {
-      return <Navigate to="/login" />
-    }
-
-    return (
+function SettingsRoute() {
+  return (
+    <RequireAuth>
+      {(currentUser) => (
       <section>
         <h1>Settings</h1>
-        <p>Signed in as {meQuery.data.email}</p>
+        <p>Signed in as {currentUser.email}</p>
       </section>
-    )
-  }
+      )}
+    </RequireAuth>
+  )
+}

@@ -1,27 +1,20 @@
-import { Navigate, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from '@tanstack/react-router'
 
-import { useMeQuery } from "../features/auth/use-me-query";
+import { RequireAuth } from '../features/auth/require-auth'
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute('/')({
   component: DashboardRoute,
-});
+})
 
 function DashboardRoute() {
-
-  const meQuery = useMeQuery()
-
-  if (meQuery.isLoading) {
-      return <p>Loading...</p>
-    }
-
-    if (meQuery.isError || !meQuery.data) {
-      return <Navigate to="/login" />
-    }
-
-    return (
+  return (
+    <RequireAuth>
+      {() => (
       <section>
         <h1>Dashboard</h1>
         <p>Dashboard metrics and trends will live here.</p>
       </section>
-    )
+      )}
+    </RequireAuth>
+  )
 }

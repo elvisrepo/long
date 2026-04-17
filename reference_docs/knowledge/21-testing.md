@@ -111,12 +111,13 @@ What the current frontend tests are proving:
 - dashboard route tests now prove the protected dashboard behavior:
   - unauthenticated/error state redirects to `/login`
   - authenticated state renders the dashboard at `/`
+- protected-route coverage now exercises the shared `RequireAuth` path indirectly through both `/` and `/settings`
 
 What the current frontend tests are not proving:
 - no real backend requests are being made yet
 - no real frontend-to-backend auth request is being executed yet; the network boundary is still mocked
 - no app-wide authenticated user bootstrap lifecycle is covered yet
-- no shared reusable auth-guard/layout abstraction is covered yet
+- no dedicated unit/component test exists yet for `RequireAuth` itself; coverage is currently indirect through route tests
 - no browser-level end-to-end flow is covered yet
 
 Practical test-level guidance for the current frontend slice:
