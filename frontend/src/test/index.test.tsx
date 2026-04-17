@@ -8,6 +8,10 @@ vi.mock('../features/auth/use-me-query', () => ({
   useMeQuery: vi.fn(),
 }))
 
+vi.mock('../features/auth/auth-bootstrap', () => ({
+    restoreWebSession: vi.fn().mockResolvedValue({ access: 'test-access-token' }),
+  }))
+
 describe('dashboard route', () => {
   afterEach(() => {
     vi.resetAllMocks()
