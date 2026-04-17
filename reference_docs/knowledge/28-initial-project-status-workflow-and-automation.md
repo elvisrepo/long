@@ -64,6 +64,7 @@
 - Frontend component tests now verify `LoginForm` value submission and the current empty-submit guard.
 - Frontend auth helper tests now verify the `loginWeb(...)` request/response contract and error handling.
 - Frontend auth session tests now verify the in-memory access token layer.
+- Frontend auth bootstrap helper tests now verify the initial web session restoration success path.
 - Frontend current-user helper tests now verify the `getMe()` request/response contract and error handling.
 - Frontend current-user Query tests now verify `useMeQuery()` success and error states.
 - Frontend login route now:
@@ -84,6 +85,12 @@
   - it consumes `useMeQuery()` once
   - it redirects unauthenticated access to `/login`
   - it passes the resolved current user into protected route content when needed
+- Frontend also now has a web-session bootstrap helper:
+  - `frontend/src/features/auth/auth-bootstrap.ts`
+  - it calls `GET /api/auth/csrf/`
+  - it reads the `csrftoken` cookie
+  - it calls `POST /api/auth/web/refresh/` with `X-CSRFToken`
+  - it stores the returned access token in memory
 - Frontend formatting is now wired with Prettier scripts:
   - `npm run format`
   - `npm run format:check`
@@ -97,12 +104,14 @@
 - No richer user-profile domain exists yet beyond auth basics.
 - The frontend auth flow is partially integrated with the backend auth contract:
   - login stores the returned access token in memory
+  - web session bootstrap can refresh an access token from the refresh cookie
   - `getMe()` uses that access token to call `GET /api/auth/me/`
   - protected routes now depend on current-user query state rather than only on login redirect behavior
 - Frontend pages are still placeholders rather than real auth or dashboard screens.
 - TanStack Query-based current-user state now exists, but bootstrap is still route-local rather than centralized at the app/auth-shell level.
 - Protected-route behavior exists for both `/` and `/settings`, and is now centralized in a shared `RequireAuth` component.
 - There is still no app-wide auth layout/bootstrapping route yet.
+- the bootstrap helper exists, but it is not yet wired into app startup
 - No CD pipeline exists yet.
 - Security automation beyond lint, type-checking, and tests is not wired yet.
 
@@ -244,7 +253,7 @@ Current frontend TDD checkpoint:
 - the first TanStack Query-backed current-user hook is now in place and covered
 - protected routes are now in place and covered on both `/` and `/settings`
 - auth protection is now extracted into a shared `RequireAuth` component
-- the next useful slice is deciding whether to keep that component pattern or move the auth boundary into a TanStack Router layout route
+- the next useful slice is wiring `restoreWebSession()` into startup and deciding whether the auth boundary should stay component-based or move into a TanStack Router layout route
 - frontend coverage reporting is not wired yet; `@vitest/coverage-v8` is still missing
 
 Current frontend tooling checkpoint:

@@ -198,10 +198,10 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
 
         dynamic longevity "web-auth-refresh" "Dynamic view of the current web refresh flow." {
             user -> longevity.webapp "Continues an existing authenticated web session"
-            longevity.webapp -> longevity.api "POST /api/auth/web/refresh/ with X-CSRFToken header"
-            longevity.api -> longevity.db "Validates refresh token and loads token-related user state"
-            longevity.db -> longevity.api "Returns user and token state"
-            longevity.api -> longevity.webapp "Returns new access token in JSON and rotated refresh_token cookie"
+            longevity.webapp -> longevity.api "POST /api/auth/web/refresh/ with X-CSRFToken: abc123 and browser cookies, e.g. csrftoken=abc123; refresh_token=eyJhbGciOi..."
+            longevity.api -> longevity.db "Validates refresh token and loads token-backed user state, e.g. user id 42 -> alice@example.com"
+            longevity.db -> longevity.api "Returns current token and user state for alice@example.com"
+            longevity.api -> longevity.webapp "Returns 200 JSON, e.g. {\"access\":\"eyJhbGciOi...\"}, and may rotate refresh_token cookie"
             user -> longevity.webapp "Continues authenticated session with refreshed access token"
         }
 

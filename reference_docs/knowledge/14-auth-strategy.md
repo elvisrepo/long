@@ -167,6 +167,36 @@ Current boundary:
 - keep login custom because the app authenticates by email through the custom Django backend
 - keep refresh on the library default path until there is a real reason to customize claims, rotation, blacklist behavior, or transport
 
+### Current Frontend Web Session Bootstrap
+
+The frontend now has a small bootstrap helper for restoring a browser session from the hardened web-token transport:
+
+- `frontend/src/features/auth/auth-bootstrap.ts`
+- helper name: `restoreWebSession()`
+
+Current frontend-to-backend bootstrap flow:
+1. frontend calls `GET /api/auth/csrf/`
+2. backend sets the `csrftoken` cookie
+3. frontend reads the `csrftoken` cookie value
+4. frontend calls `POST /api/auth/web/refresh/`
+5. browser includes cookies automatically because the request uses `credentials: 'include'`
+6. request includes:
+   - `refresh_token` cookie automatically from the browser cookie jar
+   - `csrftoken` cookie automatically from the browser cookie jar
+   - `X-CSRFToken` header explicitly from frontend JavaScript
+7. backend validates CSRF and the refresh token
+8. backend returns a new `access` token in JSON
+9. frontend stores that access token in the in-memory session layer
+
+Important distinction:
+- frontend JavaScript reads the CSRF cookie
+- frontend JavaScript does **not** read the `refresh_token` cookie
+- the refresh token stays in the `HttpOnly` cookie and is sent automatically by the browser
+
+Current limitation:
+- this bootstrap helper is now implemented and tested
+- it is not yet wired into app startup, so full-page reload auth restoration is not complete yet
+
 ### Current Protected `me` Endpoint Behavior
 
 - `GET /api/auth/me/`

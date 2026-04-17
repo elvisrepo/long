@@ -54,6 +54,12 @@ Current frontend testing checkpoint:
 - a focused `useMeQuery()` hook test set now covers the first TanStack Query-backed authenticated-user state:
   - returns the current user when `getMe()` succeeds
   - exposes an error state when `getMe()` fails
+- a focused `restoreWebSession()` helper test now covers the initial web session bootstrap success path:
+  - bootstraps CSRF through `/api/auth/csrf/`
+  - refreshes the web session through `/api/auth/web/refresh/`
+  - sends `X-CSRFToken`
+  - relies on cookie transport with `credentials: 'include'`
+  - stores the returned access token
 
 Recommended frontend test progression from this checkpoint:
 - keep using route-level tests to prove TanStack Router behavior
@@ -99,6 +105,11 @@ What the current frontend tests are proving:
   - the hook reaches success state when `getMe()` resolves
   - the hook exposes the current user payload through Query state
   - the hook reaches error state when `getMe()` rejects
+- `restoreWebSession()` tests now prove the first frontend auth-bootstrap contract:
+  - frontend bootstraps the CSRF cookie first
+  - frontend then calls the web refresh endpoint with `X-CSRFToken`
+  - access token restoration still relies on browser cookie transport for the refresh token
+  - successful refresh stores the new access token in the session layer
 - login route tests now prove route-level orchestration behavior:
   - route calls `loginWeb(...)`
   - route surfaces async auth errors
@@ -117,6 +128,7 @@ What the current frontend tests are not proving:
 - no real backend requests are being made yet
 - no real frontend-to-backend auth request is being executed yet; the network boundary is still mocked
 - no app-wide authenticated user bootstrap lifecycle is covered yet
+- only the success path of `restoreWebSession()` is covered so far
 - no dedicated unit/component test exists yet for `RequireAuth` itself; coverage is currently indirect through route tests
 - no browser-level end-to-end flow is covered yet
 

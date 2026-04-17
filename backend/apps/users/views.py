@@ -172,7 +172,7 @@ def mobile_refresh_view(request: Request) -> Response:
       return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
 
-    
+# this sets csrf cookie
 @ensure_csrf_cookie
 @api_view(["GET"])
 def csrf_view(request: Request) -> Response:

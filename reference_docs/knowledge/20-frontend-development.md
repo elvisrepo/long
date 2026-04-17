@@ -106,6 +106,25 @@ Current authenticated-user Query checkpoint:
   - `getMe()` owns the HTTP contract
   - TanStack Query owns the cached current-user resource
 
+Current web session bootstrap checkpoint:
+- the frontend now has a `restoreWebSession()` helper in `src/features/auth/auth-bootstrap.ts`
+- the helper restores a web session through the backend’s cookie-based refresh contract:
+  - `GET /api/auth/csrf/`
+  - read `csrftoken` from `document.cookie`
+  - `POST /api/auth/web/refresh/` with:
+    - `credentials: 'include'`
+    - `X-CSRFToken`
+- on success, the helper stores the returned access token in the in-memory session layer
+
+Important transport split:
+- the CSRF token is read by frontend JavaScript and echoed in `X-CSRFToken`
+- the refresh token is **not** read by frontend JavaScript
+- the browser sends the `refresh_token` cookie automatically on the refresh request because the request uses `credentials: 'include'`
+
+Current limitation:
+- `restoreWebSession()` exists and is covered
+- it is not yet wired into app startup, so auth restoration after a full page reload is not complete
+
 Immediate next frontend step from this checkpoint:
 - keep the current route skeleton
 - replace placeholder page bodies with auth-aware UI
