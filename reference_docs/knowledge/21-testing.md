@@ -60,6 +60,10 @@ Current frontend testing checkpoint:
   - sends `X-CSRFToken`
   - relies on cookie transport with `credentials: 'include'`
   - stores the returned access token
+- `AuthBootstrapGate` tests now cover startup-gate behavior:
+  - children do not render while session restore is pending
+  - loading UI is shown during bootstrap
+  - children still render when session restore fails
 
 Recommended frontend test progression from this checkpoint:
 - keep using route-level tests to prove TanStack Router behavior
@@ -122,12 +126,15 @@ What the current frontend tests are proving:
 - dashboard route tests now prove the protected dashboard behavior:
   - unauthenticated/error state redirects to `/login`
   - authenticated state renders the dashboard at `/`
+- dashboard route tests now also prove startup integration:
+  - the protected dashboard waits for auth bootstrap before rendering
 - protected-route coverage now exercises the shared `RequireAuth` path indirectly through both `/` and `/settings`
 
 What the current frontend tests are not proving:
 - no real backend requests are being made yet
 - no real frontend-to-backend auth request is being executed yet; the network boundary is still mocked
 - no app-wide authenticated user bootstrap lifecycle is covered yet
+- startup bootstrap is covered at the gate/component and route-integration level, but not yet as a full app-wide auth lifecycle with real backend responses
 - only the success path of `restoreWebSession()` is covered so far
 - no dedicated unit/component test exists yet for `RequireAuth` itself; coverage is currently indirect through route tests
 - no browser-level end-to-end flow is covered yet

@@ -1,6 +1,7 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { restoreWebSession } from '../features/auth/auth-bootstrap'
 import { useMeQuery } from '../features/auth/use-me-query'
 import { renderRoute } from './render-route'
 
@@ -9,8 +10,8 @@ vi.mock('../features/auth/use-me-query', () => ({
 }))
 
 vi.mock('../features/auth/auth-bootstrap', () => ({
-    restoreWebSession: vi.fn().mockResolvedValue({ access: 'test-access-token' }),
-  }))
+  restoreWebSession: vi.fn().mockResolvedValue({ access: 'test-access-token' }),
+}))
 
 describe('dashboard route', () => {
   afterEach(() => {
@@ -49,5 +50,42 @@ describe('dashboard route', () => {
     expect(
       await screen.findByRole('heading', { name: /login/i }),
     ).toBeInTheDocument()
+  })
+
+  it('waits for auth bootstrap before rendering the protected dashboard', async () => {
+    let resolveRestore: (() => void) | undefined
+
+    // Pending promise
+    vi.mocked(restoreWebSession).mockReturnValue(
+      new Promise((resolve) => {
+        resolveRestore = () => resolve(undefined as never)
+      }),
+    )
+
+    vi.mocked(useMeQuery).mockReturnValue({
+      isLoading: false,
+      isError: false,
+      isSuccess: true,
+      data: {
+        email: 'user@example.com',
+      },
+      error: null,
+    } as ReturnType<typeof useMeQuery>)
+
+    renderRoute('/')
+
+    expect(screen.getByText(/restoring session/i)).toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: /dashboard/i }),
+    ).not.toBeInTheDocument()
+
+   // Finish bootstrap manually
+    resolveRestore?.()
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { name: /dashboard/i }),
+      ).toBeInTheDocument()
+    })
   })
 })

@@ -125,6 +125,15 @@ Current limitation:
 - `restoreWebSession()` exists and is covered
 - it is not yet wired into app startup, so auth restoration after a full page reload is not complete
 
+Current startup-gate checkpoint:
+- the frontend now has `AuthBootstrapGate` in `src/features/auth/auth-bootstrap-gate.tsx`
+- `src/main.tsx` now wraps `RouterProvider` with `AuthBootstrapGate`
+- startup behavior is now:
+  - render `Restoring session...`
+  - run `restoreWebSession()`
+  - continue rendering the routed app whether restore succeeds or fails
+- this prevents protected routes from rendering or redirecting before the initial auth-bootstrap attempt finishes
+
 Immediate next frontend step from this checkpoint:
 - keep the current route skeleton
 - replace placeholder page bodies with auth-aware UI
@@ -152,7 +161,7 @@ Current protected-route checkpoint:
 - unauthenticated or errored current-user state redirects protected routes to `/login`
 
 Current limitation:
-- authenticated user bootstrap is still route-local rather than app-wide
+- protected routes now wait for startup bootstrap, but current-user bootstrap is still not centralized into a router-native auth layout
 - the shared auth guard currently exists as a reusable component (`RequireAuth`), not yet as a TanStack Router auth layout
 
 ### 5.5 State Management
