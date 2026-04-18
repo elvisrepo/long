@@ -147,6 +147,11 @@ What the current frontend tests are proving:
   - successful logout redirects to `/login`
   - failed logout keeps the user on `/settings` and shows the error
   - revisiting `/settings` after successful logout is blocked when the mocked auth state changes to unauthenticated
+- current logout-flow route tests are now stronger than a pure hook mock:
+  - `getMe()` is mocked
+  - the real `useMeQuery()` hook still runs
+  - a real `QueryClient` is used in the test render
+  - post-logout route protection is therefore exercised through real query-hook behavior rather than a fully mocked `useMeQuery()`
 
 What the current frontend tests are not proving:
 - no real backend requests are being made yet
@@ -155,7 +160,7 @@ What the current frontend tests are not proving:
 - startup bootstrap is covered at the gate/component and route-integration level, but not yet as a full app-wide auth lifecycle with real backend responses
 - only the success path of `restoreWebSession()` is covered so far
 - logout is only covered at the helper boundary so far; UI/query invalidation/redirect behavior is not covered yet
-- current logout route tests still drive the post-logout auth change through mocked `useMeQuery()` return order, so they prove route orchestration more strongly than they prove real TanStack Query invalidation semantics
+- logout route tests still mock the network/auth boundary through `getMe()` and `logoutWeb()`, so they are not full end-to-end Query invalidation proofs, but they are stronger than the earlier fully mocked `useMeQuery()` approach
 - no dedicated unit/component test exists yet for `RequireAuth` itself; coverage is currently indirect through route tests
 - no browser-level end-to-end flow is covered yet
 

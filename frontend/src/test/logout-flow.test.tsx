@@ -6,106 +6,78 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { AuthBootstrapGate } from '../features/auth/auth-bootstrap-gate'
 import { logoutWeb } from '../features/auth/auth-logout-api'
-import { useMeQuery } from '../features/auth/use-me-query'
+import { getMe } from '../features/auth/auth-me-api'
 import { routeTree } from '../routeTree.gen'
 
 vi.mock('../features/auth/auth-bootstrap', () => ({
-    restoreWebSession: vi.fn().mockResolvedValue({ access: 'test-access-token' }),
-  }))
+  restoreWebSession: vi.fn().mockResolvedValue({ access: 'test-access-token' }),
+}))
 
- vi.mock('../features/auth/auth-logout-api', () => ({
-    logoutWeb: vi.fn(),
-  }))
+vi.mock('../features/auth/auth-logout-api', () => ({
+  logoutWeb: vi.fn(),
+}))
 
-vi.mock('../features/auth/use-me-query', () => ({
-    useMeQuery: vi.fn(),
-  }))
+vi.mock('../features/auth/auth-me-api', () => ({
+  getMe: vi.fn(),
+}))
+
+function renderLogoutFlow(path: string = '/settings') {
+  window.history.pushState({}, '', path)
+
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  })
+
+  const router = createRouter({ routeTree })
+
+  render(
+    <QueryClientProvider client={queryClient}>
+      <AuthBootstrapGate>
+        <RouterProvider router={router} />
+      </AuthBootstrapGate>
+    </QueryClientProvider>,
+  )
+}
 
 describe('logout flow', () => {
-    afterEach(() => {
-      vi.resetAllMocks()
+  afterEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('logs out and redirects to /login', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(logoutWeb).mockResolvedValue()
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
     })
 
-    it('logs out and redirects to /login', async () => {
-      const user = userEvent.setup()
+    renderLogoutFlow()
 
-      vi.mocked(logoutWeb).mockResolvedValue()
+    await user.click(await screen.findByRole('button', { name: /logout/i }))
 
-      vi.mocked(useMeQuery).mockReturnValue({
-        isLoading: false,
-        isError: false,
-        isSuccess: true,
-        data: {
-          email: 'user@example.com',
-        },
-        error: null,
-      } as ReturnType<typeof useMeQuery>)
-
-      window.history.pushState({}, '', '/settings')
-
-      const queryClient = new QueryClient({
-        defaultOptions: {
-          queries: {
-            retry: false,
-          },
-        },
-      })
-
-      const router = createRouter({ routeTree })
-
-      render(
-        <QueryClientProvider client={queryClient}>
-          <AuthBootstrapGate>
-            <RouterProvider router={router} />
-          </AuthBootstrapGate>
-        </QueryClientProvider>,
-      )
-
-      await user.click(await screen.findByRole('button', { name: /logout/i }))
-
-      await waitFor(() => {
-        expect(logoutWeb).toHaveBeenCalledTimes(1)
-      })
-
-      expect(
-        await screen.findByRole('heading', { name: /login/i }),
-      ).toBeInTheDocument()
+    await waitFor(() => {
+      expect(logoutWeb).toHaveBeenCalledTimes(1)
     })
 
-     it('shows an error and stays on settings when logout fails', async () => {
+    expect(
+      await screen.findByRole('heading', { name: /login/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('shows an error and stays on settings when logout fails', async () => {
     const user = userEvent.setup()
 
     vi.mocked(logoutWeb).mockRejectedValue(new Error('Token is invalid.'))
-
-    vi.mocked(useMeQuery).mockReturnValue({
-      isLoading: false,
-      isError: false,
-      isSuccess: true,
-      data: {
-        email: 'user@example.com',
-      },
-      error: null,
-    } as ReturnType<typeof useMeQuery>)
-
-    window.history.pushState({}, '', '/settings')
-
-    const queryClient = new QueryClient({
-      defaultOptions: {
-        queries: {
-          retry: false,
-        },
-      },
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
     })
 
-    const router = createRouter({ routeTree })
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <AuthBootstrapGate>
-          <RouterProvider router={router} />
-        </AuthBootstrapGate>
-      </QueryClientProvider>,
-    )
+    renderLogoutFlow()
 
     await user.click(await screen.findByRole('button', { name: /logout/i }))
 
@@ -122,44 +94,13 @@ describe('logout flow', () => {
     const user = userEvent.setup()
 
     vi.mocked(logoutWeb).mockResolvedValue()
+    vi.mocked(getMe)
+      .mockResolvedValueOnce({
+        email: 'user@example.com',
+      })
+      .mockRejectedValue(new Error('Authentication credentials were not provided.'))
 
-    vi.mocked(useMeQuery)
-      .mockReturnValueOnce({
-        isLoading: false,
-        isError: false,
-        isSuccess: true,
-        data: {
-          email: 'user@example.com',
-        },
-        error: null,
-      } as ReturnType<typeof useMeQuery>)
-      .mockReturnValue({
-        isLoading: false,
-        isError: true,
-        isSuccess: false,
-        data: undefined,
-        error: new Error('Authentication credentials were not provided.'),
-      } as ReturnType<typeof useMeQuery>)
-
-    window.history.pushState({}, '', '/settings')
-
-    const queryClient = new QueryClient({
-      defaultOptions: {
-        queries: {
-          retry: false,
-        },
-      },
-    })
-
-    const router = createRouter({ routeTree })
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <AuthBootstrapGate>
-          <RouterProvider router={router} />
-        </AuthBootstrapGate>
-      </QueryClientProvider>,
-    )
+    renderLogoutFlow()
 
     await user.click(await screen.findByRole('button', { name: /logout/i }))
 
@@ -173,5 +114,4 @@ describe('logout flow', () => {
       await screen.findByRole('heading', { name: /login/i }),
     ).toBeInTheDocument()
   })
-
-  })
+})

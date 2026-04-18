@@ -73,6 +73,10 @@
   - successful logout redirects to `/login`
   - failed logout stays on `/settings` and shows the error
   - revisiting a protected route after logout is blocked when mocked auth state changes to unauthenticated
+- Frontend logout-flow route tests are now stronger:
+  - they mock `getMe()` instead of mocking `useMeQuery()` directly
+  - the real query hook still runs against a real `QueryClient`
+  - repeated app-shell setup was reduced through a small local render helper in the test file
 - Frontend login route now:
   - submits through `loginWeb(...)`
   - displays backend auth errors
@@ -115,9 +119,9 @@
   - redirect to `/login`
   - keep startup bootstrap mocked in route tests so logout behavior stays isolated
 - current nuance:
-  - the logout-flow route tests currently model the post-logout auth change by changing mocked `useMeQuery()` return values across renders
-  - that is good coverage for route behavior
-  - it is not yet the same as proving real query invalidation/refetch semantics end to end
+  - the logout-flow route tests currently model the post-logout auth change by changing mocked `getMe()` results across renders
+  - that is better coverage than mocking `useMeQuery()` directly
+  - it is still not the same as proving real query invalidation/refetch semantics end to end
 - Frontend formatting is now wired with Prettier scripts:
   - `npm run format`
   - `npm run format:check`
