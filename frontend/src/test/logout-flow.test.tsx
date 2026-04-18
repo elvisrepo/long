@@ -114,4 +114,37 @@ describe('logout flow', () => {
       await screen.findByRole('heading', { name: /login/i }),
     ).toBeInTheDocument()
   })
+
+  it('re-fetches current user after logout when revisiting a protected route', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(logoutWeb).mockResolvedValue()
+    vi.mocked(getMe)
+      .mockResolvedValueOnce({
+        email: 'user@example.com',
+      })
+      .mockRejectedValue(new Error('Authentication credentials were not provided.'))
+
+    renderLogoutFlow()
+
+    expect(
+      await screen.findByRole('heading', { name: /settings/i }),
+    ).toBeInTheDocument()
+
+    expect(getMe).toHaveBeenCalledTimes(1)
+
+    await user.click(screen.getByRole('button', { name: /logout/i }))
+
+    expect(
+      await screen.findByRole('heading', { name: /login/i }),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('link', { name: /settings/i }))
+
+    expect(
+      await screen.findByRole('heading', { name: /login/i }),
+    ).toBeInTheDocument()
+
+    expect(getMe).toHaveBeenCalledTimes(2)
+  })
 })

@@ -77,6 +77,7 @@
   - they mock `getMe()` instead of mocking `useMeQuery()` directly
   - the real query hook still runs against a real `QueryClient`
   - repeated app-shell setup was reduced through a small local render helper in the test file
+  - revisiting `/settings` after logout causes a fresh `getMe()` call, so the app is re-checking current-user state rather than only relying on a one-time redirect
 - Frontend login route now:
   - submits through `loginWeb(...)`
   - displays backend auth errors

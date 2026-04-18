@@ -152,6 +152,7 @@ What the current frontend tests are proving:
   - the real `useMeQuery()` hook still runs
   - a real `QueryClient` is used in the test render
   - post-logout route protection is therefore exercised through real query-hook behavior rather than a fully mocked `useMeQuery()`
+  - revisiting a protected route after logout causes a fresh `getMe()` call, proving the `me` query is re-checked rather than only relying on the earlier redirect
 
 What the current frontend tests are not proving:
 - no real backend requests are being made yet
