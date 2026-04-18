@@ -104,6 +104,12 @@
   - it calls `POST /api/auth/web/logout/`
   - it relies on cookie transport with `credentials: 'include'`
   - it clears the in-memory access token on success
+- The next logout slice is route/UI orchestration:
+  - start from `/settings`
+  - trigger `logoutWeb()`
+  - clear or invalidate current-user state
+  - redirect to `/login`
+  - keep startup bootstrap mocked in route tests so logout behavior stays isolated
 - Frontend formatting is now wired with Prettier scripts:
   - `npm run format`
   - `npm run format:check`

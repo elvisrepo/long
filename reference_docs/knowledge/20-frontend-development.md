@@ -163,6 +163,16 @@ Current limitation:
 - logout exists only at the API-helper boundary
 - there is not yet a routed UI flow that invalidates current-user Query state and redirects to `/login`
 
+Current logout route-flow intent:
+- the routed logout flow is centered on `/settings`
+- the route-level behavior should be:
+  - authenticated user reaches `/settings`
+  - user clicks `Logout`
+  - route calls `logoutWeb()`
+  - route clears or invalidates current-user state
+  - route redirects to `/login`
+- because the routed app is wrapped by `AuthBootstrapGate`, route-level logout tests mock `restoreWebSession()` so startup completes immediately and the test stays focused on logout behavior
+
 Current protected-route checkpoint:
 - after login, the frontend stores the returned access token in memory
 - `getMe()` uses that bearer token to call `GET /api/auth/me/`

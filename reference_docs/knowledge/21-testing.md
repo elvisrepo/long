@@ -140,6 +140,11 @@ What the current frontend tests are proving:
 - dashboard route tests now also prove startup integration:
   - the protected dashboard waits for auth bootstrap before rendering
 - protected-route coverage now exercises the shared `RequireAuth` path indirectly through both `/` and `/settings`
+- planned logout-flow route tests are intended to prove the routed UI orchestration:
+  - authenticated user can reach `/settings`
+  - startup bootstrap is mocked so routed logout behavior is isolated
+  - clicking `Logout` calls `logoutWeb()`
+  - successful logout redirects to `/login`
 
 What the current frontend tests are not proving:
 - no real backend requests are being made yet
