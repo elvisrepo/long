@@ -71,4 +71,52 @@ describe('logout flow', () => {
         await screen.findByRole('heading', { name: /login/i }),
       ).toBeInTheDocument()
     })
+
+     it('shows an error and stays on settings when logout fails', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(logoutWeb).mockRejectedValue(new Error('Token is invalid.'))
+
+    vi.mocked(useMeQuery).mockReturnValue({
+      isLoading: false,
+      isError: false,
+      isSuccess: true,
+      data: {
+        email: 'user@example.com',
+      },
+      error: null,
+    } as ReturnType<typeof useMeQuery>)
+
+    window.history.pushState({}, '', '/settings')
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+      },
+    })
+
+    const router = createRouter({ routeTree })
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AuthBootstrapGate>
+          <RouterProvider router={router} />
+        </AuthBootstrapGate>
+      </QueryClientProvider>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: /logout/i }))
+
+    expect(
+      await screen.findByText(/token is invalid\./i),
+    ).toBeInTheDocument()
+
+    expect(
+      screen.getByRole('heading', { name: /settings/i }),
+    ).toBeInTheDocument()
+  })
+
+
   })
