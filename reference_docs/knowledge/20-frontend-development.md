@@ -149,6 +149,20 @@ Current login-route checkpoint:
 - successful login stores the returned access token in the current in-memory session layer
 - successful login currently redirects to `/`
 
+Current logout helper checkpoint:
+- the frontend now has `logoutWeb()` in `src/features/auth/auth-logout-api.ts`
+- the helper:
+  - reads `csrftoken`
+  - posts to `/api/auth/web/logout/`
+  - uses `credentials: 'include'`
+  - sends `X-CSRFToken`
+  - clears the in-memory access token on success
+  - throws backend `detail` or a fallback error on failure
+
+Current limitation:
+- logout exists only at the API-helper boundary
+- there is not yet a routed UI flow that invalidates current-user Query state and redirects to `/login`
+
 Current protected-route checkpoint:
 - after login, the frontend stores the returned access token in memory
 - `getMe()` uses that bearer token to call `GET /api/auth/me/`

@@ -248,6 +248,23 @@ Current web logout behavior:
 - invalid refresh token response: `400`
 - failed CSRF response: `403`
 
+Current frontend web logout helper:
+- `frontend/src/features/auth/auth-logout-api.ts`
+- helper name: `logoutWeb()`
+- current frontend-to-backend flow:
+  - read `csrftoken` from `document.cookie`
+  - `POST /api/auth/web/logout/`
+  - send `credentials: 'include'` so browser cookies are included
+  - send `X-CSRFToken`
+  - on success, clear the in-memory access token
+- current failure behavior:
+  - preserve backend `detail` when available
+  - otherwise fall back to `Logout failed`
+
+Important boundary:
+- frontend JavaScript still does not read the `refresh_token` cookie directly
+- browser cookie transport carries the refresh token for the logout request
+
 ### HttpOnly Cookie Role
 
 - `HttpOnly` cookies matter mainly for web-client refresh-token storage

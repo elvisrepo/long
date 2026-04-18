@@ -60,6 +60,12 @@ Current frontend testing checkpoint:
   - sends `X-CSRFToken`
   - relies on cookie transport with `credentials: 'include'`
   - stores the returned access token
+- a focused `logoutWeb()` helper test set now covers the web logout helper contract:
+  - posts to `/api/auth/web/logout/`
+  - sends `credentials: 'include'`
+  - sends `X-CSRFToken`
+  - preserves backend error detail when logout fails
+  - clears the in-memory access token after successful logout
 - `AuthBootstrapGate` tests now cover startup-gate behavior:
   - children do not render while session restore is pending
   - loading UI is shown during bootstrap
@@ -114,6 +120,11 @@ What the current frontend tests are proving:
   - frontend then calls the web refresh endpoint with `X-CSRFToken`
   - access token restoration still relies on browser cookie transport for the refresh token
   - successful refresh stores the new access token in the session layer
+- `logoutWeb()` tests now prove the frontend web logout helper contract:
+  - frontend does not read the refresh token directly
+  - frontend relies on cookie transport plus `X-CSRFToken`
+  - successful logout clears the in-memory access token
+  - unsuccessful logout surfaces backend error detail when present
 - login route tests now prove route-level orchestration behavior:
   - route calls `loginWeb(...)`
   - route surfaces async auth errors
@@ -136,6 +147,7 @@ What the current frontend tests are not proving:
 - no app-wide authenticated user bootstrap lifecycle is covered yet
 - startup bootstrap is covered at the gate/component and route-integration level, but not yet as a full app-wide auth lifecycle with real backend responses
 - only the success path of `restoreWebSession()` is covered so far
+- logout is only covered at the helper boundary so far; UI/query invalidation/redirect behavior is not covered yet
 - no dedicated unit/component test exists yet for `RequireAuth` itself; coverage is currently indirect through route tests
 - no browser-level end-to-end flow is covered yet
 
