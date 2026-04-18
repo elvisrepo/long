@@ -118,5 +118,60 @@ describe('logout flow', () => {
     ).toBeInTheDocument()
   })
 
+  it('does not allow returning to settings after successful logout', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(logoutWeb).mockResolvedValue()
+
+    vi.mocked(useMeQuery)
+      .mockReturnValueOnce({
+        isLoading: false,
+        isError: false,
+        isSuccess: true,
+        data: {
+          email: 'user@example.com',
+        },
+        error: null,
+      } as ReturnType<typeof useMeQuery>)
+      .mockReturnValue({
+        isLoading: false,
+        isError: true,
+        isSuccess: false,
+        data: undefined,
+        error: new Error('Authentication credentials were not provided.'),
+      } as ReturnType<typeof useMeQuery>)
+
+    window.history.pushState({}, '', '/settings')
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+      },
+    })
+
+    const router = createRouter({ routeTree })
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AuthBootstrapGate>
+          <RouterProvider router={router} />
+        </AuthBootstrapGate>
+      </QueryClientProvider>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: /logout/i }))
+
+    expect(
+      await screen.findByRole('heading', { name: /login/i }),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('link', { name: /settings/i }))
+
+    expect(
+      await screen.findByRole('heading', { name: /login/i }),
+    ).toBeInTheDocument()
+  })
 
   })

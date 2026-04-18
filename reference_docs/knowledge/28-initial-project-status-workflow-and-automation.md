@@ -69,6 +69,10 @@
 - Frontend current-user helper tests now verify the `getMe()` request/response contract and error handling.
 - Frontend current-user Query tests now verify `useMeQuery()` success and error states.
 - Frontend auth bootstrap gate tests now verify startup waiting behavior before the app renders routed content.
+- Frontend logout-flow route tests now verify:
+  - successful logout redirects to `/login`
+  - failed logout stays on `/settings` and shows the error
+  - revisiting a protected route after logout is blocked when mocked auth state changes to unauthenticated
 - Frontend login route now:
   - submits through `loginWeb(...)`
   - displays backend auth errors
@@ -110,6 +114,10 @@
   - clear or invalidate current-user state
   - redirect to `/login`
   - keep startup bootstrap mocked in route tests so logout behavior stays isolated
+- current nuance:
+  - the logout-flow route tests currently model the post-logout auth change by changing mocked `useMeQuery()` return values across renders
+  - that is good coverage for route behavior
+  - it is not yet the same as proving real query invalidation/refetch semantics end to end
 - Frontend formatting is now wired with Prettier scripts:
   - `npm run format`
   - `npm run format:check`
