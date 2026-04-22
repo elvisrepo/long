@@ -88,6 +88,7 @@
   - stores the returned access token in the current in-memory session layer
   - clears prior auth errors after a later successful submit
   - redirects to `/` on success
+  - after redirecting to `/`, the protected dashboard route fetches the current user through `getMe()`
 - Frontend `/settings` is now the first protected route:
   - unauthenticated state redirects to `/login`
   - authenticated state renders settings content and current user email

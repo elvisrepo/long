@@ -223,4 +223,28 @@ describe("login route", () => {
       expect(setAccessToken).toHaveBeenCalledWith('test-access-token')
     })
   })
+
+  it('fetches the current user after a successful login redirect', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(loginWeb).mockResolvedValue({
+      access: 'test-access-token',
+    })
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+
+    renderRoute('/login')
+
+    await user.type(await screen.findByLabelText(/email/i), 'user@example.com')
+    await user.type(await screen.findByLabelText(/password/i), 'secret123')
+    await user.click(await screen.findByRole('button', { name: /login/i }))
+
+    expect(
+      await screen.findByRole('heading', { name: /dashboard/i }),
+    ).toBeInTheDocument()
+
+    expect(getMe).toHaveBeenCalled()
+  })
 });

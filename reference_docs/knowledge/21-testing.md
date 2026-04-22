@@ -131,6 +131,7 @@ What the current frontend tests are proving:
   - route disables re-submit while pending
   - route stores the returned access token before continuing the success path
   - route redirects after successful login
+  - after the successful redirect to `/`, the protected dashboard `beforeLoad` fetches the current user through `getMe()`
 - settings route tests now prove the first protected-route behavior:
   - unauthenticated/error state redirects to `/login`
   - authenticated state renders settings content and the current user email
