@@ -125,6 +125,10 @@ What the current frontend tests are proving:
   - frontend relies on cookie transport plus `X-CSRFToken`
   - successful logout clears the in-memory access token
   - unsuccessful logout surfaces backend error detail when present
+- `registerWeb()` tests now prove the frontend web registration helper contract:
+  - frontend posts registration values to `/api/auth/register/`
+  - unsuccessful registration surfaces backend `detail` when present
+  - unsuccessful registration falls back to a generic registration error when needed
 - login route tests now prove route-level orchestration behavior:
   - route calls `loginWeb(...)`
   - route surfaces async auth errors
@@ -132,6 +136,13 @@ What the current frontend tests are proving:
   - route stores the returned access token before continuing the success path
   - route redirects after successful login
   - after the successful redirect to `/`, the protected dashboard `beforeLoad` fetches the current user through `getMe()`
+- register route tests now prove route-level registration behavior:
+  - route renders email and password inputs plus a submit button
+  - route calls `registerWeb(...)` with typed values
+  - route redirects to `/login` after successful registration
+  - route surfaces backend registration errors
+  - route disables the register button while pending
+  - route clears previous registration errors after a later successful submit
 - settings route tests now prove the first protected-route behavior:
   - unauthenticated/error state redirects to `/login`
   - authenticated state renders settings content and the current user email

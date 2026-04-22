@@ -138,10 +138,9 @@ Current startup-gate checkpoint:
 
 Immediate next frontend step from this checkpoint:
 - keep the current route skeleton
-- replace placeholder page bodies with auth-aware UI
-- add a small API client and in-memory session layer
-- wire `/login` and `/register` to the backend auth endpoints
-- protect authenticated routes such as `/settings` once `me` and session state are available
+- continue replacing placeholder page bodies with auth-aware UI
+- continue adding focused API helpers around backend auth endpoints
+- keep protected routes behind router-native auth before adding real dashboard content
 
 Current login-route checkpoint:
 - `/login` now uses the reusable `LoginForm`
@@ -150,6 +149,20 @@ Current login-route checkpoint:
 - the login button is disabled while the async login request is in progress
 - successful login stores the returned access token in the current in-memory session layer
 - successful login currently redirects to `/`
+
+Current register-route checkpoint:
+- the frontend now has `registerWeb()` in `src/features/auth/register-api.ts`
+- the helper:
+  - posts to `/api/auth/register/`
+  - sends JSON registration values
+  - preserves backend `detail` on registration failure
+  - throws a generic fallback error when no usable backend detail exists
+- `/register` now has a real form instead of placeholder text
+- the route calls `registerWeb(...)` on submit
+- successful registration redirects to `/login`
+- route-level registration failures are displayed on the page
+- the register button is disabled while the async registration request is in progress
+- previous registration errors clear on a later submit
 
 Current logout helper checkpoint:
 - the frontend now has `logoutWeb()` in `src/features/auth/auth-logout-api.ts`

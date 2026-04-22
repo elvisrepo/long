@@ -63,6 +63,7 @@
 - Frontend route tests now also verify the login screen shell at `/login`.
 - Frontend component tests now verify `LoginForm` value submission and the current empty-submit guard.
 - Frontend auth helper tests now verify the `loginWeb(...)` request/response contract and error handling.
+- Frontend register helper tests now verify the `registerWeb(...)` request/response contract and error handling.
 - Frontend auth session tests now verify the in-memory access token layer.
 - Frontend auth bootstrap helper tests now verify the initial web session restoration success path.
 - Frontend logout helper tests now verify the web logout request/response contract and session clearing behavior.
@@ -89,6 +90,13 @@
   - clears prior auth errors after a later successful submit
   - redirects to `/` on success
   - after redirecting to `/`, the protected dashboard route fetches the current user through `getMe()`
+- Frontend register route now:
+  - submits through `registerWeb(...)`
+  - posts to `/api/auth/register/`
+  - displays backend registration errors
+  - disables the submit button while pending
+  - clears prior registration errors after a later successful submit
+  - redirects to `/login` on success so the user can log in explicitly
 - Frontend `/settings` is now the first protected route:
   - unauthenticated state redirects to `/login`
   - authenticated state renders settings content and current user email
@@ -140,7 +148,7 @@
   - `getMe()` uses that access token to call `GET /api/auth/me/`
   - web logout can clear the in-memory access token through the backend logout endpoint
   - protected routes now depend on current-user query state rather than only on login redirect behavior
-- Frontend pages are still placeholders rather than real auth or dashboard screens.
+- Login, register, settings, and dashboard route shells are now implemented; real dashboard product content is still placeholder-level.
 - TanStack Query-based current-user state now exists, but bootstrap is still route-local rather than centralized at the app/auth-shell level.
 - Protected-route behavior exists for both `/` and `/settings`, and both routes now use the shared TanStack Router `beforeLoad` helper.
 - There is still no shared TanStack Router auth layout route for future protected routes.
@@ -254,8 +262,8 @@ Updated checkpoint interpretation:
 - the immediate next step is step 3: integrate the web auth slice end to end
 
 Immediate frontend auth integration target:
-- replace route placeholder bodies with real login/register UI
-- add a frontend API client for the existing auth endpoints
+- keep login/register route behavior aligned with the backend auth contract
+- continue adding focused frontend API helpers for existing auth endpoints as needed
 - keep the access token in memory
 - fetch `GET /api/auth/me/` into TanStack Query after successful auth transitions
 - add route protection for authenticated pages such as `/settings`
