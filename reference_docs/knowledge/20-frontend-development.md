@@ -40,8 +40,10 @@ Current frontend routing checkpoint:
 
 Current routing/auth checkpoint:
 - `/` is now treated as an authenticated dashboard route
-- `/settings` is also protected by the same current-user query pattern
-- protected-route behavior is still duplicated route by route and has not yet been extracted into a shared auth guard/layout
+- `/settings` is the first route migrated toward router-native auth protection
+- `/settings` uses TanStack Router `beforeLoad` with `context.queryClient.ensureQueryData({ queryKey: ['me'], queryFn: getMe })`
+- if the current-user query cannot be resolved, `/settings` redirects to `/login` before rendering route content
+- the dashboard `/` still uses the component guard path and has not yet been migrated to the router-native auth pattern
 
 ### 5.4 API Integration
 - Web: central API client + `TanStack Query` for server state, caching, retries, and invalidation
@@ -121,9 +123,9 @@ Important transport split:
 - the refresh token is **not** read by frontend JavaScript
 - the browser sends the `refresh_token` cookie automatically on the refresh request because the request uses `credentials: 'include'`
 
-Current limitation:
+Current checkpoint:
 - `restoreWebSession()` exists and is covered
-- it is not yet wired into app startup, so auth restoration after a full page reload is not complete
+- it is wired into app startup through `AuthBootstrapGate`, so route rendering waits for one restore attempt before protected-route checks run
 
 Current startup-gate checkpoint:
 - the frontend now has `AuthBootstrapGate` in `src/features/auth/auth-bootstrap-gate.tsx`
@@ -159,18 +161,16 @@ Current logout helper checkpoint:
   - clears the in-memory access token on success
   - throws backend `detail` or a fallback error on failure
 
-Current limitation:
-- logout exists only at the API-helper boundary
-- there is not yet a routed UI flow that invalidates current-user Query state and redirects to `/login`
-
-Current logout route-flow intent:
+Current logout route-flow checkpoint:
 - the routed logout flow is centered on `/settings`
-- the route-level behavior should be:
+- the route-level behavior now covered is:
   - authenticated user reaches `/settings`
   - user clicks `Logout`
   - route calls `logoutWeb()`
-  - route clears or invalidates current-user state
+  - route removes the cached current-user query with `queryClient.removeQueries({ queryKey: ['me'] })`
   - route redirects to `/login`
+- if logout fails, `/settings` stays rendered and shows the backend error detail
+- after a successful logout, revisiting `/settings` re-checks `getMe()` through the router `beforeLoad` instead of trusting the earlier route state
 - because the routed app is wrapped by `AuthBootstrapGate`, route-level logout tests mock `restoreWebSession()` so startup completes immediately and the test stays focused on logout behavior
 
 Current protected-route checkpoint:
@@ -186,7 +186,8 @@ Current protected-route checkpoint:
 
 Current limitation:
 - protected routes now wait for startup bootstrap, but current-user bootstrap is still not centralized into a router-native auth layout
-- the shared auth guard currently exists as a reusable component (`RequireAuth`), not yet as a TanStack Router auth layout
+- `/settings` has started the router-native migration with route `beforeLoad`
+- the shared auth guard still exists as a reusable component (`RequireAuth`) for routes that have not yet migrated
 
 ### 5.5 State Management
 - Web:
@@ -212,6 +213,13 @@ Current protected-route composition pattern:
 - pass protected page content as children
 - use a render-function child when the page needs the resolved `CurrentUser`, such as showing `currentUser.email`
 - do not add a separate React auth context while TanStack Query already owns the shared current-user server state
+
+Current router-native auth pattern:
+- pass the app `QueryClient` into TanStack Router context
+- in protected route `beforeLoad`, call `context.queryClient.ensureQueryData({ queryKey: ['me'], queryFn: getMe })`
+- redirect to `/login` when the current-user query fails
+- keep route components using `useMeQuery()` when they need the current-user data for rendering
+- prefer this pattern for newly migrated protected routes because it blocks unauthenticated route content before the component renders
 
 Do not:
 - store the access token inside query cache

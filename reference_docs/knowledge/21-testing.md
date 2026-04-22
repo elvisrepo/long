@@ -134,13 +134,18 @@ What the current frontend tests are proving:
 - settings route tests now prove the first protected-route behavior:
   - unauthenticated/error state redirects to `/login`
   - authenticated state renders settings content and the current user email
+- settings route tests now exercise the router-native auth guard:
+  - `getMe()` is mocked at the API-helper boundary
+  - TanStack Router `beforeLoad` uses the router `queryClient` context
+  - failed current-user resolution redirects before settings content renders
+  - successful current-user resolution allows settings content to render
 - dashboard route tests now prove the protected dashboard behavior:
   - unauthenticated/error state redirects to `/login`
   - authenticated state renders the dashboard at `/`
 - dashboard route tests now also prove startup integration:
   - the protected dashboard waits for auth bootstrap before rendering
-- protected-route coverage now exercises the shared `RequireAuth` path indirectly through both `/` and `/settings`
-- planned logout-flow route tests are intended to prove the routed UI orchestration:
+- protected-route coverage still exercises the shared `RequireAuth` path through routes that have not migrated to router-native auth
+- logout-flow route tests now prove the routed UI orchestration:
   - authenticated user can reach `/settings`
   - startup bootstrap is mocked so routed logout behavior is isolated
   - clicking `Logout` calls `logoutWeb()`
@@ -151,6 +156,9 @@ What the current frontend tests are proving:
   - `getMe()` is mocked
   - the real `useMeQuery()` hook still runs
   - a real `QueryClient` is used in the test render
+  - the test router receives the same `context: { queryClient }` shape used by production router setup
+  - tests that only need an already-authenticated route seed `queryClient.setQueryData(['me'], { email: 'user@example.com' })`
+  - tests that need to prove router re-check behavior avoid seeding the cache so `beforeLoad` must call `getMe()`
   - post-logout route protection is therefore exercised through real query-hook behavior rather than a fully mocked `useMeQuery()`
   - revisiting a protected route after logout causes a fresh `getMe()` call, proving the `me` query is re-checked rather than only relying on the earlier redirect
 
@@ -160,7 +168,6 @@ What the current frontend tests are not proving:
 - no app-wide authenticated user bootstrap lifecycle is covered yet
 - startup bootstrap is covered at the gate/component and route-integration level, but not yet as a full app-wide auth lifecycle with real backend responses
 - only the success path of `restoreWebSession()` is covered so far
-- logout is only covered at the helper boundary so far; UI/query invalidation/redirect behavior is not covered yet
 - logout route tests still mock the network/auth boundary through `getMe()` and `logoutWeb()`, so they are not full end-to-end Query invalidation proofs, but they are stronger than the earlier fully mocked `useMeQuery()` approach
 - no dedicated unit/component test exists yet for `RequireAuth` itself; coverage is currently indirect through route tests
 - no browser-level end-to-end flow is covered yet

@@ -1,11 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
   import { screen } from '@testing-library/react'
 
-  vi.mock('../features/auth/use-me-query', () => ({
-    useMeQuery: vi.fn(),
+ vi.mock('../features/auth/auth-bootstrap', () => ({
+    restoreWebSession: vi.fn().mockResolvedValue({ access: 'test-access-token' }),
   }))
 
-  import { useMeQuery } from '../features/auth/use-me-query'
+  vi.mock('../features/auth/auth-me-api', () => ({
+    getMe: vi.fn(),
+  }))
+
+  import { getMe } from '../features/auth/auth-me-api'
   import { renderRoute } from './render-route'
 
   describe('settings route', () => {
@@ -14,13 +18,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
     })
 
     it('redirects to /login when the user is not authenticated', async () => {
-      vi.mocked(useMeQuery).mockReturnValue({
-        isLoading: false,
-        isError: true,
-        isSuccess: false,
-        data: undefined,
-        error: new Error('Authentication credentials were not provided.'),
-      } as ReturnType<typeof useMeQuery>)
+       vi.mocked(getMe).mockRejectedValue(
+        new Error('Authentication credentials were not provided.'),
+      )
 
       renderRoute('/settings')
 
@@ -30,15 +30,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
     })
 
     it('renders settings for an authenticated user', async () => {
-    vi.mocked(useMeQuery).mockReturnValue({
-      isLoading: false,
-      isError: false,
-      isSuccess: true,
-      data: {
+     vi.mocked(getMe).mockResolvedValue({
         email: 'user@example.com',
-      },
-      error: null,
-    } as ReturnType<typeof useMeQuery>)
+      })
 
     renderRoute('/settings')
 

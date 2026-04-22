@@ -76,6 +76,9 @@
 - Frontend logout-flow route tests are now stronger:
   - they mock `getMe()` instead of mocking `useMeQuery()` directly
   - the real query hook still runs against a real `QueryClient`
+  - the test router receives `context: { queryClient }`, matching the production router setup
+  - most logout-flow tests seed `['me']` in the query cache to model an already-authenticated starting route
+  - the re-fetch test intentionally avoids seeding `['me']` so `/settings` `beforeLoad` must call `getMe()`
   - repeated app-shell setup was reduced through a small local render helper in the test file
   - revisiting `/settings` after logout causes a fresh `getMe()` call, so the app is re-checking current-user state rather than only relying on a one-time redirect
 - Frontend login route now:
@@ -88,10 +91,13 @@
 - Frontend `/settings` is now the first protected route:
   - unauthenticated state redirects to `/login`
   - authenticated state renders settings content and current user email
+  - protection has been migrated to TanStack Router `beforeLoad`
+  - `beforeLoad` uses `context.queryClient.ensureQueryData({ queryKey: ['me'], queryFn: getMe })`
+  - failed current-user resolution redirects before settings content renders
 - Frontend `/` is now also a protected route:
   - unauthenticated state redirects to `/login`
   - authenticated state renders the dashboard
-- Frontend protected routes now share a reusable auth guard component:
+- Frontend protected routes still have a reusable auth guard component for routes that have not migrated:
   - `frontend/src/features/auth/require-auth.tsx`
   - it consumes `useMeQuery()` once
   - it redirects unauthenticated access to `/login`
@@ -113,12 +119,6 @@
   - it calls `POST /api/auth/web/logout/`
   - it relies on cookie transport with `credentials: 'include'`
   - it clears the in-memory access token on success
-- The next logout slice is route/UI orchestration:
-  - start from `/settings`
-  - trigger `logoutWeb()`
-  - clear or invalidate current-user state
-  - redirect to `/login`
-  - keep startup bootstrap mocked in route tests so logout behavior stays isolated
 - current nuance:
   - the logout-flow route tests currently model the post-logout auth change by changing mocked `getMe()` results across renders
   - that is better coverage than mocking `useMeQuery()` directly
@@ -142,10 +142,11 @@
   - protected routes now depend on current-user query state rather than only on login redirect behavior
 - Frontend pages are still placeholders rather than real auth or dashboard screens.
 - TanStack Query-based current-user state now exists, but bootstrap is still route-local rather than centralized at the app/auth-shell level.
-- Protected-route behavior exists for both `/` and `/settings`, and is now centralized in a shared `RequireAuth` component.
+- Protected-route behavior exists for both `/` and `/settings`.
+- `/settings` is now router-native through TanStack Router `beforeLoad`; `/` still uses the shared `RequireAuth` component.
 - There is still no app-wide auth layout/bootstrapping route yet.
 - the bootstrap helper is now wired into app startup through `AuthBootstrapGate`
-- the auth boundary is still component-based rather than a TanStack Router auth layout
+- the auth boundary is partially migrated toward router-native auth, but there is not yet a dedicated TanStack Router auth layout route
 - No CD pipeline exists yet.
 - Security automation beyond lint, type-checking, and tests is not wired yet.
 

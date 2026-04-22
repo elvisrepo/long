@@ -16,7 +16,12 @@ export function renderRoute(path: string) {
       },
     })
 
-  const router = createRouter({ routeTree });
+  const router = createRouter({
+    routeTree,
+    context: {
+      queryClient,
+    },
+  })
 
   return render(
       <QueryClientProvider client={queryClient}>

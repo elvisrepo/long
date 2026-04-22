@@ -1,5 +1,11 @@
-import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
+import { QueryClient } from "@tanstack/react-query";
+import { createRootRoute, createRootRouteWithContext, Link, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+
+interface RouterContext {
+  queryClient: QueryClient
+}
+
 
 const RootLayout = () => (
   <>
@@ -27,4 +33,7 @@ const RootLayout = () => (
   </>
 );
 
-export const Route = createRootRoute({ component: RootLayout });
+ export const Route = createRootRouteWithContext<RouterContext>()({
+    component: RootLayout,
+    notFoundComponent: () => <div>404 Not Found</div>,
+  })

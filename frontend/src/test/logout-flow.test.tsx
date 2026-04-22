@@ -21,7 +21,15 @@ vi.mock('../features/auth/auth-me-api', () => ({
   getMe: vi.fn(),
 }))
 
-function renderLogoutFlow(path: string = '/settings') {
+interface RenderLogoutFlowOptions {
+  path?: string
+  seedCurrentUser?: boolean
+}
+
+function renderLogoutFlow({
+  path = '/settings',
+  seedCurrentUser = true,
+}: RenderLogoutFlowOptions = {}) {
   window.history.pushState({}, '', path)
 
   const queryClient = new QueryClient({
@@ -32,7 +40,18 @@ function renderLogoutFlow(path: string = '/settings') {
     },
   })
 
-  const router = createRouter({ routeTree })
+  if (seedCurrentUser) {
+    queryClient.setQueryData(['me'], {
+      email: 'user@example.com',
+    })
+  }
+
+  const router = createRouter({
+    routeTree,
+    context: {
+      queryClient,
+    },
+  })
 
   render(
     <QueryClientProvider client={queryClient}>
@@ -52,9 +71,9 @@ describe('logout flow', () => {
     const user = userEvent.setup()
 
     vi.mocked(logoutWeb).mockResolvedValue()
-    vi.mocked(getMe).mockResolvedValue({
-      email: 'user@example.com',
-    })
+    vi.mocked(getMe).mockRejectedValue(
+      new Error('Authentication credentials were not provided.'),
+    )
 
     renderLogoutFlow()
 
@@ -73,9 +92,6 @@ describe('logout flow', () => {
     const user = userEvent.setup()
 
     vi.mocked(logoutWeb).mockRejectedValue(new Error('Token is invalid.'))
-    vi.mocked(getMe).mockResolvedValue({
-      email: 'user@example.com',
-    })
 
     renderLogoutFlow()
 
@@ -94,11 +110,9 @@ describe('logout flow', () => {
     const user = userEvent.setup()
 
     vi.mocked(logoutWeb).mockResolvedValue()
-    vi.mocked(getMe)
-      .mockResolvedValueOnce({
-        email: 'user@example.com',
-      })
-      .mockRejectedValue(new Error('Authentication credentials were not provided.'))
+    vi.mocked(getMe).mockRejectedValue(
+      new Error('Authentication credentials were not provided.'),
+    )
 
     renderLogoutFlow()
 
@@ -123,15 +137,19 @@ describe('logout flow', () => {
       .mockResolvedValueOnce({
         email: 'user@example.com',
       })
+      .mockResolvedValueOnce({
+        email: 'user@example.com',
+      })
       .mockRejectedValue(new Error('Authentication credentials were not provided.'))
 
-    renderLogoutFlow()
+    renderLogoutFlow({ seedCurrentUser: false })
 
     expect(
       await screen.findByRole('heading', { name: /settings/i }),
     ).toBeInTheDocument()
 
-    expect(getMe).toHaveBeenCalledTimes(1)
+    const callsBeforeLogout = vi.mocked(getMe).mock.calls.length
+    expect(callsBeforeLogout).toBeGreaterThan(0)
 
     await user.click(screen.getByRole('button', { name: /logout/i }))
 
@@ -145,6 +163,6 @@ describe('logout flow', () => {
       await screen.findByRole('heading', { name: /login/i }),
     ).toBeInTheDocument()
 
-    expect(getMe).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(getMe).mock.calls.length).toBeGreaterThan(callsBeforeLogout)
   })
 })

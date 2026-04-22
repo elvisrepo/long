@@ -1,17 +1,31 @@
 import { useState } from 'react'
   import { useQueryClient } from '@tanstack/react-query'
-  import { createFileRoute, useNavigate } from '@tanstack/react-router'
+  import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 
   import { logoutWeb } from '../features/auth/auth-logout-api'
-  import { RequireAuth } from '../features/auth/require-auth'
+  import { getMe } from '../features/auth/auth-me-api'
+  import { useMeQuery } from '../features/auth/use-me-query'
 
   export const Route = createFileRoute('/settings')({
+
+    beforeLoad: async ({context}) => {
+      try {
+        await context.queryClient.ensureQueryData({
+          queryKey: ['me'],
+          queryFn: getMe,
+        })
+      } catch {
+        throw redirect({ to: '/login'})
+      }
+    },
+
     component: SettingsRoute,
   })
 
   function SettingsRoute() {
     const navigate = useNavigate()
     const queryClient = useQueryClient()
+    const meQuery = useMeQuery()
     const [errorMessage, setErrorMessage] = useState('')
     const [isLoggingOut, setIsLoggingOut] = useState(false)
 
@@ -34,19 +48,23 @@ import { useState } from 'react'
       }
     }
 
+    if (!meQuery.data) {
+      return <p>Loading...</p>
+    }
+
     return (
-      <RequireAuth>
-        {(currentUser) => (
-          <section>
-            <h1>Settings</h1>
-            <p>Signed in as {currentUser.email}</p>
-            {errorMessage ? <p>{errorMessage}</p> : null}
-            <button type="button" disabled={isLoggingOut} onClick={() => void handleLogout()}>
-              Logout
-            </button>
-          </section>
-        )}
-      </RequireAuth>
+      <section>
+        <h1>Settings</h1>
+        <p>Signed in as {meQuery.data.email}</p>
+        {errorMessage ? <p>{errorMessage}</p> : null}
+        <button
+          type="button"
+          disabled={isLoggingOut}
+          onClick={() => void handleLogout()}
+        >
+          Logout
+        </button>
+      </section>
     )
 
   }
