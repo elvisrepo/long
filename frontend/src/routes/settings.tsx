@@ -1,24 +1,13 @@
 import { useState } from 'react'
-  import { useQueryClient } from '@tanstack/react-query'
-  import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
+import { useQueryClient } from '@tanstack/react-query'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { requireAuthBeforeLoad } from '../features/auth/require-auth-before-load'
 
-  import { logoutWeb } from '../features/auth/auth-logout-api'
-  import { getMe } from '../features/auth/auth-me-api'
-  import { useMeQuery } from '../features/auth/use-me-query'
+import { logoutWeb } from '../features/auth/auth-logout-api'
+import { useMeQuery } from '../features/auth/use-me-query'
 
-  export const Route = createFileRoute('/settings')({
-
-    beforeLoad: async ({context}) => {
-      try {
-        await context.queryClient.ensureQueryData({
-          queryKey: ['me'],
-          queryFn: getMe,
-        })
-      } catch {
-        throw redirect({ to: '/login'})
-      }
-    },
-
+export const Route = createFileRoute('/settings')({
+    beforeLoad: requireAuthBeforeLoad,
     component: SettingsRoute,
   })
 

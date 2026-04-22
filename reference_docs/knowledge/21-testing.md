@@ -136,7 +136,8 @@ What the current frontend tests are proving:
   - authenticated state renders settings content and the current user email
 - settings route tests now exercise the router-native auth guard:
   - `getMe()` is mocked at the API-helper boundary
-  - TanStack Router `beforeLoad` uses the router `queryClient` context
+  - the route uses the shared `requireAuthBeforeLoad` helper
+  - the helper uses the router `queryClient` context
   - failed current-user resolution redirects before settings content renders
   - successful current-user resolution allows settings content to render
 - dashboard route tests now prove the protected dashboard behavior:
@@ -145,6 +146,7 @@ What the current frontend tests are proving:
 - dashboard route tests now also prove startup integration:
   - the protected dashboard waits for auth bootstrap before rendering
 - protected-route route tests now exercise router-native auth for both `/` and `/settings`
+- both protected routes delegate to the same `requireAuthBeforeLoad` helper, so behavior stays centralized while still being covered through route tests
 - the older `RequireAuth` component guard has been removed, so there is no separate component-guard test target
 - logout-flow route tests now prove the routed UI orchestration:
   - authenticated user can reach `/settings`

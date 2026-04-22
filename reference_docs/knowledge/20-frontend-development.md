@@ -41,7 +41,8 @@ Current frontend routing checkpoint:
 Current routing/auth checkpoint:
 - `/` is now treated as an authenticated dashboard route
 - `/` and `/settings` now use router-native auth protection
-- protected routes use TanStack Router `beforeLoad` with `context.queryClient.ensureQueryData({ queryKey: ['me'], queryFn: getMe })`
+- protected routes use the shared `requireAuthBeforeLoad` helper in `src/features/auth/require-auth-before-load.ts`
+- `requireAuthBeforeLoad` uses TanStack Router `beforeLoad` context and `context.queryClient.ensureQueryData({ queryKey: ['me'], queryFn: getMe })`
 - if the current-user query cannot be resolved, protected routes redirect to `/login` before rendering route content
 
 ### 5.4 API Integration
@@ -176,14 +177,14 @@ Current protected-route checkpoint:
 - after login, the frontend stores the returned access token in memory
 - `getMe()` uses that bearer token to call `GET /api/auth/me/`
 - `useMeQuery()` exposes the current authenticated user resource, currently including `email`
-- protected-route checks now live in TanStack Router `beforeLoad`
+- protected-route checks now live in the shared TanStack Router `beforeLoad` helper `requireAuthBeforeLoad`
 - `frontend/src/features/auth/require-auth.tsx` was removed after `/` and `/settings` migrated to router-native auth
 - a logged-in user can render the protected dashboard route at `/`
 - unauthenticated or errored current-user state redirects protected routes to `/login`
 
 Current limitation:
 - protected routes now wait for startup bootstrap, but there is still no dedicated route group/auth layout for all future protected routes
-- `/` and `/settings` each define their own `beforeLoad`; the next routing cleanup is to decide whether to introduce a shared TanStack Router auth layout route
+- `/` and `/settings` share the same `requireAuthBeforeLoad` helper, but the project does not yet have a shared TanStack Router auth layout route
 
 ### 5.5 State Management
 - Web:
@@ -206,7 +207,9 @@ Auth/session split for the web app:
 
 Current router-native auth pattern:
 - pass the app `QueryClient` into TanStack Router context
-- in protected route `beforeLoad`, call `context.queryClient.ensureQueryData({ queryKey: ['me'], queryFn: getMe })`
+- import `requireAuthBeforeLoad` from `src/features/auth/require-auth-before-load.ts`
+- assign `beforeLoad: requireAuthBeforeLoad` on protected route definitions
+- inside the helper, call `context.queryClient.ensureQueryData({ queryKey: ['me'], queryFn: getMe })`
 - redirect to `/login` when the current-user query fails
 - keep route components using `useMeQuery()` when they need the current-user data for rendering
 - use the query result from the route/component when the page needs current-user data, such as showing `currentUser.email`

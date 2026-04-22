@@ -1,17 +1,8 @@
-import { createFileRoute, redirect } from '@tanstack/react-router'
-import { getMe } from '../features/auth/auth-me-api'
+import { createFileRoute } from '@tanstack/react-router'
+import { requireAuthBeforeLoad } from '../features/auth/require-auth-before-load'
 
 export const Route = createFileRoute('/')({
-    beforeLoad: async ({ context }) => {
-      try {
-        await context.queryClient.ensureQueryData({
-          queryKey: ['me'],
-          queryFn: getMe,
-        })
-      } catch {
-        throw redirect({ to: '/login' })
-      }
-    },
+    beforeLoad: requireAuthBeforeLoad,
     component: DashboardRoute,
   })
 
