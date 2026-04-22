@@ -1,20 +1,25 @@
-import { createFileRoute } from '@tanstack/react-router'
-
-import { RequireAuth } from '../features/auth/require-auth'
+import { createFileRoute, redirect } from '@tanstack/react-router'
+import { getMe } from '../features/auth/auth-me-api'
 
 export const Route = createFileRoute('/')({
-  component: DashboardRoute,
-})
+    beforeLoad: async ({ context }) => {
+      try {
+        await context.queryClient.ensureQueryData({
+          queryKey: ['me'],
+          queryFn: getMe,
+        })
+      } catch {
+        throw redirect({ to: '/login' })
+      }
+    },
+    component: DashboardRoute,
+  })
 
 function DashboardRoute() {
   return (
-    <RequireAuth>
-      {() => (
-      <section>
+    <section>
         <h1>Dashboard</h1>
         <p>Dashboard metrics and trends will live here.</p>
       </section>
-      )}
-    </RequireAuth>
   )
 }

@@ -97,11 +97,8 @@
 - Frontend `/` is now also a protected route:
   - unauthenticated state redirects to `/login`
   - authenticated state renders the dashboard
-- Frontend protected routes still have a reusable auth guard component for routes that have not migrated:
-  - `frontend/src/features/auth/require-auth.tsx`
-  - it consumes `useMeQuery()` once
-  - it redirects unauthenticated access to `/login`
-  - it passes the resolved current user into protected route content when needed
+- Frontend protected routes now use TanStack Router `beforeLoad` instead of the former `RequireAuth` component guard.
+- `frontend/src/features/auth/require-auth.tsx` was removed after `/` and `/settings` migrated to router-native auth.
 - Frontend also now has a web-session bootstrap helper:
   - `frontend/src/features/auth/auth-bootstrap.ts`
   - it calls `GET /api/auth/csrf/`
@@ -142,11 +139,10 @@
   - protected routes now depend on current-user query state rather than only on login redirect behavior
 - Frontend pages are still placeholders rather than real auth or dashboard screens.
 - TanStack Query-based current-user state now exists, but bootstrap is still route-local rather than centralized at the app/auth-shell level.
-- Protected-route behavior exists for both `/` and `/settings`.
-- `/settings` is now router-native through TanStack Router `beforeLoad`; `/` still uses the shared `RequireAuth` component.
-- There is still no app-wide auth layout/bootstrapping route yet.
+- Protected-route behavior exists for both `/` and `/settings`, and both routes now use TanStack Router `beforeLoad`.
+- There is still no shared TanStack Router auth layout route for future protected routes.
 - the bootstrap helper is now wired into app startup through `AuthBootstrapGate`
-- the auth boundary is partially migrated toward router-native auth, but there is not yet a dedicated TanStack Router auth layout route
+- the auth boundary is router-native at the route level, but not yet centralized into a dedicated protected route group/layout
 - No CD pipeline exists yet.
 - Security automation beyond lint, type-checking, and tests is not wired yet.
 
@@ -287,9 +283,9 @@ Current frontend TDD checkpoint:
 - the raw `getMe()` helper contract is now in place and covered
 - the first TanStack Query-backed current-user hook is now in place and covered
 - protected routes are now in place and covered on both `/` and `/settings`
-- auth protection is now extracted into a shared `RequireAuth` component
+- auth protection now uses TanStack Router `beforeLoad` with the router `queryClient` context
 - startup bootstrap is now wired through `AuthBootstrapGate`
-- the next useful slice is logout UI/query invalidation behavior, then deciding whether the auth boundary should stay component-based or move into a TanStack Router layout route
+- the next useful auth-routing cleanup is deciding whether to centralize protected routes into a TanStack Router auth layout route
 - frontend coverage reporting is not wired yet; `@vitest/coverage-v8` is still missing
 
 Current frontend tooling checkpoint:

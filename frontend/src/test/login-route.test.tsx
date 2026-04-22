@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { setAccessToken } from '../features/auth/auth-session'
-import { useMeQuery } from '../features/auth/use-me-query'
+import { getMe } from '../features/auth/auth-me-api'
 
 vi.mock('../features/auth/auth-api', () => ({
     loginWeb: vi.fn(),
@@ -12,8 +12,8 @@ vi.mock('../features/auth/auth-session', () => ({
     setAccessToken: vi.fn(),
   }))
 
-vi.mock('../features/auth/use-me-query', () => ({
-    useMeQuery: vi.fn(),
+vi.mock('../features/auth/auth-me-api', () => ({
+    getMe: vi.fn(),
   }))
 
 import { renderRoute } from "./render-route";
@@ -21,15 +21,9 @@ import { loginWeb } from '../features/auth/auth-api'
 
 describe("login route", () => {
   beforeEach(() => {
-    vi.mocked(useMeQuery).mockReturnValue({
-      isLoading: false,
-      isError: false,
-      isSuccess: true,
-      data: {
-        email: 'user@example.com',
-      },
-      error: null,
-    } as ReturnType<typeof useMeQuery>)
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
   })
 
   afterEach(() => {
@@ -189,16 +183,9 @@ describe("login route", () => {
     vi.mocked(loginWeb).mockResolvedValue({
       access: 'test-access-token',
     })
-    
-    vi.mocked(useMeQuery).mockReturnValue({
-    isLoading: false,
-    isError: false,
-    isSuccess: true,
-    data: {
+    vi.mocked(getMe).mockResolvedValue({
       email: 'user@example.com',
-    },
-    error: null,
-  } as ReturnType<typeof useMeQuery>)
+    })
 
     renderRoute('/login')
 

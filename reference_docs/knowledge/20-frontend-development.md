@@ -40,10 +40,9 @@ Current frontend routing checkpoint:
 
 Current routing/auth checkpoint:
 - `/` is now treated as an authenticated dashboard route
-- `/settings` is the first route migrated toward router-native auth protection
-- `/settings` uses TanStack Router `beforeLoad` with `context.queryClient.ensureQueryData({ queryKey: ['me'], queryFn: getMe })`
-- if the current-user query cannot be resolved, `/settings` redirects to `/login` before rendering route content
-- the dashboard `/` still uses the component guard path and has not yet been migrated to the router-native auth pattern
+- `/` and `/settings` now use router-native auth protection
+- protected routes use TanStack Router `beforeLoad` with `context.queryClient.ensureQueryData({ queryKey: ['me'], queryFn: getMe })`
+- if the current-user query cannot be resolved, protected routes redirect to `/login` before rendering route content
 
 ### 5.4 API Integration
 - Web: central API client + `TanStack Query` for server state, caching, retries, and invalidation
@@ -177,17 +176,14 @@ Current protected-route checkpoint:
 - after login, the frontend stores the returned access token in memory
 - `getMe()` uses that bearer token to call `GET /api/auth/me/`
 - `useMeQuery()` exposes the current authenticated user resource, currently including `email`
-- `RequireAuth` now centralizes the shared protected-route check:
-  - loading state renders a loading fallback
-  - error or missing current-user data redirects to `/login`
-  - success passes the resolved `CurrentUser` into protected route content
+- protected-route checks now live in TanStack Router `beforeLoad`
+- `frontend/src/features/auth/require-auth.tsx` was removed after `/` and `/settings` migrated to router-native auth
 - a logged-in user can render the protected dashboard route at `/`
 - unauthenticated or errored current-user state redirects protected routes to `/login`
 
 Current limitation:
-- protected routes now wait for startup bootstrap, but current-user bootstrap is still not centralized into a router-native auth layout
-- `/settings` has started the router-native migration with route `beforeLoad`
-- the shared auth guard still exists as a reusable component (`RequireAuth`) for routes that have not yet migrated
+- protected routes now wait for startup bootstrap, but there is still no dedicated route group/auth layout for all future protected routes
+- `/` and `/settings` each define their own `beforeLoad`; the next routing cleanup is to decide whether to introduce a shared TanStack Router auth layout route
 
 ### 5.5 State Management
 - Web:
@@ -208,18 +204,14 @@ Auth/session split for the web app:
 - plain React state owns form inputs and transient auth UI state
 - a small auth/session layer owns the in-memory access token and auth actions such as login, refresh, and logout
 
-Current protected-route composition pattern:
-- use `RequireAuth` to consume `useMeQuery()` once for a protected route boundary
-- pass protected page content as children
-- use a render-function child when the page needs the resolved `CurrentUser`, such as showing `currentUser.email`
-- do not add a separate React auth context while TanStack Query already owns the shared current-user server state
-
 Current router-native auth pattern:
 - pass the app `QueryClient` into TanStack Router context
 - in protected route `beforeLoad`, call `context.queryClient.ensureQueryData({ queryKey: ['me'], queryFn: getMe })`
 - redirect to `/login` when the current-user query fails
 - keep route components using `useMeQuery()` when they need the current-user data for rendering
-- prefer this pattern for newly migrated protected routes because it blocks unauthenticated route content before the component renders
+- use the query result from the route/component when the page needs current-user data, such as showing `currentUser.email`
+- prefer this pattern for protected routes because it blocks unauthenticated route content before the component renders
+- do not add a separate React auth context while TanStack Query already owns the shared current-user server state
 
 Do not:
 - store the access token inside query cache

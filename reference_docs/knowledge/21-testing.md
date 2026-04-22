@@ -144,7 +144,8 @@ What the current frontend tests are proving:
   - authenticated state renders the dashboard at `/`
 - dashboard route tests now also prove startup integration:
   - the protected dashboard waits for auth bootstrap before rendering
-- protected-route coverage still exercises the shared `RequireAuth` path through routes that have not migrated to router-native auth
+- protected-route route tests now exercise router-native auth for both `/` and `/settings`
+- the older `RequireAuth` component guard has been removed, so there is no separate component-guard test target
 - logout-flow route tests now prove the routed UI orchestration:
   - authenticated user can reach `/settings`
   - startup bootstrap is mocked so routed logout behavior is isolated
@@ -169,7 +170,6 @@ What the current frontend tests are not proving:
 - startup bootstrap is covered at the gate/component and route-integration level, but not yet as a full app-wide auth lifecycle with real backend responses
 - only the success path of `restoreWebSession()` is covered so far
 - logout route tests still mock the network/auth boundary through `getMe()` and `logoutWeb()`, so they are not full end-to-end Query invalidation proofs, but they are stronger than the earlier fully mocked `useMeQuery()` approach
-- no dedicated unit/component test exists yet for `RequireAuth` itself; coverage is currently indirect through route tests
 - no browser-level end-to-end flow is covered yet
 
 Practical test-level guidance for the current frontend slice:
