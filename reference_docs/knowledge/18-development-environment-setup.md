@@ -100,6 +100,27 @@ SENTRY_DSN=
 
 For MVP Samsung sync, the backend does **not** need Samsung cloud credentials because the Android companion app uploads data directly to our API after reading it on device.
 
+Current local auth/runtime additions:
+- `PII_ENCRYPTION_KEY` is required in backend runtime settings before any registration flow can persist encrypted email values.
+- `EMAIL_LOOKUP_KEY` is optional; when unset, email lookup hashing falls back to `SECRET_KEY`.
+- `CSRF_TRUSTED_ORIGINS` must include the frontend dev origin used by Vite for browser-based auth requests such as logout.
+- the current frontend dev/E2E flow uses Vite on `http://127.0.0.1:5173` with a dev proxy from `/api/*` to Django on `http://127.0.0.1:8000`.
+- the current Playwright auth smoke test uses the live local development stack, not a separate throwaway environment:
+  - frontend: Vite dev server on `http://127.0.0.1:5173`
+  - backend: Django running with `config.settings.dev`
+  - database: Docker Postgres service `db`, database `longevity`
+- Playwright registration currently creates real users in the local development database, so test emails must stay unique unless cleanup is added later.
+
+Example local auth-related `.env` values:
+```bash
+PII_ENCRYPTION_KEY=replace-with-a-valid-fernet-key
+EMAIL_LOOKUP_KEY=
+CSRF_TRUSTED_ORIGINS=http://127.0.0.1:5173,http://localhost:5173
+```
+
+Local container reminder:
+- when `backend/docker-compose.yml` loads values through `env_file`, changing `.env` may require recreating the web container, not just restarting it, so the updated environment is actually applied.
+
 ### 3.6 Secrets Management
 
 | Environment | Strategy |

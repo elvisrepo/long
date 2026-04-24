@@ -53,4 +53,28 @@ describe('registerWeb', () => {
       }),
     ).rejects.toThrow('A user with this email already exists.')
   })
+
+  it('preserves backend field errors when registration fails', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          password: ['This password is too common.'],
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      ),
+    )
+
+    await expect(
+      registerWeb({
+        email: 'user@example.com',
+        password: 'Secret123!Strong',
+      }),
+    ).rejects.toThrow('This password is too common.')
+  })
+  
   })

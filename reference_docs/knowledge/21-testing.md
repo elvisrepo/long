@@ -184,7 +184,67 @@ What the current frontend tests are not proving:
 - startup bootstrap is covered at the gate/component and route-integration level, but not yet as a full app-wide auth lifecycle with real backend responses
 - only the success path of `restoreWebSession()` is covered so far
 - logout route tests still mock the network/auth boundary through `getMe()` and `logoutWeb()`, so they are not full end-to-end Query invalidation proofs, but they are stronger than the earlier fully mocked `useMeQuery()` approach
-- no browser-level end-to-end flow is covered yet
+- only a focused auth smoke browser flow is covered so far; broader browser journeys still need E2E coverage later
+
+Current browser-level E2E checkpoint:
+- Playwright auth smoke coverage now exists for the real browser flow:
+  - register
+  - redirect to `/login`
+  - login
+  - reach dashboard
+  - visit `/settings`
+  - logout
+  - redirect back to `/login`
+- the current Playwright setup starts the frontend dev server and expects the backend to already be running locally
+- the frontend dev server proxies `/api/*` requests to Django during E2E
+- the current Playwright auth flow does not mock frontend network requests or backend auth behavior
+- the current Playwright auth flow writes to the live local development database, so registration creates real user rows in local Postgres
+- unique emails are required in the E2E auth flow because those created users persist unless explicit cleanup is added
+- this is acceptable as an early smoke-test setup, but it is not the long-term target
+- the preferred long-term setup is:
+  - a dedicated E2E runtime or settings module
+  - a dedicated E2E database instead of the normal dev database
+  - repeatable setup/reset or cleanup so browser tests stay deterministic
+
+What the auth E2E slice exposed that mocked tests did not:
+- missing backend runtime wiring for `PII_ENCRYPTION_KEY`
+  - the failure only appeared when a real browser registration request triggered encrypted email persistence in the running Django app
+- missing Django `CSRF_TRUSTED_ORIGINS` configuration for the Vite frontend origin
+  - the failure only appeared when the real browser issued `POST /api/auth/web/logout/` from `http://127.0.0.1:5173`
+- missing local runtime/process assumptions
+  - E2E also exposed port drift and backend availability issues that mocked unit and route tests cannot see
+
+Practical lesson from this auth slice:
+- mocked route/component/helper tests are good for frontend behavior and request-shape contracts
+- backend API tests are good for endpoint logic in isolation
+- neither layer proves that the real browser, Vite proxy, Docker-backed Django runtime, env wiring, cookies, and CSRF origin checks all work together
+- that integration gap is exactly what the Playwright smoke test closed
+
+Current auth test-layer distinction:
+- frontend Vitest route/component/helper tests are still mostly mocked
+  - route tests mock helpers such as `registerWeb()`, `loginWeb()`, `getMe()`, or `logoutWeb()`
+  - helper tests often mock `fetch()` to prove request shape and error handling
+- backend Django tests exercise real backend code paths, but inside the Django test environment
+  - they do not prove the browser, Vite proxy, local Docker runtime, or dev-environment cookie/CSRF behavior
+- Playwright E2E now covers the real integrated path
+  - real browser
+  - real frontend
+  - real API requests
+  - real Django app
+  - real cookie and CSRF behavior
+  - real database writes
+
+Why mocks are still used heavily outside E2E:
+- they are faster and more deterministic
+- they isolate one behavior at a time
+- they make TDD practical during implementation
+- they keep failures narrow and easier to interpret
+- they avoid making every frontend test depend on backend startup, database state, cookies, and CSRF configuration
+
+Best-practice testing shape for this project:
+- unit and focused frontend tests should keep using mocks/fakes where persistence is not the behavior under test
+- backend integration/API tests should use a real test database
+- browser E2E tests should use the real stack, but ideally against an isolated E2E environment and database rather than the everyday local dev database
 
 Practical test-level guidance for the current frontend slice:
 - use route tests for screen presence and router wiring

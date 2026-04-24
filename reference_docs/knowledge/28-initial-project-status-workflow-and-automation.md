@@ -195,6 +195,8 @@
 - The project should advance by vertical product slices, not by prematurely implementing every future subsystem.
 - Manual metric tracking should be proven end to end before Android Health Connect sync is attempted.
 - Normal pytest runs capture logs; use `-s --log-cli-level=INFO` when verifying logging behavior during focused tests.
+- The current Playwright auth smoke test uses the live local dev database, which is acceptable for an early slice but not the long-term testing target.
+- Longer term, browser E2E should move to an isolated E2E runtime/database so tests do not write into the everyday development dataset.
 
 ### AGENTS.md Review
 

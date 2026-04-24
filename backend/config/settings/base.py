@@ -18,6 +18,8 @@ DEFAULT_DATABASE_URL = f"sqlite:///{(BASE_DIR / 'db.sqlite3').as_posix()}"
 load_dotenv(ENV_FILE)
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-insecure-secret-key")
+PII_ENCRYPTION_KEY = os.environ.get("PII_ENCRYPTION_KEY", "").strip()
+EMAIL_LOOKUP_KEY = os.environ.get("EMAIL_LOOKUP_KEY", "").strip()
 
 DEBUG = os.environ.get("DEBUG", "False").strip().lower() in {"1", "true", "yes", "on"}
 
@@ -25,6 +27,12 @@ ALLOWED_HOSTS = [
       host.strip()
       for host in os.environ.get("ALLOWED_HOSTS", "").split(",")
       if host.strip()
+  ]
+
+CSRF_TRUSTED_ORIGINS = [
+      origin.strip()
+      for origin in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",")
+      if origin.strip()
   ]
 
 INSTALLED_APPS = [
