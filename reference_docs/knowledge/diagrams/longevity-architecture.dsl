@@ -185,6 +185,15 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             autolayout lr
         }
 
+        dynamic longevity "web-auth-register" "Dynamic view of the current web registration flow." {
+            user -> longevity.webapp "Visits /register, enters email user@example.com and password Secret123!, then submits the form"
+            longevity.webapp -> longevity.api "POST /api/auth/register/ with JSON, e.g. {\"email\":\"user@example.com\",\"password\":\"Secret123!\"}; RegisterSerializer validates email format, checks email_lookup_hash uniqueness, and runs Django password validation"
+            longevity.api -> longevity.db "Creates user record after validation, normalizes/stores email according to the custom user model, stores a hashed password, and persists lookup data"
+            longevity.db -> longevity.api "Returns created user, e.g. user id 42 -> user@example.com"
+            longevity.api -> longevity.webapp "Returns 201 JSON, e.g. {\"email\":\"user@example.com\"}"
+            user -> longevity.webapp "Is redirected to /login and can sign in with the newly created account"
+        }
+
         dynamic longevity "web-auth-login" "Dynamic view of the current web login flow." {
             user -> longevity.webapp "Enters credentials and starts sign in"
             longevity.webapp -> longevity.api "GET /api/auth/csrf/ to bootstrap CSRF cookie"
