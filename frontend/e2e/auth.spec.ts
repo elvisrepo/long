@@ -1,7 +1,14 @@
 import { expect, test } from '@playwright/test'
 
+test.beforeEach(async ({ request }) => {
+  // Reset the isolated E2E database so the browser flow can reuse stable data.
+  const response = await request.post('/api/testing/reset/')
+
+  expect(response.status()).toBe(204)
+})
+
 test('user can register, log in, visit settings, and log out', async ({ page }) => {
-  const uniqueEmail = `user-${Date.now()}@example.com`
+  const uniqueEmail = 'e2e-user@example.com'
   const password = 'Secret123!Strong'
 
   await page.goto('/register')
