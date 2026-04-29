@@ -19,6 +19,30 @@ services:
         redis:
           condition: service_started
 
+    web-e2e:
+      profiles: ["e2e"]
+      build:
+        context: .
+        dockerfile: Dockerfile
+      working_dir: /app
+      command: >
+        sh -c "python manage.py migrate &&
+        python manage.py runserver 0.0.0.0:8000"
+      environment:
+        DJANGO_SETTINGS_MODULE: config.settings.e2e
+        # Separate database URL so Playwright never writes into normal dev data.
+        E2E_DATABASE_URL: postgresql://postgres:postgres@db-e2e:5432/longevity_e2e
+        REDIS_URL: redis://redis:6379/1
+      volumes:
+        - .:/app
+      ports:
+        - "8001:8000"
+      depends_on:
+        db-e2e:
+          condition: service_healthy
+        redis:
+          condition: service_started
+
     celery:
       build:
         context: .
@@ -67,6 +91,23 @@ services:
         timeout: 5s
         retries: 20
 
+    db-e2e:
+      profiles: ["e2e"]
+      image: timescale/timescaledb:latest-pg16
+      environment:
+        POSTGRES_DB: longevity_e2e
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+      ports:
+        - "5433:5432"
+      volumes:
+        - pgdata_e2e:/var/lib/postgresql/data
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U postgres -d longevity_e2e"]
+        interval: 5s
+        timeout: 5s
+        retries: 20
+
     redis:
       image: redis:7-alpine
       ports:
@@ -74,3 +115,4 @@ services:
 
 volumes:
   pgdata:
+  pgdata_e2e:
