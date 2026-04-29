@@ -15,6 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from django.conf import settings
 from django.urls import include, path
 
 from common.views import health_view, ping_task_view
@@ -25,3 +26,7 @@ urlpatterns = [
     path("tasks/ping/", ping_task_view, name="tasks-ping"),
     path("api/auth/", include("apps.users.urls")),
 ]
+
+if getattr(settings, "ENABLE_E2E_TESTING_API", False):
+    # Never mount destructive test helpers outside the dedicated E2E runtime.
+    urlpatterns.append(path("api/testing/", include("common.testing_urls")))
