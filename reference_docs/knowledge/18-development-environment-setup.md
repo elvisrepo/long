@@ -104,12 +104,13 @@ Current local auth/runtime additions:
 - `PII_ENCRYPTION_KEY` is required in backend runtime settings before any registration flow can persist encrypted email values.
 - `EMAIL_LOOKUP_KEY` is optional; when unset, email lookup hashing falls back to `SECRET_KEY`.
 - `CSRF_TRUSTED_ORIGINS` must include the frontend dev origin used by Vite for browser-based auth requests such as logout.
-- the current frontend dev/E2E flow uses Vite on `http://127.0.0.1:5173` with a dev proxy from `/api/*` to Django on `http://127.0.0.1:8000`.
-- the current Playwright auth smoke test uses the live local development stack, not a separate throwaway environment:
+- the normal frontend dev flow uses Vite on `http://127.0.0.1:5173` with a dev proxy from `/api/*` to Django on `http://127.0.0.1:8000`.
+- Playwright now starts a dedicated E2E backend runtime through Docker Compose:
   - frontend: Vite dev server on `http://127.0.0.1:5173`
-  - backend: Django running with `config.settings.dev`
-  - database: Docker Postgres service `db`, database `longevity`
-- Playwright registration currently creates real users in the local development database, so test emails must stay unique unless cleanup is added later.
+  - backend: Django running with `config.settings.e2e`, exposed on host port `8001`
+  - database: Docker Postgres service `db-e2e`, database `longevity_e2e`, exposed on host port `5433`
+- Vite's E2E proxy target is set with `VITE_API_PROXY_TARGET=http://127.0.0.1:8001`.
+- Playwright calls `POST /api/testing/reset/` before the auth smoke test so browser tests do not write into the normal local development database.
 
 Example local auth-related `.env` values:
 ```bash

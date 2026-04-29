@@ -195,16 +195,12 @@ Current browser-level E2E checkpoint:
   - visit `/settings`
   - logout
   - redirect back to `/login`
-- the current Playwright setup starts the frontend dev server and expects the backend to already be running locally
-- the frontend dev server proxies `/api/*` requests to Django during E2E
+- the current Playwright setup starts both the frontend dev server and the dedicated E2E backend runtime
+- the frontend dev server proxies `/api/*` requests to Django on the E2E backend during E2E
 - the current Playwright auth flow does not mock frontend network requests or backend auth behavior
-- the current Playwright auth flow writes to the live local development database, so registration creates real user rows in local Postgres
-- unique emails are required in the E2E auth flow because those created users persist unless explicit cleanup is added
-- this is acceptable as an early smoke-test setup, but it is not the long-term target
-- the preferred long-term setup is:
-  - a dedicated E2E runtime or settings module
-  - a dedicated E2E database instead of the normal dev database
-  - repeatable setup/reset or cleanup so browser tests stay deterministic
+- the current Playwright auth flow writes to `db-e2e/longevity_e2e`, not the live local development database
+- Playwright calls `POST /api/testing/reset/` before the auth smoke test, so deterministic emails can be reused
+- the E2E reset endpoint is mounted only by `config.settings.e2e` through `ENABLE_E2E_TESTING_API=True`
 
 What the auth E2E slice exposed that mocked tests did not:
 - missing backend runtime wiring for `PII_ENCRYPTION_KEY`
@@ -244,7 +240,7 @@ Why mocks are still used heavily outside E2E:
 Best-practice testing shape for this project:
 - unit and focused frontend tests should keep using mocks/fakes where persistence is not the behavior under test
 - backend integration/API tests should use a real test database
-- browser E2E tests should use the real stack, but ideally against an isolated E2E environment and database rather than the everyday local dev database
+- browser E2E tests should use the real stack against the isolated E2E environment and database rather than the everyday local dev database
 
 Practical test-level guidance for the current frontend slice:
 - use route tests for screen presence and router wiring
@@ -324,6 +320,13 @@ For this project, test-only crypto settings should live in `config/settings/test
 - `DJANGO_SETTINGS_MODULE = "config.settings.test"`
 
 That means automated tests should rely on explicit test settings overrides instead of assuming local development settings or local shell environment state.
+
+Deferred test database note:
+- `config/settings/test.py` currently inherits `DATABASES` from `base.py`.
+- With the current local `.env`, normal pytest runs use `DATABASE_URL=postgres://postgres:postgres@db:5432/longevity`.
+- When pytest runs inside Docker Compose, `db` resolves and Django creates a separate test database from that Postgres connection.
+- When pytest runs on the host, `db` may not resolve unless `DATABASE_URL` is overridden to a host-reachable database or SQLite.
+- We are intentionally not changing this in the E2E isolation slice; revisit later with an explicit `TEST_DATABASE_URL` or dedicated test DB policy.
 
 ### Why These Were Integration Tests
 

@@ -26,6 +26,11 @@
 | POST | `/api/v1/auth/password/reset/` | Password reset email | Planned, rate limited: 3/hour |
 | POST | `/api/v1/auth/password/confirm/` | Confirm password reset | Planned |
 
+#### Testing (E2E runtime only)
+| Method | Endpoint | Description | Notes |
+|---|---|---|---|
+| POST | `/api/testing/reset/` | Flush the E2E database | Only mounted when `ENABLE_E2E_TESTING_API=True` through `config.settings.e2e`; never expose in dev/prod |
+
 #### User & Profile (JWT required)
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|

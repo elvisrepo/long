@@ -12,13 +12,16 @@ The backend local setup currently runs with Docker Compose from `backend/docker-
 
 Services:
 - `web`: Django development server container
+- `web-e2e`: Django E2E server container, enabled only with the `e2e` Compose profile
 - `celery`: Celery worker container
 - `celery-beat`: Celery Beat scheduler container
 - `db`: TimescaleDB / PostgreSQL container
+- `db-e2e`: isolated TimescaleDB / PostgreSQL container for browser E2E, enabled only with the `e2e` Compose profile
 - `redis`: Redis container
 
 Named volumes:
 - `pgdata`: persistent PostgreSQL data
+- `pgdata_e2e`: persistent E2E PostgreSQL data, safe to reset without touching normal dev data
 
 ### Runtime Model
 
@@ -26,12 +29,15 @@ Named volumes:
 - Docker Compose creates an isolated network for the services.
 - Inside that Docker network, service names become hostnames:
   - Django connects to PostgreSQL at `db:5432`
+  - E2E Django connects to PostgreSQL at `db-e2e:5432`
   - Django connects to Redis at `redis:6379`
   - Celery worker connects to Redis at `redis:6379`
   - Celery Beat connects to Redis at `redis:6379`
 - Ports are published from containers to the host:
   - `8000:8000` = host `localhost:8000` -> container `web:8000`
+  - `8001:8000` = host `localhost:8001` -> container `web-e2e:8000`
   - `5432:5432` = host `localhost:5432` -> container `db:5432`
+  - `5433:5432` = host `localhost:5433` -> container `db-e2e:5432`
   - `6379:6379` = host `localhost:6379` -> container `redis:6379`
 
 ### Image vs Container vs Volume vs Bind Mount

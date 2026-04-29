@@ -38,6 +38,7 @@ playground/
 
 # Local tool artifacts
 .codex
+.firecrawl/
 
 # Backend runtime artifacts
 backend/celerybeat-schedule
