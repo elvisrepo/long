@@ -184,10 +184,10 @@ What the current frontend tests are not proving:
 - startup bootstrap is covered at the gate/component and route-integration level, but not yet as a full app-wide auth lifecycle with real backend responses
 - only the success path of `restoreWebSession()` is covered so far
 - logout route tests still mock the network/auth boundary through `getMe()` and `logoutWeb()`, so they are not full end-to-end Query invalidation proofs, but they are stronger than the earlier fully mocked `useMeQuery()` approach
-- only a focused auth smoke browser flow is covered so far; broader browser journeys still need E2E coverage later
+- focused auth browser coverage exists for the main happy path plus key negative auth paths; broader non-auth browser journeys still need E2E coverage later
 
 Current browser-level E2E checkpoint:
-- Playwright auth smoke coverage now exists for the real browser flow:
+- Playwright auth smoke coverage now exists for the real browser happy path:
   - register
   - redirect to `/login`
   - login
@@ -195,6 +195,9 @@ Current browser-level E2E checkpoint:
   - visit `/settings`
   - logout
   - redirect back to `/login`
+- Playwright auth negative-path coverage now exists for:
+  - failed login staying on `/login` and showing the backend invalid-credentials error
+  - duplicate registration staying on `/register` and showing the backend duplicate-email error
 - the current Playwright setup starts both the frontend dev server and the dedicated E2E backend runtime
 - the frontend dev server proxies `/api/*` requests to Django on the E2E backend during E2E
 - the current Playwright auth flow does not mock frontend network requests or backend auth behavior
