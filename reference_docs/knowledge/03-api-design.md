@@ -42,7 +42,7 @@
 #### Metrics (JWT required)
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
-| GET | `/api/v1/metrics/definitions/` | List available metrics | Includes defaults + user's custom ones |
+| GET | `/api/v1/metrics/definitions/` | List available metrics | Implemented; includes active defaults + authenticated user's active custom definitions |
 | POST | `/api/v1/metrics/definitions/` | Create custom metric (R5+) | |
 | GET | `/api/v1/metrics/entries/?metric=resting_hr&from=2026-01-01&to=2026-03-01` | Query entries | Cursor-based pagination. Path params not needed — all filters are optional |
 | POST | `/api/v1/metrics/entries/` | Log a metric entry | Not idempotent — repeated calls create duplicate entries |

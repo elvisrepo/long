@@ -245,6 +245,13 @@ Best-practice testing shape for this project:
 - backend integration/API tests should use a real test database
 - browser E2E tests should use the real stack against the isolated E2E environment and database rather than the everyday local dev database
 
+Current backend metrics testing checkpoint:
+- `tests/test_metric_definitions.py` covers the first metrics API slice.
+- The list endpoint requires JWT authentication.
+- Authenticated users receive active system default metric definitions.
+- Authenticated users also receive their own active custom metric definitions.
+- Other users' custom definitions and inactive definitions are not returned.
+
 Practical test-level guidance for the current frontend slice:
 - use route tests for screen presence and router wiring
 - use focused component tests for local form behavior

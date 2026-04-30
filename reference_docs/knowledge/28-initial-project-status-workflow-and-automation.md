@@ -150,6 +150,13 @@
   - `npm run test`: 57 tests passed
   - `npm run build`: passed
   - `npm run test:e2e`: 3 Playwright tests passed
+- Metric definitions backend slice now exists:
+  - `apps.metrics` Django app is registered
+  - `MetricDefinition` model matches the planned ERD shape
+  - default metric definitions are seeded through the initial metrics migration
+  - `GET /api/v1/metrics/definitions/` returns active defaults plus the authenticated user's active custom definitions
+  - the endpoint requires JWT authentication
+  - backend metric-definition tests pass, and the broader backend suite passed after this slice
 
 ### What Is Not Done Yet
 
@@ -164,6 +171,8 @@
   - web logout can clear the in-memory access token through the backend logout endpoint
   - protected routes now depend on current-user query state rather than only on login redirect behavior
 - Login, register, settings, and dashboard route shells are now implemented; real dashboard product content is still placeholder-level.
+- The frontend dashboard does not yet fetch or render metric definitions from the backend.
+- Metric entry logging is not implemented yet.
 - TanStack Query-based current-user state now exists, but bootstrap is still route-local rather than centralized at the app/auth-shell level.
 - Protected-route behavior exists for both `/` and `/settings`, and both routes now use the shared TanStack Router `beforeLoad` helper.
 - There is still no shared TanStack Router auth layout route for future protected routes.
@@ -281,7 +290,8 @@ Updated checkpoint interpretation:
 - step 2 is done at the routing-shell level
 - step 3 is done for the current auth foundation
 - step 4 is done through `config.settings.e2e`, `web-e2e`, `db-e2e`, and `POST /api/testing/reset/`
-- the immediate next product step is step 5: implement manual metric definitions
+- step 5 is done for the backend read endpoint
+- the immediate next product step is connecting the frontend dashboard to metric definitions before moving into metric entry logging
 
 Immediate frontend auth integration target:
 - keep login/register route behavior aligned with the backend auth contract

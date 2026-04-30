@@ -27,7 +27,8 @@ Follows the progressive rollout (R1→R5):
 14. Audit logging
 
 Current checkpoint note:
-- the R1 auth foundation is complete enough to move into frontend work
+- the R1 auth foundation is complete enough to move into metrics work
+- MetricDefinition model, default seed data migration, and authenticated list endpoint are implemented
 - deferred user-backend scope still includes password reset, profile/account lifecycle work, and any optional email-verification flow
 
 ### R2 — Samsung Validation Spike (Weeks 9-10)
