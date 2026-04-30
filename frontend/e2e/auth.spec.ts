@@ -1,10 +1,8 @@
 import { expect, test } from '@playwright/test'
+import { resetE2eDatabase } from './support/e2e-api'
 
 test.beforeEach(async ({ request }) => {
-  // Reset the isolated E2E database so the browser flow can reuse stable data.
-  const response = await request.post('/api/testing/reset/')
-
-  expect(response.status()).toBe(204)
+  await resetE2eDatabase(request)
 })
 
 test('user can register, log in, visit settings, and log out', async ({ page }) => {
@@ -47,5 +45,21 @@ test('user can register, log in, visit settings, and log out', async ({ page }) 
 
   await expect(
     page.getByRole('heading', { name: /login/i }),
+  ).toBeVisible()
+})
+
+test('failed login stays on login page and shows an error', async ({ page }) => {
+  await page.goto('/login')
+
+  await page.getByLabel(/email/i).fill('missing-user@example.com')
+  await page.getByLabel(/password/i).fill('wrong-password')
+  await page.getByRole('button', { name: /login/i }).click()
+
+  await expect(
+    page.getByRole('heading', { name: /login/i }),
+  ).toBeVisible()
+
+  await expect(
+    page.getByText(/invalid credentials/i),
   ).toBeVisible()
 })
