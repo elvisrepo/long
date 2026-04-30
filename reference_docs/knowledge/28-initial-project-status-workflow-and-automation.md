@@ -40,7 +40,7 @@
 - Refresh token rotation and blacklist are in place.
 - Baseline console/stdout backend logging is now in place.
 - Web login success is logged through `apps.users.views`.
-- Full backend suite is green at this checkpoint: `37 passed`.
+- Full backend suite is green at this checkpoint: `40 passed` when run inside the Docker `web` service.
 - Frontend stack direction is now explicitly chosen and scaffolded:
   - Vite
   - React + TypeScript
@@ -135,6 +135,21 @@
   - `npm run format`
   - `npm run format:check`
 - Frontend generated router output is excluded from Prettier through `.prettierignore`.
+- Dedicated browser E2E auth runtime now exists:
+  - Django runs with `config.settings.e2e`
+  - backend E2E service is exposed on host port `8001`
+  - E2E Postgres service uses `db-e2e/longevity_e2e`
+  - Playwright starts the backend Docker Compose `e2e` profile automatically
+  - Vite proxies `/api/*` to the E2E backend during Playwright runs
+  - `POST /api/testing/reset/` clears only the isolated E2E database before each auth E2E test
+- Browser-level auth E2E currently covers:
+  - register, login, dashboard, settings, logout happy path
+  - failed login staying on `/login` and showing the backend invalid-credentials error
+  - duplicate registration staying on `/register` and showing the backend duplicate-email error
+- Frontend verification is green at this checkpoint:
+  - `npm run test`: 57 tests passed
+  - `npm run build`: passed
+  - `npm run test:e2e`: 3 Playwright tests passed
 
 ### What Is Not Done Yet
 
@@ -187,8 +202,8 @@
 - Updating implementation without updating canonical docs causes drift quickly.
 - Route/path changes should always be followed by a grep for stale references before the full test run.
 - CI is currently running on a GitHub-hosted Ubuntu runner, not on the local Docker Compose stack.
-- The current backend suite is light enough to pass there without Postgres or Redis services because test settings fall back to SQLite and broker-backed behavior is not exercised end to end.
-- That is good enough for the current auth slice, but it should be revisited once database- or Redis-specific behavior becomes part of the tested contract.
+- Backend pytest uses `config.settings.test`, but database selection is still inherited from `base.py` unless the environment overrides `DATABASE_URL`.
+- That is good enough for the current auth slice inside Docker, but it should be revisited once database- or Redis-specific behavior becomes part of the tested contract.
 - C4 component diagrams should be added only once container internals are rich and stable enough to justify them; before that, context/container views plus sequence diagrams are the better tradeoff.
 - Dynamic views should document implemented behavior only; for the current project state that means the hardened web auth flows, not future metrics or sync flows that have not been built yet.
 - Local Docker is the development runtime, not a throwaway prototype; slices should be built there in a way that stays compatible with the MVP cloud target.
@@ -196,7 +211,8 @@
 - Manual metric tracking should be proven end to end before Android Health Connect sync is attempted.
 - Normal pytest runs capture logs; use `-s --log-cli-level=INFO` when verifying logging behavior during focused tests.
 - The current Playwright auth smoke test uses the dedicated `config.settings.e2e` runtime and `db-e2e/longevity_e2e`, with `POST /api/testing/reset/` clearing state before the flow.
-- Longer term, browser E2E should move to an isolated E2E runtime/database so tests do not write into the everyday development dataset.
+- Normal backend pytest currently uses `config.settings.test` but inherits `DATABASES` from `base.py`; because local `.env` points to `db`, the clean local workflow is to run backend tests inside Docker with `docker compose exec web uv run pytest tests`.
+- Host-side backend pytest requires overriding `DATABASE_URL` to a host-reachable Postgres URL or SQLite.
 
 ### AGENTS.md Review
 
@@ -254,14 +270,18 @@ Recommended execution order from this checkpoint:
 1. add basic structured backend logging
 2. scaffold the React frontend
 3. integrate the web auth slice end to end
-4. implement manual metric definitions and manual metric logging
-5. implement dashboard read flows
-6. only then start the Android companion app and Health Connect sync spike
+4. isolate browser E2E from normal dev data
+5. implement manual metric definitions
+6. implement manual metric logging
+7. implement dashboard read flows
+8. only then start the Android companion app and Health Connect sync spike
 
 Updated checkpoint interpretation:
 - step 1 is done
-- step 2 is now done at the routing-shell level
-- the immediate next step is step 3: integrate the web auth slice end to end
+- step 2 is done at the routing-shell level
+- step 3 is done for the current auth foundation
+- step 4 is done through `config.settings.e2e`, `web-e2e`, `db-e2e`, and `POST /api/testing/reset/`
+- the immediate next product step is step 5: implement manual metric definitions
 
 Immediate frontend auth integration target:
 - keep login/register route behavior aligned with the backend auth contract
