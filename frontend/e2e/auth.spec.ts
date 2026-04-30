@@ -63,3 +63,32 @@ test('failed login stays on login page and shows an error', async ({ page }) => 
     page.getByText(/invalid credentials/i),
   ).toBeVisible()
 })
+
+test('duplicate registration stays on register page and shows an error', async ({ page }) => {
+  const email = 'duplicate-e2e-user@example.com'
+  const password = 'Secret123!Strong'
+
+  await page.goto('/register')
+
+  await page.getByLabel(/email/i).fill(email)
+  await page.getByLabel(/password/i).fill(password)
+  await page.getByRole('button', { name: /register/i }).click()
+
+  await expect(
+    page.getByRole('heading', { name: /login/i }),
+  ).toBeVisible()
+
+  await page.goto('/register')
+
+  await page.getByLabel(/email/i).fill(email)
+  await page.getByLabel(/password/i).fill(password)
+  await page.getByRole('button', { name: /register/i }).click()
+
+  await expect(
+    page.getByRole('heading', { name: /register/i }),
+  ).toBeVisible()
+
+  await expect(
+    page.getByText(/a user with that email already exists/i),
+  ).toBeVisible()
+})
