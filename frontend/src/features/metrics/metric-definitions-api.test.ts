@@ -55,4 +55,25 @@ describe('getMetricDefinitions', () => {
         },
       ])
     })
+
+    test('rejects when there is no access token', async () => {
+        clearAccessToken()
+
+        await expect(getMetricDefinitions()).rejects.toThrow(
+        'Authentication required',
+        )
+
+        expect(fetch).not.toHaveBeenCalled()
+  })
+
+   test('rejects when metric definitions fail to load', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(null, { status: 500 }),
+    )
+
+    await expect(getMetricDefinitions()).rejects.toThrow(
+      'Metric definitions failed to load',
+    )
+  })
+
   })
