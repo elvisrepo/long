@@ -108,4 +108,42 @@ describe('dashboard route', () => {
       ).toBeInTheDocument()
     })
   })
+
+  it('shows a loading state while metric definitions are loading', async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>)
+
+    renderRoute('/')
+
+    expect(
+      await screen.findByText(/loading metric definitions/i),
+    ).toBeInTheDocument()
+  })
+
+  it('shows an error state when metric definitions fail to load', async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    } as ReturnType<typeof useMetricDefinitionsQuery>)
+
+    renderRoute('/')
+
+    expect(
+      await screen.findByText(/metric definitions failed to load/i),
+    ).toBeInTheDocument()
+  })
+
+
 })
