@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { restoreWebSession } from '../features/auth/auth-bootstrap'
 import { getMe } from '../features/auth/auth-me-api'
+import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-definitions-query'
 import { renderRoute } from './render-route'
 
 vi.mock('../features/auth/auth-me-api', () => ({
@@ -19,6 +20,29 @@ vi.mock('../features/auth/auth-bootstrap', () => ({
   restoreWebSession: vi.fn().mockResolvedValue({ access: 'test-access-token' }),
 }))
 
+vi.mock('../features/metrics/use-metric-definitions-query', () => ({
+  useMetricDefinitionsQuery: vi.fn(),
+}))
+
+function mockLoadedMetricDefinitions() {
+  vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+    data: [
+      {
+        id: 'metric-id',
+        name: 'Resting Heart Rate',
+        slug: 'resting_hr',
+        unit: 'bpm',
+        category: 'cardiovascular',
+        min_value: 20,
+        max_value: 220,
+        is_default: true,
+      },
+    ],
+    isLoading: false,
+    isError: false,
+  } as ReturnType<typeof useMetricDefinitionsQuery>)
+}
+
 describe('dashboard route', () => {
   afterEach(() => {
     vi.resetAllMocks()
@@ -28,12 +52,17 @@ describe('dashboard route', () => {
     vi.mocked(getMe).mockResolvedValue({
         email: 'user@example.com',
       })
+    mockLoadedMetricDefinitions()
 
     renderRoute('/')
 
     expect(
       await screen.findByRole('heading', { name: /dashboard/i }),
     ).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: /resting heart rate/i }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/cardiovascular · bpm/i)).toBeInTheDocument()
   })
 
   it('redirects to /login when the user is not authenticated', async () => {
@@ -61,6 +90,7 @@ describe('dashboard route', () => {
     vi.mocked(getMe).mockResolvedValue({
         email: 'user@example.com',
       })
+    mockLoadedMetricDefinitions()
 
     renderRoute('/')
 
