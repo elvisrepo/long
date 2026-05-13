@@ -3,6 +3,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { setAccessToken } from '../features/auth/auth-session'
 import { getMe } from '../features/auth/auth-me-api'
+import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-definitions-query'
 
 vi.mock('../features/auth/auth-api', () => ({
     loginWeb: vi.fn(),
@@ -16,14 +17,38 @@ vi.mock('../features/auth/auth-me-api', () => ({
     getMe: vi.fn(),
   }))
 
+vi.mock('../features/metrics/use-metric-definitions-query', () => ({
+  useMetricDefinitionsQuery: vi.fn(),
+}))
+
 import { renderRoute } from "./render-route";
 import { loginWeb } from '../features/auth/auth-api'
+
+function mockLoadedMetricDefinitions() {
+  vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+    data: [
+      {
+        id: 'metric-id',
+        name: 'Resting Heart Rate',
+        slug: 'resting_hr',
+        unit: 'bpm',
+        category: 'cardiovascular',
+        min_value: 20,
+        max_value: 220,
+        is_default: true,
+      },
+    ],
+    isLoading: false,
+    isError: false,
+  } as ReturnType<typeof useMetricDefinitionsQuery>)
+}
 
 describe("login route", () => {
   beforeEach(() => {
     vi.mocked(getMe).mockResolvedValue({
       email: 'user@example.com',
     })
+    mockLoadedMetricDefinitions()
   })
 
   afterEach(() => {
