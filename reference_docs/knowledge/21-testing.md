@@ -192,6 +192,7 @@ Current browser-level E2E checkpoint:
   - redirect to `/login`
   - login
   - reach dashboard
+  - render backend-provided default metric definitions on the dashboard
   - visit `/settings`
   - logout
   - redirect back to `/login`
@@ -203,6 +204,7 @@ Current browser-level E2E checkpoint:
 - the current Playwright auth flow does not mock frontend network requests or backend auth behavior
 - the current Playwright auth flow writes to `db-e2e/longevity_e2e`, not the live local development database
 - Playwright calls `POST /api/testing/reset/` before the auth smoke test, so deterministic emails can be reused
+- the E2E reset endpoint flushes mutable E2E state and then reseeds required system rows, including default metric definitions used by the dashboard
 - the E2E reset endpoint is mounted only by `config.settings.e2e` through `ENABLE_E2E_TESTING_API=True`
 
 What the auth E2E slice exposed that mocked tests did not:
@@ -212,6 +214,8 @@ What the auth E2E slice exposed that mocked tests did not:
   - the failure only appeared when the real browser issued `POST /api/auth/web/logout/` from `http://127.0.0.1:5173`
 - missing local runtime/process assumptions
   - E2E also exposed port drift and backend availability issues that mocked unit and route tests cannot see
+- reset-state behavior for seed data
+  - the dashboard metric-definition check exposed that `flush` removes migration seed rows too, so E2E reset must restore default metrics after clearing user-created data
 
 Practical lesson from this auth slice:
 - mocked route/component/helper tests are good for frontend behavior and request-shape contracts

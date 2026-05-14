@@ -142,12 +142,13 @@
   - Playwright starts the backend Docker Compose `e2e` profile automatically
   - Vite proxies `/api/*` to the E2E backend during Playwright runs
   - `POST /api/testing/reset/` clears only the isolated E2E database before each auth E2E test
+  - after flushing, the reset endpoint restores required system seed rows such as default metric definitions
 - Browser-level auth E2E currently covers:
-  - register, login, dashboard, settings, logout happy path
+  - register, login, dashboard metric definitions, settings, logout happy path
   - failed login staying on `/login` and showing the backend invalid-credentials error
   - duplicate registration staying on `/register` and showing the backend duplicate-email error
 - Frontend verification is green at this checkpoint:
-  - `npm run test`: 57 tests passed
+  - `npm run test`: 64 tests passed
   - `npm run build`: passed
   - `npm run test:e2e`: 3 Playwright tests passed
 - Metric definitions backend slice now exists:
@@ -171,7 +172,7 @@
   - web logout can clear the in-memory access token through the backend logout endpoint
   - protected routes now depend on current-user query state rather than only on login redirect behavior
 - Login, register, settings, and dashboard route shells are now implemented; real dashboard product content is still placeholder-level.
-- The frontend dashboard does not yet fetch or render metric definitions from the backend.
+- The frontend dashboard now fetches and renders metric definitions from the backend, but metric entry logging and richer dashboard product UI are not implemented yet.
 - Metric entry logging is not implemented yet.
 - TanStack Query-based current-user state now exists, but bootstrap is still route-local rather than centralized at the app/auth-shell level.
 - Protected-route behavior exists for both `/` and `/settings`, and both routes now use the shared TanStack Router `beforeLoad` helper.
@@ -219,7 +220,7 @@
 - The project should advance by vertical product slices, not by prematurely implementing every future subsystem.
 - Manual metric tracking should be proven end to end before Android Health Connect sync is attempted.
 - Normal pytest runs capture logs; use `-s --log-cli-level=INFO` when verifying logging behavior during focused tests.
-- The current Playwright auth smoke test uses the dedicated `config.settings.e2e` runtime and `db-e2e/longevity_e2e`, with `POST /api/testing/reset/` clearing state before the flow.
+- The current Playwright auth smoke test uses the dedicated `config.settings.e2e` runtime and `db-e2e/longevity_e2e`, with `POST /api/testing/reset/` clearing mutable state and restoring baseline metric definitions before the flow.
 - Normal backend pytest currently uses `config.settings.test` but inherits `DATABASES` from `base.py`; because local `.env` points to `db`, the clean local workflow is to run backend tests inside Docker with `docker compose exec web uv run pytest tests`.
 - Host-side backend pytest requires overriding `DATABASE_URL` to a host-reachable Postgres URL or SQLite.
 
@@ -290,8 +291,8 @@ Updated checkpoint interpretation:
 - step 2 is done at the routing-shell level
 - step 3 is done for the current auth foundation
 - step 4 is done through `config.settings.e2e`, `web-e2e`, `db-e2e`, and `POST /api/testing/reset/`
-- step 5 is done for the backend read endpoint
-- the immediate next product step is connecting the frontend dashboard to metric definitions before moving into metric entry logging
+- step 5 is done for the backend read endpoint and the first frontend dashboard read path
+- the immediate next product step is metric entry logging
 
 Immediate frontend auth integration target:
 - keep login/register route behavior aligned with the backend auth contract

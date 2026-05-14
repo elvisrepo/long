@@ -29,8 +29,9 @@ def test_e2e_settings_use_dedicated_database_and_enable_testing_api():
 
 
 @pytest.mark.django_db(transaction=True)
-def test_e2e_reset_endpoint_flushes_database():
+def test_e2e_reset_endpoint_flushes_database_and_restores_default_metrics():
     from common.testing_views import reset_e2e_database_view
+    from apps.metrics.models import MetricDefinition
 
     User = get_user_model()
     User.objects.create_user(
@@ -45,6 +46,13 @@ def test_e2e_reset_endpoint_flushes_database():
 
     assert response.status_code == 204
     assert User.objects.count() == 0
+    # The reset endpoint uses flush, which also deletes seed rows; restore the
+    # baseline metrics so browser tests see the same app state after each reset.
+    assert MetricDefinition.objects.filter(
+        user=None,
+        slug="resting_hr",
+        is_active=True,
+    ).exists()
 
 
 def test_e2e_reset_endpoint_is_disabled_outside_e2e_runtime():

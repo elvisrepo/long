@@ -29,7 +29,7 @@
 #### Testing (E2E runtime only)
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
-| POST | `/api/testing/reset/` | Flush the E2E database | Only mounted when `ENABLE_E2E_TESTING_API=True` through `config.settings.e2e`; never expose in dev/prod |
+| POST | `/api/testing/reset/` | Reset the isolated E2E database | Only mounted when `ENABLE_E2E_TESTING_API=True` through `config.settings.e2e`; flushes mutable E2E state, then restores required system seed rows such as default metric definitions; never expose in dev/prod |
 
 #### User & Profile (JWT required)
 | Method | Endpoint | Description | Notes |

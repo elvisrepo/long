@@ -31,6 +31,10 @@ test('user can register, log in, visit settings, and log out', async ({ page }) 
     page.getByRole('heading', { name: /dashboard/i }),
   ).toBeVisible()
 
+  await expect(
+    page.getByRole('heading', { name: /resting heart rate/i }),
+  ).toBeVisible()
+
   await page.getByRole('link', { name: /settings/i }).click()
 
   await expect(

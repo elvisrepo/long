@@ -39,6 +39,10 @@ Named volumes:
   - `5432:5432` = host `localhost:5432` -> container `db:5432`
   - `5433:5432` = host `localhost:5433` -> container `db-e2e:5432`
   - `6379:6379` = host `localhost:6379` -> container `redis:6379`
+- Browser E2E resets are intentionally scoped to the `web-e2e` runtime:
+  - `POST /api/testing/reset/` runs only when `config.settings.e2e` enables `ENABLE_E2E_TESTING_API`
+  - the reset flushes `db-e2e/longevity_e2e`, not the normal `db/longevity` development database
+  - because a flush removes migration seed rows too, the reset then restores required system defaults such as metric definitions
 
 ### Image vs Container vs Volume vs Bind Mount
 
