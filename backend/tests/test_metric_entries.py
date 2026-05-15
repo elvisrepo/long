@@ -2,6 +2,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
+from apps.metrics.models import MetricDefinition
 
 pytestmark = pytest.mark.django_db
 
@@ -60,4 +61,38 @@ def test_metric_entry_value_must_be_within_metric_definition_range():
     assert response.status_code == 400
     assert response.json() == {
           "value": ["Value must be between 20.0 and 220.0."]
+      }
+
+
+def test_user_cannot_create_metric_entry_for_another_users_custom_metric():
+    client, _alice = authenticate_client_for("alice@example.com")
+    bob = get_user_model().objects.create_user(
+          email="bob@example.com",
+          password="strong-password-123",
+      )
+    
+    MetricDefinition.objects.create(
+          user=bob,
+          name="Mood",
+          slug="mood",
+          unit="score",
+          category=MetricDefinition.Category.CUSTOM,
+          min_value=1,
+          max_value=10,
+          is_default=False,
+      )
+    
+    response = client.post(
+          "/api/v1/metrics/entries/",
+          {
+              "metric_definition": "mood",
+              "value": 8,
+              "recorded_at": "2026-03-05T07:15:00Z",
+          },
+          format="json",
+      )
+    
+    assert response.status_code == 400
+    assert response.json() == {
+          "metric_definition": ['Object with slug=mood does not exist.']
       }
