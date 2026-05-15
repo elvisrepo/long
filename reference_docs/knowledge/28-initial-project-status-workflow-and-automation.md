@@ -158,6 +158,12 @@
   - `GET /api/v1/metrics/definitions/` returns active defaults plus the authenticated user's active custom definitions
   - the endpoint requires JWT authentication
   - backend metric-definition tests pass, and the broader backend suite passed after this slice
+- Metric entry backend slice has started:
+  - `MetricEntry` model exists for user-owned metric data points
+  - `POST /api/v1/metrics/entries/` creates manual entries for authenticated users
+  - the create API accepts `metric_definition` as a stable slug such as `resting_hr`
+  - the create path scopes metric definitions to active system defaults plus the authenticated user's active custom definitions
+  - the first focused metric-entry test passes for the default-metric happy path
 
 ### What Is Not Done Yet
 
@@ -172,8 +178,8 @@
   - web logout can clear the in-memory access token through the backend logout endpoint
   - protected routes now depend on current-user query state rather than only on login redirect behavior
 - Login, register, settings, and dashboard route shells are now implemented; real dashboard product content is still placeholder-level.
-- The frontend dashboard now fetches and renders metric definitions from the backend, but metric entry logging and richer dashboard product UI are not implemented yet.
-- Metric entry logging is not implemented yet.
+- The frontend dashboard now fetches and renders metric definitions from the backend, but frontend metric entry logging and richer dashboard product UI are not implemented yet.
+- Metric entry logging exists only as the first backend create endpoint; range-validation, read/query coverage, frontend form integration, and E2E coverage are still pending.
 - TanStack Query-based current-user state now exists, but bootstrap is still route-local rather than centralized at the app/auth-shell level.
 - Protected-route behavior exists for both `/` and `/settings`, and both routes now use the shared TanStack Router `beforeLoad` helper.
 - There is still no shared TanStack Router auth layout route for future protected routes.
@@ -292,7 +298,8 @@ Updated checkpoint interpretation:
 - step 3 is done for the current auth foundation
 - step 4 is done through `config.settings.e2e`, `web-e2e`, `db-e2e`, and `POST /api/testing/reset/`
 - step 5 is done for the backend read endpoint and the first frontend dashboard read path
-- the immediate next product step is metric entry logging
+- the metric-entry backend create slice has started with the first happy-path test
+- the immediate next product step is completing metric-entry API validation before wiring the frontend form
 
 Immediate frontend auth integration target:
 - keep login/register route behavior aligned with the backend auth contract

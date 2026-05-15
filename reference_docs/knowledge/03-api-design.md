@@ -45,7 +45,7 @@
 | GET | `/api/v1/metrics/definitions/` | List available metrics | Implemented; includes active defaults + authenticated user's active custom definitions |
 | POST | `/api/v1/metrics/definitions/` | Create custom metric (R5+) | |
 | GET | `/api/v1/metrics/entries/?metric=resting_hr&from=2026-01-01&to=2026-03-01` | Query entries | Cursor-based pagination. Path params not needed — all filters are optional |
-| POST | `/api/v1/metrics/entries/` | Log a metric entry | Not idempotent — repeated calls create duplicate entries |
+| POST | `/api/v1/metrics/entries/` | Log a metric entry | Implemented for manual entries; accepts `metric_definition` as a slug such as `resting_hr`; not idempotent — repeated calls create duplicate entries |
 | POST | `/api/v1/metrics/entries/bulk/` | Bulk import | |
 | GET | `/api/v1/metrics/analytics/{slug}/?range=30d` | Analytics for one metric | `slug` is required (path param), `range` is optional (query param, default 30d) |
 
@@ -95,6 +95,13 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
   "created_at": "2026-03-05T07:15:02Z"
 }
 ```
+
+Metric-entry create behavior:
+- `metric_definition` is the public metric slug, not the database UUID.
+- The slug lookup is scoped to active system defaults plus the authenticated user's active custom metric definitions.
+- The backend stores the authenticated user on the entry; clients do not submit `user`.
+- `source` defaults to `manual` for this endpoint.
+- `value` is validated against the selected metric definition's `min_value` and `max_value`.
 
 #### Subscriptions (R4+, JWT required)
 | Method | Endpoint | Description | Notes |

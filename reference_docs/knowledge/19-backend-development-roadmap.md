@@ -29,6 +29,8 @@ Follows the progressive rollout (R1→R5):
 Current checkpoint note:
 - the R1 auth foundation is complete enough to move into metrics work
 - MetricDefinition model, default seed data migration, and authenticated list endpoint are implemented
+- MetricEntry model and the first authenticated manual create endpoint are implemented
+- manual metric entry creation currently covers the happy path for active default metric definitions; validation and read/query coverage should continue through TDD
 - deferred user-backend scope still includes password reset, profile/account lifecycle work, and any optional email-verification flow
 
 ### R2 — Samsung Validation Spike (Weeks 9-10)

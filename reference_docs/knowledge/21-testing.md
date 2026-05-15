@@ -255,6 +255,9 @@ Current backend metrics testing checkpoint:
 - Authenticated users receive active system default metric definitions.
 - Authenticated users also receive their own active custom metric definitions.
 - Other users' custom definitions and inactive definitions are not returned.
+- `tests/test_metric_entries.py` now covers the first metric-entry write slice.
+- Authenticated users can create a manual metric entry for an active default metric definition by sending the metric slug.
+- The current metric-entry test is intentionally only the first happy path; next tests should cover authentication, range validation, inactive definitions, and cross-user custom-definition isolation.
 
 Practical test-level guidance for the current frontend slice:
 - use route tests for screen presence and router wiring
