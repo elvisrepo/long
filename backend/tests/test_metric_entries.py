@@ -96,3 +96,34 @@ def test_user_cannot_create_metric_entry_for_another_users_custom_metric():
     assert response.json() == {
           "metric_definition": ['Object with slug=mood does not exist.']
       }
+    
+def test_user_cannot_create_metric_entry_for_inactive_metric_definition():
+    client, _user = authenticate_client_for("alice@example.com")
+
+    MetricDefinition.objects.create(
+          name="Inactive Metric",
+          slug="inactive_metric",
+          unit="score",
+          category=MetricDefinition.Category.CUSTOM,
+          min_value=1,
+          max_value=10,
+          is_default=True,
+          is_active=False,
+      )
+    
+    response = client.post(
+          "/api/v1/metrics/entries/",
+          {
+              "metric_definition": "inactive_metric",
+              "value": 8,
+              "recorded_at": "2026-03-05T07:15:00Z",
+          },
+          format="json",
+      )
+
+    assert response.status_code == 400
+    assert response.json() == {
+          "metric_definition": [
+              "Object with slug=inactive_metric does not exist."
+          ]
+      }
