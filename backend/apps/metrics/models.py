@@ -50,3 +50,51 @@ class MetricDefinition(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class MetricEntry(models.Model):
+    class Source(models.TextChoices):
+        MANUAL = "manual", "Manual"
+        SAMSUNG_HEALTH = "samsung_health", "Samsung Health"
+        GARMIN = "garmin", "Garmin"
+        FITBIT = "fitbit", "Fitbit"
+        OURA = "oura", "Oura"
+        WITHINGS = "withings", "Withings"
+        CSV_IMPORT = "csv_import", "CSV Import"
+
+    user = models.ForeignKey(
+            settings.AUTH_USER_MODEL,
+            on_delete=models.CASCADE,
+            related_name="metric_entries",
+        )
+
+    metric_definition = models.ForeignKey(
+          MetricDefinition,
+          on_delete=models.PROTECT,
+          related_name="entries",
+        )
+
+    value = models.FloatField()
+    recorded_at = models.DateTimeField()
+    source = models.CharField(
+          max_length=32,
+          choices=Source.choices,
+          default=Source.MANUAL,
+      )
+        
+    # Kept as a plain UUID until the wearable connection model exists.
+    source_connection_id = models.UUIDField(null=True, blank=True)
+    external_source_id = models.CharField(max_length=255, null=True, blank=True)
+    context = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+        
+
+    class Meta:
+        db_table = "metrics_metric_entry"
+        indexes = [
+            models.Index(fields=["user", "-recorded_at", "-id"])
+            models.Index(fields=["user", "metric_definition", "-recorded_at"]),
+        ]
+
+    def __str__(self) -> str:
+          return f"{self.metric_definition.slug}: {self.value}"
