@@ -43,3 +43,21 @@ def test_authenticated_user_can_create_metric_entry_for_default_metric():
     assert data["source"] == "manual"
     assert data["context"] == {"notes": "morning measurement"}
     assert data["created_at"]
+
+def test_metric_entry_value_must_be_within_metric_definition_range():
+    client, _user = authenticate_client_for("alice@example.com")
+
+    response = client.post(
+          "/api/v1/metrics/entries/",
+          {
+              "metric_definition": "resting_hr",
+              "value": 500,
+              "recorded_at": "2026-03-05T07:15:00Z",
+          },
+          format="json",
+      )
+    
+    assert response.status_code == 400
+    assert response.json() == {
+          "value": ["Value must be between 20.0 and 220.0."]
+      }

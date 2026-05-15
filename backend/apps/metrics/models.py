@@ -63,38 +63,41 @@ class MetricEntry(models.Model):
         CSV_IMPORT = "csv_import", "CSV Import"
 
     user = models.ForeignKey(
-            settings.AUTH_USER_MODEL,
-            on_delete=models.CASCADE,
-            related_name="metric_entries",
-        )
-
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="metric_entries",
+    )
     metric_definition = models.ForeignKey(
-          MetricDefinition,
-          on_delete=models.PROTECT,
-          related_name="entries",
-        )
-
+        MetricDefinition,
+        on_delete=models.PROTECT,
+        related_name="entries",
+    )
     value = models.FloatField()
     recorded_at = models.DateTimeField()
     source = models.CharField(
-          max_length=32,
-          choices=Source.choices,
-          default=Source.MANUAL,
-      )
-        
+        max_length=32,
+        choices=Source.choices,
+        default=Source.MANUAL,
+    )
     # Kept as a plain UUID until the wearable connection model exists.
     source_connection_id = models.UUIDField(null=True, blank=True)
     external_source_id = models.CharField(max_length=255, null=True, blank=True)
     context = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-        
 
     class Meta:
         db_table = "metrics_metric_entry"
         indexes = [
-            models.Index(fields=["user", "-recorded_at", "-id"])
-            models.Index(fields=["user", "metric_definition", "-recorded_at"]),
+            # Primary read path: a user's timeline, newest measurements first.
+            models.Index(
+                fields=["user", "-recorded_at", "-id"],
+                name="metrics_met_user_id_dbaeb1_idx",
+            ),
+            models.Index(
+                fields=["user", "metric_definition", "-recorded_at"],
+                name="metrics_met_user_id_a16cca_idx",
+            ),
         ]
 
     def __str__(self) -> str:
-          return f"{self.metric_definition.slug}: {self.value}"
+        return f"{self.metric_definition.slug}: {self.value}"
