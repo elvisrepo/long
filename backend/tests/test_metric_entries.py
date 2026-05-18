@@ -206,3 +206,33 @@ def test_user_can_list_their_metric_entries_newest_first():
           "resting_hr",
           "resting_hr",
       ]
+
+def test_metric_entry_list_only_returns_current_users_entries():
+      alice_client, _alice = authenticate_client_for("alice@example.com")
+      bob_client, _bob = authenticate_client_for("bob@example.com")
+
+      alice_client.post(
+          "/api/v1/metrics/entries/",
+          {
+              "metric_definition": "resting_hr",
+              "value": 58,
+              "recorded_at": "2026-03-05T07:15:00Z",
+          },
+          format="json",
+      )
+      bob_client.post(
+          "/api/v1/metrics/entries/",
+          {
+              "metric_definition": "resting_hr",
+              "value": 72,
+              "recorded_at": "2026-03-06T07:15:00Z",
+          },
+          format="json",
+      )
+
+      response = alice_client.get("/api/v1/metrics/entries/")
+
+      assert response.status_code == 200
+
+      data = response.json()
+      assert [entry["value"] for entry in data] == [58.0]
