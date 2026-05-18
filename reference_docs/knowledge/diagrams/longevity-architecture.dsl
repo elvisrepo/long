@@ -232,6 +232,22 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             user -> longevity.webapp "TanStack Router beforeLoad allows the protected route and the user sees Dashboard or Settings"
         }
 
+        dynamic longevity "metrics-definition-entry-api" "Dynamic view of the current metric definition and metric entry API slice." {
+            user -> longevity.webapp "Opens the authenticated dashboard"
+            longevity.webapp -> longevity.api "GET /api/v1/metrics/definitions/ with Authorization: Bearer <access-token>"
+            longevity.api -> longevity.db "Loads active default metric definitions plus the authenticated user's active custom definitions"
+            longevity.db -> longevity.api "Returns metric definitions, e.g. resting_hr, vo2_max, mood"
+            longevity.api -> longevity.webapp "Returns 200 JSON list of metric definitions for dashboard display"
+            longevity.webapp -> longevity.api "POST /api/v1/metrics/entries/ with metric_definition slug, value, recorded_at, and optional context"
+            longevity.api -> longevity.db "Validates auth, metric-definition scope, active status, min/max range, then writes a MetricEntry for the authenticated user"
+            longevity.db -> longevity.api "Returns the created metric entry"
+            longevity.api -> longevity.webapp "Returns 201 JSON with id, metric_definition slug, value, source manual, context, and created_at"
+            longevity.webapp -> longevity.api "GET /api/v1/metrics/entries/?metric=resting_hr&from=2026-03-01T00:00:00Z&to=2026-03-31T23:59:59Z"
+            longevity.api -> longevity.db "Reads only the authenticated user's entries, applies metric/from/to filters, and orders by recorded_at DESC, id DESC"
+            longevity.db -> longevity.api "Returns matching metric entries"
+            longevity.api -> longevity.webapp "Returns 200 JSON list of entries for display"
+        }
+
         deployment * mvpCloud "mvp-cloud-deployment" "Deployment view for the pragmatic MVP cloud runtime." {
             include *
             autolayout tb

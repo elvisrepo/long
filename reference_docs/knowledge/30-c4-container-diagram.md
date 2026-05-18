@@ -96,6 +96,7 @@ Current implemented dynamic views should stay limited to the auth flows that act
 - web auth refresh
 - web auth logout
 - web current-user bootstrap and protected-route access
+- metric definitions dashboard read plus metric-entry create/list API behavior
 
 That is enough for the current project state.
 
@@ -103,6 +104,5 @@ Do not add more dynamic views until the corresponding slices are actually implem
 
 Good future candidates once real code exists:
 - Samsung sync upload flow
-- metric logging flow
-- dashboard read flow
+- frontend metric-entry form flow
 - future password-reset flow
