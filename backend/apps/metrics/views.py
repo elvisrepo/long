@@ -40,6 +40,36 @@ class MetricEntryListCreateView(generics.ListCreateAPIView):
 
           recorded_from = self.request.query_params.get("from")
           if recorded_from:
+                # only keep MetricEntry rows where recorded_at >= recorded_from
                 queryset = queryset.filter(recorded_at__gte=recorded_from)
 
+          recorded_to = self.request.query_params.get("to")
+          if recorded_to:
+                queryset = queryset.filter(recorded_at__lte=recorded_to)
+
           return queryset
+
+
+
+'''
+GET /api/v1/metrics/entries/?to=2026-03-05T23:59:59Z
+
+  becomes SQL roughly like:
+
+  WHERE recorded_at <= '2026-03-05T23:59:59Z'
+
+  This keeps entries recorded on or before that time.
+
+  
+  these filters are cumulative. If you apply both:
+
+  queryset = queryset.filter(recorded_at__gte=recorded_from)
+  queryset = queryset.filter(recorded_at__lte=recorded_to)
+
+  Django combines them as:
+
+  WHERE recorded_at >= from_value
+    AND recorded_at <= to_value
+
+  So together they create a date/time range.
+'''
