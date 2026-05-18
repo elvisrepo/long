@@ -277,3 +277,36 @@ def test_metric_entry_list_can_filter_by_metric_slug():
       data = response.json()
       assert [entry["metric_definition"] for entry in data] == ["resting_hr"]
       assert [entry["value"] for entry in data] == [58.0]
+
+
+def test_metric_entry_list_can_filter_by_recorded_at_from():
+    client, _user = authenticate_client_for("alice@example.com")
+
+
+    client.post(
+          "/api/v1/metrics/entries/",
+          {
+              "metric_definition": "resting_hr",
+              "value": 58,
+              "recorded_at": "2026-03-05T07:15:00Z",
+          },
+          format="json",
+      )
+    client.post(
+          "/api/v1/metrics/entries/",
+          {
+              "metric_definition": "resting_hr",
+              "value": 61,
+              "recorded_at": "2026-03-06T07:15:00Z",
+          },
+          format="json",
+      )
+    
+    response = client.get(
+          "/api/v1/metrics/entries/?from=2026-03-06T00:00:00Z"
+      )
+    
+    assert response.status_code == 200
+
+    data = response.json()
+    assert [entry["value"] for entry in data] == [61.0]

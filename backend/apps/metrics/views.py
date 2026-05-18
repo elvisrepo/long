@@ -38,4 +38,8 @@ class MetricEntryListCreateView(generics.ListCreateAPIView):
           if metric_slug:
               queryset = queryset.filter(metric_definition__slug=metric_slug)
 
+          recorded_from = self.request.query_params.get("from")
+          if recorded_from:
+                queryset = queryset.filter(recorded_at__gte=recorded_from)
+
           return queryset
