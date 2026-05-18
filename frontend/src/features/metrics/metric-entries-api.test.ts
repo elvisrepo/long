@@ -72,4 +72,20 @@ it('rejects without an access token', async () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it('throws when the backend rejects the metric entry', async () => {
+    setAccessToken('access-token')
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: false,
+    } as Response)
+
+    await expect(
+      createMetricEntry({
+        metricDefinition: 'resting_hr',
+        value: 500,
+        recordedAt: '2026-03-05T07:15:00Z',
+      }),
+    ).rejects.toThrow('Metric entry failed to save')
+  })
+
 })
