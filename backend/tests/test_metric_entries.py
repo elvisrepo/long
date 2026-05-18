@@ -127,3 +127,18 @@ def test_user_cannot_create_metric_entry_for_inactive_metric_definition():
               "Object with slug=inactive_metric does not exist."
           ]
       }
+    
+def test_metric_entry_create_requires_authentication():
+      client = APIClient()
+
+      response = client.post(
+          "/api/v1/metrics/entries/",
+          {
+              "metric_definition": "resting_hr",
+              "value": 58,
+              "recorded_at": "2026-03-05T07:15:00Z",
+          },
+          format="json",
+      )
+
+      assert response.status_code == 401
