@@ -237,3 +237,24 @@ Current implementation progress:
   Auth behavior spans multiple layers instead of living in one store, so the team must understand the boundaries clearly.
 - Revisit when:
   The frontend proves it has substantial shared client-only state that justifies a dedicated app-wide state store.
+
+### ADR-016: Use DRF Generic Class-Based Views for Growing API Resources
+
+- Status: Accepted
+- Date: 2026-05-18
+- Decision:
+  Use DRF generic class-based views for API resources that expose standard collection behavior such as list/create, especially when the endpoint needs user-scoped querysets, filtering, pagination, or serializer lifecycle hooks. Keep function-based `@api_view` handlers for very small one-off endpoints where the generic lifecycle adds no value.
+- Context:
+  The metrics API started with small `@api_view` functions, which were fine for the first metric-definition list endpoint and the first metric-entry create behavior. Once `GET /api/v1/metrics/entries/` and `POST /api/v1/metrics/entries/` lived on the same collection endpoint, the view needed standard list/create behavior, user scoping, ordering, and query parameter filters.
+- Alternatives considered:
+  Keep `@api_view(["GET", "POST"])` and branch manually on `request.method`; use lower-level `APIView`; or use a `ViewSet`/router from the start.
+- Why we chose it:
+  `generics.ListAPIView` and `generics.ListCreateAPIView` map directly to the current endpoint shape without extra routing machinery. DRF handles the repetitive create lifecycle internally (`get_serializer`, `is_valid`, `save`, `201` response), while `get_queryset()` gives one clear place for user scoping, ordering, and filters. This keeps the endpoint smaller and prepares it for pagination/filtering without manual method branching.
+- Current application:
+  `MetricDefinitionListView` uses `generics.ListAPIView`.
+  `MetricEntryListCreateView` uses `generics.ListCreateAPIView`.
+  `MetricEntryListCreateView.get_queryset()` scopes entries to `request.user`, orders by `recorded_at DESC, id DESC`, and applies supported query filters such as `metric`, `from`, and `to`.
+- Downsides:
+  Some behavior becomes implicit in DRF mixins, so developers need to understand that `ListCreateAPIView` already supplies `get()` and `post()` through `ListModelMixin` and `CreateModelMixin`. For unusual endpoint behavior, explicit methods may still be clearer.
+- Revisit when:
+  The metrics API needs non-standard actions that do not fit generic views, or when route grouping and repeated CRUD patterns justify moving to `ViewSet`/router conventions.
