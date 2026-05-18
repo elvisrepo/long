@@ -57,4 +57,19 @@ describe('createMetricEntry', () => {
       created_at: '2026-03-05T07:15:02Z',
     })
   })
+
+it('rejects without an access token', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+
+    await expect(
+      createMetricEntry({
+        metricDefinition: 'resting_hr',
+        value: 58,
+        recordedAt: '2026-03-05T07:15:00Z',
+      }),
+    ).rejects.toThrow('Authentication required')
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
 })
