@@ -142,3 +142,36 @@ def test_metric_entry_create_requires_authentication():
       )
 
       assert response.status_code == 401
+
+def test_user_can_create_metric_entry_for_their_own_custom_metric():
+    client, user = authenticate_client_for("alice@example.com")
+
+    MetricDefinition.objects.create(
+          user=user,
+          name="Mood",
+          slug="mood",
+          unit="score",
+          category=MetricDefinition.Category.CUSTOM,
+          min_value=1,
+          max_value=10,
+          is_default=False,
+      )
+    
+    response = client.post(
+          "/api/v1/metrics/entries/",
+          {
+              "metric_definition": "mood",
+              "value": 8,
+              "recorded_at": "2026-03-05T07:15:00Z",
+          },
+          format="json",
+      )
+    
+    assert response.status_code == 201
+
+    data = response.json()
+    assert data["metric_definition"] == "mood"
+    assert data["value"] == 8
+    assert data["source"] == "manual"
+
+    
