@@ -262,7 +262,11 @@ Current backend metrics testing checkpoint:
 - Users can create entries for their own active custom metric definitions.
 - Users cannot create entries for another user's custom metric definitions.
 - Inactive metric definitions cannot be used for new entries.
-- The current metric-entry coverage is still create-focused; next backend tests should cover listing/querying entries.
+- Metric-entry list tests cover newest-first ordering.
+- Metric-entry list tests prove users only see their own entries.
+- Metric-entry list tests cover filtering by metric slug.
+- Metric-entry list tests cover `from` and `to` recorded-at bounds.
+- The current metric-entry coverage does not yet cover cursor pagination or analytics queries.
 
 Practical test-level guidance for the current frontend slice:
 - use route tests for screen presence and router wiring

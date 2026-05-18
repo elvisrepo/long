@@ -44,7 +44,7 @@
 |---|---|---|---|
 | GET | `/api/v1/metrics/definitions/` | List available metrics | Implemented; includes active defaults + authenticated user's active custom definitions |
 | POST | `/api/v1/metrics/definitions/` | Create custom metric (R5+) | |
-| GET | `/api/v1/metrics/entries/?metric=resting_hr&from=2026-01-01&to=2026-03-01` | Query entries | Cursor-based pagination. Path params not needed — all filters are optional |
+| GET | `/api/v1/metrics/entries/?metric=resting_hr&from=2026-01-01&to=2026-03-01` | Query entries | Implemented for authenticated user's entries; supports optional `metric`, `from`, and `to` filters; returns newest first |
 | POST | `/api/v1/metrics/entries/` | Log a metric entry | Implemented for manual entries; accepts `metric_definition` as a slug such as `resting_hr`; not idempotent — repeated calls create duplicate entries |
 | POST | `/api/v1/metrics/entries/bulk/` | Bulk import | |
 | GET | `/api/v1/metrics/analytics/{slug}/?range=30d` | Analytics for one metric | `slug` is required (path param), `range` is optional (query param, default 30d) |
@@ -66,6 +66,14 @@ GET /api/v1/metrics/entries/?metric=resting_hr&limit=20
 GET /api/v1/metrics/entries/?metric=resting_hr&cursor=eyJyZWNvcmRlZF9hdCI6ICIyMDI2LTAzLTA1VDA3OjE1OjAwWiIsICJpZCI6IDk4NDMxMn0=&limit=20
 ```
 Cursor-based (not offset-based) because metric entries are time-series data — new entries are constantly added, and offset pagination would cause duplicates/gaps. Results are ordered by `recorded_at DESC, id DESC`, and the cursor encodes both values so backfills and out-of-order inserts don't skip or duplicate rows.
+
+Current entry listing behavior:
+- `GET /api/v1/metrics/entries/` returns only the authenticated user's entries.
+- Results are ordered by `recorded_at DESC, id DESC`.
+- `metric=<slug>` filters by metric definition slug, for example `metric=resting_hr`.
+- `from=<timestamp>` filters entries where `recorded_at >= from`.
+- `to=<timestamp>` filters entries where `recorded_at <= to`.
+- Cursor pagination is still planned; the current implementation returns the unpaginated list.
 
 **Data passing convention:**
 - **Path params** → required resource identifiers (`/analytics/{slug}/`, `/wearables/connections/{id}/`)

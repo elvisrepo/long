@@ -1,7 +1,6 @@
 from django.db.models import Q
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.request import Request
 
 from apps.metrics.models import MetricDefinition, MetricEntry
 from apps.metrics.serializers import (

@@ -31,7 +31,8 @@ Current checkpoint note:
 - MetricDefinition model, default seed data migration, and authenticated list endpoint are implemented
 - MetricEntry model and the first authenticated manual create endpoint are implemented
 - manual metric entry creation now enforces authentication, active metric definitions, user scoping, and value range validation
-- read/query coverage should continue through TDD before analytics work
+- metric entry listing now returns the authenticated user's entries newest-first, with `metric`, `from`, and `to` filters
+- cursor pagination and analytics coverage should continue through TDD before analytics work
 - deferred user-backend scope still includes password reset, profile/account lifecycle work, and any optional email-verification flow
 
 ### R2 — Samsung Validation Spike (Weeks 9-10)
