@@ -102,6 +102,8 @@ Metric-entry create behavior:
 - The backend stores the authenticated user on the entry; clients do not submit `user`.
 - `source` defaults to `manual` for this endpoint.
 - `value` is validated against the selected metric definition's `min_value` and `max_value`.
+- Inactive metric definitions cannot be used for new entries.
+- Another user's custom metric definitions cannot be used, even if the slug is known.
 
 #### Subscriptions (R4+, JWT required)
 | Method | Endpoint | Description | Notes |
