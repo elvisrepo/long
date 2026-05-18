@@ -143,4 +143,24 @@ describe('getMetricEntries', () => {
         },
       ])
     })
+
+    it('rejects without an access token', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+
+    await expect(getMetricEntries()).rejects.toThrow('Authentication required')
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('throws when metric entries fail to load', async () => {
+    setAccessToken('access-token')
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: false,
+    } as Response)
+
+    await expect(getMetricEntries()).rejects.toThrow(
+      'Metric entries failed to load',
+    )
+  })
   })
