@@ -1,12 +1,20 @@
 from django.urls import path
 
 from apps.metrics.views import (
-    metric_definition_list_view,
-    metric_entry_list_create_view,
+    MetricDefinitionListView,
+    MetricEntryListCreateView,
 )
 
 
 urlpatterns = [
-    path("definitions/", metric_definition_list_view, name="metric-definitions"),
-    path("entries/", metric_entry_list_create_view, name="metric-entries"),
+      path(
+          "definitions/",
+          MetricDefinitionListView.as_view(),
+          name="metric-definitions",
+      ),
+      path(
+          "entries/",
+          MetricEntryListCreateView.as_view(),
+          name="metric-entries",
+      ),
 ]
