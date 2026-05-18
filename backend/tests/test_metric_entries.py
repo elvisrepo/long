@@ -174,4 +174,35 @@ def test_user_can_create_metric_entry_for_their_own_custom_metric():
     assert data["value"] == 8
     assert data["source"] == "manual"
 
-    
+def test_user_can_list_their_metric_entries_newest_first():
+      client, user = authenticate_client_for("alice@example.com")
+
+      client.post(
+          "/api/v1/metrics/entries/",
+          {
+              "metric_definition": "resting_hr",
+              "value": 58,
+              "recorded_at": "2026-03-05T07:15:00Z",
+          },
+          format="json",
+      )
+      client.post(
+          "/api/v1/metrics/entries/",
+          {
+              "metric_definition": "resting_hr",
+              "value": 61,
+              "recorded_at": "2026-03-06T07:15:00Z",
+          },
+          format="json",
+      )
+
+      response = client.get("/api/v1/metrics/entries/")
+
+      assert response.status_code == 200
+
+      data = response.json()
+      assert [entry["value"] for entry in data] == [61.0, 58.0]
+      assert [entry["metric_definition"] for entry in data] == [
+          "resting_hr",
+          "resting_hr",
+      ]
