@@ -236,3 +236,44 @@ def test_metric_entry_list_only_returns_current_users_entries():
 
       data = response.json()
       assert [entry["value"] for entry in data] == [58.0]
+
+def test_metric_entry_list_can_filter_by_metric_slug():
+      client, user = authenticate_client_for("alice@example.com")
+
+      MetricDefinition.objects.create(
+          user=user,
+          name="Mood",
+          slug="mood",
+          unit="score",
+          category=MetricDefinition.Category.CUSTOM,
+          min_value=1,
+          max_value=10,
+          is_default=False,
+      )
+
+      client.post(
+          "/api/v1/metrics/entries/",
+          {
+              "metric_definition": "resting_hr",
+              "value": 58,
+              "recorded_at": "2026-03-05T07:15:00Z",
+          },
+          format="json",
+      )
+      client.post(
+          "/api/v1/metrics/entries/",
+          {
+              "metric_definition": "mood",
+              "value": 8,
+              "recorded_at": "2026-03-06T07:15:00Z",
+          },
+          format="json",
+      )
+
+      response = client.get("/api/v1/metrics/entries/?metric=resting_hr")
+
+      assert response.status_code == 200
+
+      data = response.json()
+      assert [entry["metric_definition"] for entry in data] == ["resting_hr"]
+      assert [entry["value"] for entry in data] == [58.0]

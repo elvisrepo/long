@@ -28,8 +28,14 @@ class MetricEntryListCreateView(generics.ListCreateAPIView):
       permission_classes = [IsAuthenticated]
 
       def get_queryset(self):
-          return (
+          queryset = (
               MetricEntry.objects.filter(user=self.request.user)
               .select_related("metric_definition")
               .order_by("-recorded_at", "-id")
           )
+
+          metric_slug = self.request.query_params.get("metric")
+          if metric_slug:
+              queryset = queryset.filter(metric_definition__slug=metric_slug)
+
+          return queryset
