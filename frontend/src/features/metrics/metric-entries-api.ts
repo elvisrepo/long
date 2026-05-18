@@ -17,6 +17,12 @@ export interface CreateMetricEntryInput {
   context?: Record<string, unknown>
 }
 
+export interface GetMetricEntriesFilters {
+    metric?: string
+    from?: string
+    to?: string
+  }
+
 export async function createMetricEntry(
   input: CreateMetricEntryInput,
 ): Promise<MetricEntry> {
@@ -47,3 +53,49 @@ export async function createMetricEntry(
 
   return response.json()
 }
+
+
+export async function getMetricEntries(
+    filters: GetMetricEntriesFilters = {},
+  ): Promise<MetricEntry[]> {
+    const accessToken = getAccessToken()
+
+    if (!accessToken) {
+      throw new Error('Authentication required')
+    }
+
+    const searchParams = new URLSearchParams()
+
+    if (filters.metric) {
+      searchParams.set('metric', filters.metric)
+    }
+
+    if (filters.from) {
+      searchParams.set('from', filters.from)
+    }
+
+    if (filters.to) {
+      searchParams.set('to', filters.to)
+    }
+
+    const queryString = searchParams.toString()
+    const url = queryString
+      ? `/api/v1/metrics/entries/?${queryString}`
+      : '/api/v1/metrics/entries/'
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error('Metric entries failed to load')
+    }
+
+    return response.json()
+  }
+
+
+   
