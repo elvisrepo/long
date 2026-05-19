@@ -199,6 +199,15 @@ Current limitation:
 - protected routes now wait for startup bootstrap, but there is still no dedicated route group/auth layout for all future protected routes
 - `/` and `/settings` share the same `requireAuthBeforeLoad` helper, but the project does not yet have a shared TanStack Router auth layout route
 
+Current metrics API integration checkpoint:
+- `getMetricDefinitions()` fetches `GET /api/v1/metrics/definitions/` with the in-memory bearer access token.
+- `useMetricDefinitionsQuery()` exposes metric definitions through TanStack Query for dashboard reads.
+- `createMetricEntry()` posts manual metric entries to `POST /api/v1/metrics/entries/`.
+- `createMetricEntry()` keeps the component-facing input camelCase, then maps it to the backend's snake_case JSON contract.
+- `getMetricEntries()` fetches `GET /api/v1/metrics/entries/` with optional `metric`, `from`, and `to` query parameters built through `URLSearchParams`.
+- `useMetricEntriesQuery(filters)` exposes metric-entry reads through TanStack Query.
+- Metric-entry query keys include the filters, so different metric/date-range reads get separate cached results.
+
 ### 5.5 State Management
 - Web:
   - `TanStack Query` for server state

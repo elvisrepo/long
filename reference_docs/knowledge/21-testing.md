@@ -276,6 +276,13 @@ Practical test-level guidance for the current frontend slice:
 - once auth submission behavior is ready, add mocked-network integration tests with `MSW`
 - once the full auth flow is stable, add Playwright end-to-end coverage for the real user journey
 
+Current frontend metrics testing checkpoint:
+- `metric-definitions-api.test.ts` covers the metric-definition API helper request shape and error behavior.
+- `use-metric-definitions-query.test.tsx` covers the TanStack Query wrapper for metric definitions.
+- `metric-entries-api.test.ts` covers `createMetricEntry()` and `getMetricEntries()` request shape, auth-token requirements, backend failure behavior, and filter query-string generation.
+- `use-metric-entries-query.test.tsx` covers the TanStack Query wrapper for metric entries.
+- Metric-entry hook tests mock the API helper but use a real `QueryClientProvider`, so they verify Query behavior without requiring a running Django backend.
+
 Frontend test code hygiene:
 - route tests may start with repeated setup such as:
   - setting the URL with `window.history.pushState(...)`

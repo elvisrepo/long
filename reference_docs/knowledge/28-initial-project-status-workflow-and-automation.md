@@ -170,6 +170,11 @@
   - entries are ordered newest-first by `recorded_at DESC, id DESC`
   - the list endpoint supports `metric`, `from`, and `to` query filters
   - metric-entry views now use DRF generic class-based views rather than function-based `@api_view` handlers for the growing list/create resource
+- Frontend metric-entry API integration has started:
+  - `createMetricEntry()` posts manual metric entries with the bearer access token
+  - `getMetricEntries()` fetches metric entries and supports `metric`, `from`, and `to` filters
+  - `useMetricEntriesQuery(filters)` wraps metric-entry reads in TanStack Query
+  - focused frontend tests cover the API helper contracts and Query hook behavior
 
 ### What Is Not Done Yet
 
@@ -185,7 +190,7 @@
   - protected routes now depend on current-user query state rather than only on login redirect behavior
 - Login, register, settings, and dashboard route shells are now implemented; real dashboard product content is still placeholder-level.
 - The frontend dashboard now fetches and renders metric definitions from the backend, but frontend metric entry logging and richer dashboard product UI are not implemented yet.
-- Metric entry logging and listing exist on the backend; cursor pagination, analytics, frontend form integration, and E2E coverage are still pending.
+- Metric entry logging and listing exist on the backend; frontend API helpers now exist, but frontend form integration, cursor pagination, analytics, and E2E coverage are still pending.
 - TanStack Query-based current-user state now exists, but bootstrap is still route-local rather than centralized at the app/auth-shell level.
 - Protected-route behavior exists for both `/` and `/settings`, and both routes now use the shared TanStack Router `beforeLoad` helper.
 - There is still no shared TanStack Router auth layout route for future protected routes.
@@ -306,7 +311,8 @@ Updated checkpoint interpretation:
 - step 5 is done for the backend read endpoint and the first frontend dashboard read path
 - the metric-entry backend create slice is implemented and validation-tested
 - the metric-entry backend read/query slice is implemented for newest-first listing, user scoping, and basic filters
-- the immediate next product step is deciding whether to add cursor pagination now or wire the first frontend metric-entry form
+- frontend metric-entry API helpers and Query hook are implemented
+- the immediate next product step is wiring the first frontend metric-entry form
 
 Immediate frontend auth integration target:
 - keep login/register route behavior aligned with the backend auth contract
