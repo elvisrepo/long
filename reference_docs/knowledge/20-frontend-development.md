@@ -212,6 +212,8 @@ Current metrics API integration checkpoint:
 - Successful metric entry submission clears the form input.
 - Failed metric entry submission renders the mutation error message.
 - Successful metric entry mutation invalidates `['metric-entries']` so entry lists can refresh after writes.
+- The dashboard route now renders a `Recent Entries` section backed by `useMetricEntriesQuery()`.
+- Recent entries currently show the metric slug, value, and recorded timestamp.
 
 ### 5.5 State Management
 - Web:

@@ -148,7 +148,7 @@
   - failed login staying on `/login` and showing the backend invalid-credentials error
   - duplicate registration staying on `/register` and showing the backend duplicate-email error
 - Frontend verification is green at this checkpoint:
-  - `npm run test`: 76 tests passed
+  - `npm run test`: 77 tests passed
   - `npm run build`: passed
   - `npm run test:e2e`: 3 Playwright tests passed
 - Metric definitions backend slice now exists:
@@ -181,6 +181,9 @@
   - successful submit clears the input
   - failed submit shows the mutation error message
   - successful mutation invalidates `['metric-entries']`
+- Frontend dashboard metric-entry display now exists:
+  - dashboard renders a `Recent Entries` section backed by `useMetricEntriesQuery()`
+  - recent entries show the metric slug, value, and recorded timestamp
 
 ### What Is Not Done Yet
 
@@ -194,7 +197,7 @@
   - `getMe()` uses that access token to call `GET /api/auth/me/`
   - web logout can clear the in-memory access token through the backend logout endpoint
   - protected routes now depend on current-user query state rather than only on login redirect behavior
-- Login, register, settings, and dashboard route shells are now implemented; dashboard now has first-pass metric definition display and metric-entry form behavior, but richer dashboard product UI is still pending.
+- Login, register, settings, and dashboard route shells are now implemented; dashboard now has first-pass metric definition display, metric-entry form behavior, and recent-entry display, but richer dashboard product UI is still pending.
 - Metric entry logging and listing exist on the backend; frontend API helpers, the first dashboard form, and browser E2E metric-entry submission exist, but cursor pagination and analytics are still pending.
 - TanStack Query-based current-user state now exists, but bootstrap is still route-local rather than centralized at the app/auth-shell level.
 - Protected-route behavior exists for both `/` and `/settings`, and both routes now use the shared TanStack Router `beforeLoad` helper.

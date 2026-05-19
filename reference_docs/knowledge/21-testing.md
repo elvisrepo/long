@@ -285,6 +285,7 @@ Current frontend metrics testing checkpoint:
 - `use-metric-entries-query.test.tsx` covers the TanStack Query wrapper for metric entries.
 - `use-create-metric-entry-mutation.test.tsx` covers manual metric-entry mutation and invalidation of metric-entry list queries.
 - dashboard route tests cover the first metric-entry form behavior: submit, input clearing after success, and visible error on failed save.
+- dashboard route tests also cover rendering logged metric entries in the `Recent Entries` section.
 - Metric-entry hook tests mock the API helper but use a real `QueryClientProvider`, so they verify Query behavior without requiring a running Django backend.
 - Playwright E2E now submits a real metric entry through the browser against the isolated E2E backend/database.
 
