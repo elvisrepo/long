@@ -12,6 +12,7 @@ export const Route = createFileRoute('/')({
 })
 
 function DashboardRoute() {
+  const [selectedMetricSlug, setSelectedMetricSlug] = useState('')
   const {
     data: metricDefinitions = [],
     isLoading,
@@ -21,7 +22,9 @@ function DashboardRoute() {
     data: metricEntries = [],
     isLoading: metricEntriesAreLoading,
     isError: metricEntriesFailed,
-  } = useMetricEntriesQuery()
+  } = useMetricEntriesQuery(
+    selectedMetricSlug ? { metric: selectedMetricSlug } : {},
+  )
   const metricDefinitionsBySlug = new Map(
     metricDefinitions.map((definition) => [definition.slug, definition]),
   )
@@ -56,6 +59,21 @@ function DashboardRoute() {
 
       <section aria-label="Metric entries">
         <h2>Recent Entries</h2>
+
+        <label>
+          Filter recent entries by metric
+          <select
+            value={selectedMetricSlug}
+            onChange={(event) => setSelectedMetricSlug(event.target.value)}
+          >
+            <option value="">All metrics</option>
+            {metricDefinitions.map((definition) => (
+              <option key={definition.id} value={definition.slug}>
+                {definition.name}
+              </option>
+            ))}
+          </select>
+        </label>
 
         {metricEntriesAreLoading ? <p>Loading metric entries...</p> : null}
         {metricEntriesFailed ? <p>Metric entries failed to load</p> : null}
