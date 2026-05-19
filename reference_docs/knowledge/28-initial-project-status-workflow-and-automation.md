@@ -144,11 +144,11 @@
   - `POST /api/testing/reset/` clears only the isolated E2E database before each auth E2E test
   - after flushing, the reset endpoint restores required system seed rows such as default metric definitions
 - Browser-level auth E2E currently covers:
-  - register, login, dashboard metric definitions, settings, logout happy path
+  - register, login, dashboard metric definitions, real Resting Heart Rate metric-entry submission, settings, logout happy path
   - failed login staying on `/login` and showing the backend invalid-credentials error
   - duplicate registration staying on `/register` and showing the backend duplicate-email error
 - Frontend verification is green at this checkpoint:
-  - `npm run test`: 64 tests passed
+  - `npm run test`: 76 tests passed
   - `npm run build`: passed
   - `npm run test:e2e`: 3 Playwright tests passed
 - Metric definitions backend slice now exists:
@@ -195,7 +195,7 @@
   - web logout can clear the in-memory access token through the backend logout endpoint
   - protected routes now depend on current-user query state rather than only on login redirect behavior
 - Login, register, settings, and dashboard route shells are now implemented; dashboard now has first-pass metric definition display and metric-entry form behavior, but richer dashboard product UI is still pending.
-- Metric entry logging and listing exist on the backend; frontend API helpers and the first dashboard form exist, but cursor pagination, analytics, and browser E2E metric-entry submission are still pending.
+- Metric entry logging and listing exist on the backend; frontend API helpers, the first dashboard form, and browser E2E metric-entry submission exist, but cursor pagination and analytics are still pending.
 - TanStack Query-based current-user state now exists, but bootstrap is still route-local rather than centralized at the app/auth-shell level.
 - Protected-route behavior exists for both `/` and `/settings`, and both routes now use the shared TanStack Router `beforeLoad` helper.
 - There is still no shared TanStack Router auth layout route for future protected routes.
