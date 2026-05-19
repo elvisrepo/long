@@ -220,4 +220,27 @@ describe('dashboard route', () => {
     })
   })
 
+   it('shows an error when metric entry logging fails', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+    createMetricEntryMock.mockRejectedValue(new Error('Metric entry failed to save'))
+
+    renderRoute('/')
+
+    await screen.findByRole('heading', { name: /dashboard/i })
+
+    await user.type(screen.getByLabelText(/resting heart rate value/i), '500')
+    await user.click(
+      screen.getByRole('button', { name: /log resting heart rate/i }),
+    )
+
+    expect(
+      await screen.findByText(/metric entry failed to save/i),
+    ).toBeInTheDocument()
+  })
+
 })

@@ -52,6 +52,8 @@ interface MetricEntryFormProps {
   metricSlug: string
 }
 
+// MetricEntryForm receives props, destructures metricName and metricSlug from them, and TypeScript checks that
+// those props match MetricEntryFormProps.
 function MetricEntryForm({ metricName, metricSlug }: MetricEntryFormProps) {
   const [value, setValue] = useState('')
   const createMetricEntryMutation = useCreateMetricEntryMutation()
@@ -59,14 +61,18 @@ function MetricEntryForm({ metricName, metricSlug }: MetricEntryFormProps) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    await createMetricEntryMutation.mutateAsync({
-      metricDefinition: metricSlug,
-      value: Number(value),
-      recordedAt: new Date().toISOString(),
-      context: {},
-    })
+    try {
+      await createMetricEntryMutation.mutateAsync({
+        metricDefinition: metricSlug,
+        value: Number(value),
+        recordedAt: new Date().toISOString(),
+        context: {},
+      })
 
-    setValue('')
+      setValue('')
+    } catch {
+      // The mutation state below renders the error message.
+    }
   }
 
   return (
@@ -83,6 +89,10 @@ function MetricEntryForm({ metricName, metricSlug }: MetricEntryFormProps) {
       <button disabled={createMetricEntryMutation.isPending} type="submit">
         {createMetricEntryMutation.isPending ? 'Logging...' : `Log ${metricName}`}
       </button>
+
+      {createMetricEntryMutation.isError ? (
+        <p>{createMetricEntryMutation.error.message}</p>
+      ) : null}
     </form>
   )
 }
