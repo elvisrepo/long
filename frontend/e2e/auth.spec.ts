@@ -41,6 +41,11 @@ test('user can register, log in, visit settings, and log out', async ({ page }) 
   await expect(page.getByLabel(/resting heart rate value/i)).toHaveValue('')
   await expect(page.getByText(/58 bpm/i)).toBeVisible()
 
+  await page
+    .getByLabel(/filter recent entries by metric/i)
+    .selectOption('resting_hr')
+  await expect(page.getByText(/58 bpm/i)).toBeVisible()
+
   await page.getByRole('link', { name: /settings/i }).click()
 
   await expect(
