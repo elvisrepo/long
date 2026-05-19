@@ -39,6 +39,7 @@ test('user can register, log in, visit settings, and log out', async ({ page }) 
   await page.getByRole('button', { name: /log resting heart rate/i }).click()
 
   await expect(page.getByLabel(/resting heart rate value/i)).toHaveValue('')
+  await expect(page.getByText(/58 bpm/i)).toBeVisible()
 
   await page.getByRole('link', { name: /settings/i }).click()
 

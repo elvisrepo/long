@@ -213,7 +213,9 @@ Current metrics API integration checkpoint:
 - Failed metric entry submission renders the mutation error message.
 - Successful metric entry mutation invalidates `['metric-entries']` so entry lists can refresh after writes.
 - The dashboard route now renders a `Recent Entries` section backed by `useMetricEntriesQuery()`.
-- Recent entries currently show the metric slug, value, and recorded timestamp.
+- Recent entries resolve the metric slug against loaded metric definitions so the UI can show the user-facing metric name.
+- Recent entries format the value with the metric unit, for example `58 bpm`.
+- Recent entries keep the raw ISO timestamp in the semantic `<time dateTime="...">` attribute while displaying a readable UTC timestamp.
 
 ### 5.5 State Management
 - Web:

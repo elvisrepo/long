@@ -144,7 +144,7 @@
   - `POST /api/testing/reset/` clears only the isolated E2E database before each auth E2E test
   - after flushing, the reset endpoint restores required system seed rows such as default metric definitions
 - Browser-level auth E2E currently covers:
-  - register, login, dashboard metric definitions, real Resting Heart Rate metric-entry submission, settings, logout happy path
+  - register, login, dashboard metric definitions, real Resting Heart Rate metric-entry submission, visible saved metric-entry value, settings, logout happy path
   - failed login staying on `/login` and showing the backend invalid-credentials error
   - duplicate registration staying on `/register` and showing the backend duplicate-email error
 - Frontend verification is green at this checkpoint:
@@ -183,7 +183,9 @@
   - successful mutation invalidates `['metric-entries']`
 - Frontend dashboard metric-entry display now exists:
   - dashboard renders a `Recent Entries` section backed by `useMetricEntriesQuery()`
-  - recent entries show the metric slug, value, and recorded timestamp
+  - recent entries show the user-facing metric name by resolving the entry slug against loaded metric definitions
+  - recent entries show unit-formatted values such as `58 bpm`
+  - recent entries keep the raw recorded timestamp in `<time dateTime="...">` and display a readable UTC timestamp
 
 ### What Is Not Done Yet
 

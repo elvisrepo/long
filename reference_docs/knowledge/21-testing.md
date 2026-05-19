@@ -195,6 +195,7 @@ Current browser-level E2E checkpoint:
   - render backend-provided default metric definitions on the dashboard
   - submit a real Resting Heart Rate metric entry through the dashboard form
   - verify the metric-entry input clears after the backend mutation succeeds
+  - verify the saved metric entry is visible in the dashboard as a unit-formatted value such as `58 bpm`
   - visit `/settings`
   - logout
   - redirect back to `/login`
@@ -285,9 +286,9 @@ Current frontend metrics testing checkpoint:
 - `use-metric-entries-query.test.tsx` covers the TanStack Query wrapper for metric entries.
 - `use-create-metric-entry-mutation.test.tsx` covers manual metric-entry mutation and invalidation of metric-entry list queries.
 - dashboard route tests cover the first metric-entry form behavior: submit, input clearing after success, and visible error on failed save.
-- dashboard route tests also cover rendering logged metric entries in the `Recent Entries` section.
+- dashboard route tests also cover rendering logged metric entries in the `Recent Entries` section with user-facing metric names, unit-formatted values, and readable timestamps.
 - Metric-entry hook tests mock the API helper but use a real `QueryClientProvider`, so they verify Query behavior without requiring a running Django backend.
-- Playwright E2E now submits a real metric entry through the browser against the isolated E2E backend/database.
+- Playwright E2E now submits a real metric entry through the browser against the isolated E2E backend/database and verifies the saved value appears in the dashboard flow.
 
 Frontend test code hygiene:
 - route tests may start with repeated setup such as:
