@@ -1,8 +1,10 @@
 import { screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { restoreWebSession } from '../features/auth/auth-bootstrap'
 import { getMe } from '../features/auth/auth-me-api'
+import { createMetricEntry } from '../features/metrics/metric-entries-api'
 import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-definitions-query'
 import { renderRoute } from './render-route'
 
@@ -23,6 +25,12 @@ vi.mock('../features/auth/auth-bootstrap', () => ({
 vi.mock('../features/metrics/use-metric-definitions-query', () => ({
   useMetricDefinitionsQuery: vi.fn(),
 }))
+
+vi.mock('../features/metrics/metric-entries-api', () => ({
+  createMetricEntry: vi.fn(),
+}))
+
+const createMetricEntryMock = vi.mocked(createMetricEntry)
 
 function mockLoadedMetricDefinitions() {
   vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
@@ -145,5 +153,71 @@ describe('dashboard route', () => {
     ).toBeInTheDocument()
   })
 
+  it('logs a resting heart rate metric entry from the dashboard', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+    createMetricEntryMock.mockResolvedValue({
+      id: 1,
+      metric_definition: 'resting_hr',
+      value: 58,
+      recorded_at: '2026-03-05T07:15:00Z',
+      source: 'manual',
+      context: {},
+      created_at: '2026-03-05T07:15:02Z',
+    })
+
+    renderRoute('/')
+
+    await screen.findByRole('heading', { name: /dashboard/i })
+
+    await user.type(screen.getByLabelText(/resting heart rate value/i), '58')
+    await user.click(
+      screen.getByRole('button', { name: /log resting heart rate/i }),
+    )
+
+    expect(createMetricEntryMock).toHaveBeenCalledWith({
+      metricDefinition: 'resting_hr',
+      value: 58,
+      recordedAt: expect.any(String),
+      context: {},
+    })
+  })
+
+  it('clears the metric entry value after logging succeeds', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+    createMetricEntryMock.mockResolvedValue({
+      id: 1,
+      metric_definition: 'resting_hr',
+      value: 58,
+      recorded_at: '2026-03-05T07:15:00Z',
+      source: 'manual',
+      context: {},
+      created_at: '2026-03-05T07:15:02Z',
+    })
+
+    renderRoute('/')
+
+    await screen.findByRole('heading', { name: /dashboard/i })
+
+    const valueInput = screen.getByLabelText(/resting heart rate value/i)
+
+    await user.type(valueInput, '58')
+    await user.click(
+      screen.getByRole('button', { name: /log resting heart rate/i }),
+    )
+
+    await waitFor(() => {
+      expect(valueInput).toHaveValue(null)
+    })
+  })
 
 })
