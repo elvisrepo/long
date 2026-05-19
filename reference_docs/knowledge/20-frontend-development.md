@@ -207,6 +207,11 @@ Current metrics API integration checkpoint:
 - `getMetricEntries()` fetches `GET /api/v1/metrics/entries/` with optional `metric`, `from`, and `to` query parameters built through `URLSearchParams`.
 - `useMetricEntriesQuery(filters)` exposes metric-entry reads through TanStack Query.
 - Metric-entry query keys include the filters, so different metric/date-range reads get separate cached results.
+- `useCreateMetricEntryMutation()` wraps manual metric-entry creation in TanStack Query mutation state.
+- The dashboard route renders a simple metric-entry form for each loaded metric definition.
+- Successful metric entry submission clears the form input.
+- Failed metric entry submission renders the mutation error message.
+- Successful metric entry mutation invalidates `['metric-entries']` so entry lists can refresh after writes.
 
 ### 5.5 State Management
 - Web:

@@ -175,6 +175,12 @@
   - `getMetricEntries()` fetches metric entries and supports `metric`, `from`, and `to` filters
   - `useMetricEntriesQuery(filters)` wraps metric-entry reads in TanStack Query
   - focused frontend tests cover the API helper contracts and Query hook behavior
+- Frontend dashboard metric-entry form now exists:
+  - dashboard renders a simple value input and submit button for each loaded metric definition
+  - the form submits through `useCreateMetricEntryMutation()`
+  - successful submit clears the input
+  - failed submit shows the mutation error message
+  - successful mutation invalidates `['metric-entries']`
 
 ### What Is Not Done Yet
 
@@ -188,9 +194,8 @@
   - `getMe()` uses that access token to call `GET /api/auth/me/`
   - web logout can clear the in-memory access token through the backend logout endpoint
   - protected routes now depend on current-user query state rather than only on login redirect behavior
-- Login, register, settings, and dashboard route shells are now implemented; real dashboard product content is still placeholder-level.
-- The frontend dashboard now fetches and renders metric definitions from the backend, but frontend metric entry logging and richer dashboard product UI are not implemented yet.
-- Metric entry logging and listing exist on the backend; frontend API helpers now exist, but frontend form integration, cursor pagination, analytics, and E2E coverage are still pending.
+- Login, register, settings, and dashboard route shells are now implemented; dashboard now has first-pass metric definition display and metric-entry form behavior, but richer dashboard product UI is still pending.
+- Metric entry logging and listing exist on the backend; frontend API helpers and the first dashboard form exist, but cursor pagination, analytics, and browser E2E metric-entry submission are still pending.
 - TanStack Query-based current-user state now exists, but bootstrap is still route-local rather than centralized at the app/auth-shell level.
 - Protected-route behavior exists for both `/` and `/settings`, and both routes now use the shared TanStack Router `beforeLoad` helper.
 - There is still no shared TanStack Router auth layout route for future protected routes.
@@ -312,7 +317,8 @@ Updated checkpoint interpretation:
 - the metric-entry backend create slice is implemented and validation-tested
 - the metric-entry backend read/query slice is implemented for newest-first listing, user scoping, and basic filters
 - frontend metric-entry API helpers and Query hook are implemented
-- the immediate next product step is wiring the first frontend metric-entry form
+- first-pass dashboard metric-entry form is implemented and route-tested
+- the immediate next product step is extending Playwright E2E to submit a metric entry through the real browser/backend path
 
 Immediate frontend auth integration target:
 - keep login/register route behavior aligned with the backend auth contract
