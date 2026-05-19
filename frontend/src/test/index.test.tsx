@@ -6,6 +6,7 @@ import { restoreWebSession } from '../features/auth/auth-bootstrap'
 import { getMe } from '../features/auth/auth-me-api'
 import { createMetricEntry } from '../features/metrics/metric-entries-api'
 import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-definitions-query'
+import { useMetricEntriesQuery } from '../features/metrics/use-metric-entries-query'
 import { renderRoute } from './render-route'
 
 vi.mock('../features/auth/auth-me-api', () => ({
@@ -24,6 +25,10 @@ vi.mock('../features/auth/auth-bootstrap', () => ({
 
 vi.mock('../features/metrics/use-metric-definitions-query', () => ({
   useMetricDefinitionsQuery: vi.fn(),
+}))
+
+vi.mock('../features/metrics/use-metric-entries-query', () => ({
+  useMetricEntriesQuery: vi.fn(),
 }))
 
 vi.mock('../features/metrics/metric-entries-api', () => ({
@@ -49,6 +54,17 @@ function mockLoadedMetricDefinitions() {
     isLoading: false,
     isError: false,
   } as ReturnType<typeof useMetricDefinitionsQuery>)
+  mockLoadedMetricEntries()
+}
+
+function mockLoadedMetricEntries(
+  entries: NonNullable<ReturnType<typeof useMetricEntriesQuery>['data']> = [],
+) {
+  vi.mocked(useMetricEntriesQuery).mockReturnValue({
+    data: entries,
+    isLoading: false,
+    isError: false,
+  } as ReturnType<typeof useMetricEntriesQuery>)
 }
 
 describe('dashboard route', () => {
@@ -127,6 +143,7 @@ describe('dashboard route', () => {
       isLoading: true,
       isError: false,
     } as ReturnType<typeof useMetricDefinitionsQuery>)
+    mockLoadedMetricEntries()
 
     renderRoute('/')
 
@@ -145,6 +162,7 @@ describe('dashboard route', () => {
       isLoading: false,
       isError: true,
     } as ReturnType<typeof useMetricDefinitionsQuery>)
+    mockLoadedMetricEntries()
 
     renderRoute('/')
 
@@ -241,6 +259,31 @@ describe('dashboard route', () => {
     expect(
       await screen.findByText(/metric entry failed to save/i),
     ).toBeInTheDocument()
+  })
+
+  it('shows logged metric entries on the dashboard', async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+    mockLoadedMetricEntries([
+      {
+        id: 1,
+        metric_definition: 'resting_hr',
+        value: 58,
+        recorded_at: '2026-03-05T07:15:00Z',
+        source: 'manual',
+        context: {},
+        created_at: '2026-03-05T07:15:02Z',
+      },
+    ])
+
+    renderRoute('/')
+
+    await screen.findByRole('heading', { name: /dashboard/i })
+
+    expect(screen.getByText(/58/)).toBeInTheDocument()
+    expect(screen.getByText(/resting_hr/i)).toBeInTheDocument()
   })
 
 })

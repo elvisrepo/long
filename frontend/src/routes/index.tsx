@@ -3,6 +3,8 @@ import { type FormEvent, useState } from 'react'
 import { requireAuthBeforeLoad } from '../features/auth/require-auth-before-load'
 import { useCreateMetricEntryMutation } from '../features/metrics/use-create-metric-entry-mutation'
 import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-definitions-query'
+import { useMetricEntriesQuery } from '../features/metrics/use-metric-entries-query'
+
 
 export const Route = createFileRoute('/')({
   beforeLoad: requireAuthBeforeLoad,
@@ -15,6 +17,11 @@ function DashboardRoute() {
     isLoading,
     isError,
   } = useMetricDefinitionsQuery()
+  const {
+    data: metricEntries = [],
+    isLoading: metricEntriesAreLoading,
+    isError: metricEntriesFailed,
+  } = useMetricEntriesQuery()
 
   if (isLoading) {
     return <p>Loading metric definitions...</p>
@@ -43,6 +50,21 @@ function DashboardRoute() {
           </article>
         ))}
       </div>
+
+      <section aria-label="Metric entries">
+        <h2>Recent Entries</h2>
+
+        {metricEntriesAreLoading ? <p>Loading metric entries...</p> : null}
+        {metricEntriesFailed ? <p>Metric entries failed to load</p> : null}
+
+        {metricEntries.map((entry) => (
+          <article key={entry.id}>
+            <h3>{entry.metric_definition}</h3>
+            <p>{entry.value}</p>
+            <time dateTime={entry.recorded_at}>{entry.recorded_at}</time>
+          </article>
+        ))}
+      </section>
     </section>
   )
 }
