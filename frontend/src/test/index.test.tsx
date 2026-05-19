@@ -282,8 +282,9 @@ describe('dashboard route', () => {
 
     await screen.findByRole('heading', { name: /dashboard/i })
 
-    expect(screen.getByText(/58/)).toBeInTheDocument()
-    expect(screen.getByText(/resting_hr/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/resting heart rate/i).length).toBeGreaterThan(0)
+    expect(screen.getByText(/58 bpm/i)).toBeInTheDocument()
+    expect(screen.getByText(/mar 5, 2026, 7:15 am/i)).toBeInTheDocument()
   })
 
 })

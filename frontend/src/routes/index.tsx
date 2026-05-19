@@ -22,6 +22,9 @@ function DashboardRoute() {
     isLoading: metricEntriesAreLoading,
     isError: metricEntriesFailed,
   } = useMetricEntriesQuery()
+  const metricDefinitionsBySlug = new Map(
+    metricDefinitions.map((definition) => [definition.slug, definition]),
+  )
 
   if (isLoading) {
     return <p>Loading metric definitions...</p>
@@ -58,15 +61,53 @@ function DashboardRoute() {
         {metricEntriesFailed ? <p>Metric entries failed to load</p> : null}
 
         {metricEntries.map((entry) => (
-          <article key={entry.id}>
-            <h3>{entry.metric_definition}</h3>
-            <p>{entry.value}</p>
-            <time dateTime={entry.recorded_at}>{entry.recorded_at}</time>
-          </article>
+          <MetricEntrySummary
+            key={entry.id}
+            metricName={
+              metricDefinitionsBySlug.get(entry.metric_definition)?.name ??
+              entry.metric_definition
+            }
+            recordedAt={entry.recorded_at}
+            unit={metricDefinitionsBySlug.get(entry.metric_definition)?.unit}
+            value={entry.value}
+          />
         ))}
       </section>
     </section>
   )
+}
+
+interface MetricEntrySummaryProps {
+  metricName: string
+  recordedAt: string
+  unit: string | undefined
+  value: number
+}
+
+function MetricEntrySummary({
+  metricName,
+  recordedAt,
+  unit,
+  value,
+}: MetricEntrySummaryProps) {
+  const displayValue = unit ? `${value} ${unit}` : value
+  const displayRecordedAt = formatMetricEntryRecordedAt(recordedAt)
+
+  return (
+    <article>
+      <h3>{metricName}</h3>
+      <p>{displayValue}</p>
+      <time dateTime={recordedAt}>{displayRecordedAt}</time>
+    </article>
+  )
+}
+
+function formatMetricEntryRecordedAt(recordedAt: string) {
+  return new Intl.DateTimeFormat('en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(recordedAt))
 }
 
 interface MetricEntryFormProps {
