@@ -214,17 +214,17 @@ button {
 }
 
 .dashboard-screen {
-  width: min(390px, 100%);
+  width: min(1080px, 100%);
   margin: 0 auto;
   display: grid;
-  gap: 22px;
+  gap: 28px;
 }
 
 .dashboard-hero {
   display: flex;
   align-items: start;
   justify-content: space-between;
-  gap: 14px;
+  gap: 24px;
 }
 
 .eyebrow,
@@ -238,20 +238,20 @@ button {
 }
 
 .eyebrow {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   color: var(--accent);
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .dashboard-title {
-  font-size: 26px;
+  font-size: clamp(44px, 6vw, 72px);
   line-height: 1.05;
 }
 
 .dashboard-subtitle {
-  margin-top: 8px;
+  margin-top: 12px;
   color: var(--text-dim);
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .status-pill {
@@ -259,24 +259,30 @@ button {
   border-radius: 999px;
   background: var(--accent-dim);
   color: var(--accent);
-  padding: 6px 9px;
+  padding: 8px 12px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   white-space: nowrap;
 }
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
 }
 
 .metric-card,
 .entries-card {
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 18px;
   background: var(--surface-high);
-  padding: 13px;
+  padding: 18px;
+}
+
+.metric-card {
+  min-height: 292px;
+  display: grid;
+  grid-template-rows: 76px 54px 1fr;
 }
 
 .metric-card:first-child {
@@ -286,13 +292,13 @@ button {
 
 .metric-card-header {
   display: grid;
-  gap: 3px;
-  margin-bottom: 10px;
+  align-content: start;
+  gap: 5px;
 }
 
 .metric-card h2 {
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: 17px;
   font-weight: 650;
   letter-spacing: -0.02em;
   line-height: 1.15;
@@ -301,26 +307,25 @@ button {
 .metric-meta {
   color: var(--text-dim);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .chip-label {
   color: var(--text-dim);
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1.25;
 }
 
 .metric-current-value {
   display: flex;
   align-items: baseline;
-  gap: 4px;
-  margin-bottom: 11px;
+  gap: 6px;
   color: var(--accent);
 }
 
 .metric-current-value span {
   font-family: var(--font-heading);
-  font-size: 24px;
+  font-size: 36px;
   font-weight: 800;
   line-height: 1;
 }
@@ -328,34 +333,36 @@ button {
 .metric-current-value small {
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .metric-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
+  gap: 10px;
+  align-content: end;
 }
 
 .metric-form label {
-  gap: 5px;
-  font-size: 9px;
+  gap: 7px;
+  font-size: 10px;
 }
 
 .metric-form input {
-  min-height: 36px;
-  padding: 8px 10px;
-  border-radius: 10px;
+  min-height: 42px;
+  padding: 10px 12px;
+  border-radius: 12px;
 }
 
 .metric-form button {
-  min-height: 38px;
-  padding: 9px 10px;
-  border-radius: 10px;
+  min-height: 44px;
+  padding: 11px 12px;
+  border-radius: 12px;
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
   line-height: 1.1;
+  width: 100%;
 }
 
 .form-error {
@@ -366,21 +373,23 @@ button {
 
 .entries-card {
   display: grid;
-  gap: 14px;
-  padding: 16px;
+  gap: 16px;
+  padding: 20px;
 }
 
 .entries-toolbar {
-  display: grid;
-  gap: 12px;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
 }
 
 .entries-toolbar h2 {
-  font-size: 20px;
+  font-size: 24px;
 }
 
 .entries-filter {
-  width: 100%;
+  width: min(300px, 100%);
 }
 
 .entry-list {
@@ -391,9 +400,9 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 22px;
   border-bottom: 1px solid var(--text-faint);
-  padding: 12px 0;
+  padding: 15px 0;
 }
 
 .entry-row:last-child {
@@ -402,7 +411,7 @@ button {
 
 .entry-row h3 {
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: 0;
 }
@@ -410,7 +419,7 @@ button {
 .entry-value {
   color: var(--accent);
   font-family: var(--font-heading);
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -418,7 +427,7 @@ button {
 .entry-time {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .entry-source {
@@ -450,5 +459,127 @@ button {
 
   .dashboard-screen {
     width: min(390px, 100%);
+    gap: 22px;
+  }
+
+  .dashboard-hero {
+    gap: 14px;
+  }
+
+  .eyebrow {
+    margin-bottom: 8px;
+    font-size: 10px;
+  }
+
+  .dashboard-title {
+    font-size: 26px;
+  }
+
+  .dashboard-subtitle {
+    margin-top: 8px;
+    font-size: 13px;
+  }
+
+  .status-pill {
+    padding: 6px 9px;
+    font-size: 10px;
+  }
+
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .metric-card,
+  .entries-card {
+    border-radius: 12px;
+    padding: 13px;
+  }
+
+  .metric-card {
+    min-height: 216px;
+    grid-template-rows: 64px 36px 1fr;
+  }
+
+  .metric-card-header {
+    gap: 3px;
+  }
+
+  .metric-card h2 {
+    font-size: 13px;
+  }
+
+  .metric-meta,
+  .chip-label {
+    font-size: 9px;
+  }
+
+  .metric-current-value {
+    gap: 4px;
+  }
+
+  .metric-current-value span {
+    font-size: 24px;
+  }
+
+  .metric-current-value small {
+    font-size: 10px;
+  }
+
+  .metric-form {
+    gap: 8px;
+  }
+
+  .metric-form label {
+    gap: 5px;
+    font-size: 9px;
+  }
+
+  .metric-form input {
+    min-height: 36px;
+    padding: 8px 10px;
+    border-radius: 10px;
+  }
+
+  .metric-form button {
+    min-height: 38px;
+    padding: 9px 10px;
+    border-radius: 10px;
+    font-size: 13px;
+  }
+
+  .entries-card {
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .entries-toolbar {
+    display: grid;
+    gap: 12px;
+  }
+
+  .entries-toolbar h2 {
+    font-size: 20px;
+  }
+
+  .entries-filter {
+    width: 100%;
+  }
+
+  .entry-row {
+    gap: 16px;
+    padding: 12px 0;
+  }
+
+  .entry-row h3 {
+    font-size: 13px;
+  }
+
+  .entry-value {
+    font-size: 18px;
+  }
+
+  .entry-time {
+    font-size: 10px;
   }
 }
