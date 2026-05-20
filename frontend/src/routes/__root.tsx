@@ -21,6 +21,9 @@ const RootLayout = () => (
           <Link to="/" className="app-nav-link">
             Dashboard
           </Link>
+          <Link to="/metrics" className="app-nav-link">
+            Metrics
+        </Link>
           <Link to="/login" className="app-nav-link">
             Login
           </Link>
