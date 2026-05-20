@@ -208,3 +208,22 @@ def test_user_cannot_create_custom_metric_with_invalid_value_range():
 
       assert response.status_code == 400
       assert "max_value" in response.json()
+
+
+def test_custom_metric_definition_create_requires_authentication():
+      client = APIClient()
+
+      response = client.post(
+          "/api/v1/metrics/definitions/",
+          {
+              "name": "Mood",
+              "slug": "mood",
+              "unit": "score",
+              "category": "custom",
+              "min_value": 1,
+              "max_value": 10,
+          },
+          format="json",
+      )
+
+      assert response.status_code == 401
