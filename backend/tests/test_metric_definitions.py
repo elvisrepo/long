@@ -189,3 +189,22 @@ def test_user_cannot_create_custom_metric_with_default_metric_slug():
       assert response.status_code == 400
       assert "slug" in response.json()
 
+
+def test_user_cannot_create_custom_metric_with_invalid_value_range():
+      client, _user = authenticate_client_for("alice@example.com")
+
+      response = client.post(
+          "/api/v1/metrics/definitions/",
+          {
+              "name": "Stress",
+              "slug": "stress",
+              "unit": "score",
+              "category": "custom",
+              "min_value": 10,
+              "max_value": 1,
+          },
+          format="json",
+      )
+
+      assert response.status_code == 400
+      assert "max_value" in response.json()

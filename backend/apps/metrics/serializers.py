@@ -31,6 +31,17 @@ class MetricDefinitionSerializer(serializers.ModelSerializer):
               )
 
           return slug
+    
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+          min_value = attrs["min_value"]
+          max_value = attrs["max_value"]
+
+          if min_value >= max_value:
+              raise serializers.ValidationError(
+                  {"max_value": "Max value must be greater than min value."}
+              )
+
+          return attrs
 
 
     def create(self, validated_data: dict[str, Any]) -> MetricDefinition:
