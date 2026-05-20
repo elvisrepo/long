@@ -136,4 +136,34 @@ def test_authenticated_user_can_create_custom_metric_definition():
     assert definition.max_value == 10
     assert definition.is_default is False
     assert definition.is_active is True
-    
+
+
+def test_user_cannot_create_duplicate_custom_metric_slug():
+    client, user = authenticate_client_for("alice@example.com")
+
+    MetricDefinition.objects.create(
+          user=user,
+          name="Mood",
+          slug="mood",
+          unit="score",
+          category=MetricDefinition.Category.CUSTOM,
+          min_value=1,
+          max_value=10,
+          is_default=False,
+    )
+
+    response = client.post(
+          "/api/v1/metrics/definitions/",
+          {
+              "name": "Mood Copy",
+              "slug": "mood",
+              "unit": "score",
+              "category": "custom",
+              "min_value": 1,
+              "max_value": 10,
+          },
+          format="json",
+      )
+
+    assert response.status_code == 400
+    assert "slug" in response.json()

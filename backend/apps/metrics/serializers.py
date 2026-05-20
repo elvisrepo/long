@@ -22,6 +22,17 @@ class MetricDefinitionSerializer(serializers.ModelSerializer):
 
         read_only_fields = ["id", "is_default"]
 
+    def validate_slug(self, slug: str) -> str:
+          request = self.context["request"]
+
+          if MetricDefinition.objects.filter(user=request.user, slug=slug).exists():
+              raise serializers.ValidationError(
+                  "You already have a custom metric with this slug."
+              )
+
+          return slug
+
+
     def create(self, validated_data: dict[str, Any]) -> MetricDefinition:
           request = self.context["request"]
           return MetricDefinition.objects.create(
