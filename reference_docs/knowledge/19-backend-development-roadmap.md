@@ -32,6 +32,8 @@ Current checkpoint note:
 - MetricEntry model and the first authenticated manual create endpoint are implemented
 - manual metric entry creation now enforces authentication, active metric definitions, user scoping, and value range validation
 - metric entry listing now returns the authenticated user's entries newest-first, with `metric`, `from`, and `to` filters
+- user custom metric definitions are readable when they already exist, but the custom metric-definition create/update API is not implemented yet
+- a future `/metrics` frontend page should not expose custom metric creation until the backend create/update contract is built and tested
 - cursor pagination and analytics coverage should continue through TDD before analytics work
 - deferred user-backend scope still includes password reset, profile/account lifecycle work, and any optional email-verification flow
 

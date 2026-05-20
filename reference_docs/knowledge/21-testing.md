@@ -289,8 +289,10 @@ Current frontend metrics testing checkpoint:
 - dashboard route tests cover the first metric-entry form behavior: submit, input clearing after success, and visible error on failed save.
 - dashboard route tests also cover rendering logged metric entries in the `Recent Entries` section with user-facing metric names, unit-formatted values, and readable timestamps.
 - dashboard route tests cover selecting a metric filter and passing the selected metric slug into `useMetricEntriesQuery({ metric })`.
+- dashboard route tests continued to pass after the responsive visual foundation work, so the UI restyle did not change the dashboard behavior contract.
 - Metric-entry hook tests mock the API helper but use a real `QueryClientProvider`, so they verify Query behavior without requiring a running Django backend.
 - Playwright E2E now submits a real metric entry through the browser against the isolated E2E backend/database, verifies the saved value appears in the dashboard flow, and exercises the metric filter dropdown.
+- Playwright E2E continued to pass after the dashboard restyle, so the browser flow selectors still match the accessible labels/headings.
 
 Frontend test code hygiene:
 - route tests may start with repeated setup such as:

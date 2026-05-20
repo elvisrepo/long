@@ -148,7 +148,7 @@
   - failed login staying on `/login` and showing the backend invalid-credentials error
   - duplicate registration staying on `/register` and showing the backend duplicate-email error
 - Frontend verification is green at this checkpoint:
-  - `npm run test`: 77 tests passed
+  - `npm run test`: 78 tests passed
   - `npm run build`: passed
   - `npm run test:e2e`: 3 Playwright tests passed
 - Metric definitions backend slice now exists:
@@ -187,6 +187,12 @@
   - recent entries show the user-facing metric name by resolving the entry slug against loaded metric definitions
   - recent entries show unit-formatted values such as `58 bpm`
   - recent entries keep the raw recorded timestamp in `<time dateTime="...">` and display a readable UTC timestamp
+- Frontend dashboard visual foundation now exists:
+  - dashboard follows the dark metric-card wireframe direction from `10-wireframes-frontend-design.md`
+  - small screens keep the compact phone-like layout
+  - desktop screens use a wider dashboard canvas with larger aligned metric cards and a roomier recent-entry panel
+  - styling is currently plain CSS in `frontend/src/index.css`; Tailwind and `shadcn/ui` have not been installed yet
+  - the current top navbar is intentionally preserved instead of switching to the wireframe's mobile bottom nav
 
 ### What Is Not Done Yet
 
@@ -200,8 +206,10 @@
   - `getMe()` uses that access token to call `GET /api/auth/me/`
   - web logout can clear the in-memory access token through the backend logout endpoint
   - protected routes now depend on current-user query state rather than only on login redirect behavior
-- Login, register, settings, and dashboard route shells are now implemented; dashboard now has first-pass metric definition display, metric-entry form behavior, and recent-entry display, but richer dashboard product UI is still pending.
+- Login, register, settings, and dashboard route shells are now implemented; dashboard now has metric definition display, metric-entry form behavior, recent-entry display/filtering, and a first real visual foundation.
 - Metric entry logging and listing exist on the backend; frontend API helpers, the first dashboard form, and browser E2E metric-entry submission exist, but cursor pagination and analytics are still pending.
+- A dedicated `/metrics` page does not exist yet.
+- Custom metric creation is not implemented yet; the backend currently supports reading default plus user-owned active definitions, but there is no implemented frontend flow or backend create endpoint for user-created metric definitions.
 - TanStack Query-based current-user state now exists, but bootstrap is still route-local rather than centralized at the app/auth-shell level.
 - Protected-route behavior exists for both `/` and `/settings`, and both routes now use the shared TanStack Router `beforeLoad` helper.
 - There is still no shared TanStack Router auth layout route for future protected routes.

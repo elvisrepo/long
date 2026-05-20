@@ -218,6 +218,21 @@ Current metrics API integration checkpoint:
 - Recent entries format the value with the metric unit, for example `58 bpm`.
 - Recent entries keep the raw ISO timestamp in the semantic `<time dateTime="...">` attribute while displaying a readable UTC timestamp.
 
+Current dashboard UI checkpoint:
+- The dashboard now follows the dark mobile health-app wireframe direction from `10-wireframes-frontend-design.md`.
+- The top desktop navbar is intentionally kept, even though the original wireframe uses a phone-style bottom nav.
+- Small screens keep a compact phone-like layout with two-column metric chips.
+- Desktop screens use a wider dashboard canvas with larger metric cards, larger current values, aligned form/button rows, and a roomier recent-entry panel.
+- The current styling is plain CSS in `src/index.css`; Tailwind and `shadcn/ui` are still not installed.
+- Use `shadcn/ui` later only if we intentionally add Tailwind/shadcn primitives for stable reusable controls such as Button, Input, Select, Card, Label, and Alert.
+
+Planned metrics page:
+- `/metrics` should become the page where users browse available metric definitions.
+- It should show system default metrics and the user's custom metrics.
+- It should eventually provide the entry point for adding custom metrics.
+- Custom metric creation is not implemented yet on the backend API; `POST /api/v1/metrics/definitions/` remains planned for a later slice.
+- Do not build a fake custom-metric form before the backend create contract exists.
+
 ### 5.5 State Management
 - Web:
   - `TanStack Query` for server state
