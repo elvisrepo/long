@@ -1,39 +1,46 @@
 import { QueryClient } from "@tanstack/react-query";
-import { createRootRouteWithContext, Link, Outlet } from "@tanstack/react-router";
+import {
+  createRootRouteWithContext,
+  Link,
+  Outlet,
+} from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
 interface RouterContext {
-  queryClient: QueryClient
+  queryClient: QueryClient;
 }
 
-
 const RootLayout = () => (
-  <>
-    <header className="p-4">
-      <nav className="flex gap-4">
-        <Link to="/" className="[&.active]:font-bold">
-          Dashboard
+  <div className="app-shell">
+    <header className="app-header">
+      <div className="app-header-inner">
+        <Link to="/" className="app-logo">
+          ⬡ longevity
         </Link>
-        <Link to="/login" className="[&.active]:font-bold">
-          Login
-        </Link>
-        <Link to="/register" className="[&.active]:font-bold">
-          Register
-        </Link>
-        <Link to="/settings" className="[&.active]:font-bold">
-          Settings
-        </Link>
-      </nav>
+        <nav className="app-nav" aria-label="Primary navigation">
+          <Link to="/" className="app-nav-link">
+            Dashboard
+          </Link>
+          <Link to="/login" className="app-nav-link">
+            Login
+          </Link>
+          <Link to="/register" className="app-nav-link">
+            Register
+          </Link>
+          <Link to="/settings" className="app-nav-link">
+            Settings
+          </Link>
+        </nav>
+      </div>
     </header>
-    <hr />
-    <main className="p-4">
+    <main className="app-main">
       <Outlet />
     </main>
     <TanStackRouterDevtools />
-  </>
+  </div>
 );
 
- export const Route = createRootRouteWithContext<RouterContext>()({
-    component: RootLayout,
-    notFoundComponent: () => <div>404 Not Found</div>,
-  })
+export const Route = createRootRouteWithContext<RouterContext>()({
+  component: RootLayout,
+  notFoundComponent: () => <div>404 Not Found</div>,
+});
