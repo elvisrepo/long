@@ -10,7 +10,7 @@ from apps.metrics.serializers import (
 
 
 
-class MetricDefinitionListView(generics.ListAPIView):
+class MetricDefinitionListView(generics.ListCreateAPIView):
     serializer_class = MetricDefinitionSerializer
     permission_classes = [IsAuthenticated]
 

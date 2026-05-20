@@ -96,3 +96,44 @@ def test_metric_definitions_lists_defaults_and_user_owned_custom_metrics():
         "max_value": 220.0,
         "is_default": True,
     }
+
+
+def test_authenticated_user_can_create_custom_metric_definition():
+    client, user = authenticate_client_for("alice@example.com")
+
+    response = client.post(
+          "/api/v1/metrics/definitions/",
+          {
+              "name": "Mood",
+              "slug": "mood",
+              "unit": "score",
+              "category": "custom",
+              "min_value": 1,
+              "max_value": 10,
+          },
+          format="json",
+      )
+    
+    assert response.status_code == 201
+
+    payload = response.json()
+    assert payload == {
+          "id": payload["id"],
+          "name": "Mood",
+          "slug": "mood",
+          "unit": "score",
+          "category": "custom",
+          "min_value": 1.0,
+          "max_value": 10.0,
+          "is_default": False,
+    }
+
+    definition = MetricDefinition.objects.get(user=user, slug="mood")
+    assert definition.name == "Mood"
+    assert definition.unit == "score"
+    assert definition.category == MetricDefinition.Category.CUSTOM
+    assert definition.min_value == 1
+    assert definition.max_value == 10
+    assert definition.is_default is False
+    assert definition.is_active is True
+    

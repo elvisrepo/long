@@ -20,6 +20,17 @@ class MetricDefinitionSerializer(serializers.ModelSerializer):
             "is_default",
         ]
 
+        read_only_fields = ["id", "is_default"]
+
+    def create(self, validated_data: dict[str, Any]) -> MetricDefinition:
+          request = self.context["request"]
+          return MetricDefinition.objects.create(
+              user=request.user,
+              is_default=False,
+              **validated_data,
+          )
+
+
 
 class MetricEntrySerializer(serializers.ModelSerializer):
     # The public API accepts the stable metric slug instead of exposing DB UUIDs.
