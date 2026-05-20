@@ -167,3 +167,25 @@ def test_user_cannot_create_duplicate_custom_metric_slug():
 
     assert response.status_code == 400
     assert "slug" in response.json()
+
+
+def test_user_cannot_create_custom_metric_with_default_metric_slug():
+      client, _user = authenticate_client_for("alice@example.com")
+
+      response = client.post(
+          "/api/v1/metrics/definitions/",
+          {
+              "name": "My Resting Heart Rate",
+              "slug": "resting_hr",
+              "unit": "bpm",
+              "category": "custom",
+              "min_value": 20,
+              "max_value": 220,
+          },
+          format="json",
+      )
+
+      print(response.status_code, response.json())
+      assert response.status_code == 400
+      assert "slug" in response.json()
+
