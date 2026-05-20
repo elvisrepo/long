@@ -259,6 +259,11 @@ Current backend metrics testing checkpoint:
 - Authenticated users receive active system default metric definitions.
 - Authenticated users also receive their own active custom metric definitions.
 - Other users' custom definitions and inactive definitions are not returned.
+- Authenticated users can create custom metric definitions.
+- Custom metric-definition creation requires authentication.
+- Custom metric-definition creation rejects duplicate slugs for the same user.
+- Custom metric-definition creation rejects slugs already used by system default metrics.
+- Custom metric-definition creation rejects invalid ranges where `max_value <= min_value`.
 - `tests/test_metric_entries.py` now covers the first metric-entry write slice.
 - Authenticated users can create a manual metric entry for an active default metric definition by sending the metric slug.
 - Metric-entry creation requires authentication.

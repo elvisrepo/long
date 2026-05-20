@@ -156,7 +156,9 @@
   - `MetricDefinition` model matches the planned ERD shape
   - default metric definitions are seeded through the initial metrics migration
   - `GET /api/v1/metrics/definitions/` returns active defaults plus the authenticated user's active custom definitions
-  - the endpoint requires JWT authentication
+  - `POST /api/v1/metrics/definitions/` creates authenticated user-owned custom metric definitions
+  - metric-definition endpoints require JWT authentication
+  - custom metric-definition creation enforces duplicate-slug protection, default-slug protection, and valid min/max ranges
   - backend metric-definition tests pass, and the broader backend suite passed after this slice
 - Metric entry backend create slice now exists:
   - `MetricEntry` model exists for user-owned metric data points
@@ -209,7 +211,8 @@
 - Login, register, settings, and dashboard route shells are now implemented; dashboard now has metric definition display, metric-entry form behavior, recent-entry display/filtering, and a first real visual foundation.
 - Metric entry logging and listing exist on the backend; frontend API helpers, the first dashboard form, and browser E2E metric-entry submission exist, but cursor pagination and analytics are still pending.
 - A dedicated `/metrics` page does not exist yet.
-- Custom metric creation is not implemented yet; the backend currently supports reading default plus user-owned active definitions, but there is no implemented frontend flow or backend create endpoint for user-created metric definitions.
+- Custom metric creation is implemented on the backend, but there is no frontend flow yet.
+- Custom metric update/deactivate behavior is not implemented yet.
 - TanStack Query-based current-user state now exists, but bootstrap is still route-local rather than centralized at the app/auth-shell level.
 - Protected-route behavior exists for both `/` and `/settings`, and both routes now use the shared TanStack Router `beforeLoad` helper.
 - There is still no shared TanStack Router auth layout route for future protected routes.

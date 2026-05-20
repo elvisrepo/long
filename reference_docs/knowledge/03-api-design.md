@@ -43,7 +43,7 @@
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
 | GET | `/api/v1/metrics/definitions/` | List available metrics | Implemented; includes active defaults + authenticated user's active custom definitions |
-| POST | `/api/v1/metrics/definitions/` | Create custom metric (R5+) | |
+| POST | `/api/v1/metrics/definitions/` | Create custom metric | Implemented for authenticated users; creates user-owned non-default metric definitions |
 | GET | `/api/v1/metrics/entries/?metric=resting_hr&from=2026-01-01&to=2026-03-01` | Query entries | Implemented for authenticated user's entries; supports optional `metric`, `from`, and `to` filters; returns newest first |
 | POST | `/api/v1/metrics/entries/` | Log a metric entry | Implemented for manual entries; accepts `metric_definition` as a slug such as `resting_hr`; not idempotent — repeated calls create duplicate entries |
 | POST | `/api/v1/metrics/entries/bulk/` | Bulk import | |
@@ -74,6 +74,41 @@ Current entry listing behavior:
 - `from=<timestamp>` filters entries where `recorded_at >= from`.
 - `to=<timestamp>` filters entries where `recorded_at <= to`.
 - Cursor pagination is still planned; the current implementation returns the unpaginated list.
+
+**Example: Creating a custom metric definition**
+```json
+POST /api/v1/metrics/definitions/
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+
+{
+  "name": "Mood",
+  "slug": "mood",
+  "unit": "score",
+  "category": "custom",
+  "min_value": 1,
+  "max_value": 10
+}
+
+// Response: 201 Created
+{
+  "id": "7bd9858f-4d27-4a30-9f4d-129f0243b9d6",
+  "name": "Mood",
+  "slug": "mood",
+  "unit": "score",
+  "category": "custom",
+  "min_value": 1.0,
+  "max_value": 10.0,
+  "is_default": false
+}
+```
+
+Custom metric-definition create behavior:
+- Authentication is required.
+- The backend stores the authenticated user on the definition; clients do not submit `user`.
+- `is_default` is server-controlled and always `false` for this endpoint.
+- A user cannot create a duplicate custom metric slug for their own account.
+- A user cannot create a custom metric with a slug already used by a system default metric.
+- `max_value` must be greater than `min_value`.
 
 **Data passing convention:**
 - **Path params** → required resource identifiers (`/analytics/{slug}/`, `/wearables/connections/{id}/`)

@@ -230,8 +230,9 @@ Planned metrics page:
 - `/metrics` should become the page where users browse available metric definitions.
 - It should show system default metrics and the user's custom metrics.
 - It should eventually provide the entry point for adding custom metrics.
-- Custom metric creation is not implemented yet on the backend API; `POST /api/v1/metrics/definitions/` remains planned for a later slice.
-- Do not build a fake custom-metric form before the backend create contract exists.
+- Custom metric creation is now implemented on the backend through `POST /api/v1/metrics/definitions/`.
+- The frontend custom-metric form still does not exist; build it through TDD against the backend create contract.
+- Custom metric update/deactivate behavior is still not implemented, so the first frontend `/metrics` slice should focus on listing and creating definitions.
 
 ### 5.5 State Management
 - Web:

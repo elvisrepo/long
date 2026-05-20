@@ -28,12 +28,13 @@ Follows the progressive rollout (R1→R5):
 
 Current checkpoint note:
 - the R1 auth foundation is complete enough to move into metrics work
-- MetricDefinition model, default seed data migration, and authenticated list endpoint are implemented
+- MetricDefinition model, default seed data migration, authenticated list endpoint, and authenticated custom create endpoint are implemented
 - MetricEntry model and the first authenticated manual create endpoint are implemented
 - manual metric entry creation now enforces authentication, active metric definitions, user scoping, and value range validation
 - metric entry listing now returns the authenticated user's entries newest-first, with `metric`, `from`, and `to` filters
-- user custom metric definitions are readable when they already exist, but the custom metric-definition create/update API is not implemented yet
-- a future `/metrics` frontend page should not expose custom metric creation until the backend create/update contract is built and tested
+- custom metric-definition creation enforces authentication, user ownership, non-default creation, duplicate-slug protection, default-slug protection, and valid min/max ranges
+- a future `/metrics` frontend page can now expose custom metric creation against `POST /api/v1/metrics/definitions/`
+- custom metric-definition update/deactivate behavior is still not implemented
 - cursor pagination and analytics coverage should continue through TDD before analytics work
 - deferred user-backend scope still includes password reset, profile/account lifecycle work, and any optional email-verification flow
 
