@@ -145,12 +145,13 @@
   - after flushing, the reset endpoint restores required system seed rows such as default metric definitions
 - Browser-level auth E2E currently covers:
   - register, login, dashboard metric definitions, real Resting Heart Rate metric-entry submission, visible saved metric-entry value, dashboard metric filter, settings, logout happy path
+  - custom metric creation through `/metrics`, custom metric catalog visibility, custom metric dashboard visibility, and custom metric entry logging
   - failed login staying on `/login` and showing the backend invalid-credentials error
   - duplicate registration staying on `/register` and showing the backend duplicate-email error
 - Frontend verification is green at this checkpoint:
-  - `npm run test`: 78 tests passed
+  - `npm run test`: passed
   - `npm run build`: passed
-  - `npm run test:e2e`: 3 Playwright tests passed
+  - `npm run test:e2e`: passed
 - Metric definitions backend slice now exists:
   - `apps.metrics` Django app is registered
   - `MetricDefinition` model matches the planned ERD shape
@@ -173,10 +174,18 @@
   - the list endpoint supports `metric`, `from`, and `to` query filters
   - metric-entry views now use DRF generic class-based views rather than function-based `@api_view` handlers for the growing list/create resource
 - Frontend metric-entry API integration has started:
+  - `createMetricDefinition()` posts custom metric definitions with the bearer access token
+  - `useCreateMetricDefinitionMutation()` wraps custom metric-definition creation and invalidates `['metric-definitions']`
   - `createMetricEntry()` posts manual metric entries with the bearer access token
   - `getMetricEntries()` fetches metric entries and supports `metric`, `from`, and `to` filters
   - `useMetricEntriesQuery(filters)` wraps metric-entry reads in TanStack Query
   - focused frontend tests cover the API helper contracts and Query hook behavior
+- Frontend metrics catalog page now exists:
+  - `/metrics` is a protected route
+  - `/metrics` lists available metric definitions
+  - `/metrics` includes the first custom metric creation form
+  - successful custom metric creation clears the form and refreshes metric definitions
+  - failed custom metric creation shows backend validation errors
 - Frontend dashboard metric-entry form now exists:
   - dashboard renders a simple value input and submit button for each loaded metric definition
   - the form submits through `useCreateMetricEntryMutation()`
@@ -208,10 +217,8 @@
   - `getMe()` uses that access token to call `GET /api/auth/me/`
   - web logout can clear the in-memory access token through the backend logout endpoint
   - protected routes now depend on current-user query state rather than only on login redirect behavior
-- Login, register, settings, and dashboard route shells are now implemented; dashboard now has metric definition display, metric-entry form behavior, recent-entry display/filtering, and a first real visual foundation.
-- Metric entry logging and listing exist on the backend; frontend API helpers, the first dashboard form, and browser E2E metric-entry submission exist, but cursor pagination and analytics are still pending.
-- A dedicated `/metrics` page does not exist yet.
-- Custom metric creation is implemented on the backend, but there is no frontend flow yet.
+- Login, register, settings, dashboard, and metrics route shells are now implemented; dashboard now has metric definition display, metric-entry form behavior, recent-entry display/filtering, and a first real visual foundation.
+- Metric entry logging/listing and custom metric-definition creation exist on the backend; frontend API helpers, the first dashboard form, `/metrics` custom metric form, and browser E2E coverage exist, but cursor pagination and analytics are still pending.
 - Custom metric update/deactivate behavior is not implemented yet.
 - TanStack Query-based current-user state now exists, but bootstrap is still route-local rather than centralized at the app/auth-shell level.
 - Protected-route behavior exists for both `/` and `/settings`, and both routes now use the shared TanStack Router `beforeLoad` helper.

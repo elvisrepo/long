@@ -202,6 +202,10 @@ Current limitation:
 Current metrics API integration checkpoint:
 - `getMetricDefinitions()` fetches `GET /api/v1/metrics/definitions/` with the in-memory bearer access token.
 - `useMetricDefinitionsQuery()` exposes metric definitions through TanStack Query for dashboard reads.
+- `createMetricDefinition()` posts custom metric definitions to `POST /api/v1/metrics/definitions/`.
+- `createMetricDefinition()` keeps component-facing input camelCase, then maps it to the backend's snake_case JSON contract.
+- `useCreateMetricDefinitionMutation()` wraps custom metric-definition creation in TanStack Query mutation state.
+- Successful custom metric-definition mutation invalidates `['metric-definitions']` so metric catalogs and dashboard metric cards can refresh after writes.
 - `createMetricEntry()` posts manual metric entries to `POST /api/v1/metrics/entries/`.
 - `createMetricEntry()` keeps the component-facing input camelCase, then maps it to the backend's snake_case JSON contract.
 - `getMetricEntries()` fetches `GET /api/v1/metrics/entries/` with optional `metric`, `from`, and `to` query parameters built through `URLSearchParams`.
@@ -226,13 +230,15 @@ Current dashboard UI checkpoint:
 - The current styling is plain CSS in `src/index.css`; Tailwind and `shadcn/ui` are still not installed.
 - Use `shadcn/ui` later only if we intentionally add Tailwind/shadcn primitives for stable reusable controls such as Button, Input, Select, Card, Label, and Alert.
 
-Planned metrics page:
-- `/metrics` should become the page where users browse available metric definitions.
-- It should show system default metrics and the user's custom metrics.
-- It should eventually provide the entry point for adding custom metrics.
-- Custom metric creation is now implemented on the backend through `POST /api/v1/metrics/definitions/`.
-- The frontend custom-metric form still does not exist; build it through TDD against the backend create contract.
-- Custom metric update/deactivate behavior is still not implemented, so the first frontend `/metrics` slice should focus on listing and creating definitions.
+Current metrics page checkpoint:
+- `/metrics` exists as a protected route.
+- `/metrics` lists available metric definitions from `useMetricDefinitionsQuery()`.
+- `/metrics` shows system default metrics and the authenticated user's custom metrics.
+- `/metrics` includes the first custom metric creation form.
+- The form submits through `useCreateMetricDefinitionMutation()`.
+- Successful custom metric creation clears the form and invalidates metric-definition queries.
+- Failed custom metric creation shows the backend validation message.
+- Custom metric update/deactivate behavior is still not implemented.
 
 ### 5.5 State Management
 - Web:

@@ -197,6 +197,10 @@ Current browser-level E2E checkpoint:
   - verify the metric-entry input clears after the backend mutation succeeds
   - verify the saved metric entry is visible in the dashboard as a unit-formatted value such as `58 bpm`
   - select the dashboard metric filter and verify the saved metric entry remains visible through the filtered read path
+  - create a custom metric through `/metrics`
+  - verify the custom metric is visible in the metrics catalog
+  - verify the custom metric becomes loggable from the dashboard
+  - log a value for the custom metric and verify the saved custom metric entry appears on the dashboard
   - visit `/settings`
   - logout
   - redirect back to `/login`
@@ -288,6 +292,7 @@ Practical test-level guidance for the current frontend slice:
 Current frontend metrics testing checkpoint:
 - `metric-definitions-api.test.ts` covers the metric-definition API helper request shape and error behavior.
 - `use-metric-definitions-query.test.tsx` covers the TanStack Query wrapper for metric definitions.
+- `use-create-metric-definition-mutation.test.tsx` covers custom metric-definition mutation and invalidation of metric-definition queries.
 - `metric-entries-api.test.ts` covers `createMetricEntry()` and `getMetricEntries()` request shape, auth-token requirements, backend failure behavior, and filter query-string generation.
 - `use-metric-entries-query.test.tsx` covers the TanStack Query wrapper for metric entries.
 - `use-create-metric-entry-mutation.test.tsx` covers manual metric-entry mutation and invalidation of metric-entry list queries.
@@ -295,8 +300,10 @@ Current frontend metrics testing checkpoint:
 - dashboard route tests also cover rendering logged metric entries in the `Recent Entries` section with user-facing metric names, unit-formatted values, and readable timestamps.
 - dashboard route tests cover selecting a metric filter and passing the selected metric slug into `useMetricEntriesQuery({ metric })`.
 - dashboard route tests continued to pass after the responsive visual foundation work, so the UI restyle did not change the dashboard behavior contract.
+- metrics route tests cover protected-route behavior, metric catalog rendering, custom metric creation submit payload, form clearing after success, and visible backend validation errors.
 - Metric-entry hook tests mock the API helper but use a real `QueryClientProvider`, so they verify Query behavior without requiring a running Django backend.
 - Playwright E2E now submits a real metric entry through the browser against the isolated E2E backend/database, verifies the saved value appears in the dashboard flow, and exercises the metric filter dropdown.
+- Playwright E2E now also creates a custom metric through `/metrics`, verifies it appears in the catalog, verifies it appears on the dashboard, and logs a custom metric entry.
 - Playwright E2E continued to pass after the dashboard restyle, so the browser flow selectors still match the accessible labels/headings.
 
 Frontend test code hygiene:
