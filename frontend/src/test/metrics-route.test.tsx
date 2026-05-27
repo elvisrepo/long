@@ -1,7 +1,9 @@
 import { screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { getMe } from '../features/auth/auth-me-api'
+import { createMetricDefinition } from '../features/metrics/metric-definitions-api'
 import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-definitions-query'
 import { renderRoute } from './render-route'
 
@@ -12,6 +14,12 @@ import { renderRoute } from './render-route'
  vi.mock('../features/metrics/use-metric-definitions-query', () => ({
     useMetricDefinitionsQuery: vi.fn(),
   }))
+
+vi.mock('../features/metrics/metric-definitions-api', () => ({
+    createMetricDefinition: vi.fn(),
+  }))
+
+const createMetricDefinitionMock = vi.mocked(createMetricDefinition)
 
  function mockLoadedMetricDefinitions() {
     vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
@@ -66,5 +74,46 @@ describe('metrics route', () => {
         await screen.findByRole('heading', { name: /login/i }),
       ).toBeInTheDocument()
     })
+
+    it('creates a custom metric definition from the metrics page', async () => {
+      const user = userEvent.setup()
+
+      vi.mocked(getMe).mockResolvedValue({
+        email: 'user@example.com',
+      })
+      mockLoadedMetricDefinitions()
+      createMetricDefinitionMock.mockResolvedValue({
+        id: 'custom-metric-id',
+        name: 'Mood',
+        slug: 'mood',
+        unit: 'score',
+        category: 'custom',
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+      })
+
+      renderRoute('/metrics')
+
+      await screen.findByRole('heading', { name: /metrics/i })
+
+      await user.type(screen.getByLabelText(/name/i), 'Mood')
+      await user.type(screen.getByLabelText(/slug/i), 'mood')
+      await user.type(screen.getByLabelText(/unit/i), 'score')
+      await user.type(screen.getByLabelText(/min value/i), '1')
+      await user.type(screen.getByLabelText(/max value/i), '10')
+      await user.click(
+        screen.getByRole('button', { name: /create custom metric/i }),
+      )
+
+      expect(createMetricDefinitionMock).toHaveBeenCalledWith({
+        name: 'Mood',
+        slug: 'mood',
+        unit: 'score',
+        minValue: 1,
+        maxValue: 10,
+      })
+    })
+
   })
 
