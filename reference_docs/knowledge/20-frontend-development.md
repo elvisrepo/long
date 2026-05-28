@@ -250,6 +250,8 @@ Current metric detail page checkpoint:
 - The detail route uses `useMetricEntriesQuery({ metric: slug })` to fetch that metric's entry history.
 - The detail route shows a styled summary section with latest value, tracked entry count, and accepted range.
 - The detail route shows an entry-history section using the same dark card language as the dashboard.
+- The detail route includes `7d`, `30d`, `90d`, and `All` range controls for entry history.
+- Range controls pass a stable `from` timestamp into `useMetricEntriesQuery({ metric, from })`; compute date filters only when the user selects a range, not during render, because query filters are part of the TanStack Query cache key.
 - Dashboard metric cards and recent-entry metric names link to `/metrics/$slug`.
 - Metric detail data is currently fetched through TanStack Query hooks inside the route component, not through TanStack Router loaders.
 - Router/Query ownership and cache flow are documented in `reference_docs/knowledge/diagrams/frontend-router-query-data-flow.md`.

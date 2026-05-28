@@ -1,4 +1,5 @@
 import { screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { getMe } from '../features/auth/auth-me-api'
@@ -109,5 +110,72 @@ describe('metric detail route', () => {
     expect(
       await screen.findByRole('heading', { name: /login/i }),
     ).toBeInTheDocument()
+  })
+
+  it('filters metric entries by the selected 30 day range', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+    mockLoadedMetricEntries()
+
+    renderRoute('/metrics/resting_hr')
+
+    await screen.findByRole('heading', {
+      level: 1,
+      name: /resting heart rate/i,
+    })
+
+    const beforeClick = new Date()
+    await user.click(screen.getByRole('button', { name: /30d/i }))
+    const afterClick = new Date()
+
+    const lastFilters = vi.mocked(useMetricEntriesQuery).mock.calls.at(-1)?.[0]
+    const earliestExpectedFrom = new Date(beforeClick)
+    const latestExpectedFrom = new Date(afterClick)
+    earliestExpectedFrom.setUTCDate(earliestExpectedFrom.getUTCDate() - 30)
+    latestExpectedFrom.setUTCDate(latestExpectedFrom.getUTCDate() - 30)
+
+    expect(lastFilters).toMatchObject({
+      metric: 'resting_hr',
+      from: expect.any(String),
+    })
+    expect(new Date(lastFilters?.from ?? '').getTime()).toBeGreaterThanOrEqual(
+      earliestExpectedFrom.getTime() - 1000,
+    )
+    expect(new Date(lastFilters?.from ?? '').getTime()).toBeLessThanOrEqual(
+      latestExpectedFrom.getTime() + 1000,
+    )
+  })
+
+  it('keeps the selected range filter stable across rerenders', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+    mockLoadedMetricEntries()
+
+    renderRoute('/metrics/resting_hr')
+
+    await screen.findByRole('heading', {
+      level: 1,
+      name: /resting heart rate/i,
+    })
+
+    await user.click(screen.getByRole('button', { name: /7d/i }))
+    const firstRangeFilters = vi.mocked(useMetricEntriesQuery).mock.calls.at(
+      -1,
+    )?.[0]
+
+    await user.click(screen.getByRole('button', { name: /7d/i }))
+    const secondRangeFilters = vi.mocked(useMetricEntriesQuery).mock.calls.at(
+      -1,
+    )?.[0]
+
+    expect(secondRangeFilters).toEqual(firstRangeFilters)
   })
 })

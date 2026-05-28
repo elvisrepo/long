@@ -193,6 +193,8 @@
   - it resolves the metric definition through `useMetricDefinitionsQuery()`
   - it fetches that metric's entry history through `useMetricEntriesQuery({ metric: slug })`
   - it renders latest value, tracked entry count, accepted range, and entry history
+  - it supports `7d`, `30d`, `90d`, and `All` range controls for entry history
+  - date-range query filters are computed on range selection and kept stable to avoid TanStack Query refetch loops
   - dashboard metric cards and recent entries link to the metric detail route
   - browser E2E covers opening the detail route from the dashboard
   - router/query/cache responsibilities are documented in `reference_docs/knowledge/diagrams/frontend-router-query-data-flow.md`

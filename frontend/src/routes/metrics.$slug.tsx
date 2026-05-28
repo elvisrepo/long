@@ -1,7 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { useState } from 'react'
 
 import { requireAuthBeforeLoad } from '../features/auth/require-auth-before-load'
 import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-definitions-query'
+import { type GetMetricEntriesFilters } from '../features/metrics/metric-entries-api'
 import { useMetricEntriesQuery } from '../features/metrics/use-metric-entries-query'
 
 export const Route = createFileRoute('/metrics/$slug')({
@@ -9,8 +11,26 @@ export const Route = createFileRoute('/metrics/$slug')({
   component: MetricDetailRoute,
 })
 
+const metricEntryRanges = [
+  { label: '7d', days: 7 },
+  { label: '30d', days: 30 },
+  { label: '90d', days: 90 },
+  { label: 'All', days: null },
+] as const
+
+type MetricEntryRange = (typeof metricEntryRanges)[number]
+
 function MetricDetailRoute() {
   const { slug } = Route.useParams()
+  const [selectedRange, setSelectedRange] = useState<MetricEntryRange>(
+    metricEntryRanges[3],
+  )
+  const [selectedRangeFrom, setSelectedRangeFrom] = useState<
+    string | undefined
+  >(undefined)
+  const metricEntryFilters: GetMetricEntriesFilters = selectedRangeFrom
+    ? { metric: slug, from: selectedRangeFrom }
+    : { metric: slug }
   const {
     data: metricDefinitions = [],
     isLoading: definitionsAreLoading,
@@ -20,7 +40,7 @@ function MetricDetailRoute() {
     data: metricEntries = [],
     isLoading: entriesAreLoading,
     isError: entriesFailed,
-  } = useMetricEntriesQuery({ metric: slug })
+  } = useMetricEntriesQuery(metricEntryFilters)
 
   if (definitionsAreLoading) {
     return <p>Loading metric...</p>
@@ -40,6 +60,17 @@ function MetricDetailRoute() {
 
   const latestEntry = metricEntries[0]
   const valueRange = `${metricDefinition.min_value}-${metricDefinition.max_value} ${metricDefinition.unit}`
+
+  function handleRangeSelect(range: MetricEntryRange) {
+    if (selectedRange.label === range.label) {
+      return
+    }
+
+    setSelectedRange(range)
+    setSelectedRangeFrom(
+      range.days === null ? undefined : getRangeStartIso(range.days),
+    )
+  }
 
   return (
     <section className="metric-detail-screen">
@@ -85,6 +116,19 @@ function MetricDetailRoute() {
             <p className="eyebrow">Recorded manually</p>
             <h2>Entry History</h2>
           </div>
+
+          <div className="range-toggle" aria-label="Metric entry range">
+            {metricEntryRanges.map((range) => (
+              <button
+                aria-pressed={selectedRange.label === range.label}
+                key={range.label}
+                onClick={() => handleRangeSelect(range)}
+                type="button"
+              >
+                {range.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {entriesAreLoading ? <p>Loading metric entries...</p> : null}
@@ -116,4 +160,10 @@ function formatMetricEntryRecordedAt(recordedAt: string) {
     timeStyle: 'short',
     timeZone: 'UTC',
   }).format(new Date(recordedAt))
+}
+
+function getRangeStartIso(days: number) {
+  const rangeStart = new Date()
+  rangeStart.setUTCDate(rangeStart.getUTCDate() - days)
+  return rangeStart.toISOString()
 }

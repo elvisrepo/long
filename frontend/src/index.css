@@ -401,6 +401,34 @@ button {
   width: min(300px, 100%);
 }
 
+.range-toggle {
+  display: inline-flex;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  padding: 5px;
+}
+
+.range-toggle button {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-dim);
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.range-toggle button:hover,
+.range-toggle button[aria-pressed="true"] {
+  border-color: rgba(0, 229, 160, 0.28);
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
 .entry-list {
   display: grid;
 }
@@ -768,6 +796,15 @@ button {
 
   .entries-filter {
     width: 100%;
+  }
+
+  .range-toggle {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .range-toggle button {
+    flex: 1;
   }
 
   .entry-row {
