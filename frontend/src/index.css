@@ -522,11 +522,29 @@ button {
   justify-content: space-between;
   gap: 18px;
   border-bottom: 1px solid var(--text-faint);
+  border-radius: 14px;
   padding: 16px 0;
+  text-decoration: none;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
 }
 
 .metric-list-row:last-child {
   border-bottom: 0;
+}
+
+.metric-list-row:hover,
+.metric-list-row:focus-visible {
+  background: rgba(0, 229, 160, 0.06);
+  outline: none;
+  transform: translateX(3px);
+}
+
+.metric-list-row:hover h2,
+.metric-list-row:focus-visible h2 {
+  color: var(--accent);
 }
 
 .metric-list-row h2 {
