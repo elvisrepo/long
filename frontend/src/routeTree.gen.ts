@@ -14,6 +14,7 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as MetricsRouteImport } from './routes/metrics'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as MetricsSlugRouteImport } from './routes/metrics.$slug'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -40,41 +41,62 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MetricsSlugRoute = MetricsSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => MetricsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/metrics': typeof MetricsRoute
+  '/metrics': typeof MetricsRouteWithChildren
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/metrics/$slug': typeof MetricsSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/metrics': typeof MetricsRoute
+  '/metrics': typeof MetricsRouteWithChildren
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/metrics/$slug': typeof MetricsSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/metrics': typeof MetricsRoute
+  '/metrics': typeof MetricsRouteWithChildren
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/metrics/$slug': typeof MetricsSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/metrics' | '/register' | '/settings'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/metrics'
+    | '/register'
+    | '/settings'
+    | '/metrics/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/metrics' | '/register' | '/settings'
-  id: '__root__' | '/' | '/login' | '/metrics' | '/register' | '/settings'
+  to: '/' | '/login' | '/metrics' | '/register' | '/settings' | '/metrics/$slug'
+  id:
+    | '__root__'
+    | '/'
+    | '/login'
+    | '/metrics'
+    | '/register'
+    | '/settings'
+    | '/metrics/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
-  MetricsRoute: typeof MetricsRoute
+  MetricsRoute: typeof MetricsRouteWithChildren
   RegisterRoute: typeof RegisterRoute
   SettingsRoute: typeof SettingsRoute
 }
@@ -116,13 +138,31 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/metrics/$slug': {
+      id: '/metrics/$slug'
+      path: '/$slug'
+      fullPath: '/metrics/$slug'
+      preLoaderRoute: typeof MetricsSlugRouteImport
+      parentRoute: typeof MetricsRoute
+    }
   }
 }
+
+interface MetricsRouteChildren {
+  MetricsSlugRoute: typeof MetricsSlugRoute
+}
+
+const MetricsRouteChildren: MetricsRouteChildren = {
+  MetricsSlugRoute: MetricsSlugRoute,
+}
+
+const MetricsRouteWithChildren =
+  MetricsRoute._addFileChildren(MetricsRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
-  MetricsRoute: MetricsRoute,
+  MetricsRoute: MetricsRouteWithChildren,
   RegisterRoute: RegisterRoute,
   SettingsRoute: SettingsRoute,
 }

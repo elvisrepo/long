@@ -1,4 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router'
+import {
+  Outlet,
+  createFileRoute,
+  useRouterState,
+} from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 
 import { requireAuthBeforeLoad } from '../features/auth/require-auth-before-load'
@@ -11,6 +15,18 @@ export const Route = createFileRoute('/metrics')({
 })
 
 function MetricsRoute() {
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
+
+  if (pathname !== '/metrics') {
+    return <Outlet />
+  }
+
+  return <MetricsCatalog />
+}
+
+function MetricsCatalog() {
   const {
     data: metricDefinitions = [],
     isLoading,
