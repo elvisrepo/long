@@ -309,4 +309,20 @@ describe('dashboard route', () => {
     })
   })
 
+  it('links metric cards to their metric detail pages', async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+
+    mockLoadedMetricDefinitions()
+    mockLoadedMetricEntries([])
+
+    renderRoute('/')
+
+    const metricLink = await screen.findByRole('link', {
+      name: /resting heart rate/i,
+    })
+
+    expect(metricLink).toHaveAttribute('href', '/metrics/resting_hr')
+  })
 })

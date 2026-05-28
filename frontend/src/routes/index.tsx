@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load";
 import { useCreateMetricEntryMutation } from "../features/metrics/use-create-metric-entry-mutation";
@@ -65,14 +65,18 @@ function DashboardRoute() {
         {metricDefinitions.map((definition) => (
           <article className="metric-card" key={definition.id}>
             <div className="metric-card-header">
-              <div>
+              <Link
+                className="metric-card-link"
+                params={{ slug: definition.slug }}
+                to="/metrics/$slug"
+              >
                 <p className="chip-label">
                   {definition.category} · {definition.unit}
                 </p>
                 <h2>{definition.name}</h2>
-              </div>
+              </Link>
               <p className="metric-meta">{definition.slug}</p>
-            </div>
+          </div>
 
             <MetricDefinitionValue
               entry={latestEntriesByMetric.get(definition.slug)}
