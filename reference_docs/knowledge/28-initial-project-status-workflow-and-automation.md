@@ -183,14 +183,18 @@
 - Frontend metrics catalog page now exists:
   - `/metrics` is a protected route
   - `/metrics` lists available metric definitions
+  - metric catalog rows link to `/metrics/$slug`
   - `/metrics` includes the first custom metric creation form
   - successful custom metric creation clears the form and refreshes metric definitions
   - failed custom metric creation shows backend validation errors
-- Frontend metric detail page has started:
+- Frontend metric detail page now exists:
   - `/metrics/$slug` is a protected dynamic route
   - it reads the dynamic metric slug from TanStack Router params
   - it resolves the metric definition through `useMetricDefinitionsQuery()`
   - it fetches that metric's entry history through `useMetricEntriesQuery({ metric: slug })`
+  - it renders latest value, tracked entry count, accepted range, and entry history
+  - dashboard metric cards and recent entries link to the metric detail route
+  - browser E2E covers opening the detail route from the dashboard
   - router/query/cache responsibilities are documented in `reference_docs/knowledge/diagrams/frontend-router-query-data-flow.md`
 - Frontend dashboard metric-entry form now exists:
   - dashboard renders a simple value input and submit button for each loaded metric definition

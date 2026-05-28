@@ -299,12 +299,14 @@ Current frontend metrics testing checkpoint:
 - dashboard route tests cover the first metric-entry form behavior: submit, input clearing after success, and visible error on failed save.
 - dashboard route tests also cover rendering logged metric entries in the `Recent Entries` section with user-facing metric names, unit-formatted values, and readable timestamps.
 - dashboard route tests cover selecting a metric filter and passing the selected metric slug into `useMetricEntriesQuery({ metric })`.
+- dashboard route tests cover metric-card links and recent-entry links to `/metrics/$slug`.
 - dashboard route tests continued to pass after the responsive visual foundation work, so the UI restyle did not change the dashboard behavior contract.
-- metrics route tests cover protected-route behavior, metric catalog rendering, custom metric creation submit payload, form clearing after success, and visible backend validation errors.
-- metric detail route tests cover protected-route behavior, dynamic slug route rendering, metric-definition lookup, metric-entry history rendering, and filtered `useMetricEntriesQuery({ metric: slug })` calls.
+- metrics route tests cover protected-route behavior, metric catalog rendering, catalog-row links to `/metrics/$slug`, custom metric creation submit payload, form clearing after success, and visible backend validation errors.
+- metric detail route tests cover protected-route behavior, dynamic slug route rendering, metric-definition lookup, styled summary rendering, metric-entry history rendering, and filtered `useMetricEntriesQuery({ metric: slug })` calls.
 - Metric-entry hook tests mock the API helper but use a real `QueryClientProvider`, so they verify Query behavior without requiring a running Django backend.
 - Playwright E2E now submits a real metric entry through the browser against the isolated E2E backend/database, verifies the saved value appears in the dashboard flow, and exercises the metric filter dropdown.
 - Playwright E2E now also creates a custom metric through `/metrics`, verifies it appears in the catalog, verifies it appears on the dashboard, and logs a custom metric entry.
+- Playwright E2E now opens a metric detail page from the dashboard and verifies the detail URL, summary, latest value, and entry-history heading.
 - Playwright E2E continued to pass after the dashboard restyle, so the browser flow selectors still match the accessible labels/headings.
 
 Frontend test code hygiene:

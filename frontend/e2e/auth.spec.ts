@@ -91,14 +91,18 @@ test('user can create a custom metric and log it from the dashboard', async ({ p
     page.getByRole('heading', { name: /metrics/i }),
   ).toBeVisible()
 
-  await page.getByLabel(/name/i).fill('Mood')
-  await page.getByLabel(/slug/i).fill('mood')
-  await page.getByLabel(/unit/i).fill('score')
-  await page.getByLabel(/min value/i).fill('1')
-  await page.getByLabel(/max value/i).fill('10')
+  const customMetricForm = page
+    .getByRole('heading', { name: /create custom metric/i })
+    .locator('..')
+
+  await customMetricForm.getByLabel(/name/i).fill('Mood')
+  await customMetricForm.getByLabel(/slug/i).fill('mood')
+  await customMetricForm.getByLabel(/unit/i).fill('score')
+  await customMetricForm.getByLabel(/min value/i).fill('1')
+  await customMetricForm.getByLabel(/max value/i).fill('10')
   await page.getByRole('button', { name: /create custom metric/i }).click()
 
-  await expect(page.getByLabel(/name/i)).toHaveValue('')
+  await expect(customMetricForm.getByLabel(/name/i)).toHaveValue('')
   await expect(
     page.getByRole('heading', { name: /mood/i }),
   ).toBeVisible()
@@ -159,5 +163,48 @@ test('duplicate registration stays on register page and shows an error', async (
 
   await expect(
     page.getByText(/a user with that email already exists/i),
+  ).toBeVisible()
+})
+
+test('user can open a metric detail page from the dashboard', async ({
+  page,
+}) => {
+  await page.goto('/register')
+
+  const email = `metric-detail-${Date.now()}@example.com`
+  const password = 'correct-horse-battery-staple'
+
+  await page.getByLabel(/email/i).fill(email)
+  await page.getByLabel(/password/i).fill(password)
+  await page.getByRole('button', { name: /register/i }).click()
+
+  await page.goto('/login')
+  await page.getByLabel(/email/i).fill(email)
+  await page.getByLabel(/password/i).fill(password)
+  await page.getByRole('button', { name: /login/i }).click()
+
+  await expect(
+    page.getByRole('heading', { name: /dashboard/i }),
+  ).toBeVisible()
+
+  await page.getByLabel(/resting heart rate value/i).fill('58')
+  await page.getByRole('button', { name: /log resting heart rate/i }).click()
+
+  await expect(page.getByText(/58 bpm/i)).toBeVisible()
+
+  await page
+    .getByRole('link', { name: /resting heart rate/i })
+    .first()
+    .click()
+
+  await expect(page).toHaveURL(/\/metrics\/resting_hr$/)
+  await expect(
+    page.getByRole('heading', { name: /resting heart rate/i }),
+  ).toBeVisible()
+  await expect(page.getByText(/resting_hr · bpm/i)).toBeVisible()
+  await expect(page.getByText(/latest value/i)).toBeVisible()
+  await expect(page.getByLabel(/58 bpm/i)).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: /entry history/i }),
   ).toBeVisible()
 })

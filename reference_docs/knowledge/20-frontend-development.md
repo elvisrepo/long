@@ -236,6 +236,7 @@ Current metrics page checkpoint:
 - `/metrics` exists as a protected route.
 - `/metrics` lists available metric definitions from `useMetricDefinitionsQuery()`.
 - `/metrics` shows system default metrics and the authenticated user's custom metrics.
+- each metric catalog row links to `/metrics/$slug`.
 - `/metrics` includes the first custom metric creation form.
 - The form submits through `useCreateMetricDefinitionMutation()`.
 - Successful custom metric creation clears the form and invalidates metric-definition queries.
@@ -247,6 +248,9 @@ Current metric detail page checkpoint:
 - The detail route reads `slug` through `Route.useParams()`.
 - The detail route uses `useMetricDefinitionsQuery()` to resolve the user-facing metric definition for the slug.
 - The detail route uses `useMetricEntriesQuery({ metric: slug })` to fetch that metric's entry history.
+- The detail route shows a styled summary section with latest value, tracked entry count, and accepted range.
+- The detail route shows an entry-history section using the same dark card language as the dashboard.
+- Dashboard metric cards and recent-entry metric names link to `/metrics/$slug`.
 - Metric detail data is currently fetched through TanStack Query hooks inside the route component, not through TanStack Router loaders.
 - Router/Query ownership and cache flow are documented in `reference_docs/knowledge/diagrams/frontend-router-query-data-flow.md`.
 
