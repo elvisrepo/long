@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -324,5 +324,36 @@ describe('dashboard route', () => {
     })
 
     expect(metricLink).toHaveAttribute('href', '/metrics/resting_hr')
+  })
+
+ it('links recent entries to their metric detail pages', async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+    mockLoadedMetricEntries([
+      {
+        id: 1,
+        metric_definition: 'resting_hr',
+        value: 58,
+        recorded_at: '2026-03-05T07:15:00Z',
+        source: 'manual',
+        context: {},
+        created_at: '2026-03-05T07:15:02Z',
+      },
+    ])
+
+    renderRoute('/')
+
+    await screen.findByRole('heading', { name: /dashboard/i })
+
+    const recentEntries = screen.getByRole('region', {
+      name: /metric entries/i,
+    })
+    const entryLink = within(recentEntries).getByRole('link', {
+      name: /resting heart rate/i,
+    })
+
+    expect(entryLink).toHaveAttribute('href', '/metrics/resting_hr')
   })
 })

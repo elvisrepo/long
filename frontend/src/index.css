@@ -423,6 +423,19 @@ button {
   letter-spacing: 0;
 }
 
+.entry-link {
+  color: inherit;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-decoration: none;
+}
+
+.entry-link:hover {
+  color: var(--accent);
+}
+
 .entry-value {
   color: var(--accent);
   font-family: var(--font-heading);
@@ -668,6 +681,10 @@ button {
   }
 
   .entry-label {
+    font-size: 13px;
+  }
+
+  .entry-link {
     font-size: 13px;
   }
 

@@ -125,6 +125,7 @@ function DashboardRoute() {
                 metricDefinitionsBySlug.get(entry.metric_definition)?.name ??
                 entry.metric_definition
               }
+              metricSlug={entry.metric_definition}
               recordedAt={entry.recorded_at}
               source={entry.source}
               unit={metricDefinitionsBySlug.get(entry.metric_definition)?.unit}
@@ -157,6 +158,7 @@ function MetricDefinitionValue({ entry, unit }: MetricDefinitionValueProps) {
 
 interface MetricEntrySummaryProps {
   metricName: string;
+  metricSlug: string;
   recordedAt: string;
   source: string;
   unit: string | undefined;
@@ -165,6 +167,7 @@ interface MetricEntrySummaryProps {
 
 function MetricEntrySummary({
   metricName,
+  metricSlug,
   recordedAt,
   source,
   unit,
@@ -176,7 +179,13 @@ function MetricEntrySummary({
   return (
     <article className="entry-row">
       <div>
-        <h3>{metricName}</h3>
+        <Link
+          className="entry-link"
+          params={{ slug: metricSlug }}
+          to="/metrics/$slug"
+        >
+          {metricName}
+        </Link>
         <p className="entry-time">
           <time dateTime={recordedAt}>{displayRecordedAt}</time>
           <span className="entry-source">{source}</span>
