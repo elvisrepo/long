@@ -32,6 +32,8 @@ Current frontend routing checkpoint:
 - `src/routes/__root.tsx` provides the current top-level layout shell
 - the route skeleton currently includes:
   - `/`
+  - `/metrics`
+  - `/metrics/$slug`
   - `/login`
   - `/register`
   - `/settings`
@@ -239,6 +241,14 @@ Current metrics page checkpoint:
 - Successful custom metric creation clears the form and invalidates metric-definition queries.
 - Failed custom metric creation shows the backend validation message.
 - Custom metric update/deactivate behavior is still not implemented.
+
+Current metric detail page checkpoint:
+- `/metrics/$slug` exists as a protected dynamic route.
+- The detail route reads `slug` through `Route.useParams()`.
+- The detail route uses `useMetricDefinitionsQuery()` to resolve the user-facing metric definition for the slug.
+- The detail route uses `useMetricEntriesQuery({ metric: slug })` to fetch that metric's entry history.
+- Metric detail data is currently fetched through TanStack Query hooks inside the route component, not through TanStack Router loaders.
+- Router/Query ownership and cache flow are documented in `reference_docs/knowledge/diagrams/frontend-router-query-data-flow.md`.
 
 ### 5.5 State Management
 - Web:

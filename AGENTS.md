@@ -59,6 +59,7 @@ Load only the parts you need. You can load multiple files when useful. Be specif
 - `reference_docs/knowledge/30-c4-container-diagram.md` when you need the high-level container/runtime view of clients, backend pieces, data stores, and CI.
 - `reference_docs/knowledge/36-c4-deployment-diagram.md` when you need the C4 deployment view for the pragmatic MVP cloud runtime.
 - `reference_docs/knowledge/diagrams/longevity-architecture.dsl` when you need the Structurizr DSL source of truth for C4 architecture views.
+- `reference_docs/knowledge/diagrams/frontend-router-query-data-flow.md` when you need the current TanStack Router versus TanStack Query responsibility split, cache ownership, route-param flow, or frontend server-state data-flow diagram.
 
 
 ## Playbooks at `reference_docs/playbooks/`

@@ -186,6 +186,12 @@
   - `/metrics` includes the first custom metric creation form
   - successful custom metric creation clears the form and refreshes metric definitions
   - failed custom metric creation shows backend validation errors
+- Frontend metric detail page has started:
+  - `/metrics/$slug` is a protected dynamic route
+  - it reads the dynamic metric slug from TanStack Router params
+  - it resolves the metric definition through `useMetricDefinitionsQuery()`
+  - it fetches that metric's entry history through `useMetricEntriesQuery({ metric: slug })`
+  - router/query/cache responsibilities are documented in `reference_docs/knowledge/diagrams/frontend-router-query-data-flow.md`
 - Frontend dashboard metric-entry form now exists:
   - dashboard renders a simple value input and submit button for each loaded metric definition
   - the form submits through `useCreateMetricEntryMutation()`
@@ -217,7 +223,7 @@
   - `getMe()` uses that access token to call `GET /api/auth/me/`
   - web logout can clear the in-memory access token through the backend logout endpoint
   - protected routes now depend on current-user query state rather than only on login redirect behavior
-- Login, register, settings, dashboard, and metrics route shells are now implemented; dashboard now has metric definition display, metric-entry form behavior, recent-entry display/filtering, and a first real visual foundation.
+- Login, register, settings, dashboard, metrics catalog, and first metric detail route shells are now implemented; dashboard now has metric definition display, metric-entry form behavior, recent-entry display/filtering, and a first real visual foundation.
 - Metric entry logging/listing and custom metric-definition creation exist on the backend; frontend API helpers, the first dashboard form, `/metrics` custom metric form, and browser E2E coverage exist, but cursor pagination and analytics are still pending.
 - Custom metric update/deactivate behavior is not implemented yet.
 - TanStack Query-based current-user state now exists, but bootstrap is still route-local rather than centralized at the app/auth-shell level.
