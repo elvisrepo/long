@@ -1,4 +1,5 @@
 import {
+  Link,
   Outlet,
   createFileRoute,
   useRouterState,
@@ -55,7 +56,12 @@ function MetricsCatalog() {
 
       <div className="metrics-list" aria-label="Available metrics">
         {metricDefinitions.map((definition) => (
-          <article className="metric-list-row" key={definition.id}>
+          <Link
+            className="metric-list-row"
+            key={definition.id}
+            params={{ slug: definition.slug }}
+            to="/metrics/$slug"
+          >
             <div>
               <h2>{definition.name}</h2>
               <p>
@@ -63,8 +69,8 @@ function MetricsCatalog() {
               </p>
             </div>
             <span>{definition.slug}</span>
-          </article>
-        ))}
+          </Link>
+  ))}
       </div>
     </section>
   )

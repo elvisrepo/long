@@ -180,4 +180,40 @@ describe('metrics route', () => {
       await screen.findByText(/metric definition with this slug already exists/i),
     ).toBeInTheDocument()
   })
+
+ it('links each metric row to its metric detail page', async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+
+    renderRoute('/metrics')
+
+    const metricLink = await screen.findByRole('link', {
+      name: /resting heart rate/i,
+    })
+
+    expect(metricLink).toHaveAttribute('href', '/metrics/resting_hr')
+  })
+
+  it('navigates to the metric detail page when a metric row is clicked', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+
+    renderRoute('/metrics')
+
+    await user.click(
+      await screen.findByRole('link', { name: /resting heart rate/i }),
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: /resting heart rate/i }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/resting_hr · bpm/i)).toBeInTheDocument()
+  })
+
 })
