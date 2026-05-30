@@ -302,7 +302,7 @@ Current frontend metrics testing checkpoint:
 - dashboard route tests cover metric-card links and recent-entry links to `/metrics/$slug`.
 - dashboard route tests continued to pass after the responsive visual foundation work, so the UI restyle did not change the dashboard behavior contract.
 - metrics route tests cover protected-route behavior, metric catalog rendering, catalog-row links to `/metrics/$slug`, custom metric creation submit payload, form clearing after success, and visible backend validation errors.
-- metric detail route tests cover protected-route behavior, dynamic slug route rendering, metric-definition lookup, styled summary rendering, metric-entry history rendering, range-filtered `useMetricEntriesQuery({ metric, from })` calls, and stable range filter query keys.
+- metric detail route tests cover protected-route behavior, dynamic slug route rendering, metric-definition lookup, styled summary rendering, simple trend overview rendering, metric-entry history rendering, range-filtered `useMetricEntriesQuery({ metric, from })` calls, and stable range filter query keys.
 - Metric-entry hook tests mock the API helper but use a real `QueryClientProvider`, so they verify Query behavior without requiring a running Django backend.
 - Playwright E2E now submits a real metric entry through the browser against the isolated E2E backend/database, verifies the saved value appears in the dashboard flow, and exercises the metric filter dropdown.
 - Playwright E2E now also creates a custom metric through `/metrics`, verifies it appears in the catalog, verifies it appears on the dashboard, and logs a custom metric entry.
