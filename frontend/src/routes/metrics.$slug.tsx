@@ -60,6 +60,13 @@ function MetricDetailRoute() {
 
   const latestEntry = metricEntries[0]
   const valueRange = `${metricDefinition.min_value}-${metricDefinition.max_value} ${metricDefinition.unit}`
+  const oldestEntry = metricEntries.at(-1)
+  const trendDelta =
+    latestEntry && oldestEntry ? latestEntry.value - oldestEntry.value : undefined
+  const formattedTrendDelta =
+    trendDelta === undefined
+      ? '—'
+      : `${trendDelta > 0 ? '+' : ''}${trendDelta} ${metricDefinition.unit}`
 
   function handleRangeSelect(range: MetricEntryRange) {
     if (selectedRange.label === range.label) {
@@ -108,6 +115,36 @@ function MetricDetailRoute() {
           <p className="meta-label">Accepted range</p>
           <p className="metric-detail-stat-value">{valueRange}</p>
         </article>
+      </section>
+
+      <section className="trend-card" aria-label="Trend overview">
+        <div className="entries-toolbar">
+          <div>
+            <p className="eyebrow">Selected range</p>
+            <h2>Trend Overview</h2>
+          </div>
+        </div>
+
+        <div className="trend-grid">
+          <article>
+            <p className="meta-label">Oldest</p>
+            <p className="trend-value">
+              {oldestEntry ? `${oldestEntry.value} ${metricDefinition.unit}` : '—'}
+            </p>
+          </article>
+
+          <article>
+            <p className="meta-label">Latest</p>
+            <p className="trend-value">
+              {latestEntry ? `${latestEntry.value} ${metricDefinition.unit}` : '—'}
+            </p>
+          </article>
+
+          <article>
+            <p className="meta-label">Delta</p>
+            <p className="trend-value trend-delta">{formattedTrendDelta}</p>
+          </article>
+        </div>
       </section>
 
       <section className="entries-card" aria-label="Metric entry history">

@@ -38,19 +38,21 @@ function mockLoadedMetricDefinitions() {
   } as ReturnType<typeof useMetricDefinitionsQuery>)
 }
 
-function mockLoadedMetricEntries() {
+function mockLoadedMetricEntries(
+  entries: NonNullable<ReturnType<typeof useMetricEntriesQuery>['data']> = [
+    {
+      id: 1,
+      metric_definition: 'resting_hr',
+      value: 58,
+      recorded_at: '2026-03-05T07:15:00Z',
+      source: 'manual',
+      context: {},
+      created_at: '2026-03-05T07:15:02Z',
+    },
+  ],
+) {
   vi.mocked(useMetricEntriesQuery).mockReturnValue({
-    data: [
-      {
-        id: 1,
-        metric_definition: 'resting_hr',
-        value: 58,
-        recorded_at: '2026-03-05T07:15:00Z',
-        source: 'manual',
-        context: {},
-        created_at: '2026-03-05T07:15:02Z',
-      },
-    ],
+    data: entries,
     isLoading: false,
     isError: false,
   } as ReturnType<typeof useMetricEntriesQuery>)
@@ -177,5 +179,52 @@ describe('metric detail route', () => {
     )?.[0]
 
     expect(secondRangeFilters).toEqual(firstRangeFilters)
+  })
+
+  it('shows a simple trend overview from oldest to latest entry', async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+    mockLoadedMetricEntries([
+      {
+        id: 1,
+        metric_definition: 'resting_hr',
+        value: 58,
+        recorded_at: '2026-03-05T07:15:00Z',
+        source: 'manual',
+        context: {},
+        created_at: '2026-03-05T07:15:02Z',
+      },
+      {
+        id: 2,
+        metric_definition: 'resting_hr',
+        value: 56,
+        recorded_at: '2026-03-01T07:15:00Z',
+        source: 'manual',
+        context: {},
+        created_at: '2026-03-01T07:15:02Z',
+      },
+    ])
+
+    renderRoute('/metrics/resting_hr')
+
+    await screen.findByRole('heading', {
+      level: 1,
+      name: /resting heart rate/i,
+    })
+
+    const trend = screen.getByRole('region', {
+      name: /trend overview/i,
+    })
+
+    expect(
+      within(trend).getByRole('heading', { name: /trend overview/i }),
+    ).toBeInTheDocument()
+    expect(within(trend).getByText(/oldest/i)).toBeInTheDocument()
+    expect(within(trend).getByText(/56 bpm/i)).toBeInTheDocument()
+    expect(within(trend).getByText(/latest/i)).toBeInTheDocument()
+    expect(within(trend).getByText(/58 bpm/i)).toBeInTheDocument()
+    expect(within(trend).getByText(/\+2 bpm/i)).toBeInTheDocument()
   })
 })

@@ -671,6 +671,41 @@ button {
   letter-spacing: -0.04em;
 }
 
+.trend-card {
+  display: grid;
+  gap: 16px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(24, 28, 36, 0.9);
+  padding: 20px;
+}
+
+.trend-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.trend-grid article {
+  border: 1px solid var(--text-faint);
+  border-radius: 16px;
+  background: rgba(10, 12, 16, 0.45);
+  padding: 16px;
+}
+
+.trend-value {
+  margin-top: 10px;
+  color: var(--text);
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.trend-delta {
+  color: var(--accent);
+}
+
 @media (max-width: 680px) {
   .app-header-inner,
   .dashboard-hero,
@@ -867,6 +902,24 @@ button {
 
   .metric-detail-stat-value {
     margin-top: 12px;
+    font-size: 22px;
+  }
+
+  .trend-card {
+    border-radius: 14px;
+    padding: 16px;
+  }
+
+  .trend-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .trend-grid article {
+    border-radius: 14px;
+    padding: 14px;
+  }
+
+  .trend-value {
     font-size: 22px;
   }
 
