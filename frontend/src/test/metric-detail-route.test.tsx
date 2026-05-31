@@ -227,4 +227,33 @@ describe('metric detail route', () => {
     expect(within(trend).getByText(/58 bpm/i)).toBeInTheDocument()
     expect(within(trend).getByText(/\+2 bpm/i)).toBeInTheDocument()
   })
+
+  it('shows an empty state when the metric has no entries', async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+    mockLoadedMetricEntries([])
+
+    renderRoute('/metrics/resting_hr')
+
+    await screen.findByRole('heading', {
+      level: 1,
+      name: /resting heart rate/i,
+    })
+
+    const emptyState = screen
+      .getByText(/no entries recorded yet/i)
+      .closest('.empty-state') as HTMLElement
+
+    expect(emptyState).toHaveTextContent(
+      /log your first value from the dashboard\./i,
+    )
+    expect(
+      within(emptyState).getByRole('link', { name: /dashboard/i }),
+    ).toHaveAttribute(
+      'href',
+      '/',
+    )
+  })
 })

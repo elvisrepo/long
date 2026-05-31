@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { requireAuthBeforeLoad } from '../features/auth/require-auth-before-load'
@@ -171,21 +171,31 @@ function MetricDetailRoute() {
         {entriesAreLoading ? <p>Loading metric entries...</p> : null}
         {entriesFailed ? <p>Metric entries failed to load</p> : null}
 
-        <div className="entry-list">
-          {metricEntries.map((entry) => (
-            <article className="entry-row" key={entry.id}>
-              <div>
-                <p className="entry-label">{metricDefinition.name}</p>
-                <time dateTime={entry.recorded_at}>
-                  {formatMetricEntryRecordedAt(entry.recorded_at)}
-                </time>
-              </div>
-              <p className="entry-value">
-                {entry.value} {metricDefinition.unit}
-              </p>
-            </article>
-          ))}
-        </div>
+        {metricEntries.length === 0 ? (
+          <div className="empty-state">
+            <h3>No entries recorded yet</h3>
+            <p>
+              Log your first value from the{' '}
+              <Link to="/">Dashboard</Link>.
+            </p>
+          </div>
+        ) : (
+          <div className="entry-list">
+            {metricEntries.map((entry) => (
+              <article className="entry-row" key={entry.id}>
+                <div>
+                  <p className="entry-label">{metricDefinition.name}</p>
+                  <time dateTime={entry.recorded_at}>
+                    {formatMetricEntryRecordedAt(entry.recorded_at)}
+                  </time>
+                </div>
+                <p className="entry-value">
+                  {entry.value} {metricDefinition.unit}
+                </p>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
     </section>
   )

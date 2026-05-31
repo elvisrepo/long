@@ -433,6 +433,36 @@ button {
   display: grid;
 }
 
+.empty-state {
+  border: 1px dashed var(--text-faint);
+  border-radius: 16px;
+  background: rgba(10, 12, 16, 0.35);
+  padding: 22px;
+}
+
+.empty-state h3 {
+  font-family: var(--font-sans);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.empty-state p {
+  margin-top: 8px;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.empty-state a {
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.empty-state a:hover {
+  text-decoration: underline;
+}
+
 .entry-row {
   display: flex;
   align-items: center;
@@ -845,6 +875,19 @@ button {
   .entry-row {
     gap: 16px;
     padding: 12px 0;
+  }
+
+  .empty-state {
+    border-radius: 14px;
+    padding: 16px;
+  }
+
+  .empty-state h3 {
+    font-size: 14px;
+  }
+
+  .empty-state p {
+    font-size: 13px;
   }
 
   .entry-row h3 {
