@@ -1,6 +1,7 @@
 from django.db.models import Q
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import ValidationError
 
 from apps.metrics.models import MetricDefinition, MetricEntry
 from apps.metrics.serializers import (
@@ -59,11 +60,15 @@ def parse_positive_int(value: str | None) -> int | None:
 
       try:
           parsed_value = int(value)
-      except ValueError:
-          return None
+      except ValueError as exc:
+          raise ValidationError(
+              {"limit": ["Limit must be a positive integer."]}
+          ) from exc
 
       if parsed_value < 1:
-          return None
+          raise ValidationError(
+              {"limit": ["Limit must be a positive integer."]}
+          )
 
       return parsed_value
 

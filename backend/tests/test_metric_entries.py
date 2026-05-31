@@ -361,3 +361,14 @@ def test_authenticated_user_can_limit_metric_entries_list():
     assert response.status_code == 200
     assert len(response.json()) == 2
     assert [entry["value"] for entry in response.json()] == [57.0, 56.0]
+
+@pytest.mark.parametrize("limit", ["0", "-1", "abc"])
+def test_metric_entry_list_rejects_invalid_limit(limit: str):
+      client, _user = authenticate_client_for("alice@example.com")
+
+      response = client.get(f"/api/v1/metrics/entries/?limit={limit}")
+
+      assert response.status_code == 400
+      assert response.json() == {
+          "limit": ["Limit must be a positive integer."]
+      }
