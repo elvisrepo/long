@@ -2,7 +2,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
-from apps.metrics.models import MetricDefinition
+from apps.metrics.models import MetricDefinition, MetricEntry
 
 pytestmark = pytest.mark.django_db
 
@@ -342,3 +342,22 @@ def test_metric_entry_list_can_filter_by_recorded_at_to():
 
       data = response.json()
       assert [entry["value"] for entry in data] == [58.0]
+
+def test_authenticated_user_can_limit_metric_entries_list():
+    client, _user = authenticate_client_for("alice@example.com")
+
+    resting_hr = MetricDefinition.objects.get(slug="resting_hr")
+
+    for value in [55, 56, 57]:
+          MetricEntry.objects.create(
+              user=_user,
+              metric_definition=resting_hr,
+              value=value,
+              recorded_at=f"2026-03-0{value - 54}T07:15:00Z",
+          )
+
+    response = client.get("/api/v1/metrics/entries/?limit=2")
+
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+    assert [entry["value"] for entry in response.json()] == [57.0, 56.0]

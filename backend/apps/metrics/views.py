@@ -46,8 +46,26 @@ class MetricEntryListCreateView(generics.ListCreateAPIView):
           if recorded_to:
                 queryset = queryset.filter(recorded_at__lte=recorded_to)
 
+          limit = parse_positive_int(self.request.query_params.get("limit"))
+          if limit is not None:
+                queryset = queryset[:limit]
+
           return queryset
 
+
+def parse_positive_int(value: str | None) -> int | None:
+      if value is None:
+          return None
+
+      try:
+          parsed_value = int(value)
+      except ValueError:
+          return None
+
+      if parsed_value < 1:
+          return None
+
+      return parsed_value
 
 
 '''
