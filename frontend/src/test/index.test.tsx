@@ -287,6 +287,19 @@ describe('dashboard route', () => {
     expect(screen.getByText(/mar 5, 2026, 7:15 am/i)).toBeInTheDocument()
   })
 
+  it('limits recent entries on the dashboard', async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+
+    renderRoute('/')
+
+    await screen.findByRole('heading', { name: /dashboard/i })
+
+    expect(useMetricEntriesQuery).toHaveBeenCalledWith({ limit: 5 })
+  })
+
   it('filters recent entries by selected metric', async () => {
     const user = userEvent.setup()
 
@@ -306,6 +319,7 @@ describe('dashboard route', () => {
 
     expect(useMetricEntriesQuery).toHaveBeenLastCalledWith({
       metric: 'resting_hr',
+      limit: 5,
     })
   })
 

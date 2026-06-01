@@ -97,6 +97,7 @@ describe('metric detail route', () => {
     expect(within(history).getByText(/58 bpm/i)).toBeInTheDocument()
     expect(useMetricEntriesQuery).toHaveBeenCalledWith({
       metric: 'resting_hr',
+      limit: 50,
     })
   })
 
@@ -143,6 +144,7 @@ describe('metric detail route', () => {
     expect(lastFilters).toMatchObject({
       metric: 'resting_hr',
       from: expect.any(String),
+      limit: 50,
     })
     expect(new Date(lastFilters?.from ?? '').getTime()).toBeGreaterThanOrEqual(
       earliestExpectedFrom.getTime() - 1000,

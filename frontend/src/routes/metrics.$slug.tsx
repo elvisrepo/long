@@ -18,6 +18,8 @@ const metricEntryRanges = [
   { label: 'All', days: null },
 ] as const
 
+const METRIC_DETAIL_ENTRY_LIMIT = 50
+
 type MetricEntryRange = (typeof metricEntryRanges)[number]
 
 function MetricDetailRoute() {
@@ -29,8 +31,12 @@ function MetricDetailRoute() {
     string | undefined
   >(undefined)
   const metricEntryFilters: GetMetricEntriesFilters = selectedRangeFrom
-    ? { metric: slug, from: selectedRangeFrom }
-    : { metric: slug }
+    ? {
+        metric: slug,
+        from: selectedRangeFrom,
+        limit: METRIC_DETAIL_ENTRY_LIMIT,
+      }
+    : { metric: slug, limit: METRIC_DETAIL_ENTRY_LIMIT }
   const {
     data: metricDefinitions = [],
     isLoading: definitionsAreLoading,

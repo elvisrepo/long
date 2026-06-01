@@ -44,7 +44,7 @@
 |---|---|---|---|
 | GET | `/api/v1/metrics/definitions/` | List available metrics | Implemented; includes active defaults + authenticated user's active custom definitions |
 | POST | `/api/v1/metrics/definitions/` | Create custom metric | Implemented for authenticated users; creates user-owned non-default metric definitions |
-| GET | `/api/v1/metrics/entries/?metric=resting_hr&from=2026-01-01&to=2026-03-01` | Query entries | Implemented for authenticated user's entries; supports optional `metric`, `from`, and `to` filters; returns newest first |
+| GET | `/api/v1/metrics/entries/?metric=resting_hr&from=2026-01-01&to=2026-03-01&limit=50` | Query entries | Implemented for authenticated user's entries; supports optional `metric`, `from`, `to`, and positive integer `limit` filters; returns newest first |
 | POST | `/api/v1/metrics/entries/` | Log a metric entry | Implemented for manual entries; accepts `metric_definition` as a slug such as `resting_hr`; not idempotent — repeated calls create duplicate entries |
 | POST | `/api/v1/metrics/entries/bulk/` | Bulk import | |
 | GET | `/api/v1/metrics/analytics/{slug}/?range=30d` | Analytics for one metric | `slug` is required (path param), `range` is optional (query param, default 30d) |
@@ -73,7 +73,9 @@ Current entry listing behavior:
 - `metric=<slug>` filters by metric definition slug, for example `metric=resting_hr`.
 - `from=<timestamp>` filters entries where `recorded_at >= from`.
 - `to=<timestamp>` filters entries where `recorded_at <= to`.
-- Cursor pagination is still planned; the current implementation returns the unpaginated list.
+- `limit=<positive integer>` caps returned entries. If omitted, the backend applies the current default limit of `50`.
+- Invalid limits such as `0`, negative values, or non-numeric values return `400`.
+- Cursor pagination is still planned; the current implementation supports a single bounded result set but does not yet return `next_cursor` or `has_more`.
 
 **Example: Creating a custom metric definition**
 ```json

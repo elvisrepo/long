@@ -10,6 +10,8 @@ export const Route = createFileRoute("/")({
   component: DashboardRoute,
 });
 
+const DASHBOARD_RECENT_ENTRY_LIMIT = 5;
+
 function DashboardRoute() {
   const [selectedMetricSlug, setSelectedMetricSlug] = useState("");
   const {
@@ -22,7 +24,9 @@ function DashboardRoute() {
     isLoading: metricEntriesAreLoading,
     isError: metricEntriesFailed,
   } = useMetricEntriesQuery(
-    selectedMetricSlug ? { metric: selectedMetricSlug } : {},
+    selectedMetricSlug
+      ? { metric: selectedMetricSlug, limit: DASHBOARD_RECENT_ENTRY_LIMIT }
+      : { limit: DASHBOARD_RECENT_ENTRY_LIMIT },
   );
   const metricDefinitionsBySlug = new Map(
     metricDefinitions.map((definition) => [definition.slug, definition]),

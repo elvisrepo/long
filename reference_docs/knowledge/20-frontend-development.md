@@ -210,7 +210,7 @@ Current metrics API integration checkpoint:
 - Successful custom metric-definition mutation invalidates `['metric-definitions']` so metric catalogs and dashboard metric cards can refresh after writes.
 - `createMetricEntry()` posts manual metric entries to `POST /api/v1/metrics/entries/`.
 - `createMetricEntry()` keeps the component-facing input camelCase, then maps it to the backend's snake_case JSON contract.
-- `getMetricEntries()` fetches `GET /api/v1/metrics/entries/` with optional `metric`, `from`, and `to` query parameters built through `URLSearchParams`.
+- `getMetricEntries()` fetches `GET /api/v1/metrics/entries/` with optional `metric`, `from`, `to`, and `limit` query parameters built through `URLSearchParams`.
 - `useMetricEntriesQuery(filters)` exposes metric-entry reads through TanStack Query.
 - Metric-entry query keys include the filters, so different metric/date-range reads get separate cached results.
 - `useCreateMetricEntryMutation()` wraps manual metric-entry creation in TanStack Query mutation state.
@@ -219,7 +219,8 @@ Current metrics API integration checkpoint:
 - Failed metric entry submission renders the mutation error message.
 - Successful metric entry mutation invalidates `['metric-entries']` so entry lists can refresh after writes.
 - The dashboard route now renders a `Recent Entries` section backed by `useMetricEntriesQuery()`.
-- The `Recent Entries` section has a metric filter dropdown that passes the selected metric slug into `useMetricEntriesQuery({ metric })`.
+- The dashboard `Recent Entries` section requests only the newest 5 entries with `useMetricEntriesQuery({ limit: 5 })`.
+- The `Recent Entries` section has a metric filter dropdown that passes the selected metric slug while preserving the dashboard limit, using `useMetricEntriesQuery({ metric, limit: 5 })`.
 - Recent entries resolve the metric slug against loaded metric definitions so the UI can show the user-facing metric name.
 - Recent entries format the value with the metric unit, for example `58 bpm`.
 - Recent entries keep the raw ISO timestamp in the semantic `<time dateTime="...">` attribute while displaying a readable UTC timestamp.
@@ -247,13 +248,13 @@ Current metric detail page checkpoint:
 - `/metrics/$slug` exists as a protected dynamic route.
 - The detail route reads `slug` through `Route.useParams()`.
 - The detail route uses `useMetricDefinitionsQuery()` to resolve the user-facing metric definition for the slug.
-- The detail route uses `useMetricEntriesQuery({ metric: slug })` to fetch that metric's entry history.
+- The detail route uses `useMetricEntriesQuery({ metric: slug, limit: 50 })` to fetch a bounded entry history for that metric.
 - The detail route shows a styled summary section with latest value, tracked entry count, and accepted range.
 - The detail route shows a simple trend overview with oldest value, latest value, and delta for the selected result set.
 - The detail route shows an entry-history section using the same dark card language as the dashboard.
 - The detail route shows an explicit empty state when no entries exist, with a link back to the dashboard to log the first value.
 - The detail route includes `7d`, `30d`, `90d`, and `All` range controls for entry history.
-- Range controls pass a stable `from` timestamp into `useMetricEntriesQuery({ metric, from })`; compute date filters only when the user selects a range, not during render, because query filters are part of the TanStack Query cache key.
+- Range controls pass a stable `from` timestamp into `useMetricEntriesQuery({ metric, from, limit: 50 })`; compute date filters only when the user selects a range, not during render, because query filters are part of the TanStack Query cache key.
 - Do not call `new Date()` while building render-time query filters. If the computed timestamp changes every render, the TanStack Query key changes every render, causing a request/render/request loop.
 - Dashboard metric cards and recent-entry metric names link to `/metrics/$slug`.
 - Metric detail data is currently fetched through TanStack Query hooks inside the route component, not through TanStack Router loaders.
