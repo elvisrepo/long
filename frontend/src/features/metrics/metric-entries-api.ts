@@ -18,10 +18,10 @@ export interface CreateMetricEntryInput {
 }
 
 export interface UpdateMetricEntryInput {
-    value?: number
-    recordedAt?: string
-    context?: Record<string, unknown>
-  }
+  value?: number
+  recordedAt?: string
+  context?: Record<string, unknown>
+}
 
 export interface GetMetricEntriesFilters {
   metric?: string
@@ -109,60 +109,98 @@ export async function getMetricEntries(
 
 
 export async function updateMetricEntry(
-    id: number,
-    input: UpdateMetricEntryInput,
-  ): Promise<MetricEntry> {
-    const accessToken = getAccessToken()
+  id: number,
+  input: UpdateMetricEntryInput,
+): Promise<MetricEntry> {
+  const accessToken = getAccessToken()
 
-    if (!accessToken) {
-      throw new Error('Authentication required')
-    }
-
-    const body: Record<string, unknown> = {}
-
-    if (input.value !== undefined) {
-      body.value = input.value
-    }
-
-    if (input.recordedAt !== undefined) {
-      body.recorded_at = input.recordedAt
-    }
-
-    if (input.context !== undefined) {
-      body.context = input.context
-    }
-
-    const response = await fetch(`/api/v1/metrics/entries/${id}/`, {
-      method: 'PATCH',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    })
-
-    if (!response.ok) {
-      throw new Error('Metric entry failed to update')
-    }
-
-    return response.json()
+  if (!accessToken) {
+    throw new Error('Authentication required')
   }
+
+  const body: Record<string, unknown> = {}
+
+  if (input.value !== undefined) {
+    body.value = input.value
+  }
+
+  if (input.recordedAt !== undefined) {
+    body.recorded_at = input.recordedAt
+  }
+
+  if (input.context !== undefined) {
+    body.context = input.context
+  }
+
+  const response = await fetch(`/api/v1/metrics/entries/${id}/`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    throw new Error(
+      await readMetricEntryError(response, 'Metric entry failed to update'),
+    )
+  }
+
+  return response.json()
+}
 
 export async function deleteMetricEntry(id: number): Promise<void> {
-    const accessToken = getAccessToken()
+  const accessToken = getAccessToken()
 
-    if (!accessToken) {
-      throw new Error('Authentication required')
+  if (!accessToken) {
+    throw new Error('Authentication required')
+  }
+
+  const response = await fetch(`/api/v1/metrics/entries/${id}/`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error('Metric entry failed to delete')
+  }
+}
+
+async function readMetricEntryError(response: Response, fallback: string) {
+  try {
+    return formatMetricEntryError(await response.json()) ?? fallback
+  } catch {
+    return fallback
+  }
+}
+
+function formatMetricEntryError(errorBody: unknown): string | undefined {
+  if (typeof errorBody === 'string') {
+    return errorBody
+  }
+
+  if (!errorBody || typeof errorBody !== 'object') {
+    return undefined
+  }
+
+  const errorRecord = errorBody as Record<string, unknown>
+
+  if (typeof errorRecord.detail === 'string') {
+    return errorRecord.detail
+  }
+
+  for (const value of Object.values(errorRecord)) {
+    if (typeof value === 'string') {
+      return value
     }
 
-    const response = await fetch(`/api/v1/metrics/entries/${id}/`, {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error('Metric entry failed to delete')
+    if (Array.isArray(value) && typeof value[0] === 'string') {
+      return value[0]
     }
   }
+
+  return undefined
+}

@@ -404,5 +404,77 @@ describe('metric detail route', () => {
     expect(
       await screen.findByText(/metric entry failed to update/i),
     ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', {
+        name: /save resting heart rate entry/i,
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('prevents saving an empty entry value', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+    mockLoadedMetricEntries()
+    mockMetricEntryMutations()
+
+    renderRoute('/metrics/resting_hr')
+
+    await screen.findByRole('heading', {
+      level: 1,
+      name: /resting heart rate/i,
+    })
+
+    await user.click(
+      screen.getByRole('button', { name: /edit resting heart rate entry/i }),
+    )
+    await user.clear(screen.getByLabelText(/resting heart rate value/i))
+    await user.click(
+      screen.getByRole('button', {
+        name: /save resting heart rate entry/i,
+      }),
+    )
+
+    expect(updateMetricEntryMutateAsyncMock).not.toHaveBeenCalled()
+    expect(
+      screen.getByText(/enter a numeric value before saving/i),
+    ).toBeInTheDocument()
+  })
+
+  it('prevents saving a non-numeric entry value', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+    mockLoadedMetricEntries()
+    mockMetricEntryMutations()
+
+    renderRoute('/metrics/resting_hr')
+
+    await screen.findByRole('heading', {
+      level: 1,
+      name: /resting heart rate/i,
+    })
+
+    await user.click(
+      screen.getByRole('button', { name: /edit resting heart rate entry/i }),
+    )
+    await user.clear(screen.getByLabelText(/resting heart rate value/i))
+    await user.type(screen.getByLabelText(/resting heart rate value/i), 'abc')
+    await user.click(
+      screen.getByRole('button', {
+        name: /save resting heart rate entry/i,
+      }),
+    )
+
+    expect(updateMetricEntryMutateAsyncMock).not.toHaveBeenCalled()
+    expect(
+      screen.getByText(/enter a numeric value before saving/i),
+    ).toBeInTheDocument()
   })
 })

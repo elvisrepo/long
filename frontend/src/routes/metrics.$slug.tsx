@@ -286,12 +286,21 @@ function MetricEntryHistoryRow({
 }: MetricEntryHistoryRowProps) {
   const [value, setValue] = useState(String(entry.value))
   const [notes, setNotes] = useState(getEntryNotes(entry))
+  const [validationError, setValidationError] = useState<string | null>(null)
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
+    const parsedValue = parseMetricEntryValue(value)
+
+    if (parsedValue === undefined) {
+      setValidationError('Enter a numeric value before saving.')
+      return
+    }
+
+    setValidationError(null)
     onUpdate({
-      value: Number(value),
+      value: parsedValue,
       recordedAt: entry.recorded_at,
       context: {
         ...entry.context,
@@ -307,7 +316,7 @@ function MetricEntryHistoryRow({
           <label>
             {metricName} value
             <input
-              type="number"
+              inputMode="decimal"
               value={value}
               onChange={(event) => setValue(event.target.value)}
             />
@@ -329,6 +338,10 @@ function MetricEntryHistoryRow({
               Cancel
             </button>
           </div>
+
+          {validationError ? (
+            <p className="form-error">{validationError}</p>
+          ) : null}
         </form>
       </article>
     )
@@ -362,6 +375,16 @@ function MetricEntryHistoryRow({
 
 function getEntryNotes(entry: MetricEntry) {
   return typeof entry.context.notes === 'string' ? entry.context.notes : ''
+}
+
+function parseMetricEntryValue(value: string) {
+  if (value.trim() === '') {
+    return undefined
+  }
+
+  const parsedValue = Number(value)
+
+  return Number.isFinite(parsedValue) ? parsedValue : undefined
 }
 
 function getErrorMessage(error: unknown) {
