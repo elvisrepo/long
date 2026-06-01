@@ -392,3 +392,41 @@ def test_metric_entry_list_applies_default_limit():
 
       assert response.status_code == 200
       assert len(response.json()) == 50
+
+def test_user_can_update_their_own_metric_entry():
+    client, user = authenticate_client_for("alice@example.com")
+    resting_hr = MetricDefinition.objects.get(slug="resting_hr")
+        
+    entry = MetricEntry.objects.create(
+          user=user,
+          metric_definition=resting_hr,
+          value=58,
+          recorded_at="2026-03-05T07:15:00Z",
+          context={"notes": "before walk"},
+      )
+    
+    response = client.patch(
+          f"/api/v1/metrics/entries/{entry.id}/",
+          {
+              "value": 62,
+              "recorded_at": "2026-03-06T08:30:00Z",
+              "context": {"notes": "after walk"},
+          },
+          format="json",
+      )
+    
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["id"] == entry.id
+    assert data["metric_definition"] == "resting_hr"
+    assert data["value"] == 62
+    assert data["recorded_at"] == "2026-03-06T08:30:00Z"
+    assert data["context"] == {"notes": "after walk"}
+
+    entry.refresh_from_db()
+    assert entry.value == 62
+    assert entry.recorded_at.isoformat().replace("+00:00", "Z") == (
+          "2026-03-06T08:30:00Z"
+      )
+    assert entry.context == {"notes": "after walk"} 

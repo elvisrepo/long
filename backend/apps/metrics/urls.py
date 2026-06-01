@@ -2,6 +2,7 @@ from django.urls import path
 
 from apps.metrics.views import (
     MetricDefinitionListView,
+    MetricEntryDetailView,
     MetricEntryListCreateView,
 )
 
@@ -17,4 +18,9 @@ urlpatterns = [
           MetricEntryListCreateView.as_view(),
           name="metric-entries",
       ),
+      path(
+      "entries/<int:pk>/",
+      MetricEntryDetailView.as_view(),
+      name="metric-entry-detail",
+  ),
 ]

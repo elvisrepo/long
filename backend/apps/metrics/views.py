@@ -59,6 +59,17 @@ class MetricEntryListCreateView(generics.ListCreateAPIView):
           '''
 
           return queryset
+      
+class MetricEntryDetailView(generics.RetrieveUpdateDestroyAPIView):
+      serializer_class = MetricEntrySerializer
+      permission_classes = [IsAuthenticated]
+
+      def get_queryset(self):
+          return (
+              MetricEntry.objects.filter(user=self.request.user)
+              .select_related("metric_definition")
+              .order_by("-recorded_at", "-id")
+          )
 
 
 def parse_positive_int(value: str | None) -> int | None:

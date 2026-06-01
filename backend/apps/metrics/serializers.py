@@ -89,20 +89,32 @@ class MetricEntrySerializer(serializers.ModelSerializer):
         )
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-        definition = cast(MetricDefinition, attrs["metric_definition"])
-        value = cast(float, attrs["value"])
+      definition = cast(
+          MetricDefinition,
+          attrs.get(
+              "metric_definition",
+              getattr(self.instance, "metric_definition", None),
+          ),
+      )
+      value = cast(
+          float,
+          attrs.get(
+              "value",
+              getattr(self.instance, "value", None),
+          ),
+      )
 
-        if value < definition.min_value or value > definition.max_value:
-            raise serializers.ValidationError(
-                {
-                    "value": (
-                        f"Value must be between {definition.min_value} "
-                        f"and {definition.max_value}."
-                    )
-                }
-            )
+      if value < definition.min_value or value > definition.max_value:
+          raise serializers.ValidationError(
+              {
+                  "value": (
+                      f"Value must be between {definition.min_value} "
+                      f"and {definition.max_value}."
+                  )
+              }
+          )
 
-        return attrs
+      return attrs
 
     def create(self, validated_data: dict[str, Any]) -> MetricEntry:
         request = self.context["request"]
