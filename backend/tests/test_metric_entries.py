@@ -460,3 +460,40 @@ def test_user_cannot_update_another_users_metric_entry():
       entry.refresh_from_db()
       assert entry.value == 58
       assert entry.context == {"notes": "bob entry"}
+
+
+def test_user_can_delete_their_own_metric_entry():
+      client, user = authenticate_client_for("alice@example.com")
+      resting_hr = MetricDefinition.objects.get(slug="resting_hr")
+      entry = MetricEntry.objects.create(
+          user=user,
+          metric_definition=resting_hr,
+          value=58,
+          recorded_at="2026-03-05T07:15:00Z",
+          context={"notes": "delete me"},
+      )
+
+      response = client.delete(f"/api/v1/metrics/entries/{entry.id}/")
+
+      assert response.status_code == 204
+      assert not MetricEntry.objects.filter(id=entry.id).exists()
+
+def test_user_cannot_delete_another_users_metric_entry():
+      alice_client, _alice = authenticate_client_for("alice@example.com")
+      bob = get_user_model().objects.create_user(
+          email="bob@example.com",
+          password="strong-password-123",
+      )
+      resting_hr = MetricDefinition.objects.get(slug="resting_hr")
+      entry = MetricEntry.objects.create(
+          user=bob,
+          metric_definition=resting_hr,
+          value=58,
+          recorded_at="2026-03-05T07:15:00Z",
+          context={"notes": "bob entry"},
+      )
+
+      response = alice_client.delete(f"/api/v1/metrics/entries/{entry.id}/")
+
+      assert response.status_code == 404
+      assert MetricEntry.objects.filter(id=entry.id).exists()
