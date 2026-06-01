@@ -430,3 +430,33 @@ def test_user_can_update_their_own_metric_entry():
           "2026-03-06T08:30:00Z"
       )
     assert entry.context == {"notes": "after walk"} 
+
+def test_user_cannot_update_another_users_metric_entry():
+      alice_client, _alice = authenticate_client_for("alice@example.com")
+      bob = get_user_model().objects.create_user(
+          email="bob@example.com",
+          password="strong-password-123",
+      )
+      resting_hr = MetricDefinition.objects.get(slug="resting_hr")
+      entry = MetricEntry.objects.create(
+          user=bob,
+          metric_definition=resting_hr,
+          value=58,
+          recorded_at="2026-03-05T07:15:00Z",
+          context={"notes": "bob entry"},
+      )
+
+      response = alice_client.patch(
+          f"/api/v1/metrics/entries/{entry.id}/",
+          {
+              "value": 62,
+              "context": {"notes": "alice tried to edit"},
+          },
+          format="json",
+      )
+
+      assert response.status_code == 404
+
+      entry.refresh_from_db()
+      assert entry.value == 58
+      assert entry.context == {"notes": "bob entry"}
