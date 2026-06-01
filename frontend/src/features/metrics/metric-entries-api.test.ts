@@ -163,4 +163,28 @@ describe('getMetricEntries', () => {
       'Metric entries failed to load',
     )
   })
+
+  it('sends a limit query parameter when provided', async () => {
+    setAccessToken('access-token')
+
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    } as Response)
+
+    await getMetricEntries({
+      metric: 'resting_hr',
+      limit: 2,
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/metrics/entries/?metric=resting_hr&limit=2',
+      {
+        method: 'GET',
+        headers: {
+          Authorization: 'Bearer access-token',
+        },
+      },
+    )
+  })
 })
