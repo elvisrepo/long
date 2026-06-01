@@ -280,6 +280,11 @@ Current backend metrics testing checkpoint:
 - Metric-entry list tests cover filtering by metric slug.
 - Metric-entry list tests cover `from` and `to` recorded-at bounds.
 - Metric-entry list tests cover explicit positive `limit`, invalid `limit`, and the backend default limit of `50`.
+- Metric-entry detail tests cover updating an authenticated user's own entry.
+- Metric-entry detail tests prove users cannot update another user's entry; the API returns `404` because the detail queryset is user-scoped.
+- Metric-entry detail tests cover deleting an authenticated user's own entry.
+- Metric-entry detail tests prove users cannot delete another user's entry; the entry remains persisted.
+- Metric-entry update tests prove value range validation still applies during partial updates.
 - The current metric-entry coverage does not yet cover cursor pagination or analytics queries.
 
 Practical test-level guidance for the current frontend slice:

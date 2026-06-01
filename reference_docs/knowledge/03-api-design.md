@@ -46,6 +46,8 @@
 | POST | `/api/v1/metrics/definitions/` | Create custom metric | Implemented for authenticated users; creates user-owned non-default metric definitions |
 | GET | `/api/v1/metrics/entries/?metric=resting_hr&from=2026-01-01&to=2026-03-01&limit=50` | Query entries | Implemented for authenticated user's entries; supports optional `metric`, `from`, `to`, and positive integer `limit` filters; returns newest first |
 | POST | `/api/v1/metrics/entries/` | Log a metric entry | Implemented for manual entries; accepts `metric_definition` as a slug such as `resting_hr`; not idempotent — repeated calls create duplicate entries |
+| PATCH | `/api/v1/metrics/entries/{id}/` | Update a metric entry | Implemented for authenticated user's own entries; partial updates allowed; value range validation still applies |
+| DELETE | `/api/v1/metrics/entries/{id}/` | Delete a metric entry | Implemented for authenticated user's own entries; returns 204 on success |
 | POST | `/api/v1/metrics/entries/bulk/` | Bulk import | |
 | GET | `/api/v1/metrics/analytics/{slug}/?range=30d` | Analytics for one metric | `slug` is required (path param), `range` is optional (query param, default 30d) |
 
@@ -149,6 +151,13 @@ Metric-entry create behavior:
 - `value` is validated against the selected metric definition's `min_value` and `max_value`.
 - Inactive metric definitions cannot be used for new entries.
 - Another user's custom metric definitions cannot be used, even if the slug is known.
+
+Metric-entry detail behavior:
+- `PATCH /api/v1/metrics/entries/{id}/` supports partial updates for an authenticated user's own entry.
+- `PATCH` can update fields such as `value`, `recorded_at`, and `context`.
+- Update validation still uses the entry's metric definition, so `value` must remain between that metric's `min_value` and `max_value`.
+- `DELETE /api/v1/metrics/entries/{id}/` deletes an authenticated user's own entry and returns `204`.
+- Entry detail lookups are scoped to `request.user`; another user's entry returns `404` rather than `403` because it is outside the caller's visible queryset.
 
 #### Subscriptions (R4+, JWT required)
 | Method | Endpoint | Description | Notes |

@@ -497,3 +497,30 @@ def test_user_cannot_delete_another_users_metric_entry():
 
       assert response.status_code == 404
       assert MetricEntry.objects.filter(id=entry.id).exists()
+
+
+def test_metric_entry_update_value_must_be_within_metric_definition_range():
+      client, user = authenticate_client_for("alice@example.com")
+      resting_hr = MetricDefinition.objects.get(slug="resting_hr")
+      entry = MetricEntry.objects.create(
+          user=user,
+          metric_definition=resting_hr,
+          value=58,
+          recorded_at="2026-03-05T07:15:00Z",
+      )
+
+      response = client.patch(
+          f"/api/v1/metrics/entries/{entry.id}/",
+          {
+              "value": 500,
+          },
+          format="json",
+      )
+
+      assert response.status_code == 400
+      assert response.json() == {
+          "value": ["Value must be between 20.0 and 220.0."]
+      }
+
+      entry.refresh_from_db()
+      assert entry.value == 58

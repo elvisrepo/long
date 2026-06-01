@@ -173,6 +173,12 @@
   - entries are ordered newest-first by `recorded_at DESC, id DESC`
   - the list endpoint supports `metric`, `from`, and `to` query filters
   - metric-entry views now use DRF generic class-based views rather than function-based `@api_view` handlers for the growing list/create resource
+- Metric entry backend update/delete slice now exists:
+  - `PATCH /api/v1/metrics/entries/{id}/` partially updates an authenticated user's own entry
+  - update supports fields such as `value`, `recorded_at`, and `context`
+  - update continues to enforce the selected metric definition's min/max range
+  - `DELETE /api/v1/metrics/entries/{id}/` deletes an authenticated user's own entry
+  - entry detail lookups are scoped to the authenticated user, so another user's entry returns `404`
 - Frontend metric-entry API integration has started:
   - `createMetricDefinition()` posts custom metric definitions with the bearer access token
   - `useCreateMetricDefinitionMutation()` wraps custom metric-definition creation and invalidates `['metric-definitions']`
