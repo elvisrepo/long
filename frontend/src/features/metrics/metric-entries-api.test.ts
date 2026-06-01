@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearAccessToken, setAccessToken } from '../auth/auth-session'
-import { createMetricEntry, getMetricEntries } from './metric-entries-api'
+ import {
+    createMetricEntry,
+    deleteMetricEntry,
+    getMetricEntries,
+    updateMetricEntry,
+  } from './metric-entries-api'
 
 describe('createMetricEntry', () => {
   beforeEach(() => {
@@ -188,3 +193,129 @@ describe('getMetricEntries', () => {
     )
   })
 })
+
+
+describe('updateMetricEntry', () => {
+    beforeEach(() => {
+      clearAccessToken()
+      vi.restoreAllMocks()
+    })
+
+    it('patches a metric entry with the access token', async () => {
+      setAccessToken('access-token')
+
+      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: 1,
+          metric_definition: 'resting_hr',
+          value: 62,
+          recorded_at: '2026-03-06T08:30:00Z',
+          source: 'manual',
+          context: { notes: 'after walk' },
+          created_at: '2026-03-05T07:15:02Z',
+        }),
+      } as Response)
+
+      const result = await updateMetricEntry(1, {
+        value: 62,
+        recordedAt: '2026-03-06T08:30:00Z',
+        context: { notes: 'after walk' },
+      })
+
+      expect(fetchMock).toHaveBeenCalledWith('/api/v1/metrics/entries/1/', {
+        method: 'PATCH',
+        headers: {
+          Authorization: 'Bearer access-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          value: 62,
+          recorded_at: '2026-03-06T08:30:00Z',
+          context: { notes: 'after walk' },
+        }),
+      })
+
+      expect(result).toEqual({
+        id: 1,
+        metric_definition: 'resting_hr',
+        value: 62,
+        recorded_at: '2026-03-06T08:30:00Z',
+        source: 'manual',
+        context: { notes: 'after walk' },
+        created_at: '2026-03-05T07:15:02Z',
+      })
+    })
+
+    it('rejects without an access token', async () => {
+      const fetchMock = vi.spyOn(globalThis, 'fetch')
+
+      await expect(
+        updateMetricEntry(1, {
+          value: 62,
+        }),
+      ).rejects.toThrow('Authentication required')
+
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('throws when the backend rejects the update', async () => {
+      setAccessToken('access-token')
+
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: false,
+      } as Response)
+
+      await expect(
+        updateMetricEntry(1, {
+          value: 500,
+        }),
+      ).rejects.toThrow('Metric entry failed to update')
+    })
+  })
+
+  describe('deleteMetricEntry', () => {
+    beforeEach(() => {
+      clearAccessToken()
+      vi.restoreAllMocks()
+    })
+
+    it('deletes a metric entry with the access token', async () => {
+      setAccessToken('access-token')
+
+      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+      } as Response)
+
+      await deleteMetricEntry(1)
+
+      expect(fetchMock).toHaveBeenCalledWith('/api/v1/metrics/entries/1/', {
+        method: 'DELETE',
+        headers: {
+          Authorization: 'Bearer access-token',
+        },
+      })
+    })
+
+    it('rejects without an access token', async () => {
+      const fetchMock = vi.spyOn(globalThis, 'fetch')
+
+      await expect(deleteMetricEntry(1)).rejects.toThrow(
+        'Authentication required',
+      )
+
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('throws when the backend rejects the delete', async () => {
+      setAccessToken('access-token')
+
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: false,
+      } as Response)
+
+      await expect(deleteMetricEntry(1)).rejects.toThrow(
+        'Metric entry failed to delete',
+      )
+    })
+  })

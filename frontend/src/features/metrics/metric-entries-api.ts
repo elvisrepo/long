@@ -17,6 +17,12 @@ export interface CreateMetricEntryInput {
   context?: Record<string, unknown>
 }
 
+export interface UpdateMetricEntryInput {
+    value?: number
+    recordedAt?: string
+    context?: Record<string, unknown>
+  }
+
 export interface GetMetricEntriesFilters {
   metric?: string
   from?: string
@@ -100,3 +106,63 @@ export async function getMetricEntries(
 
   return response.json()
 }
+
+
+export async function updateMetricEntry(
+    id: number,
+    input: UpdateMetricEntryInput,
+  ): Promise<MetricEntry> {
+    const accessToken = getAccessToken()
+
+    if (!accessToken) {
+      throw new Error('Authentication required')
+    }
+
+    const body: Record<string, unknown> = {}
+
+    if (input.value !== undefined) {
+      body.value = input.value
+    }
+
+    if (input.recordedAt !== undefined) {
+      body.recorded_at = input.recordedAt
+    }
+
+    if (input.context !== undefined) {
+      body.context = input.context
+    }
+
+    const response = await fetch(`/api/v1/metrics/entries/${id}/`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    })
+
+    if (!response.ok) {
+      throw new Error('Metric entry failed to update')
+    }
+
+    return response.json()
+  }
+
+export async function deleteMetricEntry(id: number): Promise<void> {
+    const accessToken = getAccessToken()
+
+    if (!accessToken) {
+      throw new Error('Authentication required')
+    }
+
+    const response = await fetch(`/api/v1/metrics/entries/${id}/`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error('Metric entry failed to delete')
+    }
+  }
