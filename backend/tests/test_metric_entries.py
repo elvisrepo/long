@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
@@ -372,3 +374,21 @@ def test_metric_entry_list_rejects_invalid_limit(limit: str):
       assert response.json() == {
           "limit": ["Limit must be a positive integer."]
       }
+
+def test_metric_entry_list_applies_default_limit():
+      client, user = authenticate_client_for("alice@example.com")
+      resting_hr = MetricDefinition.objects.get(slug="resting_hr")
+      start = datetime(2026, 3, 1, 7, 15, tzinfo=UTC)
+
+      for index in range(55):
+          MetricEntry.objects.create(
+              user=user,
+              metric_definition=resting_hr,
+              value=80 + index,
+              recorded_at=start + timedelta(days=index),
+          )
+
+      response = client.get("/api/v1/metrics/entries/")
+
+      assert response.status_code == 200
+      assert len(response.json()) == 50

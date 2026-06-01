@@ -9,7 +9,7 @@ from apps.metrics.serializers import (
       MetricEntrySerializer,
   )
 
-
+DEFAULT_METRIC_ENTRY_LIMIT = 50
 
 class MetricDefinitionListView(generics.ListCreateAPIView):
     serializer_class = MetricDefinitionSerializer
@@ -48,8 +48,15 @@ class MetricEntryListCreateView(generics.ListCreateAPIView):
                 queryset = queryset.filter(recorded_at__lte=recorded_to)
 
           limit = parse_positive_int(self.request.query_params.get("limit"))
-          if limit is not None:
-                queryset = queryset[:limit]
+          queryset = queryset[: limit or DEFAULT_METRIC_ENTRY_LIMIT]
+
+          '''
+            WHERE user = current_user
+            AND metric_definition.slug = 'resting_hr'
+            AND recorded_at >= '...'
+            ORDER BY recorded_at DESC, id DESC
+            LIMIT 50
+          '''
 
           return queryset
 
