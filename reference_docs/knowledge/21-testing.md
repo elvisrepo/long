@@ -299,7 +299,7 @@ Current frontend metrics testing checkpoint:
 - `metric-definitions-api.test.ts` covers the metric-definition API helper request shape and error behavior.
 - `use-metric-definitions-query.test.tsx` covers the TanStack Query wrapper for metric definitions.
 - `use-create-metric-definition-mutation.test.tsx` covers custom metric-definition mutation and invalidation of metric-definition queries.
-- `metric-entries-api.test.ts` covers `createMetricEntry()` and `getMetricEntries()` request shape, auth-token requirements, backend failure behavior, and filter query-string generation, including `limit`.
+- `metric-entries-api.test.ts` covers `createMetricEntry()`, `getMetricEntries()`, `updateMetricEntry()`, and `deleteMetricEntry()` request shape, auth-token requirements, backend failure behavior, filter query-string generation including `limit`, and backend validation-detail preservation for entry updates.
 - `use-metric-entries-query.test.tsx` covers the TanStack Query wrapper for metric entries.
 - `use-create-metric-entry-mutation.test.tsx` covers manual metric-entry mutation and invalidation of metric-entry list queries.
 - `use-update-metric-entry-mutation.test.tsx` covers manual metric-entry update mutation and invalidation of metric-entry list queries.
@@ -311,7 +311,7 @@ Current frontend metrics testing checkpoint:
 - dashboard route tests cover metric-card links and recent-entry links to `/metrics/$slug`.
 - dashboard route tests continued to pass after the responsive visual foundation work, so the UI restyle did not change the dashboard behavior contract.
 - metrics route tests cover protected-route behavior, metric catalog rendering, catalog-row links to `/metrics/$slug`, custom metric creation submit payload, form clearing after success, and visible backend validation errors.
-- metric detail route tests cover protected-route behavior, dynamic slug route rendering, metric-definition lookup, styled summary rendering, simple trend overview rendering, metric-entry history rendering, inline entry update/delete orchestration, visible update failure errors, empty-state rendering, bounded `useMetricEntriesQuery({ metric, limit: 50 })` calls, range-filtered `useMetricEntriesQuery({ metric, from, limit: 50 })` calls, and stable range filter query keys.
+- metric detail route tests cover protected-route behavior, dynamic slug route rendering, metric-definition lookup, styled summary rendering, simple trend overview rendering, metric-entry history rendering, inline entry update/delete orchestration, local edit validation for empty/non-numeric values, preserving the edit form on failed update, visible update failure errors, empty-state rendering, bounded `useMetricEntriesQuery({ metric, limit: 50 })` calls, range-filtered `useMetricEntriesQuery({ metric, from, limit: 50 })` calls, and stable range filter query keys.
 - Metric-entry hook tests mock the API helper but use a real `QueryClientProvider`, so they verify Query behavior without requiring a running Django backend.
 - Playwright E2E now submits a real metric entry through the browser against the isolated E2E backend/database, verifies the saved value appears in the dashboard flow, and exercises the metric filter dropdown.
 - Playwright E2E now also creates a custom metric through `/metrics`, verifies it appears in the catalog, verifies it appears on the dashboard, and logs a custom metric entry.

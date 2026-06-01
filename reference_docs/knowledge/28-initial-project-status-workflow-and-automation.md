@@ -204,6 +204,9 @@
   - it renders latest value, tracked entry count, accepted range, simple trend overview, and entry history
   - entry-history rows now support inline edit/delete actions
   - inline edit currently supports value and notes while preserving the original recorded timestamp
+  - inline edit blocks empty and non-numeric values before submitting
+  - failed updates keep the edit form open
+  - backend validation details from entry updates are surfaced to the user when available
   - update/delete failures are surfaced as visible errors on the detail page
   - it renders an empty state with a dashboard link when no entries exist
   - it supports `7d`, `30d`, `90d`, and `All` range controls for entry history

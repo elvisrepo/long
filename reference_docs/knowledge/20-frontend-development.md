@@ -258,6 +258,9 @@ Current metric detail page checkpoint:
 - The detail route shows an entry-history section using the same dark card language as the dashboard.
 - Entry-history rows support inline edit/delete actions.
 - Inline edit currently supports value and notes while preserving the existing `recorded_at` timestamp.
+- Inline edit blocks empty and non-numeric values before calling the update mutation.
+- Failed entry updates keep the inline edit form open so the user can correct and resubmit.
+- `updateMetricEntry()` preserves backend validation detail when available, for example metric range errors from the API.
 - Entry update/delete errors are shown on the metric detail page as visible form errors.
 - The detail route shows an explicit empty state when no entries exist, with a link back to the dashboard to log the first value.
 - The detail route includes `7d`, `30d`, `90d`, and `All` range controls for entry history.
