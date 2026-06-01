@@ -207,4 +207,26 @@ test('user can open a metric detail page from the dashboard', async ({
   await expect(
     page.getByRole('heading', { name: /entry history/i }),
   ).toBeVisible()
+
+  await page
+    .getByRole('button', { name: /edit resting heart rate entry/i })
+    .click()
+  await page.getByLabel(/resting heart rate value/i).fill('62')
+  await page.getByLabel(/resting heart rate notes/i).fill('after walk')
+  await page
+    .getByRole('button', { name: /save resting heart rate entry/i })
+    .click()
+
+  await expect(page.getByLabel(/62 bpm/i)).toBeVisible()
+  await expect(
+    page
+      .getByRole('region', { name: /metric entry history/i })
+      .getByText(/62 bpm/i),
+  ).toBeVisible()
+
+  await page
+    .getByRole('button', { name: /delete resting heart rate entry/i })
+    .click()
+
+  await expect(page.getByText(/no entries recorded yet/i)).toBeVisible()
 })

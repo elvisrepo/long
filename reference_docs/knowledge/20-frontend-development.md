@@ -210,10 +210,14 @@ Current metrics API integration checkpoint:
 - Successful custom metric-definition mutation invalidates `['metric-definitions']` so metric catalogs and dashboard metric cards can refresh after writes.
 - `createMetricEntry()` posts manual metric entries to `POST /api/v1/metrics/entries/`.
 - `createMetricEntry()` keeps the component-facing input camelCase, then maps it to the backend's snake_case JSON contract.
+- `updateMetricEntry()` patches existing manual metric entries through `PATCH /api/v1/metrics/entries/{id}/`.
+- `deleteMetricEntry()` deletes existing manual metric entries through `DELETE /api/v1/metrics/entries/{id}/`.
 - `getMetricEntries()` fetches `GET /api/v1/metrics/entries/` with optional `metric`, `from`, `to`, and `limit` query parameters built through `URLSearchParams`.
 - `useMetricEntriesQuery(filters)` exposes metric-entry reads through TanStack Query.
 - Metric-entry query keys include the filters, so different metric/date-range reads get separate cached results.
 - `useCreateMetricEntryMutation()` wraps manual metric-entry creation in TanStack Query mutation state.
+- `useUpdateMetricEntryMutation()` wraps manual metric-entry updates and invalidates `['metric-entries']` on success.
+- `useDeleteMetricEntryMutation()` wraps manual metric-entry deletes and invalidates `['metric-entries']` on success.
 - The dashboard route renders a simple metric-entry form for each loaded metric definition.
 - Successful metric entry submission clears the form input.
 - Failed metric entry submission renders the mutation error message.
@@ -252,6 +256,9 @@ Current metric detail page checkpoint:
 - The detail route shows a styled summary section with latest value, tracked entry count, and accepted range.
 - The detail route shows a simple trend overview with oldest value, latest value, and delta for the selected result set.
 - The detail route shows an entry-history section using the same dark card language as the dashboard.
+- Entry-history rows support inline edit/delete actions.
+- Inline edit currently supports value and notes while preserving the existing `recorded_at` timestamp.
+- Entry update/delete errors are shown on the metric detail page as visible form errors.
 - The detail route shows an explicit empty state when no entries exist, with a link back to the dashboard to log the first value.
 - The detail route includes `7d`, `30d`, `90d`, and `All` range controls for entry history.
 - Range controls pass a stable `from` timestamp into `useMetricEntriesQuery({ metric, from, limit: 50 })`; compute date filters only when the user selects a range, not during render, because query filters are part of the TanStack Query cache key.

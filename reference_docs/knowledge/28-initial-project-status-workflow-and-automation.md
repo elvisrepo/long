@@ -183,8 +183,11 @@
   - `createMetricDefinition()` posts custom metric definitions with the bearer access token
   - `useCreateMetricDefinitionMutation()` wraps custom metric-definition creation and invalidates `['metric-definitions']`
   - `createMetricEntry()` posts manual metric entries with the bearer access token
+  - `updateMetricEntry()` patches existing manual metric entries with the bearer access token
+  - `deleteMetricEntry()` deletes existing manual metric entries with the bearer access token
   - `getMetricEntries()` fetches metric entries and supports `metric`, `from`, and `to` filters
   - `useMetricEntriesQuery(filters)` wraps metric-entry reads in TanStack Query
+  - `useUpdateMetricEntryMutation()` and `useDeleteMetricEntryMutation()` invalidate `['metric-entries']` after successful writes
   - focused frontend tests cover the API helper contracts and Query hook behavior
 - Frontend metrics catalog page now exists:
   - `/metrics` is a protected route
@@ -199,11 +202,14 @@
   - it resolves the metric definition through `useMetricDefinitionsQuery()`
   - it fetches that metric's entry history through `useMetricEntriesQuery({ metric: slug })`
   - it renders latest value, tracked entry count, accepted range, simple trend overview, and entry history
+  - entry-history rows now support inline edit/delete actions
+  - inline edit currently supports value and notes while preserving the original recorded timestamp
+  - update/delete failures are surfaced as visible errors on the detail page
   - it renders an empty state with a dashboard link when no entries exist
   - it supports `7d`, `30d`, `90d`, and `All` range controls for entry history
   - date-range query filters are computed on range selection and kept stable to avoid TanStack Query refetch loops caused by render-time `new Date()` values
   - dashboard metric cards and recent entries link to the metric detail route
-  - browser E2E covers opening the detail route from the dashboard
+  - browser E2E covers opening the detail route from the dashboard, editing a saved entry, and deleting it back to the empty state
   - router/query/cache responsibilities are documented in `reference_docs/knowledge/diagrams/frontend-router-query-data-flow.md`
 - Frontend dashboard metric-entry form now exists:
   - dashboard renders a simple value input and submit button for each loaded metric definition

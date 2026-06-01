@@ -3,8 +3,10 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { getMe } from '../features/auth/auth-me-api'
+import { useDeleteMetricEntryMutation } from '../features/metrics/use-delete-metric-entry-mutation'
 import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-definitions-query'
 import { useMetricEntriesQuery } from '../features/metrics/use-metric-entries-query'
+import { useUpdateMetricEntryMutation } from '../features/metrics/use-update-metric-entry-mutation'
 import { renderRoute } from './render-route'
 
 vi.mock('../features/auth/auth-me-api', () => ({
@@ -18,6 +20,17 @@ vi.mock('../features/metrics/use-metric-definitions-query', () => ({
 vi.mock('../features/metrics/use-metric-entries-query', () => ({
   useMetricEntriesQuery: vi.fn(),
 }))
+
+vi.mock('../features/metrics/use-update-metric-entry-mutation', () => ({
+  useUpdateMetricEntryMutation: vi.fn(),
+}))
+
+vi.mock('../features/metrics/use-delete-metric-entry-mutation', () => ({
+  useDeleteMetricEntryMutation: vi.fn(),
+}))
+
+const updateMetricEntryMutateAsyncMock = vi.fn()
+const deleteMetricEntryMutateAsyncMock = vi.fn()
 
 function mockLoadedMetricDefinitions() {
   vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
@@ -58,6 +71,21 @@ function mockLoadedMetricEntries(
   } as ReturnType<typeof useMetricEntriesQuery>)
 }
 
+function mockMetricEntryMutations() {
+  updateMetricEntryMutateAsyncMock.mockResolvedValue(undefined)
+  deleteMetricEntryMutateAsyncMock.mockResolvedValue(undefined)
+
+  vi.mocked(useUpdateMetricEntryMutation).mockReturnValue({
+    mutateAsync: updateMetricEntryMutateAsyncMock,
+    isPending: false,
+  } as unknown as ReturnType<typeof useUpdateMetricEntryMutation>)
+
+  vi.mocked(useDeleteMetricEntryMutation).mockReturnValue({
+    mutateAsync: deleteMetricEntryMutateAsyncMock,
+    isPending: false,
+  } as unknown as ReturnType<typeof useDeleteMetricEntryMutation>)
+}
+
 describe('metric detail route', () => {
   afterEach(() => {
     vi.resetAllMocks()
@@ -69,6 +97,7 @@ describe('metric detail route', () => {
     })
     mockLoadedMetricDefinitions()
     mockLoadedMetricEntries()
+    mockMetricEntryMutations()
 
     renderRoute('/metrics/resting_hr')
 
@@ -107,6 +136,7 @@ describe('metric detail route', () => {
     )
     mockLoadedMetricDefinitions()
     mockLoadedMetricEntries()
+    mockMetricEntryMutations()
 
     renderRoute('/metrics/resting_hr')
 
@@ -123,6 +153,7 @@ describe('metric detail route', () => {
     })
     mockLoadedMetricDefinitions()
     mockLoadedMetricEntries()
+    mockMetricEntryMutations()
 
     renderRoute('/metrics/resting_hr')
 
@@ -162,6 +193,7 @@ describe('metric detail route', () => {
     })
     mockLoadedMetricDefinitions()
     mockLoadedMetricEntries()
+    mockMetricEntryMutations()
 
     renderRoute('/metrics/resting_hr')
 
@@ -208,6 +240,7 @@ describe('metric detail route', () => {
         created_at: '2026-03-01T07:15:02Z',
       },
     ])
+    mockMetricEntryMutations()
 
     renderRoute('/metrics/resting_hr')
 
@@ -236,6 +269,7 @@ describe('metric detail route', () => {
     })
     mockLoadedMetricDefinitions()
     mockLoadedMetricEntries([])
+    mockMetricEntryMutations()
 
     renderRoute('/metrics/resting_hr')
 
@@ -257,5 +291,118 @@ describe('metric detail route', () => {
       'href',
       '/',
     )
+  })
+
+  it('updates an entry from the metric history', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+    mockLoadedMetricEntries([
+      {
+        id: 1,
+        metric_definition: 'resting_hr',
+        value: 58,
+        recorded_at: '2026-03-05T07:15:00Z',
+        source: 'manual',
+        context: { notes: 'before walk' },
+        created_at: '2026-03-05T07:15:02Z',
+      },
+    ])
+    mockMetricEntryMutations()
+
+    renderRoute('/metrics/resting_hr')
+
+    await screen.findByRole('heading', {
+      level: 1,
+      name: /resting heart rate/i,
+    })
+
+    await user.click(
+      screen.getByRole('button', { name: /edit resting heart rate entry/i }),
+    )
+    await user.clear(screen.getByLabelText(/resting heart rate value/i))
+    await user.type(screen.getByLabelText(/resting heart rate value/i), '62')
+    await user.clear(screen.getByLabelText(/resting heart rate notes/i))
+    await user.type(
+      screen.getByLabelText(/resting heart rate notes/i),
+      'after walk',
+    )
+    await user.click(
+      screen.getByRole('button', {
+        name: /save resting heart rate entry/i,
+      }),
+    )
+
+    expect(updateMetricEntryMutateAsyncMock).toHaveBeenCalledWith({
+      id: 1,
+      input: {
+        value: 62,
+        recordedAt: '2026-03-05T07:15:00Z',
+        context: { notes: 'after walk' },
+      },
+    })
+  })
+
+  it('deletes an entry from the metric history', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+    mockLoadedMetricEntries()
+    mockMetricEntryMutations()
+
+    renderRoute('/metrics/resting_hr')
+
+    await screen.findByRole('heading', {
+      level: 1,
+      name: /resting heart rate/i,
+    })
+
+    await user.click(
+      screen.getByRole('button', {
+        name: /delete resting heart rate entry/i,
+      }),
+    )
+
+    expect(deleteMetricEntryMutateAsyncMock).toHaveBeenCalledWith(1)
+  })
+
+  it('shows an error when updating an entry fails', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+    mockLoadedMetricEntries()
+    mockMetricEntryMutations()
+    updateMetricEntryMutateAsyncMock.mockRejectedValue(
+      new Error('Metric entry failed to update'),
+    )
+
+    renderRoute('/metrics/resting_hr')
+
+    await screen.findByRole('heading', {
+      level: 1,
+      name: /resting heart rate/i,
+    })
+
+    await user.click(
+      screen.getByRole('button', { name: /edit resting heart rate entry/i }),
+    )
+    await user.click(
+      screen.getByRole('button', {
+        name: /save resting heart rate entry/i,
+      }),
+    )
+
+    expect(
+      await screen.findByText(/metric entry failed to update/i),
+    ).toBeInTheDocument()
   })
 })

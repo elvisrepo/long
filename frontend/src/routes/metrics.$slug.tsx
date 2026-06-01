@@ -1,10 +1,15 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { type FormEvent, useState } from 'react'
 
 import { requireAuthBeforeLoad } from '../features/auth/require-auth-before-load'
+import { useDeleteMetricEntryMutation } from '../features/metrics/use-delete-metric-entry-mutation'
 import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-definitions-query'
-import { type GetMetricEntriesFilters } from '../features/metrics/metric-entries-api'
+import {
+  type GetMetricEntriesFilters,
+  type MetricEntry,
+} from '../features/metrics/metric-entries-api'
 import { useMetricEntriesQuery } from '../features/metrics/use-metric-entries-query'
+import { useUpdateMetricEntryMutation } from '../features/metrics/use-update-metric-entry-mutation'
 
 export const Route = createFileRoute('/metrics/$slug')({
   beforeLoad: requireAuthBeforeLoad,
@@ -30,6 +35,8 @@ function MetricDetailRoute() {
   const [selectedRangeFrom, setSelectedRangeFrom] = useState<
     string | undefined
   >(undefined)
+  const [editingEntryId, setEditingEntryId] = useState<number | null>(null)
+  const [entryActionError, setEntryActionError] = useState<string | null>(null)
   const metricEntryFilters: GetMetricEntriesFilters = selectedRangeFrom
     ? {
         metric: slug,
@@ -47,6 +54,8 @@ function MetricDetailRoute() {
     isLoading: entriesAreLoading,
     isError: entriesFailed,
   } = useMetricEntriesQuery(metricEntryFilters)
+  const updateMetricEntryMutation = useUpdateMetricEntryMutation()
+  const deleteMetricEntryMutation = useDeleteMetricEntryMutation()
 
   if (definitionsAreLoading) {
     return <p>Loading metric...</p>
@@ -83,6 +92,37 @@ function MetricDetailRoute() {
     setSelectedRangeFrom(
       range.days === null ? undefined : getRangeStartIso(range.days),
     )
+  }
+
+  async function handleDeleteEntry(entryId: number) {
+    setEntryActionError(null)
+
+    try {
+      await deleteMetricEntryMutation.mutateAsync(entryId)
+    } catch (error) {
+      setEntryActionError(getErrorMessage(error))
+    }
+  }
+
+  async function handleUpdateEntry(
+    entry: MetricEntry,
+    input: {
+      value: number
+      recordedAt: string
+      context: Record<string, unknown>
+    },
+  ) {
+    setEntryActionError(null)
+
+    try {
+      await updateMetricEntryMutation.mutateAsync({
+        id: entry.id,
+        input,
+      })
+      setEditingEntryId(null)
+    } catch (error) {
+      setEntryActionError(getErrorMessage(error))
+    }
   }
 
   return (
@@ -176,6 +216,9 @@ function MetricDetailRoute() {
 
         {entriesAreLoading ? <p>Loading metric entries...</p> : null}
         {entriesFailed ? <p>Metric entries failed to load</p> : null}
+        {entryActionError ? (
+          <p className="form-error">{entryActionError}</p>
+        ) : null}
 
         {metricEntries.length === 0 ? (
           <div className="empty-state">
@@ -188,23 +231,141 @@ function MetricDetailRoute() {
         ) : (
           <div className="entry-list">
             {metricEntries.map((entry) => (
-              <article className="entry-row" key={entry.id}>
-                <div>
-                  <p className="entry-label">{metricDefinition.name}</p>
-                  <time dateTime={entry.recorded_at}>
-                    {formatMetricEntryRecordedAt(entry.recorded_at)}
-                  </time>
-                </div>
-                <p className="entry-value">
-                  {entry.value} {metricDefinition.unit}
-                </p>
-              </article>
+              <MetricEntryHistoryRow
+                entry={entry}
+                isDeleting={deleteMetricEntryMutation.isPending}
+                isEditing={editingEntryId === entry.id}
+                isUpdating={updateMetricEntryMutation.isPending}
+                key={entry.id}
+                metricName={metricDefinition.name}
+                onCancelEdit={() => setEditingEntryId(null)}
+                onDelete={() => handleDeleteEntry(entry.id)}
+                onEdit={() => {
+                  setEntryActionError(null)
+                  setEditingEntryId(entry.id)
+                }}
+                onUpdate={(input) => handleUpdateEntry(entry, input)}
+                unit={metricDefinition.unit}
+              />
             ))}
           </div>
         )}
       </section>
     </section>
   )
+}
+
+interface MetricEntryHistoryRowProps {
+  entry: MetricEntry
+  isDeleting: boolean
+  isEditing: boolean
+  isUpdating: boolean
+  metricName: string
+  onCancelEdit: () => void
+  onDelete: () => void
+  onEdit: () => void
+  onUpdate: (input: {
+    value: number
+    recordedAt: string
+    context: Record<string, unknown>
+  }) => void
+  unit: string
+}
+
+function MetricEntryHistoryRow({
+  entry,
+  isDeleting,
+  isEditing,
+  isUpdating,
+  metricName,
+  onCancelEdit,
+  onDelete,
+  onEdit,
+  onUpdate,
+  unit,
+}: MetricEntryHistoryRowProps) {
+  const [value, setValue] = useState(String(entry.value))
+  const [notes, setNotes] = useState(getEntryNotes(entry))
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    onUpdate({
+      value: Number(value),
+      recordedAt: entry.recorded_at,
+      context: {
+        ...entry.context,
+        notes,
+      },
+    })
+  }
+
+  if (isEditing) {
+    return (
+      <article className="entry-row entry-row-editing">
+        <form className="entry-edit-form" onSubmit={handleSubmit}>
+          <label>
+            {metricName} value
+            <input
+              type="number"
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+            />
+          </label>
+
+          <label>
+            {metricName} notes
+            <input
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+            />
+          </label>
+
+          <div className="entry-actions">
+            <button disabled={isUpdating} type="submit">
+              {isUpdating ? 'Saving...' : `Save ${metricName} entry`}
+            </button>
+            <button type="button" onClick={onCancelEdit}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      </article>
+    )
+  }
+
+  return (
+    <article className="entry-row">
+      <div>
+        <p className="entry-label">{metricName}</p>
+        <time dateTime={entry.recorded_at}>
+          {formatMetricEntryRecordedAt(entry.recorded_at)}
+        </time>
+      </div>
+
+      <div className="entry-row-side">
+        <p className="entry-value">
+          {entry.value} {unit}
+        </p>
+        <div className="entry-actions">
+          <button type="button" onClick={onEdit}>
+            Edit {metricName} entry
+          </button>
+          <button disabled={isDeleting} type="button" onClick={onDelete}>
+            {isDeleting ? 'Deleting...' : `Delete ${metricName} entry`}
+          </button>
+        </div>
+      </div>
+    </article>
+  )
+}
+
+function getEntryNotes(entry: MetricEntry) {
+  return typeof entry.context.notes === 'string' ? entry.context.notes : ''
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Metric entry action failed'
 }
 
 function formatMetricEntryRecordedAt(recordedAt: string) {

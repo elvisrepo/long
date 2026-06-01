@@ -511,6 +511,52 @@ button {
   white-space: nowrap;
 }
 
+.entry-row-side {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+}
+
+.entry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.entry-actions button {
+  min-height: 32px;
+  border-radius: 999px;
+  padding: 7px 11px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.entry-row-editing {
+  align-items: stretch;
+}
+
+.entry-edit-form {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.8fr) minmax(160px, 1.2fr) auto;
+  align-items: end;
+  gap: 12px;
+  width: 100%;
+}
+
+.entry-edit-form label {
+  gap: 7px;
+  font-size: 10px;
+}
+
+.entry-edit-form input {
+  min-height: 40px;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
 .entry-time {
   margin-top: 4px;
   color: var(--muted);
@@ -875,6 +921,18 @@ button {
   .entry-row {
     gap: 16px;
     padding: 12px 0;
+  }
+
+  .entry-row-side {
+    justify-items: start;
+  }
+
+  .entry-actions {
+    justify-content: flex-start;
+  }
+
+  .entry-edit-form {
+    grid-template-columns: 1fr;
   }
 
   .empty-state {
