@@ -144,7 +144,10 @@ export function MetricTrendChart({
       className="metric-trend-chart"
       role="img"
     >
-      <p className="metric-trend-chart-summary">{chartSummary}</p>
+      <div className="metric-trend-chart-header">
+        <p className="metric-trend-chart-summary">{chartSummary}</p>
+        <p className="metric-trend-chart-mode">Daily latest values</p>
+      </div>
       <canvas ref={canvasRef} />
     </div>
   )

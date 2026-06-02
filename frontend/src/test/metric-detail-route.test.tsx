@@ -266,7 +266,7 @@ describe('metric detail route', () => {
     const trendStats = trend.querySelector('.trend-grid') as HTMLElement
     expect(within(trend).getByText(/oldest/i)).toBeInTheDocument()
     expect(within(trendStats).getByText(/56 bpm/i)).toBeInTheDocument()
-    expect(within(trend).getByText(/latest/i)).toBeInTheDocument()
+    expect(within(trendStats).getByText(/^latest$/i)).toBeInTheDocument()
     expect(within(trendStats).getByText(/58 bpm/i)).toBeInTheDocument()
     expect(within(trendStats).getByText(/\+2 bpm/i)).toBeInTheDocument()
   })

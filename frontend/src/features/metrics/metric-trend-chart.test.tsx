@@ -39,6 +39,7 @@ describe('MetricTrendChart', () => {
       screen.getByRole('img', { name: /resting heart rate trend chart/i }),
     ).toBeInTheDocument()
     expect(screen.getByText(/56 to 60 bpm/i)).toBeInTheDocument()
+    expect(screen.getByText(/daily latest values/i)).toBeInTheDocument()
   })
 
   it('uses the latest entry per day for chart data', () => {
