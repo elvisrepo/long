@@ -33,8 +33,9 @@ Current checkpoint note:
 - manual metric entry creation now enforces authentication, active metric definitions, user scoping, and value range validation
 - metric entry listing now returns the authenticated user's entries newest-first, with `metric`, `from`, and `to` filters
 - custom metric-definition creation enforces authentication, user ownership, non-default creation, duplicate-slug protection, default-slug protection, and valid min/max ranges
-- a future `/metrics` frontend page can now expose custom metric creation against `POST /api/v1/metrics/definitions/`
-- custom metric-definition update/deactivate behavior is still not implemented
+- custom metric-definition partial update is implemented for authenticated user-owned custom metrics through `PATCH /api/v1/metrics/definitions/{id}/`
+- custom metric-definition updates keep slugs immutable, reject default metrics, reject other users' metrics, and preserve min/max range validation
+- custom metric-definition deactivate/delete behavior is still not implemented
 - cursor pagination and analytics coverage should continue through TDD before analytics work
 - deferred user-backend scope still includes password reset, profile/account lifecycle work, and any optional email-verification flow
 

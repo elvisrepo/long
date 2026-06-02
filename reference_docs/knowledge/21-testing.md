@@ -268,6 +268,12 @@ Current backend metrics testing checkpoint:
 - Custom metric-definition creation rejects duplicate slugs for the same user.
 - Custom metric-definition creation rejects slugs already used by system default metrics.
 - Custom metric-definition creation rejects invalid ranges where `max_value <= min_value`.
+- Authenticated users can partially update their own active custom metric definitions.
+- Custom metric-definition update requires authentication.
+- Users cannot update another user's custom metric definition; the API returns `404` because the detail queryset is user-scoped.
+- Users cannot update system default metric definitions.
+- Custom metric-definition slugs remain immutable during update, while still writable during create.
+- Custom metric-definition update rejects invalid ranges where a submitted bound conflicts with the existing stored bound.
 - `tests/test_metric_entries.py` now covers the first metric-entry write slice.
 - Authenticated users can create a manual metric entry for an active default metric definition by sending the metric slug.
 - Metric-entry creation requires authentication.

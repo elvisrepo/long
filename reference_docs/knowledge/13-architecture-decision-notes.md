@@ -251,7 +251,8 @@ Current implementation progress:
 - Why we chose it:
   `generics.ListAPIView` and `generics.ListCreateAPIView` map directly to the current endpoint shape without extra routing machinery. DRF handles the repetitive create lifecycle internally (`get_serializer`, `is_valid`, `save`, `201` response), while `get_queryset()` gives one clear place for user scoping, ordering, and filters. This keeps the endpoint smaller and prepares it for pagination/filtering without manual method branching.
 - Current application:
-  `MetricDefinitionListView` uses `generics.ListAPIView`.
+  `MetricDefinitionListView` uses `generics.ListCreateAPIView`.
+  `MetricDefinitionDetailView` uses `generics.RetrieveUpdateAPIView`.
   `MetricEntryListCreateView` uses `generics.ListCreateAPIView`.
   `MetricEntryListCreateView.get_queryset()` scopes entries to `request.user`, orders by `recorded_at DESC, id DESC`, and applies supported query filters such as `metric`, `from`, and `to`.
 - Downsides:

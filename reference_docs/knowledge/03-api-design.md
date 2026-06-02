@@ -44,6 +44,7 @@
 |---|---|---|---|
 | GET | `/api/v1/metrics/definitions/` | List available metrics | Implemented; includes active defaults + authenticated user's active custom definitions |
 | POST | `/api/v1/metrics/definitions/` | Create custom metric | Implemented for authenticated users; creates user-owned non-default metric definitions |
+| PATCH | `/api/v1/metrics/definitions/{id}/` | Update custom metric | Implemented for authenticated user's own active custom metric definitions; slug is immutable |
 | GET | `/api/v1/metrics/entries/?metric=resting_hr&from=2026-01-01&to=2026-03-01&limit=50` | Query entries | Implemented for authenticated user's entries; supports optional `metric`, `from`, `to`, and positive integer `limit` filters; returns newest first |
 | POST | `/api/v1/metrics/entries/` | Log a metric entry | Implemented for manual entries; accepts `metric_definition` as a slug such as `resting_hr`; not idempotent — repeated calls create duplicate entries |
 | PATCH | `/api/v1/metrics/entries/{id}/` | Update a metric entry | Implemented for authenticated user's own entries; partial updates allowed; value range validation still applies |
@@ -113,6 +114,14 @@ Custom metric-definition create behavior:
 - A user cannot create a duplicate custom metric slug for their own account.
 - A user cannot create a custom metric with a slug already used by a system default metric.
 - `max_value` must be greater than `min_value`.
+
+Custom metric-definition update behavior:
+- `PATCH /api/v1/metrics/definitions/{id}/` supports partial updates for an authenticated user's own active custom metric definitions.
+- Updateable fields include `name`, `unit`, `category`, `min_value`, and `max_value`.
+- `slug` is writable on create but immutable on update because dashboard links, metric-entry creation, and route params use it as the public metric identifier.
+- System default metric definitions cannot be updated through this endpoint.
+- Another user's custom metric definition returns `404` because it is outside the caller's visible update queryset.
+- Range validation still applies during partial updates; if only one bound is submitted, the serializer validates it against the existing stored bound.
 
 **Data passing convention:**
 - **Path params** → required resource identifiers (`/analytics/{slug}/`, `/wearables/connections/{id}/`)
