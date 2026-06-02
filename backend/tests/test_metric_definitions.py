@@ -351,3 +351,32 @@ def test_user_cannot_update_custom_metric_definition_slug():
 
       definition.refresh_from_db()
       assert definition.slug == "mood"
+
+def test_custom_metric_definition_update_rejects_invalid_value_range():
+      client, user = authenticate_client_for("alice@example.com")
+
+      definition = MetricDefinition.objects.create(
+          user=user,
+          name="Mood",
+          slug="mood",
+          unit="score",
+          category=MetricDefinition.Category.CUSTOM,
+          min_value=1,
+          max_value=10,
+          is_default=False,
+      )
+
+      response = client.patch(
+          f"/api/v1/metrics/definitions/{definition.id}/",
+          {
+              "min_value": 20,
+          },
+          format="json",
+      )
+
+      assert response.status_code == 400
+      assert "max_value" in response.json()
+
+      definition.refresh_from_db()
+      assert definition.min_value == 1
+      assert definition.max_value == 10
