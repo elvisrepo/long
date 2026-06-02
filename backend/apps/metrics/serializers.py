@@ -22,6 +22,16 @@ class MetricDefinitionSerializer(serializers.ModelSerializer):
 
         read_only_fields = ["id", "is_default"]
 
+    def get_fields(self) -> dict[str, serializers.Field]:
+      fields = super().get_fields()
+
+      # DRF sees that this serializer has an existing instance, meaning this is an update/retrieve path
+      # incoming "slug": "daily_mood" is ignored
+      if self.instance is not None:
+          fields["slug"].read_only = True
+
+      return fields
+
     def validate_slug(self, slug: str) -> str:
           request = self.context["request"]
 
@@ -33,15 +43,21 @@ class MetricDefinitionSerializer(serializers.ModelSerializer):
           return slug
     
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-          min_value = attrs["min_value"]
-          max_value = attrs["max_value"]
+      min_value = attrs.get(
+          "min_value",
+          getattr(self.instance, "min_value", None),
+      )
+      max_value = attrs.get(
+          "max_value",
+          getattr(self.instance, "max_value", None),
+      )
 
-          if min_value >= max_value:
-              raise serializers.ValidationError(
-                  {"max_value": "Max value must be greater than min value."}
-              )
+      if min_value is not None and max_value is not None and min_value >= max_value:
+          raise serializers.ValidationError(
+              {"max_value": "Max value must be greater than min value."}
+          )
 
-          return attrs
+      return attrs
 
 
     def create(self, validated_data: dict[str, Any]) -> MetricDefinition:

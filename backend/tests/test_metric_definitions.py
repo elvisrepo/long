@@ -321,3 +321,33 @@ def test_user_cannot_update_default_metric_definition():
 
       definition.refresh_from_db()
       assert definition.name == "Resting Heart Rate"
+
+def test_user_cannot_update_custom_metric_definition_slug():
+      client, user = authenticate_client_for("alice@example.com")
+
+      definition = MetricDefinition.objects.create(
+          user=user,
+          name="Mood",
+          slug="mood",
+          unit="score",
+          category=MetricDefinition.Category.CUSTOM,
+          min_value=1,
+          max_value=10,
+          is_default=False,
+      )
+
+      response = client.patch(
+          f"/api/v1/metrics/definitions/{definition.id}/",
+          {
+              "slug": "daily_mood",
+          },
+          format="json",
+      )
+
+      assert response.status_code == 200
+
+      payload = response.json()
+      assert payload["slug"] == "mood"
+
+      definition.refresh_from_db()
+      assert definition.slug == "mood"
