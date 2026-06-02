@@ -380,3 +380,32 @@ def test_custom_metric_definition_update_rejects_invalid_value_range():
       definition.refresh_from_db()
       assert definition.min_value == 1
       assert definition.max_value == 10
+
+def test_custom_metric_definition_update_requires_authentication():
+      user = get_user_model().objects.create_user(
+          email="alice@example.com",
+          password="strong-password-123",
+      )
+      definition = MetricDefinition.objects.create(
+          user=user,
+          name="Mood",
+          slug="mood",
+          unit="score",
+          category=MetricDefinition.Category.CUSTOM,
+          min_value=1,
+          max_value=10,
+          is_default=False,
+      )
+
+      response = APIClient().patch(
+          f"/api/v1/metrics/definitions/{definition.id}/",
+          {
+              "name": "Mood Score",
+          },
+          format="json",
+      )
+
+      assert response.status_code == 401
+
+      definition.refresh_from_db()
+      assert definition.name == "Mood"
