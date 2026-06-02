@@ -12,7 +12,7 @@
 ### 5.2 Component Library
 - UI primitives: `shadcn/ui`
 - Metric Cards (glassmorphic, colored left border)
-- Charts (Recharts — area charts with gradient fills)
+- Charts (`chart.js` directly through canvas for metric detail trends)
 - Form inputs (metric logging modal)
 - Navigation (side nav desktop, bottom tabs mobile)
 - Samsung sync status cards, permission prompts, and replay/error states
@@ -254,7 +254,10 @@ Current metric detail page checkpoint:
 - The detail route uses `useMetricDefinitionsQuery()` to resolve the user-facing metric definition for the slug.
 - The detail route uses `useMetricEntriesQuery({ metric: slug, limit: 50 })` to fetch a bounded entry history for that metric.
 - The detail route shows a styled summary section with latest value, tracked entry count, and accepted range.
-- The detail route shows a simple trend overview with oldest value, latest value, and delta for the selected result set.
+- The detail route shows a Chart.js line chart in the trend overview, plus oldest value, latest value, and delta for the selected result set.
+- The trend chart is a daily trend, not a raw event plot. It collapses multiple entries on the same local calendar day to the latest `recorded_at` value for that day.
+- Entry History remains event-level and continues to show every raw manual log, including multiple logs from the same day.
+- Current chart aggregation is intentionally simple for the manual-tracking MVP. Future wearable/sync work should revisit metric-specific aggregation, for example heart-rate average/min/max ranges, weight latest value, and sleep nightly session totals.
 - The detail route shows an entry-history section using the same dark card language as the dashboard.
 - Entry-history rows support inline edit/delete actions.
 - Inline edit currently supports value and notes while preserving the existing `recorded_at` timestamp.

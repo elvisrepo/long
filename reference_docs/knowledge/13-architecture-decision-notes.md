@@ -258,3 +258,22 @@ Current implementation progress:
   Some behavior becomes implicit in DRF mixins, so developers need to understand that `ListCreateAPIView` already supplies `get()` and `post()` through `ListModelMixin` and `CreateModelMixin`. For unusual endpoint behavior, explicit methods may still be clearer.
 - Revisit when:
   The metrics API needs non-standard actions that do not fit generic views, or when route grouping and repeated CRUD patterns justify moving to `ViewSet`/router conventions.
+
+### ADR-017: Use Chart.js Directly for Metric Detail Trend Charts
+
+- Status: Accepted
+- Date: 2026-06-02
+- Decision:
+  Use `chart.js` directly through a canvas-backed React component for metric detail trend charts.
+- Alternatives considered:
+  Recharts, Visx, and a hand-rolled SVG chart.
+- Why we chose it:
+  Recharts 3.8.1 repeatedly failed in the Vite dev runtime with optimized-dependency and ESM/CJS interop errors involving transitive packages. Visx was not a clean fit because its published peer dependency range did not include the project's current React 19 version. A hand-rolled SVG chart is possible but would make axes, scale behavior, tooltip behavior, and future chart interactions our responsibility too early. Chart.js works with the current Vite/React setup and gives a standard line-chart foundation without committing to a heavier UI framework.
+- Current application:
+  `frontend/src/features/metrics/metric-trend-chart.tsx` creates and destroys a Chart.js line chart directly against a canvas. The component registers the required Chart.js controller, scales, elements, and plugins explicitly. The chart is rendered inside `/metrics/$slug`.
+- Data behavior:
+  The metric detail trend is a daily chart, not a raw event chart. Multiple entries on the same local calendar day are collapsed to the latest `recorded_at` entry for that day. The raw `Entry History` list remains event-level and still shows every manual log.
+- Downsides:
+  Chart.js adds noticeable weight to the metric-detail route chunk, and canvas rendering needs explicit lifecycle cleanup in React to avoid duplicate-chart errors on reused canvases. The current aggregation rule is intentionally generic and may not fit all future metric types.
+- Revisit when:
+  The app needs richer analytics, wearable-derived high-frequency data, metric-specific aggregation such as min/max/average bands, or a charting library with better React 19/Vite compatibility becomes clearly preferable.

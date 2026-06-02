@@ -256,11 +256,19 @@ describe('metric detail route', () => {
     expect(
       within(trend).getByRole('heading', { name: /trend overview/i }),
     ).toBeInTheDocument()
+    expect(
+      within(trend).getByRole('img', {
+        name: /resting heart rate trend chart/i,
+      }),
+    ).toBeInTheDocument()
+    expect(within(trend).getByText(/56 to 58 bpm/i)).toBeInTheDocument()
+
+    const trendStats = trend.querySelector('.trend-grid') as HTMLElement
     expect(within(trend).getByText(/oldest/i)).toBeInTheDocument()
-    expect(within(trend).getByText(/56 bpm/i)).toBeInTheDocument()
+    expect(within(trendStats).getByText(/56 bpm/i)).toBeInTheDocument()
     expect(within(trend).getByText(/latest/i)).toBeInTheDocument()
-    expect(within(trend).getByText(/58 bpm/i)).toBeInTheDocument()
-    expect(within(trend).getByText(/\+2 bpm/i)).toBeInTheDocument()
+    expect(within(trendStats).getByText(/58 bpm/i)).toBeInTheDocument()
+    expect(within(trendStats).getByText(/\+2 bpm/i)).toBeInTheDocument()
   })
 
   it('shows an empty state when the metric has no entries', async () => {

@@ -756,6 +756,41 @@ button {
   padding: 20px;
 }
 
+.metric-trend-chart {
+  position: relative;
+  height: 280px;
+  border: 1px solid rgba(133, 151, 176, 0.2);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(0, 229, 160, 0.1), transparent 30%),
+    rgba(10, 12, 16, 0.42);
+  padding: 16px;
+}
+
+.metric-trend-chart-summary {
+  margin: 0 0 12px;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.metric-trend-chart canvas {
+  display: block;
+  height: calc(100% - 26px) !important;
+  width: 100% !important;
+}
+
+.trend-empty {
+  border: 1px dashed rgba(133, 151, 176, 0.32);
+  border-radius: 16px;
+  color: var(--muted);
+  margin: 0;
+  padding: 36px 16px;
+  text-align: center;
+}
+
 .trend-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1009,6 +1044,15 @@ button {
   .trend-card {
     border-radius: 14px;
     padding: 16px;
+  }
+
+  .metric-trend-chart {
+    height: 220px;
+    padding: 12px;
+  }
+
+  .metric-trend-chart canvas {
+    height: calc(100% - 24px) !important;
   }
 
   .trend-grid {

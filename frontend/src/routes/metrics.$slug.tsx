@@ -2,6 +2,7 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 
 import { requireAuthBeforeLoad } from '../features/auth/require-auth-before-load'
+import { MetricTrendChart } from '../features/metrics/metric-trend-chart'
 import { useDeleteMetricEntryMutation } from '../features/metrics/use-delete-metric-entry-mutation'
 import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-definitions-query'
 import {
@@ -170,6 +171,12 @@ function MetricDetailRoute() {
             <h2>Trend Overview</h2>
           </div>
         </div>
+
+        <MetricTrendChart
+          entries={metricEntries}
+          metricName={metricDefinition.name}
+          unit={metricDefinition.unit}
+        />
 
         <div className="trend-grid">
           <article>
