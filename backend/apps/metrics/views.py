@@ -21,6 +21,17 @@ class MetricDefinitionListView(generics.ListCreateAPIView):
               is_active=True,
           ).order_by("category", "name")
     
+class MetricDefinitionDetailView(generics.RetrieveUpdateAPIView):
+      serializer_class = MetricDefinitionSerializer
+      permission_classes = [IsAuthenticated]
+
+      def get_queryset(self):
+          return MetricDefinition.objects.filter(
+              user=self.request.user,
+              is_default=False,
+              is_active=True,
+          )
+    
 
 
 class MetricEntryListCreateView(generics.ListCreateAPIView):

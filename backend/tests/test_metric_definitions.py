@@ -227,3 +227,97 @@ def test_custom_metric_definition_create_requires_authentication():
       )
 
       assert response.status_code == 401
+
+
+def test_user_can_update_their_own_custom_metric_definition():
+      client, user = authenticate_client_for("alice@example.com")
+
+      definition = MetricDefinition.objects.create(
+          user=user,
+          name="Mood",
+          slug="mood",
+          unit="score",
+          category=MetricDefinition.Category.CUSTOM,
+          min_value=1,
+          max_value=10,
+          is_default=False,
+      )
+
+      response = client.patch(
+          f"/api/v1/metrics/definitions/{definition.id}/",
+          {
+              "name": "Mood Score",
+              "unit": "points",
+              "min_value": 0,
+              "max_value": 100,
+          },
+          format="json",
+      )
+
+      assert response.status_code == 200
+
+      payload = response.json()
+      assert payload == {
+          "id": str(definition.id),
+          "name": "Mood Score",
+          "slug": "mood",
+          "unit": "points",
+          "category": "custom",
+          "min_value": 0.0,
+          "max_value": 100.0,
+          "is_default": False,
+      }
+
+      definition.refresh_from_db()
+      assert definition.name == "Mood Score"
+      assert definition.slug == "mood"
+      assert definition.unit == "points"
+      assert definition.min_value == 0
+      assert definition.max_value == 100
+
+def test_user_cannot_update_another_users_custom_metric_definition():
+      client, _user = authenticate_client_for("alice@example.com")
+      other_user = get_user_model().objects.create_user(
+          email="bob@example.com",
+          password="strong-password-123",
+      )
+      definition = MetricDefinition.objects.create(
+          user=other_user,
+          name="Mood",
+          slug="mood",
+          unit="score",
+          category=MetricDefinition.Category.CUSTOM,
+          min_value=1,
+          max_value=10,
+          is_default=False,
+      )
+
+      response = client.patch(
+          f"/api/v1/metrics/definitions/{definition.id}/",
+          {
+              "name": "Hijacked Mood",
+          },
+          format="json",
+      )
+
+      assert response.status_code == 404
+
+      definition.refresh_from_db()
+      assert definition.name == "Mood"
+
+def test_user_cannot_update_default_metric_definition():
+      client, _user = authenticate_client_for("alice@example.com")
+      definition = MetricDefinition.objects.get(slug="resting_hr")
+
+      response = client.patch(
+          f"/api/v1/metrics/definitions/{definition.id}/",
+          {
+              "name": "My Resting HR",
+          },
+          format="json",
+      )
+
+      assert response.status_code == 404
+
+      definition.refresh_from_db()
+      assert definition.name == "Resting Heart Rate"
