@@ -19,6 +19,13 @@ export interface CreateMetricDefinitionInput {
   maxValue: number;
 }
 
+export interface UpdateMetricDefinitionInput {
+    name?: string;
+    unit?: string;
+    minValue?: number;
+    maxValue?: number;
+  }
+
 function formatMetricDefinitionError(payload: unknown) {
   if (!payload || typeof payload !== "object") {
     return "Metric definition request failed";
@@ -93,4 +100,51 @@ export async function createMetricDefinition(
   }
 
   return response.json() as Promise<MetricDefinition>;
+}
+
+
+export async function updateMetricDefinition(
+  id: string,
+  input: UpdateMetricDefinitionInput,
+): Promise<MetricDefinition> {
+  const accessToken = getAccessToken()
+ 
+  if (!accessToken) {
+      throw new Error("Authentication required");
+    }
+
+  const body: Record<string, unknown> = {};
+
+    if (input.name !== undefined) {
+      body.name = input.name;
+    }
+
+    if (input.unit !== undefined) {
+      body.unit = input.unit;
+    }
+
+    if (input.minValue !== undefined) {
+      body.min_value = input.minValue;
+    }
+
+    if (input.maxValue !== undefined) {
+      body.max_value = input.maxValue;
+    }
+
+    const response = await fetch(`/api/v1/metrics/definitions/${id}/`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as unknown;
+      throw new Error(formatMetricDefinitionError(payload));
+    }
+
+    return response.json() as Promise<MetricDefinition>;
+
 }
