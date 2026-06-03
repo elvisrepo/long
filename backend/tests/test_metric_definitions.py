@@ -436,3 +436,34 @@ def test_user_can_deactivate_their_own_custom_metric_definition():
 
         definition.refresh_from_db()
         assert definition.is_active is False
+
+def test_user_cannot_deactivate_another_users_custom_metric_definition():
+        client, _user = authenticate_client_for("alice@example.com")
+        other_user = get_user_model().objects.create_user(
+            email="bob@example.com",
+            password="strong-password-123",
+        )
+
+        definition = MetricDefinition.objects.create(
+            user=other_user,
+            name="Mood",
+            slug="mood",
+            unit="score",
+            category=MetricDefinition.Category.CUSTOM,
+            min_value=1,
+            max_value=10,
+            is_default=False,
+        )
+
+        response = client.patch(
+            f"/api/v1/metrics/definitions/{definition.id}/",
+            {
+                "is_active": False,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 404
+
+        definition.refresh_from_db()
+        assert definition.is_active is True
