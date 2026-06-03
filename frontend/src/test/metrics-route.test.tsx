@@ -1,10 +1,14 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { getMe } from '../features/auth/auth-me-api'
-import { createMetricDefinition } from '../features/metrics/metric-definitions-api'
+import {
+  createMetricDefinition,
+  type MetricDefinition,
+} from '../features/metrics/metric-definitions-api'
 import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-definitions-query'
+import { useUpdateMetricDefinitionMutation } from '../features/metrics/use-update-metric-definition-mutation'
 import { renderRoute } from './render-route'
 
 vi.mock('../features/auth/auth-me-api', () => ({
@@ -19,25 +23,43 @@ vi.mock('../features/metrics/metric-definitions-api', () => ({
   createMetricDefinition: vi.fn(),
 }))
 
-const createMetricDefinitionMock = vi.mocked(createMetricDefinition)
+vi.mock('../features/metrics/use-update-metric-definition-mutation', () => ({
+  useUpdateMetricDefinitionMutation: vi.fn(),
+}))
 
-function mockLoadedMetricDefinitions() {
+const createMetricDefinitionMock = vi.mocked(createMetricDefinition)
+const updateMetricDefinitionMutateAsyncMock = vi.fn()
+
+function mockLoadedMetricDefinitions(
+  metricDefinitions: MetricDefinition[] = [
+    {
+      id: 'metric-id',
+      name: 'Resting Heart Rate',
+      slug: 'resting_hr',
+      unit: 'bpm',
+      category: 'cardiovascular',
+      min_value: 20,
+      max_value: 220,
+      is_default: true,
+    },
+  ],
+) {
   vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
-    data: [
-      {
-        id: 'metric-id',
-        name: 'Resting Heart Rate',
-        slug: 'resting_hr',
-        unit: 'bpm',
-        category: 'cardiovascular',
-        min_value: 20,
-        max_value: 220,
-        is_default: true,
-      },
-    ],
+    data: metricDefinitions,
     isLoading: false,
     isError: false,
   } as ReturnType<typeof useMetricDefinitionsQuery>)
+}
+
+function mockUpdateMetricDefinitionMutation() {
+  updateMetricDefinitionMutateAsyncMock.mockResolvedValue(undefined)
+
+  vi.mocked(useUpdateMetricDefinitionMutation).mockReturnValue({
+    mutateAsync: updateMetricDefinitionMutateAsyncMock,
+    isPending: false,
+    isError: false,
+    error: null,
+  } as unknown as ReturnType<typeof useUpdateMetricDefinitionMutation>)
 }
 
 function mockSuccessfulCustomMetricCreate() {
@@ -62,6 +84,10 @@ async function fillCustomMetricForm(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('metrics route', () => {
+  beforeEach(() => {
+    mockUpdateMetricDefinitionMutation()
+  })
+
   afterEach(() => {
     vi.resetAllMocks()
   })
@@ -214,6 +240,73 @@ describe('metrics route', () => {
       await screen.findByRole('heading', { name: /resting heart rate/i }),
     ).toBeInTheDocument()
     expect(screen.getByText(/resting_hr · bpm/i)).toBeInTheDocument()
+  })
+
+  it('updates a custom metric from the metrics catalog', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions([
+      {
+        id: 'custom-metric-id',
+        name: 'Mood',
+        slug: 'mood',
+        unit: 'score',
+        category: 'custom',
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+      },
+    ])
+
+    renderRoute('/metrics')
+
+    await screen.findByRole('heading', {
+      level: 1,
+      name: /metrics/i,
+    })
+
+    await user.click(screen.getByRole('button', { name: /edit mood/i }))
+    await user.clear(screen.getByLabelText(/mood name/i))
+    await user.type(screen.getByLabelText(/mood name/i), 'Mood Score')
+    await user.clear(screen.getByLabelText(/mood unit/i))
+    await user.type(screen.getByLabelText(/mood unit/i), 'points')
+    await user.clear(screen.getByLabelText(/mood min value/i))
+    await user.type(screen.getByLabelText(/mood min value/i), '0')
+    await user.clear(screen.getByLabelText(/mood max value/i))
+    await user.type(screen.getByLabelText(/mood max value/i), '100')
+
+    await user.click(screen.getByRole('button', { name: /save mood/i }))
+
+    expect(updateMetricDefinitionMutateAsyncMock).toHaveBeenCalledWith({
+      id: 'custom-metric-id',
+      input: {
+        name: 'Mood Score',
+        unit: 'points',
+        minValue: 0,
+        maxValue: 100,
+      },
+    })
+  })
+
+  it('does not show edit actions for default metrics', async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+
+    renderRoute('/metrics')
+
+    await screen.findByRole('heading', {
+      level: 1,
+      name: /metrics/i,
+    })
+
+    expect(
+      screen.queryByRole('button', { name: /edit resting heart rate/i }),
+    ).not.toBeInTheDocument()
   })
 
 })

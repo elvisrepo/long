@@ -7,8 +7,10 @@ import {
 import { type FormEvent, useState } from 'react'
 
 import { requireAuthBeforeLoad } from '../features/auth/require-auth-before-load'
+import type { MetricDefinition } from '../features/metrics/metric-definitions-api'
 import { useCreateMetricDefinitionMutation } from '../features/metrics/use-create-metric-definition-mutation'
 import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-definitions-query'
+import { useUpdateMetricDefinitionMutation } from '../features/metrics/use-update-metric-definition-mutation'
 
 export const Route = createFileRoute('/metrics')({
   beforeLoad: requireAuthBeforeLoad,
@@ -56,23 +58,133 @@ function MetricsCatalog() {
 
       <div className="metrics-list" aria-label="Available metrics">
         {metricDefinitions.map((definition) => (
-          <Link
-            className="metric-list-row"
+          <MetricDefinitionRow
+            definition={definition}
             key={definition.id}
-            params={{ slug: definition.slug }}
-            to="/metrics/$slug"
-          >
-            <div>
-              <h2>{definition.name}</h2>
-              <p>
-                {definition.category} · {definition.unit}
-              </p>
-            </div>
-            <span>{definition.slug}</span>
-          </Link>
+          />
   ))}
       </div>
     </section>
+  )
+}
+
+interface MetricDefinitionRowProps {
+  definition: MetricDefinition
+}
+
+function MetricDefinitionRow({ definition }: MetricDefinitionRowProps) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [name, setName] = useState(definition.name)
+  const [unit, setUnit] = useState(definition.unit)
+  const [minValue, setMinValue] = useState(String(definition.min_value))
+  const [maxValue, setMaxValue] = useState(String(definition.max_value))
+  const updateMetricDefinitionMutation = useUpdateMetricDefinitionMutation()
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    try {
+      await updateMetricDefinitionMutation.mutateAsync({
+        id: definition.id,
+        input: {
+          name,
+          unit,
+          minValue: Number(minValue),
+          maxValue: Number(maxValue),
+        },
+      })
+      setIsEditing(false)
+    } catch {
+      // The mutation state below renders the backend validation message.
+    }
+  }
+
+  if (isEditing) {
+    return (
+      <form className="metric-list-row metric-edit-form" onSubmit={handleSubmit}>
+        <div className="metric-edit-grid">
+          <label>
+            {definition.name} name
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </label>
+
+          <label>
+            {definition.name} unit
+            <input
+              value={unit}
+              onChange={(event) => setUnit(event.target.value)}
+            />
+          </label>
+
+          <label>
+            {definition.name} min value
+            <input
+              type="number"
+              value={minValue}
+              onChange={(event) => setMinValue(event.target.value)}
+            />
+          </label>
+
+          <label>
+            {definition.name} max value
+            <input
+              type="number"
+              value={maxValue}
+              onChange={(event) => setMaxValue(event.target.value)}
+            />
+          </label>
+        </div>
+
+        <div className="metric-row-actions">
+          <button
+            disabled={updateMetricDefinitionMutation.isPending}
+            type="submit"
+          >
+            {updateMetricDefinitionMutation.isPending
+              ? 'Saving...'
+              : `Save ${definition.name}`}
+          </button>
+          <button type="button" onClick={() => setIsEditing(false)}>
+            Cancel
+          </button>
+        </div>
+
+        {updateMetricDefinitionMutation.isError ? (
+          <p className="form-error">
+            {updateMetricDefinitionMutation.error.message}
+          </p>
+        ) : null}
+      </form>
+    )
+  }
+
+  return (
+    <article className="metric-list-row">
+      <Link
+        className="metric-row-link"
+        params={{ slug: definition.slug }}
+        to="/metrics/$slug"
+      >
+        <div>
+          <h2>{definition.name}</h2>
+          <p>
+            {definition.category} · {definition.unit}
+          </p>
+        </div>
+      </Link>
+
+      <div className="metric-row-actions">
+        <span>{definition.slug}</span>
+        {!definition.is_default ? (
+          <button type="button" onClick={() => setIsEditing(true)}>
+            Edit {definition.name}
+          </button>
+        ) : null}
+      </div>
+    </article>
   )
 }
 
