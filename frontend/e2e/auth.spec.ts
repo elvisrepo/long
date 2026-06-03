@@ -202,7 +202,7 @@ test('user can open a metric detail page from the dashboard', async ({
     page.getByRole('heading', { name: /resting heart rate/i }),
   ).toBeVisible()
   await expect(page.getByText(/resting_hr · bpm/i)).toBeVisible()
-  await expect(page.getByText(/latest value/i)).toBeVisible()
+  await expect(page.getByText('Latest value', { exact: true })).toBeVisible()
   await expect(page.getByLabel(/58 bpm/i)).toBeVisible()
   await expect(
     page.getByRole('heading', { name: /entry history/i }),
