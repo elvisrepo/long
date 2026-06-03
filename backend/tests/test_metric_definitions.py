@@ -467,3 +467,20 @@ def test_user_cannot_deactivate_another_users_custom_metric_definition():
 
         definition.refresh_from_db()
         assert definition.is_active is True
+
+def test_user_cannot_deactivate_default_metric_definition():
+        client, _user = authenticate_client_for("alice@example.com")
+        definition = MetricDefinition.objects.get(slug="resting_hr")
+
+        response = client.patch(
+            f"/api/v1/metrics/definitions/{definition.id}/",
+            {
+                "is_active": False,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 404
+
+        definition.refresh_from_db()
+        assert definition.is_active is True
