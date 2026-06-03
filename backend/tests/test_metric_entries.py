@@ -524,3 +524,48 @@ def test_metric_entry_update_value_must_be_within_metric_definition_range():
 
       entry.refresh_from_db()
       assert entry.value == 58
+
+def test_entries_for_inactive_custom_metric_remain_readable_by_metric_filter():
+        client, user = authenticate_client_for("alice@example.com")
+
+        definition = MetricDefinition.objects.create(
+            user=user,
+            name="Mood",
+            slug="mood",
+            unit="score",
+            category=MetricDefinition.Category.CUSTOM,
+            min_value=1,
+            max_value=10,
+            is_default=False,
+        )
+
+        create_response = client.post(
+            "/api/v1/metrics/entries/",
+            {
+                "metric_definition": "mood",
+                "value": 8,
+                "recorded_at": "2026-03-05T07:15:00Z",
+            },
+            format="json",
+        )
+
+        assert create_response.status_code == 201
+
+        deactivate_response = client.patch(
+            f"/api/v1/metrics/definitions/{definition.id}/",
+            {
+                "is_active": False,
+            },
+            format="json",
+        )
+
+        assert deactivate_response.status_code == 200
+
+        response = client.get("/api/v1/metrics/entries/?metric=mood")
+
+        assert response.status_code == 200
+
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["metric_definition"] == "mood"
+        assert data[0]["value"] == 8.0
