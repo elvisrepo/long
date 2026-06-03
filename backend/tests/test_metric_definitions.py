@@ -409,3 +409,30 @@ def test_custom_metric_definition_update_requires_authentication():
 
       definition.refresh_from_db()
       assert definition.name == "Mood"
+
+def test_user_can_deactivate_their_own_custom_metric_definition():
+        client, user = authenticate_client_for("alice@example.com")
+
+        definition = MetricDefinition.objects.create(
+            user=user,
+            name="Mood",
+            slug="mood",
+            unit="score",
+            category=MetricDefinition.Category.CUSTOM,
+            min_value=1,
+            max_value=10,
+            is_default=False,
+        )
+
+        response = client.patch(
+            f"/api/v1/metrics/definitions/{definition.id}/",
+            {
+                "is_active": False,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        definition.refresh_from_db()
+        assert definition.is_active is False

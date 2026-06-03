@@ -7,6 +7,8 @@ from apps.metrics.models import MetricDefinition, MetricEntry
 
 
 class MetricDefinitionSerializer(serializers.ModelSerializer):
+    is_active = serializers.BooleanField(required=False, write_only=True)
+
     class Meta:
         model = MetricDefinition
         fields = [
@@ -18,6 +20,7 @@ class MetricDefinitionSerializer(serializers.ModelSerializer):
             "min_value",
             "max_value",
             "is_default",
+            "is_active",
         ]
 
         read_only_fields = ["id", "is_default"]
@@ -62,6 +65,10 @@ class MetricDefinitionSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data: dict[str, Any]) -> MetricDefinition:
           request = self.context["request"]
+          # Remove the is_active key from the incoming create data if it exists. If it does not exist, return None and do nothing.
+          # creation always produces active custom metrics; deactivation is a separate PATCH action.
+          validated_data.pop("is_active", None)
+
           return MetricDefinition.objects.create(
               user=request.user,
               is_default=False,
