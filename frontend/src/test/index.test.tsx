@@ -57,6 +57,36 @@ function mockLoadedMetricDefinitions() {
   mockLoadedMetricEntries()
 }
 
+function mockLoadedMetricDefinitionsWithManyMetrics() {
+  vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+    data: [
+      {
+        id: 'resting-hr-id',
+        name: 'Resting Heart Rate',
+        slug: 'resting_hr',
+        unit: 'bpm',
+        category: 'cardiovascular',
+        min_value: 20,
+        max_value: 220,
+        is_default: true,
+      },
+      {
+        id: 'body-weight-id',
+        name: 'Body Weight',
+        slug: 'body_weight',
+        unit: 'kg',
+        category: 'body_composition',
+        min_value: 20,
+        max_value: 300,
+        is_default: true,
+      },
+    ],
+    isLoading: false,
+    isError: false,
+  } as ReturnType<typeof useMetricDefinitionsQuery>)
+  mockLoadedMetricEntries()
+}
+
 function mockLoadedMetricEntries(
   entries: NonNullable<ReturnType<typeof useMetricEntriesQuery>['data']> = [],
 ) {
@@ -297,7 +327,87 @@ describe('dashboard route', () => {
 
     await screen.findByRole('heading', { name: /dashboard/i })
 
-    expect(useMetricEntriesQuery).toHaveBeenCalledWith({ limit: 5 })
+    expect(useMetricEntriesQuery).toHaveBeenCalledWith({ limit: 50 })
+  })
+
+  it('shows card latest values from entries beyond the five-entry recent list', async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitionsWithManyMetrics()
+    mockLoadedMetricEntries([
+      {
+        id: 1,
+        metric_definition: 'resting_hr',
+        value: 61,
+        recorded_at: '2026-03-06T07:15:00Z',
+        source: 'manual',
+        context: {},
+        created_at: '2026-03-06T07:15:02Z',
+      },
+      {
+        id: 2,
+        metric_definition: 'resting_hr',
+        value: 60,
+        recorded_at: '2026-03-05T07:15:00Z',
+        source: 'manual',
+        context: {},
+        created_at: '2026-03-05T07:15:02Z',
+      },
+      {
+        id: 3,
+        metric_definition: 'resting_hr',
+        value: 59,
+        recorded_at: '2026-03-04T07:15:00Z',
+        source: 'manual',
+        context: {},
+        created_at: '2026-03-04T07:15:02Z',
+      },
+      {
+        id: 4,
+        metric_definition: 'resting_hr',
+        value: 58,
+        recorded_at: '2026-03-03T07:15:00Z',
+        source: 'manual',
+        context: {},
+        created_at: '2026-03-03T07:15:02Z',
+      },
+      {
+        id: 5,
+        metric_definition: 'resting_hr',
+        value: 57,
+        recorded_at: '2026-03-02T07:15:00Z',
+        source: 'manual',
+        context: {},
+        created_at: '2026-03-02T07:15:02Z',
+      },
+      {
+        id: 6,
+        metric_definition: 'body_weight',
+        value: 87,
+        recorded_at: '2026-03-01T07:15:00Z',
+        source: 'manual',
+        context: {},
+        created_at: '2026-03-01T07:15:02Z',
+      },
+    ])
+
+    renderRoute('/')
+
+    await screen.findByRole('heading', { name: /dashboard/i })
+
+    const bodyWeightCard = screen
+      .getByRole('heading', { name: /body weight/i })
+      .closest('.metric-card') as HTMLElement
+
+    expect(bodyWeightCard).toHaveTextContent(/87\s*kg/i)
+    expect(screen.getAllByRole('link', { name: /resting heart rate/i })).toHaveLength(
+      6,
+    )
+    expect(screen.getByRole('link', { name: /body weight/i })).toHaveAttribute(
+      'href',
+      '/metrics/body_weight',
+    )
   })
 
   it('filters recent entries by selected metric', async () => {

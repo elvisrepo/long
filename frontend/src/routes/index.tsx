@@ -11,6 +11,7 @@ export const Route = createFileRoute("/")({
 });
 
 const DASHBOARD_RECENT_ENTRY_LIMIT = 5;
+const DASHBOARD_CARD_ENTRY_LIMIT = 50;
 
 function DashboardRoute() {
   const [selectedMetricSlug, setSelectedMetricSlug] = useState("");
@@ -26,8 +27,9 @@ function DashboardRoute() {
   } = useMetricEntriesQuery(
     selectedMetricSlug
       ? { metric: selectedMetricSlug, limit: DASHBOARD_RECENT_ENTRY_LIMIT }
-      : { limit: DASHBOARD_RECENT_ENTRY_LIMIT },
+      : { limit: DASHBOARD_CARD_ENTRY_LIMIT },
   );
+  const recentMetricEntries = metricEntries.slice(0, DASHBOARD_RECENT_ENTRY_LIMIT);
   const metricDefinitionsBySlug = new Map(
     metricDefinitions.map((definition) => [definition.slug, definition]),
   );
@@ -122,7 +124,7 @@ function DashboardRoute() {
         {metricEntriesFailed ? <p>Metric entries failed to load</p> : null}
 
         <div className="entry-list">
-          {metricEntries.map((entry) => (
+          {recentMetricEntries.map((entry) => (
             <MetricEntrySummary
               key={entry.id}
               metricName={
