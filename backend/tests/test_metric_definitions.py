@@ -484,3 +484,28 @@ def test_user_cannot_deactivate_default_metric_definition():
 
         definition.refresh_from_db()
         assert definition.is_active is True
+
+
+def test_inactive_custom_metric_definition_is_hidden_from_active_list():
+        client, user = authenticate_client_for("alice@example.com")
+
+        MetricDefinition.objects.create(
+            user=user,
+            name="Mood",
+            slug="mood",
+            unit="score",
+            category=MetricDefinition.Category.CUSTOM,
+            min_value=1,
+            max_value=10,
+            is_default=False,
+            is_active=False,
+        )
+
+        response = client.get("/api/v1/metrics/definitions/")
+
+        assert response.status_code == 200
+
+        slugs = [definition["slug"] for definition in response.json()]
+        assert "resting_hr" in slugs
+        assert "mood" not in slugs
+
