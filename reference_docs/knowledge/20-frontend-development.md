@@ -223,6 +223,7 @@ Current metrics API integration checkpoint:
 - Failed metric entry submission renders the mutation error message.
 - Successful metric entry mutation invalidates `['metric-entries']` so entry lists can refresh after writes.
 - The dashboard route now renders a `Recent Entries` section backed by `useMetricEntriesQuery()`.
+- Dashboard metric cards read latest values from an unfiltered bounded query, `useMetricEntriesQuery({ limit: 50 })`, so card values do not change when the user filters the recent-entry list.
 - The dashboard `Recent Entries` section requests only the newest 5 entries with `useMetricEntriesQuery({ limit: 5 })`.
 - The `Recent Entries` section has a metric filter dropdown that passes the selected metric slug while preserving the dashboard limit, using `useMetricEntriesQuery({ metric, limit: 5 })`.
 - Recent entries resolve the metric slug against loaded metric definitions so the UI can show the user-facing metric name.

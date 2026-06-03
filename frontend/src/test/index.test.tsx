@@ -90,11 +90,26 @@ function mockLoadedMetricDefinitionsWithManyMetrics() {
 function mockLoadedMetricEntries(
   entries: NonNullable<ReturnType<typeof useMetricEntriesQuery>['data']> = [],
 ) {
-  vi.mocked(useMetricEntriesQuery).mockReturnValue({
-    data: entries,
-    isLoading: false,
-    isError: false,
-  } as ReturnType<typeof useMetricEntriesQuery>)
+  mockMetricEntriesByFilters({ cardEntries: entries, recentEntries: entries })
+}
+
+function mockMetricEntriesByFilters({
+  cardEntries = [],
+  recentEntries = [],
+}: {
+  cardEntries?: NonNullable<ReturnType<typeof useMetricEntriesQuery>['data']>
+  recentEntries?: NonNullable<ReturnType<typeof useMetricEntriesQuery>['data']>
+}) {
+  vi.mocked(useMetricEntriesQuery).mockImplementation((filters) => {
+    const entries =
+      filters?.limit === 50 && !filters.metric ? cardEntries : recentEntries
+
+    return {
+      data: entries,
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricEntriesQuery>
+  })
 }
 
 describe('dashboard route', () => {
@@ -328,6 +343,7 @@ describe('dashboard route', () => {
     await screen.findByRole('heading', { name: /dashboard/i })
 
     expect(useMetricEntriesQuery).toHaveBeenCalledWith({ limit: 50 })
+    expect(useMetricEntriesQuery).toHaveBeenCalledWith({ limit: 5 })
   })
 
   it('shows card latest values from entries beyond the five-entry recent list', async () => {
@@ -335,62 +351,39 @@ describe('dashboard route', () => {
       email: 'user@example.com',
     })
     mockLoadedMetricDefinitionsWithManyMetrics()
-    mockLoadedMetricEntries([
-      {
-        id: 1,
-        metric_definition: 'resting_hr',
-        value: 61,
-        recorded_at: '2026-03-06T07:15:00Z',
-        source: 'manual',
-        context: {},
-        created_at: '2026-03-06T07:15:02Z',
-      },
-      {
-        id: 2,
-        metric_definition: 'resting_hr',
-        value: 60,
-        recorded_at: '2026-03-05T07:15:00Z',
-        source: 'manual',
-        context: {},
-        created_at: '2026-03-05T07:15:02Z',
-      },
-      {
-        id: 3,
-        metric_definition: 'resting_hr',
-        value: 59,
-        recorded_at: '2026-03-04T07:15:00Z',
-        source: 'manual',
-        context: {},
-        created_at: '2026-03-04T07:15:02Z',
-      },
-      {
-        id: 4,
-        metric_definition: 'resting_hr',
-        value: 58,
-        recorded_at: '2026-03-03T07:15:00Z',
-        source: 'manual',
-        context: {},
-        created_at: '2026-03-03T07:15:02Z',
-      },
-      {
-        id: 5,
-        metric_definition: 'resting_hr',
-        value: 57,
-        recorded_at: '2026-03-02T07:15:00Z',
-        source: 'manual',
-        context: {},
-        created_at: '2026-03-02T07:15:02Z',
-      },
-      {
-        id: 6,
-        metric_definition: 'body_weight',
-        value: 87,
-        recorded_at: '2026-03-01T07:15:00Z',
-        source: 'manual',
-        context: {},
-        created_at: '2026-03-01T07:15:02Z',
-      },
-    ])
+    mockMetricEntriesByFilters({
+      cardEntries: [
+        {
+          id: 1,
+          metric_definition: 'resting_hr',
+          value: 61,
+          recorded_at: '2026-03-06T07:15:00Z',
+          source: 'manual',
+          context: {},
+          created_at: '2026-03-06T07:15:02Z',
+        },
+        {
+          id: 2,
+          metric_definition: 'body_weight',
+          value: 87,
+          recorded_at: '2026-03-01T07:15:00Z',
+          source: 'manual',
+          context: {},
+          created_at: '2026-03-01T07:15:02Z',
+        },
+      ],
+      recentEntries: [
+        {
+          id: 3,
+          metric_definition: 'resting_hr',
+          value: 61,
+          recorded_at: '2026-03-06T07:15:00Z',
+          source: 'manual',
+          context: {},
+          created_at: '2026-03-06T07:15:02Z',
+        },
+      ],
+    })
 
     renderRoute('/')
 
@@ -402,12 +395,74 @@ describe('dashboard route', () => {
 
     expect(bodyWeightCard).toHaveTextContent(/87\s*kg/i)
     expect(screen.getAllByRole('link', { name: /resting heart rate/i })).toHaveLength(
-      6,
+      2,
     )
     expect(screen.getByRole('link', { name: /body weight/i })).toHaveAttribute(
       'href',
       '/metrics/body_weight',
     )
+  })
+
+  it('keeps card latest values unfiltered when recent entries are filtered', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitionsWithManyMetrics()
+    mockMetricEntriesByFilters({
+      cardEntries: [
+        {
+          id: 1,
+          metric_definition: 'resting_hr',
+          value: 61,
+          recorded_at: '2026-03-06T07:15:00Z',
+          source: 'manual',
+          context: {},
+          created_at: '2026-03-06T07:15:02Z',
+        },
+        {
+          id: 2,
+          metric_definition: 'body_weight',
+          value: 87,
+          recorded_at: '2026-03-01T07:15:00Z',
+          source: 'manual',
+          context: {},
+          created_at: '2026-03-01T07:15:02Z',
+        },
+      ],
+      recentEntries: [
+        {
+          id: 3,
+          metric_definition: 'body_weight',
+          value: 87,
+          recorded_at: '2026-03-01T07:15:00Z',
+          source: 'manual',
+          context: {},
+          created_at: '2026-03-01T07:15:02Z',
+        },
+      ],
+    })
+
+    renderRoute('/')
+
+    await screen.findByRole('heading', { name: /dashboard/i })
+
+    await user.selectOptions(
+      screen.getByLabelText(/filter recent entries by metric/i),
+      'body_weight',
+    )
+
+    const restingHeartRateCard = screen
+      .getByRole('heading', { name: /resting heart rate/i })
+      .closest('.metric-card') as HTMLElement
+
+    expect(useMetricEntriesQuery).toHaveBeenCalledWith({ limit: 50 })
+    expect(useMetricEntriesQuery).toHaveBeenLastCalledWith({
+      metric: 'body_weight',
+      limit: 5,
+    })
+    expect(restingHeartRateCard).toHaveTextContent(/61\s*bpm/i)
   })
 
   it('filters recent entries by selected metric', async () => {

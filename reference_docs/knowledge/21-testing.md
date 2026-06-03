@@ -313,6 +313,7 @@ Current frontend metrics testing checkpoint:
 - `metric-trend-chart.test.tsx` covers the Chart.js-backed trend component contract: accessible chart region, empty state, summary text, and latest-entry-per-local-day aggregation before chart config is built.
 - dashboard route tests cover the first metric-entry form behavior: submit, input clearing after success, and visible error on failed save.
 - dashboard route tests also cover rendering logged metric entries in the `Recent Entries` section with user-facing metric names, unit-formatted values, and readable timestamps.
+- dashboard route tests cover that metric-card latest values use an independent unfiltered `useMetricEntriesQuery({ limit: 50 })` read, so recent-entry filtering does not hide card values for other metrics.
 - dashboard route tests cover selecting a metric filter and passing the selected metric slug into `useMetricEntriesQuery({ metric, limit: 5 })`.
 - dashboard route tests cover the default recent-entry read limit with `useMetricEntriesQuery({ limit: 5 })`.
 - dashboard route tests cover metric-card links and recent-entry links to `/metrics/$slug`.

@@ -21,24 +21,28 @@ function DashboardRoute() {
     isError,
   } = useMetricDefinitionsQuery();
   const {
-    data: metricEntries = [],
+    data: cardMetricEntries = [],
+    isLoading: cardMetricEntriesAreLoading,
+    isError: cardMetricEntriesFailed,
+  } = useMetricEntriesQuery({ limit: DASHBOARD_CARD_ENTRY_LIMIT });
+  const {
+    data: recentMetricEntries = [],
     isLoading: metricEntriesAreLoading,
     isError: metricEntriesFailed,
   } = useMetricEntriesQuery(
     selectedMetricSlug
       ? { metric: selectedMetricSlug, limit: DASHBOARD_RECENT_ENTRY_LIMIT }
-      : { limit: DASHBOARD_CARD_ENTRY_LIMIT },
+      : { limit: DASHBOARD_RECENT_ENTRY_LIMIT },
   );
-  const recentMetricEntries = metricEntries.slice(0, DASHBOARD_RECENT_ENTRY_LIMIT);
   const metricDefinitionsBySlug = new Map(
     metricDefinitions.map((definition) => [definition.slug, definition]),
   );
   const latestEntriesByMetric = new Map<
     string,
-    (typeof metricEntries)[number]
+    (typeof cardMetricEntries)[number]
   >();
 
-  for (const entry of metricEntries) {
+  for (const entry of cardMetricEntries) {
     if (!latestEntriesByMetric.has(entry.metric_definition)) {
       latestEntriesByMetric.set(entry.metric_definition, entry);
     }
@@ -120,8 +124,12 @@ function DashboardRoute() {
           </label>
         </div>
 
-        {metricEntriesAreLoading ? <p>Loading metric entries...</p> : null}
-        {metricEntriesFailed ? <p>Metric entries failed to load</p> : null}
+        {cardMetricEntriesAreLoading || metricEntriesAreLoading ? (
+          <p>Loading metric entries...</p>
+        ) : null}
+        {cardMetricEntriesFailed || metricEntriesFailed ? (
+          <p>Metric entries failed to load</p>
+        ) : null}
 
         <div className="entry-list">
           {recentMetricEntries.map((entry) => (
