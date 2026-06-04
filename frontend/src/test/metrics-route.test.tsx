@@ -436,7 +436,33 @@ describe('metrics route', () => {
       name: /metrics/i,
     })
 
-    expect(useMetricDefinitionsQuery).toHaveBeenCalledWith({})
+    expect(useMetricDefinitionsQuery).toHaveBeenCalledWith({
+      includeInactive: false,
+    })
+  })
+
+  it('loads inactive custom metrics when requested', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+
+    renderRoute('/metrics')
+
+    await screen.findByRole('heading', {
+      level: 1,
+      name: /metrics/i,
+    })
+
+    await user.click(
+      screen.getByRole('button', { name: /show deactivated custom metrics/i }),
+    )
+
+    expect(useMetricDefinitionsQuery).toHaveBeenLastCalledWith({
+      includeInactive: true,
+    })
   })
 
 })

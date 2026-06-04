@@ -31,11 +31,12 @@ function MetricsRoute() {
 }
 
 function MetricsCatalog() {
+  const [showInactive, setShowInactive] = useState(false)
   const {
     data: metricDefinitions = [],
     isLoading,
     isError,
-  } = useMetricDefinitionsQuery({})
+  } = useMetricDefinitionsQuery({ includeInactive: showInactive })
 
   if (isLoading) {
     return <p>Loading metrics...</p>
@@ -56,6 +57,16 @@ function MetricsCatalog() {
       </div>
 
       <CreateCustomMetricForm />
+
+      <button
+        className="metrics-secondary-action"
+        type="button"
+        onClick={() => setShowInactive((currentValue) => !currentValue)}
+      >
+        {showInactive
+          ? 'Hide deactivated custom metrics'
+          : 'Show deactivated custom metrics'}
+      </button>
 
       <div className="metrics-list" aria-label="Available metrics">
         {metricDefinitions.map((definition) => (
