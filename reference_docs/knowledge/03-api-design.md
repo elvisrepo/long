@@ -131,6 +131,7 @@ Custom metric-definition list behavior:
 - Inactive system defaults remain hidden.
 - Another user's custom definitions are never returned, regardless of `include_inactive`.
 - Responses include `is_active` so clients can separate active metrics from archived custom metrics.
+- See `reference_docs/knowledge/04-data-flow-examples.md` for the full frontend hook → API helper → DRF view/queryset → serializer → TanStack Query cache flow.
 
 **Data passing convention:**
 - **Path params** → required resource identifiers (`/analytics/{slug}/`, `/wearables/connections/{id}/`)
