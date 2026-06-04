@@ -46,6 +46,13 @@ function MetricsCatalog() {
     return <p>Metrics failed to load</p>
   }
 
+  const activeMetricDefinitions = metricDefinitions.filter(
+    (definition) => definition.is_active,
+  )
+  const archivedCustomMetricDefinitions = metricDefinitions.filter(
+    (definition) => !definition.is_active && !definition.is_default,
+  )
+
   return (
     <section className="metrics-screen">
       <div className="metrics-hero">
@@ -69,13 +76,43 @@ function MetricsCatalog() {
       </button>
 
       <div className="metrics-list" aria-label="Available metrics">
-        {metricDefinitions.map((definition) => (
+        {activeMetricDefinitions.map((definition) => (
           <MetricDefinitionRow
             definition={definition}
             key={definition.id}
           />
   ))}
       </div>
+
+      {showInactive && archivedCustomMetricDefinitions.length > 0 ? (
+        <section
+          aria-label="Archived custom metrics"
+          className="metrics-list archived-metrics-list"
+        >
+          <div className="archived-metrics-header">
+            <p className="eyebrow">Archived</p>
+            <h2>Archived custom metrics</h2>
+          </div>
+
+          {archivedCustomMetricDefinitions.map((definition) => (
+            <article
+              className="metric-list-row archived-metric-row"
+              key={definition.id}
+            >
+              <div>
+                <h2>{definition.name}</h2>
+                <p>
+                  {definition.category} · {definition.unit}
+                </p>
+              </div>
+
+              <div className="metric-row-actions">
+                <span>{definition.slug}</span>
+              </div>
+            </article>
+          ))}
+        </section>
+      ) : null}
     </section>
   )
 }

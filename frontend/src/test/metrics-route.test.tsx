@@ -465,4 +465,56 @@ describe('metrics route', () => {
     })
   })
 
+  it('shows inactive custom metrics in a separate archived section', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions([
+      {
+        id: 'active-metric-id',
+        name: 'Sleep Score',
+        slug: 'sleep_score',
+        unit: 'number',
+        category: 'custom',
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: true,
+      },
+      {
+        id: 'inactive-metric-id',
+        name: 'Mood',
+        slug: 'mood',
+        unit: 'score',
+        category: 'custom',
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: false,
+      },
+    ])
+
+    renderRoute('/metrics')
+
+    await screen.findByRole('heading', {
+      level: 1,
+      name: /metrics/i,
+    })
+
+    await user.click(
+      screen.getByRole('button', { name: /show deactivated custom metrics/i }),
+    )
+
+    const activeMetrics = screen.getByLabelText(/available metrics/i)
+    expect(activeMetrics).toHaveTextContent(/sleep score/i)
+    expect(activeMetrics).not.toHaveTextContent(/mood/i)
+
+    const archivedMetrics = screen.getByRole('region', {
+      name: /archived custom metrics/i,
+    })
+    expect(archivedMetrics).toHaveTextContent(/mood/i)
+  }) 
+
 })
