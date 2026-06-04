@@ -262,18 +262,20 @@ Current backend metrics testing checkpoint:
 - The list endpoint requires JWT authentication.
 - Authenticated users receive active system default metric definitions.
 - Authenticated users also receive their own active custom metric definitions.
-- Other users' custom definitions and inactive definitions are not returned.
+- Other users' custom definitions and inactive definitions are not returned by the default active-only list.
+- `include_inactive=true` list tests prove the API includes the authenticated user's inactive custom metric definitions without leaking another user's inactive definitions or inactive system defaults.
 - Authenticated users can create custom metric definitions.
 - Custom metric-definition creation requires authentication.
 - Custom metric-definition creation rejects duplicate slugs for the same user.
 - Custom metric-definition creation rejects slugs already used by system default metrics.
 - Custom metric-definition creation rejects invalid ranges where `max_value <= min_value`.
-- Authenticated users can partially update their own active custom metric definitions.
+- Authenticated users can partially update their own custom metric definitions, including inactive custom definitions for reactivation.
 - Custom metric-definition update requires authentication.
 - Users cannot update another user's custom metric definition; the API returns `404` because the detail queryset is user-scoped.
 - Users cannot update system default metric definitions.
 - Custom metric-definition slugs remain immutable during update, while still writable during create.
 - Custom metric-definition update rejects invalid ranges where a submitted bound conflicts with the existing stored bound.
+- Custom metric-definition tests cover soft deactivation and reactivation through `is_active`.
 - `tests/test_metric_entries.py` now covers the first metric-entry write slice.
 - Authenticated users can create a manual metric entry for an active default metric definition by sending the metric slug.
 - Metric-entry creation requires authentication.
@@ -302,8 +304,8 @@ Practical test-level guidance for the current frontend slice:
 - once the full auth flow is stable, add Playwright end-to-end coverage for the real user journey
 
 Current frontend metrics testing checkpoint:
-- `metric-definitions-api.test.ts` covers the metric-definition API helper request shape and error behavior.
-- `use-metric-definitions-query.test.tsx` covers the TanStack Query wrapper for metric definitions.
+- `metric-definitions-api.test.ts` covers the metric-definition API helper request shape and error behavior, including `includeInactive` query-string generation.
+- `use-metric-definitions-query.test.tsx` covers the TanStack Query wrapper for metric definitions, including passing `includeInactive` through to the API helper.
 - `use-create-metric-definition-mutation.test.tsx` covers custom metric-definition mutation and invalidation of metric-definition queries.
 - `metric-entries-api.test.ts` covers `createMetricEntry()`, `getMetricEntries()`, `updateMetricEntry()`, and `deleteMetricEntry()` request shape, auth-token requirements, backend failure behavior, filter query-string generation including `limit`, and backend validation-detail preservation for entry updates.
 - `use-metric-entries-query.test.tsx` covers the TanStack Query wrapper for metric entries.
@@ -318,7 +320,7 @@ Current frontend metrics testing checkpoint:
 - dashboard route tests cover the default recent-entry read limit with `useMetricEntriesQuery({ limit: 5 })`.
 - dashboard route tests cover metric-card links and recent-entry links to `/metrics/$slug`.
 - dashboard route tests continued to pass after the responsive visual foundation work, so the UI restyle did not change the dashboard behavior contract.
-- metrics route tests cover protected-route behavior, metric catalog rendering, catalog-row links to `/metrics/$slug`, custom metric creation submit payload, form clearing after success, and visible backend validation errors.
+- metrics route tests cover protected-route behavior, metric catalog rendering, catalog-row links to `/metrics/$slug`, custom metric creation submit payload, form clearing after success, visible backend validation errors, custom metric metadata updates, custom metric deactivation, and visible deactivation errors.
 - metric detail route tests cover protected-route behavior, dynamic slug route rendering, metric-definition lookup, styled summary rendering, chart-backed trend overview rendering, metric-entry history rendering, inline entry update/delete orchestration, local edit validation for empty/non-numeric values, preserving the edit form on failed update, visible update failure errors, empty-state rendering, bounded `useMetricEntriesQuery({ metric, limit: 50 })` calls, range-filtered `useMetricEntriesQuery({ metric, from, limit: 50 })` calls, and stable range filter query keys.
 - Metric-entry hook tests mock the API helper but use a real `QueryClientProvider`, so they verify Query behavior without requiring a running Django backend.
 - Playwright E2E now submits a real metric entry through the browser against the isolated E2E backend/database, verifies the saved value appears in the dashboard flow, and exercises the metric filter dropdown.

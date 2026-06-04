@@ -16,6 +16,16 @@ class MetricDefinitionListView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+          include_inactive = (
+              self.request.query_params.get("include_inactive") == "true"
+          )
+
+          if include_inactive:
+              return MetricDefinition.objects.filter(
+                  Q(user__isnull=True, is_active=True)
+                  | Q(user=self.request.user)
+              ).order_by("category", "name")
+
           return MetricDefinition.objects.filter(
               Q(user__isnull=True) | Q(user=self.request.user),
               is_active=True,
@@ -29,7 +39,6 @@ class MetricDefinitionDetailView(generics.RetrieveUpdateAPIView):
           return MetricDefinition.objects.filter(
               user=self.request.user,
               is_default=False,
-              is_active=True,
           )
     
 

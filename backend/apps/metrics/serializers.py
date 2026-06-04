@@ -7,7 +7,7 @@ from apps.metrics.models import MetricDefinition, MetricEntry
 
 
 class MetricDefinitionSerializer(serializers.ModelSerializer):
-    is_active = serializers.BooleanField(required=False, write_only=True)
+    is_active = serializers.BooleanField(required=False)
 
     class Meta:
         model = MetricDefinition

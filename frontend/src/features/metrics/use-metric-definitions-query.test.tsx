@@ -46,6 +46,7 @@ function createWrapper() {
           min_value: 20,
           max_value: 220,
           is_default: true,
+          is_active: true,
         },
       ])
 
@@ -67,8 +68,29 @@ function createWrapper() {
           min_value: 20,
           max_value: 220,
           is_default: true,
+          is_active: true,
         },
       ])
+      expect(getMetricDefinitions).toHaveBeenCalledWith({})
+    })
+
+    test('passes includeInactive to the API', async () => {
+      vi.mocked(getMetricDefinitions).mockResolvedValueOnce([])
+
+      const { result } = renderHook(
+        () => useMetricDefinitionsQuery({ includeInactive: true }),
+        {
+          wrapper: createWrapper(),
+        },
+      )
+
+      await waitFor(() => {
+        expect(result.current.isSuccess).toBe(true)
+      })
+
+      expect(getMetricDefinitions).toHaveBeenCalledWith({
+        includeInactive: true,
+      })
     })
 
     test('exposes an error state when the API fails', async () => {

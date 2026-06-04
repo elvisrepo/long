@@ -42,9 +42,9 @@
 #### Metrics (JWT required)
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
-| GET | `/api/v1/metrics/definitions/` | List available metrics | Implemented; includes active defaults + authenticated user's active custom definitions |
+| GET | `/api/v1/metrics/definitions/` | List available metrics | Implemented; includes active defaults + authenticated user's active custom definitions; optional `include_inactive=true` also includes the authenticated user's inactive custom definitions |
 | POST | `/api/v1/metrics/definitions/` | Create custom metric | Implemented for authenticated users; creates user-owned non-default metric definitions |
-| PATCH | `/api/v1/metrics/definitions/{id}/` | Update custom metric | Implemented for authenticated user's own active custom metric definitions; slug is immutable |
+| PATCH | `/api/v1/metrics/definitions/{id}/` | Update custom metric | Implemented for authenticated user's own custom metric definitions, including inactive ones for reactivation; slug is immutable |
 | GET | `/api/v1/metrics/entries/?metric=resting_hr&from=2026-01-01&to=2026-03-01&limit=50` | Query entries | Implemented for authenticated user's entries; supports optional `metric`, `from`, `to`, and positive integer `limit` filters; returns newest first |
 | POST | `/api/v1/metrics/entries/` | Log a metric entry | Implemented for manual entries; accepts `metric_definition` as a slug such as `resting_hr`; not idempotent — repeated calls create duplicate entries |
 | PATCH | `/api/v1/metrics/entries/{id}/` | Update a metric entry | Implemented for authenticated user's own entries; partial updates allowed; value range validation still applies |
@@ -103,7 +103,8 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
   "category": "custom",
   "min_value": 1.0,
   "max_value": 10.0,
-  "is_default": false
+  "is_default": false,
+  "is_active": true
 }
 ```
 
@@ -116,12 +117,20 @@ Custom metric-definition create behavior:
 - `max_value` must be greater than `min_value`.
 
 Custom metric-definition update behavior:
-- `PATCH /api/v1/metrics/definitions/{id}/` supports partial updates for an authenticated user's own active custom metric definitions.
-- Updateable fields include `name`, `unit`, `category`, `min_value`, and `max_value`.
+- `PATCH /api/v1/metrics/definitions/{id}/` supports partial updates for an authenticated user's own custom metric definitions, including inactive custom definitions so users can reactivate archived metrics.
+- Updateable fields include `name`, `unit`, `category`, `min_value`, `max_value`, and `is_active`.
 - `slug` is writable on create but immutable on update because dashboard links, metric-entry creation, and route params use it as the public metric identifier.
 - System default metric definitions cannot be updated through this endpoint.
 - Another user's custom metric definition returns `404` because it is outside the caller's visible update queryset.
 - Range validation still applies during partial updates; if only one bound is submitted, the serializer validates it against the existing stored bound.
+- Deactivation is a soft archive, not a hard delete. Existing metric entries remain preserved and readable; inactive metric definitions cannot be used for new entries.
+
+Custom metric-definition list behavior:
+- `GET /api/v1/metrics/definitions/` is active-only by default.
+- `GET /api/v1/metrics/definitions/?include_inactive=true` returns active system defaults plus the authenticated user's custom metric definitions, including inactive ones.
+- Inactive system defaults remain hidden.
+- Another user's custom definitions are never returned, regardless of `include_inactive`.
+- Responses include `is_active` so clients can separate active metrics from archived custom metrics.
 
 **Data passing convention:**
 - **Path params** → required resource identifiers (`/analytics/{slug}/`, `/wearables/connections/{id}/`)

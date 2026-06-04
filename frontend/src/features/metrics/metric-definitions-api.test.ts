@@ -31,6 +31,7 @@ describe("getMetricDefinitions", () => {
             min_value: 20,
             max_value: 220,
             is_default: true,
+            is_active: true,
           },
         ]),
         { status: 200 },
@@ -55,8 +56,43 @@ describe("getMetricDefinitions", () => {
         min_value: 20,
         max_value: 220,
         is_default: true,
+        is_active: true,
       },
     ]);
+  });
+
+  test("fetches metric definitions including inactive custom metrics", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify([
+          {
+            id: "metric-id",
+            name: "Mood",
+            slug: "mood",
+            unit: "score",
+            category: "custom",
+            min_value: 1,
+            max_value: 10,
+            is_default: false,
+            is_active: false,
+          },
+        ]),
+        { status: 200 },
+      ),
+    );
+
+    const result = await getMetricDefinitions({ includeInactive: true });
+
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/v1/metrics/definitions/?include_inactive=true",
+      {
+        method: "GET",
+        headers: {
+          Authorization: "Bearer access-token",
+        },
+      },
+    );
+    expect(result[0].is_active).toBe(false);
   });
 
   test("rejects when there is no access token", async () => {

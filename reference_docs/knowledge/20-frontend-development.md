@@ -203,11 +203,13 @@ Current limitation:
 
 Current metrics API integration checkpoint:
 - `getMetricDefinitions()` fetches `GET /api/v1/metrics/definitions/` with the in-memory bearer access token.
-- `useMetricDefinitionsQuery()` exposes metric definitions through TanStack Query for dashboard reads.
+- `getMetricDefinitions({ includeInactive: true })` fetches `GET /api/v1/metrics/definitions/?include_inactive=true` for archived custom metric management.
+- `useMetricDefinitionsQuery(options)` exposes metric definitions through TanStack Query for dashboard reads and uses the options in its query key so active-only and include-inactive reads are cached separately.
 - `createMetricDefinition()` posts custom metric definitions to `POST /api/v1/metrics/definitions/`.
 - `createMetricDefinition()` keeps component-facing input camelCase, then maps it to the backend's snake_case JSON contract.
 - `useCreateMetricDefinitionMutation()` wraps custom metric-definition creation in TanStack Query mutation state.
 - Successful custom metric-definition mutation invalidates `['metric-definitions']` so metric catalogs and dashboard metric cards can refresh after writes.
+- Metric-definition API responses include `is_active`; the frontend uses this to distinguish active metric cards from archived custom metrics.
 - `createMetricEntry()` posts manual metric entries to `POST /api/v1/metrics/entries/`.
 - `createMetricEntry()` keeps the component-facing input camelCase, then maps it to the backend's snake_case JSON contract.
 - `updateMetricEntry()` patches existing manual metric entries through `PATCH /api/v1/metrics/entries/{id}/`.
@@ -247,7 +249,9 @@ Current metrics page checkpoint:
 - The form submits through `useCreateMetricDefinitionMutation()`.
 - Successful custom metric creation clears the form and invalidates metric-definition queries.
 - Failed custom metric creation shows the backend validation message.
-- Custom metric update/deactivate behavior is still not implemented.
+- Custom metric metadata update is implemented for user-owned custom metrics.
+- Custom metric deactivation is implemented as a soft archive action. It invalidates both `['metric-definitions']` and `['metric-entries']`; historical entries remain preserved.
+- Reactivation UI is not implemented yet. The API/query layer can now discover inactive custom metrics through `includeInactive`, which enables a future `Show deactivated custom metrics` section.
 
 Current metric detail page checkpoint:
 - `/metrics/$slug` exists as a protected dynamic route.

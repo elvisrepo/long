@@ -95,6 +95,7 @@ def test_metric_definitions_lists_defaults_and_user_owned_custom_metrics():
         "min_value": 20.0,
         "max_value": 220.0,
         "is_default": True,
+        "is_active": True,
     }
 
 
@@ -126,6 +127,7 @@ def test_authenticated_user_can_create_custom_metric_definition():
           "min_value": 1.0,
           "max_value": 10.0,
           "is_default": False,
+          "is_active": True,
     }
 
     definition = MetricDefinition.objects.get(user=user, slug="mood")
@@ -266,6 +268,7 @@ def test_user_can_update_their_own_custom_metric_definition():
           "min_value": 0.0,
           "max_value": 100.0,
           "is_default": False,
+          "is_active": True,
       }
 
       definition.refresh_from_db()
@@ -437,6 +440,34 @@ def test_user_can_deactivate_their_own_custom_metric_definition():
         definition.refresh_from_db()
         assert definition.is_active is False
 
+def test_user_can_reactivate_their_own_custom_metric_definition():
+        client, user = authenticate_client_for("alice@example.com")
+
+        definition = MetricDefinition.objects.create(
+            user=user,
+            name="Mood",
+            slug="mood",
+            unit="score",
+            category=MetricDefinition.Category.CUSTOM,
+            min_value=1,
+            max_value=10,
+            is_default=False,
+            is_active=False,
+        )
+
+        response = client.patch(
+            f"/api/v1/metrics/definitions/{definition.id}/",
+            {
+                "is_active": True,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        definition.refresh_from_db()
+        assert definition.is_active is True
+
 def test_user_cannot_deactivate_another_users_custom_metric_definition():
         client, _user = authenticate_client_for("alice@example.com")
         other_user = get_user_model().objects.create_user(
@@ -509,3 +540,61 @@ def test_inactive_custom_metric_definition_is_hidden_from_active_list():
         assert "resting_hr" in slugs
         assert "mood" not in slugs
 
+
+def test_metric_definition_list_can_include_current_users_inactive_custom_metrics():
+        client, user = authenticate_client_for("alice@example.com")
+        other_user = get_user_model().objects.create_user(
+            email="bob@example.com",
+            password="strong-password-123",
+        )
+
+        MetricDefinition.objects.create(
+            user=user,
+            name="Mood",
+            slug="mood",
+            unit="score",
+            category=MetricDefinition.Category.CUSTOM,
+            min_value=1,
+            max_value=10,
+            is_default=False,
+            is_active=False,
+        )
+        MetricDefinition.objects.create(
+            user=other_user,
+            name="Other Mood",
+            slug="other_mood",
+            unit="score",
+            category=MetricDefinition.Category.CUSTOM,
+            min_value=1,
+            max_value=10,
+            is_default=False,
+            is_active=False,
+        )
+        MetricDefinition.objects.create(
+            name="Inactive Default",
+            slug="inactive_default",
+            unit="score",
+            category=MetricDefinition.Category.CUSTOM,
+            min_value=1,
+            max_value=10,
+            is_default=True,
+            is_active=False,
+        )
+
+        response = client.get(
+            "/api/v1/metrics/definitions/?include_inactive=true"
+        )
+
+        assert response.status_code == 200
+
+        definitions = response.json()
+        definitions_by_slug = {
+            definition["slug"]: definition for definition in definitions
+        }
+
+        assert "resting_hr" in definitions_by_slug
+        assert definitions_by_slug["resting_hr"]["is_active"] is True
+        assert "mood" in definitions_by_slug
+        assert definitions_by_slug["mood"]["is_active"] is False
+        assert "other_mood" not in definitions_by_slug
+        assert "inactive_default" not in definitions_by_slug

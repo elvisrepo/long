@@ -1,14 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 
-  import {
-    getMetricDefinitions,
-    type MetricDefinition,
-  } from './metric-definitions-api'
+import {
+  getMetricDefinitions,
+  type GetMetricDefinitionsOptions,
+  type MetricDefinition,
+} from './metric-definitions-api'
 
- export function useMetricDefinitionsQuery() {
-    return useQuery<MetricDefinition[]> ({
-        // Shared cache key for all dashboard reads of the metric definition list.
-        queryKey: ['metric-definitions'],
-        queryFn: getMetricDefinitions,
-    })
- }
+export function useMetricDefinitionsQuery(
+  options: GetMetricDefinitionsOptions = {},
+) {
+  return useQuery<MetricDefinition[]>({
+    queryKey: ['metric-definitions', options],
+    queryFn: () => getMetricDefinitions(options),
+  })
+}

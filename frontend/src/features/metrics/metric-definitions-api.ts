@@ -9,6 +9,11 @@ export interface MetricDefinition {
   min_value: number;
   max_value: number;
   is_default: boolean;
+  is_active: boolean;
+}
+
+export interface GetMetricDefinitionsOptions {
+  includeInactive?: boolean;
 }
 
 export interface CreateMetricDefinitionInput {
@@ -47,14 +52,27 @@ function formatMetricDefinitionError(payload: unknown) {
   return "Metric definition request failed";
 }
 
-export async function getMetricDefinitions(): Promise<MetricDefinition[]> {
+export async function getMetricDefinitions(
+  options: GetMetricDefinitionsOptions = {},
+): Promise<MetricDefinition[]> {
   const accessToken = getAccessToken();
 
   if (!accessToken) {
     throw new Error("Authentication required");
   }
 
-  const response = await fetch("/api/v1/metrics/definitions/", {
+  const searchParams = new URLSearchParams();
+
+  if (options.includeInactive) {
+    searchParams.set("include_inactive", "true");
+  }
+
+  const queryString = searchParams.toString();
+  const url = queryString
+    ? `/api/v1/metrics/definitions/?${queryString}`
+    : "/api/v1/metrics/definitions/";
+
+  const response = await fetch(url, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${accessToken}`,

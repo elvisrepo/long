@@ -278,3 +278,18 @@ Current implementation progress:
   Chart.js adds noticeable weight to the metric-detail route chunk, and canvas rendering needs explicit lifecycle cleanup in React to avoid duplicate-chart errors on reused canvases. The current aggregation rule is intentionally generic and may not fit all future metric types.
 - Revisit when:
   The app needs richer analytics, wearable-derived high-frequency data, metric-specific aggregation such as min/max/average bands, or a charting library with better React 19/Vite compatibility becomes clearly preferable.
+
+### ADR-018: Soft-Archive Custom Metric Definitions
+
+- Status: Accepted
+- Date: 2026-06-04
+- Decision:
+  Deactivating a custom metric definition is a soft archive through `is_active=false`, not a hard delete. Historical metric entries remain preserved and readable. Reactivation is supported by PATCHing the user's own custom metric definition back to `is_active=true`.
+- Context:
+  Users can create custom metrics and log health data against them. Hard-deleting a metric definition would either remove historical health data or leave entries without a clear definition, both of which are poor defaults for a health-tracking product.
+- Current application:
+  `GET /api/v1/metrics/definitions/` remains active-only by default. `GET /api/v1/metrics/definitions/?include_inactive=true` includes the authenticated user's inactive custom metric definitions for management UI. Inactive defaults and other users' custom metrics remain hidden. `PATCH /api/v1/metrics/definitions/{id}/` can update user-owned custom definitions regardless of active status so archived metrics can be reactivated.
+- Consequences:
+  Custom metric slugs remain occupied after deactivation, which avoids ambiguity in historical entries. The UI needs an archived custom metrics section rather than mixing inactive metrics into the active logging catalog.
+- Revisit when:
+  The product needs account-level data export/delete workflows, custom metric merge/rename tooling, or subscription rules that limit active versus archived custom metrics differently.
