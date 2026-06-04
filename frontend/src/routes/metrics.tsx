@@ -79,6 +79,7 @@ function MetricDefinitionRow({ definition }: MetricDefinitionRowProps) {
   const [unit, setUnit] = useState(definition.unit)
   const [minValue, setMinValue] = useState(String(definition.min_value))
   const [maxValue, setMaxValue] = useState(String(definition.max_value))
+  const [deactivateError, setDeactivateError] = useState<string | null>(null)
   const updateMetricDefinitionMutation = useUpdateMetricDefinitionMutation()
   const deactivateMetricDefinitionMutation =
     useDeactivateMetricDefinitionMutation()
@@ -99,6 +100,19 @@ function MetricDefinitionRow({ definition }: MetricDefinitionRowProps) {
       setIsEditing(false)
     } catch {
       // The mutation state below renders the backend validation message.
+    }
+  }
+
+  async function handleDeactivate() {
+    try {
+      setDeactivateError(null)
+      await deactivateMetricDefinitionMutation.mutateAsync(definition.id)
+    } catch (error) {
+      setDeactivateError(
+        error instanceof Error
+          ? error.message
+          : 'Metric definition request failed',
+      )
     }
   }
 
@@ -189,9 +203,7 @@ function MetricDefinitionRow({ definition }: MetricDefinitionRowProps) {
             <button
               disabled={deactivateMetricDefinitionMutation.isPending}
               type="button"
-              onClick={() =>
-                deactivateMetricDefinitionMutation.mutateAsync(definition.id)
-              }
+              onClick={handleDeactivate}
             >
               {deactivateMetricDefinitionMutation.isPending
                 ? 'Deactivating...'
@@ -200,6 +212,8 @@ function MetricDefinitionRow({ definition }: MetricDefinitionRowProps) {
           </>
         ) : null}
       </div>
+
+      {deactivateError ? <p className="form-error">{deactivateError}</p> : null}
     </article>
   )
 }

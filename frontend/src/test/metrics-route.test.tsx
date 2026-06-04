@@ -375,4 +375,46 @@ describe('metrics route', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('shows an error when custom metric deactivation fails', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions([
+      {
+        id: 'custom-metric-id',
+        name: 'Mood',
+        slug: 'mood',
+        unit: 'score',
+        category: 'custom',
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+      },
+    ])
+    deactivateMetricDefinitionMutateAsyncMock.mockRejectedValueOnce(
+      new Error('Metric definition request failed'),
+    )
+
+    renderRoute('/metrics')
+
+    await screen.findByRole('heading', {
+      level: 1,
+      name: /metrics/i,
+    })
+
+    await user.click(screen.getByRole('button', { name: /deactivate mood/i }))
+
+    expect(
+      await screen.findByText(/metric definition request failed/i),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /edit mood/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /deactivate mood/i }),
+    ).toBeInTheDocument()
+  })
+
 })
