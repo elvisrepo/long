@@ -569,3 +569,37 @@ def test_entries_for_inactive_custom_metric_remain_readable_by_metric_filter():
         assert len(data) == 1
         assert data[0]["metric_definition"] == "mood"
         assert data[0]["value"] == 8.0
+
+def test_entries_for_inactive_custom_metric_remain_readable():
+      client, user = authenticate_client_for("alice@example.com")
+
+      definition = MetricDefinition.objects.create(
+          user=user,
+          name="Mood",
+          slug="mood",
+          unit="score",
+          category=MetricDefinition.Category.CUSTOM,
+          min_value=1,
+          max_value=10,
+          is_default=False,
+      )
+      MetricEntry.objects.create(
+          user=user,
+          metric_definition=definition,
+          value=8,
+          recorded_at="2026-03-05T07:15:00Z",
+          context={"notes": "before deactivation"},
+      )
+
+      definition.is_active = False
+      definition.save(update_fields=["is_active"])
+
+      response = client.get("/api/v1/metrics/entries/?metric=mood")
+
+      assert response.status_code == 200
+
+      payload = response.json()
+      assert len(payload) == 1
+      assert payload[0]["metric_definition"] == "mood"
+      assert payload[0]["value"] == 8.0
+      assert payload[0]["context"] == {"notes": "before deactivation"}
