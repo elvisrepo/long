@@ -47,6 +47,7 @@ function mockLoadedMetricDefinitions(
       min_value: 20,
       max_value: 220,
       is_default: true,
+      is_active: true,
     },
   ],
 ) {
@@ -89,6 +90,7 @@ function mockSuccessfulCustomMetricCreate() {
     min_value: 1,
     max_value: 10,
     is_default: false,
+    is_active: true,
   })
 }
 
@@ -276,6 +278,7 @@ describe('metrics route', () => {
         min_value: 1,
         max_value: 10,
         is_default: false,
+        is_active: true,
       },
     ])
 
@@ -343,6 +346,7 @@ describe('metrics route', () => {
         min_value: 20,
         max_value: 220,
         is_default: true,
+        is_active: true,
       },
       {
         id: 'custom-metric-id',
@@ -353,6 +357,7 @@ describe('metrics route', () => {
         min_value: 1,
         max_value: 10,
         is_default: false,
+        is_active: true,
       },
     ])
 
@@ -391,6 +396,7 @@ describe('metrics route', () => {
         min_value: 1,
         max_value: 10,
         is_default: false,
+        is_active: true,
       },
     ])
     deactivateMetricDefinitionMutateAsyncMock.mockRejectedValueOnce(
@@ -415,6 +421,22 @@ describe('metrics route', () => {
     expect(
       screen.getByRole('button', { name: /deactivate mood/i }),
     ).toBeInTheDocument()
+  })
+
+ it('loads active metric definitions by default', async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+
+    renderRoute('/metrics')
+
+    await screen.findByRole('heading', {
+      level: 1,
+      name: /metrics/i,
+    })
+
+    expect(useMetricDefinitionsQuery).toHaveBeenCalledWith({})
   })
 
 })

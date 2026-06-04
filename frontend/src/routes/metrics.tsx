@@ -35,7 +35,7 @@ function MetricsCatalog() {
     data: metricDefinitions = [],
     isLoading,
     isError,
-  } = useMetricDefinitionsQuery()
+  } = useMetricDefinitionsQuery({})
 
   if (isLoading) {
     return <p>Loading metrics...</p>
