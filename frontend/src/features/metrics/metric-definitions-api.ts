@@ -24,6 +24,7 @@ export interface UpdateMetricDefinitionInput {
     unit?: string;
     minValue?: number;
     maxValue?: number;
+    isActive?: boolean;
   }
 
 function formatMetricDefinitionError(payload: unknown) {
@@ -130,6 +131,10 @@ export async function updateMetricDefinition(
     if (input.maxValue !== undefined) {
       body.max_value = input.maxValue;
     }
+
+    if (input.isActive !== undefined) {
+        body.is_active = input.isActive;
+      }
 
     const response = await fetch(`/api/v1/metrics/definitions/${id}/`, {
       method: "PATCH",

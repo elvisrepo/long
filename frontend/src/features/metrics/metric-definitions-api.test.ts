@@ -266,4 +266,40 @@ describe("updateMetricDefinition", () => {
         }),
       ).rejects.toThrow("Max value must be greater than min value.");
     });
+
+  test("patches a custom metric definition as inactive", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: "metric-id",
+          name: "Mood",
+          slug: "mood",
+          unit: "score",
+          category: "custom",
+          min_value: 1,
+          max_value: 10,
+          is_default: false,
+        }),
+        { status: 200 },
+      ),
+    );
+
+    await updateMetricDefinition("metric-id", {
+      isActive: false,
+    });
+
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/v1/metrics/definitions/metric-id/",
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: "Bearer access-token",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          is_active: false,
+        }),
+      },
+    );
+  });  
 })
