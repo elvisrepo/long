@@ -11,6 +11,7 @@ import type { MetricDefinition } from '../features/metrics/metric-definitions-ap
 import { useCreateMetricDefinitionMutation } from '../features/metrics/use-create-metric-definition-mutation'
 import { useDeactivateMetricDefinitionMutation } from '../features/metrics/use-deactivate-metric-definition-mutation'
 import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-definitions-query'
+import { useReactivateMetricDefinitionMutation } from '../features/metrics/use-reactivate-metric-definition-mutation'
 import { useUpdateMetricDefinitionMutation } from '../features/metrics/use-update-metric-definition-mutation'
 
 export const Route = createFileRoute('/metrics')({
@@ -95,25 +96,65 @@ function MetricsCatalog() {
           </div>
 
           {archivedCustomMetricDefinitions.map((definition) => (
-            <article
-              className="metric-list-row archived-metric-row"
+            <ArchivedMetricDefinitionRow
+              definition={definition}
               key={definition.id}
-            >
-              <div>
-                <h2>{definition.name}</h2>
-                <p>
-                  {definition.category} · {definition.unit}
-                </p>
-              </div>
-
-              <div className="metric-row-actions">
-                <span>{definition.slug}</span>
-              </div>
-            </article>
+            />
           ))}
         </section>
       ) : null}
     </section>
+  )
+}
+
+interface ArchivedMetricDefinitionRowProps {
+  definition: MetricDefinition
+}
+
+function ArchivedMetricDefinitionRow({
+  definition,
+}: ArchivedMetricDefinitionRowProps) {
+  const [reactivateError, setReactivateError] = useState<string | null>(null)
+  const reactivateMetricDefinitionMutation =
+    useReactivateMetricDefinitionMutation()
+
+  async function handleReactivate() {
+    try {
+      setReactivateError(null)
+      await reactivateMetricDefinitionMutation.mutateAsync(definition.id)
+    } catch (error) {
+      setReactivateError(
+        error instanceof Error
+          ? error.message
+          : 'Metric definition request failed',
+      )
+    }
+  }
+
+  return (
+    <article className="metric-list-row archived-metric-row">
+      <div>
+        <h2>{definition.name}</h2>
+        <p>
+          {definition.category} · {definition.unit}
+        </p>
+      </div>
+
+      <div className="metric-row-actions">
+        <span>{definition.slug}</span>
+        <button
+          disabled={reactivateMetricDefinitionMutation.isPending}
+          type="button"
+          onClick={handleReactivate}
+        >
+          {reactivateMetricDefinitionMutation.isPending
+            ? 'Reactivating...'
+            : `Reactivate ${definition.name}`}
+        </button>
+      </div>
+
+      {reactivateError ? <p className="form-error">{reactivateError}</p> : null}
+    </article>
   )
 }
 
