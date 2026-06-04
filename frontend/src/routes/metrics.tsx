@@ -9,6 +9,7 @@ import { type FormEvent, useState } from 'react'
 import { requireAuthBeforeLoad } from '../features/auth/require-auth-before-load'
 import type { MetricDefinition } from '../features/metrics/metric-definitions-api'
 import { useCreateMetricDefinitionMutation } from '../features/metrics/use-create-metric-definition-mutation'
+import { useDeactivateMetricDefinitionMutation } from '../features/metrics/use-deactivate-metric-definition-mutation'
 import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-definitions-query'
 import { useUpdateMetricDefinitionMutation } from '../features/metrics/use-update-metric-definition-mutation'
 
@@ -79,6 +80,8 @@ function MetricDefinitionRow({ definition }: MetricDefinitionRowProps) {
   const [minValue, setMinValue] = useState(String(definition.min_value))
   const [maxValue, setMaxValue] = useState(String(definition.max_value))
   const updateMetricDefinitionMutation = useUpdateMetricDefinitionMutation()
+  const deactivateMetricDefinitionMutation =
+    useDeactivateMetricDefinitionMutation()
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -179,9 +182,22 @@ function MetricDefinitionRow({ definition }: MetricDefinitionRowProps) {
       <div className="metric-row-actions">
         <span>{definition.slug}</span>
         {!definition.is_default ? (
-          <button type="button" onClick={() => setIsEditing(true)}>
-            Edit {definition.name}
-          </button>
+          <>
+            <button type="button" onClick={() => setIsEditing(true)}>
+              Edit {definition.name}
+            </button>
+            <button
+              disabled={deactivateMetricDefinitionMutation.isPending}
+              type="button"
+              onClick={() =>
+                deactivateMetricDefinitionMutation.mutateAsync(definition.id)
+              }
+            >
+              {deactivateMetricDefinitionMutation.isPending
+                ? 'Deactivating...'
+                : `Deactivate ${definition.name}`}
+            </button>
+          </>
         ) : null}
       </div>
     </article>

@@ -7,6 +7,7 @@ import {
   createMetricDefinition,
   type MetricDefinition,
 } from '../features/metrics/metric-definitions-api'
+import { useDeactivateMetricDefinitionMutation } from '../features/metrics/use-deactivate-metric-definition-mutation'
 import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-definitions-query'
 import { useUpdateMetricDefinitionMutation } from '../features/metrics/use-update-metric-definition-mutation'
 import { renderRoute } from './render-route'
@@ -27,8 +28,13 @@ vi.mock('../features/metrics/use-update-metric-definition-mutation', () => ({
   useUpdateMetricDefinitionMutation: vi.fn(),
 }))
 
+vi.mock('../features/metrics/use-deactivate-metric-definition-mutation', () => ({
+  useDeactivateMetricDefinitionMutation: vi.fn(),
+}))
+
 const createMetricDefinitionMock = vi.mocked(createMetricDefinition)
 const updateMetricDefinitionMutateAsyncMock = vi.fn()
+const deactivateMetricDefinitionMutateAsyncMock = vi.fn()
 
 function mockLoadedMetricDefinitions(
   metricDefinitions: MetricDefinition[] = [
@@ -62,6 +68,17 @@ function mockUpdateMetricDefinitionMutation() {
   } as unknown as ReturnType<typeof useUpdateMetricDefinitionMutation>)
 }
 
+function mockDeactivateMetricDefinitionMutation() {
+  deactivateMetricDefinitionMutateAsyncMock.mockResolvedValue(undefined)
+
+  vi.mocked(useDeactivateMetricDefinitionMutation).mockReturnValue({
+    mutateAsync: deactivateMetricDefinitionMutateAsyncMock,
+    isPending: false,
+    isError: false,
+    error: null,
+  } as unknown as ReturnType<typeof useDeactivateMetricDefinitionMutation>)
+}
+
 function mockSuccessfulCustomMetricCreate() {
   createMetricDefinitionMock.mockResolvedValue({
     id: 'custom-metric-id',
@@ -86,6 +103,7 @@ async function fillCustomMetricForm(user: ReturnType<typeof userEvent.setup>) {
 describe('metrics route', () => {
   beforeEach(() => {
     mockUpdateMetricDefinitionMutation()
+    mockDeactivateMetricDefinitionMutation()
   })
 
   afterEach(() => {
@@ -306,6 +324,54 @@ describe('metrics route', () => {
 
     expect(
       screen.queryByRole('button', { name: /edit resting heart rate/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('deactivates a custom metric from the metrics catalog', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions([
+      {
+        id: 'default-metric-id',
+        name: 'Resting Heart Rate',
+        slug: 'resting_hr',
+        unit: 'bpm',
+        category: 'cardiovascular',
+        min_value: 20,
+        max_value: 220,
+        is_default: true,
+      },
+      {
+        id: 'custom-metric-id',
+        name: 'Mood',
+        slug: 'mood',
+        unit: 'score',
+        category: 'custom',
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+      },
+    ])
+
+    renderRoute('/metrics')
+
+    await screen.findByRole('heading', {
+      level: 1,
+      name: /metrics/i,
+    })
+
+    await user.click(screen.getByRole('button', { name: /deactivate mood/i }))
+
+    expect(deactivateMetricDefinitionMutateAsyncMock).toHaveBeenCalledWith(
+      'custom-metric-id',
+    )
+    expect(
+      screen.queryByRole('button', {
+        name: /deactivate resting heart rate/i,
+      }),
     ).not.toBeInTheDocument()
   })
 
