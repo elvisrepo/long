@@ -633,3 +633,35 @@ def test_user_cannot_create_metric_entry_for_deactivated_custom_metric():
       assert response.json() == {
           "metric_definition": ["Object with slug=mood does not exist."]
       }
+
+def test_deactivated_custom_metric_definition_is_hidden_after_patch():
+      client, user = authenticate_client_for("alice@example.com")
+
+      definition = MetricDefinition.objects.create(
+          user=user,
+          name="Mood",
+          slug="mood",
+          unit="score",
+          category=MetricDefinition.Category.CUSTOM,
+          min_value=1,
+          max_value=10,
+          is_default=False,
+      )
+
+      deactivate_response = client.patch(
+          f"/api/v1/metrics/definitions/{definition.id}/",
+          {
+              "is_active": False,
+          },
+          format="json",
+      )
+
+      assert deactivate_response.status_code == 200
+
+      list_response = client.get("/api/v1/metrics/definitions/")
+
+      assert list_response.status_code == 200
+
+      slugs = [definition["slug"] for definition in list_response.json()]
+      assert "resting_hr" in slugs
+      assert "mood" not in slugs
