@@ -603,3 +603,33 @@ def test_entries_for_inactive_custom_metric_remain_readable():
       assert payload[0]["metric_definition"] == "mood"
       assert payload[0]["value"] == 8.0
       assert payload[0]["context"] == {"notes": "before deactivation"}
+
+def test_user_cannot_create_metric_entry_for_deactivated_custom_metric():
+      client, user = authenticate_client_for("alice@example.com")
+
+      MetricDefinition.objects.create(
+          user=user,
+          name="Mood",
+          slug="mood",
+          unit="score",
+          category=MetricDefinition.Category.CUSTOM,
+          min_value=1,
+          max_value=10,
+          is_default=False,
+          is_active=False,
+      )
+
+      response = client.post(
+          "/api/v1/metrics/entries/",
+          {
+              "metric_definition": "mood",
+              "value": 8,
+              "recorded_at": "2026-03-05T07:15:00Z",
+          },
+          format="json",
+      )
+
+      assert response.status_code == 400
+      assert response.json() == {
+          "metric_definition": ["Object with slug=mood does not exist."]
+      }
