@@ -21,6 +21,28 @@ def authenticate_client_for(email: str) -> tuple[APIClient, object]:
     return client, user
 
 
+ACTIVE_CUSTOM_METRIC_LIMIT = 3
+
+
+def create_custom_metric_definition(
+    user: object,
+    slug: str,
+    *,
+    is_active: bool = True,
+) -> MetricDefinition:
+    return MetricDefinition.objects.create(
+        user=user,
+        name=slug.replace("_", " ").title(),
+        slug=slug,
+        unit="score",
+        category=MetricDefinition.Category.CUSTOM,
+        min_value=1,
+        max_value=10,
+        is_default=False,
+        is_active=is_active,
+    )
+
+
 def test_metric_definitions_requires_authentication():
     client = APIClient()
 
@@ -210,6 +232,31 @@ def test_user_cannot_create_custom_metric_with_invalid_value_range():
 
       assert response.status_code == 400
       assert "max_value" in response.json()
+
+
+def test_user_cannot_create_custom_metric_above_active_limit():
+    client, user = authenticate_client_for("alice@example.com")
+
+    for index in range(ACTIVE_CUSTOM_METRIC_LIMIT):
+        create_custom_metric_definition(user, f"custom_metric_{index}")
+
+    response = client.post(
+        "/api/v1/metrics/definitions/",
+        {
+            "name": "Limit Exceeded",
+            "slug": "limit_exceeded",
+            "unit": "score",
+            "category": "custom",
+            "min_value": 1,
+            "max_value": 10,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "non_field_errors": ["Active custom metric limit reached."]
+    }
 
 
 def test_custom_metric_definition_create_requires_authentication():

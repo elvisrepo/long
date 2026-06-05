@@ -3,6 +3,7 @@ from typing import Any, cast
 from django.db.models import Q
 from rest_framework import serializers
 
+from apps.metrics.limits import validate_active_custom_metric_limit
 from apps.metrics.models import MetricDefinition, MetricEntry
 
 
@@ -68,6 +69,8 @@ class MetricDefinitionSerializer(serializers.ModelSerializer):
           # Remove the is_active key from the incoming create data if it exists. If it does not exist, return None and do nothing.
           # creation always produces active custom metrics; deactivation is a separate PATCH action.
           validated_data.pop("is_active", None)
+
+          validate_active_custom_metric_limit(request.user)
 
           return MetricDefinition.objects.create(
               user=request.user,
