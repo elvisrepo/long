@@ -77,6 +77,26 @@ class MetricDefinitionSerializer(serializers.ModelSerializer):
               is_default=False,
               **validated_data,
           )
+    
+    def update(
+            self,
+            instance: MetricDefinition,  # existing database row being updated, before changes are applied.
+            validated_data: dict[str, Any],
+    ) -> MetricDefinition:
+         is_reactivating = (
+            instance.is_active is False   # It was inactive in the DB.
+            and validated_data.get("is_active") is True  # The incoming request wants to make it active.
+  )
+         
+         if is_reactivating:
+                  validate_active_custom_metric_limit(
+                      self.context["request"].user,
+                      excluding_definition=instance,
+                  )
+
+          # If the request only changes name/unit/range:  validated_data == {"name": "Mood Score"}Then: validated_data.get("is_active")  # None
+          # So is_reactivating is false. We do not check the active custom metric limit because the user is not adding a new active metric.
+         return super().update(instance, validated_data)
 
 
 
@@ -148,3 +168,5 @@ class MetricEntrySerializer(serializers.ModelSerializer):
             user=request.user,
             **validated_data,
         )
+
+    

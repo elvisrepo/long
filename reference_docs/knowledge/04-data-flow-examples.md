@@ -102,3 +102,49 @@ Current frontend behavior:
 - Archived custom definitions are rendered in a separate bottom section when the user enables `Show deactivated custom metrics`.
 - Archived rows are visually muted, show an `Archived` marker, and intentionally do not link to metric detail routes.
 - Reactivating an archived metric PATCHes the user's custom metric definition back to `is_active=true`, then TanStack Query invalidates metric-definition and metric-entry caches.
+
+## Custom Metric Reactivation Limit Flow
+
+Use this flow when reasoning about the active custom metric entitlement check during archived custom metric reactivation.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as Frontend /metrics
+    participant API as Django MetricDefinitionDetailView
+    participant Serializer as MetricDefinitionSerializer.update()
+    participant Limit as validate_active_custom_metric_limit()
+    participant DB as PostgreSQL
+
+    Note over DB: Existing state for Alice<br/>Mood active<br/>Sleep Score active<br/>Pain active<br/>Energy inactive
+
+    User->>UI: Click "Reactivate Energy"
+
+    UI->>API: PATCH /api/v1/metrics/definitions/{energy_id}/<br/>Authorization: Bearer token<br/>{ "is_active": true }
+
+    API->>DB: SELECT metric definition<br/>WHERE id = energy_id<br/>AND user_id = alice.id<br/>AND is_default = false
+
+    DB-->>API: Energy metric definition<br/>{ is_active: false }
+
+    API->>Serializer: instance=Energy<br/>validated_data={ "is_active": true }<br/>context.request.user=Alice
+
+    Serializer->>Serializer: is_reactivating =<br/>instance.is_active is false<br/>AND validated_data["is_active"] is true
+
+    Serializer->>Limit: validate_active_custom_metric_limit(<br/>user=Alice,<br/>excluding_definition=Energy<br/>)
+
+    Limit->>DB: Count active custom metrics<br/>WHERE user_id = alice.id<br/>AND is_default = false<br/>AND is_active = true<br/>AND id != energy_id
+
+    DB-->>Limit: count = 3<br/>(Mood, Sleep Score, Pain)
+
+    Limit->>Limit: 3 >= ACTIVE_CUSTOM_METRIC_LIMIT(3)
+
+    Limit-->>Serializer: raise ValidationError<br/>{ "non_field_errors": ["Active custom metric limit reached."] }
+
+    Serializer-->>API: validation error before save
+
+    API-->>UI: 400 Bad Request<br/>{ "non_field_errors": ["Active custom metric limit reached."] }
+
+    UI-->>User: Show "Active custom metric limit reached."
+
+    Note over DB: Final state unchanged<br/>Energy remains inactive
+```

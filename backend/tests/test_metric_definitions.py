@@ -671,3 +671,31 @@ def test_metric_definition_list_can_include_current_users_inactive_custom_metric
         assert definitions_by_slug["mood"]["is_active"] is False
         assert "other_mood" not in definitions_by_slug
         assert "inactive_default" not in definitions_by_slug
+
+def test_user_cannot_reactivate_custom_metric_above_active_limit():
+      client, user = authenticate_client_for("alice@example.com")
+
+      for index in range(ACTIVE_CUSTOM_METRIC_LIMIT):
+          create_custom_metric_definition(user, f"active_metric_{index}")
+
+      archived_metric = create_custom_metric_definition(
+          user,
+          "archived_metric",
+          is_active=False,
+      )
+
+      response = client.patch(
+          f"/api/v1/metrics/definitions/{archived_metric.id}/",
+          {
+              "is_active": True,
+          },
+          format="json",
+      )
+
+      assert response.status_code == 400
+      assert response.json() == {
+          "non_field_errors": ["Active custom metric limit reached."]
+      }
+
+      archived_metric.refresh_from_db()
+      assert archived_metric.is_active is False
