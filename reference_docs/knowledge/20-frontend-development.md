@@ -249,6 +249,7 @@ Current metrics page checkpoint:
 - The form submits through `useCreateMetricDefinitionMutation()`.
 - Successful custom metric creation clears the form and invalidates metric-definition queries.
 - Failed custom metric creation shows the backend validation message.
+- The backend currently enforces a temporary 3-active-custom-metric limit. The frontend does not yet show plan/usage counters, but it surfaces the backend `non_field_errors` message when create/reactivate exceeds the limit.
 - Custom metric metadata update is implemented for user-owned custom metrics.
 - Custom metric deactivation is implemented as a soft archive action. It invalidates both `['metric-definitions']` and `['metric-entries']`; historical entries remain preserved.
 - The metrics catalog includes a `Show deactivated custom metrics` toggle. When enabled, the route calls `useMetricDefinitionsQuery({ includeInactive: true })`.

@@ -115,6 +115,8 @@ Custom metric-definition create behavior:
 - A user cannot create a duplicate custom metric slug for their own account.
 - A user cannot create a custom metric with a slug already used by a system default metric.
 - `max_value` must be greater than `min_value`.
+- The current MVP entitlement seam limits each user to 3 active custom metrics. Inactive archived custom metrics and system defaults do not count.
+- If the active custom metric limit is reached, create returns `400` with `{"non_field_errors": ["Active custom metric limit reached."]}`.
 
 Custom metric-definition update behavior:
 - `PATCH /api/v1/metrics/definitions/{id}/` supports partial updates for an authenticated user's own custom metric definitions, including inactive custom definitions so users can reactivate archived metrics.
@@ -124,6 +126,8 @@ Custom metric-definition update behavior:
 - Another user's custom metric definition returns `404` because it is outside the caller's visible update queryset.
 - Range validation still applies during partial updates; if only one bound is submitted, the serializer validates it against the existing stored bound.
 - Deactivation is a soft archive, not a hard delete. Existing metric entries remain preserved and readable; inactive metric definitions cannot be used for new entries.
+- Reactivating an archived custom metric counts against the active custom metric limit and returns the same `non_field_errors` response if the user is already at the limit.
+- Updating metadata on an already-active custom metric is still allowed at the limit because it does not add another active metric.
 
 Custom metric-definition list behavior:
 - `GET /api/v1/metrics/definitions/` is active-only by default.

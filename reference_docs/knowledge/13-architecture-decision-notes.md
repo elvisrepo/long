@@ -295,3 +295,18 @@ Current implementation progress:
   Custom metric slugs remain occupied after deactivation, which avoids ambiguity in historical entries. The UI needs an archived custom metrics section rather than mixing inactive metrics into the active logging catalog.
 - Revisit when:
   The product needs account-level data export/delete workflows, custom metric merge/rename tooling, or subscription rules that limit active versus archived custom metrics differently.
+
+### ADR-019: Temporary Active Custom Metric Entitlement Seam
+
+- Status: Accepted
+- Date: 2026-06-05
+- Decision:
+  The backend currently enforces a hard-coded limit of 3 active custom metric definitions per user. System default metrics do not count. Inactive archived custom metrics do not count.
+- Context:
+  Subscription and billing models are planned but not implemented yet. The product still needs an enforcement seam before frontend upgrade messaging or Stripe-backed subscriptions are added.
+- Current application:
+  `apps.metrics.limits.validate_active_custom_metric_limit()` owns the limit check. `POST /api/v1/metrics/definitions/` calls it before creating a custom metric. `PATCH /api/v1/metrics/definitions/{id}/` calls it only when an inactive custom metric is being reactivated with `is_active=true`.
+- Consequences:
+  Users can update metadata on existing active custom metrics while already at the limit. Users cannot create a fourth active custom metric or reactivate an archived custom metric if that would exceed the limit. The API returns `400` with `non_field_errors`.
+- Revisit when:
+  A real `Subscription` model, plan catalog, Stripe state, or entitlement service is implemented. The hard-coded constant should then become a lookup from the user's current entitlement.

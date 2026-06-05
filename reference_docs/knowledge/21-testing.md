@@ -273,6 +273,8 @@ Current backend metrics testing checkpoint:
 - Custom metric-definition creation rejects duplicate slugs for the same user.
 - Custom metric-definition creation rejects slugs already used by system default metrics.
 - Custom metric-definition creation rejects invalid ranges where `max_value <= min_value`.
+- Custom metric-definition creation rejects creating a fourth active custom metric under the temporary MVP entitlement limit.
+- Custom metric-definition tests prove inactive archived custom metrics do not count toward the active custom metric limit.
 - Authenticated users can partially update their own custom metric definitions, including inactive custom definitions for reactivation.
 - Custom metric-definition update requires authentication.
 - Users cannot update another user's custom metric definition; the API returns `404` because the detail queryset is user-scoped.
@@ -280,6 +282,7 @@ Current backend metrics testing checkpoint:
 - Custom metric-definition slugs remain immutable during update, while still writable during create.
 - Custom metric-definition update rejects invalid ranges where a submitted bound conflicts with the existing stored bound.
 - Custom metric-definition tests cover soft deactivation and reactivation through `is_active`.
+- Custom metric-definition tests prove reactivation is blocked at the active custom metric limit, while metadata updates to an already-active custom metric remain allowed at the limit.
 - `tests/test_metric_entries.py` now covers the first metric-entry write slice.
 - Authenticated users can create a manual metric entry for an active default metric definition by sending the metric slug.
 - Metric-entry creation requires authentication.
