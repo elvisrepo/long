@@ -40,6 +40,7 @@ describe('useDeactivateMetricDefinitionMutation', () => {
       min_value: 1,
       max_value: 10,
       is_default: false,
+      is_active: false,
     })
 
     const { result } = renderHook(

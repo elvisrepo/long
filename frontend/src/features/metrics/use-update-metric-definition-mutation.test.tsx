@@ -37,6 +37,7 @@ describe('useUpdateMetricDefinitionMutation', () => {
         min_value: 0,
         max_value: 100,
         is_default: false,
+        is_active: true,
       })
 
       const { result } = renderHook(() => useUpdateMetricDefinitionMutation(), {

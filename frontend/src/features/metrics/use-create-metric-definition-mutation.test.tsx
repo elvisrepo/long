@@ -39,6 +39,7 @@ describe('useCreateMetricDefinitionMutation', () => {
       min_value: 1,
       max_value: 10,
       is_default: false,
+      is_active: true,
     })
 
     const { result } = renderHook(() => useCreateMetricDefinitionMutation(), {

@@ -653,6 +653,42 @@ button {
   padding: 8px 12px;
 }
 
+.archived-metrics-list {
+  border-style: dashed;
+  background: rgba(17, 19, 24, 0.74);
+}
+
+.archived-metrics-header {
+  border-bottom: 1px solid rgba(74, 85, 104, 0.55);
+  padding: 8px 0 14px;
+}
+
+.archived-metrics-header h2 {
+  font-size: 18px;
+}
+
+.archived-metric-row {
+  margin-top: 10px;
+  border: 1px solid rgba(74, 85, 104, 0.55);
+  background: rgba(10, 12, 16, 0.42);
+  padding: 14px;
+}
+
+.archived-metric-row:hover {
+  background: rgba(255, 107, 74, 0.05);
+  transform: none;
+}
+
+.archived-metric-row h2 {
+  color: var(--text-dim);
+}
+
+.metric-list-row span.archived-status-pill {
+  border-color: rgba(255, 107, 74, 0.26);
+  background: rgba(255, 107, 74, 0.1);
+  color: var(--warn);
+}
+
 .metric-edit-form {
   align-items: stretch;
   flex-direction: column;
