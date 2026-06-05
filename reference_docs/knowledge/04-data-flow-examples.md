@@ -53,7 +53,7 @@ sequenceDiagram
 
 ## Metric Definition Include-Inactive Read Flow
 
-Use this flow when reasoning about the `/metrics` catalog and the future archived custom metrics UI.
+Use this flow when reasoning about the `/metrics` catalog and the archived custom metrics UI.
 
 Active-only reads:
 - Frontend calls `useMetricDefinitionsQuery({})`.
@@ -95,3 +95,10 @@ Security boundaries:
 - Other users' custom metrics are never returned, even if inactive metrics are requested.
 - Inactive default metrics are hidden from clients.
 - Inactive custom metrics can be managed/reactivated, but cannot be used for new metric-entry creation.
+
+Current frontend behavior:
+- `/metrics` keeps active definitions in the normal available-metrics list.
+- Active rows link to `/metrics/$slug`.
+- Archived custom definitions are rendered in a separate bottom section when the user enables `Show deactivated custom metrics`.
+- Archived rows are visually muted, show an `Archived` marker, and intentionally do not link to metric detail routes.
+- Reactivating an archived metric PATCHes the user's custom metric definition back to `is_active=true`, then TanStack Query invalidates metric-definition and metric-entry caches.

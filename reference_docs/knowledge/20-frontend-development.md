@@ -251,7 +251,11 @@ Current metrics page checkpoint:
 - Failed custom metric creation shows the backend validation message.
 - Custom metric metadata update is implemented for user-owned custom metrics.
 - Custom metric deactivation is implemented as a soft archive action. It invalidates both `['metric-definitions']` and `['metric-entries']`; historical entries remain preserved.
-- Reactivation UI is not implemented yet. The API/query layer can now discover inactive custom metrics through `includeInactive`, which enables a future `Show deactivated custom metrics` section.
+- The metrics catalog includes a `Show deactivated custom metrics` toggle. When enabled, the route calls `useMetricDefinitionsQuery({ includeInactive: true })`.
+- Active metrics remain in the normal available-metrics list and keep their `/metrics/$slug` detail links.
+- Inactive custom metrics render in a separate archived section at the bottom of `/metrics`. Archived rows are visually muted, show an `Archived` marker, and intentionally do not link to `/metrics/$slug` because inactive metrics cannot be logged or opened as active detail pages.
+- Archived custom metrics can be reactivated from the catalog through `useReactivateMetricDefinitionMutation()`, which PATCHes `isActive: true` and invalidates both `['metric-definitions']` and `['metric-entries']`.
+- Reactivation failures render a visible row-level error and keep the archived row/action visible so the user can retry.
 
 Current metric detail page checkpoint:
 - `/metrics/$slug` exists as a protected dynamic route.

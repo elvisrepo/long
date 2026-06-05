@@ -289,6 +289,8 @@ Current implementation progress:
   Users can create custom metrics and log health data against them. Hard-deleting a metric definition would either remove historical health data or leave entries without a clear definition, both of which are poor defaults for a health-tracking product.
 - Current application:
   `GET /api/v1/metrics/definitions/` remains active-only by default. `GET /api/v1/metrics/definitions/?include_inactive=true` includes the authenticated user's inactive custom metric definitions for management UI. Inactive defaults and other users' custom metrics remain hidden. `PATCH /api/v1/metrics/definitions/{id}/` can update user-owned custom definitions regardless of active status so archived metrics can be reactivated.
+- Frontend implementation:
+  `/metrics` now exposes inactive custom definitions behind a `Show deactivated custom metrics` toggle. Archived rows are separated from active metrics, visually muted, marked `Archived`, not linked to `/metrics/$slug`, and can be reactivated in place.
 - Consequences:
   Custom metric slugs remain occupied after deactivation, which avoids ambiguity in historical entries. The UI needs an archived custom metrics section rather than mixing inactive metrics into the active logging catalog.
 - Revisit when:
