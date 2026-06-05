@@ -245,6 +245,35 @@ describe('metrics route', () => {
     ).toBeInTheDocument()
   })
 
+  it('shows the active custom metric limit error when custom metric creation is blocked', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+    createMetricDefinitionMock.mockRejectedValue(
+      new Error('Active custom metric limit reached.'),
+    )
+
+    renderRoute('/metrics')
+
+    await screen.findByRole('heading', { name: /metrics/i })
+
+    await fillCustomMetricForm(user)
+    await user.click(
+      screen.getByRole('button', { name: /create custom metric/i }),
+    )
+
+    expect(
+      await screen.findByText(/active custom metric limit reached/i),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText(/name/i)).toHaveValue('Mood')
+    expect(
+      screen.getByRole('button', { name: /create custom metric/i }),
+    ).toBeEnabled()
+  })
+
  it('links each metric row to its metric detail page', async () => {
     vi.mocked(getMe).mockResolvedValue({
       email: 'user@example.com',
