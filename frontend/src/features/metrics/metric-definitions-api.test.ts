@@ -138,6 +138,7 @@ describe("createMetricDefinition", () => {
           min_value: 1,
           max_value: 10,
           is_default: false,
+          is_active: true,
         }),
         { status: 201 },
       ),
@@ -205,6 +206,27 @@ describe("createMetricDefinition", () => {
       }),
     ).rejects.toThrow("metric definition with this slug already exists.");
   });
+
+  test("preserves backend non-field validation errors", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          non_field_errors: ["Active custom metric limit reached."],
+        }),
+        { status: 400 },
+      ),
+    );
+
+    await expect(
+      createMetricDefinition({
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        minValue: 1,
+        maxValue: 10,
+      }),
+    ).rejects.toThrow("Active custom metric limit reached.");
+  });
 });
 
 
@@ -231,6 +253,7 @@ describe("updateMetricDefinition", () => {
             min_value: 0,
             max_value: 100,
             is_default: false,
+            is_active: true,
           }),
           { status: 200 },
         ),
@@ -268,6 +291,7 @@ describe("updateMetricDefinition", () => {
         min_value: 0,
         max_value: 100,
         is_default: false,
+        is_active: true,
       });
     
 
@@ -315,6 +339,7 @@ describe("updateMetricDefinition", () => {
           min_value: 1,
           max_value: 10,
           is_default: false,
+          is_active: false,
         }),
         { status: 200 },
       ),
