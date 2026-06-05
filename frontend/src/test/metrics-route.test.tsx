@@ -572,4 +572,48 @@ describe('metrics route', () => {
     )
   })
 
+  it('shows an error when archived custom metric reactivation fails', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions([
+      {
+        id: 'inactive-metric-id',
+        name: 'Mood',
+        slug: 'mood',
+        unit: 'score',
+        category: 'custom',
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: false,
+      },
+    ])
+    reactivateMetricDefinitionMutateAsyncMock.mockRejectedValueOnce(
+      new Error('Metric definition request failed'),
+    )
+
+    renderRoute('/metrics')
+
+    await screen.findByRole('heading', {
+      level: 1,
+      name: /metrics/i,
+    })
+
+    await user.click(
+      screen.getByRole('button', { name: /show deactivated custom metrics/i }),
+    )
+    await user.click(screen.getByRole('button', { name: /reactivate mood/i }))
+
+    expect(
+      await screen.findByText(/metric definition request failed/i),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /mood/i })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /reactivate mood/i }),
+    ).toBeInTheDocument()
+  })
+
 })
