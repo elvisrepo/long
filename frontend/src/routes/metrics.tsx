@@ -141,6 +141,9 @@ function ArchivedMetricDefinitionRow({
       </div>
 
       <div className="metric-row-actions">
+        <span className="metric-status-pill archived-status-pill">
+          Archived
+        </span>
         <span>{definition.slug}</span>
         <button
           disabled={reactivateMetricDefinitionMutation.isPending}

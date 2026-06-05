@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -533,6 +533,14 @@ describe('metrics route', () => {
       name: /archived custom metrics/i,
     })
     expect(archivedMetrics).toHaveTextContent(/mood/i)
+    expect(
+      within(archivedMetrics).getByText(/^archived$/i, {
+        selector: '.archived-status-pill',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      within(archivedMetrics).queryByRole('link', { name: /mood/i }),
+    ).not.toBeInTheDocument()
   }) 
 
   it('reactivates an archived custom metric from the metrics catalog', async () => {
