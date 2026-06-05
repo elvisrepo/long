@@ -285,6 +285,36 @@ def test_inactive_custom_metrics_do_not_count_toward_active_limit():
     assert definition.is_active is True
 
 
+def test_user_can_update_active_custom_metric_metadata_at_active_limit():
+    client, user = authenticate_client_for("alice@example.com")
+
+    definitions = [
+        create_custom_metric_definition(user, f"active_metric_{index}")
+        for index in range(ACTIVE_CUSTOM_METRIC_LIMIT)
+    ]
+    definition = definitions[0]
+
+    response = client.patch(
+        f"/api/v1/metrics/definitions/{definition.id}/",
+        {
+            "name": "Updated Metric",
+            "unit": "points",
+            "min_value": 0,
+            "max_value": 100,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+
+    definition.refresh_from_db()
+    assert definition.name == "Updated Metric"
+    assert definition.unit == "points"
+    assert definition.min_value == 0
+    assert definition.max_value == 100
+    assert definition.is_active is True
+
+
 def test_custom_metric_definition_create_requires_authentication():
       client = APIClient()
 
