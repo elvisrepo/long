@@ -121,6 +121,93 @@ test('user can create a custom metric and log it from the dashboard', async ({ p
   await expect(page.getByText(/7 score/i)).toBeVisible()
 })
 
+test('user can archive and reactivate a custom metric', async ({ page }) => {
+  const uniqueEmail = 'archive-metric-e2e-user@example.com'
+  const password = 'Secret123!Strong'
+
+  await page.goto('/register')
+
+  await page.getByLabel(/email/i).fill(uniqueEmail)
+  await page.getByLabel(/password/i).fill(password)
+  await page.getByRole('button', { name: /register/i }).click()
+
+  await expect(
+    page.getByRole('heading', { name: /login/i }),
+  ).toBeVisible()
+
+  await page.getByLabel(/email/i).fill(uniqueEmail)
+  await page.getByLabel(/password/i).fill(password)
+  await page.getByRole('button', { name: /login/i }).click()
+
+  await expect(
+    page.getByRole('heading', { name: /dashboard/i }),
+  ).toBeVisible()
+
+  await page.getByRole('link', { name: /metrics/i }).click()
+
+  await expect(
+    page.getByRole('heading', { name: /metrics/i }),
+  ).toBeVisible()
+
+  const customMetricForm = page
+    .getByRole('heading', { name: /create custom metric/i })
+    .locator('..')
+
+  await customMetricForm.getByLabel(/name/i).fill('Mood')
+  await customMetricForm.getByLabel(/slug/i).fill('mood')
+  await customMetricForm.getByLabel(/unit/i).fill('score')
+  await customMetricForm.getByLabel(/min value/i).fill('1')
+  await customMetricForm.getByLabel(/max value/i).fill('10')
+  await page.getByRole('button', { name: /create custom metric/i }).click()
+
+  const activeMetrics = page.getByLabel(/available metrics/i)
+
+  await expect(
+    activeMetrics.getByRole('heading', { name: /mood/i }),
+  ).toBeVisible()
+
+  await page.getByRole('button', { name: /deactivate mood/i }).click()
+
+  await expect(
+    activeMetrics.getByRole('heading', { name: /mood/i }),
+  ).not.toBeVisible()
+
+  await page
+    .getByRole('button', { name: /show deactivated custom metrics/i })
+    .click()
+
+  const archivedMetrics = page.getByRole('region', {
+    name: /archived custom metrics/i,
+  })
+
+  await expect(
+    archivedMetrics.getByRole('heading', { name: /mood/i }),
+  ).toBeVisible()
+  await expect(
+    archivedMetrics.locator('.archived-status-pill').filter({
+      hasText: /^Archived$/,
+    }),
+  ).toBeVisible()
+
+  await archivedMetrics
+    .getByRole('button', { name: /reactivate mood/i })
+    .click()
+
+  await expect(
+    archivedMetrics.getByRole('heading', { name: /mood/i }),
+  ).not.toBeVisible()
+  await expect(
+    activeMetrics.getByRole('heading', { name: /mood/i }),
+  ).toBeVisible()
+
+  await page.getByRole('link', { name: /dashboard/i }).click()
+
+  await expect(
+    page.getByRole('heading', { name: /dashboard/i }),
+  ).toBeVisible()
+  await expect(page.getByLabel(/mood value/i)).toBeVisible()
+})
+
 test('failed login stays on login page and shows an error', async ({ page }) => {
   await page.goto('/login')
 

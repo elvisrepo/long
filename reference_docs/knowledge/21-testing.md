@@ -201,6 +201,10 @@ Current browser-level E2E checkpoint:
   - verify the custom metric is visible in the metrics catalog
   - verify the custom metric becomes loggable from the dashboard
   - log a value for the custom metric and verify the saved custom metric entry appears on the dashboard
+  - deactivate a custom metric from `/metrics`
+  - show archived custom metrics and verify the archived marker
+  - reactivate the archived custom metric
+  - verify the reactivated metric returns to the active catalog and dashboard logging flow
   - visit `/settings`
   - logout
   - redirect back to `/login`
@@ -328,13 +332,14 @@ Current frontend metrics testing checkpoint:
 - Metric-entry hook tests mock the API helper but use a real `QueryClientProvider`, so they verify Query behavior without requiring a running Django backend.
 - Playwright E2E now submits a real metric entry through the browser against the isolated E2E backend/database, verifies the saved value appears in the dashboard flow, and exercises the metric filter dropdown.
 - Playwright E2E now also creates a custom metric through `/metrics`, verifies it appears in the catalog, verifies it appears on the dashboard, and logs a custom metric entry.
+- Playwright E2E now covers the custom metric archive/reactivate lifecycle: create custom metric, deactivate it, reveal archived metrics, verify the `Archived` marker, reactivate it, and verify it becomes loggable from the dashboard again.
 - Playwright E2E now opens a metric detail page from the dashboard and verifies the detail URL, summary, latest value, entry-history heading, editing a saved entry, and deleting that entry back to the empty state.
 - Playwright E2E continued to pass after the dashboard restyle, so the browser flow selectors still match the accessible labels/headings.
 
 Latest local verification checkpoint:
 - `npm run test` passed with 28 frontend test files and 136 tests.
 - `npm run build` passed after typed metric-definition test fixtures were updated to include the required `is_active` field.
-- `npm run test:e2e` passed with 5 Playwright tests against the isolated Docker-backed E2E runtime.
+- `npm run test:e2e` passed with 6 Playwright tests against the isolated Docker-backed E2E runtime.
 - `docker compose exec web uv run pytest` passed with 84 backend tests.
 
 Frontend test code hygiene:
