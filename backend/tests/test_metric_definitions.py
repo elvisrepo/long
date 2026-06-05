@@ -259,6 +259,32 @@ def test_user_cannot_create_custom_metric_above_active_limit():
     }
 
 
+def test_inactive_custom_metrics_do_not_count_toward_active_limit():
+    client, user = authenticate_client_for("alice@example.com")
+
+    for index in range(ACTIVE_CUSTOM_METRIC_LIMIT - 1):
+        create_custom_metric_definition(user, f"active_metric_{index}")
+    create_custom_metric_definition(user, "archived_metric", is_active=False)
+
+    response = client.post(
+        "/api/v1/metrics/definitions/",
+        {
+            "name": "Allowed Metric",
+            "slug": "allowed_metric",
+            "unit": "score",
+            "category": "custom",
+            "min_value": 1,
+            "max_value": 10,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+
+    definition = MetricDefinition.objects.get(user=user, slug="allowed_metric")
+    assert definition.is_active is True
+
+
 def test_custom_metric_definition_create_requires_authentication():
       client = APIClient()
 
