@@ -14,6 +14,8 @@ import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-defini
 import { useReactivateMetricDefinitionMutation } from '../features/metrics/use-reactivate-metric-definition-mutation'
 import { useUpdateMetricDefinitionMutation } from '../features/metrics/use-update-metric-definition-mutation'
 
+const ACTIVE_CUSTOM_METRIC_LIMIT = 3
+
 export const Route = createFileRoute('/metrics')({
   beforeLoad: requireAuthBeforeLoad,
   component: MetricsRoute,
@@ -53,6 +55,9 @@ function MetricsCatalog() {
   const archivedCustomMetricDefinitions = metricDefinitions.filter(
     (definition) => !definition.is_active && !definition.is_default,
   )
+  const activeCustomMetricCount = activeMetricDefinitions.filter(
+    (definition) => !definition.is_default,
+  ).length
 
   return (
     <section className="metrics-screen">
@@ -61,7 +66,15 @@ function MetricsCatalog() {
           <p className="eyebrow">Metric catalog</p>
           <h1 className="dashboard-title">Metrics</h1>
         </div>
-        <div className="status-pill">{metricDefinitions.length} tracked</div>
+        <div className="metrics-usage">
+          <div className="status-pill">
+            {activeMetricDefinitions.length} tracked
+          </div>
+          <p className="custom-metric-usage">
+            {activeCustomMetricCount} / {ACTIVE_CUSTOM_METRIC_LIMIT} active
+            custom metrics used
+          </p>
+        </div>
       </div>
 
       <CreateCustomMetricForm />

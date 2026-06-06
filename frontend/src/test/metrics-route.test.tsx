@@ -147,6 +147,64 @@ describe('metrics route', () => {
     expect(screen.getByText(/cardiovascular · bpm/i)).toBeInTheDocument()
   })
 
+  it('shows active custom metric usage without counting defaults or archived metrics', async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions([
+      {
+        id: 'default-metric-id',
+        name: 'Resting Heart Rate',
+        slug: 'resting_hr',
+        unit: 'bpm',
+        category: 'cardiovascular',
+        min_value: 20,
+        max_value: 220,
+        is_default: true,
+        is_active: true,
+      },
+      {
+        id: 'active-custom-metric-1',
+        name: 'Mood',
+        slug: 'mood',
+        unit: 'score',
+        category: 'custom',
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: true,
+      },
+      {
+        id: 'active-custom-metric-2',
+        name: 'Sleep Score',
+        slug: 'sleep_score',
+        unit: 'score',
+        category: 'custom',
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: true,
+      },
+      {
+        id: 'archived-custom-metric',
+        name: 'Energy',
+        slug: 'energy',
+        unit: 'score',
+        category: 'custom',
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: false,
+      },
+    ])
+
+    renderRoute('/metrics')
+
+    expect(
+      await screen.findByText(/2 \/ 3 active custom metrics used/i),
+    ).toBeInTheDocument()
+  })
+
   it('redirects to /login when the user is not authenticated', async () => {
     vi.mocked(getMe).mockRejectedValue(
       new Error('Authentication credentials were not provided.'),
