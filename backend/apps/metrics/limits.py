@@ -1,3 +1,5 @@
+from typing import TypedDict
+
 from django.contrib.auth.models import AbstractBaseUser
 from rest_framework import serializers
 
@@ -6,8 +8,6 @@ from apps.metrics.models import MetricDefinition
 
 ACTIVE_CUSTOM_METRIC_LIMIT = 3
 ACTIVE_CUSTOM_METRIC_LIMIT_MESSAGE = "Active custom metric limit reached."
-
-from typing import TypedDict
 
 class ActiveCustomMetricUsage(TypedDict):
       used: int
