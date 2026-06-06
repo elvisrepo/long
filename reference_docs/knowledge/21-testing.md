@@ -311,7 +311,7 @@ Practical test-level guidance for the current frontend slice:
 - once the full auth flow is stable, add Playwright end-to-end coverage for the real user journey
 
 Current frontend metrics testing checkpoint:
-- `metric-definitions-api.test.ts` covers the metric-definition API helper request shape and error behavior, including `includeInactive` query-string generation.
+- `metric-definitions-api.test.ts` covers the metric-definition API helper request shape and error behavior, including `includeInactive` query-string generation and conversion of backend `non_field_errors` into a useful frontend error message.
 - `use-metric-definitions-query.test.tsx` covers the TanStack Query wrapper for metric definitions, including passing `includeInactive` through to the API helper.
 - `use-create-metric-definition-mutation.test.tsx` covers custom metric-definition mutation and invalidation of metric-definition queries.
 - `use-update-metric-definition-mutation.test.tsx` covers custom metric-definition update mutation and invalidation of metric-definition queries.
@@ -331,6 +331,7 @@ Current frontend metrics testing checkpoint:
 - dashboard route tests cover metric-card links and recent-entry links to `/metrics/$slug`.
 - dashboard route tests continued to pass after the responsive visual foundation work, so the UI restyle did not change the dashboard behavior contract.
 - metrics route tests cover protected-route behavior, metric catalog rendering, catalog-row links to `/metrics/$slug`, custom metric creation submit payload, form clearing after success, visible backend validation errors, custom metric metadata updates, custom metric deactivation, visible deactivation errors, include-inactive catalog reads, archived custom metric separation, archived row non-link behavior, archived status markers, archived custom metric reactivation, and visible reactivation errors.
+- metrics route tests also prove the active custom metric usage indicator excludes defaults and archived metrics, exposes an accessible status, and switches to the limit-reached warning state at `3 / 3`.
 - metric detail route tests cover protected-route behavior, dynamic slug route rendering, metric-definition lookup, styled summary rendering, chart-backed trend overview rendering, metric-entry history rendering, inline entry update/delete orchestration, local edit validation for empty/non-numeric values, preserving the edit form on failed update, visible update failure errors, empty-state rendering, bounded `useMetricEntriesQuery({ metric, limit: 50 })` calls, range-filtered `useMetricEntriesQuery({ metric, from, limit: 50 })` calls, and stable range filter query keys.
 - Metric-entry hook tests mock the API helper but use a real `QueryClientProvider`, so they verify Query behavior without requiring a running Django backend.
 - Playwright E2E now submits a real metric entry through the browser against the isolated E2E backend/database, verifies the saved value appears in the dashboard flow, and exercises the metric filter dropdown.
@@ -340,10 +341,10 @@ Current frontend metrics testing checkpoint:
 - Playwright E2E continued to pass after the dashboard restyle, so the browser flow selectors still match the accessible labels/headings.
 
 Latest local verification checkpoint:
-- `npm run test` passed with 28 frontend test files and 136 tests.
-- `npm run build` passed after typed metric-definition test fixtures were updated to include the required `is_active` field.
+- `npm run test` passed after adding active custom metric usage and limit-message coverage.
+- `npm run build` passed with the active custom metric usage indicator.
 - `npm run test:e2e` passed with 6 Playwright tests against the isolated Docker-backed E2E runtime.
-- `docker compose exec web uv run pytest` passed with 84 backend tests.
+- `docker compose exec web uv run pytest` passed with the active custom metric entitlement tests.
 
 Frontend test code hygiene:
 - route tests may start with repeated setup such as:
