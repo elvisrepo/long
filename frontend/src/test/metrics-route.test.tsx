@@ -205,6 +205,33 @@ describe('metrics route', () => {
     ).toBeInTheDocument()
   })
 
+  it('marks custom metric usage as limit reached when all slots are used', async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions(
+      Array.from({ length: 3 }, (_, index) => ({
+        id: `custom-metric-${index}`,
+        name: `Custom Metric ${index}`,
+        slug: `custom_metric_${index}`,
+        unit: 'score',
+        category: 'custom',
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: true,
+      })),
+    )
+
+    renderRoute('/metrics')
+
+    const usage = await screen.findByRole('status', {
+      name: /3 \/ 3 active custom metrics used/i,
+    })
+
+    expect(usage).toHaveClass('custom-metric-usage-limit')
+  })
+
   it('redirects to /login when the user is not authenticated', async () => {
     vi.mocked(getMe).mockRejectedValue(
       new Error('Authentication credentials were not provided.'),

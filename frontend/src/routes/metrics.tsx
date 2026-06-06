@@ -70,7 +70,15 @@ function MetricsCatalog() {
           <div className="status-pill">
             {activeMetricDefinitions.length} tracked
           </div>
-          <p className="custom-metric-usage">
+          <p
+            aria-label={`${activeCustomMetricCount} / ${ACTIVE_CUSTOM_METRIC_LIMIT} active custom metrics used`}
+            className={`custom-metric-usage ${
+              activeCustomMetricCount >= ACTIVE_CUSTOM_METRIC_LIMIT
+                ? 'custom-metric-usage-limit'
+                : ''
+            }`}
+            role="status"
+          >
             {activeCustomMetricCount} / {ACTIVE_CUSTOM_METRIC_LIMIT} active
             custom metrics used
           </p>
