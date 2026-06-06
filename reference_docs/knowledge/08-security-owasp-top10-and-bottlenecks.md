@@ -26,6 +26,12 @@ Current E2E security boundary:
 - `config.settings.dev` and `config.settings.prod` must not enable that flag.
 - Playwright reaches the endpoint through the E2E Vite proxy against the dedicated `web-e2e` runtime, not the normal development backend.
 
+Current metric-usage access-control boundary:
+- `GET /api/v1/metrics/usage/` requires authentication.
+- Usage is calculated from metric definitions filtered by `request.user`, `is_default=False`, and `is_active=True`.
+- The client cannot submit a user identifier, so it cannot request another user's entitlement usage.
+- The backend remains authoritative for both reported usage and create/reactivate enforcement; the frontend indicator is not a security control.
+
 #### Edge Cases
 - **Duplicate data from wearable sync**: Dedup by `(user_id, metric_definition_id, recorded_at, source, source_connection_id)` plus an optional `external_source_id`. If the same Samsung-originated record is uploaded twice, ignore or update it idempotently.
 - **Timezone hell**: All timestamps stored as UTC (`timestamptz`). User's timezone stored on profile for display only. `recorded_at` is always UTC — the frontend converts for display.

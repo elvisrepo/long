@@ -62,5 +62,8 @@ describe('useCreateMetricDefinitionMutation', () => {
     expect(invalidateQueriesSpy).toHaveBeenCalledWith({
       queryKey: ['metric-definitions'],
     })
+    expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+      queryKey: ['metric-usage'],
+    })
   })
 })

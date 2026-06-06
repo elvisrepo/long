@@ -11,10 +11,9 @@ import type { MetricDefinition } from '../features/metrics/metric-definitions-ap
 import { useCreateMetricDefinitionMutation } from '../features/metrics/use-create-metric-definition-mutation'
 import { useDeactivateMetricDefinitionMutation } from '../features/metrics/use-deactivate-metric-definition-mutation'
 import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-definitions-query'
+import { useMetricUsageQuery } from '../features/metrics/use-metric-usage-query'
 import { useReactivateMetricDefinitionMutation } from '../features/metrics/use-reactivate-metric-definition-mutation'
 import { useUpdateMetricDefinitionMutation } from '../features/metrics/use-update-metric-definition-mutation'
-
-const ACTIVE_CUSTOM_METRIC_LIMIT = 3
 
 export const Route = createFileRoute('/metrics')({
   beforeLoad: requireAuthBeforeLoad,
@@ -40,12 +39,17 @@ function MetricsCatalog() {
     isLoading,
     isError,
   } = useMetricDefinitionsQuery({ includeInactive: showInactive })
+  const {
+    data: metricUsage,
+    isLoading: isMetricUsageLoading,
+    isError: isMetricUsageError,
+  } = useMetricUsageQuery()
 
-  if (isLoading) {
+  if (isLoading || isMetricUsageLoading) {
     return <p>Loading metrics...</p>
   }
 
-  if (isError) {
+  if (isError || isMetricUsageError || !metricUsage) {
     return <p>Metrics failed to load</p>
   }
 
@@ -55,9 +59,7 @@ function MetricsCatalog() {
   const archivedCustomMetricDefinitions = metricDefinitions.filter(
     (definition) => !definition.is_active && !definition.is_default,
   )
-  const activeCustomMetricCount = activeMetricDefinitions.filter(
-    (definition) => !definition.is_default,
-  ).length
+  const { used, limit } = metricUsage.active_custom_metrics
 
   return (
     <section className="metrics-screen">
@@ -71,16 +73,13 @@ function MetricsCatalog() {
             {activeMetricDefinitions.length} tracked
           </div>
           <p
-            aria-label={`${activeCustomMetricCount} / ${ACTIVE_CUSTOM_METRIC_LIMIT} active custom metrics used`}
+            aria-label={`${used} / ${limit} active custom metrics used`}
             className={`custom-metric-usage ${
-              activeCustomMetricCount >= ACTIVE_CUSTOM_METRIC_LIMIT
-                ? 'custom-metric-usage-limit'
-                : ''
+              used >= limit ? 'custom-metric-usage-limit' : ''
             }`}
             role="status"
           >
-            {activeCustomMetricCount} / {ACTIVE_CUSTOM_METRIC_LIMIT} active
-            custom metrics used
+            {used} / {limit} active custom metrics used
           </p>
         </div>
       </div>

@@ -45,6 +45,7 @@
 | GET | `/api/v1/metrics/definitions/` | List available metrics | Implemented; includes active defaults + authenticated user's active custom definitions; optional `include_inactive=true` also includes the authenticated user's inactive custom definitions |
 | POST | `/api/v1/metrics/definitions/` | Create custom metric | Implemented for authenticated users; creates user-owned non-default metric definitions |
 | PATCH | `/api/v1/metrics/definitions/{id}/` | Update custom metric | Implemented for authenticated user's own custom metric definitions, including inactive ones for reactivation; slug is immutable |
+| GET | `/api/v1/metrics/usage/` | Read metric entitlement usage | Implemented; returns the authenticated user's active custom metric count and current limit |
 | GET | `/api/v1/metrics/entries/?metric=resting_hr&from=2026-01-01&to=2026-03-01&limit=50` | Query entries | Implemented for authenticated user's entries; supports optional `metric`, `from`, `to`, and positive integer `limit` filters; returns newest first |
 | POST | `/api/v1/metrics/entries/` | Log a metric entry | Implemented for manual entries; accepts `metric_definition` as a slug such as `resting_hr`; not idempotent — repeated calls create duplicate entries |
 | PATCH | `/api/v1/metrics/entries/{id}/` | Update a metric entry | Implemented for authenticated user's own entries; partial updates allowed; value range validation still applies |
@@ -136,6 +137,13 @@ Custom metric-definition list behavior:
 - Another user's custom definitions are never returned, regardless of `include_inactive`.
 - Responses include `is_active` so clients can separate active metrics from archived custom metrics.
 - See `reference_docs/knowledge/04-data-flow-examples.md` for the full frontend hook → API helper → DRF view/queryset → serializer → TanStack Query cache flow.
+
+Metric usage behavior:
+- `GET /api/v1/metrics/usage/` requires authentication.
+- The response is `{"active_custom_metrics": {"used": 2, "limit": 3}}`.
+- `used` counts only active, user-owned, non-default metric definitions for `request.user`.
+- System defaults, inactive custom metrics, and other users' custom metrics do not count.
+- `limit` currently comes from the backend's temporary MVP entitlement constant. The frontend must not hard-code or independently infer this value.
 
 **Data passing convention:**
 - **Path params** → required resource identifiers (`/analytics/{slug}/`, `/wearables/connections/{id}/`)

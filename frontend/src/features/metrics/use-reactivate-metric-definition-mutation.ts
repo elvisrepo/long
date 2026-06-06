@@ -16,6 +16,7 @@
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['metric-definitions'] })
         queryClient.invalidateQueries({ queryKey: ['metric-entries'] })
+        queryClient.invalidateQueries({ queryKey: ['metric-usage'] })
       },
     })
   }

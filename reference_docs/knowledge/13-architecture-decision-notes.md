@@ -305,8 +305,8 @@ Current implementation progress:
 - Context:
   Subscription and billing models are planned but not implemented yet. The product still needs an enforcement seam before frontend upgrade messaging or Stripe-backed subscriptions are added.
 - Current application:
-  `apps.metrics.limits.validate_active_custom_metric_limit()` owns the limit check. `POST /api/v1/metrics/definitions/` calls it before creating a custom metric. `PATCH /api/v1/metrics/definitions/{id}/` calls it only when an inactive custom metric is being reactivated with `is_active=true`.
+  `apps.metrics.limits.validate_active_custom_metric_limit()` owns the limit check. `POST /api/v1/metrics/definitions/` calls it before creating a custom metric. `PATCH /api/v1/metrics/definitions/{id}/` calls it only when an inactive custom metric is being reactivated with `is_active=true`. `GET /api/v1/metrics/usage/` exposes the same backend-owned count and limit to authenticated clients.
 - Consequences:
-  Users can update metadata on existing active custom metrics while already at the limit. Users cannot create a fourth active custom metric or reactivate an archived custom metric if that would exceed the limit. The API returns `400` with `non_field_errors`.
+  Users can update metadata on existing active custom metrics while already at the limit. Users cannot create a fourth active custom metric or reactivate an archived custom metric if that would exceed the limit. The API returns `400` with `non_field_errors`. The frontend does not duplicate the limit or derive usage from the currently loaded catalog; it reads `used` and `limit` from the usage endpoint and invalidates that query after create, deactivate, and reactivate mutations.
 - Revisit when:
   A real `Subscription` model, plan catalog, Stripe state, or entitlement service is implemented. The hard-coded constant should then become a lookup from the user's current entitlement.

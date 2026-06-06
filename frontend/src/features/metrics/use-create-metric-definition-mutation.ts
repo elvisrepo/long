@@ -12,6 +12,7 @@ export function useCreateMetricDefinitionMutation() {
     mutationFn: (input) => createMetricDefinition(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['metric-definitions'] })
+      queryClient.invalidateQueries({ queryKey: ['metric-usage'] })
     },
   })
 }

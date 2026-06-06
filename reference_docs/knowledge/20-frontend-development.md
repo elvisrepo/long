@@ -205,10 +205,12 @@ Current metrics API integration checkpoint:
 - `getMetricDefinitions()` fetches `GET /api/v1/metrics/definitions/` with the in-memory bearer access token.
 - `getMetricDefinitions({ includeInactive: true })` fetches `GET /api/v1/metrics/definitions/?include_inactive=true` for archived custom metric management.
 - `useMetricDefinitionsQuery(options)` exposes metric definitions through TanStack Query for dashboard reads and uses the options in its query key so active-only and include-inactive reads are cached separately.
+- `getMetricUsage()` fetches `GET /api/v1/metrics/usage/` with the in-memory bearer access token.
+- `useMetricUsageQuery()` caches the authenticated user's active custom metric usage under `['metric-usage']`.
 - `createMetricDefinition()` posts custom metric definitions to `POST /api/v1/metrics/definitions/`.
 - `createMetricDefinition()` keeps component-facing input camelCase, then maps it to the backend's snake_case JSON contract.
 - `useCreateMetricDefinitionMutation()` wraps custom metric-definition creation in TanStack Query mutation state.
-- Successful custom metric-definition mutation invalidates `['metric-definitions']` so metric catalogs and dashboard metric cards can refresh after writes.
+- Successful custom metric-definition creation invalidates `['metric-definitions']` and `['metric-usage']` so the catalog and entitlement indicator refresh after writes.
 - Metric-definition API responses include `is_active`; the frontend uses this to distinguish active metric cards from archived custom metrics.
 - `createMetricEntry()` posts manual metric entries to `POST /api/v1/metrics/entries/`.
 - `createMetricEntry()` keeps the component-facing input camelCase, then maps it to the backend's snake_case JSON contract.
@@ -250,16 +252,16 @@ Current metrics page checkpoint:
 - Successful custom metric creation clears the form and invalidates metric-definition queries.
 - Failed custom metric creation shows the backend validation message.
 - The backend currently enforces a temporary 3-active-custom-metric limit.
-- `/metrics` shows the current usage as `{active custom metrics} / 3 active custom metrics used`.
-- The usage count includes only active user-owned custom metrics. System defaults and archived custom metrics do not count.
-- The usage indicator switches to warning styling when all 3 active custom metric slots are used and exposes the text through an accessible status region.
-- The frontend count is informational only. The backend remains the enforcement authority for create and reactivate requests and returns `non_field_errors` when the limit is exceeded.
+- `/metrics` reads `{used, limit}` through `useMetricUsageQuery()` and shows `{used} / {limit} active custom metrics used`.
+- The backend calculates usage from active user-owned custom metrics. System defaults and archived custom metrics do not count.
+- The usage indicator switches to warning styling when `used >= limit` and exposes the text through an accessible status region.
+- The frontend no longer hard-codes `3` or derives usage from the loaded metric-definition list. The backend remains the source of truth for display and enforcement.
 - Custom metric metadata update is implemented for user-owned custom metrics.
-- Custom metric deactivation is implemented as a soft archive action. It invalidates both `['metric-definitions']` and `['metric-entries']`; historical entries remain preserved.
+- Custom metric deactivation is implemented as a soft archive action. It invalidates `['metric-definitions']`, `['metric-entries']`, and `['metric-usage']`; historical entries remain preserved.
 - The metrics catalog includes a `Show deactivated custom metrics` toggle. When enabled, the route calls `useMetricDefinitionsQuery({ includeInactive: true })`.
 - Active metrics remain in the normal available-metrics list and keep their `/metrics/$slug` detail links.
 - Inactive custom metrics render in a separate archived section at the bottom of `/metrics`. Archived rows are visually muted, show an `Archived` marker, and intentionally do not link to `/metrics/$slug` because inactive metrics cannot be logged or opened as active detail pages.
-- Archived custom metrics can be reactivated from the catalog through `useReactivateMetricDefinitionMutation()`, which PATCHes `isActive: true` and invalidates both `['metric-definitions']` and `['metric-entries']`.
+- Archived custom metrics can be reactivated from the catalog through `useReactivateMetricDefinitionMutation()`, which PATCHes `isActive: true` and invalidates `['metric-definitions']`, `['metric-entries']`, and `['metric-usage']`.
 - Reactivation failures render a visible row-level error and keep the archived row/action visible so the user can retry.
 
 Current metric detail page checkpoint:

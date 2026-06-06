@@ -63,5 +63,8 @@ describe('useDeactivateMetricDefinitionMutation', () => {
     expect(invalidateQueriesSpy).toHaveBeenCalledWith({
       queryKey: ['metric-entries'],
     })
+    expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+      queryKey: ['metric-usage'],
+    })
   })
 })

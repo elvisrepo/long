@@ -283,6 +283,7 @@ Current backend metrics testing checkpoint:
 - Custom metric-definition update rejects invalid ranges where a submitted bound conflicts with the existing stored bound.
 - Custom metric-definition tests cover soft deactivation and reactivation through `is_active`.
 - Custom metric-definition tests prove reactivation is blocked at the active custom metric limit, while metadata updates to an already-active custom metric remain allowed at the limit.
+- `tests/test_metric_usage.py` proves the authenticated usage endpoint returns the caller's active custom metric count and backend-owned limit.
 - `tests/test_metric_entries.py` now covers the first metric-entry write slice.
 - Authenticated users can create a manual metric entry for an active default metric definition by sending the metric slug.
 - Metric-entry creation requires authentication.
@@ -313,10 +314,12 @@ Practical test-level guidance for the current frontend slice:
 Current frontend metrics testing checkpoint:
 - `metric-definitions-api.test.ts` covers the metric-definition API helper request shape and error behavior, including `includeInactive` query-string generation and conversion of backend `non_field_errors` into a useful frontend error message.
 - `use-metric-definitions-query.test.tsx` covers the TanStack Query wrapper for metric definitions, including passing `includeInactive` through to the API helper.
-- `use-create-metric-definition-mutation.test.tsx` covers custom metric-definition mutation and invalidation of metric-definition queries.
+- `metric-usage-api.test.ts` covers the authenticated `GET /api/v1/metrics/usage/` request and response contract.
+- `use-metric-usage-query.test.tsx` covers the TanStack Query wrapper and `['metric-usage']` cache entry.
+- `use-create-metric-definition-mutation.test.tsx` covers custom metric-definition mutation and invalidation of metric-definition and metric-usage queries.
 - `use-update-metric-definition-mutation.test.tsx` covers custom metric-definition update mutation and invalidation of metric-definition queries.
-- `use-deactivate-metric-definition-mutation.test.tsx` covers custom metric-definition soft archive mutation and invalidation of metric-definition and metric-entry queries.
-- `use-reactivate-metric-definition-mutation.test.tsx` covers archived custom metric reactivation and invalidation of metric-definition and metric-entry queries.
+- `use-deactivate-metric-definition-mutation.test.tsx` covers custom metric-definition soft archive mutation and invalidation of metric-definition, metric-entry, and metric-usage queries.
+- `use-reactivate-metric-definition-mutation.test.tsx` covers archived custom metric reactivation and invalidation of metric-definition, metric-entry, and metric-usage queries.
 - `metric-entries-api.test.ts` covers `createMetricEntry()`, `getMetricEntries()`, `updateMetricEntry()`, and `deleteMetricEntry()` request shape, auth-token requirements, backend failure behavior, filter query-string generation including `limit`, and backend validation-detail preservation for entry updates.
 - `use-metric-entries-query.test.tsx` covers the TanStack Query wrapper for metric entries.
 - `use-create-metric-entry-mutation.test.tsx` covers manual metric-entry mutation and invalidation of metric-entry list queries.
@@ -331,7 +334,7 @@ Current frontend metrics testing checkpoint:
 - dashboard route tests cover metric-card links and recent-entry links to `/metrics/$slug`.
 - dashboard route tests continued to pass after the responsive visual foundation work, so the UI restyle did not change the dashboard behavior contract.
 - metrics route tests cover protected-route behavior, metric catalog rendering, catalog-row links to `/metrics/$slug`, custom metric creation submit payload, form clearing after success, visible backend validation errors, custom metric metadata updates, custom metric deactivation, visible deactivation errors, include-inactive catalog reads, archived custom metric separation, archived row non-link behavior, archived status markers, archived custom metric reactivation, and visible reactivation errors.
-- metrics route tests also prove the active custom metric usage indicator excludes defaults and archived metrics, exposes an accessible status, and switches to the limit-reached warning state at `3 / 3`.
+- metrics route tests prove the usage indicator renders backend-provided `used` and `limit` values independently of the loaded definition list, exposes an accessible status, and switches to the limit-reached warning state when `used >= limit`.
 - metric detail route tests cover protected-route behavior, dynamic slug route rendering, metric-definition lookup, styled summary rendering, chart-backed trend overview rendering, metric-entry history rendering, inline entry update/delete orchestration, local edit validation for empty/non-numeric values, preserving the edit form on failed update, visible update failure errors, empty-state rendering, bounded `useMetricEntriesQuery({ metric, limit: 50 })` calls, range-filtered `useMetricEntriesQuery({ metric, from, limit: 50 })` calls, and stable range filter query keys.
 - Metric-entry hook tests mock the API helper but use a real `QueryClientProvider`, so they verify Query behavior without requiring a running Django backend.
 - Playwright E2E now submits a real metric entry through the browser against the isolated E2E backend/database, verifies the saved value appears in the dashboard flow, and exercises the metric filter dropdown.

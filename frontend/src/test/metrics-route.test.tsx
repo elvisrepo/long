@@ -9,6 +9,7 @@ import {
 } from '../features/metrics/metric-definitions-api'
 import { useDeactivateMetricDefinitionMutation } from '../features/metrics/use-deactivate-metric-definition-mutation'
 import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-definitions-query'
+import { useMetricUsageQuery } from '../features/metrics/use-metric-usage-query'
 import { useReactivateMetricDefinitionMutation } from '../features/metrics/use-reactivate-metric-definition-mutation'
 import { useUpdateMetricDefinitionMutation } from '../features/metrics/use-update-metric-definition-mutation'
 import { renderRoute } from './render-route'
@@ -19,6 +20,10 @@ vi.mock('../features/auth/auth-me-api', () => ({
 
 vi.mock('../features/metrics/use-metric-definitions-query', () => ({
   useMetricDefinitionsQuery: vi.fn(),
+}))
+
+vi.mock('../features/metrics/use-metric-usage-query', () => ({
+  useMetricUsageQuery: vi.fn(),
 }))
 
 vi.mock('../features/metrics/metric-definitions-api', () => ({
@@ -124,6 +129,16 @@ describe('metrics route', () => {
     mockUpdateMetricDefinitionMutation()
     mockDeactivateMetricDefinitionMutation()
     mockReactivateMetricDefinitionMutation()
+    vi.mocked(useMetricUsageQuery).mockReturnValue({
+      data: {
+        active_custom_metrics: {
+          used: 0,
+          limit: 3,
+        },
+      },
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricUsageQuery>)
   })
 
   afterEach(() => {
@@ -147,24 +162,13 @@ describe('metrics route', () => {
     expect(screen.getByText(/cardiovascular · bpm/i)).toBeInTheDocument()
   })
 
-  it('shows active custom metric usage without counting defaults or archived metrics', async () => {
+  it('shows active custom metric usage returned by the backend', async () => {
     vi.mocked(getMe).mockResolvedValue({
       email: 'user@example.com',
     })
     mockLoadedMetricDefinitions([
       {
-        id: 'default-metric-id',
-        name: 'Resting Heart Rate',
-        slug: 'resting_hr',
-        unit: 'bpm',
-        category: 'cardiovascular',
-        min_value: 20,
-        max_value: 220,
-        is_default: true,
-        is_active: true,
-      },
-      {
-        id: 'active-custom-metric-1',
+        id: 'custom-metric-id',
         name: 'Mood',
         slug: 'mood',
         unit: 'score',
@@ -174,34 +178,23 @@ describe('metrics route', () => {
         is_default: false,
         is_active: true,
       },
-      {
-        id: 'active-custom-metric-2',
-        name: 'Sleep Score',
-        slug: 'sleep_score',
-        unit: 'score',
-        category: 'custom',
-        min_value: 1,
-        max_value: 10,
-        is_default: false,
-        is_active: true,
-      },
-      {
-        id: 'archived-custom-metric',
-        name: 'Energy',
-        slug: 'energy',
-        unit: 'score',
-        category: 'custom',
-        min_value: 1,
-        max_value: 10,
-        is_default: false,
-        is_active: false,
-      },
     ])
+
+    vi.mocked(useMetricUsageQuery).mockReturnValue({
+      data: {
+        active_custom_metrics: {
+          used: 2,
+          limit: 5,
+        },
+      },
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricUsageQuery>)
 
     renderRoute('/metrics')
 
     expect(
-      await screen.findByText(/2 \/ 3 active custom metrics used/i),
+      await screen.findByText(/2 \/ 5 active custom metrics used/i),
     ).toBeInTheDocument()
   })
 
@@ -209,6 +202,16 @@ describe('metrics route', () => {
     vi.mocked(getMe).mockResolvedValue({
       email: 'user@example.com',
     })
+    vi.mocked(useMetricUsageQuery).mockReturnValue({
+      data: {
+        active_custom_metrics: {
+          used: 3,
+          limit: 3,
+        },
+      },
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricUsageQuery>)
     mockLoadedMetricDefinitions(
       Array.from({ length: 3 }, (_, index) => ({
         id: `custom-metric-${index}`,
