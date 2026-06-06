@@ -5,6 +5,7 @@ from apps.metrics.views import (
     MetricDefinitionListView,
     MetricEntryDetailView,
     MetricEntryListCreateView,
+    MetricUsageView
 )
 
 
@@ -28,5 +29,10 @@ urlpatterns = [
       "definitions/<uuid:pk>/",
       MetricDefinitionDetailView.as_view(),
       name="metric-definition-detail",
+  ),
+  path(
+      "usage/",
+      MetricUsageView.as_view(),
+      name="metric-usage",
   ),
 ]

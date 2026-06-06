@@ -9,6 +9,11 @@ from apps.metrics.serializers import (
       MetricEntrySerializer,
   )
 
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.metrics.limits import get_active_custom_metric_usage
+
 DEFAULT_METRIC_ENTRY_LIMIT = 50
 
 class MetricDefinitionListView(generics.ListCreateAPIView):
@@ -109,6 +114,21 @@ def parse_positive_int(value: str | None) -> int | None:
           )
 
       return parsed_value
+
+class MetricUsageView(APIView):
+      permission_classes = [IsAuthenticated]
+
+      def get(self, request):
+          return Response(
+              {
+                  "active_custom_metrics": get_active_custom_metric_usage(
+                      request.user
+                  )
+              }
+          )
+      
+# APIView fits here because this endpoint returns calculated usage data, not model CRUD
+# handled by a generic model view.
 
 
 '''

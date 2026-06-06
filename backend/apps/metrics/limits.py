@@ -7,28 +7,44 @@ from apps.metrics.models import MetricDefinition
 ACTIVE_CUSTOM_METRIC_LIMIT = 3
 ACTIVE_CUSTOM_METRIC_LIMIT_MESSAGE = "Active custom metric limit reached."
 
+from typing import TypedDict
+
+class ActiveCustomMetricUsage(TypedDict):
+      used: int
+      limit: int
+
+def get_active_custom_metric_usage(
+      user: AbstractBaseUser,
+  ) -> ActiveCustomMetricUsage:
+      used = MetricDefinition.objects.filter(
+          user=user,
+          is_default=False,
+          is_active=True,
+      ).count()
+
+      return {
+          "used": used,
+          "limit": ACTIVE_CUSTOM_METRIC_LIMIT,
+      }
 
 def validate_active_custom_metric_limit(
-    user: AbstractBaseUser,
-    *,
-    excluding_definition: MetricDefinition | None = None,
-) -> None:
-    #We just count the user’s active custom metrics. If they already have 3, block creating the 4th.
-    active_custom_metrics = MetricDefinition.objects.filter(  # counts only custom metrics of this user
-        user=user,
-        is_default=False,
-        is_active=True,
-    )
+      user: AbstractBaseUser,
+      *,
+      excluding_definition: MetricDefinition | None = None,
+  ) -> None:
+      if excluding_definition is None:
+          used = get_active_custom_metric_usage(user)["used"]
+      else:
+          used = MetricDefinition.objects.filter(
+              user=user,
+              is_default=False,
+              is_active=True,
+          ).exclude(id=excluding_definition.id).count()
 
-    if excluding_definition is not None:
-        active_custom_metrics = active_custom_metrics.exclude(
-            id=excluding_definition.id,
-        )
-
-    if active_custom_metrics.count() >= ACTIVE_CUSTOM_METRIC_LIMIT:
-        raise serializers.ValidationError(
-            {"non_field_errors": [ACTIVE_CUSTOM_METRIC_LIMIT_MESSAGE]}
-        )
+      if used >= ACTIVE_CUSTOM_METRIC_LIMIT:
+          raise serializers.ValidationError(
+              {"non_field_errors": [ACTIVE_CUSTOM_METRIC_LIMIT_MESSAGE]}
+          )
 
 
 
