@@ -7,7 +7,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         samsung = softwareSystem "Samsung Health / Health Connect" "On-device health data source used by the Android companion app."
 
         longevity = softwareSystem "Longevity Platform" "Tracks user auth, metrics, analytics, and wearable ingestion." {
-            webapp = container "React Web App" "Browser-based client for auth, dashboard, and settings." "React"
+            webapp = container "React Web App" "Browser-based client for auth, dashboard, metric catalog/detail management, and settings." "React"
               android = container "Android Companion App" "Mobile client for Samsung sync and future mobile workflows." "Kotlin Android"
               api = container "Django API" "Main HTTP API for auth, metrics, analytics, and wearable uploads." "Django + Django REST Framework"
               worker = container "Celery Worker" "Executes asynchronous jobs." "Celery"
@@ -232,6 +232,21 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             user -> longevity.webapp "TanStack Router beforeLoad allows the protected route and the user sees Dashboard or Settings"
         }
 
+        dynamic longevity "web-session-bootstrap" "Dynamic view of browser session restoration before protected route access." {
+            user -> longevity.webapp "Opens or reloads the web application"
+            longevity.webapp -> longevity.api "GET /api/auth/csrf/ to establish the CSRF cookie"
+            longevity.api -> longevity.webapp "Returns the CSRF cookie"
+            longevity.webapp -> longevity.api "POST /api/auth/web/refresh/ with browser cookies and X-CSRFToken"
+            longevity.api -> longevity.db "Validates refresh-token state and loads the token-backed user"
+            longevity.db -> longevity.api "Returns current refresh-token and user state"
+            longevity.api -> longevity.webapp "Returns a renewed access token and may rotate the HttpOnly refresh_token cookie"
+            longevity.webapp -> longevity.api "GET /api/auth/me/ with Authorization: Bearer <renewed-access-token>"
+            longevity.api -> longevity.db "Loads the authenticated user"
+            longevity.db -> longevity.api "Returns current user data"
+            longevity.api -> longevity.webapp "Returns 200 current-user JSON"
+            user -> longevity.webapp "TanStack Router allows the protected route after session restoration succeeds"
+        }
+
         dynamic longevity "metrics-definition-entry-api" "Dynamic view of the current metric definition and metric entry API slice." {
             user -> longevity.webapp "Opens the authenticated dashboard"
             longevity.webapp -> longevity.api "GET /api/v1/metrics/definitions/ with Authorization: Bearer <access-token>"
@@ -248,10 +263,41 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.api -> longevity.webapp "Returns 200 JSON list of entries for display"
         }
 
+        dynamic longevity "metrics-catalog-management" "Dynamic view of active and archived custom metric catalog management." {
+            user -> longevity.webapp "Opens /metrics"
+            longevity.webapp -> longevity.api "GET /api/v1/metrics/definitions/ and GET /api/v1/metrics/usage/"
+            longevity.api -> longevity.db "Loads active system/user definitions and counts the authenticated user's active custom metrics"
+            longevity.db -> longevity.api "Returns definitions and current entitlement usage"
+            longevity.api -> longevity.webapp "Returns the active catalog plus { used, limit } usage"
+            user -> longevity.webapp "Optionally reveals archived custom metrics"
+            longevity.webapp -> longevity.api "GET /api/v1/metrics/definitions/?include_inactive=true"
+            longevity.api -> longevity.db "Loads active defaults plus the authenticated user's active and inactive custom definitions"
+            longevity.db -> longevity.api "Returns visible active and archived definitions"
+            longevity.api -> longevity.webapp "Returns 200 JSON for separate active and archived catalog sections"
+            user -> longevity.webapp "Creates, edits, deactivates, or reactivates a custom metric"
+            longevity.webapp -> longevity.api "POST /api/v1/metrics/definitions/ or PATCH /api/v1/metrics/definitions/{id}/"
+            longevity.api -> longevity.db "Validates ownership, fields, active status, and entitlement rules, then persists the change"
+            longevity.db -> longevity.api "Returns the created or updated definition"
+            longevity.api -> longevity.webapp "Returns success; TanStack Query invalidates definition, entry, and usage caches as applicable"
+        }
+
+        dynamic longevity "metric-detail-history" "Dynamic view of metric detail, filtered history, chart rendering, and entry maintenance." {
+            user -> longevity.webapp "Opens /metrics/{slug} and selects an optional 7d, 30d, 90d, or all range"
+            longevity.webapp -> longevity.api "GET /api/v1/metrics/definitions/ and GET /api/v1/metrics/entries/?metric={slug}&from={timestamp}&limit=50"
+            longevity.api -> longevity.db "Loads the visible metric definition and the authenticated user's filtered entry history"
+            longevity.db -> longevity.api "Returns the definition and newest-first entries"
+            longevity.api -> longevity.webapp "Returns JSON used for the metric summary, entry history, and client-side daily-latest chart"
+            user -> longevity.webapp "Edits or deletes one historical metric entry"
+            longevity.webapp -> longevity.api "PATCH or DELETE /api/v1/metrics/entries/{id}/"
+            longevity.api -> longevity.db "Scopes the entry to the authenticated user, validates updates when applicable, and writes or deletes it"
+            longevity.db -> longevity.api "Returns the updated entry or confirms deletion"
+            longevity.api -> longevity.webapp "Returns 200 or 204; TanStack Query invalidates metric-entry history"
+        }
+
         dynamic longevity "custom-metric-entitlement-write" "Dynamic view of concurrency-safe custom metric creation and reactivation." {
             user -> longevity.webapp "Creates a custom metric or reactivates an archived custom metric"
             longevity.webapp -> longevity.api "POST /api/v1/metrics/definitions/ or PATCH /api/v1/metrics/definitions/{id}/ with is_active=true"
-            longevity.api -> longevity.db "Begins a transaction and locks the authenticated user's row with SELECT FOR UPDATE"
+            longevity.api -> longevity.db "Starts an atomic write and issues SELECT FOR UPDATE for the authenticated user's row"
             longevity.api -> longevity.db "Counts the user's active, non-default custom metric definitions"
             longevity.db -> longevity.api "Returns current active custom metric usage"
             longevity.api -> longevity.db "Creates or reactivates the metric when a slot is available, then commits and releases the user-row lock"
