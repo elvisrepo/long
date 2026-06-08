@@ -248,6 +248,16 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.api -> longevity.webapp "Returns 200 JSON list of entries for display"
         }
 
+        dynamic longevity "custom-metric-entitlement-write" "Dynamic view of concurrency-safe custom metric creation and reactivation." {
+            user -> longevity.webapp "Creates a custom metric or reactivates an archived custom metric"
+            longevity.webapp -> longevity.api "POST /api/v1/metrics/definitions/ or PATCH /api/v1/metrics/definitions/{id}/ with is_active=true"
+            longevity.api -> longevity.db "Begins a transaction and locks the authenticated user's row with SELECT FOR UPDATE"
+            longevity.api -> longevity.db "Counts the user's active, non-default custom metric definitions"
+            longevity.db -> longevity.api "Returns current active custom metric usage"
+            longevity.api -> longevity.db "Creates or reactivates the metric when a slot is available, then commits and releases the user-row lock"
+            longevity.api -> longevity.webapp "Returns 201/200 on success, or 400 when the active custom metric limit is reached"
+        }
+
         deployment * mvpCloud "mvp-cloud-deployment" "Deployment view for the pragmatic MVP cloud runtime." {
             include *
             autolayout tb
