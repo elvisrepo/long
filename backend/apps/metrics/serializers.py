@@ -6,6 +6,9 @@ from rest_framework import serializers
 from apps.metrics.limits import validate_active_custom_metric_limit
 from apps.metrics.models import MetricDefinition, MetricEntry
 
+from django.contrib.auth import get_user_model
+from django.db import transaction
+
 
 class MetricDefinitionSerializer(serializers.ModelSerializer):
     is_active = serializers.BooleanField(required=False)
@@ -65,18 +68,27 @@ class MetricDefinitionSerializer(serializers.ModelSerializer):
 
 
     def create(self, validated_data: dict[str, Any]) -> MetricDefinition:
-          request = self.context["request"]
-          # Remove the is_active key from the incoming create data if it exists. If it does not exist, return None and do nothing.
-          # creation always produces active custom metrics; deactivation is a separate PATCH action.
-          validated_data.pop("is_active", None)
+      request = self.context["request"]
+      validated_data.pop("is_active", None)
 
-          validate_active_custom_metric_limit(request.user)
+      with transaction.atomic():
+          # Serialize entitlement-changing writes for the same user.
+          locked_user = (
+              get_user_model()
+              .objects.select_for_update()
+              .get(pk=request.user.pk)
+          )
+
+          validate_active_custom_metric_limit(locked_user)
 
           return MetricDefinition.objects.create(
-              user=request.user,
+              user=locked_user,
               is_default=False,
+              is_active=True,
               **validated_data,
           )
+
+
     
     def update(
             self,
