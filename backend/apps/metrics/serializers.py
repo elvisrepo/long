@@ -1,13 +1,12 @@
 from typing import Any, cast
 
+from django.contrib.auth import get_user_model
+from django.db import transaction
 from django.db.models import Q
 from rest_framework import serializers
 
 from apps.metrics.limits import validate_active_custom_metric_limit
 from apps.metrics.models import MetricDefinition, MetricEntry
-
-from django.contrib.auth import get_user_model
-from django.db import transaction
 
 
 class MetricDefinitionSerializer(serializers.ModelSerializer):
@@ -48,7 +47,6 @@ class MetricDefinitionSerializer(serializers.ModelSerializer):
               )
 
           return slug
-    
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
       min_value = attrs.get(
           "min_value",
@@ -91,24 +89,33 @@ class MetricDefinitionSerializer(serializers.ModelSerializer):
 
     
     def update(
-            self,
-            instance: MetricDefinition,  # existing database row being updated, before changes are applied.
-            validated_data: dict[str, Any],
+        self,
+        instance: MetricDefinition,
+        validated_data: dict[str, Any],
     ) -> MetricDefinition:
-         is_reactivating = (
-            instance.is_active is False   # It was inactive in the DB.
-            and validated_data.get("is_active") is True  # The incoming request wants to make it active.
-  )
-         
-         if is_reactivating:
-                  validate_active_custom_metric_limit(
-                      self.context["request"].user,
-                      excluding_definition=instance,
-                  )
+        is_reactivating = (
+            instance.is_active is False
+            and validated_data.get("is_active") is True
+        )
+        if not is_reactivating:
+            return super().update(instance, validated_data)
 
-          # If the request only changes name/unit/range:  validated_data == {"name": "Mood Score"}Then: validated_data.get("is_active")  # None
-          # So is_reactivating is false. We do not check the active custom metric limit because the user is not adding a new active metric.
-         return super().update(instance, validated_data)
+        with transaction.atomic():
+            locked_user = (
+                get_user_model()
+                .objects.select_for_update()
+                .get(pk=self.context["request"].user.pk)
+            )
+
+            # Reload after acquiring the user lock so validation uses current state.
+            locked_definition = MetricDefinition.objects.get(pk=instance.pk)
+
+            validate_active_custom_metric_limit(
+                locked_user,
+                excluding_definition=locked_definition,
+            )
+
+            return super().update(locked_definition, validated_data)
 
 
 
@@ -180,5 +187,3 @@ class MetricEntrySerializer(serializers.ModelSerializer):
             user=request.user,
             **validated_data,
         )
-
-    

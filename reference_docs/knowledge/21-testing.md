@@ -284,6 +284,10 @@ Current backend metrics testing checkpoint:
 - Custom metric-definition tests cover soft deactivation and reactivation through `is_active`.
 - Custom metric-definition tests prove reactivation is blocked at the active custom metric limit, while metadata updates to an already-active custom metric remain allowed at the limit.
 - `tests/test_metric_usage.py` proves the authenticated usage endpoint returns the caller's active custom metric count and backend-owned limit.
+- `tests/test_metric_definition_concurrency.py` uses real PostgreSQL transactions, separate thread connections, real authenticated API requests, and controlled synchronization to prove two concurrent creates cannot both claim the final active custom metric slot.
+- The same concurrency module proves two concurrent archived-metric reactivations cannot both claim the final slot.
+- These tests assert both the HTTP outcome (`201/400` for create, `200/400` for reactivation) and the database invariant of exactly 3 active custom metrics.
+- The concurrency tests patch only synchronization points around the real usage/validation functions; URL resolution, JWT authentication, DRF views/serializers, ORM writes, transactions, and PostgreSQL row locks remain real.
 - `tests/test_metric_entries.py` now covers the first metric-entry write slice.
 - Authenticated users can create a manual metric entry for an active default metric definition by sending the metric slug.
 - Metric-entry creation requires authentication.

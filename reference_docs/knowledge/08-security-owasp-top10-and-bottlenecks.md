@@ -31,6 +31,8 @@ Current metric-usage access-control boundary:
 - Usage is calculated from metric definitions filtered by `request.user`, `is_default=False`, and `is_active=True`.
 - The client cannot submit a user identifier, so it cannot request another user's entitlement usage.
 - The backend remains authoritative for both reported usage and create/reactivate enforcement; the frontend indicator is not a security control.
+- Entitlement-changing create and reactivation writes use `transaction.atomic()` plus `SELECT ... FOR UPDATE` on the authenticated user's row. This serializes competing writes for one account and closes the count-then-write race.
+- The lock is scoped per user, so one user's custom metric write does not serialize unrelated users' writes.
 
 #### Edge Cases
 - **Duplicate data from wearable sync**: Dedup by `(user_id, metric_definition_id, recorded_at, source, source_connection_id)` plus an optional `external_source_id`. If the same Samsung-originated record is uploaded twice, ignore or update it idempotently.
@@ -40,6 +42,7 @@ Current metric-usage access-control boundary:
 - **Token expiry during WebSocket session**: Server sends `AUTH_EXPIRED` frame. Client must close the socket, re-authenticate via REST, get a new WS ticket, and reconnect.
 - **User deletes account mid-sync**: Celery task checks `user.is_active` before writing data. If user is deleted, task aborts gracefully.
 - **Concurrent metric writes for same timestamp**: The unique constraint on `(user_id, metric_definition_id, recorded_at, source, source_connection_id)` prevents silent overwrites for provider-synced data. Manual duplicate submissions still need explicit product policy (allow vs reject).
+- **Concurrent custom metric entitlement writes**: Create/reactivate requests for the same user lock that user's row before counting and writing, so only one request can claim the final active custom metric slot.
 - **Android upload retry after network loss**: Uploads must be idempotent via `upload_id`. The client retries safely, and the server accepts out-of-order data (sorted by `recorded_at`, not arrival time).
 - **Future aggregator webhook delivery failure**: Signed webhooks should retry, and a scheduled backfill job should repair missed intervals when cloud-based providers are added later.
 
