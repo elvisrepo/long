@@ -1,7 +1,8 @@
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
-from apps.subscriptions.models import Subscription
+from apps.subscriptions.models import Subscription, SubscriptionPlan
+from apps.users.models import build_email_lookup_hash
 
 
 pytestmark = pytest.mark.django_db
@@ -132,3 +133,20 @@ def test_register_assigns_active_free_subscription():
       assert subscription.provider is None
       assert subscription.provider_subscription_id is None
 
+def test_register_rolls_back_user_when_free_plan_is_unavailable():
+      SubscriptionPlan.objects.filter(code="free").update(is_active=False)
+      client = APIClient()
+
+      with pytest.raises(SubscriptionPlan.DoesNotExist):
+          client.post(
+              "/api/auth/register/",
+              {
+                  "email": "rollback@example.com",
+                  "password": "strong-password-123",
+              },
+              format="json",
+          )
+
+      assert not get_user_model().objects.filter(
+          email_lookup_hash=build_email_lookup_hash("rollback@example.com"),
+      ).exists()
