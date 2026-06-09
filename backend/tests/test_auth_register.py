@@ -1,6 +1,7 @@
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
+from apps.subscriptions.models import Subscription
 
 
 pytestmark = pytest.mark.django_db
@@ -106,3 +107,28 @@ def test_register_rejects_password_that_fails_django_validation():
           "This password is entirely numeric.",
       ],
   }
+      
+def test_register_assigns_active_free_subscription():
+      client = APIClient()
+
+      response = client.post(
+          "/api/auth/register/",
+          {
+              "email": "subscribed@example.com",
+              "password": "strong-password-123",
+          },
+          format="json",
+      )
+
+      assert response.status_code == 201
+
+      user = get_user_model().objects.get(
+          email_lookup_hash__isnull=False,
+      )
+      subscription = Subscription.objects.select_related("plan").get(user=user)
+
+      assert subscription.status == Subscription.Status.ACTIVE
+      assert subscription.plan.code == "free"
+      assert subscription.provider is None
+      assert subscription.provider_subscription_id is None
+

@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.validators import validate_email
 from rest_framework import serializers
+from apps.users.services import create_user_with_subscription
 
 from apps.users.models import build_email_lookup_hash
 
@@ -27,8 +28,8 @@ class RegisterSerializer(serializers.Serializer):
           validate_password(value)
           return value
 
-      def create(self, validated_data):
-          return get_user_model().objects.create_user(**validated_data)
+      def create(self, validated_data: dict[str, str]):
+        return create_user_with_subscription(**validated_data)
       
 class LoginSerializer(serializers.Serializer):
       email = serializers.CharField(required=True)
