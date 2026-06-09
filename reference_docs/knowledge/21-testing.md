@@ -274,6 +274,8 @@ Current backend metrics testing checkpoint:
 - Custom metric-definition creation rejects slugs already used by system default metrics.
 - Custom metric-definition creation rejects invalid ranges where `max_value <= min_value`.
 - Custom metric-definition creation rejects creating a fourth active custom metric under the temporary MVP entitlement limit.
+- Subscription model tests verify that plan entitlement fields persist, a subscription associates a user with a plan, and migrations seed the canonical free plan.
+- The free-plan seed test reads `code="free"` from the migrated test database; independent model tests use other codes so they do not collide with the plan's unique code.
 - Custom metric-definition tests prove inactive archived custom metrics do not count toward the active custom metric limit.
 - Authenticated users can partially update their own custom metric definitions, including inactive custom definitions for reactivation.
 - Custom metric-definition update requires authentication.

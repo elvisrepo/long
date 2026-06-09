@@ -1,12 +1,12 @@
-# Current Database Plus Subscription Plan ERD
+# Current Domain And Subscription ERD
 
 ## Use When
-- Load this when you need the implemented domain tables plus the next planned subscription/entitlement slice.
-- Use this before implementing subscription models so current tables are not confused with planned tables.
+- Load this when you need the currently implemented domain and subscription tables.
+- Use the target-state ERD separately for planned Stripe, wearable-sync, and audit tables.
 
 ## Scope
-- `User`, `MetricDefinition`, and `MetricEntry` are implemented domain tables.
-- `SubscriptionPlan` and `Subscription` are the next planned entitlement tables.
+- `User`, `MetricDefinition`, `MetricEntry`, `SubscriptionPlan`, and `Subscription` are implemented domain tables.
+- The plan-backed entitlement resolver is not implemented yet; metric limits still use the temporary constant.
 - Django framework tables such as auth groups, permissions, sessions, admin logs, and JWT token blacklist tables are intentionally omitted.
 
 ```mermaid
@@ -55,7 +55,7 @@ erDiagram
         datetime created_at
     }
 
-    %% NEXT PLANNED SUBSCRIPTION AND ENTITLEMENT TABLES
+    %% IMPLEMENTED SUBSCRIPTION AND ENTITLEMENT TABLES
 
     USER ||--o{ SUBSCRIPTION : "has subscription history"
     SUBSCRIPTION_PLAN ||--o{ SUBSCRIPTION : governs
@@ -67,6 +67,8 @@ erDiagram
         integer active_custom_metric_limit
         integer sync_interval_minutes
         integer wearable_connection_limit
+        boolean analytics_enabled
+        boolean csv_import_enabled
         boolean is_default
         boolean is_active
         datetime created_at
@@ -77,13 +79,14 @@ erDiagram
         uuid id PK
         uuid user_id FK
         uuid plan_id FK
-        string status "trialing|active|past_due|cancelled"
-        string billing_provider "nullable, e.g. stripe"
+        string status "trialing|active|past_due|cancelled|incomplete"
+        string provider "nullable, e.g. stripe"
         string provider_customer_id "nullable"
         string provider_subscription_id UK "nullable"
         datetime current_period_start "nullable"
         datetime current_period_end "nullable"
         boolean cancel_at_period_end
+        datetime cancelled_at "nullable"
         datetime created_at
         datetime updated_at
     }
@@ -95,4 +98,6 @@ erDiagram
 - `MetricEntry.metric_definition_id` uses `PROTECT` so definitions with history are not deleted accidentally.
 - `MetricDefinition.user_id` is nullable because system defaults are shared by every user.
 - `MetricEntry.user_id` is required because metric data is always owned by exactly one user.
-- Users without an active paid subscription should resolve to the default free plan.
+- Migration `subscriptions.0003` seeds one shared active default `free` plan.
+- User registration does not create a free `Subscription` row.
+- The next entitlement-service slice will resolve users without an effective active subscription to the default free plan.
