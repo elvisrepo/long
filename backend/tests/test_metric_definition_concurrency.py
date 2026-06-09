@@ -13,6 +13,7 @@ from apps.metrics.limits import (
     validate_active_custom_metric_limit,
 )
 from apps.metrics.models import MetricDefinition
+from apps.subscriptions.models import Subscription, SubscriptionPlan
 
 
 # Real commits and independent connections are required to exercise row locking.
@@ -23,6 +24,26 @@ def create_authenticated_user(email: str) -> tuple[object, str]:
     user = get_user_model().objects.create_user(
         email=email,
         password="strong-password-123",
+    )
+    # transaction=True flushes table rows between tests without rerunning data
+    # migrations, so restore the canonical seed row for each concurrency test.
+    free_plan, _created = SubscriptionPlan.objects.get_or_create(
+        code="free",
+        defaults={
+            "name": "Free",
+            "active_custom_metric_limit": 3,
+            "wearable_connection_limit": 0,
+            "sync_interval_minutes": 60,
+            "analytics_enabled": False,
+            "csv_import_enabled": False,
+            "is_default": True,
+            "is_active": True,
+        },
+    )
+    Subscription.objects.create(
+        user=user,
+        plan=free_plan,
+        status=Subscription.Status.ACTIVE,
     )
     access_token = str(RefreshToken.for_user(user).access_token)
     return user, access_token
