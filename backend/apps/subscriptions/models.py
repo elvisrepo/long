@@ -1,6 +1,7 @@
 import uuid
 
 from django.db import models
+from django.db.models import Q
 from django.conf import settings
 
 class SubscriptionPlan(models.Model):
@@ -67,7 +68,21 @@ class Subscription(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-          db_table = "subscriptions_subscription"
+      db_table = "subscriptions_subscription"
+      constraints = [
+          models.UniqueConstraint(
+              fields=["user"],
+              condition=Q(
+                  status__in=[
+                      "trialing",
+                      "active",
+                      "past_due",
+                      "incomplete",
+                  ]
+              ),
+              name="unique_current_subscription_per_user",
+          ),
+      ]
 
     def __str__(self) -> str:
           return f"{self.user_id}: {self.plan.code}"

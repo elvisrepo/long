@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError, transaction
 
 import pytest
 
@@ -71,3 +72,29 @@ def test_default_free_plan_is_seeded():
     assert plan.csv_import_enabled is False
     assert plan.is_default is True
     assert plan.is_active is True
+
+
+def test_user_cannot_have_multiple_current_subscriptions():
+    user = get_user_model().objects.create_user(
+          email="alice-current@example.com",
+          password="strong-password-123",
+      )
+    free_plan = SubscriptionPlan.objects.get(code="free")
+
+    Subscription.objects.create(
+          user=user,
+          plan=free_plan,
+          status=Subscription.Status.ACTIVE,
+      )
+    
+    with pytest.raises(IntegrityError):
+        # Isolate the expected database error so it does not break the outer
+        # transaction managed by pytest-django.
+        with transaction.atomic():
+            Subscription.objects.create(
+                user=user,
+                plan=free_plan,
+                status=Subscription.Status.TRIALING,
+            )
+
+    assert Subscription.objects.filter(user=user).count() == 1
