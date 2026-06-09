@@ -22,3 +22,18 @@ def test_get_current_subscription_plan_returns_users_active_plan():
       result = get_current_subscription_plan(user)
 
       assert result == free_plan
+
+def test_get_current_subscription_plan_ignores_cancelled_subscription():
+      user = get_user_model().objects.create_user(
+          email="cancelled@example.com",
+          password="strong-password-123",
+      )
+      free_plan = SubscriptionPlan.objects.get(code="free")
+      Subscription.objects.create(
+          user=user,
+          plan=free_plan,
+          status=Subscription.Status.CANCELLED,
+      )
+
+      with pytest.raises(Subscription.DoesNotExist):
+          get_current_subscription_plan(user)
