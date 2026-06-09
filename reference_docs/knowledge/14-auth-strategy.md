@@ -115,7 +115,9 @@ For auth endpoints, keep responsibilities split cleanly:
 For the register endpoint:
 - use DRF `@api_view(["POST"])`
 - parse request payloads through `request.data`
-- keep validation and object creation in the serializer instead of manually growing view logic
+- keep validation in the serializer and delegate domain creation to `create_user_with_subscription()`
+- create the user and active free subscription in one database transaction
+- fail the complete registration if the active default free plan is unavailable or subscription creation fails
 
 For the login endpoint:
 - use DRF `@api_view(["POST"])`

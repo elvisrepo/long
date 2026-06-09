@@ -29,10 +29,16 @@ Current E2E security boundary:
 Current metric-usage access-control boundary:
 - `GET /api/v1/metrics/usage/` requires authentication.
 - Usage is calculated from metric definitions filtered by `request.user`, `is_default=False`, and `is_active=True`.
+- The reported and enforced limit is loaded from the authenticated user's single current subscription and associated plan.
 - The client cannot submit a user identifier, so it cannot request another user's entitlement usage.
 - The backend remains authoritative for both reported usage and create/reactivate enforcement; the frontend indicator is not a security control.
 - Entitlement-changing create and reactivation writes use `transaction.atomic()` plus `SELECT ... FOR UPDATE` on the authenticated user's row. This serializes competing writes for one account and closes the count-then-write race.
 - The lock is scoped per user, so one user's custom metric write does not serialize unrelated users' writes.
+
+Current subscription-integrity boundary:
+- Registration creates the user and active free subscription in one transaction, so neither row is persisted alone.
+- A conditional unique constraint permits at most one current subscription per user across `trialing`, `active`, `past_due`, and `incomplete`.
+- Cancelled subscriptions are historical and do not conflict with a replacement current subscription.
 
 #### Edge Cases
 - **Duplicate data from wearable sync**: Dedup by `(user_id, metric_definition_id, recorded_at, source, source_connection_id)` plus an optional `external_source_id`. If the same Samsung-originated record is uploaded twice, ignore or update it idempotently.

@@ -15,7 +15,7 @@
 #### Auth (public — no JWT required)
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
-| POST | `/api/auth/register/` | User registration | Returns 201 + user object |
+| POST | `/api/auth/register/` | User registration | Returns 201; atomically creates the user and an active subscription to the seeded free plan |
 | GET | `/api/auth/csrf/` | Issue CSRF cookie for SPA bootstrap | Web clients call this before cookie-based refresh/logout |
 | POST | `/api/auth/web/login/` | Web login | Returns `access` only in JSON and sets the refresh token in an `HttpOnly` cookie |
 | POST | `/api/auth/web/refresh/` | Web refresh | Cookie-only, CSRF-protected |
@@ -116,7 +116,7 @@ Custom metric-definition create behavior:
 - A user cannot create a duplicate custom metric slug for their own account.
 - A user cannot create a custom metric with a slug already used by a system default metric.
 - `max_value` must be greater than `min_value`.
-- The current MVP entitlement seam limits each user to 3 active custom metrics. Inactive archived custom metrics and system defaults do not count.
+- The active custom metric limit comes from the authenticated user's current `SubscriptionPlan`. The seeded free plan currently allows 3; other plans can define different limits. Inactive archived custom metrics and system defaults do not count.
 - If the active custom metric limit is reached, create returns `400` with `{"non_field_errors": ["Active custom metric limit reached."]}`.
 - Creation runs the per-user limit check and insert in one database transaction while holding a PostgreSQL row lock on the authenticated user. Concurrent requests for the same account therefore cannot both claim the final available slot.
 
@@ -145,7 +145,7 @@ Metric usage behavior:
 - The response is `{"active_custom_metrics": {"used": 2, "limit": 3}}`.
 - `used` counts only active, user-owned, non-default metric definitions for `request.user`.
 - System defaults, inactive custom metrics, and other users' custom metrics do not count.
-- `limit` currently comes from the backend's temporary MVP entitlement constant. The frontend must not hard-code or independently infer this value.
+- `limit` comes from the authenticated user's current subscription plan. The frontend must not hard-code or independently infer this value.
 
 **Data passing convention:**
 - **Path params** → required resource identifiers (`/analytics/{slug}/`, `/wearables/connections/{id}/`)

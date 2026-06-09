@@ -298,32 +298,32 @@ Current implementation progress:
 
 ### ADR-019: Temporary Active Custom Metric Entitlement Seam
 
-- Status: Accepted
+- Status: Superseded by plan-backed entitlement resolution
 - Date: 2026-06-05
 - Decision:
-  The backend currently enforces a hard-coded limit of 3 active custom metric definitions per user. System default metrics do not count. Inactive archived custom metrics do not count.
+  The original implementation enforced a hard-coded limit of 3 active custom metric definitions per user. System default metrics and inactive archived custom metrics did not count.
 - Context:
   At the time this seam was introduced, subscription and billing models were not implemented. The product needed an enforcement boundary before frontend upgrade messaging or Stripe-backed subscriptions were added.
 - Current application:
-  `apps.metrics.limits.validate_active_custom_metric_limit()` owns the limit check. `POST /api/v1/metrics/definitions/` calls it before creating a custom metric. `PATCH /api/v1/metrics/definitions/{id}/` calls it only when an inactive custom metric is being reactivated with `is_active=true`. Both entitlement-changing write paths use `transaction.atomic()` and lock the authenticated user's row with `select_for_update()` before validating and writing. `GET /api/v1/metrics/usage/` exposes the same backend-owned count and limit to authenticated clients.
+  `apps.metrics.limits.validate_active_custom_metric_limit()` still owns the limit check, but the limit now comes from `get_current_subscription_plan(user).active_custom_metric_limit`. `GET /api/v1/metrics/usage/` exposes the same plan-backed count and limit.
 - Consequences:
   Users can update metadata on existing active custom metrics while already at the limit. Users cannot create a fourth active custom metric or reactivate an archived custom metric if that would exceed the limit. Concurrent create/reactivate requests for the same user are serialized, so only one request can consume the final slot. Different users do not contend on the same lock. The API returns `400` with `non_field_errors`. The frontend does not duplicate the limit or derive usage from the currently loaded catalog; it reads `used` and `limit` from the usage endpoint and invalidates that query after create, deactivate, and reactivate mutations.
 - Revisit when:
-  The plan-backed entitlement resolver is connected to metric usage and validation. `SubscriptionPlan` and `Subscription` now exist, but metric limits still use the temporary constant until that integration is complete.
+  No further action for the temporary constant; it has been removed. Revisit entitlement shape when more plan capabilities are enforced.
 
-### ADR-020: Shared Free Plan With Subscription Fallback
+### ADR-020: Explicit Current Subscription Per User
 
-- Status: Accepted, resolver integration pending
+- Status: Accepted
 - Date: 2026-06-09
 - Decision:
-  Store product entitlements in shared `SubscriptionPlan` rows. Seed one canonical active default plan with `code="free"`. Do not create a redundant free `Subscription` row whenever a user registers.
+  Store product entitlements in shared `SubscriptionPlan` rows and seed one canonical active default plan with `code="free"`. Registration must atomically create an active `Subscription` linking the new user to that plan.
 - Context:
-  Most users initially have no paid billing lifecycle to record. Creating one free subscription row per user would add storage and lifecycle complexity without representing an external subscription event.
+  Explicit assignment makes the current plan directly queryable and avoids ambiguous users with no entitlement state. Free subscriptions have no billing provider identifiers.
 - Current implementation:
-  The `subscriptions` app contains `SubscriptionPlan` and `Subscription`. Migration `0003_seed_free_subscription_plan` idempotently creates or repairs the free plan with an active custom metric limit of 3, no wearable connections, a 60-minute sync interval, and disabled analytics/CSV entitlements. `Subscription` stores a user's selected plan plus lifecycle and optional provider identifiers.
-- Resolution rule:
-  A future entitlement resolver will first look for the user's effective active subscription. If none exists, it will return the active default free plan. The absence of a `Subscription` row therefore means free-tier entitlement, not missing account data.
+  Migration `0003_seed_free_subscription_plan` creates the free plan. `create_user_with_subscription()` creates the user and free subscription inside `transaction.atomic()`. `get_current_subscription_plan()` resolves the plan from the user's current subscription without a silent fallback.
+- Current-subscription rule:
+  A conditional database constraint allows at most one subscription in `trialing`, `active`, `past_due`, or `incomplete` state per user. Cancelled rows remain as history.
 - Consequences:
-  The free plan is configured once and shared by all fallback users. Paid/trial/cancelled history remains explicit in `Subscription`. Registration stays independent from billing. Code must not assume every user has a subscription row.
+  Every registered user has explicit entitlement state. Missing current subscriptions are integrity errors. Upgrades must cancel the current row and create the replacement atomically so history is preserved.
 - Revisit when:
-  Product requirements need explicit free subscription history per user, plan-version snapshots, scheduled plan changes, or multiple simultaneous entitlement sources.
+  Product requirements need plan-version snapshots, scheduled plan changes, organization billing, or multiple entitlement sources.

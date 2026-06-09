@@ -142,7 +142,7 @@
   - Playwright starts the backend Docker Compose `e2e` profile automatically
   - Vite proxies `/api/*` to the E2E backend during Playwright runs
   - `POST /api/testing/reset/` clears only the isolated E2E database before each auth E2E test
-  - after flushing, the reset endpoint restores required system seed rows such as default metric definitions
+  - after flushing, the reset endpoint restores required system seed rows: default metric definitions and the canonical free subscription plan
 - Browser-level auth E2E currently covers:
   - register, login, dashboard metric definitions, real Resting Heart Rate metric-entry submission, visible saved metric-entry value, dashboard metric filter, settings, logout happy path
   - custom metric creation through `/metrics`, custom metric catalog visibility, custom metric dashboard visibility, and custom metric entry logging
@@ -161,6 +161,13 @@
   - metric-definition endpoints require JWT authentication
   - custom metric-definition creation enforces duplicate-slug protection, default-slug protection, and valid min/max ranges
   - backend metric-definition tests pass, and the broader backend suite passed after this slice
+- Subscription entitlement foundation now exists:
+  - `SubscriptionPlan` stores backend-owned limits and capabilities
+  - `Subscription` links a user to a plan and retains lifecycle/provider state
+  - migrations seed the canonical free plan
+  - registration atomically creates the user and an active free subscription
+  - the database prevents multiple current subscriptions per user
+  - metric usage and custom metric create/reactivate enforcement read the current plan's active custom metric limit
 - Metric entry backend create slice now exists:
   - `MetricEntry` model exists for user-owned metric data points
   - `POST /api/v1/metrics/entries/` creates manual entries for authenticated users

@@ -39,6 +39,7 @@ We derived entities from the functional requirements by asking: *"What data must
 **Current free-plan behavior**
 
 - Applying migrations creates one shared `SubscriptionPlan(code="free")` row.
-- Registering a user does not create a `Subscription` row automatically.
-- The next entitlement-service slice will resolve users without an active subscription to the active default free plan.
-- Until that resolver is wired into metric limits, the existing metric entitlement code still uses its temporary hard-coded limit.
+- Registration atomically creates the user and one active `Subscription` linked to the shared free plan.
+- Users are expected to have exactly one current subscription; missing current subscription data is treated as an integrity problem rather than silently falling back.
+- Trialing, active, past-due, and incomplete subscriptions count as current. Cancelled subscriptions remain historical.
+- Metric usage and create/reactivate enforcement resolve limits from the current subscription's plan.

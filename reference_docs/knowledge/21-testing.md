@@ -273,9 +273,13 @@ Current backend metrics testing checkpoint:
 - Custom metric-definition creation rejects duplicate slugs for the same user.
 - Custom metric-definition creation rejects slugs already used by system default metrics.
 - Custom metric-definition creation rejects invalid ranges where `max_value <= min_value`.
-- Custom metric-definition creation rejects creating a fourth active custom metric under the temporary MVP entitlement limit.
+- A free-plan user is rejected when creating a fourth active custom metric.
+- A Pro-plan user with limit 10 can create a fourth active custom metric, proving enforcement is plan-backed rather than globally hard-coded.
 - Subscription model tests verify that plan entitlement fields persist, a subscription associates a user with a plan, and migrations seed the canonical free plan.
 - The free-plan seed test reads `code="free"` from the migrated test database; independent model tests use other codes so they do not collide with the plan's unique code.
+- Subscription service tests resolve current plans and ignore cancelled historical subscriptions.
+- Registration tests prove an active free subscription is created and that user creation rolls back when the free plan is unavailable.
+- The database constraint test proves a user cannot hold multiple current subscriptions.
 - Custom metric-definition tests prove inactive archived custom metrics do not count toward the active custom metric limit.
 - Authenticated users can partially update their own custom metric definitions, including inactive custom definitions for reactivation.
 - Custom metric-definition update requires authentication.
@@ -285,10 +289,10 @@ Current backend metrics testing checkpoint:
 - Custom metric-definition update rejects invalid ranges where a submitted bound conflicts with the existing stored bound.
 - Custom metric-definition tests cover soft deactivation and reactivation through `is_active`.
 - Custom metric-definition tests prove reactivation is blocked at the active custom metric limit, while metadata updates to an already-active custom metric remain allowed at the limit.
-- `tests/test_metric_usage.py` proves the authenticated usage endpoint returns the caller's active custom metric count and backend-owned limit.
+- `tests/test_metric_usage.py` proves the authenticated usage endpoint returns the caller's active custom metric count and current plan limit for both free and Pro subscriptions.
 - `tests/test_metric_definition_concurrency.py` uses real PostgreSQL transactions, separate thread connections, real authenticated API requests, and controlled synchronization to prove two concurrent creates cannot both claim the final active custom metric slot.
 - The same concurrency module proves two concurrent archived-metric reactivations cannot both claim the final slot.
-- These tests assert both the HTTP outcome (`201/400` for create, `200/400` for reactivation) and the database invariant of exactly 3 active custom metrics.
+- These free-plan concurrency tests assert both the HTTP outcome (`201/400` for create, `200/400` for reactivation) and the database invariant of exactly 3 active custom metrics.
 - The concurrency tests patch only synchronization points around the real usage/validation functions; URL resolution, JWT authentication, DRF views/serializers, ORM writes, transactions, and PostgreSQL row locks remain real.
 - `tests/test_metric_entries.py` now covers the first metric-entry write slice.
 - Authenticated users can create a manual metric entry for an active default metric definition by sending the metric slug.
@@ -353,7 +357,7 @@ Latest local verification checkpoint:
 - `npm run test` passed after adding active custom metric usage and limit-message coverage.
 - `npm run build` passed with the active custom metric usage indicator.
 - `npm run test:e2e` passed with 6 Playwright tests against the isolated Docker-backed E2E runtime.
-- `docker compose exec web uv run pytest` passed with the active custom metric entitlement tests.
+- `docker compose exec web uv run pytest` passed with `101` backend tests after explicit subscriptions and plan-backed limits were added.
 
 Frontend test code hygiene:
 - route tests may start with repeated setup such as:

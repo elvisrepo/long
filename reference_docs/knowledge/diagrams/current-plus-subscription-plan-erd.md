@@ -6,7 +6,7 @@
 
 ## Scope
 - `User`, `MetricDefinition`, `MetricEntry`, `SubscriptionPlan`, and `Subscription` are implemented domain tables.
-- The plan-backed entitlement resolver is not implemented yet; metric limits still use the temporary constant.
+- Registration creates an explicit active free subscription, and metric limits resolve through the current subscription's plan.
 - Django framework tables such as auth groups, permissions, sessions, admin logs, and JWT token blacklist tables are intentionally omitted.
 
 ```mermaid
@@ -99,5 +99,7 @@ erDiagram
 - `MetricDefinition.user_id` is nullable because system defaults are shared by every user.
 - `MetricEntry.user_id` is required because metric data is always owned by exactly one user.
 - Migration `subscriptions.0003` seeds one shared active default `free` plan.
-- User registration does not create a free `Subscription` row.
-- The next entitlement-service slice will resolve users without an effective active subscription to the default free plan.
+- User registration atomically creates one active `Subscription` linked to that plan.
+- A conditional unique constraint permits at most one current subscription per user.
+- Current statuses are `trialing`, `active`, `past_due`, and `incomplete`; `cancelled` rows are historical.
+- Metric usage and enforcement read `active_custom_metric_limit` from the current plan.

@@ -6,6 +6,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.metrics.defaults import seed_default_metric_definitions
+from apps.subscriptions.defaults import seed_default_subscription_plan
 
 
 @api_view(["POST"])
@@ -18,4 +19,5 @@ def reset_e2e_database_view(request: Request) -> Response:
     # that Playwright expects after each reset.
     call_command("flush", "--no-input", verbosity=0)
     seed_default_metric_definitions()
+    seed_default_subscription_plan()
     return Response(status=status.HTTP_204_NO_CONTENT)

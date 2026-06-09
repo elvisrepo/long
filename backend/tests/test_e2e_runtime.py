@@ -29,9 +29,10 @@ def test_e2e_settings_use_dedicated_database_and_enable_testing_api():
 
 
 @pytest.mark.django_db(transaction=True)
-def test_e2e_reset_endpoint_flushes_database_and_restores_default_metrics():
+def test_e2e_reset_endpoint_flushes_database_and_restores_seed_data():
     from common.testing_views import reset_e2e_database_view
     from apps.metrics.models import MetricDefinition
+    from apps.subscriptions.models import SubscriptionPlan
 
     User = get_user_model()
     User.objects.create_user(
@@ -51,6 +52,13 @@ def test_e2e_reset_endpoint_flushes_database_and_restores_default_metrics():
     assert MetricDefinition.objects.filter(
         user=None,
         slug="resting_hr",
+        is_active=True,
+    ).exists()
+    # Registration requires an explicit current subscription, so E2E reset
+    # must also restore the shared plan assigned during registration.
+    assert SubscriptionPlan.objects.filter(
+        code="free",
+        is_default=True,
         is_active=True,
     ).exists()
 
