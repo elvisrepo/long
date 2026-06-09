@@ -24,6 +24,13 @@ def authenticate_client_for(email: str) -> tuple[APIClient, object]:
 def test_metric_usage_returns_active_custom_metric_usage():
       client, user = authenticate_client_for("alice@example.com")
 
+      free_plan = SubscriptionPlan.objects.get(code="free")
+      Subscription.objects.create(
+          user=user,
+          plan=free_plan,
+          status=Subscription.Status.ACTIVE,
+      )
+
       MetricDefinition.objects.create(
           user=user,
           name="Mood",
