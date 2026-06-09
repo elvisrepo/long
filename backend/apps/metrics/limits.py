@@ -4,61 +4,56 @@ from django.contrib.auth.models import AbstractBaseUser
 from rest_framework import serializers
 
 from apps.metrics.models import MetricDefinition
+from apps.subscriptions.services import get_current_subscription_plan
 
 
-ACTIVE_CUSTOM_METRIC_LIMIT = 3
 ACTIVE_CUSTOM_METRIC_LIMIT_MESSAGE = "Active custom metric limit reached."
 
+
 class ActiveCustomMetricUsage(TypedDict):
-      used: int
-      limit: int
+    used: int
+    limit: int
+
 
 def get_active_custom_metric_usage(
-      user: AbstractBaseUser,
-  ) -> ActiveCustomMetricUsage:
-      used = MetricDefinition.objects.filter(
-          user=user,
-          is_default=False,
-          is_active=True,
-      ).count()
+    user: AbstractBaseUser,
+) -> ActiveCustomMetricUsage:
+    plan = get_current_subscription_plan(user)
+    used = MetricDefinition.objects.filter(
+        user=user,
+        is_default=False,
+        is_active=True,
+    ).count()
 
-      return {
-          "used": used,
-          "limit": ACTIVE_CUSTOM_METRIC_LIMIT,
-      }
+    return {
+        "used": used,
+        "limit": plan.active_custom_metric_limit,
+    }
+
 
 def validate_active_custom_metric_limit(
-      user: AbstractBaseUser,
-      *,
-      excluding_definition: MetricDefinition | None = None,
-  ) -> None:
-      if excluding_definition is None:
-          used = get_active_custom_metric_usage(user)["used"]
-      else:
-          used = MetricDefinition.objects.filter(
-              user=user,
-              is_default=False,
-              is_active=True,
-          ).exclude(id=excluding_definition.id).count()
+    user: AbstractBaseUser,
+    *,
+    excluding_definition: MetricDefinition | None = None,
+) -> None:
+    if excluding_definition is None:
+        usage = get_active_custom_metric_usage(user)
+        used = usage["used"]
+        limit = usage["limit"]
+    else:
+        plan = get_current_subscription_plan(user)
+        used = (
+            MetricDefinition.objects.filter(
+                user=user,
+                is_default=False,
+                is_active=True,
+            )
+            .exclude(id=excluding_definition.id)
+            .count()
+        )
+        limit = plan.active_custom_metric_limit
 
-      if used >= ACTIVE_CUSTOM_METRIC_LIMIT:
-          raise serializers.ValidationError(
-              {"non_field_errors": [ACTIVE_CUSTOM_METRIC_LIMIT_MESSAGE]}
-          )
-
-
-
-'''
- The * means every argument after it must be passed by keyword.
-
-  Allowed:
-
-  validate_active_custom_metric_limit(user, excluding_definition=definition)
-
-  Not allowed:
-
-  validate_active_custom_metric_limit(user, definition)
-
-  Why use it here? Clarity. excluding_definition is optional and important. Requiring the keyword makes the call
-  self-documenting and prevents accidentally passing the wrong positional value
-'''
+    if used >= limit:
+        raise serializers.ValidationError(
+            {"non_field_errors": [ACTIVE_CUSTOM_METRIC_LIMIT_MESSAGE]}
+        )
