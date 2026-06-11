@@ -6,7 +6,10 @@ from django.contrib.auth import get_user_model
 from django.db import close_old_connections, connections, transaction
 
 from apps.subscriptions.models import Subscription, SubscriptionPlan
-from apps.subscriptions.services import change_subscription_plan
+from apps.subscriptions.services import (
+    StaleSubscriptionTransitionError,
+    change_subscription_plan,
+)
 
 
 # Real commits and separate thread connections are required to observe
@@ -28,7 +31,7 @@ def create_plan(
     )
 
 
-def test_concurrent_plan_changes_leave_one_current_subscription():
+def test_concurrent_plan_changes_reject_stale_second_transition():
     user = get_user_model().objects.create_user(
         email="concurrent-upgrade@example.com",
         password="strong-password-123",
@@ -49,7 +52,7 @@ def test_concurrent_plan_changes_leave_one_current_subscription():
     pro_plan = create_plan(code="pro", metric_limit=10)
     premium_plan = create_plan(code="premium", metric_limit=25)
 
-    Subscription.objects.create(
+    free_subscription = Subscription.objects.create(
         user=user,
         plan=free_plan,
         status=Subscription.Status.ACTIVE,
@@ -59,7 +62,7 @@ def test_concurrent_plan_changes_leave_one_current_subscription():
     first_transition_created = Event()  # Pro exists, but its transaction is open.
     release_first_transaction = Event()  # Allows the Pro transaction to commit.
     second_transition_started = Event()  # Premium worker has started.
-    second_transition_finished = Event()  # Premium transition has committed.
+    second_transition_finished = Event()  # Premium attempt returned or raised.
 
     def change_to_pro() -> None:
         # Each worker needs a connection independent from the test thread and
@@ -77,6 +80,7 @@ def test_concurrent_plan_changes_leave_one_current_subscription():
                 change_subscription_plan(
                     user=user,
                     plan=pro_plan,
+                    expected_subscription_id=free_subscription.id,
                 )
                 first_transition_created.set()
                 release_first_transaction.wait(timeout=5)
@@ -89,13 +93,15 @@ def test_concurrent_plan_changes_leave_one_current_subscription():
 
         try:
             # The service tries to lock the same user row and must block until
-            # change_to_pro releases its outer transaction.
+            # change_to_pro releases its outer transaction. It then rejects
+            # this request because Free is no longer the current subscription.
             change_subscription_plan(
                 user=user,
                 plan=premium_plan,
+                expected_subscription_id=free_subscription.id,
             )
-            second_transition_finished.set()
         finally:
+            second_transition_finished.set()
             connections.close_all()
 
     with ThreadPoolExecutor(max_workers=2) as executor:
@@ -115,7 +121,8 @@ def test_concurrent_plan_changes_leave_one_current_subscription():
             release_first_transaction.set()
 
         first_future.result(timeout=5)
-        second_future.result(timeout=5)
+        with pytest.raises(StaleSubscriptionTransitionError):
+            second_future.result(timeout=5)
 
     # Current statuses must identify exactly one effective subscription.
     current_subscriptions = Subscription.objects.filter(
@@ -129,17 +136,13 @@ def test_concurrent_plan_changes_leave_one_current_subscription():
     )
 
     assert current_subscriptions.count() == 1
-    assert current_subscriptions.get().plan == premium_plan
+    assert current_subscriptions.get().plan == pro_plan
 
-    # Each transition preserves the replaced row as cancelled history.
+    # Only the accepted transition changes history.
     assert Subscription.objects.filter(
         user=user,
         plan=free_plan,
         status=Subscription.Status.CANCELLED,
     ).exists()
-    assert Subscription.objects.filter(
-        user=user,
-        plan=pro_plan,
-        status=Subscription.Status.CANCELLED,
-    ).exists()
-    assert Subscription.objects.filter(user=user).count() == 3
+    assert Subscription.objects.filter(user=user, plan=premium_plan).exists() is False
+    assert Subscription.objects.filter(user=user).count() == 2

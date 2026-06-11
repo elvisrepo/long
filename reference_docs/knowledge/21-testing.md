@@ -278,6 +278,8 @@ Current backend metrics testing checkpoint:
 - Subscription model tests verify that plan entitlement fields persist, a subscription associates a user with a plan, and migrations seed the canonical free plan.
 - The free-plan seed test reads `code="free"` from the migrated test database; independent model tests use other codes so they do not collide with the plan's unique code.
 - Subscription service tests resolve current plans and ignore cancelled historical subscriptions.
+- Subscription service tests prove a transition succeeds only when its expected subscription ID still identifies the current subscription, and that stale requests make no writes.
+- `tests/test_subscription_concurrency.py` uses separate database connections and a controlled PostgreSQL row-lock race to prove two transitions based on the same Free subscription cannot both succeed; Free is replaced by Pro and the stale Premium request is rejected.
 - Registration tests prove an active free subscription is created and that user creation rolls back when the free plan is unavailable.
 - The database constraint test proves a user cannot hold multiple current subscriptions.
 - Custom metric-definition tests prove inactive archived custom metrics do not count toward the active custom metric limit.

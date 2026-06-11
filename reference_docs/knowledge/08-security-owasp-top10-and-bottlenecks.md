@@ -39,6 +39,8 @@ Current subscription-integrity boundary:
 - Registration creates the user and active free subscription in one transaction, so neither row is persisted alone.
 - A conditional unique constraint permits at most one current subscription per user across `trialing`, `active`, `past_due`, and `incomplete`.
 - Cancelled subscriptions are historical and do not conflict with a replacement current subscription.
+- Plan transitions serialize on the user row and require `expected_subscription_id`; a request that observed an older current subscription is rejected after acquiring the lock instead of overwriting newer state.
+- Future HTTP callers should expose this stale-write rejection as `409 Conflict`. Stripe event consumers also need idempotency and event-order enforcement.
 
 #### Edge Cases
 - **Duplicate data from wearable sync**: Dedup by `(user_id, metric_definition_id, recorded_at, source, source_connection_id)` plus an optional `external_source_id`. If the same Samsung-originated record is uploaded twice, ignore or update it idempotently.

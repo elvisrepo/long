@@ -15,7 +15,8 @@ The requests are serialized:
 3. The second transition waits in PostgreSQL.
 4. The first transaction commits and releases the lock.
 5. The second transition acquires the lock and reads the newly committed state.
-6. It then performs its own transition.
+6. It detects that the subscription observed by its caller is no longer current.
+7. It raises `StaleSubscriptionTransitionError` without changing subscription state.
 
 The test does **not** update a `SubscriptionPlan` row. Plans such as Free, Pro, and Premium remain shared definitions. It updates the user's subscription history:
 
@@ -27,13 +28,15 @@ After transaction 1 commits:
 Free       cancelled
 Pro        active
 
-After transaction 2 commits:
+After transaction 2 is rejected:
 Free       cancelled
-Pro        cancelled
-Premium    active
+Pro        active
+Premium    not created
 ```
 
-Both transitions succeed sequentially. The second committed transition determines the user's final effective plan.
+Only the first transition succeeds. Both workers pass the Free subscription ID
+they originally observed. After waiting for the lock, the second worker finds
+that Pro is current instead, so its stale transition is rejected.
 
 ## Runtime Structure
 
@@ -47,7 +50,7 @@ flowchart TB
 
             Main["Main Test Thread"]
             T1["Worker Thread 1<br/>Free → Pro"]
-            T2["Worker Thread 2<br/>Pro → Premium"]
+            T2["Worker Thread 2<br/>Free → Premium request"]
 
             Events["Shared in-process Events<br/>first_transition_created<br/>release_first_transaction<br/>second_transition_started<br/>second_transition_finished"]
 
@@ -98,7 +101,7 @@ sequenceDiagram
     participant C2 as Psycopg connection 2
     participant T2 as Worker thread 2
 
-    M->>T1: submit change_to_pro()
+    M->>T1: submit change_to_pro(expected=Free ID)
 
     T1->>C1: BEGIN outer transaction
     C1->>P1: BEGIN
@@ -123,7 +126,7 @@ sequenceDiagram
     T1->>M: first_transition_created.set()
     Note over T1: Wait before committing outer transaction
 
-    M->>T2: submit change_to_premium()
+    M->>T2: submit change_to_premium(expected=Free ID)
     T2->>M: second_transition_started.set()
 
     T2->>C2: BEGIN transaction
@@ -150,14 +153,9 @@ sequenceDiagram
     C2->>P2: SELECT current subscription
     P2-->>T2: Pro / active
 
-    T2->>C2: Cancel Pro
-    C2->>P2: UPDATE Pro SET status=cancelled
-
-    T2->>C2: Create Premium
-    C2->>P2: INSERT Premium / active
-
-    T2->>C2: COMMIT
-    C2->>P2: COMMIT
+    T2->>T2: Compare Pro ID with expected Free ID
+    T2-->>M: Raise StaleSubscriptionTransitionError
+    C2->>P2: ROLLBACK
     P2->>L: Release Alice's row lock
 
     T2->>M: second_transition_finished.set()
@@ -177,16 +175,27 @@ sequenceDiagram
 10. While waiting on database I/O, Python can run the main thread and other worker.
 11. Committing transaction one releases the row lock.
 12. PostgreSQL wakes transaction two, which reads the newly committed Pro subscription.
+13. The service compares Pro's ID with the expected Free ID and rejects the stale request.
 
 ## Guarantees And Limits
 
 The row lock and conditional unique constraint guarantee:
 
 - transitions for one user execute sequentially;
+- a transition only replaces the exact subscription state its caller observed;
 - only one current subscription remains;
 - each replaced subscription is preserved as cancelled history;
 - different users can transition concurrently because they lock different user rows.
 
-They do not guarantee that the first requested plan wins. If two valid transitions are submitted, both may succeed sequentially and the last committed transition becomes current.
+The row lock alone only serializes transitions. Stale-transition protection is
+provided by `expected_subscription_id`, which is checked after acquiring the
+lock. Therefore, competing requests based on the same current subscription
+cannot both succeed.
 
-For user-driven HTTP requests, this is typically last-write-wins behavior. Stripe webhook processing will also need event idempotency and ordering rules so an old or replayed event cannot overwrite newer subscription state merely because it acquires the lock later.
+The current implementation is a service contract, not yet a public HTTP
+endpoint. A future plan-change endpoint should map
+`StaleSubscriptionTransitionError` to `409 Conflict`.
+
+Stripe webhook processing will additionally need event idempotency and provider
+event-order checks. The expected subscription ID protects local state
+transitions but does not by itself prove that a Stripe event is new or unique.

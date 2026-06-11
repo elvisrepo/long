@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from apps.subscriptions.models import Subscription, SubscriptionPlan
 from apps.subscriptions.services import (
+      StaleSubscriptionTransitionError,
       change_subscription_plan,
       get_current_subscription_plan,
   )
@@ -64,6 +65,7 @@ def test_change_subscription_plan_preserves_history():
       new_subscription = change_subscription_plan(
           user=user,
           plan=pro_plan,
+          expected_subscription_id=free_subscription.id,
       )
 
       free_subscription.refresh_from_db()
@@ -120,6 +122,7 @@ def test_change_subscription_plan_rolls_back_when_replacement_creation_fails():
               change_subscription_plan(
                   user=user,
                   plan=pro_plan,
+                  expected_subscription_id=free_subscription.id,
               )
 
       free_subscription.refresh_from_db()
@@ -127,6 +130,51 @@ def test_change_subscription_plan_rolls_back_when_replacement_creation_fails():
       assert free_subscription.status == Subscription.Status.ACTIVE
       assert free_subscription.cancelled_at is None
       assert Subscription.objects.filter(user=user).count() == 1
+
+
+def test_change_subscription_plan_rejects_stale_expected_subscription():
+      user = get_user_model().objects.create_user(
+          email="stale-upgrade@example.com",
+          password="strong-password-123",
+      )
+      free_plan = SubscriptionPlan.objects.get(code="free")
+      pro_plan = SubscriptionPlan.objects.create(
+          code="pro-stale",
+          name="Pro",
+          active_custom_metric_limit=10,
+          wearable_connection_limit=2,
+          sync_interval_minutes=15,
+      )
+      premium_plan = SubscriptionPlan.objects.create(
+          code="premium-stale",
+          name="Premium",
+          active_custom_metric_limit=25,
+          wearable_connection_limit=5,
+          sync_interval_minutes=5,
+      )
+      free_subscription = Subscription.objects.create(
+          user=user,
+          plan=free_plan,
+          status=Subscription.Status.ACTIVE,
+      )
+      stale_subscription = Subscription.objects.create(
+          user=user,
+          plan=pro_plan,
+          status=Subscription.Status.CANCELLED,
+      )
+
+      with pytest.raises(StaleSubscriptionTransitionError):
+          change_subscription_plan(
+              user=user,
+              plan=premium_plan,
+              expected_subscription_id=stale_subscription.id,
+          )
+
+      free_subscription.refresh_from_db()
+
+      assert free_subscription.status == Subscription.Status.ACTIVE
+      assert free_subscription.cancelled_at is None
+      assert Subscription.objects.filter(user=user).count() == 2
 
 
 

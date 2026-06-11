@@ -200,6 +200,12 @@ Metric-entry detail behavior:
 | POST | `/api/v1/subscriptions/portal/` | Stripe Customer Portal link | |
 | POST | `/api/v1/webhooks/stripe/` | Stripe webhook receiver | No JWT — uses Stripe signature verification instead |
 
+Subscription transition contract:
+- The internal transition service requires the ID of the subscription state the caller observed.
+- It locks the user row, reloads the current subscription, and only proceeds when that ID still matches.
+- A future HTTP plan-change or checkout-completion endpoint must return `409 Conflict` when the expected subscription was already replaced.
+- Stripe webhook handlers still require provider event idempotency and ordering checks in addition to this local stale-write guard.
+
 #### Samsung / Wearables (R2 internal spike, R3 MVP, JWT required)
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|

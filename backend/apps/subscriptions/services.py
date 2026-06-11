@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractBaseUser
 from django.db import transaction
@@ -12,6 +14,10 @@ CURRENT_SUBSCRIPTION_STATUSES = (
     Subscription.Status.PAST_DUE,
     Subscription.Status.INCOMPLETE,
 )
+
+
+class StaleSubscriptionTransitionError(Exception):
+    """Raised when the subscription observed by the caller is no longer current."""
 
 
 def get_current_subscription_plan(
@@ -36,6 +42,7 @@ def change_subscription_plan(
     *,
     user: AbstractBaseUser,
     plan: SubscriptionPlan,
+    expected_subscription_id: UUID,
 ) -> Subscription:
     # 1. Lock the user row so plan transitions for this account run one at a time.
     get_user_model().objects.select_for_update().get(pk=user.pk)
@@ -46,6 +53,11 @@ def change_subscription_plan(
         status__in=CURRENT_SUBSCRIPTION_STATUSES,
     )
 
+    # Reject a request that was based on subscription state replaced by an
+    # earlier transition while this request was waiting for the user-row lock.
+    if current_subscription.id != expected_subscription_id:
+        raise StaleSubscriptionTransitionError
+
     # 3. Turn the current row into history and record when it stopped being current.
     current_subscription.status = Subscription.Status.CANCELLED
     current_subscription.cancelled_at = timezone.now()
@@ -53,7 +65,7 @@ def change_subscription_plan(
         update_fields=["status", "cancelled_at", "updated_at"],
     )
 
-    # 4.Create the replacement current subscription using the requested plan.
+    # 4. Create the replacement current subscription using the requested plan.
     return Subscription.objects.create(
         user=user,
         plan=plan,
