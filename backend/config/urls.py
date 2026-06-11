@@ -26,6 +26,7 @@ urlpatterns = [
     path("tasks/ping/", ping_task_view, name="tasks-ping"),
     path("api/auth/", include("apps.users.urls")),
     path("api/v1/metrics/", include("apps.metrics.urls")),
+    path("api/v1/subscriptions/", include("apps.subscriptions.urls")),
 ]
 
 if getattr(settings, "ENABLE_E2E_TESTING_API", False):
