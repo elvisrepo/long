@@ -4,6 +4,7 @@ from django.db import IntegrityError, transaction
 import pytest
 
 from apps.subscriptions.models import Subscription, SubscriptionPlan
+from apps.subscriptions.models import SubscriptionPrice
 
 
 pytestmark = pytest.mark.django_db
@@ -98,3 +99,38 @@ def test_user_cannot_have_multiple_current_subscriptions():
             )
 
     assert Subscription.objects.filter(user=user).count() == 1
+
+def test_subscription_plan_supports_multiple_billing_prices():
+
+    pro_plan = SubscriptionPlan.objects.create(
+          code="pro-pricing",
+          name="Pro",
+          active_custom_metric_limit=10,
+          wearable_connection_limit=2,
+          sync_interval_minutes=15,
+      )
+    
+    monthly_price = SubscriptionPrice.objects.create(
+          plan=pro_plan,
+          provider="stripe",
+          provider_price_id="price_pro_monthly",
+          currency="usd",
+          unit_amount=1000,
+          billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+          is_active=True,
+      )
+    
+    yearly_price = SubscriptionPrice.objects.create(
+          plan=pro_plan,
+          provider="stripe",
+          provider_price_id="price_pro_yearly",
+          currency="usd",
+          unit_amount=10000,
+          billing_interval=SubscriptionPrice.BillingInterval.YEAR,
+          is_active=True,
+      )
+    
+    assert list(pro_plan.prices.order_by("unit_amount")) == [
+          monthly_price,
+          yearly_price,
+      ]
