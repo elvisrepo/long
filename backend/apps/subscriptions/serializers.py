@@ -24,3 +24,11 @@ class CurrentSubscriptionSerializer(serializers.ModelSerializer):
         model = Subscription
         fields = ["id", "status", "plan"]
         read_only_fields = fields
+
+
+class SubscriptionPlanCatalogSerializer(SubscriptionPlanSerializer):
+      class Meta(SubscriptionPlanSerializer.Meta):
+          fields = [
+              *SubscriptionPlanSerializer.Meta.fields,
+              "is_default",
+          ]
