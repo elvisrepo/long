@@ -41,6 +41,8 @@ Current subscription-integrity boundary:
 - Cancelled subscriptions are historical and do not conflict with a replacement current subscription.
 - `GET /api/v1/subscriptions/current/` requires authentication and scopes its lookup to `request.user`.
 - The current-subscription endpoint is read-only. `PATCH` returns `405`, preventing clients from directly assigning themselves a paid plan or entitlement values.
+- `GET /api/v1/subscriptions/plans/` is intentionally public but returns only backend-defined active plan metadata and entitlements; it performs no subscription mutation and excludes retired plans.
+- Public catalog data is informational. Paid access must still be granted only through a trusted Stripe checkout/webhook flow.
 - Plan transitions serialize on the user row and require `expected_subscription_id`; a request that observed an older current subscription is rejected after acquiring the lock instead of overwriting newer state.
 - Future HTTP callers should expose this stale-write rejection as `409 Conflict`. Stripe event consumers also need idempotency and event-order enforcement.
 

@@ -196,7 +196,7 @@ Metric-entry detail behavior:
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
 | GET | `/api/v1/subscriptions/current/` | Current subscription and plan entitlements | JWT required; scoped to `request.user`; read-only |
-| GET | `/api/v1/subscriptions/plans/` | Available plans | Public-ish — could be unauthenticated |
+| GET | `/api/v1/subscriptions/plans/` | Active plan catalog and entitlements | Public; active plans only; default plan first |
 | POST | `/api/v1/subscriptions/checkout/` | Create Stripe Checkout session | Returns redirect URL, idempotent per session |
 | POST | `/api/v1/subscriptions/portal/` | Stripe Customer Portal link | |
 | POST | `/api/v1/webhooks/stripe/` | Stripe webhook receiver | No JWT — uses Stripe signature verification instead |
@@ -206,6 +206,13 @@ Current-subscription read behavior:
 - Current means `trialing`, `active`, `past_due`, or `incomplete`; cancelled rows remain history and are excluded.
 - The subscription and its plan are loaded together with `select_related("plan")`.
 - The route intentionally does not support `PATCH`. A client cannot grant itself paid entitlements by submitting a plan code.
+
+Plan-catalog behavior:
+- `GET /api/v1/subscriptions/plans/` does not require authentication so registration and pricing screens can render available tiers.
+- Only plans with `is_active=True` are returned; retired plans remain available to historical subscription rows but cannot be newly selected.
+- The default plan is ordered first, followed by plan code for deterministic responses.
+- The response exposes backend-owned entitlement values and `is_default`.
+- Prices and Stripe Price IDs are not part of this contract yet. They must be modeled before Stripe Checkout is implemented rather than inferred by the frontend.
 
 Subscription transition contract:
 - The internal transition service requires the ID of the subscription state the caller observed.
