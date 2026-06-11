@@ -280,6 +280,8 @@ Current backend metrics testing checkpoint:
 - Subscription service tests resolve current plans and ignore cancelled historical subscriptions.
 - Subscription service tests prove a transition succeeds only when its expected subscription ID still identifies the current subscription, and that stale requests make no writes.
 - `tests/test_subscription_concurrency.py` uses separate database connections and a controlled PostgreSQL row-lock race to prove two transitions based on the same Free subscription cannot both succeed; Free is replaced by Pro and the stale Premium request is rejected.
+- `tests/test_current_subscription.py` proves the current-subscription endpoint requires authentication, returns the caller's subscription and plan entitlements, and does not leak another user's plan.
+- The current-subscription API tests also prove `PATCH` returns `405`, so an authenticated client cannot self-assign a paid plan through the read endpoint.
 - Registration tests prove an active free subscription is created and that user creation rolls back when the free plan is unavailable.
 - The database constraint test proves a user cannot hold multiple current subscriptions.
 - Custom metric-definition tests prove inactive archived custom metrics do not count toward the active custom metric limit.

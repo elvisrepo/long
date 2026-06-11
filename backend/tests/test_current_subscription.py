@@ -85,3 +85,23 @@ def test_current_subscription_is_scoped_to_authenticated_user():
     assert response.status_code == 200
     assert response.json()["plan"]["code"] == "free"
 
+def test_current_subscription_does_not_allow_client_plan_changes():
+      client, user = authenticate_client_for("alice@example.com")
+      free_plan = SubscriptionPlan.objects.get(code="free")
+      subscription = Subscription.objects.create(
+          user=user,
+          plan=free_plan,
+          status=Subscription.Status.ACTIVE,
+      )
+
+      response = client.patch(
+          "/api/v1/subscriptions/current/",
+          {
+              "plan_code": "pro",
+              "expected_subscription_id": str(subscription.id),
+          },
+          format="json",
+      )
+
+      assert response.status_code == 405
+

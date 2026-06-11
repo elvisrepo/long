@@ -39,6 +39,8 @@ Current subscription-integrity boundary:
 - Registration creates the user and active free subscription in one transaction, so neither row is persisted alone.
 - A conditional unique constraint permits at most one current subscription per user across `trialing`, `active`, `past_due`, and `incomplete`.
 - Cancelled subscriptions are historical and do not conflict with a replacement current subscription.
+- `GET /api/v1/subscriptions/current/` requires authentication and scopes its lookup to `request.user`.
+- The current-subscription endpoint is read-only. `PATCH` returns `405`, preventing clients from directly assigning themselves a paid plan or entitlement values.
 - Plan transitions serialize on the user row and require `expected_subscription_id`; a request that observed an older current subscription is rejected after acquiring the lock instead of overwriting newer state.
 - Future HTTP callers should expose this stale-write rejection as `409 Conflict`. Stripe event consumers also need idempotency and event-order enforcement.
 

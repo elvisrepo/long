@@ -195,15 +195,22 @@ Metric-entry detail behavior:
 #### Subscriptions (R4+, JWT required)
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
+| GET | `/api/v1/subscriptions/current/` | Current subscription and plan entitlements | JWT required; scoped to `request.user`; read-only |
 | GET | `/api/v1/subscriptions/plans/` | Available plans | Public-ish — could be unauthenticated |
 | POST | `/api/v1/subscriptions/checkout/` | Create Stripe Checkout session | Returns redirect URL, idempotent per session |
 | POST | `/api/v1/subscriptions/portal/` | Stripe Customer Portal link | |
 | POST | `/api/v1/webhooks/stripe/` | Stripe webhook receiver | No JWT — uses Stripe signature verification instead |
 
+Current-subscription read behavior:
+- `GET /api/v1/subscriptions/current/` returns the authenticated user's current subscription `id`, lifecycle `status`, plan identity, and backend-owned entitlement values.
+- Current means `trialing`, `active`, `past_due`, or `incomplete`; cancelled rows remain history and are excluded.
+- The subscription and its plan are loaded together with `select_related("plan")`.
+- The route intentionally does not support `PATCH`. A client cannot grant itself paid entitlements by submitting a plan code.
+
 Subscription transition contract:
 - The internal transition service requires the ID of the subscription state the caller observed.
 - It locks the user row, reloads the current subscription, and only proceeds when that ID still matches.
-- A future HTTP plan-change or checkout-completion endpoint must return `409 Conflict` when the expected subscription was already replaced.
+- A future trusted checkout-completion or webhook boundary must return or record a conflict when the expected subscription was already replaced.
 - Stripe webhook handlers still require provider event idempotency and ordering checks in addition to this local stale-write guard.
 
 #### Samsung / Wearables (R2 internal spike, R3 MVP, JWT required)
