@@ -5,7 +5,11 @@ from django.contrib.auth.models import AbstractBaseUser
 from django.db import transaction
 from django.utils import timezone
 
-from apps.subscriptions.models import Subscription, SubscriptionPlan
+from apps.subscriptions.models import (
+      Subscription,
+      SubscriptionPlan,
+      SubscriptionPrice,
+  )
 
 
 CURRENT_SUBSCRIPTION_STATUSES = (
@@ -42,6 +46,7 @@ def change_subscription_plan(
     *,
     user: AbstractBaseUser,
     plan: SubscriptionPlan,
+    price: SubscriptionPrice | None,
     expected_subscription_id: UUID,
 ) -> Subscription:
     # 1. Lock the user row so plan transitions for this account run one at a time.
@@ -69,5 +74,6 @@ def change_subscription_plan(
     return Subscription.objects.create(
         user=user,
         plan=plan,
+        price=price,
         status=Subscription.Status.ACTIVE,
     )

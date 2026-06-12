@@ -2,7 +2,11 @@ import pytest
 from django.contrib.auth import get_user_model
 from unittest.mock import patch
 
-from apps.subscriptions.models import Subscription, SubscriptionPlan
+from apps.subscriptions.models import (
+      Subscription,
+      SubscriptionPlan,
+      SubscriptionPrice,
+  )
 from apps.subscriptions.services import (
       StaleSubscriptionTransitionError,
       change_subscription_plan,
@@ -177,9 +181,44 @@ def test_change_subscription_plan_rejects_stale_expected_subscription():
       assert Subscription.objects.filter(user=user).count() == 2
 
 
+def test_change_subscription_plan_stores_selected_price():
+    user = get_user_model().objects.create_user(
+          email="priced-upgrade@example.com",
+          password="strong-password-123",
+      )
+    free_plan = SubscriptionPlan.objects.get(code="free")
+    pro_plan = SubscriptionPlan.objects.create(
+          code="pro-priced-upgrade",
+          name="Pro",
+          active_custom_metric_limit=10,
+          wearable_connection_limit=2,
+          sync_interval_minutes=15,
+      )
+    
+    monthly_price = SubscriptionPrice.objects.create(
+          plan=pro_plan,
+          provider=SubscriptionPrice.Provider.STRIPE,
+          provider_price_id="price_pro_upgrade_monthly",
+          currency="usd",
+          unit_amount=1000,
+          billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+    )
 
+    free_subscription = Subscription.objects.create(
+          user=user,
+          plan=free_plan,
+          status=Subscription.Status.ACTIVE,
+      )
+    
+    new_subscription = change_subscription_plan(
+          user=user,
+          plan=pro_plan,
+          price=monthly_price,
+          expected_subscription_id=free_subscription.id,
+      )
 
-
+    assert new_subscription.plan == pro_plan
+    assert new_subscription.price == monthly_price
 
 '''
 Begin transaction
