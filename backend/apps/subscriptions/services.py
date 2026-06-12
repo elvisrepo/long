@@ -2,14 +2,15 @@ from uuid import UUID
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractBaseUser
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
 from apps.subscriptions.models import (
-      Subscription,
-      SubscriptionPlan,
-      SubscriptionPrice,
-  )
+    Subscription,
+    SubscriptionPlan,
+    SubscriptionPrice,
+)
 
 
 CURRENT_SUBSCRIPTION_STATUSES = (
@@ -62,6 +63,11 @@ def change_subscription_plan(
     # earlier transition while this request was waiting for the user-row lock.
     if current_subscription.id != expected_subscription_id:
         raise StaleSubscriptionTransitionError
+
+    if price is not None and price.is_active is False:
+        raise ValidationError(
+            {"price": "The selected price is not active."}
+        )
 
     # 3. Turn the current row into history and record when it stopped being current.
     current_subscription.status = Subscription.Status.CANCELLED

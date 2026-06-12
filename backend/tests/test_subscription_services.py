@@ -271,6 +271,50 @@ def test_change_subscription_plan_rejects_price_from_another_plan():
       assert free_subscription.status == Subscription.Status.ACTIVE
       assert Subscription.objects.filter(user=user).count() == 1
 
+def test_change_subscription_plan_rejects_inactive_price():
+    user = get_user_model().objects.create_user(
+          email="inactive-price-upgrade@example.com",
+          password="strong-password-123",
+      )
+    free_plan = SubscriptionPlan.objects.get(code="free")
+    pro_plan = SubscriptionPlan.objects.create(
+          code="pro-inactive-price",
+          name="Pro",
+          active_custom_metric_limit=10,
+          wearable_connection_limit=2,
+          sync_interval_minutes=15,
+      )
+    inactive_price = SubscriptionPrice.objects.create(
+          plan=pro_plan,
+          provider=SubscriptionPrice.Provider.STRIPE,
+          provider_price_id="price_pro_inactive",
+          currency="usd",
+          unit_amount=1000,
+          billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+          is_active=False,
+      )
+    free_subscription = Subscription.objects.create(
+          user=user,
+          plan=free_plan,
+          status=Subscription.Status.ACTIVE,
+      )
+
+    with pytest.raises(
+          ValidationError,
+          match="The selected price is not active.",
+      ):
+          change_subscription_plan(
+              user=user,
+              plan=pro_plan,
+              price=inactive_price,
+              expected_subscription_id=free_subscription.id,
+          )
+
+    free_subscription.refresh_from_db()
+
+    assert free_subscription.status == Subscription.Status.ACTIVE
+    assert Subscription.objects.filter(user=user).count() == 1
+
 
 '''
 Begin transaction
