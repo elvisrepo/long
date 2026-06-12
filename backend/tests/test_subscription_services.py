@@ -13,6 +13,8 @@ from apps.subscriptions.services import (
       get_current_subscription_plan,
   )
 
+from django.core.exceptions import ValidationError
+
 pytestmark = pytest.mark.django_db
 
 
@@ -219,6 +221,56 @@ def test_change_subscription_plan_stores_selected_price():
 
     assert new_subscription.plan == pro_plan
     assert new_subscription.price == monthly_price
+
+def test_change_subscription_plan_rejects_price_from_another_plan():
+      user = get_user_model().objects.create_user(
+          email="mismatched-upgrade@example.com",
+          password="strong-password-123",
+      )
+      free_plan = SubscriptionPlan.objects.get(code="free")
+      pro_plan = SubscriptionPlan.objects.create(
+          code="pro-mismatched-upgrade",
+          name="Pro",
+          active_custom_metric_limit=10,
+          wearable_connection_limit=2,
+          sync_interval_minutes=15,
+      )
+      premium_plan = SubscriptionPlan.objects.create(
+          code="premium-mismatched-upgrade",
+          name="Premium",
+          active_custom_metric_limit=25,
+          wearable_connection_limit=5,
+          sync_interval_minutes=5,
+      )
+
+      premium_price = SubscriptionPrice.objects.create(
+          plan=premium_plan,
+          provider=SubscriptionPrice.Provider.STRIPE,
+          provider_price_id="price_premium_mismatched_upgrade",
+          currency="usd",
+          unit_amount=2000,
+          billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+      )
+
+      free_subscription = Subscription.objects.create(
+           user=user,
+           plan=free_plan,
+           status=Subscription.Status.ACTIVE,
+      )
+      
+      with pytest.raises(ValidationError):
+          change_subscription_plan(
+              user=user,
+              plan=pro_plan,
+              price=premium_price,
+              expected_subscription_id=free_subscription.id,
+          )
+
+      free_subscription.refresh_from_db()
+
+      assert free_subscription.status == Subscription.Status.ACTIVE
+      assert Subscription.objects.filter(user=user).count() == 1
+
 
 '''
 Begin transaction
