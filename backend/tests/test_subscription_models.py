@@ -254,3 +254,23 @@ def test_plan_cannot_have_duplicate_active_price_option():
                   unit_amount=1200,
                   **price_fields,
               )
+
+def test_subscription_price_amount_must_be_above_zero():
+      plan = SubscriptionPlan.objects.create(
+          code="zero-price-plan",
+          name="Pro",
+          active_custom_metric_limit=10,
+          wearable_connection_limit=2,
+          sync_interval_minutes=15,
+      )
+
+      with pytest.raises(IntegrityError):
+          with transaction.atomic():
+              SubscriptionPrice.objects.create(
+                  plan=plan,
+                  provider=SubscriptionPrice.Provider.STRIPE,
+                  provider_price_id="price_zero",
+                  currency="usd",
+                  unit_amount=0,
+                  billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+              )
