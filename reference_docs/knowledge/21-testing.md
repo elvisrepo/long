@@ -283,7 +283,8 @@ Current backend metrics testing checkpoint:
 - `tests/test_current_subscription.py` proves the current-subscription endpoint requires authentication, returns the caller's subscription and plan entitlements, and does not leak another user's plan.
 - The current-subscription API tests also prove `PATCH` returns `405`, so an authenticated client cannot self-assign a paid plan through the read endpoint.
 - `tests/test_subscription_plans.py` proves the public plan catalog returns the seeded Free plan and active paid plans while excluding inactive or retired plans.
-- The plan-catalog response test also fixes the public entitlement fields and deterministic default-first ordering.
+- The plan-catalog response test fixes the public entitlement fields, deterministic default-first ordering, nested active price shape, and exclusion of inactive prices.
+- Subscription model tests cover multiple billing prices per plan, selected price persistence, positive amounts, active-option uniqueness, and rejection of a selected price belonging to another plan.
 - Registration tests prove an active free subscription is created and that user creation rolls back when the free plan is unavailable.
 - The database constraint test proves a user cannot hold multiple current subscriptions.
 - Custom metric-definition tests prove inactive archived custom metrics do not count toward the active custom metric limit.

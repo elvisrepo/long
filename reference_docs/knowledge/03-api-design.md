@@ -211,8 +211,11 @@ Plan-catalog behavior:
 - `GET /api/v1/subscriptions/plans/` does not require authentication so registration and pricing screens can render available tiers.
 - Only plans with `is_active=True` are returned; retired plans remain available to historical subscription rows but cannot be newly selected.
 - The default plan is ordered first, followed by plan code for deterministic responses.
-- The response exposes backend-owned entitlement values and `is_default`.
-- Prices and Stripe Price IDs are not part of this contract yet. They must be modeled before Stripe Checkout is implemented rather than inferred by the frontend.
+- The response exposes backend-owned entitlement values, `is_default`, and each plan's active billing prices.
+- Public prices contain the application's price UUID, currency, amount in minor currency units, and billing interval.
+- Inactive prices are retained for billing history but excluded from new checkout choices.
+- Stripe `provider_price_id` values remain server-side and are never exposed through the catalog.
+- The view prefetches active prices in one additional query and attaches them as `active_prices`, avoiding one price query per plan.
 
 Subscription transition contract:
 - The internal transition service requires the ID of the subscription state the caller observed.

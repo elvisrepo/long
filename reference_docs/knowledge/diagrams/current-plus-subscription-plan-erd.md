@@ -5,7 +5,7 @@
 - Use the target-state ERD separately for planned Stripe, wearable-sync, and audit tables.
 
 ## Scope
-- `User`, `MetricDefinition`, `MetricEntry`, `SubscriptionPlan`, and `Subscription` are implemented domain tables.
+- `User`, `MetricDefinition`, `MetricEntry`, `SubscriptionPlan`, `SubscriptionPrice`, and `Subscription` are implemented domain tables.
 - Registration creates an explicit active free subscription, and metric limits resolve through the current subscription's plan.
 - Django framework tables such as auth groups, permissions, sessions, admin logs, and JWT token blacklist tables are intentionally omitted.
 
@@ -59,6 +59,8 @@ erDiagram
 
     USER ||--o{ SUBSCRIPTION : "has subscription history"
     SUBSCRIPTION_PLAN ||--o{ SUBSCRIPTION : governs
+    SUBSCRIPTION_PLAN ||--o{ SUBSCRIPTION_PRICE : "offers billing options"
+    SUBSCRIPTION_PRICE o|--o{ SUBSCRIPTION : "selected by"
 
     SUBSCRIPTION_PLAN {
         uuid id PK
@@ -79,6 +81,7 @@ erDiagram
         uuid id PK
         uuid user_id FK
         uuid plan_id FK
+        uuid price_id FK "nullable for free subscriptions"
         string status "trialing|active|past_due|cancelled|incomplete"
         string provider "nullable, e.g. stripe"
         string provider_customer_id "nullable"
@@ -87,6 +90,19 @@ erDiagram
         datetime current_period_end "nullable"
         boolean cancel_at_period_end
         datetime cancelled_at "nullable"
+        datetime created_at
+        datetime updated_at
+    }
+
+    SUBSCRIPTION_PRICE {
+        uuid id PK
+        uuid plan_id FK
+        string provider "stripe"
+        string provider_price_id UK
+        string currency
+        integer unit_amount "minor currency units"
+        string billing_interval "month|year"
+        boolean is_active
         datetime created_at
         datetime updated_at
     }
@@ -103,3 +119,8 @@ erDiagram
 - A conditional unique constraint permits at most one current subscription per user.
 - Current statuses are `trialing`, `active`, `past_due`, and `incomplete`; `cancelled` rows are historical.
 - Metric usage and enforcement read `active_custom_metric_limit` from the current plan.
+- A plan can have multiple active prices for different currencies or billing intervals.
+- A conditional unique constraint allows only one active price per `(plan, provider, currency, billing_interval)`.
+- `SubscriptionPrice.unit_amount` must be greater than zero.
+- `Subscription.price_id` is nullable for free subscriptions and references the exact billing option selected by a paid subscription.
+- Application validation requires `Subscription.price.plan_id == Subscription.plan_id`.

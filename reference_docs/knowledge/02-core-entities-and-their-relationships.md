@@ -18,7 +18,8 @@ We derived entities from the functional requirements by asking: *"What data must
 | **MetricEntry** | Core requirement #1 — the actual data points users log. This is where 99% of storage and query load lives. | TimescaleDB hypertable partitioned by `recorded_at` for efficient time-range queries. Denormalized `user_id` for fast row-level filtering. |
 | **WearableConnection** | Core requirement #3 — represents a linked sync source and its state. | Stores provider, `connection_mode`, platform, `source_app`, optional aggregator identifiers, status, and sync timestamps. MVP uses Android device-bridge sync for Samsung Health. We do not store raw Samsung/Health Connect tokens in the backend. |
 | **SubscriptionPlan** | Product tiers need durable, backend-owned entitlement values such as custom metric limits, wearable limits, and sync cadence. | Shared plan rows are separate from individual users. Migration `subscriptions.0003` seeds the canonical active default `free` plan. |
-| **Subscription** | A user may move between free and paid tiers while retaining subscription history and provider lifecycle state. | Connects a user to a plan and stores lifecycle/provider state such as active, trialing, past due, or cancelled. A free-plan row is not created for every user. |
+| **SubscriptionPrice** | A paid plan can be offered through multiple billing options, such as monthly and yearly prices. | Stores backend-owned provider price IDs, currency, minor-unit amount, billing interval, and active availability separately from plan entitlements. |
+| **Subscription** | A user may move between free and paid tiers while retaining subscription history and provider lifecycle state. | Connects a user to one plan and optionally the exact selected price. Free subscriptions have no price; paid subscriptions select a price belonging to their plan. |
 | **AuditLog** | GDPR compliance requires knowing who changed what and when. Also useful for debugging and security forensics. | Append-only. Stores diffs (`jsonb changes`), not full snapshots. |
 
 **Relationships & Cardinalities:**
@@ -29,6 +30,8 @@ We derived entities from the functional requirements by asking: *"What data must
 | User → WearableConnection | **1 : M** | A user links multiple sync sources over time. Each connection belongs to one user. |
 | User → Subscription | **1 : M** | A user has subscription history (trialing → active → cancelled). Typically one active at a time, but we keep history. |
 | SubscriptionPlan → Subscription | **1 : M** | A shared plan can govern many user subscriptions. Each subscription references exactly one plan. |
+| SubscriptionPlan → SubscriptionPrice | **1 : M** | A plan can offer multiple billing options. Each price belongs to exactly one plan. |
+| SubscriptionPrice → Subscription | **1 : M** (optional from Subscription) | A paid price can be selected by many subscriptions. A free subscription has `price_id=NULL`. |
 | User → MetricDefinition | **1 : M** | A user can create custom metrics. System defaults have `user_id=NULL` (shared across all users). |
 | User → AuditLog | **1 : M** | A user generates many audit entries. Append-only, never updated. |
 | MetricDefinition → MetricEntry | **1 : M** | Each entry is "of" exactly one metric type (e.g., every heart rate reading points to the "Resting Heart Rate" definition). |
@@ -43,3 +46,6 @@ We derived entities from the functional requirements by asking: *"What data must
 - Users are expected to have exactly one current subscription; missing current subscription data is treated as an integrity problem rather than silently falling back.
 - Trialing, active, past-due, and incomplete subscriptions count as current. Cancelled subscriptions remain historical.
 - Metric usage and create/reactivate enforcement resolve limits from the current subscription's plan.
+- A plan may have multiple simultaneously active prices when currency or billing interval differs.
+- Only one active price is allowed per `(plan, provider, currency, billing_interval)`.
+- A subscription's selected price must belong to the same plan; provider price IDs remain backend-owned.
