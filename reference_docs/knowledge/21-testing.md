@@ -279,6 +279,8 @@ Current backend metrics testing checkpoint:
 - The free-plan seed test reads `code="free"` from the migrated test database; independent model tests use other codes so they do not collide with the plan's unique code.
 - Subscription service tests resolve current plans and ignore cancelled historical subscriptions.
 - Subscription service tests prove a transition succeeds only when its expected subscription ID still identifies the current subscription, and that stale requests make no writes.
+- Subscription service tests prove paid transitions store the selected price, reject inactive and cross-plan prices, and require a price for non-default plans.
+- The same service suite proves a downgrade to the default Free plan succeeds with `price=None`, and all rejected transitions preserve the previous current subscription.
 - `tests/test_subscription_concurrency.py` uses separate database connections and a controlled PostgreSQL row-lock race to prove two transitions based on the same Free subscription cannot both succeed; Free is replaced by Pro and the stale Premium request is rejected.
 - `tests/test_current_subscription.py` proves the current-subscription endpoint requires authentication, returns the caller's subscription and plan entitlements, and does not leak another user's plan.
 - The current-subscription API tests also prove `PATCH` returns `405`, so an authenticated client cannot self-assign a paid plan through the read endpoint.

@@ -5,7 +5,11 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.db import close_old_connections, connections, transaction
 
-from apps.subscriptions.models import Subscription, SubscriptionPlan
+from apps.subscriptions.models import (
+    Subscription,
+    SubscriptionPlan,
+    SubscriptionPrice,
+)
 from apps.subscriptions.services import (
     StaleSubscriptionTransitionError,
     change_subscription_plan,
@@ -51,6 +55,22 @@ def test_concurrent_plan_changes_reject_stale_second_transition():
     )
     pro_plan = create_plan(code="pro", metric_limit=10)
     premium_plan = create_plan(code="premium", metric_limit=25)
+    pro_price = SubscriptionPrice.objects.create(
+        plan=pro_plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_concurrent_pro",
+        currency="usd",
+        unit_amount=1000,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+    )
+    premium_price = SubscriptionPrice.objects.create(
+        plan=premium_plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_concurrent_premium",
+        currency="usd",
+        unit_amount=2000,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+    )
 
     free_subscription = Subscription.objects.create(
         user=user,
@@ -80,6 +100,7 @@ def test_concurrent_plan_changes_reject_stale_second_transition():
                 change_subscription_plan(
                     user=user,
                     plan=pro_plan,
+                    price=pro_price,
                     expected_subscription_id=free_subscription.id,
                 )
                 first_transition_created.set()
@@ -98,6 +119,7 @@ def test_concurrent_plan_changes_reject_stale_second_transition():
             change_subscription_plan(
                 user=user,
                 plan=premium_plan,
+                price=premium_price,
                 expected_subscription_id=free_subscription.id,
             )
         finally:

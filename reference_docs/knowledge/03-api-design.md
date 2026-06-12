@@ -220,6 +220,10 @@ Plan-catalog behavior:
 Subscription transition contract:
 - The internal transition service requires the ID of the subscription state the caller observed.
 - It locks the user row, reloads the current subscription, and only proceeds when that ID still matches.
+- A transition to a non-default paid plan requires an active `SubscriptionPrice` belonging to that plan.
+- A transition to the default Free plan accepts `price=None`.
+- The replacement subscription stores both the selected plan and exact selected price; the cancelled row preserves the previous selection as history.
+- Missing or inactive prices are rejected before cancellation. A cross-plan price is rejected while saving the replacement; the atomic transaction then rolls back the preceding cancellation, leaving existing state unchanged.
 - A future trusted checkout-completion or webhook boundary must return or record a conflict when the expected subscription was already replaced.
 - Stripe webhook handlers still require provider event idempotency and ordering checks in addition to this local stale-write guard.
 

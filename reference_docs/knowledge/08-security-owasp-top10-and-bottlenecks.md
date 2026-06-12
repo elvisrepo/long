@@ -45,6 +45,8 @@ Current subscription-integrity boundary:
 - Catalog prices expose an internal UUID, currency, minor-unit amount, and interval. Stripe provider price IDs remain private so clients cannot choose or forge provider configuration directly.
 - Public catalog data is informational. Paid access must still be granted only through a trusted Stripe checkout/webhook flow.
 - Plan transitions serialize on the user row and require `expected_subscription_id`; a request that observed an older current subscription is rejected after acquiring the lock instead of overwriting newer state.
+- Paid transitions require an active backend-owned price that belongs to the requested plan. Clients cannot turn an arbitrary amount or Stripe price ID into entitlements.
+- Missing and inactive prices are rejected before cancellation. Cross-plan validation occurs when saving the replacement, and transaction rollback restores the previous subscription if that validation fails.
 - Future HTTP callers should expose this stale-write rejection as `409 Conflict`. Stripe event consumers also need idempotency and event-order enforcement.
 
 #### Edge Cases

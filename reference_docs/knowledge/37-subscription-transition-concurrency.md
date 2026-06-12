@@ -11,12 +11,13 @@ The concurrency test proves that two plan-transition requests for the same user 
 The requests are serialized:
 
 1. The first transition locks the user's database row.
-2. It cancels the current subscription and creates its replacement.
-3. The second transition waits in PostgreSQL.
-4. The first transaction commits and releases the lock.
-5. The second transition acquires the lock and reads the newly committed state.
-6. It detects that the subscription observed by its caller is no longer current.
-7. It raises `StaleSubscriptionTransitionError` without changing subscription state.
+2. It rejects a missing or inactive selected price.
+3. It cancels the current subscription and creates its replacement, whose model validation confirms that the selected price belongs to the requested plan.
+4. The second transition waits in PostgreSQL.
+5. The first transaction commits and releases the lock.
+6. The second transition acquires the lock and reads the newly committed state.
+7. It detects that the subscription observed by its caller is no longer current.
+8. It raises `StaleSubscriptionTransitionError` without changing subscription state.
 
 The test does **not** update a `SubscriptionPlan` row. Plans such as Free, Pro, and Premium remain shared definitions. It updates the user's subscription history:
 
@@ -26,11 +27,11 @@ Free       active
 
 After transaction 1 commits:
 Free       cancelled
-Pro        active
+Pro monthly active
 
 After transaction 2 is rejected:
 Free       cancelled
-Pro        active
+Pro monthly active
 Premium    not created
 ```
 
@@ -117,11 +118,14 @@ sequenceDiagram
     C1->>P1: SELECT current subscription
     P1-->>T1: Free / active
 
+    T1->>T1: Validate Pro price is present and active
+
     T1->>C1: Cancel Free
     C1->>P1: UPDATE Free SET status=cancelled
 
-    T1->>C1: Create Pro
-    C1->>P1: INSERT Pro / active
+    T1->>C1: Create Pro with selected monthly price
+    Note over T1: Model validation confirms price.plan_id == Pro.id
+    C1->>P1: INSERT Pro / active / price_id
 
     T1->>M: first_transition_created.set()
     Note over T1: Wait before committing outer transaction
@@ -186,6 +190,12 @@ The row lock and conditional unique constraint guarantee:
 - only one current subscription remains;
 - each replaced subscription is preserved as cancelled history;
 - different users can transition concurrently because they lock different user rows.
+
+Paid transitions additionally require an active selected price belonging to the
+requested plan. Default Free transitions use no price. Missing and inactive
+prices are rejected before cancellation. Cross-plan validation occurs while
+saving the replacement, and the atomic transaction rolls back the cancellation
+if that validation fails.
 
 The row lock alone only serializes transitions. Stale-transition protection is
 provided by `expected_subscription_id`, which is checked after acquiring the

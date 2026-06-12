@@ -49,3 +49,5 @@ We derived entities from the functional requirements by asking: *"What data must
 - A plan may have multiple simultaneously active prices when currency or billing interval differs.
 - Only one active price is allowed per `(plan, provider, currency, billing_interval)`.
 - A subscription's selected price must belong to the same plan; provider price IDs remain backend-owned.
+- Paid-plan transitions require an active selected price. Transitions to the default Free plan use `price_id=NULL`.
+- Replaced subscriptions retain their selected price as historical billing context.
