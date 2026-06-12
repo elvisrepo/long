@@ -64,6 +64,11 @@ def change_subscription_plan(
     if current_subscription.id != expected_subscription_id:
         raise StaleSubscriptionTransitionError
 
+    if plan.is_default is False and price is None:
+        raise ValidationError(
+            {"price": "A price is required for a paid plan."}
+        )
+
     if price is not None and price.is_active is False:
         raise ValidationError(
             {"price": "The selected price is not active."}

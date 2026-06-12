@@ -315,6 +315,45 @@ def test_change_subscription_plan_rejects_inactive_price():
     assert free_subscription.status == Subscription.Status.ACTIVE
     assert Subscription.objects.filter(user=user).count() == 1
 
+def test_change_subscription_plan_requires_price_for_paid_plan():
+    user = get_user_model().objects.create_user(
+          email="missing-price-upgrade@example.com",
+          password="strong-password-123",
+      )
+    free_plan = SubscriptionPlan.objects.get(code="free")
+    pro_plan = SubscriptionPlan.objects.create(
+          code="pro-missing-price",
+          name="Pro",
+          active_custom_metric_limit=10,
+          wearable_connection_limit=2,
+          sync_interval_minutes=15,
+          is_default=False,
+      )
+    
+    free_subscription = Subscription.objects.create(
+          user=user,
+          plan=free_plan,
+          status=Subscription.Status.ACTIVE,
+      )
+    
+    with pytest.raises(
+          ValidationError,
+          match="A price is required for a paid plan.",
+      ):
+          change_subscription_plan(
+              user=user,
+              plan=pro_plan,
+              price=None,
+              expected_subscription_id=free_subscription.id,
+          )
+
+    free_subscription.refresh_from_db()
+
+    assert free_subscription.status == Subscription.Status.ACTIVE
+    assert Subscription.objects.filter(user=user).count() == 1
+
+    
+
 
 '''
 Begin transaction
