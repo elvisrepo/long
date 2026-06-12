@@ -352,7 +352,47 @@ def test_change_subscription_plan_requires_price_for_paid_plan():
     assert free_subscription.status == Subscription.Status.ACTIVE
     assert Subscription.objects.filter(user=user).count() == 1
 
-    
+def test_change_subscription_plan_allows_default_plan_without_price():
+      user = get_user_model().objects.create_user(
+          email="free-downgrade@example.com",
+          password="strong-password-123",
+      )
+      free_plan = SubscriptionPlan.objects.get(code="free")
+      pro_plan = SubscriptionPlan.objects.create(
+          code="pro-free-downgrade",
+          name="Pro",
+          active_custom_metric_limit=10,
+          wearable_connection_limit=2,
+          sync_interval_minutes=15,
+      )
+      pro_price = SubscriptionPrice.objects.create(
+          plan=pro_plan,
+          provider=SubscriptionPrice.Provider.STRIPE,
+          provider_price_id="price_pro_free_downgrade",
+          currency="usd",
+          unit_amount=1000,
+          billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+      )
+      pro_subscription = Subscription.objects.create(
+          user=user,
+          plan=pro_plan,
+          price=pro_price,
+          status=Subscription.Status.ACTIVE,
+      )
+
+      free_subscription = change_subscription_plan(
+          user=user,
+          plan=free_plan,
+          price=None,
+          expected_subscription_id=pro_subscription.id,
+      )
+
+      pro_subscription.refresh_from_db()
+
+      assert pro_subscription.status == Subscription.Status.CANCELLED
+      assert free_subscription.plan == free_plan
+      assert free_subscription.price is None
+      assert free_subscription.status == Subscription.Status.ACTIVE   
 
 
 '''
