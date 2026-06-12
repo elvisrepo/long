@@ -224,3 +224,33 @@ def test_subscription_rejects_price_from_another_plan():
             price=premium_price,
             status=Subscription.Status.ACTIVE,
         )
+
+def test_plan_cannot_have_duplicate_active_price_option():
+    plan = SubscriptionPlan.objects.create(
+          code="duplicate-price-plan",
+          name="Pro",
+          active_custom_metric_limit=10,
+          wearable_connection_limit=2,
+          sync_interval_minutes=15,
+      )
+    price_fields = {
+          "plan": plan,
+          "provider": SubscriptionPrice.Provider.STRIPE,
+          "currency": "usd",
+          "billing_interval": SubscriptionPrice.BillingInterval.MONTH,
+          "is_active": True,
+      }
+    
+    SubscriptionPrice.objects.create(
+          provider_price_id="price_original",
+          unit_amount=1000,
+          **price_fields,
+      )
+    
+    with pytest.raises(IntegrityError):
+          with transaction.atomic():
+              SubscriptionPrice.objects.create(
+                  provider_price_id="price_duplicate",
+                  unit_amount=1200,
+                  **price_fields,
+              )
