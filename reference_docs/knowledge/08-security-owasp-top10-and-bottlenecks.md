@@ -49,6 +49,14 @@ Current subscription-integrity boundary:
 - Missing and inactive prices are rejected before cancellation. Cross-plan validation occurs when saving the replacement, and transaction rollback restores the previous subscription if that validation fails.
 - Future HTTP callers should expose this stale-write rejection as `409 Conflict`. Stripe event consumers also need idempotency and event-order enforcement.
 
+Current Stripe credential and traffic boundary:
+- Valid Stripe sandbox secret keys are local credentials, not fake test values. They must remain in ignored environment files or an approved secret manager.
+- Default automated tests override local credentials with non-functional fake values so an ordinary test run cannot mutate Stripe sandbox resources.
+- Stripe sandbox is for small functional integration tests, not load testing. Its limits and latency profile do not represent live payment processing.
+- Load tests must replace outbound Stripe requests with a configurable fake and simulate realistic latency, `429` responses, timeouts, and retries.
+- Production Stripe calls must handle rate limiting with safe retries, exponential backoff, jitter, idempotency keys, and monitoring that excludes secrets and payment data.
+- See `reference_docs/knowledge/38-stripe-testing-and-load-testing.md`.
+
 #### Edge Cases
 - **Duplicate data from wearable sync**: Dedup by `(user_id, metric_definition_id, recorded_at, source, source_connection_id)` plus an optional `external_source_id`. If the same Samsung-originated record is uploaded twice, ignore or update it idempotently.
 - **Timezone hell**: All timestamps stored as UTC (`timestamptz`). User's timezone stored on profile for display only. `recorded_at` is always UTC — the frontend converts for display.
@@ -69,5 +77,6 @@ Current subscription-integrity boundary:
 | Redis as single point of failure | Cache miss storm, Celery stalls, WS drops | ElastiCache cluster with automatic failover. App degrades gracefully (skip cache, serve from DB). |
 | Mobile upload bursts after offline periods | Large sync batches spike worker load | Queue uploads, process them asynchronously, and cap per-connection replay windows. |
 | Third-party API rate limits (aggregator / provider APIs) | Sync jobs fail in bursts | Celery retry with exponential backoff + jitter. Per-user rate limiting on resync requests. Provider-level circuit breaker. This is mainly for post-MVP cloud integrations. |
+| Stripe API rate or concurrency limits | Checkout or subscription operations receive `429` or object lock timeouts | Use idempotency keys, exponential backoff with jitter, inspect Stripe's rate-limit reason, serialize mutations to the same provider object, and never load test against sandbox. |
 | WebSocket connection memory (1000+ concurrent) | OOM on app instance | Token-bucket backpressure. Max 3 connections per user. Separate WS instances from REST API at scale. |
 | Large GDPR export (user with 100K+ entries) | Request timeout | Async export via Celery. Return 202 Accepted + poll endpoint. Stream results to S3, send download link via email. |

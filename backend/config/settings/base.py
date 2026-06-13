@@ -88,6 +88,17 @@ DATABASES = {
 REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")
 CELERY_BROKER_URL = REDIS_URL
 
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "").strip()
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "").strip()
+STRIPE_CHECKOUT_SUCCESS_URL = os.environ.get(
+      "STRIPE_CHECKOUT_SUCCESS_URL",
+      "http://localhost:5173/settings?checkout=success",
+  ).strip()
+STRIPE_CHECKOUT_CANCEL_URL = os.environ.get(
+      "STRIPE_CHECKOUT_CANCEL_URL",
+      "http://localhost:5173/settings?checkout=cancelled",
+  ).strip()
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",

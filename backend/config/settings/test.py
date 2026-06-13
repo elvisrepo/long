@@ -5,6 +5,16 @@ Test settings for the automated test suite.
 from .base import *  # noqa: F403
 from .base import SIMPLE_JWT as BASE_SIMPLE_JWT
 
+# Automated tests must never use credentials loaded from a developer's .env file.
+STRIPE_SECRET_KEY = "sk_test_fake"
+STRIPE_WEBHOOK_SECRET = "whsec_fake"
+STRIPE_CHECKOUT_SUCCESS_URL = (
+      "http://localhost:5173/settings?checkout=success"
+  )
+STRIPE_CHECKOUT_CANCEL_URL = (
+      "http://localhost:5173/settings?checkout=cancelled"
+  )
+
 
 DEBUG = False
 

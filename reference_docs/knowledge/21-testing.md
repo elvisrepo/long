@@ -322,6 +322,13 @@ Current backend metrics testing checkpoint:
 - Metric-entry update tests prove value range validation still applies during partial updates.
 - The current metric-entry coverage does not yet cover cursor pagination or analytics queries.
 
+Current Stripe testing boundary:
+- Standard unit, service, and backend API tests must mock the Stripe network boundary and use fake test-setting credentials.
+- Valid Stripe sandbox credentials are reserved for a small, explicitly enabled integration suite and must never be loaded by the default `pytest` run.
+- Sandbox tests verify functional provider integration only; they must not be used for load, stress, soak, or high-concurrency testing.
+- Load tests exercise our application with a configurable Stripe fake that simulates latency, provider failures, `429` responses, timeouts, and webhook retries.
+- See `reference_docs/knowledge/38-stripe-testing-and-load-testing.md` for the complete policy and official Stripe references.
+
 Practical test-level guidance for the current frontend slice:
 - use route tests for screen presence and router wiring
 - use focused component tests for local form behavior
