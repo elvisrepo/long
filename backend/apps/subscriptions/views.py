@@ -1,5 +1,7 @@
 from django.db.models import Prefetch
-from rest_framework import generics
+from rest_framework import generics, status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from apps.subscriptions.models import (
@@ -50,3 +52,13 @@ class SubscriptionPlanListView(generics.ListAPIView):
             )
             .order_by("-is_default", "code")
         )
+
+class SubscriptionCheckoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request) -> Response:
+          # The endpoint exists, but Stripe session creation comes next.
+          return Response(
+              {"detail": "Checkout session creation is not implemented yet."},
+              status=status.HTTP_501_NOT_IMPLEMENTED,
+          )
