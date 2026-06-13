@@ -59,3 +59,6 @@ class SubscriptionPlanCatalogSerializer(SubscriptionPlanSerializer):
             "is_default",
             "prices",
         ]
+
+class SubscriptionCheckoutSerializer(serializers.Serializer):
+      price_id = serializers.UUIDField()
