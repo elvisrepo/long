@@ -219,7 +219,34 @@ def test_subscription_checkout_returns_bad_gateway_when_stripe_fails():
           "detail": "Unable to create checkout session.",
       }
     
+def test_subscription_checkout_rejects_default_plan_price():
+      user = get_user_model().objects.create_user(
+          email="alice@example.com",
+          password="strong-password-123",
+      )
+      client = APIClient()
+      access_token = RefreshToken.for_user(user).access_token
+      client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
 
+      free_plan = SubscriptionPlan.objects.get(code="free")
+      price = SubscriptionPrice.objects.create(
+          plan=free_plan,
+          provider=SubscriptionPrice.Provider.STRIPE,
+          provider_price_id="price_free_should_not_checkout",
+          currency="usd",
+          unit_amount=100,
+          billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+          is_active=True,
+      )
+
+      response = client.post(
+          "/api/v1/subscriptions/checkout/",
+          {"price_id": str(price.id)},
+          format="json",
+      )
+
+      assert response.status_code == 400
+      assert "price_id" in response.json()
 
 '''
 

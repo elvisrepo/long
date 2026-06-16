@@ -68,5 +68,6 @@ class SubscriptionCheckoutSerializer(serializers.Serializer):
             provider=SubscriptionPrice.Provider.STRIPE,
             is_active=True,
             plan__is_active=True,
+            plan__is_default=False,
         ),
     )
