@@ -64,7 +64,10 @@ class SubscriptionCheckoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request) -> Response:
-        serializer = SubscriptionCheckoutSerializer(data=request.data)
+        serializer = SubscriptionCheckoutSerializer(
+            data=request.data,
+            context={"request": request},
+  )
         serializer.is_valid(raise_exception=True)
 
         try:

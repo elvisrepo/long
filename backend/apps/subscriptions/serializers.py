@@ -6,6 +6,8 @@ from apps.subscriptions.models import (
     SubscriptionPrice,
 )
 
+from apps.subscriptions.services import CURRENT_SUBSCRIPTION_STATUSES
+
 
 class SubscriptionPlanSerializer(serializers.ModelSerializer):
     class Meta:
@@ -71,3 +73,22 @@ class SubscriptionCheckoutSerializer(serializers.Serializer):
             plan__is_default=False,
         ),
     )
+
+    def validate(self, attrs: dict[str, object]) -> dict[str, object]:
+          request = self.context["request"]
+          price = attrs["price"]
+
+          if Subscription.objects.filter(
+              user=request.user,
+              price=price,
+              status__in=CURRENT_SUBSCRIPTION_STATUSES,
+          ).exists():
+              raise serializers.ValidationError(
+                  {
+                      "price_id": ["You are already subscribed to this price."],
+                  }
+              )
+
+          return attrs
+
+

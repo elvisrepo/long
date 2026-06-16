@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.subscriptions.models import SubscriptionPlan, SubscriptionPrice
+from apps.subscriptions.models import SubscriptionPlan, SubscriptionPrice, Subscription
 
 pytestmark = pytest.mark.django_db
 
@@ -247,6 +247,53 @@ def test_subscription_checkout_rejects_default_plan_price():
 
       assert response.status_code == 400
       assert "price_id" in response.json()
+
+def test_subscription_checkout_rejects_current_subscription_price():
+      user = get_user_model().objects.create_user(
+          email="alice@example.com",
+          password="strong-password-123",
+      )
+      client = APIClient()
+      access_token = RefreshToken.for_user(user).access_token
+      client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+
+      plan = SubscriptionPlan.objects.create(
+          code="pro-checkout-current-price",
+          name="Pro",
+          active_custom_metric_limit=10,
+          wearable_connection_limit=2,
+          sync_interval_minutes=15,
+      )
+      price = SubscriptionPrice.objects.create(
+          plan=plan,
+          provider=SubscriptionPrice.Provider.STRIPE,
+          provider_price_id="price_current_subscription",
+          currency="usd",
+          unit_amount=1000,
+          billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+          is_active=True,
+      )
+
+      Subscription.objects.create(
+          user=user,
+          plan=plan,
+          price=price,
+          status=Subscription.Status.ACTIVE,
+      )
+
+      with patch("apps.subscriptions.views.create_checkout_session") as create_checkout:
+          response = client.post(
+              "/api/v1/subscriptions/checkout/",
+              {"price_id": str(price.id)},
+              format="json",
+          )
+
+      assert response.status_code == 400
+      assert response.json() == {
+          "price_id": ["You are already subscribed to this price."],
+      }
+      create_checkout.assert_not_called() 
+
 
 '''
 
