@@ -61,4 +61,11 @@ class SubscriptionPlanCatalogSerializer(SubscriptionPlanSerializer):
         ]
 
 class SubscriptionCheckoutSerializer(serializers.Serializer):
-      price_id = serializers.UUIDField()
+    price_id = serializers.PrimaryKeyRelatedField(
+          source="price",
+          queryset=SubscriptionPrice.objects.filter(
+              provider=SubscriptionPrice.Provider.STRIPE,
+              is_active=True,
+              plan__is_active=True,
+          ),
+      )
