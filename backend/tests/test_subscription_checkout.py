@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.subscriptions.models import SubscriptionPlan, SubscriptionPrice, Subscription
+from apps.subscriptions.models import Subscription, SubscriptionPlan, SubscriptionPrice
 
 pytestmark = pytest.mark.django_db
 
@@ -88,6 +88,12 @@ def test_subscription_checkout_creates_stripe_checkout_session_for_active_price(
     access_token = RefreshToken.for_user(user).access_token
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
 
+    free_plan = SubscriptionPlan.objects.get(code="free")
+    Subscription.objects.create(
+        user=user,
+        plan=free_plan,
+        status=Subscription.Status.ACTIVE,
+    )
     plan = SubscriptionPlan.objects.create(
         code="pro-checkout-success",
         name="Pro",
@@ -179,162 +185,165 @@ def test_create_checkout_session_uses_stripe_subscription_mode():
     )
 
 def test_subscription_checkout_returns_bad_gateway_when_stripe_fails():
-      user = get_user_model().objects.create_user(
-          email="alice@example.com",
-          password="strong-password-123",
-      )
-      client = APIClient()
-      access_token = RefreshToken.for_user(user).access_token
-      client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+    user = get_user_model().objects.create_user(
+        email="alice@example.com",
+        password="strong-password-123",
+    )
+    client = APIClient()
+    access_token = RefreshToken.for_user(user).access_token
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
 
-      plan = SubscriptionPlan.objects.create(
-          code="pro-checkout-stripe-failure",
-          name="Pro",
-          active_custom_metric_limit=10,
-          wearable_connection_limit=2,
-          sync_interval_minutes=15,
-      )
-      price = SubscriptionPrice.objects.create(
-          plan=plan,
-          provider=SubscriptionPrice.Provider.STRIPE,
-          provider_price_id="price_stripe_failure",
-          currency="usd",
-          unit_amount=1000,
-          billing_interval=SubscriptionPrice.BillingInterval.MONTH,
-          is_active=True,
-      )
+    free_plan = SubscriptionPlan.objects.get(code="free")
+    Subscription.objects.create(
+        user=user,
+        plan=free_plan,
+        status=Subscription.Status.ACTIVE,
+    )
+    plan = SubscriptionPlan.objects.create(
+        code="pro-checkout-stripe-failure",
+        name="Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=2,
+        sync_interval_minutes=15,
+    )
+    price = SubscriptionPrice.objects.create(
+        plan=plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_stripe_failure",
+        currency="usd",
+        unit_amount=1000,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+        is_active=True,
+    )
 
-      with patch(
-          "apps.subscriptions.views.create_checkout_session",
-          side_effect=RuntimeError("stripe is unavailable"),
-      ):
-          response = client.post(
-              "/api/v1/subscriptions/checkout/",
-              {"price_id": str(price.id)},
-              format="json",
-          )
+    with patch(
+        "apps.subscriptions.views.create_checkout_session",
+        side_effect=RuntimeError("stripe is unavailable"),
+    ):
+        response = client.post(
+            "/api/v1/subscriptions/checkout/",
+            {"price_id": str(price.id)},
+            format="json",
+        )
 
-      assert response.status_code == 502
-      assert response.json() == {
-          "detail": "Unable to create checkout session.",
-      }
-    
+    assert response.status_code == 502
+    assert response.json() == {
+        "detail": "Unable to create checkout session.",
+    }
+
+
 def test_subscription_checkout_rejects_default_plan_price():
-      user = get_user_model().objects.create_user(
-          email="alice@example.com",
-          password="strong-password-123",
-      )
-      client = APIClient()
-      access_token = RefreshToken.for_user(user).access_token
-      client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+    user = get_user_model().objects.create_user(
+        email="alice@example.com",
+        password="strong-password-123",
+    )
+    client = APIClient()
+    access_token = RefreshToken.for_user(user).access_token
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
 
-      free_plan = SubscriptionPlan.objects.get(code="free")
-      price = SubscriptionPrice.objects.create(
-          plan=free_plan,
-          provider=SubscriptionPrice.Provider.STRIPE,
-          provider_price_id="price_free_should_not_checkout",
-          currency="usd",
-          unit_amount=100,
-          billing_interval=SubscriptionPrice.BillingInterval.MONTH,
-          is_active=True,
-      )
+    free_plan = SubscriptionPlan.objects.get(code="free")
+    price = SubscriptionPrice.objects.create(
+        plan=free_plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_free_should_not_checkout",
+        currency="usd",
+        unit_amount=100,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+        is_active=True,
+    )
 
-      response = client.post(
-          "/api/v1/subscriptions/checkout/",
-          {"price_id": str(price.id)},
-          format="json",
-      )
+    response = client.post(
+        "/api/v1/subscriptions/checkout/",
+        {"price_id": str(price.id)},
+        format="json",
+    )
 
-      assert response.status_code == 400
-      assert "price_id" in response.json()
+    assert response.status_code == 400
+    assert "price_id" in response.json()
+
 
 def test_subscription_checkout_rejects_current_subscription_price():
-      user = get_user_model().objects.create_user(
-          email="alice@example.com",
-          password="strong-password-123",
-      )
-      client = APIClient()
-      access_token = RefreshToken.for_user(user).access_token
-      client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+    user = get_user_model().objects.create_user(
+        email="alice@example.com",
+        password="strong-password-123",
+    )
+    client = APIClient()
+    access_token = RefreshToken.for_user(user).access_token
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
 
-      plan = SubscriptionPlan.objects.create(
-          code="pro-checkout-current-price",
-          name="Pro",
-          active_custom_metric_limit=10,
-          wearable_connection_limit=2,
-          sync_interval_minutes=15,
-      )
-      price = SubscriptionPrice.objects.create(
-          plan=plan,
-          provider=SubscriptionPrice.Provider.STRIPE,
-          provider_price_id="price_current_subscription",
-          currency="usd",
-          unit_amount=1000,
-          billing_interval=SubscriptionPrice.BillingInterval.MONTH,
-          is_active=True,
-      )
+    plan = SubscriptionPlan.objects.create(
+        code="pro-checkout-current-price",
+        name="Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=2,
+        sync_interval_minutes=15,
+    )
+    price = SubscriptionPrice.objects.create(
+        plan=plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_current_subscription",
+        currency="usd",
+        unit_amount=1000,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+        is_active=True,
+    )
 
-      Subscription.objects.create(
-          user=user,
-          plan=plan,
-          price=price,
-          status=Subscription.Status.ACTIVE,
-      )
+    Subscription.objects.create(
+        user=user,
+        plan=plan,
+        price=price,
+        status=Subscription.Status.ACTIVE,
+    )
 
-      with patch("apps.subscriptions.views.create_checkout_session") as create_checkout:
-          response = client.post(
-              "/api/v1/subscriptions/checkout/",
-              {"price_id": str(price.id)},
-              format="json",
-          )
+    with patch("apps.subscriptions.views.create_checkout_session") as create_checkout:
+        response = client.post(
+            "/api/v1/subscriptions/checkout/",
+            {"price_id": str(price.id)},
+            format="json",
+        )
 
-      assert response.status_code == 400
-      assert response.json() == {
-          "price_id": ["You are already subscribed to this price."],
-      }
-      create_checkout.assert_not_called() 
+    assert response.status_code == 400
+    assert response.json() == {
+        "price_id": ["You are already subscribed to this price."],
+    }
+    create_checkout.assert_not_called()
 
 
-'''
+def test_subscription_checkout_requires_current_subscription():
+    user = get_user_model().objects.create_user(
+        email="alice@example.com",
+        password="strong-password-123",
+    )
+    client = APIClient()
+    access_token = RefreshToken.for_user(user).access_token
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
 
-with patch("apps.subscriptions.services.StripeClient") as stripe_client:
+    plan = SubscriptionPlan.objects.create(
+        code="pro-checkout-no-current-subscription",
+        name="Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=2,
+        sync_interval_minutes=15,
+    )
+    price = SubscriptionPrice.objects.create(
+        plan=plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_no_current_subscription",
+        currency="usd",
+        unit_amount=1000,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+        is_active=True,
+    )
 
-  This temporarily replaces StripeClient inside apps.subscriptions.services.
+    with patch("apps.subscriptions.views.create_checkout_session") as create_checkout:
+        response = client.post(
+            "/api/v1/subscriptions/checkout/",
+            {"price_id": str(price.id)},
+            format="json",
+        )
 
-  So when production code does:
-
-  client = StripeClient(settings.STRIPE_SECRET_KEY)
-
-  it actually calls the mock instead.
-
-  checkout_session = stripe_client.return_value.v1.checkout.sessions.create
-
-  stripe_client.return_value means “the fake object returned when StripeClient(...) is called”.
-
-  Then this reaches the mocked nested method:
-
-  client.v1.checkout.sessions.create
-
-  So checkout_session is the fake version of Stripe’s create() method.
-
-  checkout_session.return_value.url = "https://checkout.stripe.com/c/test-session"
-
-  This configures the fake create() call to return an object with a .url value.
-
-  So when our service runs:
-
-  session = client.v1.checkout.sessions.create({...})
-  return session.url
-
-  the returned value becomes:
-
-  "https://checkout.stripe.com/c/test-session"
-
-  In short:
-
-  Real StripeClient -> replaced by mock
-  Real Stripe API call -> replaced by fake create()
-  Fake create() returns object with .url
-  Service returns that URL
-  Test verifies the exact Stripe payload
-'''
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": ["A current subscription is required before checkout."],
+    }
+    create_checkout.assert_not_called()

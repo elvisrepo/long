@@ -1,9 +1,10 @@
+import logging
+
 from django.db.models import Prefetch
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-import logging
 
 from apps.subscriptions.models import (
     Subscription,
@@ -60,6 +61,7 @@ class SubscriptionPlanListView(generics.ListAPIView):
             .order_by("-is_default", "code")
         )
 
+
 class SubscriptionCheckoutView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -67,21 +69,21 @@ class SubscriptionCheckoutView(APIView):
         serializer = SubscriptionCheckoutSerializer(
             data=request.data,
             context={"request": request},
-  )
+        )
         serializer.is_valid(raise_exception=True)
 
         try:
             checkout_url = create_checkout_session(
                 user=request.user,
                 price=serializer.validated_data["price"],
-        )
+            )
         except Exception:
             logger.exception("Stripe checkout session creation failed")
             return Response(
                 {"detail": "Unable to create checkout session."},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
-        
+
         return Response(
             {"url": checkout_url},
             status=status.HTTP_201_CREATED,
