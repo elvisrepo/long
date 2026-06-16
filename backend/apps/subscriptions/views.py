@@ -1,8 +1,8 @@
 from django.db.models import Prefetch
 from rest_framework import generics, status
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from apps.subscriptions.models import (
     Subscription,
@@ -11,15 +11,13 @@ from apps.subscriptions.models import (
 )
 from apps.subscriptions.serializers import (
     CurrentSubscriptionSerializer,
+    SubscriptionCheckoutSerializer,
     SubscriptionPlanCatalogSerializer,
-    SubscriptionCheckoutSerializer
 )
-from apps.subscriptions.services import CURRENT_SUBSCRIPTION_STATUSES
-
 from apps.subscriptions.services import (
-      CURRENT_SUBSCRIPTION_STATUSES,
-      create_checkout_session,
-  )
+    CURRENT_SUBSCRIPTION_STATUSES,
+    create_checkout_session,
+)
 
 
 class CurrentSubscriptionView(generics.RetrieveAPIView):
@@ -63,17 +61,15 @@ class SubscriptionCheckoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request) -> Response:
-        # The endpoint exists, but Stripe session creation comes next.
         serializer = SubscriptionCheckoutSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         checkout_url = create_checkout_session(
             user=request.user,
-            price=serializer.validated_data["price"]
+            price=serializer.validated_data["price"],
         )
-        
 
         return Response(
-          {"url": checkout_url},
-          status=status.HTTP_201_CREATED,
-      )
+            {"url": checkout_url},
+            status=status.HTTP_201_CREATED,
+        )
