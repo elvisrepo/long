@@ -3,6 +3,7 @@ from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+import logging
 
 from apps.subscriptions.models import (
     Subscription,
@@ -18,6 +19,8 @@ from apps.subscriptions.services import (
     CURRENT_SUBSCRIPTION_STATUSES,
     create_checkout_session,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class CurrentSubscriptionView(generics.RetrieveAPIView):
@@ -64,11 +67,18 @@ class SubscriptionCheckoutView(APIView):
         serializer = SubscriptionCheckoutSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        checkout_url = create_checkout_session(
-            user=request.user,
-            price=serializer.validated_data["price"],
+        try:
+            checkout_url = create_checkout_session(
+                user=request.user,
+                price=serializer.validated_data["price"],
         )
-
+        except Exception:
+            logger.exception("Stripe checkout session creation failed")
+            return Response(
+                {"detail": "Unable to create checkout session."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        
         return Response(
             {"url": checkout_url},
             status=status.HTTP_201_CREATED,

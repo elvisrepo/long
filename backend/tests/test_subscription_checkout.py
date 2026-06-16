@@ -178,7 +178,47 @@ def test_create_checkout_session_uses_stripe_subscription_mode():
         }
     )
 
+def test_subscription_checkout_returns_bad_gateway_when_stripe_fails():
+      user = get_user_model().objects.create_user(
+          email="alice@example.com",
+          password="strong-password-123",
+      )
+      client = APIClient()
+      access_token = RefreshToken.for_user(user).access_token
+      client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
 
+      plan = SubscriptionPlan.objects.create(
+          code="pro-checkout-stripe-failure",
+          name="Pro",
+          active_custom_metric_limit=10,
+          wearable_connection_limit=2,
+          sync_interval_minutes=15,
+      )
+      price = SubscriptionPrice.objects.create(
+          plan=plan,
+          provider=SubscriptionPrice.Provider.STRIPE,
+          provider_price_id="price_stripe_failure",
+          currency="usd",
+          unit_amount=1000,
+          billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+          is_active=True,
+      )
+
+      with patch(
+          "apps.subscriptions.views.create_checkout_session",
+          side_effect=RuntimeError("stripe is unavailable"),
+      ):
+          response = client.post(
+              "/api/v1/subscriptions/checkout/",
+              {"price_id": str(price.id)},
+              format="json",
+          )
+
+      assert response.status_code == 502
+      assert response.json() == {
+          "detail": "Unable to create checkout session.",
+      }
+    
 
 
 '''
