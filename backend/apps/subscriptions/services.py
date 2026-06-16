@@ -1,10 +1,12 @@
 from uuid import UUID
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractBaseUser
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
+from stripe import StripeClient
 
 from apps.subscriptions.models import (
     Subscription,
@@ -90,8 +92,33 @@ def change_subscription_plan(
     )
 
 def create_checkout_session(
-      *,
-      user: AbstractBaseUser,
-      price: SubscriptionPrice,
-  ) -> str:
-      raise NotImplementedError("Stripe Checkout session creation is not implemented yet.")
+    *,
+    user: AbstractBaseUser,
+    price: SubscriptionPrice,
+) -> str:
+    client = StripeClient(settings.STRIPE_SECRET_KEY)
+
+    session = client.v1.checkout.sessions.create(
+        {
+            # Stripe Checkout uses the provider price ID; clients only send our
+            # internal SubscriptionPrice UUID to prevent price manipulation.
+            "line_items": [
+                {
+                    "price": price.provider_price_id,
+                    "quantity": 1,
+                },
+            ],
+            "mode": "subscription",
+            "success_url": settings.STRIPE_CHECKOUT_SUCCESS_URL,
+            "cancel_url": settings.STRIPE_CHECKOUT_CANCEL_URL,
+            "client_reference_id": str(user.id),
+            "customer_email": user.email,
+            "metadata": {
+                "user_id": str(user.id),
+                "subscription_price_id": str(price.id),
+                "subscription_plan_id": str(price.plan_id),
+            },
+        }
+    )
+
+    return session.url
