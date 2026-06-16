@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.subscriptions.models import SubscriptionPlan, SubscriptionPrice
+from unittest.mock import patch
 
 pytestmark = pytest.mark.django_db
 
@@ -72,3 +73,48 @@ def test_subscription_checkout_rejects_inactive_price():
 
       assert response.status_code == 400
       assert "price_id" in response.json()
+
+def test_subscription_checkout_creates_stripe_checkout_session_for_active_price():
+      user = get_user_model().objects.create_user(
+          email="alice@example.com",
+          password="strong-password-123",
+      )
+      client = APIClient()
+      access_token = RefreshToken.for_user(user).access_token
+      client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+
+      plan = SubscriptionPlan.objects.create(
+          code="pro-checkout-success",
+          name="Pro",
+          active_custom_metric_limit=10,
+          wearable_connection_limit=2,
+          sync_interval_minutes=15,
+      )
+      price = SubscriptionPrice.objects.create(
+          plan=plan,
+          provider=SubscriptionPrice.Provider.STRIPE,
+          provider_price_id="price_stripe_pro_monthly",
+          currency="usd",
+          unit_amount=1000,
+          billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+          is_active=True,
+      )
+
+      with patch(
+          "apps.subscriptions.views.create_checkout_session",
+          return_value="https://checkout.stripe.com/c/test-session",
+      ) as create_checkout_session:
+          response = client.post(
+              "/api/v1/subscriptions/checkout/",
+              {"price_id": str(price.id)},
+              format="json",
+          )
+
+      assert response.status_code == 201
+      assert response.json() == {
+          "url": "https://checkout.stripe.com/c/test-session",
+      }
+      create_checkout_session.assert_called_once_with(
+          user=user,
+          price=price,
+      )

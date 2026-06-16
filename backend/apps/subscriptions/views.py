@@ -16,6 +16,11 @@ from apps.subscriptions.serializers import (
 )
 from apps.subscriptions.services import CURRENT_SUBSCRIPTION_STATUSES
 
+from apps.subscriptions.services import (
+      CURRENT_SUBSCRIPTION_STATUSES,
+      create_checkout_session,
+  )
+
 
 class CurrentSubscriptionView(generics.RetrieveAPIView):
     serializer_class = CurrentSubscriptionSerializer
@@ -61,9 +66,14 @@ class SubscriptionCheckoutView(APIView):
         # The endpoint exists, but Stripe session creation comes next.
         serializer = SubscriptionCheckoutSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        checkout_url = create_checkout_session(
+            user=request.user,
+            price=serializer.validated_data["price"]
+        )
         
 
         return Response(
-              {"detail": "Checkout session creation is not implemented yet."},
-              status=status.HTTP_501_NOT_IMPLEMENTED,
-          )
+          {"url": checkout_url},
+          status=status.HTTP_201_CREATED,
+      )

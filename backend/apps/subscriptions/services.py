@@ -88,3 +88,10 @@ def change_subscription_plan(
         price=price,
         status=Subscription.Status.ACTIVE,
     )
+
+def create_checkout_session(
+      *,
+      user: AbstractBaseUser,
+      price: SubscriptionPrice,
+  ) -> str:
+      raise NotImplementedError("Stripe Checkout session creation is not implemented yet.")
