@@ -8,6 +8,7 @@ from apps.subscriptions.models import (
     Subscription,
     SubscriptionPlan,
     SubscriptionPrice,
+    CheckoutAttempt
 )
 
 
@@ -274,3 +275,35 @@ def test_subscription_price_amount_must_be_above_zero():
                   unit_amount=0,
                   billing_interval=SubscriptionPrice.BillingInterval.MONTH,
               )
+
+def test_checkout_attempt_tracks_user_price_and_pending_status():
+      user = get_user_model().objects.create_user(
+          email="checkout-attempt@example.com",
+          password="strong-password-123",
+      )
+      plan = SubscriptionPlan.objects.create(
+          code="pro-checkout-attempt",
+          name="Pro",
+          active_custom_metric_limit=10,
+          wearable_connection_limit=2,
+          sync_interval_minutes=15,
+      )
+      price = SubscriptionPrice.objects.create(
+          plan=plan,
+          provider=SubscriptionPrice.Provider.STRIPE,
+          provider_price_id="price_checkout_attempt",
+          currency="usd",
+          unit_amount=1000,
+          billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+          is_active=True,
+      )
+
+      attempt = CheckoutAttempt.objects.create(
+          user=user,
+           price=price,
+      )
+
+      assert attempt.user == user
+      assert attempt.price == price
+      assert attempt.status == CheckoutAttempt.Status.PENDING
+      assert attempt.provider_checkout_session_id == ""
