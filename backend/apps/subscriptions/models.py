@@ -172,3 +172,46 @@ class Subscription(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id}: {self.plan.code}"
+
+
+class CheckoutAttempt(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+        EXPIRED = "expired", "Expired"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="checkout_attempts",
+    )
+
+    price = models.ForeignKey(
+        SubscriptionPrice,
+        on_delete=models.PROTECT,
+        related_name="checkout_attempts",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+
+    provider_checkout_session_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "subscriptions_checkout_attempt"
+
+    def __str__(self) -> str:
+        return f"{self.user_id}: {self.price_id}: {self.status}"
