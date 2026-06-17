@@ -9,6 +9,7 @@ from django.utils import timezone
 from stripe import StripeClient
 
 from apps.subscriptions.models import (
+    CheckoutAttempt,
     Subscription,
     SubscriptionPlan,
     SubscriptionPrice,
@@ -96,6 +97,10 @@ def create_checkout_session(
     user: AbstractBaseUser,
     price: SubscriptionPrice,
 ) -> str:
+    attempt = CheckoutAttempt.objects.create(
+        user=user,
+        price=price,
+    )
     client = StripeClient(settings.STRIPE_SECRET_KEY)
 
     session = client.v1.checkout.sessions.create(
@@ -115,10 +120,23 @@ def create_checkout_session(
             "customer_email": user.email,
             "metadata": {
                 "user_id": str(user.id),
+                "checkout_attempt_id": str(attempt.id),
                 "subscription_price_id": str(price.id),
                 "subscription_plan_id": str(price.plan_id),
             },
-        }
+        },
+        options={
+            "idempotency_key": str(attempt.id),
+        },
+    )
+
+    # After Stripe returns
+    attempt.provider_checkout_session_id = session.id
+    attempt.save(
+        update_fields=[
+            "provider_checkout_session_id",
+            "updated_at",
+        ]
     )
 
     return session.url

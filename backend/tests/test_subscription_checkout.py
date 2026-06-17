@@ -6,7 +6,12 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.subscriptions.models import Subscription, SubscriptionPlan, SubscriptionPrice
+from apps.subscriptions.models import (
+    CheckoutAttempt,
+    Subscription,
+    SubscriptionPlan,
+    SubscriptionPrice,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -130,8 +135,7 @@ def test_subscription_checkout_creates_stripe_checkout_session_for_active_price(
         price=price,
     )
 
-#  This test replaces the real Stripe SDK client with a mock, so the test does not call Stripe.
-def test_create_checkout_session_uses_stripe_subscription_mode():
+def test_create_checkout_session_uses_checkout_attempt_as_idempotency_key():
     from apps.subscriptions.services import create_checkout_session
 
     user = get_user_model().objects.create_user(
@@ -157,11 +161,16 @@ def test_create_checkout_session_uses_stripe_subscription_mode():
     # This temporarily replaces StripeClient inside apps.subscriptions.services.
     with patch("apps.subscriptions.services.StripeClient") as stripe_client:
         checkout_session = stripe_client.return_value.v1.checkout.sessions.create
+        checkout_session.return_value.id = "cs_test_checkout_session"
         checkout_session.return_value.url = "https://checkout.stripe.com/c/test-session"
 
         checkout_url = create_checkout_session(user=user, price=price)
 
+    attempt = CheckoutAttempt.objects.get(user=user, price=price)
+
     assert checkout_url == "https://checkout.stripe.com/c/test-session"
+    assert attempt.status == CheckoutAttempt.Status.PENDING
+    assert attempt.provider_checkout_session_id == "cs_test_checkout_session"
     stripe_client.assert_called_once_with(settings.STRIPE_SECRET_KEY)
     checkout_session.assert_called_once_with(
         {
@@ -178,10 +187,14 @@ def test_create_checkout_session_uses_stripe_subscription_mode():
             "customer_email": user.email,
             "metadata": {
                 "user_id": str(user.id),
+                "checkout_attempt_id": str(attempt.id),
                 "subscription_price_id": str(price.id),
                 "subscription_plan_id": str(plan.id),
             },
-        }
+        },
+        options={
+            "idempotency_key": str(attempt.id),
+        },
     )
 
 def test_subscription_checkout_returns_bad_gateway_when_stripe_fails():
