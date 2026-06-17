@@ -5,7 +5,7 @@
 - Use the target-state ERD separately for planned Stripe, wearable-sync, and audit tables.
 
 ## Scope
-- `User`, `MetricDefinition`, `MetricEntry`, `SubscriptionPlan`, `SubscriptionPrice`, and `Subscription` are implemented domain tables.
+- `User`, `MetricDefinition`, `MetricEntry`, `SubscriptionPlan`, `SubscriptionPrice`, `Subscription`, and `CheckoutAttempt` are implemented domain tables.
 - Registration creates an explicit active free subscription, and metric limits resolve through the current subscription's plan.
 - Django framework tables such as auth groups, permissions, sessions, admin logs, and JWT token blacklist tables are intentionally omitted.
 
@@ -58,9 +58,11 @@ erDiagram
     %% IMPLEMENTED SUBSCRIPTION AND ENTITLEMENT TABLES
 
     USER ||--o{ SUBSCRIPTION : "has subscription history"
+    USER ||--o{ CHECKOUT_ATTEMPT : "starts checkout"
     SUBSCRIPTION_PLAN ||--o{ SUBSCRIPTION : governs
     SUBSCRIPTION_PLAN ||--o{ SUBSCRIPTION_PRICE : "offers billing options"
     SUBSCRIPTION_PRICE o|--o{ SUBSCRIPTION : "selected by"
+    SUBSCRIPTION_PRICE ||--o{ CHECKOUT_ATTEMPT : "selected for checkout"
 
     SUBSCRIPTION_PLAN {
         uuid id PK
@@ -106,6 +108,16 @@ erDiagram
         datetime created_at
         datetime updated_at
     }
+
+    CHECKOUT_ATTEMPT {
+        uuid id PK
+        uuid user_id FK
+        uuid price_id FK
+        string status "pending|completed|failed|expired"
+        string provider_checkout_session_id "Stripe Checkout Session ID, blank until created"
+        datetime created_at
+        datetime updated_at
+    }
 ```
 
 ## Constraints And Notes
@@ -124,3 +136,6 @@ erDiagram
 - `SubscriptionPrice.unit_amount` must be greater than zero.
 - `Subscription.price_id` is nullable for free subscriptions and references the exact billing option selected by a paid subscription.
 - Application validation requires `Subscription.price.plan_id == Subscription.plan_id`.
+- `CheckoutAttempt` represents one user action to start Stripe Checkout for one selected active paid price.
+- `CheckoutAttempt.id` is intended to become the per-attempt Stripe idempotency key; do not use broad deterministic keys like `(user_id, price_id)` for production retries.
+- `CheckoutAttempt.provider_checkout_session_id` stores Stripe's Checkout Session ID, such as `cs_test_...`, after Stripe creates the session. It lets webhook processing and support/debugging link a local attempt to the provider-side Checkout Session.

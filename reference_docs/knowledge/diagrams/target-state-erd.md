@@ -16,15 +16,21 @@ erDiagram
     USER ||--o{ WEARABLE_CONNECTION : connects
     USER ||--o{ SUBSCRIPTION : has
     USER ||--o{ BILLING_CUSTOMER : owns
+    USER ||--o{ CHECKOUT_ATTEMPT : starts
     USER ||--o{ AUDIT_LOG : generates
 
     METRIC_DEFINITION ||--o{ METRIC_ENTRY : defines
     WEARABLE_CONNECTION ||--o{ METRIC_ENTRY : sources
     WEARABLE_CONNECTION ||--o{ SYNC_RUN : runs
 
+    SUBSCRIPTION_PLAN ||--o{ SUBSCRIPTION_PRICE : offers
     SUBSCRIPTION_PLAN ||--o{ SUBSCRIPTION : governs
+    SUBSCRIPTION_PRICE ||--o{ CHECKOUT_ATTEMPT : selected
+    SUBSCRIPTION_PRICE o|--o{ SUBSCRIPTION : selected
     BILLING_CUSTOMER ||--o{ SUBSCRIPTION : bills
+    CHECKOUT_ATTEMPT o|--o{ SUBSCRIPTION : "may activate"
     SUBSCRIPTION ||--o{ STRIPE_WEBHOOK_EVENT : "may be affected by"
+    CHECKOUT_ATTEMPT ||--o{ STRIPE_WEBHOOK_EVENT : "may be confirmed by"
 
     USER {
         uuid id PK
@@ -121,6 +127,19 @@ erDiagram
         datetime updated_at
     }
 
+    SUBSCRIPTION_PRICE {
+        uuid id PK
+        uuid plan_id FK
+        string provider "stripe"
+        string provider_price_id UK
+        string currency
+        integer unit_amount "minor currency units"
+        string billing_interval "month|year"
+        boolean is_active
+        datetime created_at
+        datetime updated_at
+    }
+
     BILLING_CUSTOMER {
         uuid id PK
         uuid user_id FK
@@ -134,6 +153,7 @@ erDiagram
         uuid id PK
         uuid user_id FK
         uuid plan_id FK
+        uuid price_id FK "nullable for free plan"
         uuid billing_customer_id FK "nullable for free plan"
         string provider "stripe|null"
         string provider_subscription_id UK "nullable"
@@ -146,9 +166,20 @@ erDiagram
         datetime updated_at
     }
 
+    CHECKOUT_ATTEMPT {
+        uuid id PK
+        uuid user_id FK
+        uuid price_id FK
+        string status "pending|completed|failed|expired"
+        string provider_checkout_session_id UK "nullable/blank until Stripe creates it"
+        datetime created_at
+        datetime updated_at
+    }
+
     STRIPE_WEBHOOK_EVENT {
         uuid id PK
         uuid subscription_id FK "nullable"
+        uuid checkout_attempt_id FK "nullable"
         string stripe_event_id UK
         string event_type
         string processing_status "received|processed|failed"
@@ -173,8 +204,11 @@ erDiagram
 ## Design Notes
 - Stripe is not the entitlement model. Stripe tells us billing state; `SubscriptionPlan` and `Subscription` decide what the app allows.
 - `SubscriptionPlan` owns durable product limits such as active custom metrics, wearable connections, and sync cadence.
+- `SubscriptionPrice` stores provider price IDs and billing options separately from durable entitlement limits. A plan can have multiple prices, such as monthly and yearly billing.
 - `BillingCustomer` isolates provider-specific customer identifiers from user and entitlement logic.
-- `StripeWebhookEvent` should be idempotent through `stripe_event_id` and can optionally link to a subscription after processing.
+- `CheckoutAttempt` represents one local user action to start Stripe Checkout. Its UUID is the correct shape for a Stripe idempotency key because retries of that same attempt reuse the same ID, while later deliberate checkout attempts get a new ID.
+- `CheckoutAttempt.provider_checkout_session_id` stores the Stripe Checkout Session ID so webhook events and support/debugging can correlate Stripe's `checkout.session.completed` event with the local attempt.
+- `StripeWebhookEvent` should be idempotent through `stripe_event_id` and can optionally link to a subscription and/or checkout attempt after processing.
 - `WearableConnection` supports device-bridge, aggregator, and direct-cloud modes without changing `MetricEntry`.
 - `SyncRun` records import attempts separately from imported metric data, which keeps troubleshooting and retry behavior auditable.
 - `AuditLog` is append-only and should store diffs or compact change summaries, not full sensitive snapshots.

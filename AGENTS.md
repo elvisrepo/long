@@ -60,6 +60,7 @@ Load only the parts you need. You can load multiple files when useful. Be specif
 - `reference_docs/knowledge/36-c4-deployment-diagram.md` when you need the C4 deployment view for the pragmatic MVP cloud runtime.
 - `reference_docs/knowledge/37-subscription-transition-concurrency.md` when you need the low-level thread, database-connection, PostgreSQL row-lock, and transaction flow for concurrent subscription plan changes.
 - `reference_docs/knowledge/38-stripe-testing-and-load-testing.md` when you need Stripe sandbox boundaries, mocked versus integration testing, load-test design, API rate-limit handling, or Stripe credential policy.
+- `reference_docs/knowledge/39-concurrency-locking-and-idempotency.md` when you need race condition, pessimistic row-locking, optimistic stale-check, Stripe idempotency, or webhook idempotency guidance.
 - `reference_docs/knowledge/diagrams/longevity-architecture.dsl` when you need the Structurizr DSL source of truth for C4 architecture views.
 - `reference_docs/knowledge/diagrams/current-plus-subscription-plan-erd.md` when you need the implemented domain ERD plus the next planned subscription/entitlement tables.
 - `reference_docs/knowledge/diagrams/target-state-erd.md` when you need the intended completed-product ERD including billing, Stripe, wearable sync, audit, and long-term subscription state.
