@@ -197,7 +197,7 @@ Metric-entry detail behavior:
 |---|---|---|---|
 | GET | `/api/v1/subscriptions/current/` | Current subscription and plan entitlements | JWT required; scoped to `request.user`; read-only |
 | GET | `/api/v1/subscriptions/plans/` | Active plan catalog and entitlements | Public; active plans only; default plan first |
-| POST | `/api/v1/subscriptions/checkout/` | Create Stripe Checkout session | Returns redirect URL, idempotent per session |
+| POST | `/api/v1/subscriptions/checkout/` | Create Stripe Checkout session | JWT required; returns redirect URL; idempotent per CheckoutAttempt |
 | POST | `/api/v1/subscriptions/portal/` | Stripe Customer Portal link | |
 | POST | `/api/v1/webhooks/stripe/` | Stripe webhook receiver | No JWT — uses Stripe signature verification instead |
 
@@ -216,6 +216,21 @@ Plan-catalog behavior:
 - Inactive prices are retained for billing history but excluded from new checkout choices.
 - Stripe `provider_price_id` values remain server-side and are never exposed through the catalog.
 - The view prefetches active prices in one additional query and attaches them as `active_prices`, avoiding one price query per plan.
+
+Checkout behavior:
+- `POST /api/v1/subscriptions/checkout/` requires JWT authentication.
+- Request body accepts `price_id`, which is the application's internal `SubscriptionPrice.id`, not Stripe's provider price ID.
+- The selected price must be active, belong to an active non-default plan, and use the Stripe provider.
+- The authenticated user must already have one current subscription row. Registration creates a Free current subscription, so a missing current subscription is treated as inconsistent local state and returns `400`.
+- Checkout rejects the exact current subscription price so repeated checkout for the same active price does not create a new Stripe session.
+- The service creates a local `CheckoutAttempt` before calling Stripe.
+- `CheckoutAttempt.id` is used as the Stripe idempotency key, so retries of the same local attempt use the same provider retry identity.
+- Stripe Checkout receives the server-owned `SubscriptionPrice.provider_price_id` in `line_items`; clients cannot submit provider price IDs or amounts.
+- The Stripe metadata includes `user_id`, `checkout_attempt_id`, `subscription_price_id`, and `subscription_plan_id` for later webhook reconciliation.
+- If Stripe creates the Checkout Session, the attempt is marked `completed` and stores `provider_checkout_session_id`; this means only that the provider session exists.
+- If Stripe creation fails, the attempt is marked `failed`, the view logs the exception, and the API returns `502` with a generic public error.
+- Successful response shape is `201 {"url": "https://checkout.stripe.com/..."}`.
+- Checkout creation does **not** grant paid entitlements. Entitlements change only after a trusted Stripe webhook confirms payment/subscription state.
 
 Subscription transition contract:
 - The internal transition service requires the ID of the subscription state the caller observed.

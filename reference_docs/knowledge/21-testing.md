@@ -329,6 +329,13 @@ Current Stripe testing boundary:
 - Load tests exercise our application with a configurable Stripe fake that simulates latency, provider failures, `429` responses, timeouts, and webhook retries.
 - See `reference_docs/knowledge/38-stripe-testing-and-load-testing.md` for the complete policy and official Stripe references.
 
+Current Stripe Checkout testing checkpoint:
+- `tests/test_subscription_checkout.py` proves Checkout requires authentication and rejects missing, inactive, default-plan, duplicate-current-price, and no-current-subscription inputs.
+- The same suite proves successful Checkout calls the service and returns only the hosted Stripe URL.
+- Service-level Checkout tests mock `StripeClient`, assert subscription mode, server-owned Stripe price IDs, metadata, and `CheckoutAttempt.id` as the Stripe idempotency key.
+- Service-level failure tests prove a provider failure marks the local `CheckoutAttempt` as `failed` while the API layer returns a generic `502`.
+- No default checkout test contacts Stripe; sandbox coverage should remain opt-in and small.
+
 Practical test-level guidance for the current frontend slice:
 - use route tests for screen presence and router wiring
 - use focused component tests for local form behavior

@@ -61,6 +61,11 @@ The fake should support:
 - webhook duplication and out-of-order delivery;
 - deterministic provider IDs and idempotency behavior.
 
+For Checkout creation tests, the fake should return a deterministic Checkout
+Session ID and URL. Tests should assert that the application sends
+`CheckoutAttempt.id` as the Stripe idempotency key and persists the returned
+provider session ID locally.
+
 Once live traffic exists, choose simulated latency from observed Stripe request
 durations rather than sandbox timings. Do not record secrets, payment details,
 or sensitive response bodies while collecting those measurements.
@@ -72,6 +77,8 @@ or sensitive response bodies while collecting those measurements.
 - Inspect `Stripe-Rate-Limited-Reason` when present to distinguish global,
   endpoint, concurrency, and resource-specific limiting.
 - Use Stripe idempotency keys for retryable create operations.
+- Use a per-attempt UUID, such as `CheckoutAttempt.id`, rather than broad
+  deterministic keys derived from user and price IDs.
 - Serialize simultaneous mutations to the same Stripe object where practical;
   Stripe can return `429` with `lock_timeout` for object lock contention.
 - Monitor request rate, latency, `429` frequency, timeout frequency, and retry
@@ -93,4 +100,3 @@ or sensitive response bodies while collecting those measurements.
 - [Stripe testing](https://docs.stripe.com/testing)
 - [Stripe API rate limits and load testing](https://docs.stripe.com/rate-limits#load-testing)
 - [Stripe API key best practices](https://docs.stripe.com/keys-best-practices)
-

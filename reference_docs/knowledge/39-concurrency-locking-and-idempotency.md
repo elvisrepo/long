@@ -213,17 +213,18 @@ That is different from:
 SELECT ... FOR UPDATE = serialize local database transactions.
 ```
 
-## Correct Checkout Idempotency Shape
+## Checkout Idempotency Shape
 
-The current deterministic key:
+Do not use a broad deterministic key like:
 
 ```python
 f"checkout:{user.id}:{price.id}"
 ```
 
-is too broad for production because it represents all checkout attempts for the same user and price.
+That represents all checkout attempts for the same user and price, so it can
+collapse a later intentional checkout action into an earlier retry identity.
 
-The better design is:
+The implemented shape is:
 
 ```text
 User clicks checkout
@@ -236,6 +237,11 @@ New deliberate checkout action creates a new attempt ID
 That separates:
 - duplicate retries of the same user action;
 - a new user action later for the same price.
+
+If Stripe creates a Checkout Session, the attempt stores the provider session
+ID and moves to `completed`. In this context, `completed` means provider session
+creation completed; it does not mean the user paid or that entitlements changed.
+Webhook processing is still required for subscription activation.
 
 ## Which Tool To Use
 
@@ -256,4 +262,3 @@ Use a Stripe idempotency key when:
 Use webhook idempotency when:
 - Stripe can deliver the same event more than once;
 - the same provider event must not apply the same local subscription transition twice.
-

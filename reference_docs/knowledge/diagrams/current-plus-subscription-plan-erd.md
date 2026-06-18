@@ -137,5 +137,5 @@ erDiagram
 - `Subscription.price_id` is nullable for free subscriptions and references the exact billing option selected by a paid subscription.
 - Application validation requires `Subscription.price.plan_id == Subscription.plan_id`.
 - `CheckoutAttempt` represents one user action to start Stripe Checkout for one selected active paid price.
-- `CheckoutAttempt.id` is intended to become the per-attempt Stripe idempotency key; do not use broad deterministic keys like `(user_id, price_id)` for production retries.
+- `CheckoutAttempt.id` is the per-attempt Stripe idempotency key; do not use broad deterministic keys like `(user_id, price_id)` for production retries.
 - `CheckoutAttempt.provider_checkout_session_id` stores Stripe's Checkout Session ID, such as `cs_test_...`, after Stripe creates the session. It lets webhook processing and support/debugging link a local attempt to the provider-side Checkout Session.
