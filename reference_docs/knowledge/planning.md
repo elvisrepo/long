@@ -185,7 +185,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 | GET | `/api/v1/subscriptions/plans/` | Available plans | Public-ish — could be unauthenticated |
 | POST | `/api/v1/subscriptions/checkout/` | Create Stripe Checkout session | Returns redirect URL, idempotent per session |
 | POST | `/api/v1/subscriptions/portal/` | Stripe Customer Portal link | |
-| POST | `/api/v1/webhooks/stripe/` | Stripe webhook receiver | No JWT — uses Stripe signature verification instead |
+| POST | `/api/v1/subscriptions/stripe/webhook/` | Stripe webhook receiver | No JWT — uses Stripe signature verification instead |
 
 #### Samsung / Wearables (R2 internal spike, R3 MVP, JWT required)
 | Method | Endpoint | Description | Notes |

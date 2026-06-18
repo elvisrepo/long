@@ -5,7 +5,7 @@
 - Use the target-state ERD separately for planned Stripe, wearable-sync, and audit tables.
 
 ## Scope
-- `User`, `MetricDefinition`, `MetricEntry`, `SubscriptionPlan`, `SubscriptionPrice`, `Subscription`, and `CheckoutAttempt` are implemented domain tables.
+- `User`, `MetricDefinition`, `MetricEntry`, `SubscriptionPlan`, `SubscriptionPrice`, `Subscription`, `CheckoutAttempt`, and `StripeWebhookEvent` are implemented domain tables.
 - Registration creates an explicit active free subscription, and metric limits resolve through the current subscription's plan.
 - Django framework tables such as auth groups, permissions, sessions, admin logs, and JWT token blacklist tables are intentionally omitted.
 
@@ -113,10 +113,17 @@ erDiagram
         uuid id PK
         uuid user_id FK
         uuid price_id FK
-        string status "pending|completed|failed|expired"
+        string status "pending|completed|confirmed|failed|expired"
         string provider_checkout_session_id "Stripe Checkout Session ID, blank until created"
         datetime created_at
         datetime updated_at
+    }
+
+    STRIPE_WEBHOOK_EVENT {
+        bigint id PK
+        string provider_event_id UK
+        string event_type
+        datetime processed_at
     }
 ```
 
@@ -139,3 +146,5 @@ erDiagram
 - `CheckoutAttempt` represents one user action to start Stripe Checkout for one selected active paid price.
 - `CheckoutAttempt.id` is the per-attempt Stripe idempotency key; do not use broad deterministic keys like `(user_id, price_id)` for production retries.
 - `CheckoutAttempt.provider_checkout_session_id` stores Stripe's Checkout Session ID, such as `cs_test_...`, after Stripe creates the session. It lets webhook processing and support/debugging link a local attempt to the provider-side Checkout Session.
+- `CheckoutAttempt.completed` means the provider Checkout Session was created; `CheckoutAttempt.confirmed` means a verified `checkout.session.completed` webhook reconciled it and changed the local subscription.
+- `StripeWebhookEvent.provider_event_id` is unique so duplicate Stripe webhook deliveries cannot reapply a subscription transition.

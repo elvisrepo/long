@@ -262,3 +262,9 @@ Use a Stripe idempotency key when:
 Use webhook idempotency when:
 - Stripe can deliver the same event more than once;
 - the same provider event must not apply the same local subscription transition twice.
+
+Current implementation:
+- `StripeWebhookEvent.provider_event_id` is unique.
+- `process_stripe_webhook_event` inserts the Stripe event ID inside the same transaction as the subscription update.
+- If the event ID already exists, processing returns before touching subscription state.
+- This protects `checkout.session.completed` retries from creating extra subscription history rows.

@@ -336,6 +336,12 @@ Current Stripe Checkout testing checkpoint:
 - Service-level failure tests prove a provider failure marks the local `CheckoutAttempt` as `failed` while the API layer returns a generic `502`.
 - No default checkout test contacts Stripe; sandbox coverage should remain opt-in and small.
 
+Current Stripe webhook testing checkpoint:
+- `tests/test_subscription_webhooks.py` proves invalid Stripe signatures return `400` and do not process events.
+- Valid verified events are handed to `process_stripe_webhook_event`.
+- `checkout.session.completed` confirms the matching local `CheckoutAttempt`, cancels the previous current subscription, and creates the replacement paid subscription.
+- Duplicate Stripe event IDs are idempotent: a retried event is acknowledged without creating extra subscription history.
+
 Practical test-level guidance for the current frontend slice:
 - use route tests for screen presence and router wiring
 - use focused component tests for local form behavior

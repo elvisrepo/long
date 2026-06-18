@@ -66,6 +66,10 @@ Session ID and URL. Tests should assert that the application sends
 `CheckoutAttempt.id` as the Stripe idempotency key and persists the returned
 provider session ID locally.
 
+For webhook tests, mock signature verification at the application boundary, then
+assert that verified `checkout.session.completed` events confirm the matching
+attempt and change the subscription only once per Stripe event ID.
+
 Once live traffic exists, choose simulated latency from observed Stripe request
 durations rather than sandbox timings. Do not record secrets, payment details,
 or sensitive response bodies while collecting those measurements.
@@ -79,6 +83,9 @@ or sensitive response bodies while collecting those measurements.
 - Use Stripe idempotency keys for retryable create operations.
 - Use a per-attempt UUID, such as `CheckoutAttempt.id`, rather than broad
   deterministic keys derived from user and price IDs.
+- Store processed webhook event IDs locally, such as
+  `StripeWebhookEvent.provider_event_id`, because Stripe can deliver the same
+  event more than once.
 - Serialize simultaneous mutations to the same Stripe object where practical;
   Stripe can return `429` with `lock_timeout` for object lock contention.
 - Monitor request rate, latency, `429` frequency, timeout frequency, and retry

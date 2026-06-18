@@ -199,7 +199,7 @@ Metric-entry detail behavior:
 | GET | `/api/v1/subscriptions/plans/` | Active plan catalog and entitlements | Public; active plans only; default plan first |
 | POST | `/api/v1/subscriptions/checkout/` | Create Stripe Checkout session | JWT required; returns redirect URL; idempotent per CheckoutAttempt |
 | POST | `/api/v1/subscriptions/portal/` | Stripe Customer Portal link | |
-| POST | `/api/v1/webhooks/stripe/` | Stripe webhook receiver | No JWT — uses Stripe signature verification instead |
+| POST | `/api/v1/subscriptions/stripe/webhook/` | Stripe webhook receiver | No JWT — uses Stripe signature verification instead |
 
 Current-subscription read behavior:
 - `GET /api/v1/subscriptions/current/` returns the authenticated user's current subscription `id`, lifecycle `status`, plan identity, and backend-owned entitlement values.
@@ -232,6 +232,16 @@ Checkout behavior:
 - Successful response shape is `201 {"url": "https://checkout.stripe.com/..."}`.
 - Checkout creation does **not** grant paid entitlements. Entitlements change only after a trusted Stripe webhook confirms payment/subscription state.
 
+Stripe webhook behavior:
+- `POST /api/v1/subscriptions/stripe/webhook/` does not require JWT authentication because Stripe cannot send our application JWT.
+- The endpoint authenticates the provider request with the `Stripe-Signature` header and `STRIPE_WEBHOOK_SECRET`.
+- Invalid signatures return `400 {"detail": "Invalid Stripe webhook signature."}` and are not processed.
+- Verified events are recorded in `StripeWebhookEvent.provider_event_id`; repeated delivery of the same Stripe event ID is a no-op.
+- `checkout.session.completed` reads the server-generated metadata from the Checkout Session, verifies the local `CheckoutAttempt` by ID and provider Checkout Session ID, then changes the user's current subscription to the selected paid plan.
+- After a successful webhook-driven transition, the matching `CheckoutAttempt` is marked `confirmed`.
+- The subscription transition reuses the existing stale-write guard: it loads the current subscription and passes its ID to `change_subscription_plan`.
+- Unhandled event types are acknowledged after event recording but do not mutate application state.
+
 Subscription transition contract:
 - The internal transition service requires the ID of the subscription state the caller observed.
 - It locks the user row, reloads the current subscription, and only proceeds when that ID still matches.
@@ -239,8 +249,8 @@ Subscription transition contract:
 - A transition to the default Free plan accepts `price=None`.
 - The replacement subscription stores both the selected plan and exact selected price; the cancelled row preserves the previous selection as history.
 - Missing or inactive prices are rejected before cancellation. A cross-plan price is rejected while saving the replacement; the atomic transaction then rolls back the preceding cancellation, leaving existing state unchanged.
-- A future trusted checkout-completion or webhook boundary must return or record a conflict when the expected subscription was already replaced.
-- Stripe webhook handlers still require provider event idempotency and ordering checks in addition to this local stale-write guard.
+- Trusted webhook processing must return or record a conflict when the expected subscription was already replaced.
+- Stripe webhook handlers use provider event idempotency in addition to this local stale-write guard.
 
 #### Samsung / Wearables (R2 internal spike, R3 MVP, JWT required)
 | Method | Endpoint | Description | Notes |

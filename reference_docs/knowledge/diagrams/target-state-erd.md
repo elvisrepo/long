@@ -180,7 +180,7 @@ erDiagram
         uuid id PK
         uuid subscription_id FK "nullable"
         uuid checkout_attempt_id FK "nullable"
-        string stripe_event_id UK
+        string provider_event_id UK
         string event_type
         string processing_status "received|processed|failed"
         json payload
@@ -208,7 +208,7 @@ erDiagram
 - `BillingCustomer` isolates provider-specific customer identifiers from user and entitlement logic.
 - `CheckoutAttempt` represents one local user action to start Stripe Checkout. Its UUID is the correct shape for a Stripe idempotency key because retries of that same attempt reuse the same ID, while later deliberate checkout attempts get a new ID.
 - `CheckoutAttempt.provider_checkout_session_id` stores the Stripe Checkout Session ID so webhook events and support/debugging can correlate Stripe's `checkout.session.completed` event with the local attempt.
-- `StripeWebhookEvent` should be idempotent through `stripe_event_id` and can optionally link to a subscription and/or checkout attempt after processing.
+- `StripeWebhookEvent` should be idempotent through `provider_event_id` and can optionally link to a subscription and/or checkout attempt after processing.
 - `WearableConnection` supports device-bridge, aggregator, and direct-cloud modes without changing `MetricEntry`.
 - `SyncRun` records import attempts separately from imported metric data, which keeps troubleshooting and retry behavior auditable.
 - `AuditLog` is append-only and should store diffs or compact change summaries, not full sensitive snapshots.
