@@ -7,6 +7,7 @@ from rest_framework.test import APIClient
 
 from apps.subscriptions.models import (
     CheckoutAttempt,
+    StripeWebhookEvent,
     Subscription,
     SubscriptionPlan,
     SubscriptionPrice,
@@ -191,3 +192,38 @@ def test_checkout_session_completed_is_idempotent_for_duplicate_event():
         user=user,
         status=Subscription.Status.ACTIVE,
     ).plan == pro_plan
+
+
+def test_checkout_session_completed_with_missing_metadata_is_ignored_safely():
+    user = get_user_model().objects.create_user(
+        email="missing-metadata-webhook@example.com",
+        password="strong-password-123",
+    )
+    free_plan = SubscriptionPlan.objects.get(code="free")
+    Subscription.objects.create(
+        user=user,
+        plan=free_plan,
+        status=Subscription.Status.ACTIVE,
+    )
+
+    event = {
+        "id": "evt_checkout_missing_metadata",
+        "type": "checkout.session.completed",
+        "data": {
+            "object": {
+                "id": "cs_test_missing_metadata",
+                "metadata": {},
+            },
+        },
+    }
+
+    process_stripe_webhook_event(event)
+
+    assert StripeWebhookEvent.objects.filter(
+        provider_event_id="evt_checkout_missing_metadata",
+    ).exists()
+    assert Subscription.objects.get(
+        user=user,
+        status=Subscription.Status.ACTIVE,
+    ).plan == free_plan
+    assert Subscription.objects.filter(user=user).count() == 1

@@ -155,15 +155,27 @@ def create_checkout_session(
 
 def verify_stripe_webhook_event(
     *,
-    payload: bytes,  #raw request body from Stripe.
-    signature: str,  #If the signature is valid, Stripe SDK returns the event object.
+    payload: bytes,
+    signature: str,
     webhook_secret: str,
 ) -> dict[str, Any]:
     return stripe.Webhook.construct_event(
         payload,
-        signature, 
+        signature,
         webhook_secret,
     )
+
+
+def get_checkout_session_metadata_value(
+    metadata: dict[str, str],
+    key: str,
+) -> str | None:
+    value = metadata.get(key)
+
+    if value == "":
+        return None
+
+    return value
 
 
 @transaction.atomic
@@ -180,16 +192,36 @@ def process_stripe_webhook_event(event: dict[str, Any]) -> None:
         return None
 
     session = event["data"]["object"]
-    metadata = session["metadata"]
+    metadata = session.get("metadata") or {}
+    checkout_attempt_id = get_checkout_session_metadata_value(
+        metadata,
+        "checkout_attempt_id",
+    )
+    subscription_plan_id = get_checkout_session_metadata_value(
+        metadata,
+        "subscription_plan_id",
+    )
+    subscription_price_id = get_checkout_session_metadata_value(
+        metadata,
+        "subscription_price_id",
+    )
+
+    if (
+        checkout_attempt_id is None
+        or subscription_plan_id is None
+        or subscription_price_id is None
+    ):
+        return None
+
     attempt = CheckoutAttempt.objects.select_related("user", "price").get(
-        id=metadata["checkout_attempt_id"],
+        id=checkout_attempt_id,
         provider_checkout_session_id=session["id"],
     )
     plan = SubscriptionPlan.objects.get(
-        id=metadata["subscription_plan_id"],
+        id=subscription_plan_id,
     )
     price = SubscriptionPrice.objects.get(
-        id=metadata["subscription_price_id"],
+        id=subscription_price_id,
         plan=plan,
     )
     current_subscription = Subscription.objects.get(
