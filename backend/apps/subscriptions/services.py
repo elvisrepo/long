@@ -103,32 +103,37 @@ def create_checkout_session(
     )
     client = StripeClient(settings.STRIPE_SECRET_KEY)
 
-    session = client.v1.checkout.sessions.create(
-        {
-            # Stripe Checkout uses the provider price ID; clients only send our
-            # internal SubscriptionPrice UUID to prevent price manipulation.
-            "line_items": [
-                {
-                    "price": price.provider_price_id,
-                    "quantity": 1,
+    try:
+        session = client.v1.checkout.sessions.create(
+            {
+                # Stripe Checkout uses the provider price ID; clients only send our
+                # internal SubscriptionPrice UUID to prevent price manipulation.
+                "line_items": [
+                    {
+                        "price": price.provider_price_id,
+                        "quantity": 1,
+                    },
+                ],
+                "mode": "subscription",
+                "success_url": settings.STRIPE_CHECKOUT_SUCCESS_URL,
+                "cancel_url": settings.STRIPE_CHECKOUT_CANCEL_URL,
+                "client_reference_id": str(user.id),
+                "customer_email": user.email,
+                "metadata": {
+                    "user_id": str(user.id),
+                    "checkout_attempt_id": str(attempt.id),
+                    "subscription_price_id": str(price.id),
+                    "subscription_plan_id": str(price.plan_id),
                 },
-            ],
-            "mode": "subscription",
-            "success_url": settings.STRIPE_CHECKOUT_SUCCESS_URL,
-            "cancel_url": settings.STRIPE_CHECKOUT_CANCEL_URL,
-            "client_reference_id": str(user.id),
-            "customer_email": user.email,
-            "metadata": {
-                "user_id": str(user.id),
-                "checkout_attempt_id": str(attempt.id),
-                "subscription_price_id": str(price.id),
-                "subscription_plan_id": str(price.plan_id),
             },
-        },
-        options={
-            "idempotency_key": str(attempt.id),
-        },
-    )
+            options={
+                "idempotency_key": str(attempt.id),
+            },
+        )
+    except Exception:
+        attempt.status = CheckoutAttempt.Status.FAILED
+        attempt.save(update_fields=["status", "updated_at"])
+        raise
 
     # After Stripe returns
     attempt.provider_checkout_session_id = session.id

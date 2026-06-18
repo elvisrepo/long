@@ -360,3 +360,40 @@ def test_subscription_checkout_requires_current_subscription():
         "detail": ["A current subscription is required before checkout."],
     }
     create_checkout.assert_not_called()
+
+
+def test_create_checkout_session_marks_attempt_failed_when_stripe_fails():
+    from apps.subscriptions.services import create_checkout_session
+
+    user = get_user_model().objects.create_user(
+        email="checkout-failure@example.com",
+        password="strong-password-123",
+    )
+    plan = SubscriptionPlan.objects.create(
+        code="pro-checkout-service-failure",
+        name="Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=2,
+        sync_interval_minutes=15,
+    )
+    price = SubscriptionPrice.objects.create(
+        plan=plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_stripe_failure_service",
+        currency="usd",
+        unit_amount=1000,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+        is_active=True,
+    )
+
+    with patch("apps.subscriptions.services.StripeClient") as stripe_client:
+        checkout_session = stripe_client.return_value.v1.checkout.sessions.create
+        checkout_session.side_effect = RuntimeError("stripe is unavailable")
+
+        with pytest.raises(RuntimeError, match="stripe is unavailable"):
+            create_checkout_session(user=user, price=price)
+
+    attempt = CheckoutAttempt.objects.get(user=user, price=price)
+
+    assert attempt.status == CheckoutAttempt.Status.FAILED
+    assert attempt.provider_checkout_session_id == ""
