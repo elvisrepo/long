@@ -169,7 +169,7 @@ def test_create_checkout_session_uses_checkout_attempt_as_idempotency_key():
     attempt = CheckoutAttempt.objects.get(user=user, price=price)
 
     assert checkout_url == "https://checkout.stripe.com/c/test-session"
-    assert attempt.status == CheckoutAttempt.Status.PENDING
+    assert attempt.status == CheckoutAttempt.Status.COMPLETED
     assert attempt.provider_checkout_session_id == "cs_test_checkout_session"
     stripe_client.assert_called_once_with(settings.STRIPE_SECRET_KEY)
     checkout_session.assert_called_once_with(

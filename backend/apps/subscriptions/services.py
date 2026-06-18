@@ -135,10 +135,13 @@ def create_checkout_session(
         attempt.save(update_fields=["status", "updated_at"])
         raise
 
-    # After Stripe returns
+    # Stripe created the provider session; webhook completion will later decide
+    # whether the user's subscription should actually change.
+    attempt.status = CheckoutAttempt.Status.COMPLETED
     attempt.provider_checkout_session_id = session.id
     attempt.save(
         update_fields=[
+            "status",
             "provider_checkout_session_id",
             "updated_at",
         ]
