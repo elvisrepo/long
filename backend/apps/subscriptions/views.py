@@ -1,5 +1,6 @@
 import logging
 
+from django.conf import settings
 from django.db.models import Prefetch
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -19,6 +20,8 @@ from apps.subscriptions.serializers import (
 from apps.subscriptions.services import (
     CURRENT_SUBSCRIPTION_STATUSES,
     create_checkout_session,
+    process_stripe_webhook_event,
+    verify_stripe_webhook_event,
 )
 
 logger = logging.getLogger(__name__)
@@ -88,3 +91,27 @@ class SubscriptionCheckoutView(APIView):
             {"url": checkout_url},
             status=status.HTTP_201_CREATED,
         )
+
+
+class StripeWebhookView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def post(self, request) -> Response:
+        signature = request.headers.get("Stripe-Signature", "")
+
+        try:
+            event = verify_stripe_webhook_event(
+                payload=request.body,
+                signature=signature,
+                webhook_secret=settings.STRIPE_WEBHOOK_SECRET,
+            )
+        except Exception:
+            return Response(
+                {"detail": "Invalid Stripe webhook signature."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        process_stripe_webhook_event(event)
+
+        return Response({"received": True})

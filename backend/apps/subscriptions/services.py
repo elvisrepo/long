@@ -1,15 +1,18 @@
+from typing import Any
 from uuid import UUID
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractBaseUser
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
+import stripe
 from stripe import StripeClient
 
 from apps.subscriptions.models import (
     CheckoutAttempt,
+    StripeWebhookEvent,
     Subscription,
     SubscriptionPlan,
     SubscriptionPrice,
@@ -148,3 +151,60 @@ def create_checkout_session(
     )
 
     return session.url
+
+
+def verify_stripe_webhook_event(
+    *,
+    payload: bytes,  #raw request body from Stripe.
+    signature: str,  #If the signature is valid, Stripe SDK returns the event object.
+    webhook_secret: str,
+) -> dict[str, Any]:
+    return stripe.Webhook.construct_event(
+        payload,
+        signature, 
+        webhook_secret,
+    )
+
+
+@transaction.atomic
+def process_stripe_webhook_event(event: dict[str, Any]) -> None:
+    try:
+        StripeWebhookEvent.objects.create(
+            provider_event_id=event["id"],
+            event_type=event["type"],
+        )
+    except IntegrityError:
+        return None
+
+    if event.get("type") != "checkout.session.completed":
+        return None
+
+    session = event["data"]["object"]
+    metadata = session["metadata"]
+    attempt = CheckoutAttempt.objects.select_related("user", "price").get(
+        id=metadata["checkout_attempt_id"],
+        provider_checkout_session_id=session["id"],
+    )
+    plan = SubscriptionPlan.objects.get(
+        id=metadata["subscription_plan_id"],
+    )
+    price = SubscriptionPrice.objects.get(
+        id=metadata["subscription_price_id"],
+        plan=plan,
+    )
+    current_subscription = Subscription.objects.get(
+        user=attempt.user,
+        status__in=CURRENT_SUBSCRIPTION_STATUSES,
+    )
+
+    change_subscription_plan(
+        user=attempt.user,
+        plan=plan,
+        price=price,
+        expected_subscription_id=current_subscription.id,
+    )
+
+    attempt.status = CheckoutAttempt.Status.CONFIRMED
+    attempt.save(update_fields=["status", "updated_at"])
+
+    return None

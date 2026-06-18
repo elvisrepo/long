@@ -178,6 +178,7 @@ class CheckoutAttempt(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
         COMPLETED = "completed", "Completed"
+        CONFIRMED = "confirmed", "Confirmed"
         FAILED = "failed", "Failed"
         EXPIRED = "expired", "Expired"
 
@@ -215,3 +216,15 @@ class CheckoutAttempt(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id}: {self.price_id}: {self.status}"
+
+
+class StripeWebhookEvent(models.Model):
+    provider_event_id = models.CharField(max_length=255, unique=True)
+    event_type = models.CharField(max_length=255)
+    processed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "subscriptions_stripe_webhook_event"
+
+    def __str__(self) -> str:
+        return f"{self.provider_event_id}: {self.event_type}"
