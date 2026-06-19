@@ -192,6 +192,8 @@ def process_stripe_webhook_event(event: dict[str, Any]) -> None:
         return None
 
     session = event["data"]["object"]
+    # webhook metadata is Stripe sending back the IDs we attached earlier.
+    # Those values came from our earlier create_checkout_session(...) call.
     metadata = session.get("metadata") or {}
     checkout_attempt_id = get_checkout_session_metadata_value(
         metadata,
@@ -213,10 +215,19 @@ def process_stripe_webhook_event(event: dict[str, Any]) -> None:
     ):
         return None
 
-    attempt = CheckoutAttempt.objects.select_related("user", "price").get(
-        id=checkout_attempt_id,
-        provider_checkout_session_id=session["id"],
-    )
+    # We try to find the local checkout attempt by both attempt ID and Stripe session ID.
+    attempt = (
+      CheckoutAttempt.objects.select_related("user", "price")
+      .filter(
+          id=checkout_attempt_id,
+          provider_checkout_session_id=session["id"],
+      )
+      .first()
+  )
+
+    if attempt is None:
+      return None
+
     plan = SubscriptionPlan.objects.get(
         id=subscription_plan_id,
     )
