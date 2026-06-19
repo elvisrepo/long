@@ -56,6 +56,7 @@ Current Stripe Checkout boundary:
 - `CheckoutAttempt.completed` means Stripe returned a Checkout Session ID, not that the user paid or that app entitlements changed.
 - `CheckoutAttempt.confirmed` means a verified Stripe `checkout.session.completed` webhook reconciled the provider session and changed the user's current subscription.
 - Webhook metadata alone is not trusted. A Checkout completion must match both the local `CheckoutAttempt.id` from metadata and the stored `CheckoutAttempt.provider_checkout_session_id` against Stripe's event session ID.
+- Webhook plan and price metadata must resolve to a real `SubscriptionPrice` belonging to the metadata `SubscriptionPlan`; cross-plan metadata is recorded and ignored.
 - Stripe webhook processing stores each verified Stripe event ID in `StripeWebhookEvent`; duplicate deliveries return without reapplying subscription transitions.
 - Failed Stripe session creation marks the local attempt `failed` and returns a generic `502` without leaking provider exception details to the client.
 - Frontend success redirects are informational only. Paid entitlements must be granted from trusted Stripe webhook processing.
@@ -74,6 +75,7 @@ Current Stripe credential and traffic boundary:
 - **Metric value out of range**: Rejected at serializer level. MetricDefinition has `min_value` and `max_value` — a heart rate of 500 bpm gets a 400 error.
 - **Stripe webhook replay**: Store processed Stripe event IDs in `StripeWebhookEvent`. If we see the same event ID twice, skip processing.
 - **Stripe webhook session mismatch**: If metadata points at a real local checkout attempt but the Stripe Checkout Session ID differs from the stored `provider_checkout_session_id`, record the event and skip entitlement changes.
+- **Stripe webhook price/plan mismatch**: If metadata combines a plan ID with a price ID from another plan, record the event and skip entitlement changes.
 - **Checkout retry after timeout**: Local `CheckoutAttempt.id` is sent as Stripe's idempotency key. A retry of the same attempt should reuse that ID; a later intentional checkout action should create a new attempt.
 - **Token expiry during WebSocket session**: Server sends `AUTH_EXPIRED` frame. Client must close the socket, re-authenticate via REST, get a new WS ticket, and reconnect.
 - **User deletes account mid-sync**: Celery task checks `user.is_active` before writing data. If user is deleted, task aborts gracefully.

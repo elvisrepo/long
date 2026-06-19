@@ -268,4 +268,5 @@ Current implementation:
 - `process_stripe_webhook_event` inserts the Stripe event ID inside the same transaction as the subscription update.
 - If the event ID already exists, processing returns before touching subscription state.
 - `checkout.session.completed` must match both `CheckoutAttempt.id` from metadata and `CheckoutAttempt.provider_checkout_session_id` from the Stripe event's session ID before confirming the attempt.
+- `checkout.session.completed` must also resolve metadata `subscription_price_id` to a price belonging to metadata `subscription_plan_id`.
 - This protects `checkout.session.completed` retries from creating extra subscription history rows.

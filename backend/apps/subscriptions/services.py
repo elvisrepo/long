@@ -217,24 +217,30 @@ def process_stripe_webhook_event(event: dict[str, Any]) -> None:
 
     # We try to find the local checkout attempt by both attempt ID and Stripe session ID.
     attempt = (
-      CheckoutAttempt.objects.select_related("user", "price")
-      .filter(
-          id=checkout_attempt_id,
-          provider_checkout_session_id=session["id"],
-      )
-      .first()
-  )
+        CheckoutAttempt.objects.select_related("user", "price")
+        .filter(
+            id=checkout_attempt_id,
+            provider_checkout_session_id=session["id"],
+        )
+        .first()
+    )
 
     if attempt is None:
-      return None
+        return None
 
-    plan = SubscriptionPlan.objects.get(
+    # resolves the plan and then looks up the price scoped to that plan
+    plan = SubscriptionPlan.objects.filter(
         id=subscription_plan_id,
-    )
-    price = SubscriptionPrice.objects.get(
+    ).first()
+
+    price = SubscriptionPrice.objects.filter(
         id=subscription_price_id,
         plan=plan,
-    )
+    ).first()
+
+    if plan is None or price is None:
+        return None
+
     current_subscription = Subscription.objects.get(
         user=attempt.user,
         status__in=CURRENT_SUBSCRIPTION_STATUSES,

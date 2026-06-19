@@ -148,4 +148,5 @@ erDiagram
 - `CheckoutAttempt.provider_checkout_session_id` stores Stripe's Checkout Session ID, such as `cs_test_...`, after Stripe creates the session. It lets webhook processing and support/debugging link a local attempt to the provider-side Checkout Session.
 - `CheckoutAttempt.completed` means the provider Checkout Session was created; `CheckoutAttempt.confirmed` means a verified `checkout.session.completed` webhook reconciled it and changed the local subscription.
 - Webhook confirmation requires both the local `CheckoutAttempt.id` from Stripe metadata and the stored `provider_checkout_session_id` to match the event's Checkout Session ID.
+- Webhook confirmation also requires the metadata `subscription_price_id` to belong to the metadata `subscription_plan_id`.
 - `StripeWebhookEvent.provider_event_id` is unique so duplicate Stripe webhook deliveries cannot reapply a subscription transition.

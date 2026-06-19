@@ -293,3 +293,73 @@ def test_checkout_session_completed_with_mismatched_session_id_is_ignored_safely
           status=Subscription.Status.ACTIVE,
       ).plan == free_plan
     assert Subscription.objects.filter(user=user).count() == 1
+
+
+def test_checkout_session_completed_with_price_plan_mismatch_is_ignored_safely():
+      user = get_user_model().objects.create_user(
+          email="price-plan-mismatch-webhook@example.com",
+          password="strong-password-123",
+      )
+      free_plan = SubscriptionPlan.objects.get(code="free")
+      Subscription.objects.create(
+          user=user,
+          plan=free_plan,
+          status=Subscription.Status.ACTIVE,
+      )
+      pro_plan = SubscriptionPlan.objects.create(
+          code="pro-price-plan-mismatch-webhook",
+          name="Pro",
+          active_custom_metric_limit=10,
+          wearable_connection_limit=2,
+          sync_interval_minutes=15,
+      )
+      premium_plan = SubscriptionPlan.objects.create(
+          code="premium-price-plan-mismatch-webhook",
+          name="Premium",
+          active_custom_metric_limit=25,
+          wearable_connection_limit=5,
+          sync_interval_minutes=5,
+      )
+      premium_price = SubscriptionPrice.objects.create(
+          plan=premium_plan,
+          provider=SubscriptionPrice.Provider.STRIPE,
+          provider_price_id="price_premium_mismatch_webhook",
+          currency="usd",
+          unit_amount=2500,
+          billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+      )
+      attempt = CheckoutAttempt.objects.create(
+          user=user,
+          price=premium_price,
+          status=CheckoutAttempt.Status.COMPLETED,
+          provider_checkout_session_id="cs_test_price_plan_mismatch",
+      )
+      event = {
+          "id": "evt_checkout_price_plan_mismatch",
+          "type": "checkout.session.completed",
+          "data": {
+              "object": {
+                  "id": "cs_test_price_plan_mismatch",
+                  "metadata": {
+                      "checkout_attempt_id": str(attempt.id),
+                      "subscription_price_id": str(premium_price.id),
+                      "subscription_plan_id": str(pro_plan.id),
+                      "user_id": str(user.id),
+                  },
+              },
+          },
+      }
+
+      process_stripe_webhook_event(event)
+
+      attempt.refresh_from_db()
+
+      assert StripeWebhookEvent.objects.filter(
+          provider_event_id="evt_checkout_price_plan_mismatch",
+      ).exists()
+      assert attempt.status == CheckoutAttempt.Status.COMPLETED
+      assert Subscription.objects.get(
+          user=user,
+          status=Subscription.Status.ACTIVE,
+      ).plan == free_plan
+      assert Subscription.objects.filter(user=user).count() == 1

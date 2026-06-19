@@ -239,6 +239,7 @@ Stripe webhook behavior:
 - Verified events are recorded in `StripeWebhookEvent.provider_event_id`; repeated delivery of the same Stripe event ID is a no-op.
 - `checkout.session.completed` reads the server-generated metadata from the Checkout Session, verifies the local `CheckoutAttempt` by both metadata attempt ID and provider Checkout Session ID, then changes the user's current subscription to the selected paid plan.
 - If metadata is missing or the provider Checkout Session ID does not match the stored `CheckoutAttempt.provider_checkout_session_id`, the event is recorded but no subscription state changes.
+- If metadata contains a `subscription_price_id` that does not belong to the metadata `subscription_plan_id`, the event is recorded but no subscription state changes.
 - After a successful webhook-driven transition, the matching `CheckoutAttempt` is marked `confirmed`.
 - The subscription transition reuses the existing stale-write guard: it loads the current subscription and passes its ID to `change_subscription_plan`.
 - Unhandled event types are acknowledged after event recording but do not mutate application state.

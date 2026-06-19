@@ -342,6 +342,7 @@ Current Stripe webhook testing checkpoint:
 - `checkout.session.completed` confirms the matching local `CheckoutAttempt`, cancels the previous current subscription, and creates the replacement paid subscription.
 - Duplicate Stripe event IDs are idempotent: a retried event is acknowledged without creating extra subscription history.
 - Missing Checkout metadata and mismatched provider Checkout Session IDs are recorded as seen webhook events but do not confirm attempts or change subscriptions.
+- Cross-plan price metadata is recorded as a seen webhook event but does not confirm attempts or change subscriptions.
 
 Practical test-level guidance for the current frontend slice:
 - use route tests for screen presence and router wiring
