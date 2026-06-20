@@ -142,6 +142,12 @@ def test_create_checkout_session_uses_checkout_attempt_as_idempotency_key():
         email="alice@example.com",
         password="strong-password-123",
     )
+    free_plan = SubscriptionPlan.objects.get(code="free")
+    Subscription.objects.create(
+        user=user,
+        plan=free_plan,
+        status=Subscription.Status.ACTIVE,
+    )
     plan = SubscriptionPlan.objects.create(
         code="pro-checkout-service",
         name="Pro",
@@ -196,6 +202,49 @@ def test_create_checkout_session_uses_checkout_attempt_as_idempotency_key():
             "idempotency_key": str(attempt.id),
         },
     )
+
+
+def test_create_checkout_session_stores_expected_subscription():
+    from apps.subscriptions.services import create_checkout_session
+
+    user = get_user_model().objects.create_user(
+        email="expected-subscription-checkout@example.com",
+        password="strong-password-123",
+    )
+    free_plan = SubscriptionPlan.objects.get(code="free")
+    current_subscription = Subscription.objects.create(
+        user=user,
+        plan=free_plan,
+        status=Subscription.Status.ACTIVE,
+    )
+    plan = SubscriptionPlan.objects.create(
+        code="pro-checkout-expected-subscription",
+        name="Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=2,
+        sync_interval_minutes=15,
+    )
+    price = SubscriptionPrice.objects.create(
+        plan=plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_stripe_expected_subscription",
+        currency="usd",
+        unit_amount=1000,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+        is_active=True,
+    )
+
+    with patch("apps.subscriptions.services.StripeClient") as stripe_client:
+        checkout_session = stripe_client.return_value.v1.checkout.sessions.create
+        checkout_session.return_value.id = "cs_test_expected_subscription"
+        checkout_session.return_value.url = "https://checkout.stripe.com/c/test-session"
+
+        create_checkout_session(user=user, price=price)
+
+    attempt = CheckoutAttempt.objects.get(user=user, price=price)
+
+    assert attempt.expected_subscription == current_subscription
+
 
 def test_subscription_checkout_returns_bad_gateway_when_stripe_fails():
     user = get_user_model().objects.create_user(
@@ -368,6 +417,12 @@ def test_create_checkout_session_marks_attempt_failed_when_stripe_fails():
     user = get_user_model().objects.create_user(
         email="checkout-failure@example.com",
         password="strong-password-123",
+    )
+    free_plan = SubscriptionPlan.objects.get(code="free")
+    Subscription.objects.create(
+        user=user,
+        plan=free_plan,
+        status=Subscription.Status.ACTIVE,
     )
     plan = SubscriptionPlan.objects.create(
         code="pro-checkout-service-failure",

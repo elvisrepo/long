@@ -224,6 +224,7 @@ Checkout behavior:
 - The authenticated user must already have one current subscription row. Registration creates a Free current subscription, so a missing current subscription is treated as inconsistent local state and returns `400`.
 - Checkout rejects the exact current subscription price so repeated checkout for the same active price does not create a new Stripe session.
 - The service creates a local `CheckoutAttempt` before calling Stripe.
+- `CheckoutAttempt.expected_subscription` stores the user's current subscription at checkout creation time; this is the subscription state the later Stripe webhook is allowed to replace.
 - `CheckoutAttempt.id` is used as the Stripe idempotency key, so retries of the same local attempt use the same provider retry identity.
 - Stripe Checkout receives the server-owned `SubscriptionPrice.provider_price_id` in `line_items`; clients cannot submit provider price IDs or amounts.
 - The Stripe metadata includes `user_id`, `checkout_attempt_id`, `subscription_price_id`, and `subscription_plan_id` for later webhook reconciliation.
@@ -240,8 +241,9 @@ Stripe webhook behavior:
 - `checkout.session.completed` reads the server-generated metadata from the Checkout Session, verifies the local `CheckoutAttempt` by both metadata attempt ID and provider Checkout Session ID, then changes the user's current subscription to the selected paid plan.
 - If metadata is missing or the provider Checkout Session ID does not match the stored `CheckoutAttempt.provider_checkout_session_id`, the event is recorded but no subscription state changes.
 - If metadata contains a `subscription_price_id` that does not belong to the metadata `subscription_plan_id`, the event is recorded but no subscription state changes.
+- If the user's current subscription no longer matches `CheckoutAttempt.expected_subscription`, the event is recorded but no subscription state changes.
 - After a successful webhook-driven transition, the matching `CheckoutAttempt` is marked `confirmed`.
-- The subscription transition reuses the existing stale-write guard: it loads the current subscription and passes its ID to `change_subscription_plan`.
+- The subscription transition reuses the existing stale-write guard: it passes `CheckoutAttempt.expected_subscription_id` to `change_subscription_plan`.
 - Unhandled event types are acknowledged after event recording but do not mutate application state.
 
 Subscription transition contract:

@@ -63,6 +63,7 @@ erDiagram
     SUBSCRIPTION_PLAN ||--o{ SUBSCRIPTION_PRICE : "offers billing options"
     SUBSCRIPTION_PRICE o|--o{ SUBSCRIPTION : "selected by"
     SUBSCRIPTION_PRICE ||--o{ CHECKOUT_ATTEMPT : "selected for checkout"
+    SUBSCRIPTION o|--o{ CHECKOUT_ATTEMPT : "expected at checkout"
 
     SUBSCRIPTION_PLAN {
         uuid id PK
@@ -113,6 +114,7 @@ erDiagram
         uuid id PK
         uuid user_id FK
         uuid price_id FK
+        uuid expected_subscription_id FK "nullable for pre-baseline attempts"
         string status "pending|completed|confirmed|failed|expired"
         string provider_checkout_session_id "Stripe Checkout Session ID, blank until created"
         datetime created_at
@@ -144,6 +146,7 @@ erDiagram
 - `Subscription.price_id` is nullable for free subscriptions and references the exact billing option selected by a paid subscription.
 - Application validation requires `Subscription.price.plan_id == Subscription.plan_id`.
 - `CheckoutAttempt` represents one user action to start Stripe Checkout for one selected active paid price.
+- `CheckoutAttempt.expected_subscription_id` stores the current subscription observed when Checkout was created. Webhook confirmation can only replace that subscription, preventing late Checkout completions from overwriting newer subscription state.
 - `CheckoutAttempt.id` is the per-attempt Stripe idempotency key; do not use broad deterministic keys like `(user_id, price_id)` for production retries.
 - `CheckoutAttempt.provider_checkout_session_id` stores Stripe's Checkout Session ID, such as `cs_test_...`, after Stripe creates the session. It lets webhook processing and support/debugging link a local attempt to the provider-side Checkout Session.
 - `CheckoutAttempt.completed` means the provider Checkout Session was created; `CheckoutAttempt.confirmed` means a verified `checkout.session.completed` webhook reconciled it and changed the local subscription.

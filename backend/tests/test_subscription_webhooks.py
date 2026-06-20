@@ -103,6 +103,7 @@ def test_checkout_session_completed_confirms_attempt_and_changes_subscription():
     attempt = CheckoutAttempt.objects.create(
         user=user,
         price=pro_price,
+        expected_subscription=free_subscription,
         status=CheckoutAttempt.Status.COMPLETED,
         provider_checkout_session_id="cs_test_paid",
     )
@@ -143,7 +144,7 @@ def test_checkout_session_completed_is_idempotent_for_duplicate_event():
         password="strong-password-123",
     )
     free_plan = SubscriptionPlan.objects.get(code="free")
-    Subscription.objects.create(
+    free_subscription = Subscription.objects.create(
         user=user,
         plan=free_plan,
         status=Subscription.Status.ACTIVE,
@@ -166,6 +167,7 @@ def test_checkout_session_completed_is_idempotent_for_duplicate_event():
     attempt = CheckoutAttempt.objects.create(
         user=user,
         price=pro_price,
+        expected_subscription=free_subscription,
         status=CheckoutAttempt.Status.COMPLETED,
         provider_checkout_session_id="cs_test_duplicate_paid",
     )
@@ -236,7 +238,7 @@ def test_checkout_session_completed_with_mismatched_session_id_is_ignored_safely
         password="strong-password-123",
     )
     free_plan = SubscriptionPlan.objects.get(code="free")
-    Subscription.objects.create(
+    free_subscription = Subscription.objects.create(
         user=user,
         plan=free_plan,
         status=Subscription.Status.ACTIVE,
@@ -261,6 +263,7 @@ def test_checkout_session_completed_with_mismatched_session_id_is_ignored_safely
     attempt = CheckoutAttempt.objects.create(
         user=user,
         price=pro_price,
+        expected_subscription=free_subscription,
         status=CheckoutAttempt.Status.COMPLETED,
         provider_checkout_session_id="cs_test_real_session",
     )
@@ -302,7 +305,7 @@ def test_checkout_session_completed_with_price_plan_mismatch_is_ignored_safely()
         password="strong-password-123",
     )
     free_plan = SubscriptionPlan.objects.get(code="free")
-    Subscription.objects.create(
+    free_subscription = Subscription.objects.create(
         user=user,
         plan=free_plan,
         status=Subscription.Status.ACTIVE,
@@ -332,6 +335,7 @@ def test_checkout_session_completed_with_price_plan_mismatch_is_ignored_safely()
     attempt = CheckoutAttempt.objects.create(
         user=user,
         price=premium_price,
+        expected_subscription=free_subscription,
         status=CheckoutAttempt.Status.COMPLETED,
         provider_checkout_session_id="cs_test_price_plan_mismatch",
     )
@@ -418,3 +422,100 @@ def test_checkout_session_completed_with_unknown_attempt_id_is_ignored_safely():
         status=Subscription.Status.ACTIVE,
     ).plan == free_plan
     assert Subscription.objects.filter(user=user).count() == 1
+
+
+def test_checkout_session_completed_with_stale_expected_subscription_is_ignored_safely():
+    user = get_user_model().objects.create_user(
+        email="stale-webhook@example.com",
+        password="strong-password-123",
+    )
+    free_plan = SubscriptionPlan.objects.get(code="free")
+    free_subscription = Subscription.objects.create(
+        user=user,
+        plan=free_plan,
+        status=Subscription.Status.ACTIVE,
+    )
+    pro_plan = SubscriptionPlan.objects.create(
+        code="pro-stale-webhook",
+        name="Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=2,
+        sync_interval_minutes=15,
+    )
+    pro_price = SubscriptionPrice.objects.create(
+        plan=pro_plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_pro_stale_webhook",
+        currency="usd",
+        unit_amount=1000,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+    )
+    premium_plan = SubscriptionPlan.objects.create(
+        code="premium-stale-webhook",
+        name="Premium",
+        active_custom_metric_limit=25,
+        wearable_connection_limit=5,
+        sync_interval_minutes=5,
+    )
+    premium_price = SubscriptionPrice.objects.create(
+        plan=premium_plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_premium_stale_webhook",
+        currency="usd",
+        unit_amount=2500,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+    )
+
+    #  expected_subscription=free_subscription "This Pro checkout is only valid if the user is still on this Free subscription when
+    # Stripe confirms payment."
+    attempt = CheckoutAttempt.objects.create(
+        user=user,
+        price=pro_price,
+        expected_subscription=free_subscription,
+        status=CheckoutAttempt.Status.COMPLETED,
+        provider_checkout_session_id="cs_test_stale",
+    )
+
+    # Before Stripe webhook arrives, something else changes the user’s subscription.
+    # This simulates reality: Stripe webhooks are async and can arrive late.
+    # The user/account state may have changed since Checkout was started.
+    free_subscription.status = Subscription.Status.CANCELLED
+    free_subscription.save(update_fields=["status", "updated_at"])
+    #New active subscription -> Premium
+    Subscription.objects.create(
+        user=user,
+        plan=premium_plan,
+        price=premium_price,
+        status=Subscription.Status.ACTIVE,
+    )
+
+    # Then Stripe sends the old Pro checkout webhook. This webhook says: “the old Pro checkout completed.”
+    event = {
+        "id": "evt_checkout_stale",
+        "type": "checkout.session.completed",
+        "data": {
+            "object": {
+                "id": "cs_test_stale",
+                "metadata": {
+                    "checkout_attempt_id": str(attempt.id),
+                    "subscription_price_id": str(pro_price.id),
+                    "subscription_plan_id": str(pro_plan.id),
+                    "user_id": str(user.id),
+                },
+            },
+        },
+    }
+
+    process_stripe_webhook_event(event)
+
+    attempt.refresh_from_db()
+
+    assert StripeWebhookEvent.objects.filter(
+        provider_event_id="evt_checkout_stale",
+    ).exists()
+    assert attempt.status == CheckoutAttempt.Status.COMPLETED
+    assert Subscription.objects.get(
+        user=user,
+        status=Subscription.Status.ACTIVE,
+    ).plan == premium_plan
+    assert Subscription.objects.filter(user=user).count() == 2
