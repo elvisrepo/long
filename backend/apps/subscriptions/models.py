@@ -196,6 +196,14 @@ class CheckoutAttempt(models.Model):
         related_name="checkout_attempts",
     )
 
+    expected_subscription = models.ForeignKey(
+        Subscription,
+        on_delete=models.PROTECT,
+        related_name="checkout_attempts",
+        null=True,
+        blank=True,
+    )
+
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
