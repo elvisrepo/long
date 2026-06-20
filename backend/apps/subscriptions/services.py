@@ -100,9 +100,14 @@ def create_checkout_session(
     user: AbstractBaseUser,
     price: SubscriptionPrice,
 ) -> str:
+    current_subscription = Subscription.objects.get(
+        user=user,
+        status__in=CURRENT_SUBSCRIPTION_STATUSES,
+    )
     attempt = CheckoutAttempt.objects.create(
         user=user,
         price=price,
+        expected_subscription=current_subscription,
     )
     client = StripeClient(settings.STRIPE_SECRET_KEY)
 
@@ -241,17 +246,18 @@ def process_stripe_webhook_event(event: dict[str, Any]) -> None:
     if plan is None or price is None:
         return None
 
-    current_subscription = Subscription.objects.get(
-        user=attempt.user,
-        status__in=CURRENT_SUBSCRIPTION_STATUSES,
-    )
+    if attempt.expected_subscription_id is None:
+        return None
 
-    change_subscription_plan(
-        user=attempt.user,
-        plan=plan,
-        price=price,
-        expected_subscription_id=current_subscription.id,
-    )
+    try:
+        change_subscription_plan(
+            user=attempt.user,
+            plan=plan,
+            price=price,
+            expected_subscription_id=attempt.expected_subscription_id,
+        )
+    except StaleSubscriptionTransitionError:
+        return None
 
     attempt.status = CheckoutAttempt.Status.CONFIRMED
     attempt.save(update_fields=["status", "updated_at"])
