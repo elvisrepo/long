@@ -122,6 +122,35 @@ CSRF_TRUSTED_ORIGINS=http://127.0.0.1:5173,http://localhost:5173
 Local container reminder:
 - when `backend/docker-compose.yml` loads values through `env_file`, changing `.env` may require recreating the web container, not just restarting it, so the updated environment is actually applied.
 
+Local subscription repair:
+- New registrations atomically create an active Free subscription, but older local users created before subscriptions existed may be missing a current subscription row.
+- A missing current subscription is invalid application state; runtime code intentionally does not silently fall back to Free.
+- Inspect the repair impact first:
+```bash
+cd backend
+docker compose exec web uv run python manage.py backfill_free_subscriptions --dry-run
+```
+- Apply the repair to create active Free subscriptions for users without any current subscription:
+```bash
+docker compose exec web uv run python manage.py backfill_free_subscriptions
+```
+- Inspect local users and subscription history through Django shell:
+```bash
+docker compose exec web uv run python manage.py shell
+```
+```python
+from django.contrib.auth import get_user_model
+from apps.subscriptions.models import Subscription
+
+User = get_user_model()
+
+User.objects.count()
+Subscription.objects.count()
+
+for user in User.objects.all():
+    print(user.id, user.email, list(user.subscriptions.values("id", "plan__code", "status")))
+```
+
 ### 3.6 Secrets Management
 
 | Environment | Strategy |

@@ -44,6 +44,7 @@ We derived entities from the functional requirements by asking: *"What data must
 - Applying migrations creates one shared `SubscriptionPlan(code="free")` row.
 - Registration atomically creates the user and one active `Subscription` linked to the shared free plan.
 - Users are expected to have exactly one current subscription; missing current subscription data is treated as an integrity problem rather than silently falling back.
+- `backfill_free_subscriptions` is a local/staging repair command for users created before the subscription invariant existed; it creates active Free subscriptions for users without any current subscription.
 - Trialing, active, past-due, and incomplete subscriptions count as current. Cancelled subscriptions remain historical.
 - Metric usage and create/reactivate enforcement resolve limits from the current subscription's plan.
 - A plan may have multiple simultaneously active prices when currency or billing interval differs.

@@ -289,6 +289,7 @@ Current backend metrics testing checkpoint:
 - Subscription model tests cover multiple billing prices per plan, selected price persistence, positive amounts, active-option uniqueness, and rejection of a selected price belonging to another plan.
 - Registration tests prove an active free subscription is created and that user creation rolls back when the free plan is unavailable.
 - The database constraint test proves a user cannot hold multiple current subscriptions.
+- `tests/test_backfill_free_subscriptions.py` proves the local repair command supports dry-run mode, creates active Free subscriptions for users without a current subscription, and does not duplicate users who already have one.
 - Custom metric-definition tests prove inactive archived custom metrics do not count toward the active custom metric limit.
 - Authenticated users can partially update their own custom metric definitions, including inactive custom definitions for reactivation.
 - Custom metric-definition update requires authentication.
