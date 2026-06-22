@@ -1,0 +1,158 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { clearAccessToken, setAccessToken } from '../auth/auth-session'
+import {
+  createSubscriptionCheckout,
+  getCurrentSubscription,
+  getSubscriptionPlans,
+} from './subscriptions-api'
+
+describe('getCurrentSubscription', () => {
+  beforeEach(() => {
+    clearAccessToken()
+    vi.restoreAllMocks()
+  })
+
+  it('fetches the authenticated user current subscription', async () => {
+    setAccessToken('access-token')
+
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 'subscription-id',
+        status: 'active',
+        plan: {
+          code: 'free',
+          name: 'Free',
+          active_custom_metric_limit: 3,
+          wearable_connection_limit: 0,
+          sync_interval_minutes: 60,
+          analytics_enabled: false,
+          csv_import_enabled: false,
+        },
+      }),
+    } as Response)
+
+    const result = await getCurrentSubscription()
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/subscriptions/current/', {
+      method: 'GET',
+      headers: {
+        Authorization: 'Bearer access-token',
+      },
+    })
+    expect(result.plan.code).toBe('free')
+  })
+
+  it('rejects without an access token', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+
+    await expect(getCurrentSubscription()).rejects.toThrow(
+      'Authentication required',
+    )
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('getSubscriptionPlans', () => {
+  beforeEach(() => {
+    clearAccessToken()
+    vi.restoreAllMocks()
+  })
+
+  it('fetches the public plan catalog with active prices', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [
+        {
+          code: 'pro',
+          name: 'Pro',
+          active_custom_metric_limit: 10,
+          wearable_connection_limit: 2,
+          sync_interval_minutes: 15,
+          analytics_enabled: true,
+          csv_import_enabled: true,
+          is_default: false,
+          prices: [
+            {
+              id: 'price-id',
+              currency: 'usd',
+              unit_amount: 1000,
+              billing_interval: 'month',
+            },
+          ],
+        },
+      ],
+    } as Response)
+
+    const result = await getSubscriptionPlans()
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/subscriptions/plans/', {
+      method: 'GET',
+    })
+    expect(result[0]?.prices[0]?.id).toBe('price-id')
+  })
+})
+
+describe('createSubscriptionCheckout', () => {
+  beforeEach(() => {
+    clearAccessToken()
+    vi.restoreAllMocks()
+  })
+
+  it('posts the selected internal price id with the access token', async () => {
+    setAccessToken('access-token')
+
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        url: 'https://checkout.stripe.com/c/test-session',
+      }),
+    } as Response)
+
+    const result = await createSubscriptionCheckout({
+      priceId: 'price-id',
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/subscriptions/checkout/', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer access-token',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        price_id: 'price-id',
+      }),
+    })
+    expect(result.url).toBe('https://checkout.stripe.com/c/test-session')
+  })
+
+  it('rejects without an access token', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+
+    await expect(
+      createSubscriptionCheckout({
+        priceId: 'price-id',
+      }),
+    ).rejects.toThrow('Authentication required')
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('throws backend validation detail when checkout creation fails', async () => {
+    setAccessToken('access-token')
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: false,
+      json: async () => ({
+        price_id: ['You are already subscribed to this price.'],
+      }),
+    } as Response)
+
+    await expect(
+      createSubscriptionCheckout({
+        priceId: 'price-id',
+      }),
+    ).rejects.toThrow('You are already subscribed to this price.')
+  })
+})
