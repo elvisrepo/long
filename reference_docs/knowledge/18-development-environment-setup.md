@@ -151,6 +151,32 @@ for user in User.objects.all():
     print(user.id, user.email, list(user.subscriptions.values("id", "plan__code", "status")))
 ```
 
+Local Stripe Checkout plan seeding:
+- The plan catalog only shows paid upgrade options when the local database has an active non-default `SubscriptionPlan` with at least one active `SubscriptionPrice`.
+- Seed local Pro plan rows with:
+```bash
+cd backend
+docker compose exec web uv run python manage.py seed_dev_subscription_plans
+```
+- The seed command creates placeholder Stripe provider price IDs. Replace them with real Stripe sandbox Price IDs before testing actual Checkout redirects. These IDs start with `price_...`; never use `sk_test_...` secret keys as price IDs.
+- Example local update after creating monthly and yearly test prices in the Stripe dashboard:
+```bash
+docker compose exec web uv run python manage.py shell -c "
+from apps.subscriptions.models import SubscriptionPrice
+
+SubscriptionPrice.objects.filter(
+    billing_interval='month',
+    unit_amount=1000,
+).update(provider_price_id='price_1Tl5ZXF5wYJKUxPez2sVOkBQ')
+
+SubscriptionPrice.objects.filter(
+    billing_interval='year',
+    unit_amount=10000,
+).update(provider_price_id='price_1Tl5aCF5wYJKUxPelMMkcDrg')
+"
+```
+- The frontend receives only internal `SubscriptionPrice.id` values from `/api/v1/subscriptions/plans/`; Django uses `provider_price_id` server-side when creating the Stripe Checkout Session.
+
 ### 3.6 Secrets Management
 
 | Environment | Strategy |
