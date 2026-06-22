@@ -5,6 +5,7 @@ import { logoutWeb } from '../features/auth/auth-logout-api'
 import { requireAuthBeforeLoad } from '../features/auth/require-auth-before-load'
 import { useMeQuery } from '../features/auth/use-me-query'
 import { useCurrentSubscriptionQuery } from '../features/subscriptions/use-current-subscription-query'
+import { useSubscriptionPlansQuery } from '../features/subscriptions/use-subscription-plans-query'
 
 export const Route = createFileRoute('/settings')({
   beforeLoad: requireAuthBeforeLoad,
@@ -16,8 +17,14 @@ function SettingsRoute() {
   const queryClient = useQueryClient()
   const meQuery = useMeQuery()
   const currentSubscriptionQuery = useCurrentSubscriptionQuery()
+  const subscriptionPlansQuery = useSubscriptionPlansQuery()
   const [errorMessage, setErrorMessage] = useState('')
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+
+  const paidPlans =
+    subscriptionPlansQuery.data?.filter(
+      (plan) => !plan.is_default && plan.prices.length > 0,
+    ) ?? []
 
   async function handleLogout() {
     try {
@@ -74,6 +81,31 @@ function SettingsRoute() {
         ) : null}
       </section>
 
+      <section aria-label="Available plans">
+        <h2>Available Plans</h2>
+        {subscriptionPlansQuery.isPending ? (
+          <p>Loading available plans...</p>
+        ) : null}
+        {subscriptionPlansQuery.isError ? (
+          <p>Available plans failed to load.</p>
+        ) : null}
+        {paidPlans.map((plan) => (
+          <article key={plan.code}>
+            <h3>{plan.name}</h3>
+            <p>{plan.active_custom_metric_limit} custom metrics</p>
+            <p>Sync every {plan.sync_interval_minutes} minutes</p>
+            <ul>
+              {plan.prices.map((price) => (
+                <li key={price.id}>
+                  {formatSubscriptionPrice(price.unit_amount, price.currency)} /{' '}
+                  {price.billing_interval}
+                </li>
+              ))}
+            </ul>
+          </article>
+        ))}
+      </section>
+
       {errorMessage ? <p>{errorMessage}</p> : null}
       <button
         type="button"
@@ -84,4 +116,11 @@ function SettingsRoute() {
       </button>
     </section>
   )
+}
+
+function formatSubscriptionPrice(unitAmount: number, currency: string) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+  }).format(unitAmount / 100)
 }
