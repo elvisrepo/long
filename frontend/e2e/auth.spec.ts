@@ -63,6 +63,106 @@ test('user can register, log in, visit settings, and log out', async ({ page }) 
   ).toBeVisible()
 })
 
+test('user can see subscription plans and start mocked checkout', async ({
+  page,
+}) => {
+  const uniqueEmail = 'subscription-e2e-user@example.com'
+  const password = 'Secret123!Strong'
+
+  await page.goto('/register')
+
+  await page.getByLabel(/email/i).fill(uniqueEmail)
+  await page.getByLabel(/password/i).fill(password)
+  await page.getByRole('button', { name: /register/i }).click()
+
+  await expect(
+    page.getByRole('heading', { name: /login/i }),
+  ).toBeVisible()
+
+  await page.getByLabel(/email/i).fill(uniqueEmail)
+  await page.getByLabel(/password/i).fill(password)
+  await page.getByRole('button', { name: /login/i }).click()
+
+  await expect(
+    page.getByRole('heading', { name: /dashboard/i }),
+  ).toBeVisible()
+
+  const plansResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes('/api/v1/subscriptions/plans/') &&
+      response.status() === 200,
+  )
+
+  await page.getByRole('link', { name: /settings/i }).click()
+
+  await expect(
+    page.getByRole('heading', { name: /settings/i }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: /current plan/i }),
+  ).toBeVisible()
+  await expect(page.getByRole('heading', { name: /free/i })).toBeVisible()
+
+  const plansResponse = await plansResponsePromise
+  const plans = await plansResponse.json()
+  const proPlan = plans.find((plan: { code: string }) => plan.code === 'pro')
+  const monthlyPrice = proPlan?.prices.find(
+    (price: { billing_interval: string }) =>
+      price.billing_interval === 'month',
+  )
+
+  expect(monthlyPrice?.id).toEqual(expect.any(String))
+
+  const availablePlans = page.getByRole('region', {
+    name: /available plans/i,
+  })
+
+  await expect(
+    availablePlans.getByRole('heading', { name: /pro/i }),
+  ).toBeVisible()
+  await expect(availablePlans.getByText(/\$10\.00 \/ month/i)).toBeVisible()
+  await expect(availablePlans.getByText(/\$100\.00 \/ year/i)).toBeVisible()
+
+  let checkoutRequestBody: unknown
+
+  await page.route('**/api/v1/subscriptions/checkout/', async (route) => {
+    checkoutRequestBody = route.request().postDataJSON()
+
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        url: 'https://checkout.stripe.com/c/e2e-test-session',
+      }),
+    })
+  })
+
+  await page.route(
+    'https://checkout.stripe.com/c/e2e-test-session',
+    async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: '<h1>Mock Stripe Checkout</h1>',
+      })
+    },
+  )
+
+  await page
+    .getByRole('button', { name: /upgrade to pro monthly/i })
+    .click()
+
+  expect(checkoutRequestBody).toEqual({
+    price_id: monthlyPrice.id,
+  })
+  await expect(page).toHaveURL(
+    'https://checkout.stripe.com/c/e2e-test-session',
+  )
+  await expect(
+    page.getByRole('heading', { name: /mock stripe checkout/i }),
+  ).toBeVisible()
+})
+
 test('user can create a custom metric and log it from the dashboard', async ({ page }) => {
   const uniqueEmail = 'custom-metric-e2e-user@example.com'
   const password = 'Secret123!Strong'
