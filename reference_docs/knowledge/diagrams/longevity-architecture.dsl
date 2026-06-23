@@ -5,6 +5,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         user = person "Longevity User" "Uses the platform to view metrics, manage account data, and review synced health information."
 
         samsung = softwareSystem "Samsung Health / Health Connect" "On-device health data source used by the Android companion app."
+        stripe = softwareSystem "Stripe" "External billing provider for hosted Checkout, subscription payment collection, and billing webhooks."
 
         longevity = softwareSystem "Longevity Platform" "Tracks user auth, metrics, analytics, and wearable ingestion." {
             webapp = container "React Web App" "Browser-based client for auth, dashboard, metric catalog/detail management, and settings." "React"
@@ -18,15 +19,20 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
 
         user -> longevity "Views metrics, manages account, and reviews health data"
         samsung -> longevity "Supplies health data indirectly via the Android companion app"
+        stripe -> longevity "Sends verified billing webhooks after checkout and subscription events"
 
         user -> longevity.webapp "Uses"
         user -> longevity.android "Uses for Samsung sync"
         samsung -> longevity.android "Provides health data"
+        user -> stripe "Completes hosted Checkout in test or live mode"
 
           longevity.webapp -> longevity.api "Calls JSON API over HTTPS"
+          longevity.webapp -> stripe "Redirects user to hosted Stripe Checkout URL"
           longevity.android -> longevity.api "Calls JSON API over HTTPS"
 
           longevity.api -> longevity.db "Reads and writes data"
+          longevity.api -> stripe "Creates Checkout Sessions with server-owned Stripe Price IDs"
+          stripe -> longevity.api "POSTs signed webhook events"
           longevity.api -> longevity.redis "Uses"
           longevity.api -> longevity.worker "Enqueues asynchronous jobs"
           longevity.worker -> longevity.db "Reads and writes data"
@@ -176,6 +182,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         systemContext longevity "c4-context" "System context view for the Longevity platform." {
             include user
             include samsung
+            include stripe
             include longevity
             autolayout lr
         }
@@ -302,6 +309,28 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.db -> longevity.api "Returns current active custom metric usage"
             longevity.api -> longevity.db "Creates or reactivates the metric when a slot is available, then commits and releases the user-row lock"
             longevity.api -> longevity.webapp "Returns 201/200 on success, or 400 when the active custom metric limit is reached"
+        }
+
+        dynamic longevity "subscription-checkout-create" "Dynamic view of the implemented Stripe Checkout creation flow from Settings." {
+            user -> longevity.webapp "Opens /settings and reviews Current Plan plus Available Plans"
+            longevity.webapp -> longevity.api "GET /api/v1/subscriptions/current/ with Authorization: Bearer <access-token>"
+            longevity.api -> longevity.db "Loads the authenticated user's current active or trialing Subscription and related SubscriptionPlan"
+            longevity.db -> longevity.api "Returns current subscription, e.g. Free plan with 3 custom metrics"
+            longevity.api -> longevity.webapp "Returns 200 JSON {id,status,plan}"
+            longevity.webapp -> longevity.api "GET /api/v1/subscriptions/plans/"
+            longevity.api -> longevity.db "Loads active plans and prefetches active prices; Stripe provider_price_id values stay server-side"
+            longevity.db -> longevity.api "Returns catalog with internal SubscriptionPrice.id values, e.g. monthly-price-uuid"
+            longevity.api -> longevity.webapp "Returns 200 JSON catalog; the React app renders Upgrade buttons for paid prices"
+            user -> longevity.webapp "Clicks Upgrade to Pro monthly"
+            longevity.webapp -> longevity.api "POST /api/v1/subscriptions/checkout/ with {\"price_id\":\"monthly-price-uuid\"}"
+            longevity.api -> longevity.db "SubscriptionCheckoutSerializer validates the internal active price, current subscription, and non-default target plan"
+            longevity.api -> longevity.db "Creates CheckoutAttempt(status=pending, expected_subscription=current free subscription)"
+            longevity.api -> stripe "Creates Checkout Session with line_items.price=SubscriptionPrice.provider_price_id, mode=subscription, metadata, and CheckoutAttempt.id idempotency key"
+            stripe -> longevity.api "Returns Checkout Session id cs_test_... and hosted url https://checkout.stripe.com/c/..."
+            longevity.api -> longevity.db "Marks CheckoutAttempt completed and stores provider_checkout_session_id; no entitlement change yet"
+            longevity.api -> longevity.webapp "Returns 201 JSON {\"url\":\"https://checkout.stripe.com/c/...\"}"
+            longevity.webapp -> stripe "Redirects browser with window.location.assign(checkout.url)"
+            user -> stripe "Sees hosted Stripe Checkout page and enters test payment details"
         }
 
         deployment * mvpCloud "mvp-cloud-deployment" "Deployment view for the pragmatic MVP cloud runtime." {
