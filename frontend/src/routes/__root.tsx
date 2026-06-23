@@ -30,7 +30,7 @@ const RootLayout = () => (
           <Link to="/register" className="app-nav-link">
             Register
           </Link>
-          <Link to="/settings" className="app-nav-link">
+          <Link to="/settings" search={{}} className="app-nav-link">
             Settings
           </Link>
         </nav>

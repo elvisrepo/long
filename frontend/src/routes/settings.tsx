@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import {
+  createFileRoute,
+  useNavigate,
+  useRouterState,
+} from '@tanstack/react-router'
 import { logoutWeb } from '../features/auth/auth-logout-api'
 import { requireAuthBeforeLoad } from '../features/auth/require-auth-before-load'
 import { useMeQuery } from '../features/auth/use-me-query'
@@ -9,14 +13,30 @@ import { useCreateSubscriptionCheckoutMutation } from '../features/subscriptions
 import { useCurrentSubscriptionQuery } from '../features/subscriptions/use-current-subscription-query'
 import { useSubscriptionPlansQuery } from '../features/subscriptions/use-subscription-plans-query'
 
+interface SettingsSearch {
+  checkout?: 'success' | 'cancelled'
+}
+
 export const Route = createFileRoute('/settings')({
   beforeLoad: requireAuthBeforeLoad,
+  validateSearch: (search: Record<string, unknown>): SettingsSearch => {
+    if (search.checkout === 'success' || search.checkout === 'cancelled') {
+      return {
+        checkout: search.checkout,
+      }
+    }
+
+    return {}
+  },
   component: SettingsRoute,
 })
 
 function SettingsRoute() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const checkoutStatus = useRouterState({
+    select: (state) => state.location.search.checkout,
+  })
   const meQuery = useMeQuery()
   const currentSubscriptionQuery = useCurrentSubscriptionQuery()
   const subscriptionPlansQuery = useSubscriptionPlansQuery()
@@ -71,6 +91,15 @@ function SettingsRoute() {
     <section>
       <h1>Settings</h1>
       <p>Signed in as {meQuery.data.email}</p>
+
+      {checkoutStatus === 'success' ? (
+        <p role="status">
+          Checkout completed. Your plan will update after payment confirmation.
+        </p>
+      ) : null}
+      {checkoutStatus === 'cancelled' ? (
+        <p role="status">Checkout cancelled. Your plan was not changed.</p>
+      ) : null}
 
       <section aria-label="Current subscription">
         <h2>Current Plan</h2>

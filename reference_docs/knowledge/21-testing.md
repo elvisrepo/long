@@ -152,6 +152,13 @@ What the current frontend tests are proving:
   - the helper uses the router `queryClient` context
   - failed current-user resolution redirects before settings content renders
   - successful current-user resolution allows settings content to render
+- settings route tests now also cover the frontend subscription UI:
+  - authenticated Settings renders the current subscription plan returned by `getCurrentSubscription()`
+  - active paid plan prices returned by `getSubscriptionPlans()` are listed as upgrade options
+  - default/free plans are excluded from the Available Plans upgrade region
+  - clicking an Upgrade button calls `createSubscriptionCheckout({ priceId })` with the internal `SubscriptionPrice.id`
+  - successful Checkout creation redirects through the mocked `redirectToCheckout()` browser-boundary helper
+  - `checkout=success` and `checkout=cancelled` query params show informational messages without implying entitlement changes
 - dashboard route tests now prove the protected dashboard behavior:
   - unauthenticated/error state redirects to `/login`
   - authenticated state renders the dashboard at `/`
@@ -337,6 +344,14 @@ Current Stripe Checkout testing checkpoint:
 - Checkout service tests prove each `CheckoutAttempt` stores the user's current subscription as `expected_subscription`.
 - Service-level failure tests prove a provider failure marks the local `CheckoutAttempt` as `failed` while the API layer returns a generic `502`.
 - No default checkout test contacts Stripe; sandbox coverage should remain opt-in and small.
+
+Current frontend subscription Checkout testing checkpoint:
+- `subscriptions-api.test.ts` proves the frontend helper contracts for `GET /api/v1/subscriptions/current/`, `GET /api/v1/subscriptions/plans/`, and `POST /api/v1/subscriptions/checkout/`.
+- The checkout API helper test proves the frontend sends the internal `price_id` selected from the catalog and surfaces backend validation detail when checkout is rejected.
+- `use-current-subscription-query.test.tsx` proves the current-subscription TanStack Query wrapper uses the `['current-subscription']` boundary.
+- `use-subscription-plans-query.test.tsx` proves the plan catalog TanStack Query wrapper loads active plan prices.
+- `use-create-subscription-checkout-mutation.test.tsx` proves the mutation forwards the selected internal price ID to the checkout API helper.
+- `settings-route.test.tsx` proves Settings renders current plan state, paid prices, checkout return messages, and redirect behavior without contacting Stripe.
 
 Current Stripe webhook testing checkpoint:
 - `tests/test_subscription_webhooks.py` proves invalid Stripe signatures return `400` and do not process events.

@@ -324,6 +324,22 @@ Do not:
 - pretend the cached `me` object is the same thing as the access token/session state
 - introduce a large global auth store before the app proves it needs one
 
+Current Settings subscription UI checkpoint:
+- `/settings` remains a protected route and now renders subscription state in addition to the user email and logout action.
+- `getCurrentSubscription()` fetches `GET /api/v1/subscriptions/current/` with the in-memory bearer access token.
+- `useCurrentSubscriptionQuery()` caches the authenticated user's current subscription under `['current-subscription']`.
+- `getSubscriptionPlans()` fetches the public `GET /api/v1/subscriptions/plans/` catalog.
+- `useSubscriptionPlansQuery()` caches the active plan catalog under `['subscription-plans']`.
+- Settings renders the current plan name, active custom metric limit, and sync interval from the backend-owned plan entitlement fields.
+- Settings renders upgrade options only for non-default plans that have at least one active price in the catalog.
+- The plan catalog exposes internal `SubscriptionPrice.id` values to the frontend; Stripe `provider_price_id` values remain server-side.
+- `createSubscriptionCheckout()` posts `POST /api/v1/subscriptions/checkout/` with `{ price_id: <internal SubscriptionPrice.id> }`.
+- `useCreateSubscriptionCheckoutMutation()` wraps Checkout creation in TanStack Query mutation state.
+- A successful Checkout creation returns `{ url }`; Settings redirects with `redirectToCheckout(url)`, which calls `window.location.assign(url)` in the browser.
+- `redirectToCheckout()` is a tiny browser-boundary helper so route tests can mock redirect behavior without trying to replace `window.location.assign`.
+- `/settings?checkout=success` and `/settings?checkout=cancelled` show informational messages only. These query params do not grant entitlements; subscription changes still depend on trusted Stripe webhook processing.
+- The `/settings` route validates the optional `checkout` search param through TanStack Router `validateSearch`, so TypeScript understands `checkout?: 'success' | 'cancelled'`.
+
 ### 5.6 Responsive
 - Web: mobile-first CSS, 4-col → 2-col → 1-col grid
 - Sync itself is Android-only in MVP; the web app surfaces status and synced data after upload

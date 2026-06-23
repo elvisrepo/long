@@ -218,4 +218,61 @@ describe('settings route', () => {
       'https://checkout.stripe.com/c/test-session',
     )
   })
+
+   it('shows an informational message after returning from successful checkout', async () =>
+  {
+    getMeMock.mockResolvedValue({
+      email: 'user@example.com',
+    })
+    getCurrentSubscriptionMock.mockResolvedValue({
+      id: 'subscription-id',
+      status: 'active',
+      plan: {
+        code: 'free',
+        name: 'Free',
+        active_custom_metric_limit: 3,
+        wearable_connection_limit: 0,
+        sync_interval_minutes: 60,
+        analytics_enabled: false,
+        csv_import_enabled: false,
+      },
+    })
+    getSubscriptionPlansMock.mockResolvedValue([])
+
+    renderRoute('/settings?checkout=success')
+
+    expect(
+      await screen.findByText(
+        /checkout completed\. your plan will update after payment confirmation/i,
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('shows an informational message after returning from cancelled checkout', async () =>
+  {
+    getMeMock.mockResolvedValue({
+      email: 'user@example.com',
+    })
+    getCurrentSubscriptionMock.mockResolvedValue({
+      id: 'subscription-id',
+      status: 'active',
+      plan: {
+        code: 'free',
+        name: 'Free',
+        active_custom_metric_limit: 3,
+        wearable_connection_limit: 0,
+        sync_interval_minutes: 60,
+        analytics_enabled: false,
+        csv_import_enabled: false,
+      },
+    })
+    getSubscriptionPlansMock.mockResolvedValue([])
+
+    renderRoute('/settings?checkout=cancelled')
+
+    expect(
+      await screen.findByText(/checkout cancelled\. your plan was not changed/i),
+    ).toBeInTheDocument()
+  })
+
 })
