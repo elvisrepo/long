@@ -4,6 +4,8 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { logoutWeb } from '../features/auth/auth-logout-api'
 import { requireAuthBeforeLoad } from '../features/auth/require-auth-before-load'
 import { useMeQuery } from '../features/auth/use-me-query'
+import { redirectToCheckout } from '../features/subscriptions/checkout-redirect'
+import { useCreateSubscriptionCheckoutMutation } from '../features/subscriptions/use-create-subscription-checkout-mutation'
 import { useCurrentSubscriptionQuery } from '../features/subscriptions/use-current-subscription-query'
 import { useSubscriptionPlansQuery } from '../features/subscriptions/use-subscription-plans-query'
 
@@ -18,6 +20,7 @@ function SettingsRoute() {
   const meQuery = useMeQuery()
   const currentSubscriptionQuery = useCurrentSubscriptionQuery()
   const subscriptionPlansQuery = useSubscriptionPlansQuery()
+  const checkoutMutation = useCreateSubscriptionCheckoutMutation()
   const [errorMessage, setErrorMessage] = useState('')
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
@@ -42,6 +45,21 @@ function SettingsRoute() {
       setErrorMessage('Logout failed')
     } finally {
       setIsLoggingOut(false)
+    }
+  }
+
+  async function handleCheckout(priceId: string) {
+    try {
+      setErrorMessage('')
+      const checkout = await checkoutMutation.mutateAsync({ priceId })
+      redirectToCheckout(checkout.url)
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message)
+        return
+      }
+
+      setErrorMessage('Checkout failed to start')
     }
   }
 
@@ -99,6 +117,13 @@ function SettingsRoute() {
                 <li key={price.id}>
                   {formatSubscriptionPrice(price.unit_amount, price.currency)} /{' '}
                   {price.billing_interval}
+                  <button
+                    type="button"
+                    disabled={checkoutMutation.isPending}
+                    onClick={() => void handleCheckout(price.id)}
+                  >
+                    Upgrade to {plan.name} {price.billing_interval}ly
+                  </button>
                 </li>
               ))}
             </ul>
