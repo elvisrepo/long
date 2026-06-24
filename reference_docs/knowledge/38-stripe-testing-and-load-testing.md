@@ -31,6 +31,89 @@ integration suite may read sandbox credentials from environment variables.
 - Clean up or uniquely label test-created Customers, Checkout Sessions, and Subscriptions.
 - Never run load, soak, stress, or high-concurrency tests against Stripe sandbox.
 
+## Checkout and Webhook Flow
+
+A Stripe webhook is a server-to-server notification from Stripe to our backend.
+It is not called by the browser, and it is not triggered by trusting the
+`checkout=success` redirect alone. Stripe sends webhook events when provider-side
+state changes, such as Checkout completion, payment success, subscription
+creation, subscription update, cancellation, or invoice payment failure.
+
+Stripe only sends webhook events to an HTTPS endpoint that we configure in
+Stripe. Stripe does not know about our internal Redis/Celery queue. If we later
+want asynchronous processing, our backend still receives and verifies the
+webhook first, then enqueues internal work.
+
+For the MVP, the webhook path is direct and synchronous:
+
+```text
+Stripe Server
+  -> HTTPS POST /api/v1/subscriptions/stripe/webhook/
+  -> Django verifies the Stripe signature
+  -> Django stores StripeWebhookEvent for replay protection
+  -> Django processes the supported event idempotently
+  -> Django returns 2xx after safely accepting the event
+```
+
+The production-grade extension is:
+
+```text
+Stripe Server
+  -> HTTPS POST /api/v1/subscriptions/stripe/webhook/
+  -> Django verifies the Stripe signature
+  -> Django stores StripeWebhookEvent
+  -> Django enqueues a Celery task
+  -> Django returns 2xx quickly
+  -> Celery worker applies subscription changes
+```
+
+We are not using the queue-based path yet. Keep the current handler small,
+idempotent, and fast enough to run during the webhook request.
+
+The intended Checkout flow is:
+
+1. The user clicks an upgrade button in Settings, such as `Upgrade to Pro Monthly`.
+2. The frontend sends our backend the internal `SubscriptionPrice.id`:
+
+   ```http
+   POST /api/v1/subscriptions/checkout/
+   {
+     "price_id": "local-subscription-price-uuid"
+   }
+   ```
+
+3. The backend looks up the local `SubscriptionPrice`.
+4. The backend sends Stripe the server-side `provider_price_id`, for example
+   `price_...`.
+5. Stripe creates a hosted Checkout Session.
+6. The backend returns the hosted URL:
+
+   ```json
+   {
+     "url": "https://checkout.stripe.com/c/..."
+   }
+   ```
+
+7. The frontend redirects the browser to Stripe Checkout.
+8. The user enters test or live payment details on Stripe.
+9. Stripe processes the payment and subscription creation.
+10. Stripe redirects the browser to our configured success or cancel URL, such
+    as `http://localhost:5173/settings?checkout=success`.
+11. Separately, Stripe sends a signed webhook request to our backend:
+
+    ```http
+    POST /api/v1/subscriptions/stripe/webhook/
+    ```
+
+12. Our backend verifies the Stripe signature before trusting the event.
+13. Our backend processes the event, finds the matching `CheckoutAttempt`,
+    `SubscriptionPlan`, and `SubscriptionPrice`, then changes the user's
+    subscription entitlements.
+
+The browser redirect is only user-facing UI feedback. It is not proof of
+payment, and it must not unlock paid entitlements by itself. The webhook is the
+trusted provider confirmation.
+
 ## Why Stripe Sandbox Is Not a Load-Test Target
 
 Stripe explicitly discourages sandbox load testing:
