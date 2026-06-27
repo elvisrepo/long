@@ -325,3 +325,25 @@ def test_billing_customer_belongs_to_user_and_provider():
     assert billing_customer.provider == BillingCustomer.Provider.STRIPE
     assert billing_customer.provider_customer_id == "cus_test_billing_customer"
     assert user.billing_customers.get() == billing_customer
+
+def test_user_cannot_have_multiple_billing_customers_for_same_provider():
+      user = get_user_model().objects.create_user(
+          email="duplicate-billing-customer@example.com",
+          password="strong-password-123",
+      )
+
+      BillingCustomer.objects.create(
+          user=user,
+          provider=BillingCustomer.Provider.STRIPE,
+          provider_customer_id="cus_first",
+      )
+
+      with pytest.raises(IntegrityError):
+          with transaction.atomic():
+              BillingCustomer.objects.create(
+                  user=user,
+                  provider=BillingCustomer.Provider.STRIPE,
+                  provider_customer_id="cus_second",
+              )
+
+      assert BillingCustomer.objects.filter(user=user).count() == 1
