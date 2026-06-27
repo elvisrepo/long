@@ -347,3 +347,31 @@ def test_user_cannot_have_multiple_billing_customers_for_same_provider():
               )
 
       assert BillingCustomer.objects.filter(user=user).count() == 1
+
+def test_provider_customer_id_cannot_belong_to_multiple_users():
+      first_user = get_user_model().objects.create_user(
+          email="first-billing-customer@example.com",
+          password="strong-password-123",
+      )
+      second_user = get_user_model().objects.create_user(
+          email="second-billing-customer@example.com",
+          password="strong-password-123",
+      )
+
+      BillingCustomer.objects.create(
+          user=first_user,
+          provider=BillingCustomer.Provider.STRIPE,
+          provider_customer_id="cus_shared",
+      )
+
+      with pytest.raises(IntegrityError):
+          with transaction.atomic():
+              BillingCustomer.objects.create(
+                  user=second_user,
+                  provider=BillingCustomer.Provider.STRIPE,
+                  provider_customer_id="cus_shared",
+              )
+
+      assert BillingCustomer.objects.filter(
+          provider_customer_id="cus_shared",
+      ).count() == 1
