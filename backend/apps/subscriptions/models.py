@@ -84,6 +84,42 @@ class SubscriptionPrice(models.Model):
         )
 
 
+
+class BillingCustomer(models.Model):
+    class Provider(models.TextChoices):
+          STRIPE = "stripe", "Stripe"
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4,
+      editable=False)
+    
+    user = models.ForeignKey(
+          settings.AUTH_USER_MODEL,
+          on_delete=models.CASCADE,
+          related_name="billing_customers",
+      )
+    
+    provider = models.CharField(max_length=32, choices=Provider.choices)
+    provider_customer_id = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+          db_table = "subscriptions_billing_customer"
+          constraints = [
+              models.UniqueConstraint(
+                  fields=["user", "provider"],
+                  name="unique_billing_customer_per_user_provider",
+              ),
+              models.UniqueConstraint(
+                  fields=["provider", "provider_customer_id"],
+                  name="unique_provider_billing_customer",
+              ),
+          ]
+
+    def __str__(self) -> str:
+          return f"{self.user_id}: {self.provider}"
+
+
 class Subscription(models.Model):
     class Status(models.TextChoices):
         TRIALING = "trialing", "Trialing"

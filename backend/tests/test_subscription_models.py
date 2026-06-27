@@ -5,6 +5,7 @@ from django.db import IntegrityError, transaction
 import pytest
 
 from apps.subscriptions.models import (
+    BillingCustomer,
     Subscription,
     SubscriptionPlan,
     SubscriptionPrice,
@@ -307,3 +308,20 @@ def test_checkout_attempt_tracks_user_price_and_pending_status():
       assert attempt.price == price
       assert attempt.status == CheckoutAttempt.Status.PENDING
       assert attempt.provider_checkout_session_id == ""
+
+def test_billing_customer_belongs_to_user_and_provider():
+    user = get_user_model().objects.create_user(
+          email="billing-customer@example.com",
+          password="strong-password-123",
+      )
+    
+    billing_customer = BillingCustomer.objects.create(
+          user=user,
+          provider=BillingCustomer.Provider.STRIPE,
+          provider_customer_id="cus_test_billing_customer",
+      )
+    
+    assert billing_customer.user == user
+    assert billing_customer.provider == BillingCustomer.Provider.STRIPE
+    assert billing_customer.provider_customer_id == "cus_test_billing_customer"
+    assert user.billing_customers.get() == billing_customer
