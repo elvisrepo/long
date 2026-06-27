@@ -153,6 +153,17 @@ For webhook tests, mock signature verification at the application boundary, then
 assert that verified `checkout.session.completed` events confirm the matching
 attempt and change the subscription only once per Stripe event ID.
 
+Duplicate-delivery coverage exists at two boundaries:
+
+- The endpoint test pre-creates a `StripeWebhookEvent`, posts the same provider
+  event ID again, and proves the webhook still returns `200` while retaining
+  only one event ledger row. Stripe therefore receives a successful
+  acknowledgment for an event we already accepted.
+- The service test calls `process_stripe_webhook_event` twice with the same
+  `checkout.session.completed` event and proves the subscription transition
+  occurs only once. The final history contains the cancelled Free subscription
+  and one active Pro subscription, not a second Pro subscription.
+
 Once live traffic exists, choose simulated latency from observed Stripe request
 durations rather than sandbox timings. Do not record secrets, payment details,
 or sensitive response bodies while collecting those measurements.

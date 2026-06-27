@@ -18,6 +18,21 @@ from apps.subscriptions.services import process_stripe_webhook_event
 pytestmark = pytest.mark.django_db
 
 
+def test_stripe_webhook_rejects_missing_signature():
+    client = APIClient()
+
+    response = client.post(
+        "/api/v1/subscriptions/stripe/webhook/",
+        data=b'{"type": "checkout.session.completed"}',
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": "Invalid Stripe webhook signature.",
+    }
+
+
 def test_stripe_webhook_rejects_invalid_signature():
     client = APIClient()
 
@@ -72,6 +87,43 @@ def test_stripe_webhook_processes_valid_event():
         webhook_secret=settings.STRIPE_WEBHOOK_SECRET,
     )
     process_event.assert_called_once_with(event)
+
+
+def test_stripe_webhook_duplicate_delivery_returns_success_once_already_processed():
+    client = APIClient()
+    event = {
+        "id": "evt_duplicate_endpoint",
+        "type": "customer.subscription.updated",
+    }
+
+    #  duplicate delivery is simulated by pre-creating
+    # the webhook event row before making the HTTP request
+    StripeWebhookEvent.objects.create(
+        provider_event_id="evt_duplicate_endpoint",
+        event_type="customer.subscription.updated",
+    )
+    # sends the same event ID again through the endpoint
+    with patch(
+        "apps.subscriptions.views.verify_stripe_webhook_event",
+        return_value=event,
+    ) as verify_event:
+        response = client.post(
+            "/api/v1/subscriptions/stripe/webhook/",
+            data=b'{"id": "evt_duplicate_endpoint"}',
+            content_type="application/json",
+            HTTP_STRIPE_SIGNATURE="valid-signature",
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"received": True}
+    assert StripeWebhookEvent.objects.filter(
+        provider_event_id="evt_duplicate_endpoint",
+    ).count() == 1
+    verify_event.assert_called_once_with(
+        payload=b'{"id": "evt_duplicate_endpoint"}',
+        signature="valid-signature",
+        webhook_secret=settings.STRIPE_WEBHOOK_SECRET,
+    )
 
 
 def test_checkout_session_completed_confirms_attempt_and_changes_subscription():
@@ -137,13 +189,14 @@ def test_checkout_session_completed_confirms_attempt_and_changes_subscription():
     assert current_subscription.plan == pro_plan
     assert current_subscription.price == pro_price
 
-
+# processing the same Stripe event twice does not apply the subscription upgrade twice.
 def test_checkout_session_completed_is_idempotent_for_duplicate_event():
     user = get_user_model().objects.create_user(
         email="duplicate-webhook@example.com",
         password="strong-password-123",
     )
     free_plan = SubscriptionPlan.objects.get(code="free")
+    # user starts on free sub
     free_subscription = Subscription.objects.create(
         user=user,
         plan=free_plan,
@@ -171,6 +224,8 @@ def test_checkout_session_completed_is_idempotent_for_duplicate_event():
         status=CheckoutAttempt.Status.COMPLETED,
         provider_checkout_session_id="cs_test_duplicate_paid",
     )
+
+    #fake stripe event arrives
     event = {
         "id": "evt_checkout_duplicate",
         "type": "checkout.session.completed",
@@ -190,6 +245,7 @@ def test_checkout_session_completed_is_idempotent_for_duplicate_event():
     process_stripe_webhook_event(event)
     process_stripe_webhook_event(event)
 
+    # we have old cancelled free sub, and new active pro sub
     assert Subscription.objects.filter(user=user).count() == 2
     assert Subscription.objects.get(
         user=user,

@@ -272,3 +272,24 @@ Current implementation:
 - `checkout.session.completed` must also resolve metadata `subscription_price_id` to a price belonging to metadata `subscription_plan_id`.
 - `checkout.session.completed` passes `CheckoutAttempt.expected_subscription_id` into `change_subscription_plan`; if the user's current subscription changed after Checkout started, the stale transition is ignored.
 - This protects `checkout.session.completed` retries from creating extra subscription history rows.
+
+The event table is the idempotency ledger:
+
+```text
+First delivery:  evt_123 is absent -> insert evt_123 -> apply transition -> commit
+Second delivery: evt_123 is present -> duplicate insert rejected -> return without transition
+```
+
+The unique `provider_event_id` constraint is the concurrency-safe decision
+point. An application-level `if exists` check alone would still race if two
+deliveries arrived together. PostgreSQL guarantees that only one transaction
+can successfully insert the same unique event ID.
+
+The tests cover both observable layers:
+
+- `test_stripe_webhook_duplicate_delivery_returns_success_once_already_processed`
+  proves the HTTP endpoint acknowledges a repeated, already-recorded event with
+  `200` and leaves one ledger row.
+- `test_checkout_session_completed_is_idempotent_for_duplicate_event` invokes
+  the service twice and proves the paid subscription transition is applied
+  once.

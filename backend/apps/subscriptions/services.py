@@ -186,6 +186,7 @@ def get_checkout_session_metadata_value(
 @transaction.atomic
 def process_stripe_webhook_event(event: dict[str, Any]) -> None:
     try:
+        # Idempotency part. multiple same operations will try to create StripeWebhookEvent with same provider_event_id=event
         StripeWebhookEvent.objects.create(
             provider_event_id=event["id"],
             event_type=event["type"],

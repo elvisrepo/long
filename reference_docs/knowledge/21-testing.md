@@ -354,10 +354,13 @@ Current frontend subscription Checkout testing checkpoint:
 - `settings-route.test.tsx` proves Settings renders current plan state, paid prices, checkout return messages, and redirect behavior without contacting Stripe.
 
 Current Stripe webhook testing checkpoint:
+- Missing Stripe signatures return `400` and do not process events.
 - `tests/test_subscription_webhooks.py` proves invalid Stripe signatures return `400` and do not process events.
 - Valid verified events are handed to `process_stripe_webhook_event`.
 - `checkout.session.completed` confirms the matching local `CheckoutAttempt`, cancels the previous current subscription, and creates the replacement paid subscription.
 - Duplicate Stripe event IDs are idempotent: a retried event is acknowledged without creating extra subscription history.
+- Endpoint-level duplicate coverage proves an already-recorded provider event still receives `200` and does not create a second `StripeWebhookEvent`.
+- Service-level duplicate coverage processes the same `checkout.session.completed` event twice and proves the subscription upgrade occurs only once.
 - Missing Checkout metadata and mismatched provider Checkout Session IDs are recorded as seen webhook events but do not confirm attempts or change subscriptions.
 - Cross-plan price metadata is recorded as a seen webhook event but does not confirm attempts or change subscriptions.
 - Stale Checkout completions are recorded as seen webhook events but do not overwrite newer active subscriptions.
