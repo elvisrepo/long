@@ -11,6 +11,7 @@ import stripe
 from stripe import StripeClient
 
 from apps.subscriptions.models import (
+    BillingCustomer,
     CheckoutAttempt,
     StripeWebhookEvent,
     Subscription,
@@ -55,6 +56,8 @@ def change_subscription_plan(
     plan: SubscriptionPlan,
     price: SubscriptionPrice | None,
     expected_subscription_id: UUID,
+    provider: str | None = None,
+    provider_subscription_id: str | None = None,
 ) -> Subscription:
     # 1. Lock the user row so plan transitions for this account run one at a time.
     get_user_model().objects.select_for_update().get(pk=user.pk)
@@ -93,6 +96,8 @@ def change_subscription_plan(
         plan=plan,
         price=price,
         status=Subscription.Status.ACTIVE,
+        provider=provider,
+        provider_subscription_id=provider_subscription_id,
     )
 
 def create_checkout_session(
@@ -250,15 +255,46 @@ def process_stripe_webhook_event(event: dict[str, Any]) -> None:
     if attempt.expected_subscription_id is None:
         return None
 
+    provider_customer_id = session.get("customer")
+    provider_subscription_id = session.get("subscription")
+
+    if (
+        not isinstance(provider_customer_id, str)
+        or provider_customer_id == ""
+        or not isinstance(provider_subscription_id, str)
+        or provider_subscription_id == ""
+    ):
+        return None
+
+    billing_customer = BillingCustomer.objects.filter(
+        user=attempt.user,
+        provider=BillingCustomer.Provider.STRIPE,
+    ).first()
+
+    if (
+        billing_customer is not None
+        and billing_customer.provider_customer_id != provider_customer_id
+    ):
+        return None
+
     try:
         change_subscription_plan(
             user=attempt.user,
             plan=plan,
             price=price,
             expected_subscription_id=attempt.expected_subscription_id,
+            provider=BillingCustomer.Provider.STRIPE,
+            provider_subscription_id=provider_subscription_id,
         )
     except StaleSubscriptionTransitionError:
         return None
+
+    if billing_customer is None:
+        BillingCustomer.objects.create(
+            user=attempt.user,
+            provider=BillingCustomer.Provider.STRIPE,
+            provider_customer_id=provider_customer_id,
+        )
 
     attempt.status = CheckoutAttempt.Status.CONFIRMED
     attempt.save(update_fields=["status", "updated_at"])

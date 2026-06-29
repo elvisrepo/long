@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
 from apps.subscriptions.models import (
+    BillingCustomer,
     CheckoutAttempt,
     StripeWebhookEvent,
     Subscription,
@@ -165,6 +166,8 @@ def test_checkout_session_completed_confirms_attempt_and_changes_subscription():
         "data": {
             "object": {
                 "id": "cs_test_paid",
+                "customer": "cus_test_paid",
+                "subscription": "sub_test_paid",
                 "metadata": {
                     "checkout_attempt_id": str(attempt.id),
                     "subscription_price_id": str(pro_price.id),
@@ -188,6 +191,12 @@ def test_checkout_session_completed_confirms_attempt_and_changes_subscription():
     assert free_subscription.status == Subscription.Status.CANCELLED
     assert current_subscription.plan == pro_plan
     assert current_subscription.price == pro_price
+    billing_customer = BillingCustomer.objects.get(
+        user=user,
+        provider=BillingCustomer.Provider.STRIPE,
+    )
+    assert billing_customer.provider_customer_id == "cus_test_paid"
+    assert current_subscription.provider_subscription_id == "sub_test_paid"
 
 # processing the same Stripe event twice does not apply the subscription upgrade twice.
 def test_checkout_session_completed_is_idempotent_for_duplicate_event():
