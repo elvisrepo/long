@@ -241,6 +241,8 @@ def test_checkout_session_completed_is_idempotent_for_duplicate_event():
         "data": {
             "object": {
                 "id": "cs_test_duplicate_paid",
+                "customer": "cus_test_duplicate_paid",
+                "subscription": "sub_test_duplicate_paid",
                 "metadata": {
                     "checkout_attempt_id": str(attempt.id),
                     "subscription_price_id": str(pro_price.id),
@@ -588,62 +590,62 @@ def test_checkout_session_completed_with_stale_expected_subscription_is_ignored_
 
 def test_checkout_completion_does_not_replace_existing_billing_customer():
     user = get_user_model().objects.create_user(
-          email="billing-customer-conflict@example.com",
-          password="strong-password-123",
-      )
+        email="billing-customer-conflict@example.com",
+        password="strong-password-123",
+    )
     free_plan = SubscriptionPlan.objects.get(code="free")
     free_subscription = Subscription.objects.create(
-          user=user,
-          plan=free_plan,
-          status=Subscription.Status.ACTIVE,
-      )
+        user=user,
+        plan=free_plan,
+        status=Subscription.Status.ACTIVE,
+    )
     pro_plan = SubscriptionPlan.objects.create(
-          code="pro-customer-conflict",
-          name="Pro",
-          active_custom_metric_limit=10,
-          wearable_connection_limit=2,
-          sync_interval_minutes=15,
-      )
+        code="pro-customer-conflict",
+        name="Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=2,
+        sync_interval_minutes=15,
+    )
     pro_price = SubscriptionPrice.objects.create(
-          plan=pro_plan,
-          provider=SubscriptionPrice.Provider.STRIPE,
-          provider_price_id="price_customer_conflict",
-          currency="usd",
-          unit_amount=1000,
-          billing_interval=SubscriptionPrice.BillingInterval.MONTH,
-      )
+        plan=pro_plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_customer_conflict",
+        currency="usd",
+        unit_amount=1000,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+    )
     attempt = CheckoutAttempt.objects.create(
-          user=user,
-          price=pro_price,
-          expected_subscription=free_subscription,
-          status=CheckoutAttempt.Status.COMPLETED,
-          provider_checkout_session_id="cs_customer_conflict",
-      )
-    
+        user=user,
+        price=pro_price,
+        expected_subscription=free_subscription,
+        status=CheckoutAttempt.Status.COMPLETED,
+        provider_checkout_session_id="cs_customer_conflict",
+    )
+
     billing_customer = BillingCustomer.objects.create(
-          user=user,
-          provider=BillingCustomer.Provider.STRIPE,
-          provider_customer_id="cus_existing"
-      )
-    
+        user=user,
+        provider=BillingCustomer.Provider.STRIPE,
+        provider_customer_id="cus_existing",
+    )
+
     event = {
-          "id": "evt_customer_conflict",
-          "type": "checkout.session.completed",
-          "data": {
-              "object": {
-                  "id": "cs_customer_conflict",
-                  "customer": "cus_different",
-                  "subscription": "sub_customer_conflict",
-                  "metadata": {
-                      "checkout_attempt_id": str(attempt.id),
-                      "subscription_price_id": str(pro_price.id),
-                      "subscription_plan_id": str(pro_plan.id),
-                      "user_id": str(user.id),
-                  },
-              },
-          },
-      }
-    
+        "id": "evt_customer_conflict",
+        "type": "checkout.session.completed",
+        "data": {
+            "object": {
+                "id": "cs_customer_conflict",
+                "customer": "cus_different",
+                "subscription": "sub_customer_conflict",
+                "metadata": {
+                    "checkout_attempt_id": str(attempt.id),
+                    "subscription_price_id": str(pro_price.id),
+                    "subscription_plan_id": str(pro_plan.id),
+                    "user_id": str(user.id),
+                },
+            },
+        },
+    }
+
     process_stripe_webhook_event(event)
 
     attempt.refresh_from_db()
@@ -655,5 +657,79 @@ def test_checkout_completion_does_not_replace_existing_billing_customer():
     assert Subscription.objects.filter(user=user).count() == 1
     assert billing_customer.provider_customer_id == "cus_existing"
     assert StripeWebhookEvent.objects.filter(
-          provider_event_id="evt_customer_conflict",
-      ).exists()
+        provider_event_id="evt_customer_conflict",
+    ).exists()
+
+
+def test_checkout_completion_rejects_customer_owned_by_another_user():
+    owner = get_user_model().objects.create_user(
+        email="customer-owner@example.com",
+        password="strong-password-123",
+    )
+    user = get_user_model().objects.create_user(
+        email="customer-conflict@example.com",
+        password="strong-password-123",
+    )
+    BillingCustomer.objects.create(
+        user=owner,
+        provider=BillingCustomer.Provider.STRIPE,
+        provider_customer_id="cus_already_owned",
+    )
+
+    free_plan = SubscriptionPlan.objects.get(code="free")
+    free_subscription = Subscription.objects.create(
+        user=user,
+        plan=free_plan,
+        status=Subscription.Status.ACTIVE,
+    )
+    pro_plan = SubscriptionPlan.objects.create(
+        code="pro-owned-customer-conflict",
+        name="Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=2,
+        sync_interval_minutes=15,
+    )
+    pro_price = SubscriptionPrice.objects.create(
+        plan=pro_plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_owned_customer_conflict",
+        currency="usd",
+        unit_amount=1000,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+    )
+    attempt = CheckoutAttempt.objects.create(
+        user=user,
+        price=pro_price,
+        expected_subscription=free_subscription,
+        status=CheckoutAttempt.Status.COMPLETED,
+        provider_checkout_session_id="cs_owned_customer_conflict",
+    )
+    event = {
+        "id": "evt_owned_customer_conflict",
+        "type": "checkout.session.completed",
+        "data": {
+            "object": {
+                "id": "cs_owned_customer_conflict",
+                "customer": "cus_already_owned",
+                "subscription": "sub_owned_customer_conflict",
+                "metadata": {
+                    "checkout_attempt_id": str(attempt.id),
+                    "subscription_price_id": str(pro_price.id),
+                    "subscription_plan_id": str(pro_plan.id),
+                    "user_id": str(user.id),
+                },
+            },
+        },
+    }
+
+    process_stripe_webhook_event(event)
+
+    attempt.refresh_from_db()
+    free_subscription.refresh_from_db()
+
+    assert attempt.status == CheckoutAttempt.Status.COMPLETED
+    assert free_subscription.status == Subscription.Status.ACTIVE
+    assert Subscription.objects.filter(user=user).count() == 1
+    assert StripeWebhookEvent.objects.filter(
+        provider_event_id="evt_owned_customer_conflict",
+    ).exists()

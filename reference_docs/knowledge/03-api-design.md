@@ -227,6 +227,8 @@ Checkout behavior:
 - `CheckoutAttempt.expected_subscription` stores the user's current subscription at checkout creation time; this is the subscription state the later Stripe webhook is allowed to replace.
 - `CheckoutAttempt.id` is used as the Stripe idempotency key, so retries of the same local attempt use the same provider retry identity.
 - Stripe Checkout receives the server-owned `SubscriptionPrice.provider_price_id` in `line_items`; clients cannot submit provider price IDs or amounts.
+- If the user already has a local Stripe `BillingCustomer`, Checkout sends its `provider_customer_id` as Stripe's `customer` so later purchases reuse the same provider customer.
+- If no local Stripe `BillingCustomer` exists yet, Checkout sends `customer_email`; Stripe creates the customer during the first subscription Checkout and the verified completion webhook persists the returned `cus_...` identifier locally.
 - The Stripe metadata includes `user_id`, `checkout_attempt_id`, `subscription_price_id`, and `subscription_plan_id` for later webhook reconciliation.
 - If Stripe creates the Checkout Session, the attempt is marked `completed` and stores `provider_checkout_session_id`; this means only that the provider session exists.
 - If Stripe creation fails, the attempt is marked `failed`, the view logs the exception, and the API returns `502` with a generic public error.
@@ -242,6 +244,9 @@ Stripe webhook behavior:
 - If metadata is missing or the provider Checkout Session ID does not match the stored `CheckoutAttempt.provider_checkout_session_id`, the event is recorded but no subscription state changes.
 - If metadata contains a `subscription_price_id` that does not belong to the metadata `subscription_plan_id`, the event is recorded but no subscription state changes.
 - If the user's current subscription no longer matches `CheckoutAttempt.expected_subscription`, the event is recorded but no subscription state changes.
+- The event must contain non-empty Stripe `customer` and `subscription` identifiers.
+- A returned Stripe customer must either match the user's existing `BillingCustomer` or be unowned locally. A mismatch or a customer already owned by another user is recorded but does not change subscriptions or Checkout status.
+- On the first successful Checkout, webhook reconciliation creates the user's Stripe `BillingCustomer`; later Checkout creation reuses that provider customer ID.
 - After a successful webhook-driven transition, the matching `CheckoutAttempt` is marked `confirmed`.
 - The subscription transition reuses the existing stale-write guard: it passes `CheckoutAttempt.expected_subscription_id` to `change_subscription_plan`.
 - Unhandled event types are acknowledged after event recording but do not mutate application state.

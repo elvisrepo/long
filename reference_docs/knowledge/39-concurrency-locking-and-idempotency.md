@@ -271,6 +271,8 @@ Current implementation:
 - `checkout.session.completed` must match both `CheckoutAttempt.id` from metadata and `CheckoutAttempt.provider_checkout_session_id` from the Stripe event's session ID before confirming the attempt.
 - `checkout.session.completed` must also resolve metadata `subscription_price_id` to a price belonging to metadata `subscription_plan_id`.
 - `checkout.session.completed` passes `CheckoutAttempt.expected_subscription_id` into `change_subscription_plan`; if the user's current subscription changed after Checkout started, the stale transition is ignored.
+- Checkout creation reuses a local Stripe `BillingCustomer` when present; otherwise the verified completion webhook establishes the first local mapping from the returned Stripe customer ID.
+- Webhook reconciliation rejects a provider customer ID that conflicts with the user's existing mapping or belongs to another local user before attempting the subscription transition.
 - This protects `checkout.session.completed` retries from creating extra subscription history rows.
 
 The event table is the idempotency ledger:

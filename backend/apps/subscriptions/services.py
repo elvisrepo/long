@@ -100,6 +100,7 @@ def change_subscription_plan(
         provider_subscription_id=provider_subscription_id,
     )
 
+
 def create_checkout_session(
     *,
     user: AbstractBaseUser,
@@ -115,30 +116,42 @@ def create_checkout_session(
         expected_subscription=current_subscription,
     )
     client = StripeClient(settings.STRIPE_SECRET_KEY)
+    billing_customer = BillingCustomer.objects.filter(
+        user=user,
+        provider=BillingCustomer.Provider.STRIPE,
+    ).first()
+
+    session_params: dict[str, Any] = {
+        # Stripe Checkout uses the provider price ID; clients only send our
+        # internal SubscriptionPrice UUID to prevent price manipulation.
+        "line_items": [
+            {
+                "price": price.provider_price_id,
+                "quantity": 1,
+            },
+        ],
+        "mode": "subscription",
+        "success_url": settings.STRIPE_CHECKOUT_SUCCESS_URL,
+        "cancel_url": settings.STRIPE_CHECKOUT_CANCEL_URL,
+        "client_reference_id": str(user.id),
+        "metadata": {
+            "user_id": str(user.id),
+            "checkout_attempt_id": str(attempt.id),
+            "subscription_price_id": str(price.id),
+            "subscription_plan_id": str(price.plan_id),
+        },
+    }
+
+    # Reuse the known Stripe customer for returning users. First-time checkouts
+    # still rely on email so Stripe can create the customer on its side.
+    if billing_customer is not None:
+        session_params["customer"] = billing_customer.provider_customer_id
+    else:
+        session_params["customer_email"] = user.email
 
     try:
         session = client.v1.checkout.sessions.create(
-            {
-                # Stripe Checkout uses the provider price ID; clients only send our
-                # internal SubscriptionPrice UUID to prevent price manipulation.
-                "line_items": [
-                    {
-                        "price": price.provider_price_id,
-                        "quantity": 1,
-                    },
-                ],
-                "mode": "subscription",
-                "success_url": settings.STRIPE_CHECKOUT_SUCCESS_URL,
-                "cancel_url": settings.STRIPE_CHECKOUT_CANCEL_URL,
-                "client_reference_id": str(user.id),
-                "customer_email": user.email,
-                "metadata": {
-                    "user_id": str(user.id),
-                    "checkout_attempt_id": str(attempt.id),
-                    "subscription_price_id": str(price.id),
-                    "subscription_plan_id": str(price.plan_id),
-                },
-            },
+            session_params,
             options={
                 "idempotency_key": str(attempt.id),
             },
@@ -275,6 +288,18 @@ def process_stripe_webhook_event(event: dict[str, Any]) -> None:
         billing_customer is not None
         and billing_customer.provider_customer_id != provider_customer_id
     ):
+        return None
+
+    customer_owned_by_another_user = (
+        BillingCustomer.objects.filter(
+            provider=BillingCustomer.Provider.STRIPE,
+            provider_customer_id=provider_customer_id,
+        )
+        .exclude(user=attempt.user)
+        .exists()
+    )
+
+    if customer_owned_by_another_user:
         return None
 
     try:

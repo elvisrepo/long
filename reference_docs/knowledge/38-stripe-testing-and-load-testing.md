@@ -147,11 +147,15 @@ The fake should support:
 For Checkout creation tests, the fake should return a deterministic Checkout
 Session ID and URL. Tests should assert that the application sends
 `CheckoutAttempt.id` as the Stripe idempotency key and persists the returned
-provider session ID locally.
+provider session ID locally. The suite must also cover both customer paths:
+`customer_email` for first-time Checkout and the stored Stripe `customer` ID
+for a user with an existing `BillingCustomer`.
 
 For webhook tests, mock signature verification at the application boundary, then
 assert that verified `checkout.session.completed` events confirm the matching
-attempt and change the subscription only once per Stripe event ID.
+attempt and change the subscription only once per Stripe event ID. Customer
+ownership tests must prove that a conflicting or cross-user Stripe customer ID
+cannot change local entitlements.
 
 Duplicate-delivery coverage exists at two boundaries:
 

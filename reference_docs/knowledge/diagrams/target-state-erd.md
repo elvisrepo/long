@@ -205,7 +205,7 @@ erDiagram
 - Stripe is not the entitlement model. Stripe tells us billing state; `SubscriptionPlan` and `Subscription` decide what the app allows.
 - `SubscriptionPlan` owns durable product limits such as active custom metrics, wearable connections, and sync cadence.
 - `SubscriptionPrice` stores provider price IDs and billing options separately from durable entitlement limits. A plan can have multiple prices, such as monthly and yearly billing.
-- `BillingCustomer` isolates provider-specific customer identifiers from user and entitlement logic.
+- `BillingCustomer` isolates provider-specific customer identifiers from user and entitlement logic. Checkout reuses an existing provider customer, while the first verified Checkout completion establishes the mapping and rejects cross-user ownership conflicts.
 - `CheckoutAttempt` represents one local user action to start Stripe Checkout. Its UUID is the correct shape for a Stripe idempotency key because retries of that same attempt reuse the same ID, while later deliberate checkout attempts get a new ID.
 - `CheckoutAttempt.provider_checkout_session_id` stores the Stripe Checkout Session ID so webhook events and support/debugging can correlate Stripe's `checkout.session.completed` event with the local attempt.
 - `StripeWebhookEvent` should be idempotent through `provider_event_id` and can optionally link to a subscription and/or checkout attempt after processing.

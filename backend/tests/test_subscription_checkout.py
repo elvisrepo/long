@@ -7,6 +7,7 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.subscriptions.models import (
+    BillingCustomer,
     CheckoutAttempt,
     Subscription,
     SubscriptionPlan,
@@ -452,3 +453,73 @@ def test_create_checkout_session_marks_attempt_failed_when_stripe_fails():
 
     assert attempt.status == CheckoutAttempt.Status.FAILED
     assert attempt.provider_checkout_session_id == ""
+
+
+def test_create_checkout_session_reuses_existing_billing_customer():
+    from apps.subscriptions.services import create_checkout_session
+
+    user = get_user_model().objects.create_user(
+        email="existing-customer@example.com",
+        password="strong-password-123",
+    )
+    free_plan = SubscriptionPlan.objects.get(code="free")
+    Subscription.objects.create(
+        user=user,
+        plan=free_plan,
+        status=Subscription.Status.ACTIVE,
+    )
+    BillingCustomer.objects.create(
+        user=user,
+        provider=BillingCustomer.Provider.STRIPE,
+        provider_customer_id="cus_existing_123",
+    )
+    plan = SubscriptionPlan.objects.create(
+        code="pro-checkout-existing-customer",
+        name="Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=2,
+        sync_interval_minutes=15,
+    )
+    price = SubscriptionPrice.objects.create(
+        plan=plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_existing_customer",
+        currency="usd",
+        unit_amount=1000,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+        is_active=True,
+    )
+
+    with patch("apps.subscriptions.services.StripeClient") as stripe_client:
+        checkout_session = stripe_client.return_value.v1.checkout.sessions.create
+        checkout_session.return_value.id = "cs_existing_customer"
+        checkout_session.return_value.url = "https://checkout.stripe.com/c/test-session"
+
+        create_checkout_session(user=user, price=price)
+
+    attempt = CheckoutAttempt.objects.get(user=user, price=price)
+
+    checkout_session.assert_called_once_with(
+        {
+            "line_items": [
+                {
+                    "price": "price_existing_customer",
+                    "quantity": 1,
+                },
+            ],
+            "mode": "subscription",
+            "success_url": settings.STRIPE_CHECKOUT_SUCCESS_URL,
+            "cancel_url": settings.STRIPE_CHECKOUT_CANCEL_URL,
+            "client_reference_id": str(user.id),
+            "customer": "cus_existing_123",
+            "metadata": {
+                "user_id": str(user.id),
+                "checkout_attempt_id": str(attempt.id),
+                "subscription_price_id": str(price.id),
+                "subscription_plan_id": str(plan.id),
+            },
+        },
+        options={
+            "idempotency_key": str(attempt.id),
+        },
+    )

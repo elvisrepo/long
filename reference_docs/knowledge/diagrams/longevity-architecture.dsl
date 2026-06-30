@@ -325,12 +325,23 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.webapp -> longevity.api "POST /api/v1/subscriptions/checkout/ with {\"price_id\":\"monthly-price-uuid\"}"
             longevity.api -> longevity.db "SubscriptionCheckoutSerializer validates the internal active price, current subscription, and non-default target plan"
             longevity.api -> longevity.db "Creates CheckoutAttempt(status=pending, expected_subscription=current free subscription)"
-            longevity.api -> stripe "Creates Checkout Session with line_items.price=SubscriptionPrice.provider_price_id, mode=subscription, metadata, and CheckoutAttempt.id idempotency key"
+            longevity.api -> longevity.db "Loads the user's Stripe BillingCustomer when one exists"
+            longevity.api -> stripe "Creates Checkout Session with server-owned price, metadata, and idempotency key; sends stored customer ID or customer_email for first Checkout"
             stripe -> longevity.api "Returns Checkout Session id cs_test_... and hosted url https://checkout.stripe.com/c/..."
             longevity.api -> longevity.db "Marks CheckoutAttempt completed and stores provider_checkout_session_id; no entitlement change yet"
             longevity.api -> longevity.webapp "Returns 201 JSON {\"url\":\"https://checkout.stripe.com/c/...\"}"
             longevity.webapp -> stripe "Redirects browser with window.location.assign(checkout.url)"
             user -> stripe "Sees hosted Stripe Checkout page and enters test payment details"
+        }
+
+        dynamic longevity "subscription-checkout-webhook" "Dynamic view of verified Stripe Checkout completion and local entitlement reconciliation." {
+            stripe -> longevity.api "POST /api/v1/subscriptions/stripe/webhook/ with signed checkout.session.completed event"
+            longevity.api -> longevity.db "Inserts unique StripeWebhookEvent provider_event_id; duplicate delivery stops here"
+            longevity.api -> longevity.db "Loads CheckoutAttempt, selected plan and price, expected subscription, and existing BillingCustomer"
+            longevity.db -> longevity.api "Returns correlated local state and provider ownership mapping"
+            longevity.api -> longevity.db "Rejects mismatched session, metadata, stale subscription, or conflicting Stripe customer without changing entitlements"
+            longevity.api -> longevity.db "For a valid event, atomically replaces the current subscription, creates BillingCustomer when first seen, and confirms CheckoutAttempt"
+            longevity.api -> stripe "Returns 200 acknowledgment; frontend redirect remains informational"
         }
 
         deployment * mvpCloud "mvp-cloud-deployment" "Deployment view for the pragmatic MVP cloud runtime." {

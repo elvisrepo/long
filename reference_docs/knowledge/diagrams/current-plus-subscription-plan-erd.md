@@ -5,7 +5,7 @@
 - Use the target-state ERD separately for planned Stripe, wearable-sync, and audit tables.
 
 ## Scope
-- `User`, `MetricDefinition`, `MetricEntry`, `SubscriptionPlan`, `SubscriptionPrice`, `Subscription`, `CheckoutAttempt`, and `StripeWebhookEvent` are implemented domain tables.
+- `User`, `MetricDefinition`, `MetricEntry`, `SubscriptionPlan`, `SubscriptionPrice`, `BillingCustomer`, `Subscription`, `CheckoutAttempt`, and `StripeWebhookEvent` are implemented domain tables.
 - Registration creates an explicit active free subscription, and metric limits resolve through the current subscription's plan.
 - Django framework tables such as auth groups, permissions, sessions, admin logs, and JWT token blacklist tables are intentionally omitted.
 
@@ -58,6 +58,7 @@ erDiagram
     %% IMPLEMENTED SUBSCRIPTION AND ENTITLEMENT TABLES
 
     USER ||--o{ SUBSCRIPTION : "has subscription history"
+    USER ||--o{ BILLING_CUSTOMER : "owns provider customer identities"
     USER ||--o{ CHECKOUT_ATTEMPT : "starts checkout"
     SUBSCRIPTION_PLAN ||--o{ SUBSCRIPTION : governs
     SUBSCRIPTION_PLAN ||--o{ SUBSCRIPTION_PRICE : "offers billing options"
@@ -76,6 +77,15 @@ erDiagram
         boolean csv_import_enabled
         boolean is_default
         boolean is_active
+        datetime created_at
+        datetime updated_at
+    }
+
+    BILLING_CUSTOMER {
+        uuid id PK
+        uuid user_id FK
+        string provider "stripe"
+        string provider_customer_id
         datetime created_at
         datetime updated_at
     }
@@ -145,6 +155,9 @@ erDiagram
 - `SubscriptionPrice.unit_amount` must be greater than zero.
 - `Subscription.price_id` is nullable for free subscriptions and references the exact billing option selected by a paid subscription.
 - Application validation requires `Subscription.price.plan_id == Subscription.plan_id`.
+- `BillingCustomer` owns the durable provider customer mapping. `(user_id, provider)` and `(provider, provider_customer_id)` are both unique, preventing one user from having multiple Stripe customer mappings and preventing one Stripe customer from belonging to multiple local users.
+- First-time Checkout sends `customer_email`; successful webhook reconciliation creates the Stripe `BillingCustomer`. Later Checkout sessions send the stored `provider_customer_id` as Stripe's `customer`.
+- `Subscription.provider_customer_id` remains as a nullable legacy column, but the current Checkout and webhook flow uses `BillingCustomer`; remove the redundant subscription column in a dedicated migration after confirming no deployed data depends on it.
 - `CheckoutAttempt` represents one user action to start Stripe Checkout for one selected active paid price.
 - `CheckoutAttempt.expected_subscription_id` stores the current subscription observed when Checkout was created. Webhook confirmation can only replace that subscription, preventing late Checkout completions from overwriting newer subscription state.
 - `CheckoutAttempt.id` is the per-attempt Stripe idempotency key; do not use broad deterministic keys like `(user_id, price_id)` for production retries.
@@ -152,4 +165,5 @@ erDiagram
 - `CheckoutAttempt.completed` means the provider Checkout Session was created; `CheckoutAttempt.confirmed` means a verified `checkout.session.completed` webhook reconciled it and changed the local subscription.
 - Webhook confirmation requires both the local `CheckoutAttempt.id` from Stripe metadata and the stored `provider_checkout_session_id` to match the event's Checkout Session ID.
 - Webhook confirmation also requires the metadata `subscription_price_id` to belong to the metadata `subscription_plan_id`.
+- Webhook confirmation rejects a provider customer ID that differs from the user's existing Stripe `BillingCustomer` or is already linked to another local user.
 - `StripeWebhookEvent.provider_event_id` is unique so duplicate Stripe webhook deliveries cannot reapply a subscription transition.
