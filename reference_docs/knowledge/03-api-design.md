@@ -223,6 +223,7 @@ Checkout behavior:
 - The selected price must be active, belong to an active non-default plan, and use the Stripe provider.
 - The authenticated user must already have one current subscription row. Registration creates a Free current subscription, so a missing current subscription is treated as inconsistent local state and returns `400`.
 - Checkout rejects the exact current subscription price so repeated checkout for the same active price does not create a new Stripe session.
+- If the current subscription already has a Stripe provider subscription ID, Checkout rejects selecting a different price with `400`. Paid plan changes must use the Stripe Customer Portal so Checkout cannot create a second concurrently billed Stripe subscription.
 - The service creates a local `CheckoutAttempt` before calling Stripe.
 - `CheckoutAttempt.expected_subscription` stores the user's current subscription at checkout creation time; this is the subscription state the later Stripe webhook is allowed to replace.
 - `CheckoutAttempt.id` is used as the Stripe idempotency key, so retries of the same local attempt use the same provider retry identity.

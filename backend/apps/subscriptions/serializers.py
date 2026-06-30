@@ -98,6 +98,20 @@ class SubscriptionCheckoutSerializer(serializers.Serializer):
                     "price_id": ["You are already subscribed to this price."],
                 }
             )
+        # this user alrady has a real stripe- managed sub
+        if (
+            current_subscription.provider == SubscriptionPrice.Provider.STRIPE
+            and current_subscription.provider_subscription_id
+        ):
+            raise serializers.ValidationError(
+                {
+                    "detail": [
+                        (
+                            "Manage changes to an active Stripe subscription "
+                            "through the billing portal."
+                        )
+                    ],
+                }
+            )
 
         return attrs
-

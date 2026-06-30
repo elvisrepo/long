@@ -338,7 +338,7 @@ Current Stripe testing boundary:
 - See `reference_docs/knowledge/38-stripe-testing-and-load-testing.md` for the complete policy and official Stripe references.
 
 Current Stripe Checkout testing checkpoint:
-- `tests/test_subscription_checkout.py` proves Checkout requires authentication and rejects missing, inactive, default-plan, duplicate-current-price, and no-current-subscription inputs.
+- `tests/test_subscription_checkout.py` proves Checkout requires authentication and rejects missing, inactive, default-plan, duplicate-current-price, active-Stripe-subscription plan changes, and no-current-subscription inputs.
 - The same suite proves successful Checkout calls the service and returns only the hosted Stripe URL.
 - Service-level Checkout tests mock `StripeClient`, assert subscription mode, server-owned Stripe price IDs, metadata, and `CheckoutAttempt.id` as the Stripe idempotency key.
 - Checkout service tests cover both customer branches: first-time users send `customer_email`, while users with a Stripe `BillingCustomer` send `customer` and omit `customer_email`.

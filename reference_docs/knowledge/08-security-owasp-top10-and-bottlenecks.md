@@ -52,6 +52,7 @@ Current subscription-integrity boundary:
 Current Stripe Checkout boundary:
 - Checkout creation accepts only an internal active `SubscriptionPrice.id`; Stripe `provider_price_id` values remain server-side.
 - Checkout requires a current local subscription row, rejects default Free-plan prices, and rejects the caller's exact current paid price.
+- Checkout also rejects a different price when the current subscription already has a Stripe subscription ID. This prevents a plan-change attempt from creating a second provider subscription before Customer Portal support is available.
 - Each checkout request creates a local `CheckoutAttempt`; its UUID is the Stripe idempotency key for that provider create call.
 - `CheckoutAttempt.expected_subscription` captures the current subscription at checkout creation time so late Stripe webhooks cannot replace a newer subscription state.
 - `CheckoutAttempt.completed` means Stripe returned a Checkout Session ID, not that the user paid or that app entitlements changed.

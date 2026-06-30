@@ -372,6 +372,66 @@ def test_subscription_checkout_rejects_current_subscription_price():
     create_checkout.assert_not_called()
 
 
+def test_subscription_checkout_rejects_new_checkout_for_active_stripe_subscription():
+    user = get_user_model().objects.create_user(
+        email="active-stripe-subscription@example.com",
+        password="strong-password-123",
+    )
+    client = APIClient()
+    access_token = RefreshToken.for_user(user).access_token
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+
+    plan = SubscriptionPlan.objects.create(
+        code="pro-active-stripe-checkout",
+        name="Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=2,
+        sync_interval_minutes=15,
+    )
+    monthly_price = SubscriptionPrice.objects.create(
+        plan=plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_active_stripe_monthly",
+        currency="usd",
+        unit_amount=1000,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+    )
+    yearly_price = SubscriptionPrice.objects.create(
+        plan=plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_active_stripe_yearly",
+        currency="usd",
+        unit_amount=10000,
+        billing_interval=SubscriptionPrice.BillingInterval.YEAR,
+    )
+    Subscription.objects.create(
+        user=user,
+        plan=plan,
+        price=monthly_price,
+        status=Subscription.Status.ACTIVE,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_subscription_id="sub_active_stripe",
+    )
+
+    with patch(
+        "apps.subscriptions.views.create_checkout_session",
+        return_value="https://checkout.stripe.com/c/test-session",
+    ) as create_checkout:
+        response = client.post(
+            "/api/v1/subscriptions/checkout/",
+            {"price_id": str(yearly_price.id)},
+            format="json",
+        )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": [
+            "Manage changes to an active Stripe subscription through the billing portal."
+        ],
+    }
+    create_checkout.assert_not_called()
+
+
 def test_subscription_checkout_requires_current_subscription():
     user = get_user_model().objects.create_user(
         email="alice@example.com",
