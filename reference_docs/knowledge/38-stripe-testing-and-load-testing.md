@@ -157,6 +157,12 @@ attempt and change the subscription only once per Stripe event ID. Customer
 ownership tests must prove that a conflicting or cross-user Stripe customer ID
 cannot change local entitlements.
 
+Stripe's Python SDK returns a `stripe.Event` object from signature verification,
+not a normal dictionary. Normalize it with the SDK's public `to_dict()` method
+at the verification boundary before passing it to application reconciliation.
+Keep one regression test backed by an actual SDK event shape so plain-dictionary
+mocks cannot hide this mismatch.
+
 Duplicate-delivery coverage exists at two boundaries:
 
 - The endpoint test pre-creates a `StripeWebhookEvent`, posts the same provider

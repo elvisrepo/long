@@ -357,6 +357,7 @@ Current frontend subscription Checkout testing checkpoint:
 Current Stripe webhook testing checkpoint:
 - Missing Stripe signatures return `400` and do not process events.
 - `tests/test_subscription_webhooks.py` proves invalid Stripe signatures return `400` and do not process events.
+- Signature-verification coverage uses a real `stripe.Event` shape and proves the SDK object is recursively normalized to a plain dictionary before reconciliation; dictionary-only mocks would not catch this production boundary mismatch.
 - Valid verified events are handed to `process_stripe_webhook_event`.
 - `checkout.session.completed` confirms the matching local `CheckoutAttempt`, cancels the previous current subscription, and creates the replacement paid subscription.
 - Duplicate Stripe event IDs are idempotent: a retried event is acknowledged without creating extra subscription history.

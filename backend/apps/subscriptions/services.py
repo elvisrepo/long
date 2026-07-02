@@ -182,11 +182,15 @@ def verify_stripe_webhook_event(
     signature: str,
     webhook_secret: str,
 ) -> dict[str, Any]:
-    return stripe.Webhook.construct_event(
+    event = stripe.Webhook.construct_event(
         payload,
         signature,
         webhook_secret,
     )
+
+    # Stripe SDK objects do not implement dict.get(). Normalize once at the
+    # verification boundary so downstream reconciliation uses plain mappings.
+    return event.to_dict()
 
 
 def get_checkout_session_metadata_value(

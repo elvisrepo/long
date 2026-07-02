@@ -2,6 +2,7 @@ from uuid import uuid4
 from unittest.mock import patch
 
 import pytest
+import stripe
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
@@ -14,9 +15,41 @@ from apps.subscriptions.models import (
     SubscriptionPlan,
     SubscriptionPrice,
 )
-from apps.subscriptions.services import process_stripe_webhook_event
+from apps.subscriptions.services import (
+    process_stripe_webhook_event,
+    verify_stripe_webhook_event,
+)
 
 pytestmark = pytest.mark.django_db
+
+
+def test_verify_stripe_webhook_event_normalizes_sdk_event_to_dict():
+    sdk_event = stripe.Event.construct_from(
+        {
+            "id": "evt_sdk_object",
+            "type": "checkout.session.completed",
+            "data": {
+                "object": {
+                    "id": "cs_sdk_object",
+                    "metadata": {},
+                }
+            },
+        },
+        key=None,
+    )
+
+    with patch(
+        "apps.subscriptions.services.stripe.Webhook.construct_event",
+        return_value=sdk_event,
+    ):
+        event = verify_stripe_webhook_event(
+            payload=b'{"id":"evt_sdk_object"}',
+            signature="valid-signature",
+            webhook_secret="whsec_test",
+        )
+
+    assert isinstance(event, dict)
+    assert event["data"]["object"]["id"] == "cs_sdk_object"
 
 
 def test_stripe_webhook_rejects_missing_signature():
