@@ -26,6 +26,10 @@ Named volumes:
 ### Runtime Model
 
 - You start the stack from the host machine by running `docker compose up --build` inside `backend/`.
+- `docker compose up -d --force-recreate` recreates containers but does not rebuild
+  their images. After changing `pyproject.toml` or `uv.lock`, use
+  `docker compose up -d --build web celery celery-beat` so every Python service
+  receives the updated `/opt/venv`.
 - Docker Compose creates an isolated network for the services.
 - Inside that Docker network, service names become hostnames:
   - Django connects to PostgreSQL at `db:5432`

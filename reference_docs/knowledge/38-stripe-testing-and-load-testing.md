@@ -114,6 +114,85 @@ The browser redirect is only user-facing UI feedback. It is not proof of
 payment, and it must not unlock paid entitlements by itself. The webhook is the
 trusted provider confirmation.
 
+## Local Checkout Smoke Test
+
+This flow was verified end to end against the Stripe sandbox on July 2, 2026.
+It is an opt-in manual smoke test, not part of the default automated suite.
+
+Prerequisites:
+
+1. Run the Django stack with the Stripe Python SDK installed in the image.
+2. Install Stripe CLI, authenticate with `stripe login`, and select the intended
+   sandbox.
+3. Start a dedicated listener terminal:
+
+   ```bash
+   stripe listen \
+     --events checkout.session.completed \
+     --forward-to http://localhost:8000/api/v1/subscriptions/stripe/webhook/
+   ```
+
+4. Copy the listener's `whsec_...` value into the ignored backend `.env` as
+   `STRIPE_WEBHOOK_SECRET`.
+5. Recreate the web container so Django loads the environment change:
+
+   ```bash
+   docker compose up -d --force-recreate web
+   ```
+
+Local forwarding uses HTTP because the CLI and Django communicate on the same
+machine. A registered public Stripe event destination must use a publicly
+accessible HTTPS URL with a valid TLS certificate.
+
+Before creating a real sandbox Checkout, verify the transport and signature
+boundary:
+
+```bash
+stripe trigger checkout.session.completed
+```
+
+Expected results:
+
+- the listener reports a `200` response from the local webhook endpoint;
+- Django stores a `StripeWebhookEvent`;
+- no entitlement changes occur because the synthetic event does not contain a
+  matching local `CheckoutAttempt` and server-generated metadata.
+
+For the real Checkout:
+
+1. Start from a local Free subscription with no active Stripe subscription for
+   that user.
+2. Keep `stripe listen` running.
+3. Select a paid price from Settings and use Stripe's successful test card:
+   `4242 4242 4242 4242`, any future expiry, and any three-digit CVC.
+4. Confirm that the listener reports:
+
+   ```text
+   --> checkout.session.completed
+   <-- [200] POST http://localhost:8000/api/v1/subscriptions/stripe/webhook/
+   ```
+
+5. Confirm both provider and local state:
+
+   - Stripe has one active sandbox Customer and Subscription.
+   - The previous local Free `Subscription` is `cancelled`.
+   - A new local Pro `Subscription` is `active` with the Stripe
+     `provider_subscription_id`.
+   - `BillingCustomer` stores the Stripe `cus_...` identifier.
+   - The matching `CheckoutAttempt` is `confirmed`.
+   - `StripeWebhookEvent` stores the provider event ID.
+
+Troubleshooting:
+
+- A `checkout=success` browser redirect alone does not prove webhook delivery.
+- If Django has no webhook request log, check that the CLI listener is running.
+- If signature verification fails, ensure Django loaded the exact signing secret
+  printed by the current listener.
+- Stripe's Python SDK returns `stripe.Event`; normalize it with `to_dict()` before
+  application code uses dictionary methods such as `.get()`.
+- Do not repeat Checkout while an earlier sandbox subscription remains active.
+  Cancel the provider subscription first to avoid duplicate billing records.
+
 ## Why Stripe Sandbox Is Not a Load-Test Target
 
 Stripe explicitly discourages sandbox load testing:
