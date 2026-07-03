@@ -799,6 +799,11 @@ def test_subscription_updated_schedules_cancellation_without_revoking_pro():
         provider=SubscriptionPrice.Provider.STRIPE,
         provider_subscription_id="sub_scheduled_cancellation",
     )
+    BillingCustomer.objects.create(
+        user=user,
+        provider=BillingCustomer.Provider.STRIPE,
+        provider_customer_id="cus_scheduled_cancellation",
+    )
 
     period_start = 1782815656
     period_end = 1785407656
@@ -809,6 +814,7 @@ def test_subscription_updated_schedules_cancellation_without_revoking_pro():
         "data": {
             "object": {
                 "id": "sub_scheduled_cancellation",
+                "customer": "cus_scheduled_cancellation",
                 "status": "active",
                 "cancel_at_period_end": True,
                 "items": {
@@ -841,4 +847,145 @@ def test_subscription_updated_schedules_cancellation_without_revoking_pro():
     assert Subscription.objects.filter(user=user).count() == 1
     assert StripeWebhookEvent.objects.filter(
         provider_event_id="evt_scheduled_cancellation",
+    ).exists()
+
+
+def test_subscription_updated_rejects_mismatched_billing_customer():
+    user = get_user_model().objects.create_user(
+        email="updated-customer-mismatch@example.com",
+        password="strong-password-123",
+    )
+    pro_plan = SubscriptionPlan.objects.create(
+        code="pro-updated-customer-mismatch",
+        name="Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=2,
+        sync_interval_minutes=15,
+    )
+    pro_price = SubscriptionPrice.objects.create(
+        plan=pro_plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_updated_customer_mismatch",
+        currency="usd",
+        unit_amount=1000,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+    )
+    subscription = Subscription.objects.create(
+        user=user,
+        plan=pro_plan,
+        price=pro_price,
+        status=Subscription.Status.ACTIVE,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_subscription_id="sub_updated_customer_mismatch",
+    )
+    BillingCustomer.objects.create(
+        user=user,
+        provider=BillingCustomer.Provider.STRIPE,
+        provider_customer_id="cus_expected",
+    )
+    event = {
+        "id": "evt_updated_customer_mismatch",
+        "type": "customer.subscription.updated",
+        "data": {
+            "object": {
+                "id": "sub_updated_customer_mismatch",
+                "customer": "cus_different",
+                "status": "active",
+                "cancel_at_period_end": True,
+                "items": {
+                    "data": [
+                        {
+                            "current_period_start": 1782815656,
+                            "current_period_end": 1785407656,
+                        }
+                    ]
+                },
+            }
+        },
+    }
+
+    process_stripe_webhook_event(event)
+
+    subscription.refresh_from_db()
+
+    assert subscription.status == Subscription.Status.ACTIVE
+    assert subscription.cancel_at_period_end is False
+    assert subscription.current_period_start is None
+    assert subscription.current_period_end is None
+    assert Subscription.objects.filter(user=user).count() == 1
+    assert StripeWebhookEvent.objects.filter(
+        provider_event_id="evt_updated_customer_mismatch",
+    ).exists()
+
+
+def test_subscription_deleted_downgrades_user_to_free():
+    user = get_user_model().objects.create_user(
+        email="completed-cancellation@example.com",
+        password="strong-password-123",
+    )
+    free_plan = SubscriptionPlan.objects.get(code="free")
+    pro_plan = SubscriptionPlan.objects.create(
+        code="pro-completed-cancellation",
+        name="Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=2,
+        sync_interval_minutes=15,
+    )
+    pro_price = SubscriptionPrice.objects.create(
+        plan=pro_plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_completed_cancellation",
+        currency="usd",
+        unit_amount=1000,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+    )
+    pro_subscription = Subscription.objects.create(
+        user=user,
+        plan=pro_plan,
+        price=pro_price,
+        status=Subscription.Status.ACTIVE,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_subscription_id="sub_completed_cancellation",
+        cancel_at_period_end=True,
+    )
+    billing_customer = BillingCustomer.objects.create(
+        user=user,
+        provider=BillingCustomer.Provider.STRIPE,
+        provider_customer_id="cus_completed_cancellation",
+    )
+
+    event = {
+        "id": "evt_completed_cancellation",
+        "type": "customer.subscription.deleted",
+        "data": {
+            "object": {
+                "id": "sub_completed_cancellation",
+                "customer": "cus_completed_cancellation",
+                "status": "canceled",
+            }
+        },
+    }
+
+    process_stripe_webhook_event(event)
+
+    pro_subscription.refresh_from_db()
+    billing_customer.refresh_from_db()
+
+    free_subscription = Subscription.objects.get(
+        user=user,
+        status=Subscription.Status.ACTIVE,
+    )
+
+    assert pro_subscription.status == Subscription.Status.CANCELLED
+    assert pro_subscription.cancelled_at is not None
+
+    assert free_subscription.plan == free_plan
+    assert free_subscription.price is None
+    assert free_subscription.provider is None
+    assert free_subscription.provider_subscription_id is None
+
+    assert billing_customer.provider_customer_id == "cus_completed_cancellation"
+    assert Subscription.objects.filter(user=user).count() == 2
+    assert StripeWebhookEvent.objects.filter(
+        provider_event_id="evt_completed_cancellation",
     ).exists()

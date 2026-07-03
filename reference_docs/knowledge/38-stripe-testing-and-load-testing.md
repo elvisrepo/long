@@ -128,7 +128,7 @@ Prerequisites:
 
    ```bash
    stripe listen \
-     --events checkout.session.completed \
+     --events checkout.session.completed,customer.subscription.updated,customer.subscription.deleted \
      --forward-to http://localhost:8000/api/v1/subscriptions/stripe/webhook/
    ```
 
@@ -181,6 +181,26 @@ For the real Checkout:
    - `BillingCustomer` stores the Stripe `cus_...` identifier.
    - The matching `CheckoutAttempt` is `confirmed`.
    - `StripeWebhookEvent` stores the provider event ID.
+
+## Stripe Cancellation Lifecycle
+
+Cancellation is a two-event lifecycle rather than an immediate local downgrade:
+
+1. The user schedules cancellation in Stripe.
+2. Stripe sends `customer.subscription.updated` with
+   `cancel_at_period_end=true` and the current period timestamps.
+3. Django verifies that both the Stripe subscription ID and customer ID match
+   the current local subscription and its `BillingCustomer`.
+4. Django stores the cancellation flag and period boundaries but keeps the
+   paid subscription active.
+5. At the end of the paid period, Stripe ends the provider subscription and
+   sends `customer.subscription.deleted`.
+6. Django repeats the subscription/customer ownership check, cancels the local
+   paid subscription, and creates a new active Free subscription.
+
+The application does not downgrade from the browser redirect or merely because
+`cancel_at_period_end` is true. Stripe's verified terminal event is the
+authority that the paid entitlement period has ended.
 
 Troubleshooting:
 

@@ -210,12 +210,14 @@ def process_stripe_subscription_updated(
     stripe_subscription: dict[str, Any],
 ) -> None:
     provider_subscription_id = stripe_subscription.get("id")
+    provider_customer_id = stripe_subscription.get("customer")
     provider_status = stripe_subscription.get("status")
     cancel_at_period_end = stripe_subscription.get("cancel_at_period_end")
     items = stripe_subscription.get("items")
 
     if (
         not isinstance(provider_subscription_id, str)
+        or not isinstance(provider_customer_id, str)
         or provider_status != Subscription.Status.ACTIVE
         or not isinstance(cancel_at_period_end, bool)
         or not isinstance(items, dict)
@@ -239,13 +241,26 @@ def process_stripe_subscription_updated(
     if type(period_start) is not int or type(period_end) is not int:
         return
 
-    subscription = Subscription.objects.filter(
-        provider=SubscriptionPrice.Provider.STRIPE,
-        provider_subscription_id=provider_subscription_id,
-        status__in=CURRENT_SUBSCRIPTION_STATUSES,
-    ).first()
+    subscription = (
+        Subscription.objects.select_related("user")
+        .filter(
+            provider=SubscriptionPrice.Provider.STRIPE,
+            provider_subscription_id=provider_subscription_id,
+            status__in=CURRENT_SUBSCRIPTION_STATUSES,
+        )
+        .first()
+    )
 
     if subscription is None:
+        return
+
+    customer_matches = BillingCustomer.objects.filter(
+        user=subscription.user,
+        provider=BillingCustomer.Provider.STRIPE,
+        provider_customer_id=provider_customer_id,
+    ).exists()
+
+    if customer_matches is False:
         return
 
     subscription.cancel_at_period_end = cancel_at_period_end
@@ -267,6 +282,61 @@ def process_stripe_subscription_updated(
     )
 
 
+def process_stripe_subscription_deleted(
+    stripe_subscription: dict[str, Any],
+) -> None:
+    provider_subscription_id = stripe_subscription.get("id")
+    provider_customer_id = stripe_subscription.get("customer")
+    provider_status = stripe_subscription.get("status")
+
+    if (
+        not isinstance(provider_subscription_id, str)
+        or not isinstance(provider_customer_id, str)
+        or provider_status != "canceled"
+    ):
+        return
+
+    subscription = (
+        Subscription.objects.select_related("user")
+        .filter(
+            provider=SubscriptionPrice.Provider.STRIPE,
+            provider_subscription_id=provider_subscription_id,
+            status__in=CURRENT_SUBSCRIPTION_STATUSES,
+        )
+        .first()
+    )
+
+    if subscription is None:
+        return
+
+    customer_matches = BillingCustomer.objects.filter(
+        user=subscription.user,
+        provider=BillingCustomer.Provider.STRIPE,
+        provider_customer_id=provider_customer_id,
+    ).exists()
+
+    if customer_matches is False:
+        return
+
+    # Missing Free-plan configuration must roll back the event ledger insert so
+    # Stripe can retry after the application configuration is repaired.
+    free_plan = SubscriptionPlan.objects.get(
+        code="free",
+        is_active=True,
+        is_default=True,
+    )
+
+    try:
+        change_subscription_plan(
+            user=subscription.user,
+            plan=free_plan,
+            price=None,
+            expected_subscription_id=subscription.id,
+        )
+    except StaleSubscriptionTransitionError:
+        return
+
+
 @transaction.atomic
 def process_stripe_webhook_event(event: dict[str, Any]) -> None:
     try:
@@ -285,6 +355,14 @@ def process_stripe_webhook_event(event: dict[str, Any]) -> None:
 
         if isinstance(stripe_subscription, dict):
             process_stripe_subscription_updated(stripe_subscription)
+
+        return None
+
+    if event_type == "customer.subscription.deleted":
+        stripe_subscription = event.get("data", {}).get("object")
+
+        if isinstance(stripe_subscription, dict):
+            process_stripe_subscription_deleted(stripe_subscription)
 
         return None
 

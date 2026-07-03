@@ -61,6 +61,8 @@ Current Stripe Checkout boundary:
 - Webhook plan and price metadata must resolve to a real `SubscriptionPrice` belonging to the metadata `SubscriptionPlan`; cross-plan metadata is recorded and ignored.
 - Checkout reuses the authenticated user's local Stripe `BillingCustomer.provider_customer_id` when one exists; first-time Checkout sends only the user's email and waits for the verified webhook to persist Stripe's returned customer ID.
 - Webhook reconciliation rejects a Stripe customer ID that conflicts with the user's existing `BillingCustomer` or is already owned by another local user. Rejected events remain in the webhook ledger but do not grant entitlements.
+- Stripe subscription update and deletion events must match both the local `provider_subscription_id` and the owning user's `BillingCustomer.provider_customer_id`; a valid provider subscription ID alone is insufficient authorization to mutate local entitlement state.
+- Scheduled cancellation preserves paid access until Stripe sends the terminal deletion event. Browser redirects and local wall-clock assumptions must not downgrade the user early.
 - Stripe webhook processing stores each verified Stripe event ID in `StripeWebhookEvent`; duplicate deliveries return without reapplying subscription transitions.
 - Failed Stripe session creation marks the local attempt `failed` and returns a generic `502` without leaking provider exception details to the client.
 - Frontend success redirects are informational only. Paid entitlements must be granted from trusted Stripe webhook processing.
@@ -82,6 +84,8 @@ Current Stripe credential and traffic boundary:
 - **Stripe webhook price/plan mismatch**: If metadata combines a plan ID with a price ID from another plan, record the event and skip entitlement changes.
 - **Stripe webhook stale subscription**: If the user's current subscription no longer matches `CheckoutAttempt.expected_subscription`, record the event and skip entitlement changes.
 - **Stripe customer ownership mismatch**: If Checkout completion returns a customer different from the user's stored Stripe customer, or a customer already linked to another user, record the event and skip entitlement changes.
+- **Stripe subscription lifecycle ownership mismatch**: If an update or deletion event's customer does not own the matched local provider subscription, record the event and skip all local subscription changes.
+- **Scheduled Stripe cancellation**: Keep the paid local subscription active when `cancel_at_period_end=true`; downgrade only after Stripe sends `customer.subscription.deleted`.
 - **Checkout retry after timeout**: Local `CheckoutAttempt.id` is sent as Stripe's idempotency key. A retry of the same attempt should reuse that ID; a later intentional checkout action should create a new attempt.
 - **Token expiry during WebSocket session**: Server sends `AUTH_EXPIRED` frame. Client must close the socket, re-authenticate via REST, get a new WS ticket, and reconnect.
 - **User deletes account mid-sync**: Celery task checks `user.is_active` before writing data. If user is deleted, task aborts gracefully.

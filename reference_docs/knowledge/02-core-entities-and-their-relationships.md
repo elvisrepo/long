@@ -52,3 +52,6 @@ We derived entities from the functional requirements by asking: *"What data must
 - A subscription's selected price must belong to the same plan; provider price IDs remain backend-owned.
 - Paid-plan transitions require an active selected price. Transitions to the default Free plan use `price_id=NULL`.
 - Replaced subscriptions retain their selected price as historical billing context.
+- A Stripe `customer.subscription.updated` event synchronizes the current paid subscription's `cancel_at_period_end`, `current_period_start`, and `current_period_end`. Scheduling cancellation does not revoke paid entitlements.
+- The paid subscription remains current until Stripe reports that it has actually ended through `customer.subscription.deleted`.
+- A verified deletion event cancels the paid local subscription and creates a new active Free subscription. The cancelled paid row remains as subscription history.
