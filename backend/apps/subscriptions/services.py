@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -205,6 +206,67 @@ def get_checkout_session_metadata_value(
     return value
 
 
+def process_stripe_subscription_updated(
+    stripe_subscription: dict[str, Any],
+) -> None:
+    provider_subscription_id = stripe_subscription.get("id")
+    provider_status = stripe_subscription.get("status")
+    cancel_at_period_end = stripe_subscription.get("cancel_at_period_end")
+    items = stripe_subscription.get("items")
+
+    if (
+        not isinstance(provider_subscription_id, str)
+        or provider_status != Subscription.Status.ACTIVE
+        or not isinstance(cancel_at_period_end, bool)
+        or not isinstance(items, dict)
+    ):
+        return
+
+    item_data = items.get("data")
+
+    # Current plans contain one recurring subscription item.
+    if not isinstance(item_data, list) or len(item_data) != 1:
+        return
+
+    item = item_data[0]
+
+    if not isinstance(item, dict):
+        return
+
+    period_start = item.get("current_period_start")
+    period_end = item.get("current_period_end")
+
+    if type(period_start) is not int or type(period_end) is not int:
+        return
+
+    subscription = Subscription.objects.filter(
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_subscription_id=provider_subscription_id,
+        status__in=CURRENT_SUBSCRIPTION_STATUSES,
+    ).first()
+
+    if subscription is None:
+        return
+
+    subscription.cancel_at_period_end = cancel_at_period_end
+    subscription.current_period_start = datetime.fromtimestamp(
+        period_start,
+        tz=UTC,
+    )
+    subscription.current_period_end = datetime.fromtimestamp(
+        period_end,
+        tz=UTC,
+    )
+    subscription.save(
+        update_fields=[
+            "cancel_at_period_end",
+            "current_period_start",
+            "current_period_end",
+            "updated_at",
+        ]
+    )
+
+
 @transaction.atomic
 def process_stripe_webhook_event(event: dict[str, Any]) -> None:
     try:
@@ -216,7 +278,17 @@ def process_stripe_webhook_event(event: dict[str, Any]) -> None:
     except IntegrityError:
         return None
 
-    if event.get("type") != "checkout.session.completed":
+    event_type = event.get("type")
+
+    if event_type == "customer.subscription.updated":
+        stripe_subscription = event.get("data", {}).get("object")
+
+        if isinstance(stripe_subscription, dict):
+            process_stripe_subscription_updated(stripe_subscription)
+
+        return None
+
+    if event_type != "checkout.session.completed":
         return None
 
     session = event["data"]["object"]

@@ -1,5 +1,6 @@
-from uuid import uuid4
+from datetime import UTC, datetime
 from unittest.mock import patch
+from uuid import uuid4
 
 import pytest
 import stripe
@@ -765,4 +766,79 @@ def test_checkout_completion_rejects_customer_owned_by_another_user():
     assert Subscription.objects.filter(user=user).count() == 1
     assert StripeWebhookEvent.objects.filter(
         provider_event_id="evt_owned_customer_conflict",
+    ).exists()
+
+
+def test_subscription_updated_schedules_cancellation_without_revoking_pro():
+    user = get_user_model().objects.create_user(
+        email="scheduled-cancellation@example.com",
+        password="strong-password-123",
+    )
+
+    pro_plan = SubscriptionPlan.objects.create(
+        code="pro-scheduled-cancellation",
+        name="Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=2,
+        sync_interval_minutes=15,
+    )
+    pro_price = SubscriptionPrice.objects.create(
+        plan=pro_plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_scheduled_cancellation",
+        currency="usd",
+        unit_amount=1000,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+    )
+
+    subscription = Subscription.objects.create(
+        user=user,
+        plan=pro_plan,
+        price=pro_price,
+        status=Subscription.Status.ACTIVE,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_subscription_id="sub_scheduled_cancellation",
+    )
+
+    period_start = 1782815656
+    period_end = 1785407656
+
+    event = {
+        "id": "evt_scheduled_cancellation",
+        "type": "customer.subscription.updated",
+        "data": {
+            "object": {
+                "id": "sub_scheduled_cancellation",
+                "status": "active",
+                "cancel_at_period_end": True,
+                "items": {
+                    "data": [
+                        {
+                            "current_period_start": period_start,
+                            "current_period_end": period_end,
+                        }
+                    ]
+                },
+            }
+        },
+    }
+
+    process_stripe_webhook_event(event)
+
+    subscription.refresh_from_db()
+
+    assert subscription.status == Subscription.Status.ACTIVE
+    assert subscription.plan == pro_plan
+    assert subscription.cancel_at_period_end is True
+    assert subscription.current_period_start == datetime.fromtimestamp(
+        period_start,
+        tz=UTC,
+    )
+    assert subscription.current_period_end == datetime.fromtimestamp(
+        period_end,
+        tz=UTC,
+    )
+    assert Subscription.objects.filter(user=user).count() == 1
+    assert StripeWebhookEvent.objects.filter(
+        provider_event_id="evt_scheduled_cancellation",
     ).exists()
