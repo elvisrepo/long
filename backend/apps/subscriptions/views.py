@@ -21,6 +21,7 @@ from apps.subscriptions.serializers import (
 from apps.subscriptions.services import (
     CURRENT_SUBSCRIPTION_STATUSES,
     create_checkout_session,
+    create_customer_portal_session,
     process_stripe_webhook_event,
     verify_stripe_webhook_event,
 )
@@ -99,20 +100,30 @@ class SubscriptionPortalView(APIView):
 
     def post(self, request) -> Response:
         billing_customer = BillingCustomer.objects.filter(
-          user=request.user,
-          provider=BillingCustomer.Provider.STRIPE,
-      ).first()
-        
+            user=request.user,
+            provider=BillingCustomer.Provider.STRIPE,
+        ).first()
+
         if billing_customer is None:
-          return Response(
-              {"detail": "No Stripe billing customer is available."},
-              status=status.HTTP_400_BAD_REQUEST,
-          )
-        
+            return Response(
+                {"detail": "No Stripe billing customer is available."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            portal_url = create_customer_portal_session(
+                billing_customer=billing_customer,
+            )
+        except Exception:
+            logger.exception("Stripe Customer Portal session creation failed")
+            return Response(
+                {"detail": "Unable to create Customer Portal session."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
 
         return Response(
-            {"detail": "Customer Portal session creation is not implemented yet."},
-            status=status.HTTP_501_NOT_IMPLEMENTED,
+            {"url": portal_url},
+            status=status.HTTP_201_CREATED,
         )
 
 

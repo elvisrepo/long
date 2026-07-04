@@ -3,7 +3,13 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.subscriptions.models import Subscription, SubscriptionPlan
+from apps.subscriptions.models import (
+      BillingCustomer,
+      Subscription,
+      SubscriptionPlan,
+  )
+
+from unittest.mock import patch
 
 pytestmark = pytest.mark.django_db
 
@@ -49,3 +55,31 @@ def test_subscription_portal_requires_billing_customer():
     assert response.json() == {
         "detail": "No Stripe billing customer is available.",
     }
+
+
+def test_subscription_portal_returns_hosted_portal_url():
+    client, user = authenticate_client_for("portal@example.com")
+    billing_customer = BillingCustomer.objects.create(
+          user=user,
+          provider=BillingCustomer.Provider.STRIPE,
+          provider_customer_id="cus_portal_test",
+      )
+    
+    with patch(
+          "apps.subscriptions.views.create_customer_portal_session",
+          return_value="https://billing.stripe.com/p/session/test_portal",
+      ) as create_customer_portal_session:
+          response = client.post(
+              "/api/v1/subscriptions/portal/",
+              {},
+              format="json",
+          )
+
+    
+    assert response.status_code == 201
+    assert response.json() == {
+          "url": "https://billing.stripe.com/p/session/test_portal",
+      }
+    create_customer_portal_session.assert_called_once_with(
+          billing_customer=billing_customer,
+      )

@@ -177,6 +177,13 @@ def create_checkout_session(
     return session.url
 
 
+def create_customer_portal_session(
+    *,
+    billing_customer: BillingCustomer,
+) -> str:
+    raise NotImplementedError
+
+
 def verify_stripe_webhook_event(
     *,
     payload: bytes,
