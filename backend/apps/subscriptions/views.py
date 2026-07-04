@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.subscriptions.models import (
+    BillingCustomer,
     Subscription,
     SubscriptionPlan,
     SubscriptionPrice,
@@ -97,6 +98,18 @@ class SubscriptionPortalView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request) -> Response:
+        billing_customer = BillingCustomer.objects.filter(
+          user=request.user,
+          provider=BillingCustomer.Provider.STRIPE,
+      ).first()
+        
+        if billing_customer is None:
+          return Response(
+              {"detail": "No Stripe billing customer is available."},
+              status=status.HTTP_400_BAD_REQUEST,
+          )
+        
+
         return Response(
             {"detail": "Customer Portal session creation is not implemented yet."},
             status=status.HTTP_501_NOT_IMPLEMENTED,
