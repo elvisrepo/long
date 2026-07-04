@@ -181,7 +181,15 @@ def create_customer_portal_session(
     *,
     billing_customer: BillingCustomer,
 ) -> str:
-    raise NotImplementedError
+    client = StripeClient(settings.STRIPE_SECRET_KEY)
+    session = client.v1.billing_portal.sessions.create(
+        {
+            "customer": billing_customer.provider_customer_id,
+            "return_url": settings.STRIPE_CUSTOMER_PORTAL_RETURN_URL,
+        }
+    )
+
+    return session.url
 
 
 def verify_stripe_webhook_event(

@@ -98,6 +98,10 @@ STRIPE_CHECKOUT_CANCEL_URL = os.environ.get(
       "STRIPE_CHECKOUT_CANCEL_URL",
       "http://localhost:5173/settings?checkout=cancelled",
   ).strip()
+STRIPE_CUSTOMER_PORTAL_RETURN_URL = os.environ.get(
+    "STRIPE_CUSTOMER_PORTAL_RETURN_URL",
+    "http://localhost:5173/settings",
+).strip()
 
 AUTH_PASSWORD_VALIDATORS = [
     {

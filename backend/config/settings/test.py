@@ -14,6 +14,7 @@ STRIPE_CHECKOUT_SUCCESS_URL = (
 STRIPE_CHECKOUT_CANCEL_URL = (
       "http://localhost:5173/settings?checkout=cancelled"
   )
+STRIPE_CUSTOMER_PORTAL_RETURN_URL = "http://localhost:5173/settings"
 
 
 DEBUG = False
