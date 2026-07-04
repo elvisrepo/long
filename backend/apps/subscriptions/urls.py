@@ -5,6 +5,7 @@ from apps.subscriptions.views import (
     StripeWebhookView,
     SubscriptionCheckoutView,
     SubscriptionPlanListView,
+    SubscriptionPortalView,
 )
 
 
@@ -23,6 +24,11 @@ urlpatterns = [
         "plans/",
         SubscriptionPlanListView.as_view(),
         name="subscription-plans",
+    ),
+    path(
+        "portal/",
+        SubscriptionPortalView.as_view(),
+        name="subscription-portal",
     ),
     path(
         "stripe/webhook/",

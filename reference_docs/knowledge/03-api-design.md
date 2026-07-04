@@ -198,7 +198,7 @@ Metric-entry detail behavior:
 | GET | `/api/v1/subscriptions/current/` | Current subscription and plan entitlements | JWT required; scoped to `request.user`; read-only |
 | GET | `/api/v1/subscriptions/plans/` | Active plan catalog and entitlements | Public; active plans only; default plan first |
 | POST | `/api/v1/subscriptions/checkout/` | Create Stripe Checkout session | JWT required; returns redirect URL; idempotent per CheckoutAttempt |
-| POST | `/api/v1/subscriptions/portal/` | Stripe Customer Portal link | |
+| POST | `/api/v1/subscriptions/portal/` | Create Stripe Customer Portal session | JWT required; returns a short-lived hosted portal URL |
 | POST | `/api/v1/subscriptions/stripe/webhook/` | Stripe webhook receiver | No JWT — uses Stripe signature verification instead |
 
 Current-subscription read behavior:

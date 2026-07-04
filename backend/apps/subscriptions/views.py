@@ -93,6 +93,16 @@ class SubscriptionCheckoutView(APIView):
         )
 
 
+class SubscriptionPortalView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request) -> Response:
+        return Response(
+            {"detail": "Customer Portal session creation is not implemented yet."},
+            status=status.HTTP_501_NOT_IMPLEMENTED,
+        )
+
+
 class StripeWebhookView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
