@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -304,6 +304,53 @@ describe('settings route', () => {
       ),
     ).toBeInTheDocument()
     expect(redirectToPortalMock).not.toHaveBeenCalled()
+  })
+
+  it('disables portal management while the session is being created', async () => {
+    const user = userEvent.setup()
+    let resolvePortal:
+      | ((portal: { url: string }) => void)
+      | undefined
+
+    getMeMock.mockResolvedValue({
+      email: 'user@example.com',
+    })
+    getCurrentSubscriptionMock.mockResolvedValue({
+      id: 'subscription-id',
+      status: 'active',
+      plan: {
+        code: 'pro',
+        name: 'Pro',
+        active_custom_metric_limit: 10,
+        wearable_connection_limit: 2,
+        sync_interval_minutes: 15,
+        analytics_enabled: true,
+        csv_import_enabled: true,
+      },
+    })
+    getSubscriptionPlansMock.mockResolvedValue([])
+    createSubscriptionPortalMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvePortal = resolve
+        }),
+    )
+
+    renderRoute('/settings')
+
+    const manageSubscriptionButton = await screen.findByRole('button', {
+      name: /manage subscription/i,
+    })
+
+    await user.click(manageSubscriptionButton)
+
+    await waitFor(() => {
+      expect(manageSubscriptionButton).toBeDisabled()
+    })
+
+    resolvePortal?.({
+      url: 'https://billing.stripe.com/p/test-session',
+    })
   })
 
    it('shows an informational message after returning from successful checkout', async () =>
