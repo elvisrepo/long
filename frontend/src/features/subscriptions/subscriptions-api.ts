@@ -36,6 +36,10 @@ export interface SubscriptionCheckout {
   url: string
 }
 
+export interface SubscriptionPortal {
+    url: string
+  }
+
 export async function getCurrentSubscription(): Promise<CurrentSubscription> {
   const accessToken = getAccessToken()
 
@@ -102,6 +106,33 @@ export async function createSubscriptionCheckout(
   }
 
   return response.json()
+}
+
+
+export async function createSubscriptionPortal(): Promise<SubscriptionPortal> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+      throw new Error('Authentication required')
+    }
+
+  const response = await fetch('/api/v1/subscriptions/portal/', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    })
+
+  if (!response.ok) {
+      throw new Error(
+        await readSubscriptionError(
+          response,
+          'Customer Portal failed to open',
+        ),
+      )
+    }
+
+    return response.json()
 }
 
 async function readSubscriptionError(

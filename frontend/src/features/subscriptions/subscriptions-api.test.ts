@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearAccessToken, setAccessToken } from '../auth/auth-session'
 import {
   createSubscriptionCheckout,
+  createSubscriptionPortal,
   getCurrentSubscription,
   getSubscriptionPlans,
 } from './subscriptions-api'
@@ -156,3 +157,42 @@ describe('createSubscriptionCheckout', () => {
     ).rejects.toThrow('You are already subscribed to this price.')
   })
 })
+
+
+describe('createSubscriptionPortal', () => {
+    beforeEach(() => {
+      clearAccessToken()
+      vi.restoreAllMocks()
+    })
+
+    it('creates an authenticated Customer Portal session', async () => {
+      setAccessToken('access-token')
+
+      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          url: 'https://billing.stripe.com/p/test-session',
+        }),
+      } as Response)
+
+      const result = await createSubscriptionPortal()
+
+      expect(fetchMock).toHaveBeenCalledWith('/api/v1/subscriptions/portal/', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer access-token',
+        },
+      })
+      expect(result.url).toBe('https://billing.stripe.com/p/test-session')
+    })
+
+    it('rejects without an access token', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+
+    await expect(createSubscriptionPortal()).rejects.toThrow(
+      'Authentication required',
+    )
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+  })
