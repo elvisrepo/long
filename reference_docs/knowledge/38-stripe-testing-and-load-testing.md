@@ -202,6 +202,59 @@ The application does not downgrade from the browser redirect or merely because
 `cancel_at_period_end` is true. Stripe's verified terminal event is the
 authority that the paid entitlement period has ended.
 
+### Cancellation Event and Code Flow
+
+Stripe owns billing state and cancellation timing. Our application owns local
+subscription history and entitlements. Clicking **Cancel subscription** in the
+Customer Portal starts this collaboration:
+
+```text
+User cancels in the Stripe Customer Portal
+  -> Stripe schedules cancellation and sets cancel_at_period_end=true
+  -> Stripe emits customer.subscription.updated
+  -> Stripe POSTs the signed event to /api/v1/subscriptions/stripe/webhook/
+  -> Django verifies the Stripe-Signature header
+  -> Django verifies the subscription and customer belong to the same user
+  -> Django stores the cancellation flag and paid-period boundaries
+  -> the local paid subscription remains active
+
+At the paid period end
+  -> Stripe terminates the provider subscription
+  -> Stripe emits customer.subscription.deleted
+  -> Stripe POSTs the signed event to the same webhook endpoint
+  -> Django verifies the signature, subscription, and customer again
+  -> Django cancels the local paid subscription
+  -> Django creates a new active Free subscription
+```
+
+The backend implementation is split across these boundaries:
+
+- `apps/subscriptions/urls.py` maps `stripe/webhook/` to
+  `StripeWebhookView`.
+- `StripeWebhookView.post()` in `apps/subscriptions/views.py` reads the
+  `Stripe-Signature` header, calls `verify_stripe_webhook_event()`, and only
+  dispatches successfully verified events.
+- `verify_stripe_webhook_event()` in `apps/subscriptions/services.py` calls
+  `stripe.Webhook.construct_event()` with the raw request body, signature, and
+  configured webhook secret.
+- `process_stripe_webhook_event()` stores the Stripe event ID in
+  `StripeWebhookEvent` for replay protection, then dispatches
+  `customer.subscription.updated` and `customer.subscription.deleted`.
+- `process_stripe_subscription_updated()` verifies the provider subscription
+  ID and `BillingCustomer`, then stores `cancel_at_period_end`,
+  `current_period_start`, and `current_period_end`. It does not downgrade the
+  user.
+- `process_stripe_subscription_deleted()` repeats the ownership checks and
+  calls `change_subscription_plan()` with the default Free plan.
+- `change_subscription_plan()` serializes the transition with a database row
+  lock, marks the paid subscription cancelled, and creates the replacement
+  active Free subscription in one transaction.
+
+In local development, Stripe cannot call `localhost` directly. The Stripe CLI
+receives the sandbox events and forwards them to
+`http://localhost:8000/api/v1/subscriptions/stripe/webhook/`. In production,
+Stripe calls the public HTTPS webhook endpoint directly.
+
 ## Customer Portal Boundary
 
 The backend creates Stripe Customer Portal Sessions on demand:

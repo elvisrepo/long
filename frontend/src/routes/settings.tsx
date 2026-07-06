@@ -9,7 +9,9 @@ import { logoutWeb } from '../features/auth/auth-logout-api'
 import { requireAuthBeforeLoad } from '../features/auth/require-auth-before-load'
 import { useMeQuery } from '../features/auth/use-me-query'
 import { redirectToCheckout } from '../features/subscriptions/checkout-redirect'
+import { redirectToPortal } from '../features/subscriptions/portal-redirect'
 import { useCreateSubscriptionCheckoutMutation } from '../features/subscriptions/use-create-subscription-checkout-mutation'
+import { useCreateSubscriptionPortalMutation } from '../features/subscriptions/use-create-subscription-portal-mutation'
 import { useCurrentSubscriptionQuery } from '../features/subscriptions/use-current-subscription-query'
 import { useSubscriptionPlansQuery } from '../features/subscriptions/use-subscription-plans-query'
 
@@ -41,6 +43,7 @@ function SettingsRoute() {
   const currentSubscriptionQuery = useCurrentSubscriptionQuery()
   const subscriptionPlansQuery = useSubscriptionPlansQuery()
   const checkoutMutation = useCreateSubscriptionCheckoutMutation()
+  const portalMutation = useCreateSubscriptionPortalMutation()
   const [errorMessage, setErrorMessage] = useState('')
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
@@ -80,6 +83,21 @@ function SettingsRoute() {
       }
 
       setErrorMessage('Checkout failed to start')
+    }
+  }
+
+  async function handlePortal() {
+    try {
+      setErrorMessage('')
+      const portal = await portalMutation.mutateAsync()
+      redirectToPortal(portal.url)
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message)
+        return
+      }
+
+      setErrorMessage('Customer Portal failed to open')
     }
   }
 
@@ -124,6 +142,13 @@ function SettingsRoute() {
               {currentSubscriptionQuery.data.plan.sync_interval_minutes}{' '}
               minutes
             </p>
+            <button
+              type="button"
+              disabled={portalMutation.isPending}
+              onClick={() => void handlePortal()}
+            >
+              Manage subscription
+            </button>
           </div>
         ) : null}
       </section>

@@ -12,6 +12,7 @@ vi.mock('../features/auth/auth-me-api', () => ({
 
 vi.mock('../features/subscriptions/subscriptions-api', () => ({
   createSubscriptionCheckout: vi.fn(),
+  createSubscriptionPortal: vi.fn(),
   getCurrentSubscription: vi.fn(),
   getSubscriptionPlans: vi.fn(),
 }))
@@ -20,10 +21,16 @@ vi.mock('../features/subscriptions/checkout-redirect', () => ({
   redirectToCheckout: vi.fn(),
 }))
 
+vi.mock('../features/subscriptions/portal-redirect', () => ({
+  redirectToPortal: vi.fn(),
+}))
+
 import { getMe } from '../features/auth/auth-me-api'
 import { redirectToCheckout } from '../features/subscriptions/checkout-redirect'
+import { redirectToPortal } from '../features/subscriptions/portal-redirect'
 import {
   createSubscriptionCheckout,
+  createSubscriptionPortal,
   getCurrentSubscription,
   getSubscriptionPlans,
 } from '../features/subscriptions/subscriptions-api'
@@ -31,9 +38,11 @@ import { renderRoute } from './render-route'
 
 const getMeMock = vi.mocked(getMe)
 const createSubscriptionCheckoutMock = vi.mocked(createSubscriptionCheckout)
+const createSubscriptionPortalMock = vi.mocked(createSubscriptionPortal)
 const getCurrentSubscriptionMock = vi.mocked(getCurrentSubscription)
 const getSubscriptionPlansMock = vi.mocked(getSubscriptionPlans)
 const redirectToCheckoutMock = vi.mocked(redirectToCheckout)
+const redirectToPortalMock = vi.mocked(redirectToPortal)
 
 describe('settings route', () => {
   afterEach(() => {
@@ -216,6 +225,44 @@ describe('settings route', () => {
     })
     expect(redirectToCheckoutMock).toHaveBeenCalledWith(
       'https://checkout.stripe.com/c/test-session',
+    )
+  })
+
+  it('opens the Stripe Customer Portal', async () => {
+    const user = userEvent.setup()
+
+    getMeMock.mockResolvedValue({
+      email: 'user@example.com',
+    })
+    getCurrentSubscriptionMock.mockResolvedValue({
+      id: 'subscription-id',
+      status: 'active',
+      plan: {
+        code: 'pro',
+        name: 'Pro',
+        active_custom_metric_limit: 10,
+        wearable_connection_limit: 2,
+        sync_interval_minutes: 15,
+        analytics_enabled: true,
+        csv_import_enabled: true,
+      },
+    })
+    getSubscriptionPlansMock.mockResolvedValue([])
+    createSubscriptionPortalMock.mockResolvedValue({
+      url: 'https://billing.stripe.com/p/test-session',
+    })
+
+    renderRoute('/settings')
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: /manage subscription/i,
+      }),
+    )
+
+    expect(createSubscriptionPortalMock).toHaveBeenCalledOnce()
+    expect(redirectToPortalMock).toHaveBeenCalledWith(
+      'https://billing.stripe.com/p/test-session',
     )
   })
 
