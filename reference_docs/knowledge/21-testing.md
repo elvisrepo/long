@@ -346,6 +346,13 @@ Current Stripe Checkout testing checkpoint:
 - Service-level failure tests prove a provider failure marks the local `CheckoutAttempt` as `failed` while the API layer returns a generic `502`.
 - No default checkout test contacts Stripe; sandbox coverage should remain opt-in and small.
 
+Current Stripe Customer Portal testing checkpoint:
+- `tests/test_subscription_portal.py` proves the portal endpoint requires JWT authentication and rejects users without a Stripe `BillingCustomer`.
+- The endpoint orchestration test mocks the portal service and proves the API returns only the hosted portal URL.
+- The service test calls the real `create_customer_portal_session` function while mocking `StripeClient`; it verifies the stored Stripe customer ID and server-controlled return URL are sent to `billing_portal.sessions.create`.
+- Provider-failure coverage proves Stripe details are not exposed and the endpoint returns a generic `502`.
+- Default portal tests never contact Stripe and use fake credentials from test settings.
+
 Current frontend subscription Checkout testing checkpoint:
 - `subscriptions-api.test.ts` proves the frontend helper contracts for `GET /api/v1/subscriptions/current/`, `GET /api/v1/subscriptions/plans/`, and `POST /api/v1/subscriptions/checkout/`.
 - The checkout API helper test proves the frontend sends the internal `price_id` selected from the catalog and surfaces backend validation detail when checkout is rejected.

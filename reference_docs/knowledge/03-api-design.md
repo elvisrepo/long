@@ -223,7 +223,7 @@ Checkout behavior:
 - The selected price must be active, belong to an active non-default plan, and use the Stripe provider.
 - The authenticated user must already have one current subscription row. Registration creates a Free current subscription, so a missing current subscription is treated as inconsistent local state and returns `400`.
 - Checkout rejects the exact current subscription price so repeated checkout for the same active price does not create a new Stripe session.
-- If the current subscription already has a Stripe provider subscription ID, Checkout rejects selecting a different price with `400`. Paid plan changes must use the Stripe Customer Portal so Checkout cannot create a second concurrently billed Stripe subscription.
+- If the current subscription already has a Stripe provider subscription ID, Checkout rejects selecting a different price with `400`. Paid plan changes remain unsupported until Customer Portal price-change reconciliation is implemented, preventing a second concurrently billed Stripe subscription or provider/local state drift.
 - The service creates a local `CheckoutAttempt` before calling Stripe.
 - `CheckoutAttempt.expected_subscription` stores the user's current subscription at checkout creation time; this is the subscription state the later Stripe webhook is allowed to replace.
 - `CheckoutAttempt.id` is used as the Stripe idempotency key, so retries of the same local attempt use the same provider retry identity.
@@ -235,6 +235,14 @@ Checkout behavior:
 - If Stripe creation fails, the attempt is marked `failed`, the view logs the exception, and the API returns `502` with a generic public error.
 - Successful response shape is `201 {"url": "https://checkout.stripe.com/..."}`.
 - Checkout creation does **not** grant paid entitlements. Entitlements change only after a trusted Stripe webhook confirms payment/subscription state.
+
+Customer Portal behavior:
+- `POST /api/v1/subscriptions/portal/` requires JWT authentication and accepts no client-supplied Stripe customer ID.
+- The endpoint resolves the authenticated user's Stripe `BillingCustomer`; users without that mapping receive `400 {"detail": "No Stripe billing customer is available."}`.
+- Django creates an on-demand Stripe Billing Portal Session with the stored `provider_customer_id` and server-controlled `STRIPE_CUSTOMER_PORTAL_RETURN_URL`.
+- Successful response shape is `201 {"url": "https://billing.stripe.com/p/session/..."}`. Portal URLs are short-lived and must be created when the user intends to manage billing.
+- Stripe SDK failures are logged server-side and return a generic `502 {"detail": "Unable to create Customer Portal session."}` without exposing provider details.
+- Portal configuration is owned by Stripe and is separate for sandbox and live mode. Until price-change reconciliation is implemented, portal plan switching must remain disabled; cancellation and payment-method management are the supported initial capabilities.
 
 Stripe webhook behavior:
 - `POST /api/v1/subscriptions/stripe/webhook/` does not require JWT authentication because Stripe cannot send our application JWT.

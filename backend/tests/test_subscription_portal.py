@@ -154,3 +154,26 @@ def test_create_customer_portal_session_uses_customer_and_return_url():
           }
       )
 
+def test_subscription_portal_returns_generic_error_when_stripe_fails():
+      client, user = authenticate_client_for("portal-failure@example.com")
+      BillingCustomer.objects.create(
+          user=user,
+          provider=BillingCustomer.Provider.STRIPE,
+          provider_customer_id="cus_portal_failure",
+      )
+
+      with patch(
+          "apps.subscriptions.views.create_customer_portal_session",
+          side_effect=RuntimeError("sensitive Stripe failure"),
+      ):
+          response = client.post(
+              "/api/v1/subscriptions/portal/",
+              {},
+              format="json",
+          )
+
+      assert response.status_code == 502
+      assert response.json() == {
+          "detail": "Unable to create Customer Portal session.",
+      }
+      assert "sensitive Stripe failure" not in response.content.decode()

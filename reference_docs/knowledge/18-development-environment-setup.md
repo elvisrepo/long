@@ -177,6 +177,12 @@ SubscriptionPrice.objects.filter(
 ```
 - The frontend receives only internal `SubscriptionPrice.id` values from `/api/v1/subscriptions/plans/`; Django uses `provider_price_id` server-side when creating the Stripe Checkout Session.
 
+Local Stripe Customer Portal setup:
+- Set `STRIPE_CUSTOMER_PORTAL_RETURN_URL=http://localhost:5173/settings` in the ignored backend `.env`; `.env.example` contains the non-secret local default.
+- Configure and save the Customer Portal separately in the Stripe sandbox Dashboard. Sandbox configuration does not configure live mode.
+- Initially enable cancellation and payment-method management only. Keep subscription plan switching disabled until local price-change reconciliation is implemented.
+- `POST /api/v1/subscriptions/portal/` requires an authenticated user with a local Stripe `BillingCustomer` and returns a short-lived `billing.stripe.com` URL.
+
 ### 3.6 Secrets Management
 
 | Environment | Strategy |

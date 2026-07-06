@@ -202,6 +202,29 @@ The application does not downgrade from the browser redirect or merely because
 `cancel_at_period_end` is true. Stripe's verified terminal event is the
 authority that the paid entitlement period has ended.
 
+## Customer Portal Boundary
+
+The backend creates Stripe Customer Portal Sessions on demand:
+
+1. An authenticated request calls `POST /api/v1/subscriptions/portal/`.
+2. Django resolves the caller's local Stripe `BillingCustomer`; the browser
+   never supplies a provider customer ID.
+3. Django calls `billing_portal.sessions.create` with the stored `cus_...`
+   identifier and the server-controlled portal return URL.
+4. Stripe returns a short-lived `billing.stripe.com` URL.
+5. The API returns that URL for a later frontend redirect.
+6. Subscription changes remain authoritative only when signed Stripe webhooks
+   update local state.
+
+Portal configuration must be saved independently in each Stripe sandbox and in
+live mode. The initial sandbox configuration should allow cancellation and
+payment-method management but keep plan switching disabled until local
+price-change reconciliation exists.
+
+Automated tests mock `StripeClient` and verify the request contract without
+contacting Stripe. A manual sandbox smoke test can create a real portal session
+for an existing `BillingCustomer`, but it must remain outside the default suite.
+
 Troubleshooting:
 
 - A `checkout=success` browser redirect alone does not prove webhook delivery.

@@ -5,7 +5,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         user = person "Longevity User" "Uses the platform to view metrics, manage account data, and review synced health information."
 
         samsung = softwareSystem "Samsung Health / Health Connect" "On-device health data source used by the Android companion app."
-        stripe = softwareSystem "Stripe" "External billing provider for hosted Checkout, subscription payment collection, and billing webhooks."
+        stripe = softwareSystem "Stripe" "External billing provider for hosted Checkout and Customer Portal sessions, subscription payment collection, and billing webhooks."
 
         longevity = softwareSystem "Longevity Platform" "Tracks user auth, metrics, analytics, and wearable ingestion." {
             webapp = container "React Web App" "Browser-based client for auth, dashboard, metric catalog/detail management, and settings." "React"
@@ -31,7 +31,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
           longevity.android -> longevity.api "Calls JSON API over HTTPS"
 
           longevity.api -> longevity.db "Reads and writes data"
-          longevity.api -> stripe "Creates Checkout Sessions with server-owned Stripe Price IDs"
+          longevity.api -> stripe "Creates Checkout Sessions with server-owned Stripe Price IDs and on-demand Customer Portal Sessions"
           stripe -> longevity.api "POSTs signed webhook events"
           longevity.api -> longevity.redis "Uses"
           longevity.api -> longevity.worker "Enqueues asynchronous jobs"

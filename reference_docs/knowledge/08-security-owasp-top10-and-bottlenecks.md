@@ -52,7 +52,7 @@ Current subscription-integrity boundary:
 Current Stripe Checkout boundary:
 - Checkout creation accepts only an internal active `SubscriptionPrice.id`; Stripe `provider_price_id` values remain server-side.
 - Checkout requires a current local subscription row, rejects default Free-plan prices, and rejects the caller's exact current paid price.
-- Checkout also rejects a different price when the current subscription already has a Stripe subscription ID. This prevents a plan-change attempt from creating a second provider subscription before Customer Portal support is available.
+- Checkout also rejects a different price when the current subscription already has a Stripe subscription ID. This prevents a plan-change attempt from creating a second provider subscription while Customer Portal price-change reconciliation remains unsupported.
 - Each checkout request creates a local `CheckoutAttempt`; its UUID is the Stripe idempotency key for that provider create call.
 - `CheckoutAttempt.expected_subscription` captures the current subscription at checkout creation time so late Stripe webhooks cannot replace a newer subscription state.
 - `CheckoutAttempt.completed` means Stripe returned a Checkout Session ID, not that the user paid or that app entitlements changed.
@@ -66,6 +66,13 @@ Current Stripe Checkout boundary:
 - Stripe webhook processing stores each verified Stripe event ID in `StripeWebhookEvent`; duplicate deliveries return without reapplying subscription transitions.
 - Failed Stripe session creation marks the local attempt `failed` and returns a generic `502` without leaking provider exception details to the client.
 - Frontend success redirects are informational only. Paid entitlements must be granted from trusted Stripe webhook processing.
+
+Current Stripe Customer Portal boundary:
+- Portal Session creation requires JWT authentication and resolves the Stripe customer from the authenticated user's local `BillingCustomer`; clients cannot submit arbitrary `cus_...` identifiers.
+- The return URL is server-controlled through `STRIPE_CUSTOMER_PORTAL_RETURN_URL`.
+- Portal Session URLs are short-lived and created on demand rather than stored.
+- Provider failures return a generic `502`; Stripe exception details remain in server logs.
+- Sandbox and live portal configurations are separate. Plan switching must remain disabled until `customer.subscription.updated` safely reconciles provider price changes; otherwise Stripe billing state could diverge from local entitlements.
 
 Current Stripe credential and traffic boundary:
 - Valid Stripe sandbox secret keys are local credentials, not fake test values. They must remain in ignored environment files or an approved secret manager.
