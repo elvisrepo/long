@@ -195,4 +195,20 @@ describe('createSubscriptionPortal', () => {
 
     expect(fetchMock).not.toHaveBeenCalled()
   })
+
+it('throws the backend detail when portal creation fails', async () => {
+    setAccessToken('access-token')
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: false,
+      json: async () => ({
+        detail: 'Unable to create Customer Portal session.',
+      }),
+    } as Response)
+
+    await expect(createSubscriptionPortal()).rejects.toThrow(
+      'Unable to create Customer Portal session.',
+    )
+  })
+
   })
