@@ -266,6 +266,46 @@ describe('settings route', () => {
     )
   })
 
+  it('shows an error and does not redirect when the Customer Portal fails', async () => {
+    const user = userEvent.setup()
+
+    getMeMock.mockResolvedValue({
+      email: 'user@example.com',
+    })
+    getCurrentSubscriptionMock.mockResolvedValue({
+      id: 'subscription-id',
+      status: 'active',
+      plan: {
+        code: 'pro',
+        name: 'Pro',
+        active_custom_metric_limit: 10,
+        wearable_connection_limit: 2,
+        sync_interval_minutes: 15,
+        analytics_enabled: true,
+        csv_import_enabled: true,
+      },
+    })
+    getSubscriptionPlansMock.mockResolvedValue([])
+    createSubscriptionPortalMock.mockRejectedValue(
+      new Error('Unable to create Customer Portal session.'),
+    )
+
+    renderRoute('/settings')
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: /manage subscription/i,
+      }),
+    )
+
+    expect(
+      await screen.findByText(
+        /unable to create customer portal session\./i,
+      ),
+    ).toBeInTheDocument()
+    expect(redirectToPortalMock).not.toHaveBeenCalled()
+  })
+
    it('shows an informational message after returning from successful checkout', async () =>
   {
     getMeMock.mockResolvedValue({
