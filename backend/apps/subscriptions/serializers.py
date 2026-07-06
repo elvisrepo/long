@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from apps.subscriptions.models import (
+    BillingCustomer,
     Subscription,
     SubscriptionPlan,
     SubscriptionPrice,
@@ -25,11 +26,21 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
 
 class CurrentSubscriptionSerializer(serializers.ModelSerializer):
     plan = SubscriptionPlanSerializer(read_only=True)
+    billing_portal_available = serializers.SerializerMethodField()
 
     class Meta:
         model = Subscription
-        fields = ["id", "status", "plan"]
+        fields = ["id", "status", "billing_portal_available", "plan"]
         read_only_fields = fields
+
+    def get_billing_portal_available(
+        self,
+        subscription: Subscription,
+    ) -> bool:
+        return BillingCustomer.objects.filter(
+            user=subscription.user,
+            provider=BillingCustomer.Provider.STRIPE,
+        ).exists()
 
 
 class SubscriptionPriceCatalogSerializer(serializers.ModelSerializer):

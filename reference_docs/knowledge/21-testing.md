@@ -348,18 +348,20 @@ Current Stripe Checkout testing checkpoint:
 
 Current Stripe Customer Portal testing checkpoint:
 - `tests/test_subscription_portal.py` proves the portal endpoint requires JWT authentication and rejects users without a Stripe `BillingCustomer`.
+- `tests/test_current_subscription.py` proves `billing_portal_available` is false without a Stripe `BillingCustomer` and true when the authenticated user has one.
 - The endpoint orchestration test mocks the portal service and proves the API returns only the hosted portal URL.
 - The service test calls the real `create_customer_portal_session` function while mocking `StripeClient`; it verifies the stored Stripe customer ID and server-controlled return URL are sent to `billing_portal.sessions.create`.
 - Provider-failure coverage proves Stripe details are not exposed and the endpoint returns a generic `502`.
 - Default portal tests never contact Stripe and use fake credentials from test settings.
 
-Current frontend subscription Checkout testing checkpoint:
-- `subscriptions-api.test.ts` proves the frontend helper contracts for `GET /api/v1/subscriptions/current/`, `GET /api/v1/subscriptions/plans/`, and `POST /api/v1/subscriptions/checkout/`.
+Current frontend subscription Checkout and Portal testing checkpoint:
+- `subscriptions-api.test.ts` proves the frontend helper contracts for `GET /api/v1/subscriptions/current/`, `GET /api/v1/subscriptions/plans/`, `POST /api/v1/subscriptions/checkout/`, and `POST /api/v1/subscriptions/portal/`.
 - The checkout API helper test proves the frontend sends the internal `price_id` selected from the catalog and surfaces backend validation detail when checkout is rejected.
 - `use-current-subscription-query.test.tsx` proves the current-subscription TanStack Query wrapper uses the `['current-subscription']` boundary.
 - `use-subscription-plans-query.test.tsx` proves the plan catalog TanStack Query wrapper loads active plan prices.
 - `use-create-subscription-checkout-mutation.test.tsx` proves the mutation forwards the selected internal price ID to the checkout API helper.
-- `settings-route.test.tsx` proves Settings renders current plan state, paid prices, checkout return messages, and redirect behavior without contacting Stripe.
+- `use-create-subscription-portal-mutation.test.tsx` proves the portal mutation delegates to the authenticated portal API helper.
+- `settings-route.test.tsx` proves Settings renders current plan state, hides billing management without a Stripe customer, handles portal pending and error states, and redirects successful Checkout and Portal responses without contacting Stripe.
 
 Current Stripe webhook testing checkpoint:
 - Missing Stripe signatures return `400` and do not process events.

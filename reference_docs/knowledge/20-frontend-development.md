@@ -327,6 +327,7 @@ Do not:
 Current Settings subscription UI checkpoint:
 - `/settings` remains a protected route and now renders subscription state in addition to the user email and logout action.
 - `getCurrentSubscription()` fetches `GET /api/v1/subscriptions/current/` with the in-memory bearer access token.
+- The current-subscription contract includes `billing_portal_available`; Settings renders **Manage subscription** only when this backend-derived value is true.
 - `useCurrentSubscriptionQuery()` caches the authenticated user's current subscription under `['current-subscription']`.
 - `getSubscriptionPlans()` fetches the public `GET /api/v1/subscriptions/plans/` catalog.
 - `useSubscriptionPlansQuery()` caches the active plan catalog under `['subscription-plans']`.
@@ -337,6 +338,9 @@ Current Settings subscription UI checkpoint:
 - `useCreateSubscriptionCheckoutMutation()` wraps Checkout creation in TanStack Query mutation state.
 - A successful Checkout creation returns `{ url }`; Settings redirects with `redirectToCheckout(url)`, which calls `window.location.assign(url)` in the browser.
 - `redirectToCheckout()` is a tiny browser-boundary helper so route tests can mock redirect behavior without trying to replace `window.location.assign`.
+- `createSubscriptionPortal()` posts authenticated `POST /api/v1/subscriptions/portal/` without a client-supplied customer ID.
+- `useCreateSubscriptionPortalMutation()` exposes portal creation state. Settings disables **Manage subscription** while the request is pending and displays the backend's safe error detail if it fails.
+- A successful portal response returns `{ url }`; Settings redirects through the mockable `redirectToPortal(url)` browser boundary.
 - `/settings?checkout=success` and `/settings?checkout=cancelled` show informational messages only. These query params do not grant entitlements; subscription changes still depend on trusted Stripe webhook processing.
 - The `/settings` route validates the optional `checkout` search param through TanStack Router `validateSearch`, so TypeScript understands `checkout?: 'success' | 'cancelled'`.
 

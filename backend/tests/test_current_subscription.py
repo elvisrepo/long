@@ -3,7 +3,11 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.subscriptions.models import Subscription, SubscriptionPlan
+from apps.subscriptions.models import (
+    BillingCustomer,
+    Subscription,
+    SubscriptionPlan,
+)
 
 
 pytestmark = pytest.mark.django_db
@@ -41,6 +45,7 @@ def test_current_subscription_returns_authenticated_users_plan_and_entitlements(
     assert response.json() == {
         "id": str(subscription.id),
         "status": "active",
+        "billing_portal_available": False,
         "plan": {
             "code": "free",
             "name": "Free",
@@ -51,6 +56,26 @@ def test_current_subscription_returns_authenticated_users_plan_and_entitlements(
             "csv_import_enabled": False,
         },
     }
+
+
+def test_current_subscription_exposes_portal_when_stripe_customer_exists():
+    client, user = authenticate_client_for("portal-customer@example.com")
+    free_plan = SubscriptionPlan.objects.get(code="free")
+    Subscription.objects.create(
+        user=user,
+        plan=free_plan,
+        status=Subscription.Status.ACTIVE,
+    )
+    BillingCustomer.objects.create(
+        user=user,
+        provider=BillingCustomer.Provider.STRIPE,
+        provider_customer_id="cus_current_subscription",
+    )
+
+    response = client.get("/api/v1/subscriptions/current/")
+
+    assert response.status_code == 200
+    assert response.json()["billing_portal_available"] is True
 
 
 def test_current_subscription_is_scoped_to_authenticated_user():
@@ -104,4 +129,3 @@ def test_current_subscription_does_not_allow_client_plan_changes():
       )
 
       assert response.status_code == 405
-

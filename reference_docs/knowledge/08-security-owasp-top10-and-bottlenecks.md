@@ -40,6 +40,7 @@ Current subscription-integrity boundary:
 - A conditional unique constraint permits at most one current subscription per user across `trialing`, `active`, `past_due`, and `incomplete`.
 - Cancelled subscriptions are historical and do not conflict with a replacement current subscription.
 - `GET /api/v1/subscriptions/current/` requires authentication and scopes its lookup to `request.user`.
+- Its `billing_portal_available` flag reveals only whether the authenticated user has a Stripe billing mapping; it does not expose the Stripe `cus_...` identifier.
 - The current-subscription endpoint is read-only. `PATCH` returns `405`, preventing clients from directly assigning themselves a paid plan or entitlement values.
 - `GET /api/v1/subscriptions/plans/` is intentionally public but returns only backend-defined active plan metadata, entitlements, and active billing options; it performs no subscription mutation and excludes retired plans and prices.
 - Catalog prices expose an internal UUID, currency, minor-unit amount, and interval. Stripe provider price IDs remain private so clients cannot choose or forge provider configuration directly.
@@ -69,6 +70,7 @@ Current Stripe Checkout boundary:
 
 Current Stripe Customer Portal boundary:
 - Portal Session creation requires JWT authentication and resolves the Stripe customer from the authenticated user's local `BillingCustomer`; clients cannot submit arbitrary `cus_...` identifiers.
+- Frontend visibility is driven by the backend-derived `billing_portal_available` flag, but the portal endpoint still performs its own authenticated billing-customer lookup and does not trust UI visibility as authorization.
 - The return URL is server-controlled through `STRIPE_CUSTOMER_PORTAL_RETURN_URL`.
 - Portal Session URLs are short-lived and created on demand rather than stored.
 - Provider failures return a generic `502`; Stripe exception details remain in server logs.

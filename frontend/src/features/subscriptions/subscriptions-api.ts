@@ -13,6 +13,7 @@ export interface SubscriptionPlan {
 export interface CurrentSubscription {
   id: string
   status: string
+  billing_portal_available: boolean
   plan: SubscriptionPlan
 }
 

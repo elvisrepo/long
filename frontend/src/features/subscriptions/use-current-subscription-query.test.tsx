@@ -34,6 +34,7 @@ describe('useCurrentSubscriptionQuery', () => {
       getCurrentSubscriptionMock.mockResolvedValue({
         id: 'subscription-id',
         status: 'active',
+        billing_portal_available: false,
         plan: {
           code: 'free',
           name: 'Free',

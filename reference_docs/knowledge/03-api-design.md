@@ -202,7 +202,8 @@ Metric-entry detail behavior:
 | POST | `/api/v1/subscriptions/stripe/webhook/` | Stripe webhook receiver | No JWT — uses Stripe signature verification instead |
 
 Current-subscription read behavior:
-- `GET /api/v1/subscriptions/current/` returns the authenticated user's current subscription `id`, lifecycle `status`, plan identity, and backend-owned entitlement values.
+- `GET /api/v1/subscriptions/current/` returns the authenticated user's current subscription `id`, lifecycle `status`, `billing_portal_available`, plan identity, and backend-owned entitlement values.
+- `billing_portal_available` is a backend-derived boolean that is true when the authenticated user has a local Stripe `BillingCustomer`. It lets clients decide whether to offer billing management without exposing the provider customer ID.
 - Current means `trialing`, `active`, `past_due`, or `incomplete`; cancelled rows remain history and are excluded.
 - The subscription and its plan are loaded together with `select_related("plan")`.
 - The route intentionally does not support `PATCH`. A client cannot grant itself paid entitlements by submitting a plan code.
@@ -239,6 +240,7 @@ Checkout behavior:
 Customer Portal behavior:
 - `POST /api/v1/subscriptions/portal/` requires JWT authentication and accepts no client-supplied Stripe customer ID.
 - The endpoint resolves the authenticated user's Stripe `BillingCustomer`; users without that mapping receive `400 {"detail": "No Stripe billing customer is available."}`.
+- Settings shows its **Manage subscription** action only when the current-subscription response has `billing_portal_available=true`.
 - Django creates an on-demand Stripe Billing Portal Session with the stored `provider_customer_id` and server-controlled `STRIPE_CUSTOMER_PORTAL_RETURN_URL`.
 - Successful response shape is `201 {"url": "https://billing.stripe.com/p/session/..."}`. Portal URLs are short-lived and must be created when the user intends to manage billing.
 - Stripe SDK failures are logged server-side and return a generic `502 {"detail": "Unable to create Customer Portal session."}` without exposing provider details.

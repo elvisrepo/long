@@ -259,14 +259,19 @@ Stripe calls the public HTTPS webhook endpoint directly.
 
 The backend creates Stripe Customer Portal Sessions on demand:
 
-1. An authenticated request calls `POST /api/v1/subscriptions/portal/`.
-2. Django resolves the caller's local Stripe `BillingCustomer`; the browser
+1. `GET /api/v1/subscriptions/current/` returns
+   `billing_portal_available=true` when the authenticated user has a local
+   Stripe `BillingCustomer`; Settings uses this only to control whether the
+   **Manage subscription** action is visible.
+2. An authenticated request calls `POST /api/v1/subscriptions/portal/`.
+3. Django independently resolves the caller's local Stripe `BillingCustomer`;
+   UI visibility is not treated as authorization, and the browser
    never supplies a provider customer ID.
-3. Django calls `billing_portal.sessions.create` with the stored `cus_...`
+4. Django calls `billing_portal.sessions.create` with the stored `cus_...`
    identifier and the server-controlled portal return URL.
-4. Stripe returns a short-lived `billing.stripe.com` URL.
-5. The API returns that URL for a later frontend redirect.
-6. Subscription changes remain authoritative only when signed Stripe webhooks
+5. Stripe returns a short-lived `billing.stripe.com` URL.
+6. The API returns that URL for a later frontend redirect.
+7. Subscription changes remain authoritative only when signed Stripe webhooks
    update local state.
 
 Portal configuration must be saved independently in each Stripe sandbox and in

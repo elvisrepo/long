@@ -21,6 +21,7 @@ describe('getCurrentSubscription', () => {
       json: async () => ({
         id: 'subscription-id',
         status: 'active',
+        billing_portal_available: false,
         plan: {
           code: 'free',
           name: 'Free',
@@ -42,6 +43,7 @@ describe('getCurrentSubscription', () => {
       },
     })
     expect(result.plan.code).toBe('free')
+    expect(result.billing_portal_available).toBe(false)
   })
 
   it('rejects without an access token', async () => {

@@ -142,13 +142,15 @@ function SettingsRoute() {
               {currentSubscriptionQuery.data.plan.sync_interval_minutes}{' '}
               minutes
             </p>
-            <button
-              type="button"
-              disabled={portalMutation.isPending}
-              onClick={() => void handlePortal()}
-            >
-              Manage subscription
-            </button>
+            {currentSubscriptionQuery.data.billing_portal_available ? (
+              <button
+                type="button"
+                disabled={portalMutation.isPending}
+                onClick={() => void handlePortal()}
+              >
+                Manage subscription
+              </button>
+            ) : null}
           </div>
         ) : null}
       </section>

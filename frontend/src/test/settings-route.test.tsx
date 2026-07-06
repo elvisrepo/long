@@ -68,6 +68,7 @@ describe('settings route', () => {
     getCurrentSubscriptionMock.mockResolvedValue({
       id: 'subscription-id',
       status: 'active',
+      billing_portal_available: false,
       plan: {
         code: 'free',
         name: 'Free',
@@ -95,6 +96,36 @@ describe('settings route', () => {
     expect(screen.getByText(/sync every 60 minutes/i)).toBeInTheDocument()
   })
 
+  it('hides portal management when no Stripe billing customer exists', async () => {
+    getMeMock.mockResolvedValue({
+      email: 'user@example.com',
+    })
+    getCurrentSubscriptionMock.mockResolvedValue({
+      id: 'subscription-id',
+      status: 'active',
+      billing_portal_available: false,
+      plan: {
+        code: 'free',
+        name: 'Free',
+        active_custom_metric_limit: 3,
+        wearable_connection_limit: 0,
+        sync_interval_minutes: 60,
+        analytics_enabled: false,
+        csv_import_enabled: false,
+      },
+    })
+    getSubscriptionPlansMock.mockResolvedValue([])
+
+    renderRoute('/settings')
+
+    expect(
+      await screen.findByRole('heading', { name: /^free$/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /manage subscription/i }),
+    ).not.toBeInTheDocument()
+  })
+
   it('lists available paid subscription prices', async () => {
     getMeMock.mockResolvedValue({
       email: 'user@example.com',
@@ -102,6 +133,7 @@ describe('settings route', () => {
     getCurrentSubscriptionMock.mockResolvedValue({
       id: 'subscription-id',
       status: 'active',
+      billing_portal_available: false,
       plan: {
         code: 'free',
         name: 'Free',
@@ -178,6 +210,7 @@ describe('settings route', () => {
     getCurrentSubscriptionMock.mockResolvedValue({
       id: 'subscription-id',
       status: 'active',
+      billing_portal_available: false,
       plan: {
         code: 'free',
         name: 'Free',
@@ -237,6 +270,7 @@ describe('settings route', () => {
     getCurrentSubscriptionMock.mockResolvedValue({
       id: 'subscription-id',
       status: 'active',
+      billing_portal_available: true,
       plan: {
         code: 'pro',
         name: 'Pro',
@@ -275,6 +309,7 @@ describe('settings route', () => {
     getCurrentSubscriptionMock.mockResolvedValue({
       id: 'subscription-id',
       status: 'active',
+      billing_portal_available: true,
       plan: {
         code: 'pro',
         name: 'Pro',
@@ -318,6 +353,7 @@ describe('settings route', () => {
     getCurrentSubscriptionMock.mockResolvedValue({
       id: 'subscription-id',
       status: 'active',
+      billing_portal_available: true,
       plan: {
         code: 'pro',
         name: 'Pro',
@@ -361,6 +397,7 @@ describe('settings route', () => {
     getCurrentSubscriptionMock.mockResolvedValue({
       id: 'subscription-id',
       status: 'active',
+      billing_portal_available: false,
       plan: {
         code: 'free',
         name: 'Free',
@@ -390,6 +427,7 @@ describe('settings route', () => {
     getCurrentSubscriptionMock.mockResolvedValue({
       id: 'subscription-id',
       status: 'active',
+      billing_portal_available: false,
       plan: {
         code: 'free',
         name: 'Free',
