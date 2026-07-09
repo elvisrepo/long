@@ -202,10 +202,11 @@ Metric-entry detail behavior:
 | POST | `/api/v1/subscriptions/stripe/webhook/` | Stripe webhook receiver | No JWT — uses Stripe signature verification instead |
 
 Current-subscription read behavior:
-- `GET /api/v1/subscriptions/current/` returns the authenticated user's current subscription `id`, lifecycle `status`, `billing_portal_available`, plan identity, and backend-owned entitlement values.
+- `GET /api/v1/subscriptions/current/` returns the authenticated user's current subscription `id`, lifecycle `status`, `billing_portal_available`, billing-period state (`current_period_start`, `current_period_end`), cancellation state (`cancel_at`, `cancel_at_period_end`), current billing `price`, plan identity, and backend-owned entitlement values.
+- Free subscriptions and newly-created paid subscriptions can return `null` for period dates, `cancel_at`, and `price`. Paid Stripe subscriptions return price as `{currency, unit_amount, billing_interval}` without exposing Stripe provider price IDs.
 - `billing_portal_available` is a backend-derived boolean that is true when the authenticated user has a local Stripe `BillingCustomer`. It lets clients decide whether to offer billing management without exposing the provider customer ID.
 - Current means `trialing`, `active`, `past_due`, or `incomplete`; cancelled rows remain history and are excluded.
-- The subscription and its plan are loaded together with `select_related("plan")`.
+- The subscription, plan, and price are loaded together with `select_related("plan", "price")`.
 - The route intentionally does not support `PATCH`. A client cannot grant itself paid entitlements by submitting a plan code.
 
 Plan-catalog behavior:

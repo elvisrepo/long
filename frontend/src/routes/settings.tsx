@@ -142,6 +142,35 @@ function SettingsRoute() {
               {currentSubscriptionQuery.data.plan.sync_interval_minutes}{' '}
               minutes
             </p>
+            {currentSubscriptionQuery.data.price ? (
+              <p>
+                {formatSubscriptionPrice(
+                  currentSubscriptionQuery.data.price.unit_amount,
+                  currentSubscriptionQuery.data.price.currency,
+                )}{' '}
+                / {currentSubscriptionQuery.data.price.billing_interval}
+              </p>
+            ) : null}
+            {currentSubscriptionQuery.data.price ? (
+              <p>
+                {formatBillingInterval(
+                  currentSubscriptionQuery.data.price.billing_interval,
+                )}
+              </p>
+            ) : null}
+            {currentSubscriptionQuery.data.cancel_at ? (
+              <p>
+                Cancels{' '}
+                {formatSubscriptionDate(currentSubscriptionQuery.data.cancel_at)}
+              </p>
+            ) : currentSubscriptionQuery.data.current_period_end ? (
+              <p>
+                Renews{' '}
+                {formatSubscriptionDate(
+                  currentSubscriptionQuery.data.current_period_end,
+                )}
+              </p>
+            ) : null}
             {currentSubscriptionQuery.data.billing_portal_available ? (
               <button
                 type="button"
@@ -204,4 +233,25 @@ function formatSubscriptionPrice(unitAmount: number, currency: string) {
     style: 'currency',
     currency,
   }).format(unitAmount / 100)
+}
+
+function formatBillingInterval(interval: string) {
+  if (interval === 'month') {
+    return 'Monthly'
+  }
+
+  if (interval === 'year') {
+    return 'Yearly'
+  }
+
+  return interval
+}
+
+function formatSubscriptionDate(value: string) {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(value))
 }

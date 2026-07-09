@@ -14,7 +14,18 @@ export interface CurrentSubscription {
   id: string
   status: string
   billing_portal_available: boolean
+  current_period_start: string | null
+  current_period_end: string | null
+  cancel_at: string | null
+  cancel_at_period_end: boolean
+  price: CurrentSubscriptionPrice | null
   plan: SubscriptionPlan
+}
+
+export interface CurrentSubscriptionPrice {
+  currency: string
+  unit_amount: number
+  billing_interval: string
 }
 
 export interface SubscriptionPrice {

@@ -33,6 +33,7 @@ import {
   createSubscriptionPortal,
   getCurrentSubscription,
   getSubscriptionPlans,
+  type CurrentSubscription,
 } from '../features/subscriptions/subscriptions-api'
 import { renderRoute } from './render-route'
 
@@ -43,6 +44,54 @@ const getCurrentSubscriptionMock = vi.mocked(getCurrentSubscription)
 const getSubscriptionPlansMock = vi.mocked(getSubscriptionPlans)
 const redirectToCheckoutMock = vi.mocked(redirectToCheckout)
 const redirectToPortalMock = vi.mocked(redirectToPortal)
+
+function freeSubscription(): CurrentSubscription {
+  return {
+    id: 'subscription-id',
+    status: 'active',
+    billing_portal_available: false,
+    current_period_start: null,
+    current_period_end: null,
+    cancel_at: null,
+    cancel_at_period_end: false,
+    price: null,
+    plan: {
+      code: 'free',
+      name: 'Free',
+      active_custom_metric_limit: 3,
+      wearable_connection_limit: 0,
+      sync_interval_minutes: 60,
+      analytics_enabled: false,
+      csv_import_enabled: false,
+    },
+  }
+}
+
+function proSubscription(): CurrentSubscription {
+  return {
+    id: 'subscription-id',
+    status: 'active',
+    billing_portal_available: true,
+    current_period_start: '2026-07-02T00:00:00Z',
+    current_period_end: '2026-08-02T00:00:00Z',
+    cancel_at: null,
+    cancel_at_period_end: false,
+    price: {
+      currency: 'usd',
+      unit_amount: 1000,
+      billing_interval: 'month',
+    },
+    plan: {
+      code: 'pro',
+      name: 'Pro',
+      active_custom_metric_limit: 10,
+      wearable_connection_limit: 2,
+      sync_interval_minutes: 15,
+      analytics_enabled: true,
+      csv_import_enabled: true,
+    },
+  }
+}
 
 describe('settings route', () => {
   afterEach(() => {
@@ -65,20 +114,7 @@ describe('settings route', () => {
     getMeMock.mockResolvedValue({
       email: 'user@example.com',
     })
-    getCurrentSubscriptionMock.mockResolvedValue({
-      id: 'subscription-id',
-      status: 'active',
-      billing_portal_available: false,
-      plan: {
-        code: 'free',
-        name: 'Free',
-        active_custom_metric_limit: 3,
-        wearable_connection_limit: 0,
-        sync_interval_minutes: 60,
-        analytics_enabled: false,
-        csv_import_enabled: false,
-      },
-    })
+    getCurrentSubscriptionMock.mockResolvedValue(freeSubscription())
     getSubscriptionPlansMock.mockResolvedValue([])
 
     renderRoute('/settings')
@@ -100,20 +136,7 @@ describe('settings route', () => {
     getMeMock.mockResolvedValue({
       email: 'user@example.com',
     })
-    getCurrentSubscriptionMock.mockResolvedValue({
-      id: 'subscription-id',
-      status: 'active',
-      billing_portal_available: false,
-      plan: {
-        code: 'free',
-        name: 'Free',
-        active_custom_metric_limit: 3,
-        wearable_connection_limit: 0,
-        sync_interval_minutes: 60,
-        analytics_enabled: false,
-        csv_import_enabled: false,
-      },
-    })
+    getCurrentSubscriptionMock.mockResolvedValue(freeSubscription())
     getSubscriptionPlansMock.mockResolvedValue([])
 
     renderRoute('/settings')
@@ -126,24 +149,46 @@ describe('settings route', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('lists available paid subscription prices', async () => {
+  it('renders paid subscription billing interval and renewal date', async () => {
+    getMeMock.mockResolvedValue({
+      email: 'user@example.com',
+    })
+    getCurrentSubscriptionMock.mockResolvedValue(proSubscription())
+    getSubscriptionPlansMock.mockResolvedValue([])
+
+    renderRoute('/settings')
+
+    expect(
+      await screen.findByRole('heading', { name: /^pro$/i }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/\$10\.00 \/ month/i)).toBeInTheDocument()
+    expect(screen.getByText(/monthly/i)).toBeInTheDocument()
+    expect(screen.getByText(/renews aug 2, 2026/i)).toBeInTheDocument()
+  })
+
+  it('renders scheduled cancellation date for paid subscriptions', async () => {
     getMeMock.mockResolvedValue({
       email: 'user@example.com',
     })
     getCurrentSubscriptionMock.mockResolvedValue({
-      id: 'subscription-id',
-      status: 'active',
-      billing_portal_available: false,
-      plan: {
-        code: 'free',
-        name: 'Free',
-        active_custom_metric_limit: 3,
-        wearable_connection_limit: 0,
-        sync_interval_minutes: 60,
-        analytics_enabled: false,
-        csv_import_enabled: false,
-      },
+      ...proSubscription(),
+      cancel_at: '2026-08-02T00:00:00Z',
+      cancel_at_period_end: true,
     })
+    getSubscriptionPlansMock.mockResolvedValue([])
+
+    renderRoute('/settings')
+
+    expect(
+      await screen.findByText(/cancels aug 2, 2026/i),
+    ).toBeInTheDocument()
+  })
+
+  it('lists available paid subscription prices', async () => {
+    getMeMock.mockResolvedValue({
+      email: 'user@example.com',
+    })
+    getCurrentSubscriptionMock.mockResolvedValue(freeSubscription())
     getSubscriptionPlansMock.mockResolvedValue([
       {
         code: 'free',
@@ -207,20 +252,7 @@ describe('settings route', () => {
     getMeMock.mockResolvedValue({
       email: 'user@example.com',
     })
-    getCurrentSubscriptionMock.mockResolvedValue({
-      id: 'subscription-id',
-      status: 'active',
-      billing_portal_available: false,
-      plan: {
-        code: 'free',
-        name: 'Free',
-        active_custom_metric_limit: 3,
-        wearable_connection_limit: 0,
-        sync_interval_minutes: 60,
-        analytics_enabled: false,
-        csv_import_enabled: false,
-      },
-    })
+    getCurrentSubscriptionMock.mockResolvedValue(freeSubscription())
     getSubscriptionPlansMock.mockResolvedValue([
       {
         code: 'pro',
@@ -267,20 +299,7 @@ describe('settings route', () => {
     getMeMock.mockResolvedValue({
       email: 'user@example.com',
     })
-    getCurrentSubscriptionMock.mockResolvedValue({
-      id: 'subscription-id',
-      status: 'active',
-      billing_portal_available: true,
-      plan: {
-        code: 'pro',
-        name: 'Pro',
-        active_custom_metric_limit: 10,
-        wearable_connection_limit: 2,
-        sync_interval_minutes: 15,
-        analytics_enabled: true,
-        csv_import_enabled: true,
-      },
-    })
+    getCurrentSubscriptionMock.mockResolvedValue(proSubscription())
     getSubscriptionPlansMock.mockResolvedValue([])
     createSubscriptionPortalMock.mockResolvedValue({
       url: 'https://billing.stripe.com/p/test-session',
@@ -306,20 +325,7 @@ describe('settings route', () => {
     getMeMock.mockResolvedValue({
       email: 'user@example.com',
     })
-    getCurrentSubscriptionMock.mockResolvedValue({
-      id: 'subscription-id',
-      status: 'active',
-      billing_portal_available: true,
-      plan: {
-        code: 'pro',
-        name: 'Pro',
-        active_custom_metric_limit: 10,
-        wearable_connection_limit: 2,
-        sync_interval_minutes: 15,
-        analytics_enabled: true,
-        csv_import_enabled: true,
-      },
-    })
+    getCurrentSubscriptionMock.mockResolvedValue(proSubscription())
     getSubscriptionPlansMock.mockResolvedValue([])
     createSubscriptionPortalMock.mockRejectedValue(
       new Error('Unable to create Customer Portal session.'),
@@ -350,20 +356,7 @@ describe('settings route', () => {
     getMeMock.mockResolvedValue({
       email: 'user@example.com',
     })
-    getCurrentSubscriptionMock.mockResolvedValue({
-      id: 'subscription-id',
-      status: 'active',
-      billing_portal_available: true,
-      plan: {
-        code: 'pro',
-        name: 'Pro',
-        active_custom_metric_limit: 10,
-        wearable_connection_limit: 2,
-        sync_interval_minutes: 15,
-        analytics_enabled: true,
-        csv_import_enabled: true,
-      },
-    })
+    getCurrentSubscriptionMock.mockResolvedValue(proSubscription())
     getSubscriptionPlansMock.mockResolvedValue([])
     createSubscriptionPortalMock.mockImplementation(
       () =>
@@ -394,20 +387,7 @@ describe('settings route', () => {
     getMeMock.mockResolvedValue({
       email: 'user@example.com',
     })
-    getCurrentSubscriptionMock.mockResolvedValue({
-      id: 'subscription-id',
-      status: 'active',
-      billing_portal_available: false,
-      plan: {
-        code: 'free',
-        name: 'Free',
-        active_custom_metric_limit: 3,
-        wearable_connection_limit: 0,
-        sync_interval_minutes: 60,
-        analytics_enabled: false,
-        csv_import_enabled: false,
-      },
-    })
+    getCurrentSubscriptionMock.mockResolvedValue(freeSubscription())
     getSubscriptionPlansMock.mockResolvedValue([])
 
     renderRoute('/settings?checkout=success')
@@ -424,20 +404,7 @@ describe('settings route', () => {
     getMeMock.mockResolvedValue({
       email: 'user@example.com',
     })
-    getCurrentSubscriptionMock.mockResolvedValue({
-      id: 'subscription-id',
-      status: 'active',
-      billing_portal_available: false,
-      plan: {
-        code: 'free',
-        name: 'Free',
-        active_custom_metric_limit: 3,
-        wearable_connection_limit: 0,
-        sync_interval_minutes: 60,
-        analytics_enabled: false,
-        csv_import_enabled: false,
-      },
-    })
+    getCurrentSubscriptionMock.mockResolvedValue(freeSubscription())
     getSubscriptionPlansMock.mockResolvedValue([])
 
     renderRoute('/settings?checkout=cancelled')

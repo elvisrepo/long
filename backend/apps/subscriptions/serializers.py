@@ -24,13 +24,35 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
         ]
 
 
+class CurrentSubscriptionPriceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SubscriptionPrice
+        fields = [
+            "currency",
+            "unit_amount",
+            "billing_interval",
+        ]
+        read_only_fields = fields
+
+
 class CurrentSubscriptionSerializer(serializers.ModelSerializer):
     plan = SubscriptionPlanSerializer(read_only=True)
+    price = CurrentSubscriptionPriceSerializer(read_only=True)
     billing_portal_available = serializers.SerializerMethodField()
 
     class Meta:
         model = Subscription
-        fields = ["id", "status", "billing_portal_available", "plan"]
+        fields = [
+            "id",
+            "status",
+            "billing_portal_available",
+            "current_period_start",
+            "current_period_end",
+            "cancel_at",
+            "cancel_at_period_end",
+            "price",
+            "plan",
+        ]
         read_only_fields = fields
 
     def get_billing_portal_available(

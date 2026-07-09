@@ -34,7 +34,7 @@ class CurrentSubscriptionView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_object(self) -> Subscription:
-        return Subscription.objects.select_related("plan").get(
+        return Subscription.objects.select_related("plan", "price").get(
             user=self.request.user,
             # Only return the effective subscription, not cancelled history.
             status__in=CURRENT_SUBSCRIPTION_STATUSES,

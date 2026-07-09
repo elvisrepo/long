@@ -35,6 +35,11 @@ describe('useCurrentSubscriptionQuery', () => {
         id: 'subscription-id',
         status: 'active',
         billing_portal_available: false,
+        current_period_start: null,
+        current_period_end: null,
+        cancel_at: null,
+        cancel_at_period_end: false,
+        price: null,
         plan: {
           code: 'free',
           name: 'Free',

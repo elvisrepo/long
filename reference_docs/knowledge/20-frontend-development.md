@@ -327,11 +327,11 @@ Do not:
 Current Settings subscription UI checkpoint:
 - `/settings` remains a protected route and now renders subscription state in addition to the user email and logout action.
 - `getCurrentSubscription()` fetches `GET /api/v1/subscriptions/current/` with the in-memory bearer access token.
-- The current-subscription contract includes `billing_portal_available`; Settings renders **Manage subscription** only when this backend-derived value is true.
+- The current-subscription contract includes `billing_portal_available`, billing-period dates, cancellation state, and the current local billing price; Settings renders **Manage subscription** only when the backend-derived portal flag is true.
 - `useCurrentSubscriptionQuery()` caches the authenticated user's current subscription under `['current-subscription']`.
 - `getSubscriptionPlans()` fetches the public `GET /api/v1/subscriptions/plans/` catalog.
 - `useSubscriptionPlansQuery()` caches the active plan catalog under `['subscription-plans']`.
-- Settings renders the current plan name, active custom metric limit, and sync interval from the backend-owned plan entitlement fields.
+- Settings renders the current plan name, active custom metric limit, sync interval, current billing price/interval when present, and either `Renews <date>` or `Cancels <date>` from backend-owned subscription state.
 - Settings renders upgrade options only for non-default plans that have at least one active price in the catalog.
 - The plan catalog exposes internal `SubscriptionPrice.id` values to the frontend; Stripe `provider_price_id` values remain server-side.
 - `createSubscriptionCheckout()` posts `POST /api/v1/subscriptions/checkout/` with `{ price_id: <internal SubscriptionPrice.id> }`.
