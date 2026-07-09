@@ -1022,6 +1022,101 @@ def test_subscription_updated_stores_custom_cancel_at_without_period_end_flag():
     )
 
 
+def test_subscription_updated_reconciles_stripe_price_change():
+    """Update the local subscription price from Stripe subscription item price.
+
+    Stripe Portal can switch a user from monthly Pro to yearly Pro on the same
+    provider subscription. The webhook must update our local Subscription.price
+    so local billing state does not drift from Stripe.
+    """
+    user = get_user_model().objects.create_user(
+        email="stripe-price-change@example.com",
+        password="strong-password-123",
+    )
+    pro_plan = SubscriptionPlan.objects.create(
+        code="pro-price-change",
+        name="Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=2,
+        sync_interval_minutes=15,
+    )
+    monthly_price = SubscriptionPrice.objects.create(
+        plan=pro_plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_pro_monthly_change",
+        currency="usd",
+        unit_amount=1000,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+    )
+    yearly_price = SubscriptionPrice.objects.create(
+        plan=pro_plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_pro_yearly_change",
+        currency="usd",
+        unit_amount=10000,
+        billing_interval=SubscriptionPrice.BillingInterval.YEAR,
+    )
+    subscription = Subscription.objects.create(
+        user=user,
+        plan=pro_plan,
+        price=monthly_price,
+        status=Subscription.Status.ACTIVE,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_subscription_id="sub_price_change",
+    )
+    BillingCustomer.objects.create(
+        user=user,
+        provider=BillingCustomer.Provider.STRIPE,
+        provider_customer_id="cus_price_change",
+    )
+
+    period_start = 1784000000
+    period_end = 1815536000
+
+    event = {
+        "id": "evt_price_change",
+        "type": "customer.subscription.updated",
+        "data": {
+            "object": {
+                "id": "sub_price_change",
+                "customer": "cus_price_change",
+                "status": "active",
+                "cancel_at": None,
+                "cancel_at_period_end": False,
+                "items": {
+                    "data": [
+                        {
+                            "price": {
+                                "id": "price_pro_yearly_change",
+                            },
+                            "current_period_start": period_start,
+                            "current_period_end": period_end,
+                        }
+                    ]
+                },
+            }
+        },
+    }
+
+    process_stripe_webhook_event(event)
+
+    subscription.refresh_from_db()
+
+    assert subscription.status == Subscription.Status.ACTIVE
+    assert subscription.plan == pro_plan
+    assert subscription.price == yearly_price
+    assert subscription.cancel_at is None
+    assert subscription.cancel_at_period_end is False
+    assert subscription.current_period_start == datetime.fromtimestamp(
+        period_start,
+        tz=UTC,
+    )
+    assert subscription.current_period_end == datetime.fromtimestamp(
+        period_end,
+        tz=UTC,
+    )
+
+
 def test_subscription_updated_rejects_mismatched_billing_customer():
     user = get_user_model().objects.create_user(
         email="updated-customer-mismatch@example.com",

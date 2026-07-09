@@ -254,9 +254,27 @@ def process_stripe_subscription_updated(
 
     period_start = item.get("current_period_start")
     period_end = item.get("current_period_end")
+    price = item.get("price")
 
     if type(period_start) is not int or type(period_end) is not int:
         return
+
+    local_price = None
+
+    if isinstance(price, dict):
+        provider_price_id = price.get("id")
+
+        if isinstance(provider_price_id, str):
+            local_price = (
+                SubscriptionPrice.objects.select_related("plan")
+                .filter(
+                    provider=SubscriptionPrice.Provider.STRIPE,
+                    provider_price_id=provider_price_id,
+                    is_active=True,
+                    plan__is_active=True,
+                )
+                .first()
+            )
 
     subscription = (
         Subscription.objects.select_related("user")
@@ -302,15 +320,20 @@ def process_stripe_subscription_updated(
         period_end,
         tz=UTC,
     )
-    subscription.save(
-        update_fields=[
-            "cancel_at_period_end",
-            "cancel_at",
-            "current_period_start",
-            "current_period_end",
-            "updated_at",
-        ]
-    )
+    update_fields = [
+        "cancel_at_period_end",
+        "cancel_at",
+        "current_period_start",
+        "current_period_end",
+        "updated_at",
+    ]
+
+    if local_price is not None:
+        subscription.plan = local_price.plan
+        subscription.price = local_price
+        update_fields.extend(["plan", "price"])
+
+    subscription.save(update_fields=update_fields)
 
 
 def process_stripe_subscription_deleted(
