@@ -249,9 +249,11 @@ The backend implementation is split across these boundaries:
   `current_period_start`, and `current_period_end`. If the subscription item
   includes a recognized active Stripe `price.id`, it also updates the local
   `SubscriptionPrice` and `SubscriptionPlan` so Portal monthly/yearly changes
-  do not drift from Stripe. It normalizes local `cancel_at_period_end` to true
-  when Stripe sends either `cancel_at_period_end=true` or
-  `cancel_at == current_period_end`. It does not downgrade the user.
+  do not drift from Stripe. Unknown or inactive Stripe price IDs are logged with
+  provider identifiers and leave the local price unchanged. It normalizes local
+  `cancel_at_period_end` to true when Stripe sends either
+  `cancel_at_period_end=true` or `cancel_at == current_period_end`. It does not
+  downgrade the user.
 - `process_stripe_subscription_deleted()` repeats the ownership checks and
   calls `change_subscription_plan()` with the default Free plan.
 - `change_subscription_plan()` serializes the transition with a database row

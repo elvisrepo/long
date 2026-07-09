@@ -376,7 +376,7 @@ Current Stripe webhook testing checkpoint:
 - Cross-plan price metadata is recorded as a seen webhook event but does not confirm attempts or change subscriptions.
 - Stale Checkout completions are recorded as seen webhook events but do not overwrite newer active subscriptions.
 - Billing-customer conflict tests prove webhook completion cannot replace a user's existing Stripe customer or claim a provider customer already owned by another local user.
-- Subscription-update coverage proves scheduled cancellation stores Stripe `cancel_at`, normalizes period-end cancellation into local `cancel_at_period_end`, updates the billing period, reconciles recognized Stripe item price changes, and preserves the active paid plan.
+- Subscription-update coverage proves scheduled cancellation stores Stripe `cancel_at`, normalizes period-end cancellation into local `cancel_at_period_end`, updates the billing period, reconciles recognized Stripe item price changes, warns on unknown Stripe prices without changing the local price, and preserves the active paid plan.
 - Subscription-update ownership coverage proves a matching provider subscription ID cannot be updated when the event's Stripe customer differs from the user's `BillingCustomer`.
 - Subscription-deletion coverage proves a verified terminal Stripe cancellation replaces the ended paid subscription with an active Free subscription while retaining the paid row as history.
 

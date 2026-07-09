@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+import logging
 from typing import Any
 from uuid import UUID
 
@@ -20,6 +21,8 @@ from apps.subscriptions.models import (
     SubscriptionPrice,
 )
 
+
+logger = logging.getLogger(__name__)
 
 CURRENT_SUBSCRIPTION_STATUSES = (
     Subscription.Status.TRIALING,
@@ -275,6 +278,24 @@ def process_stripe_subscription_updated(
                 )
                 .first()
             )
+
+            if local_price is None:
+                logger.warning(
+                    (
+                        "Unknown active Stripe subscription price: "
+                        "provider_price_id=%s "
+                        "provider_subscription_id=%s "
+                        "provider_customer_id=%s"
+                    ),
+                    provider_price_id,
+                    provider_subscription_id,
+                    provider_customer_id,
+                    extra={
+                        "provider_price_id": provider_price_id,
+                        "provider_subscription_id": provider_subscription_id,
+                        "provider_customer_id": provider_customer_id,
+                    },
+                )
 
     subscription = (
         Subscription.objects.select_related("user")

@@ -1117,6 +1117,96 @@ def test_subscription_updated_reconciles_stripe_price_change():
     )
 
 
+def test_subscription_updated_logs_unknown_stripe_price_without_drift_change(
+    caplog: pytest.LogCaptureFixture,
+):
+    """Log unknown Stripe item prices while preserving local price state.
+
+    A Stripe price that is missing or inactive locally cannot be mapped safely
+    to entitlements. The webhook should still synchronize period/cancellation
+    fields, but leave the local plan and price unchanged and emit an
+    operational warning.
+    """
+    user = get_user_model().objects.create_user(
+        email="unknown-stripe-price@example.com",
+        password="strong-password-123",
+    )
+    pro_plan = SubscriptionPlan.objects.create(
+        code="pro-unknown-stripe-price",
+        name="Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=2,
+        sync_interval_minutes=15,
+    )
+    monthly_price = SubscriptionPrice.objects.create(
+        plan=pro_plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_known_monthly",
+        currency="usd",
+        unit_amount=1000,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+    )
+    subscription = Subscription.objects.create(
+        user=user,
+        plan=pro_plan,
+        price=monthly_price,
+        status=Subscription.Status.ACTIVE,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_subscription_id="sub_unknown_price",
+    )
+    BillingCustomer.objects.create(
+        user=user,
+        provider=BillingCustomer.Provider.STRIPE,
+        provider_customer_id="cus_unknown_price",
+    )
+
+    period_start = 1784000000
+    period_end = 1815536000
+
+    event = {
+        "id": "evt_unknown_price",
+        "type": "customer.subscription.updated",
+        "data": {
+            "object": {
+                "id": "sub_unknown_price",
+                "customer": "cus_unknown_price",
+                "status": "active",
+                "cancel_at": None,
+                "cancel_at_period_end": False,
+                "items": {
+                    "data": [
+                        {
+                            "price": {
+                                "id": "price_unknown_yearly",
+                            },
+                            "current_period_start": period_start,
+                            "current_period_end": period_end,
+                        }
+                    ]
+                },
+            }
+        },
+    }
+
+    process_stripe_webhook_event(event)
+
+    subscription.refresh_from_db()
+
+    assert subscription.price == monthly_price
+    assert subscription.plan == pro_plan
+    assert subscription.current_period_start == datetime.fromtimestamp(
+        period_start,
+        tz=UTC,
+    )
+    assert subscription.current_period_end == datetime.fromtimestamp(
+        period_end,
+        tz=UTC,
+    )
+    assert "Unknown active Stripe subscription price" in caplog.text
+    assert "price_unknown_yearly" in caplog.text
+    assert "sub_unknown_price" in caplog.text
+
+
 def test_subscription_updated_rejects_mismatched_billing_customer():
     user = get_user_model().objects.create_user(
         email="updated-customer-mismatch@example.com",
