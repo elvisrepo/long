@@ -850,6 +850,178 @@ def test_subscription_updated_schedules_cancellation_without_revoking_pro():
     ).exists()
 
 
+def test_subscription_updated_normalizes_cancel_at_period_end_timestamp():
+    """Treat Stripe cancel_at == period_end as period-end cancellation.
+
+    Stripe Portal/flexible billing can send cancel_at_period_end=false while
+    setting cancel_at to the subscription item's current_period_end. That still
+    means the paid subscription is scheduled to end at the period boundary, so
+    the local subscription keeps Pro active and normalizes
+    cancel_at_period_end to true.
+    """
+
+    user = get_user_model().objects.create_user(
+        email="flexible-cancellation@example.com",
+        password="strong-password-123",
+    )
+
+    pro_plan = SubscriptionPlan.objects.create(
+        code="pro-flexible-cancellation",
+        name="Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=2,
+        sync_interval_minutes=15,
+    )
+
+    pro_price = SubscriptionPrice.objects.create(
+        plan=pro_plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_flexible_cancellation",
+        currency="usd",
+        unit_amount=1000,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+    )
+
+    subscription = Subscription.objects.create(
+        user=user,
+        plan=pro_plan,
+        price=pro_price,
+        status=Subscription.Status.ACTIVE,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_subscription_id="sub_flexible_cancellation",
+    )
+
+    BillingCustomer.objects.create(
+        user=user,
+        provider=BillingCustomer.Provider.STRIPE,
+        provider_customer_id="cus_flexible_cancellation",
+    )
+
+    period_start = 1782987316
+    period_end = 1785665716
+
+    event = {
+        "id": "evt_flexible_cancellation",
+        "type": "customer.subscription.updated",
+        "data": {
+            "object": {
+                "id": "sub_flexible_cancellation",
+                "customer": "cus_flexible_cancellation",
+                "status": "active",
+                "cancel_at": period_end,
+                "cancel_at_period_end": False,
+                "items": {
+                    "data": [
+                        {
+                            "current_period_start": period_start,
+                            "current_period_end": period_end,
+                        }
+                    ]
+                },
+            }
+        },
+    }
+
+    process_stripe_webhook_event(event)
+
+    subscription.refresh_from_db()
+
+    assert subscription.status == Subscription.Status.ACTIVE
+    assert subscription.plan == pro_plan
+    assert subscription.cancel_at_period_end is True
+    assert subscription.cancel_at == datetime.fromtimestamp(
+        period_end,
+        tz=UTC,
+    )
+    assert subscription.current_period_end == datetime.fromtimestamp(
+        period_end,
+        tz=UTC,
+    )
+
+
+def test_subscription_updated_stores_custom_cancel_at_without_period_end_flag():
+    """Store custom Stripe cancel_at without marking period-end cancellation.
+
+    If Stripe sends a future cancel_at that differs from current_period_end,
+    the local subscription should preserve the exact cancellation timestamp but
+    keep cancel_at_period_end false because the cancellation is not scheduled
+    for the normal billing-period boundary.
+    """
+    user = get_user_model().objects.create_user(
+        email="custom-cancel-at@example.com",
+        password="strong-password-123",
+    )
+    pro_plan = SubscriptionPlan.objects.create(
+        code="pro-custom-cancel-at",
+        name="Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=2,
+        sync_interval_minutes=15,
+    )
+    pro_price = SubscriptionPrice.objects.create(
+        plan=pro_plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_custom_cancel_at",
+        currency="usd",
+        unit_amount=1000,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+    )
+    subscription = Subscription.objects.create(
+        user=user,
+        plan=pro_plan,
+        price=pro_price,
+        status=Subscription.Status.ACTIVE,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_subscription_id="sub_custom_cancel_at",
+    )
+    BillingCustomer.objects.create(
+        user=user,
+        provider=BillingCustomer.Provider.STRIPE,
+        provider_customer_id="cus_custom_cancel_at",
+    )
+
+    period_start = 1782987316
+    custom_cancel_at = 1784000000
+    period_end = 1785665716
+
+    event = {
+        "id": "evt_custom_cancel_at",
+        "type": "customer.subscription.updated",
+        "data": {
+            "object": {
+                "id": "sub_custom_cancel_at",
+                "customer": "cus_custom_cancel_at",
+                "status": "active",
+                "cancel_at": custom_cancel_at,
+                "cancel_at_period_end": False,
+                "items": {
+                    "data": [
+                        {
+                            "current_period_start": period_start,
+                            "current_period_end": period_end,
+                        }
+                    ]
+                },
+            }
+        },
+    }
+
+    process_stripe_webhook_event(event)
+
+    subscription.refresh_from_db()
+
+    assert subscription.status == Subscription.Status.ACTIVE
+    assert subscription.cancel_at_period_end is False
+    assert subscription.cancel_at == datetime.fromtimestamp(
+        custom_cancel_at,
+        tz=UTC,
+    )
+    assert subscription.current_period_end == datetime.fromtimestamp(
+        period_end,
+        tz=UTC,
+    )
+
+
 def test_subscription_updated_rejects_mismatched_billing_customer():
     user = get_user_model().objects.create_user(
         email="updated-customer-mismatch@example.com",

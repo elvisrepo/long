@@ -164,9 +164,24 @@ class Subscription(models.Model):
         blank=True,
     )
 
+    # Cached Stripe billing-period boundaries for the current paid cycle.
+    # Free subscriptions and newly-created paid subscriptions may have these as
+    # null until Stripe sends customer.subscription.updated.
     current_period_start = models.DateTimeField(null=True, blank=True)
     current_period_end = models.DateTimeField(null=True, blank=True)
+
+    # Exact future cancellation timestamp from Stripe, if one is scheduled.
+    # This can equal current_period_end for period-end cancellation, but it can
+    # also be a custom timestamp.
+    cancel_at = models.DateTimeField(null=True, blank=True)
+
+    # Normalized local flag for "this subscription is scheduled to cancel at
+    # the current period end." Stripe may represent this as
+    # cancel_at_period_end=true or as cancel_at == current_period_end.
     cancel_at_period_end = models.BooleanField(default=False)
+
+    # When this local subscription row became historical/cancelled in our
+    # system. This is not necessarily the same as Stripe's canceled_at.
     cancelled_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

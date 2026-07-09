@@ -260,8 +260,9 @@ Stripe webhook behavior:
 - On the first successful Checkout, webhook reconciliation creates the user's Stripe `BillingCustomer`; later Checkout creation reuses that provider customer ID.
 - After a successful webhook-driven transition, the matching `CheckoutAttempt` is marked `confirmed`.
 - The subscription transition reuses the existing stale-write guard: it passes `CheckoutAttempt.expected_subscription_id` to `change_subscription_plan`.
-- `customer.subscription.updated` requires the Stripe subscription ID and customer ID to match the current local Stripe subscription and its user's `BillingCustomer`. It synchronizes `cancel_at_period_end` and the current billing-period timestamps without changing the user's plan.
-- `cancel_at_period_end=true` means the paid subscription remains current until `current_period_end`; it does not immediately grant Free entitlements.
+- `customer.subscription.updated` requires the Stripe subscription ID and customer ID to match the current local Stripe subscription and its user's `BillingCustomer`. It synchronizes Stripe `cancel_at`, normalized local `cancel_at_period_end`, and the current billing-period timestamps without changing the user's plan.
+- Stripe can represent a scheduled period-end cancellation either as `cancel_at_period_end=true` or as `cancel_at` equal to the subscription item's `current_period_end` while `cancel_at_period_end=false` in flexible billing/Portal flows. The backend stores the exact `cancel_at` timestamp and treats `cancel_at == current_period_end` as local `cancel_at_period_end=true`.
+- A populated cancellation flag or future `cancel_at` means the paid subscription remains current until Stripe terminates it; it does not immediately grant Free entitlements.
 - `customer.subscription.deleted` requires the same subscription/customer ownership match. It marks the ended paid subscription as historical and creates a new active subscription for the configured default Free plan.
 - Unhandled event types are acknowledged after event recording but do not mutate application state.
 

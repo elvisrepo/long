@@ -187,20 +187,24 @@ For the real Checkout:
 Cancellation is a two-event lifecycle rather than an immediate local downgrade:
 
 1. The user schedules cancellation in Stripe.
-2. Stripe sends `customer.subscription.updated` with
-   `cancel_at_period_end=true` and the current period timestamps.
+2. Stripe sends `customer.subscription.updated` with the current period
+   timestamps and cancellation timing. Depending on the Stripe billing mode and
+   Portal behavior, period-end cancellation can arrive as
+   `cancel_at_period_end=true` or as `cancel_at` equal to the subscription
+   item's `current_period_end` while `cancel_at_period_end=false`.
 3. Django verifies that both the Stripe subscription ID and customer ID match
    the current local subscription and its `BillingCustomer`.
-4. Django stores the cancellation flag and period boundaries but keeps the
-   paid subscription active.
+4. Django stores the exact `cancel_at` timestamp, normalizes local
+   `cancel_at_period_end`, and stores the period boundaries, but keeps the paid
+   subscription active.
 5. At the end of the paid period, Stripe ends the provider subscription and
    sends `customer.subscription.deleted`.
 6. Django repeats the subscription/customer ownership check, cancels the local
    paid subscription, and creates a new active Free subscription.
 
 The application does not downgrade from the browser redirect or merely because
-`cancel_at_period_end` is true. Stripe's verified terminal event is the
-authority that the paid entitlement period has ended.
+`cancel_at` is populated or `cancel_at_period_end` is true. Stripe's verified
+terminal event is the authority that the paid entitlement period has ended.
 
 ### Cancellation Event and Code Flow
 
@@ -210,12 +214,12 @@ Customer Portal starts this collaboration:
 
 ```text
 User cancels in the Stripe Customer Portal
-  -> Stripe schedules cancellation and sets cancel_at_period_end=true
+  -> Stripe schedules cancellation with cancel_at_period_end=true or cancel_at=<timestamp>
   -> Stripe emits customer.subscription.updated
   -> Stripe POSTs the signed event to /api/v1/subscriptions/stripe/webhook/
   -> Django verifies the Stripe-Signature header
   -> Django verifies the subscription and customer belong to the same user
-  -> Django stores the cancellation flag and paid-period boundaries
+  -> Django stores cancel_at, the normalized cancellation flag, and paid-period boundaries
   -> the local paid subscription remains active
 
 At the paid period end
@@ -241,9 +245,11 @@ The backend implementation is split across these boundaries:
   `StripeWebhookEvent` for replay protection, then dispatches
   `customer.subscription.updated` and `customer.subscription.deleted`.
 - `process_stripe_subscription_updated()` verifies the provider subscription
-  ID and `BillingCustomer`, then stores `cancel_at_period_end`,
-  `current_period_start`, and `current_period_end`. It does not downgrade the
-  user.
+  ID and `BillingCustomer`, then stores Stripe `cancel_at`,
+  `current_period_start`, and `current_period_end`. It normalizes local
+  `cancel_at_period_end` to true when Stripe sends either
+  `cancel_at_period_end=true` or `cancel_at == current_period_end`. It does not
+  downgrade the user.
 - `process_stripe_subscription_deleted()` repeats the ownership checks and
   calls `change_subscription_plan()` with the default Free plan.
 - `change_subscription_plan()` serializes the transition with a database row

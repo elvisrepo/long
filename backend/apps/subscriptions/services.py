@@ -228,6 +228,7 @@ def process_stripe_subscription_updated(
     provider_customer_id = stripe_subscription.get("customer")
     provider_status = stripe_subscription.get("status")
     cancel_at_period_end = stripe_subscription.get("cancel_at_period_end")
+    cancel_at = stripe_subscription.get("cancel_at")
     items = stripe_subscription.get("items")
 
     if (
@@ -235,6 +236,7 @@ def process_stripe_subscription_updated(
         or not isinstance(provider_customer_id, str)
         or provider_status != Subscription.Status.ACTIVE
         or not isinstance(cancel_at_period_end, bool)
+        or (cancel_at is not None and type(cancel_at) is not int)
         or not isinstance(items, dict)
     ):
         return
@@ -278,7 +280,20 @@ def process_stripe_subscription_updated(
     if customer_matches is False:
         return
 
-    subscription.cancel_at_period_end = cancel_at_period_end
+    # Stripe can represent period-end cancellation either with
+    # cancel_at_period_end=true or with cancel_at equal to current_period_end.
+    # Store the exact cancel_at timestamp, and keep our local boolean normalized
+    # for simple entitlement/UI checks.
+    scheduled_cancellation = (
+        cancel_at_period_end is True or cancel_at == period_end
+    )
+
+    subscription.cancel_at_period_end = scheduled_cancellation
+    subscription.cancel_at = (
+        datetime.fromtimestamp(cancel_at, tz=UTC)
+        if cancel_at is not None
+        else None
+    )
     subscription.current_period_start = datetime.fromtimestamp(
         period_start,
         tz=UTC,
@@ -290,6 +305,7 @@ def process_stripe_subscription_updated(
     subscription.save(
         update_fields=[
             "cancel_at_period_end",
+            "cancel_at",
             "current_period_start",
             "current_period_end",
             "updated_at",
