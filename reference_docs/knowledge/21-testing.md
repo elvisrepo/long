@@ -453,6 +453,12 @@ Current CI quality gate for the backend:
 
 ### Wearable Sync Test Focus
 
+Immediate next wearable slice:
+- Start with `WearableConnection` model/API tests before testing ingestion.
+- Model tests should prove provider/status choices, ownership, nullable `last_synced_at`, optional `last_error`, and timestamp behavior.
+- API tests should prove authentication is required, list responses are scoped to the caller, creation stores `request.user`, updates cannot mutate another user's connection, and invalid provider/status values are rejected.
+- Frontend tests should be added only when a Settings/Wearables UI slice consumes the connection contract.
+
 When testing Samsung-sync behavior:
 - Use canned Samsung / Health Connect fixture payloads in backend tests. Do not depend on live Samsung services in CI.
 - Verify `upload_id` idempotency, `external_source_id` deduplication, cursor advancement, and replay behavior.

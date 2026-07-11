@@ -39,6 +39,16 @@ We derived entities from the functional requirements by asking: *"What data must
 
 > The `MetricDefinition → MetricEntry` split is the most important design choice: separating *what a metric is* (definition) from *each recorded value* (entry) gives us clean normalization, per-metric validation rules, and the ability to add custom metrics without schema changes. The second key choice is making `WearableConnection` support both device-bridge sync (Samsung MVP) and future aggregator/cloud integrations without changing the rest of the data model.
 
+**Current wearable-sync status**
+
+- `WearableConnection` is the next planned domain foundation, not completed product behavior yet.
+- The first implementation slice should stay minimal: store the authenticated user, provider, connection status, last sync timestamp, last error, and timestamps.
+- The initial statuses should support the UI states `connected`, `disconnected`, and `error`.
+- The first provider values should support the Android device-bridge path, for example `health_connect` and/or `samsung_health`.
+- Wearable samples should eventually normalize into `MetricEntry`; do not create a parallel long-term metric storage path.
+- Manual entries remain valid and have no source connection.
+- The backend should not store raw Samsung Health or Health Connect tokens. The MVP device-bridge model has the Android companion app read on-device data and upload normalized samples.
+
 **Current free-plan behavior**
 
 - Applying migrations creates one shared `SubscriptionPlan(code="free")` row.

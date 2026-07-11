@@ -130,15 +130,27 @@ Subscription + entitlement state
 
 The next major product slice should be wearable sync groundwork.
 
+Immediate next slice:
+
+```text
+WearableConnection model + authenticated connection API
+```
+
+This is intentionally smaller than full wearable sync. It should establish local backend state first, then the Android companion app and ingestion path can build on top of it.
+
 Recommended order:
 
 1. Add `WearableConnection`
 
    Store provider, status, user, last sync time, and error state.
 
+   First-slice fields should be minimal: `user`, `provider`, `status`, `last_synced_at`, `last_error`, `created_at`, and `updated_at`.
+
 2. Add connection status API
 
    Frontend can show connected, not connected, or sync failed.
+
+   Start with authenticated list/create/update behavior. Scope every read/write to `request.user`.
 
 3. Add ingestion endpoint
 

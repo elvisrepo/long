@@ -279,6 +279,12 @@ Subscription transition contract:
 - Stripe webhook handlers use provider event idempotency in addition to this local stale-write guard.
 
 #### Samsung / Wearables (R2 internal spike, R3 MVP, JWT required)
+
+Current implementation status:
+- Wearable sync is the next planned slice; these endpoints are not all implemented yet.
+- The immediate next slice is only the connection foundation: `WearableConnection` model plus authenticated connection read/create/update behavior.
+- Do not start with full sample ingestion, resync, Celery jobs, or Android integration until the connection contract exists and is tested.
+
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
 | GET | `/api/v1/wearables/connections/` | List linked sync connections | MVP returns Samsung/Android device-bridge connections |
@@ -287,6 +293,31 @@ Subscription transition contract:
 | POST | `/api/v1/wearables/uploads/` | Upload a normalized wearable metric batch | Idempotent via `upload_id`; called by the Android companion app |
 | DELETE | `/api/v1/wearables/connections/{id}/` | Disconnect provider | Idempotent |
 | POST | `/api/v1/wearables/connections/{id}/resync/` | Request replay / resync from the client | Returns 202 Accepted — backend records replay intent and the Android client performs the upload |
+
+Immediate connection-foundation contract:
+- All connection endpoints require JWT authentication.
+- The backend scopes all connection reads/writes to `request.user`; another user's connection must not be visible or mutable.
+- The first implementation should expose enough data for Settings or a future Wearables page to show provider, status, `last_synced_at`, and `last_error`.
+- Suggested first response shape:
+
+```json
+{
+  "id": "7df7e4ab-7e6f-4558-b9be-17c824fbf54e",
+  "provider": "health_connect",
+  "status": "connected",
+  "last_synced_at": null,
+  "last_error": "",
+  "created_at": "2026-07-11T10:15:00Z",
+  "updated_at": "2026-07-11T10:15:00Z"
+}
+```
+
+First-slice non-goals:
+- No real Samsung Health or Health Connect integration yet.
+- No wearable sample upload yet.
+- No Celery sync job yet.
+- No TimescaleDB-specific optimization yet.
+- No frontend device authorization flow yet.
 
 MVP Samsung sync does **not** use provider webhooks or a hosted provider link flow. The Android companion app reads Samsung-originated data on device, uploads batches to our API, and the backend handles validation, deduplication, and persistence. A future aggregator webhook receiver can be added later for providers with cloud-friendly APIs.
 
