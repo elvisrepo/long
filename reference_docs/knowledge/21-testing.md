@@ -411,6 +411,7 @@ Current frontend metrics testing checkpoint:
 - dashboard route tests cover selecting a metric filter and passing the selected metric slug into `useMetricEntriesQuery({ metric, limit: 5 })`.
 - dashboard route tests cover the default recent-entry read limit with `useMetricEntriesQuery({ limit: 5 })`.
 - dashboard route tests cover metric-card links and recent-entry links to `/metrics/$slug`.
+- dashboard route tests cover subscription-aware Pro insights: Free users see a locked upgrade prompt, while Pro users with `analytics_enabled=true` see metric coverage and latest-update summaries.
 - dashboard route tests continued to pass after the responsive visual foundation work, so the UI restyle did not change the dashboard behavior contract.
 - metrics route tests cover protected-route behavior, metric catalog rendering, catalog-row links to `/metrics/$slug`, custom metric creation submit payload, form clearing after success, visible backend validation errors, custom metric metadata updates, custom metric deactivation, visible deactivation errors, include-inactive catalog reads, archived custom metric separation, archived row non-link behavior, archived status markers, archived custom metric reactivation, and visible reactivation errors.
 - metrics route tests prove the usage indicator renders backend-provided `used` and `limit` values independently of the loaded definition list, exposes an accessible status, and switches to the limit-reached warning state when `used >= limit`.

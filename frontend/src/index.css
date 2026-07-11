@@ -555,6 +555,44 @@ button {
   padding: 20px;
 }
 
+.insights-card {
+  display: grid;
+  gap: 16px;
+  border: 1px solid rgba(0, 229, 160, 0.25);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(0, 229, 160, 0.1), transparent 42%),
+    rgba(24, 28, 36, 0.86);
+  padding: 20px;
+}
+
+.insights-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.insights-grid article,
+.insights-locked {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(10, 12, 16, 0.42);
+  padding: 16px;
+}
+
+.insight-value {
+  margin-top: 8px;
+  color: var(--text);
+  font-family: var(--font-heading);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.insights-locked {
+  color: var(--text-dim);
+}
+
 .entries-toolbar {
   display: flex;
   align-items: end;
@@ -1268,6 +1306,15 @@ button {
   .entries-card {
     gap: 14px;
     padding: 16px;
+  }
+
+  .insights-card {
+    border-radius: 14px;
+    padding: 16px;
+  }
+
+  .insights-grid {
+    grid-template-columns: 1fr;
   }
 
   .entries-toolbar {

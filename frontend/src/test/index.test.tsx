@@ -1,12 +1,13 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { restoreWebSession } from '../features/auth/auth-bootstrap'
 import { getMe } from '../features/auth/auth-me-api'
 import { createMetricEntry } from '../features/metrics/metric-entries-api'
 import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-definitions-query'
 import { useMetricEntriesQuery } from '../features/metrics/use-metric-entries-query'
+import { useCurrentSubscriptionQuery } from '../features/subscriptions/use-current-subscription-query'
 import { renderRoute } from './render-route'
 
 vi.mock('../features/auth/auth-me-api', () => ({
@@ -35,7 +36,67 @@ vi.mock('../features/metrics/metric-entries-api', () => ({
   createMetricEntry: vi.fn(),
 }))
 
+vi.mock('../features/subscriptions/use-current-subscription-query', () => ({
+  useCurrentSubscriptionQuery: vi.fn(),
+}))
+
 const createMetricEntryMock = vi.mocked(createMetricEntry)
+
+function mockFreeSubscription() {
+  vi.mocked(useCurrentSubscriptionQuery).mockReturnValue({
+    data: {
+      id: 'free-subscription-id',
+      status: 'active',
+      billing_portal_available: false,
+      current_period_start: null,
+      current_period_end: null,
+      cancel_at: null,
+      cancel_at_period_end: false,
+      price: null,
+      plan: {
+        code: 'free',
+        name: 'Free',
+        active_custom_metric_limit: 3,
+        wearable_connection_limit: 0,
+        sync_interval_minutes: 60,
+        analytics_enabled: false,
+        csv_import_enabled: false,
+      },
+    },
+    isPending: false,
+    isError: false,
+  } as ReturnType<typeof useCurrentSubscriptionQuery>)
+}
+
+function mockProSubscription() {
+  vi.mocked(useCurrentSubscriptionQuery).mockReturnValue({
+    data: {
+      id: 'pro-subscription-id',
+      status: 'active',
+      billing_portal_available: true,
+      current_period_start: '2026-07-02T00:00:00Z',
+      current_period_end: '2026-08-02T00:00:00Z',
+      cancel_at: null,
+      cancel_at_period_end: false,
+      price: {
+        currency: 'usd',
+        unit_amount: 1000,
+        billing_interval: 'month',
+      },
+      plan: {
+        code: 'pro',
+        name: 'Pro',
+        active_custom_metric_limit: 10,
+        wearable_connection_limit: 2,
+        sync_interval_minutes: 15,
+        analytics_enabled: true,
+        csv_import_enabled: true,
+      },
+    },
+    isPending: false,
+    isError: false,
+  } as ReturnType<typeof useCurrentSubscriptionQuery>)
+}
 
 function mockLoadedMetricDefinitions() {
   vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
@@ -113,6 +174,10 @@ function mockMetricEntriesByFilters({
 }
 
 describe('dashboard route', () => {
+  beforeEach(() => {
+    mockFreeSubscription()
+  })
+
   afterEach(() => {
     vi.resetAllMocks()
   })
@@ -330,6 +395,68 @@ describe('dashboard route', () => {
     expect(screen.getAllByText(/resting heart rate/i).length).toBeGreaterThan(0)
     expect(screen.getByText(/58 bpm/i)).toBeInTheDocument()
     expect(screen.getByText(/mar 5, 2026, 7:15 am/i)).toBeInTheDocument()
+  })
+
+  it('shows a locked Pro insights prompt for Free users', async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+
+    renderRoute('/')
+
+    const insights = await screen.findByRole('region', {
+      name: /pro insights/i,
+    })
+
+    expect(
+      within(insights).getByRole('heading', { name: /pro insights/i }),
+    ).toBeInTheDocument()
+    expect(
+      within(insights).getByText(/upgrade to pro to unlock trend summaries/i),
+    ).toBeInTheDocument()
+  })
+
+  it('shows Pro insights when analytics are enabled', async () => {
+    mockProSubscription()
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitionsWithManyMetrics()
+    mockMetricEntriesByFilters({
+      cardEntries: [
+        {
+          id: 1,
+          metric_definition: 'resting_hr',
+          value: 61,
+          recorded_at: '2026-03-06T07:15:00Z',
+          source: 'manual',
+          context: {},
+          created_at: '2026-03-06T07:15:02Z',
+        },
+        {
+          id: 2,
+          metric_definition: 'body_weight',
+          value: 87,
+          recorded_at: '2026-03-01T07:15:00Z',
+          source: 'manual',
+          context: {},
+          created_at: '2026-03-01T07:15:02Z',
+        },
+      ],
+      recentEntries: [],
+    })
+
+    renderRoute('/')
+
+    const insights = await screen.findByRole('region', {
+      name: /pro insights/i,
+    })
+
+    expect(within(insights).getByText(/2 metrics with data/i)).toBeInTheDocument()
+    expect(
+      within(insights).getByText(/latest update mar 6, 2026/i),
+    ).toBeInTheDocument()
   })
 
   it('limits recent entries on the dashboard', async () => {

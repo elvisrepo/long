@@ -4,6 +4,7 @@ import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load
 import { useCreateMetricEntryMutation } from "../features/metrics/use-create-metric-entry-mutation";
 import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
 import { useMetricEntriesQuery } from "../features/metrics/use-metric-entries-query";
+import { useCurrentSubscriptionQuery } from "../features/subscriptions/use-current-subscription-query";
 
 export const Route = createFileRoute("/")({
   beforeLoad: requireAuthBeforeLoad,
@@ -20,6 +21,7 @@ function DashboardRoute() {
     isLoading,
     isError,
   } = useMetricDefinitionsQuery();
+  const currentSubscriptionQuery = useCurrentSubscriptionQuery();
   const {
     data: cardMetricEntries = [],
     isLoading: cardMetricEntriesAreLoading,
@@ -47,6 +49,14 @@ function DashboardRoute() {
       latestEntriesByMetric.set(entry.metric_definition, entry);
     }
   }
+
+  const analyticsEnabled =
+    currentSubscriptionQuery.data?.plan.analytics_enabled === true;
+  const latestInsightEntry = [...latestEntriesByMetric.values()].sort(
+    (left, right) =>
+      new Date(right.recorded_at).getTime() -
+      new Date(left.recorded_at).getTime(),
+  )[0];
 
   if (isLoading) {
     return <p>Loading metric definitions...</p>;
@@ -100,6 +110,43 @@ function DashboardRoute() {
           </article>
         ))}
       </div>
+
+      <section className="insights-card" aria-label="Pro insights">
+        <div className="entries-toolbar">
+          <div>
+            <p className="eyebrow">Analytics</p>
+            <h2>Pro Insights</h2>
+          </div>
+          <div className="status-pill">
+            {analyticsEnabled ? "Unlocked" : "Pro"}
+          </div>
+        </div>
+
+        {analyticsEnabled ? (
+          <div className="insights-grid">
+            <article>
+              <p className="meta-label">Coverage</p>
+              <p className="insight-value">
+                {latestEntriesByMetric.size} metrics with data
+              </p>
+            </article>
+            <article>
+              <p className="meta-label">Freshness</p>
+              <p className="insight-value">
+                {latestInsightEntry
+                  ? `Latest update ${formatMetricEntryRecordedAt(
+                      latestInsightEntry.recorded_at,
+                    )}`
+                  : "No data yet"}
+              </p>
+            </article>
+          </div>
+        ) : (
+          <p className="insights-locked">
+            Upgrade to Pro to unlock trend summaries and advanced analytics.
+          </p>
+        )}
+      </section>
 
       <section className="entries-card" aria-label="Metric entries">
         <div className="entries-toolbar">

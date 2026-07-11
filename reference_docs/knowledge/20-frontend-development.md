@@ -233,6 +233,9 @@ Current metrics API integration checkpoint:
 - Recent entries resolve the metric slug against loaded metric definitions so the UI can show the user-facing metric name.
 - Recent entries format the value with the metric unit, for example `58 bpm`.
 - Recent entries keep the raw ISO timestamp in the semantic `<time dateTime="...">` attribute while displaying a readable UTC timestamp.
+- The dashboard reads `useCurrentSubscriptionQuery()` so it can use `plan.analytics_enabled` for the first subscription-aware Pro value surface.
+- Free users see a locked **Pro Insights** card that explains trend summaries require Pro.
+- Pro users with `analytics_enabled=true` see a **Pro Insights** card summarizing how many metrics have recent data and the latest recorded update from the dashboard's unfiltered metric-entry read.
 
 Current dashboard UI checkpoint:
 - The dashboard now follows the dark mobile health-app wireframe direction from `10-wireframes-frontend-design.md`.
