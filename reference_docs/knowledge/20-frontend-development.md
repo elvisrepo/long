@@ -236,6 +236,7 @@ Current metrics API integration checkpoint:
 - The dashboard reads `useCurrentSubscriptionQuery()` so it can use `plan.analytics_enabled` for the first subscription-aware Pro value surface.
 - Free users see a locked **Pro Insights** card that explains trend summaries require Pro.
 - Pro users with `analytics_enabled=true` see a **Pro Insights** card summarizing how many metrics have recent data and the latest recorded update from the dashboard's unfiltered metric-entry read.
+- This first **Pro Insights** card is intentionally a scaffold, not the final paid analytics value. Return to it later with useful per-metric trend direction, deltas over 7/30 days, averages, anomaly flags, or similar higher-value summaries.
 
 Current dashboard UI checkpoint:
 - The dashboard now follows the dark mobile health-app wireframe direction from `10-wireframes-frontend-design.md`.
