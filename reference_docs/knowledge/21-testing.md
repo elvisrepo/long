@@ -363,6 +363,7 @@ Current frontend subscription Checkout and Portal testing checkpoint:
 - `use-create-subscription-portal-mutation.test.tsx` proves the portal mutation delegates to the authenticated portal API helper.
 - `settings-route.test.tsx` proves Settings renders current plan state, hides billing management without a Stripe customer, handles portal pending and error states, and redirects successful Checkout and Portal responses without contacting Stripe.
 - `settings-route.test.tsx` also proves Settings renders paid subscription billing amount/interval plus renewal and scheduled-cancellation dates from the current-subscription response.
+- `settings-route.test.tsx` proves Stripe-managed subscriptions hide Checkout upgrade buttons and direct billing changes through **Manage subscription** instead.
 
 Current Stripe webhook testing checkpoint:
 - Missing Stripe signatures return `400` and do not process events.

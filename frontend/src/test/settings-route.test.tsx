@@ -246,6 +246,53 @@ describe('settings route', () => {
     expect(within(availablePlans).getByText(/\$100\.00 \/ year/i)).toBeInTheDocument()
   })
 
+  it('hides checkout upgrades for Stripe-managed subscriptions', async () => {
+    getMeMock.mockResolvedValue({
+      email: 'user@example.com',
+    })
+    getCurrentSubscriptionMock.mockResolvedValue(proSubscription())
+    getSubscriptionPlansMock.mockResolvedValue([
+      {
+        code: 'pro',
+        name: 'Pro',
+        active_custom_metric_limit: 10,
+        wearable_connection_limit: 2,
+        sync_interval_minutes: 15,
+        analytics_enabled: true,
+        csv_import_enabled: true,
+        is_default: false,
+        prices: [
+          {
+            id: 'monthly-price-id',
+            currency: 'usd',
+            unit_amount: 1000,
+            billing_interval: 'month',
+          },
+          {
+            id: 'yearly-price-id',
+            currency: 'usd',
+            unit_amount: 10000,
+            billing_interval: 'year',
+          },
+        ],
+      },
+    ])
+
+    renderRoute('/settings')
+
+    expect(
+      await screen.findByText(
+        /use manage subscription to change billing details/i,
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /upgrade to pro monthly/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /upgrade to pro yearly/i }),
+    ).not.toBeInTheDocument()
+  })
+
   it('starts checkout for a selected paid price and redirects to Stripe', async () => {
     const user = userEvent.setup()
 

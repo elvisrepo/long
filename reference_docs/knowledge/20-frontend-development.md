@@ -332,7 +332,7 @@ Current Settings subscription UI checkpoint:
 - `getSubscriptionPlans()` fetches the public `GET /api/v1/subscriptions/plans/` catalog.
 - `useSubscriptionPlansQuery()` caches the active plan catalog under `['subscription-plans']`.
 - Settings renders the current plan name, active custom metric limit, sync interval, current billing price/interval when present, and either `Renews <date>` or `Cancels <date>` from backend-owned subscription state.
-- Settings renders upgrade options only for non-default plans that have at least one active price in the catalog.
+- Settings renders Checkout upgrade options only for users who are not already managed through Stripe Customer Portal. When `billing_portal_available=true`, Settings hides Checkout upgrade buttons and tells the user to use **Manage subscription** for billing changes.
 - The plan catalog exposes internal `SubscriptionPrice.id` values to the frontend; Stripe `provider_price_id` values remain server-side.
 - `createSubscriptionCheckout()` posts `POST /api/v1/subscriptions/checkout/` with `{ price_id: <internal SubscriptionPrice.id> }`.
 - `useCreateSubscriptionCheckoutMutation()` wraps Checkout creation in TanStack Query mutation state.

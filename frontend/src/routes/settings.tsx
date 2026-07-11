@@ -51,6 +51,8 @@ function SettingsRoute() {
     subscriptionPlansQuery.data?.filter(
       (plan) => !plan.is_default && plan.prices.length > 0,
     ) ?? []
+  const usesStripePortal =
+    currentSubscriptionQuery.data?.billing_portal_available === true
 
   async function handleLogout() {
     try {
@@ -192,7 +194,10 @@ function SettingsRoute() {
         {subscriptionPlansQuery.isError ? (
           <p>Available plans failed to load.</p>
         ) : null}
-        {paidPlans.map((plan) => (
+        {usesStripePortal ? (
+          <p>Use Manage subscription to change billing details.</p>
+        ) : null}
+        {usesStripePortal ? null : paidPlans.map((plan) => (
           <article key={plan.code}>
             <h3>{plan.name}</h3>
             <p>{plan.active_custom_metric_limit} custom metrics</p>
