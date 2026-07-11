@@ -108,21 +108,41 @@ function SettingsRoute() {
   }
 
   return (
-    <section>
-      <h1>Settings</h1>
-      <p>Signed in as {meQuery.data.email}</p>
+    <section className="settings-screen">
+      <header className="settings-header">
+        <div>
+          <p className="eyebrow">Account</p>
+          <h1>Settings</h1>
+          <p>Signed in as {meQuery.data.email}</p>
+        </div>
+      </header>
 
       {checkoutStatus === 'success' ? (
-        <p role="status">
+        <p className="settings-alert" role="status">
           Checkout completed. Your plan will update after payment confirmation.
         </p>
       ) : null}
       {checkoutStatus === 'cancelled' ? (
-        <p role="status">Checkout cancelled. Your plan was not changed.</p>
+        <p className="settings-alert" role="status">
+          Checkout cancelled. Your plan was not changed.
+        </p>
       ) : null}
 
-      <section aria-label="Current subscription">
-        <h2>Current Plan</h2>
+      <section
+        className="subscription-card subscription-card-featured"
+        aria-label="Current subscription"
+      >
+        <div className="subscription-card-header">
+          <div>
+            <p className="meta-label">Current subscription</p>
+            <h2>Current Plan</h2>
+          </div>
+          {currentSubscriptionQuery.data ? (
+            <span className="status-pill">
+              {currentSubscriptionQuery.data.cancel_at ? 'Cancelling' : 'Active'}
+            </span>
+          ) : null}
+        </div>
         {currentSubscriptionQuery.isPending ? (
           <p>Loading current plan...</p>
         ) : null}
@@ -130,51 +150,74 @@ function SettingsRoute() {
           <p>Current plan failed to load.</p>
         ) : null}
         {currentSubscriptionQuery.data ? (
-          <div>
-            <h3>{currentSubscriptionQuery.data.plan.name}</h3>
-            <p>
-              {
-                currentSubscriptionQuery.data.plan
-                  .active_custom_metric_limit
-              }{' '}
-              custom metrics
-            </p>
-            <p>
-              Sync every{' '}
-              {currentSubscriptionQuery.data.plan.sync_interval_minutes}{' '}
-              minutes
-            </p>
-            {currentSubscriptionQuery.data.price ? (
-              <p>
-                {formatSubscriptionPrice(
-                  currentSubscriptionQuery.data.price.unit_amount,
-                  currentSubscriptionQuery.data.price.currency,
-                )}{' '}
-                / {currentSubscriptionQuery.data.price.billing_interval}
-              </p>
-            ) : null}
-            {currentSubscriptionQuery.data.price ? (
-              <p>
-                {formatBillingInterval(
-                  currentSubscriptionQuery.data.price.billing_interval,
-                )}
-              </p>
-            ) : null}
-            {currentSubscriptionQuery.data.cancel_at ? (
-              <p>
-                Cancels{' '}
-                {formatSubscriptionDate(currentSubscriptionQuery.data.cancel_at)}
-              </p>
-            ) : currentSubscriptionQuery.data.current_period_end ? (
-              <p>
-                Renews{' '}
-                {formatSubscriptionDate(
-                  currentSubscriptionQuery.data.current_period_end,
-                )}
-              </p>
-            ) : null}
+          <div className="subscription-current-layout">
+            <div>
+              <h3>{currentSubscriptionQuery.data.plan.name}</h3>
+              <div className="subscription-detail-grid">
+                <div>
+                  <span className="subscription-detail-label">Metrics</span>
+                  <strong>
+                    {
+                      currentSubscriptionQuery.data.plan
+                        .active_custom_metric_limit
+                    }{' '}
+                    custom metrics
+                  </strong>
+                </div>
+                <div>
+                  <span className="subscription-detail-label">Sync</span>
+                  <strong>
+                    Sync every{' '}
+                    {currentSubscriptionQuery.data.plan.sync_interval_minutes}{' '}
+                    minutes
+                  </strong>
+                </div>
+                {currentSubscriptionQuery.data.price ? (
+                  <div>
+                    <span className="subscription-detail-label">Price</span>
+                    <strong>
+                      {formatSubscriptionPrice(
+                        currentSubscriptionQuery.data.price.unit_amount,
+                        currentSubscriptionQuery.data.price.currency,
+                      )}{' '}
+                      / {currentSubscriptionQuery.data.price.billing_interval}
+                    </strong>
+                  </div>
+                ) : null}
+                {currentSubscriptionQuery.data.price ? (
+                  <div>
+                    <span className="subscription-detail-label">Interval</span>
+                    <strong>
+                      {formatBillingInterval(
+                        currentSubscriptionQuery.data.price.billing_interval,
+                      )}
+                    </strong>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+            <div className="subscription-billing-panel">
+              {currentSubscriptionQuery.data.cancel_at ? (
+                <p>
+                  Cancels{' '}
+                  {formatSubscriptionDate(
+                    currentSubscriptionQuery.data.cancel_at,
+                  )}
+                </p>
+              ) : currentSubscriptionQuery.data.current_period_end ? (
+                <p>
+                  Renews{' '}
+                  {formatSubscriptionDate(
+                    currentSubscriptionQuery.data.current_period_end,
+                  )}
+                </p>
+              ) : (
+                <p>No paid billing period yet.</p>
+              )}
+            </div>
             {currentSubscriptionQuery.data.billing_portal_available ? (
               <button
+                className="subscription-primary-action"
                 type="button"
                 disabled={portalMutation.isPending}
                 onClick={() => void handlePortal()}
@@ -186,8 +229,13 @@ function SettingsRoute() {
         ) : null}
       </section>
 
-      <section aria-label="Available plans">
-        <h2>Available Plans</h2>
+      <section className="subscription-card" aria-label="Available plans">
+        <div className="subscription-card-header">
+          <div>
+            <p className="meta-label">Plan catalog</p>
+            <h2>Available Plans</h2>
+          </div>
+        </div>
         {subscriptionPlansQuery.isPending ? (
           <p>Loading available plans...</p>
         ) : null}
@@ -195,18 +243,24 @@ function SettingsRoute() {
           <p>Available plans failed to load.</p>
         ) : null}
         {usesStripePortal ? (
-          <p>Use Manage subscription to change billing details.</p>
+          <p className="subscription-help-text">
+            Use Manage subscription to change billing details.
+          </p>
         ) : null}
         {usesStripePortal ? null : paidPlans.map((plan) => (
-          <article key={plan.code}>
-            <h3>{plan.name}</h3>
-            <p>{plan.active_custom_metric_limit} custom metrics</p>
-            <p>Sync every {plan.sync_interval_minutes} minutes</p>
-            <ul>
+          <article className="subscription-plan-card" key={plan.code}>
+            <div>
+              <h3>{plan.name}</h3>
+              <p>{plan.active_custom_metric_limit} custom metrics</p>
+              <p>Sync every {plan.sync_interval_minutes} minutes</p>
+            </div>
+            <ul className="subscription-price-list">
               {plan.prices.map((price) => (
                 <li key={price.id}>
-                  {formatSubscriptionPrice(price.unit_amount, price.currency)} /{' '}
-                  {price.billing_interval}
+                  <span>
+                    {formatSubscriptionPrice(price.unit_amount, price.currency)}{' '}
+                    / {price.billing_interval}
+                  </span>
                   <button
                     type="button"
                     disabled={checkoutMutation.isPending}
@@ -221,8 +275,9 @@ function SettingsRoute() {
         ))}
       </section>
 
-      {errorMessage ? <p>{errorMessage}</p> : null}
+      {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
       <button
+        className="settings-logout-button"
         type="button"
         disabled={isLoggingOut}
         onClick={() => void handleLogout()}
