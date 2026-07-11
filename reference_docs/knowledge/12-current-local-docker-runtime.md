@@ -234,23 +234,46 @@ uv run python manage.py runserver
 Reason:
 - `db` is a Docker Compose hostname, not a hostname your host OS knows how to resolve
 
-### Current Gaps
+### Current Product Usage of Celery, Redis, and TimescaleDB
 
-The local-dev architecture is partially implemented, not complete yet.
+The local runtime includes Redis, a Celery worker, Celery Beat, and a TimescaleDB-flavored PostgreSQL container, but not all of that infrastructure is carrying core product load yet.
 
-Already present:
-- Django in Docker
-- Celery worker in Docker
-- Celery Beat in Docker
-- PostgreSQL/TimescaleDB in Docker
-- Redis in Docker
-- `.dockerignore`
-- `backend/.env` convention
-- Health endpoint
-- Celery task discovery via `autodiscover_tasks()`
+Required for the current local product flows:
+- Django API
+- PostgreSQL-compatible database
+- React frontend
+- Stripe CLI only when manually testing Stripe webhooks against localhost
 
-Still missing:
-- Domain apps (`accounts`, `metrics`)
+Prepared infrastructure that is present but not yet central to product behavior:
+- Redis
+- Celery worker
+- Celery Beat
+- TimescaleDB-specific features
+
+Current implemented flows run synchronously inside Django request/response or webhook handling:
+- authentication
+- metric definition reads/writes
+- manual metric entry reads/writes
+- custom metric entitlement checks
+- Stripe Checkout creation
+- Stripe Customer Portal creation
+- Stripe webhook processing
+- subscription cancellation, renewal, and downgrade reconciliation
+
+Celery and Celery Beat are kept because they are the right next infrastructure for:
+- wearable sync jobs
+- provider retry/backoff work
+- backfills
+- analytics precomputation
+- periodic maintenance
+- account export/delete jobs
+
+TimescaleDB is kept because health metrics are time-series data and future wearable sync will increase write volume and range-query pressure. Until `MetricEntry` is converted to a hypertable or the app adds Timescale-specific indexes, continuous aggregates, retention, or compression policies, the database is effectively being used as normal PostgreSQL.
+
+Practical interpretation:
+- PostgreSQL is required now.
+- TimescaleDB-specific capabilities are planned leverage.
+- Redis/Celery/Beat are prepared infrastructure for the wearable-sync and analytics phases.
 
 ### Mermaid Diagram
 

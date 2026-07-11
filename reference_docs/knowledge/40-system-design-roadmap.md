@@ -19,6 +19,13 @@ Redis + Celery exist for background work
 Stripe CLI forwards local webhooks to Django
 ```
 
+Current runtime nuance:
+
+- PostgreSQL is required for the implemented application.
+- TimescaleDB-specific capabilities are not yet materially used; the database currently behaves mostly like normal PostgreSQL until hypertables, continuous aggregates, retention, or compression policies are introduced.
+- Redis, Celery Worker, and Celery Beat are present locally but are prepared infrastructure. Current auth, manual metrics, Settings, Stripe Checkout, Stripe Portal, and webhook reconciliation flows run synchronously in Django.
+- Celery becomes important for wearable sync, provider retries, backfills, analytics precomputation, maintenance jobs, and account export/delete work.
+
 Implemented slices:
 
 - Auth/account basics
