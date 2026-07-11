@@ -24,20 +24,92 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         user -> longevity.webapp "Uses"
         user -> longevity.android "Uses for Samsung sync"
         samsung -> longevity.android "Provides health data"
-        user -> stripe "Completes hosted Checkout in test or live mode"
+        user -> stripe "Completes hosted Checkout and manages billing/cancellation in the Customer Portal"
 
           longevity.webapp -> longevity.api "Calls JSON API over HTTPS"
-          longevity.webapp -> stripe "Redirects user to hosted Stripe Checkout URL"
+          longevity.webapp -> stripe "Redirects user to hosted Stripe Checkout and Customer Portal URLs"
           longevity.android -> longevity.api "Calls JSON API over HTTPS"
 
           longevity.api -> longevity.db "Reads and writes data"
-          longevity.api -> stripe "Creates Checkout Sessions with server-owned Stripe Price IDs and on-demand Customer Portal Sessions"
-          stripe -> longevity.api "POSTs signed webhook events"
+          longevity.api -> stripe "Creates Checkout Sessions with server-owned Stripe Price IDs and on-demand Customer Portal Sessions; verifies signed webhook events"
+          stripe -> longevity.api "POSTs signed billing webhook events"
           longevity.api -> longevity.redis "Uses"
           longevity.api -> longevity.worker "Enqueues asynchronous jobs"
           longevity.worker -> longevity.db "Reads and writes data"
           longevity.worker -> longevity.redis "Uses as broker"
           longevity.beat -> longevity.redis "Publishes scheduled work"
+
+            localDev = deploymentEnvironment "Local Development" {
+                developerMachine = deploymentNode "Developer Machine" "Local host machine used for browser testing, the Vite dev server, and Stripe webhook forwarding." {
+                    tags "ClientZone"
+
+                    localBrowserNode = deploymentNode "Browser" "Local browser runtime" {
+                        tags "ClientZone"
+                        localBrowser = infrastructureNode "Local Web Browser" "Loads the Vite-served React application and follows Stripe hosted redirects." {
+                            tags "ClientRuntime"
+                        }
+                    }
+
+                    viteNode = deploymentNode "Vite Dev Server" "Local frontend development server" {
+                        tags "ClientZone"
+                        localWebapp = containerInstance longevity.webapp
+                    }
+
+                    stripeCli = infrastructureNode "Stripe CLI Listener" "Forwards selected Stripe sandbox webhook events to the local Django webhook endpoint." {
+                        tags "EdgeService"
+                    }
+                }
+
+                dockerCompose = deploymentNode "Docker Compose" "Local backend runtime." {
+                    tags "CloudZone"
+
+                    localApiNode = deploymentNode "Django API Container" {
+                        tags "ComputeZone"
+                        localApi = containerInstance longevity.api
+                    }
+
+                    localWorkerNode = deploymentNode "Celery Worker Container" {
+                        tags "ComputeZone"
+                        localWorker = containerInstance longevity.worker
+                    }
+
+                    localBeatNode = deploymentNode "Celery Beat Container" {
+                        tags "ComputeZone"
+                        localBeat = containerInstance longevity.beat
+                    }
+
+                    localDbNode = deploymentNode "PostgreSQL / TimescaleDB Container" {
+                        tags "DataZone"
+                        localDb = containerInstance longevity.db
+                    }
+
+                    localRedisNode = deploymentNode "Redis Container" {
+                        tags "DataZone"
+                        localRedis = containerInstance longevity.redis
+                    }
+                }
+
+                localDev.developerMachine.localBrowserNode.localBrowser -> localDev.developerMachine.viteNode.localWebapp "Loads React app from Vite" {
+                    tags "ClientTraffic"
+                }
+
+                localDev.developerMachine.viteNode.localWebapp -> stripe "Redirects to hosted Checkout and Customer Portal" {
+                    tags "ClientTraffic"
+                }
+
+                localDev.dockerCompose.localApiNode.localApi -> stripe "Creates Checkout and Portal Sessions in Stripe sandbox" {
+                    tags "EdgeTraffic"
+                }
+
+                stripe -> localDev.developerMachine.stripeCli "Sends sandbox billing events to the Stripe CLI listener" {
+                    tags "EdgeTraffic"
+                }
+
+                localDev.developerMachine.stripeCli -> localDev.dockerCompose.localApiNode.localApi "Forwards signed events to /api/v1/subscriptions/stripe/webhook/" {
+                    tags "EdgeTraffic"
+                }
+
+            }
 
             mvpCloud = deploymentEnvironment "MVP Cloud" {
                 userDevices = deploymentNode "User Devices" "Where end users run the browser and Android clients." {
@@ -129,6 +201,18 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             }
 
             mvpCloud.aws.edge.alb -> mvpCloud.aws.compute.apiNode.apiInstance "Routes HTTPS requests" {
+                tags "EdgeTraffic"
+            }
+
+            mvpCloud.userDevices.browserNode.browserClient -> stripe "Redirects to hosted Checkout and Customer Portal" {
+                tags "ClientTraffic"
+            }
+
+            mvpCloud.aws.compute.apiNode.apiInstance -> stripe "Creates Checkout and Customer Portal Sessions" {
+                tags "EdgeTraffic"
+            }
+
+            stripe -> mvpCloud.aws.edge.alb "POSTs signed billing webhooks over HTTPS" {
                 tags "EdgeTraffic"
             }
 
@@ -314,9 +398,9 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         dynamic longevity "subscription-checkout-create" "Dynamic view of the implemented Stripe Checkout creation flow from Settings." {
             user -> longevity.webapp "Opens /settings and reviews Current Plan plus Available Plans"
             longevity.webapp -> longevity.api "GET /api/v1/subscriptions/current/ with Authorization: Bearer <access-token>"
-            longevity.api -> longevity.db "Loads the authenticated user's current active or trialing Subscription and related SubscriptionPlan"
+            longevity.api -> longevity.db "Loads the authenticated user's current Subscription, related SubscriptionPlan, optional SubscriptionPrice, cancellation state, and BillingCustomer availability"
             longevity.db -> longevity.api "Returns current subscription, e.g. Free plan with 3 custom metrics"
-            longevity.api -> longevity.webapp "Returns 200 JSON {id,status,plan}"
+            longevity.api -> longevity.webapp "Returns 200 JSON with id, status, billing_portal_available, period dates, cancel_at, cancel_at_period_end, price, and plan entitlement data"
             longevity.webapp -> longevity.api "GET /api/v1/subscriptions/plans/"
             longevity.api -> longevity.db "Loads active plans and prefetches active prices; Stripe provider_price_id values stay server-side"
             longevity.db -> longevity.api "Returns catalog with internal SubscriptionPrice.id values, e.g. monthly-price-uuid"
@@ -342,6 +426,57 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.api -> longevity.db "Rejects mismatched session, metadata, stale subscription, or conflicting Stripe customer without changing entitlements"
             longevity.api -> longevity.db "For a valid event, atomically replaces the current subscription, creates BillingCustomer when first seen, and confirms CheckoutAttempt"
             longevity.api -> stripe "Returns 200 acknowledgment; frontend redirect remains informational"
+        }
+
+        dynamic longevity "subscription-portal-create" "Dynamic view of the implemented Stripe Customer Portal creation flow from Settings." {
+            user -> longevity.webapp "Opens /settings as a Stripe-managed paid user and clicks Manage subscription"
+            longevity.webapp -> longevity.api "POST /api/v1/subscriptions/portal/ with Authorization: Bearer <access-token>; no client-supplied Stripe customer ID"
+            longevity.api -> longevity.db "Loads the authenticated user's BillingCustomer and current subscription state"
+            longevity.db -> longevity.api "Returns local Stripe customer mapping, e.g. cus_test_..."
+            longevity.api -> stripe "Creates a Customer Portal Session with the stored Stripe customer ID and server-controlled return URL"
+            stripe -> longevity.api "Returns short-lived billing.stripe.com portal URL"
+            longevity.api -> longevity.webapp "Returns 201 JSON {\"url\":\"https://billing.stripe.com/p/session/...\"}; provider details stay server-side on errors"
+            longevity.webapp -> stripe "Redirects browser to the hosted Customer Portal"
+            user -> stripe "Manages payment method, scheduled cancellation, or cancellation reversal in Stripe-hosted UI"
+        }
+
+        dynamic longevity "subscription-portal-scheduled-cancellation" "Dynamic view of Customer Portal scheduled cancellation and local subscription preservation." {
+            user -> stripe "Clicks Cancel subscription in the hosted Customer Portal; Stripe schedules the subscription to end in the future by setting cancel_at and/or cancel_at_period_end"
+            stripe -> longevity.api "POST /api/v1/subscriptions/stripe/webhook/ with signed customer.subscription.updated event containing the scheduled cancellation state"
+            longevity.api -> longevity.db "Inserts unique StripeWebhookEvent provider_event_id; duplicate delivery stops here"
+            longevity.api -> longevity.db "Verifies the Stripe subscription ID and customer ID match the current local subscription and BillingCustomer"
+            longevity.api -> longevity.db "Stores Stripe cancel_at, normalizes local cancel_at_period_end when cancel_at_period_end=true or cancel_at equals current_period_end, refreshes period dates, and reconciles recognized Stripe price changes"
+            longevity.api -> stripe "Returns 200 acknowledgment"
+            longevity.webapp -> longevity.api "Later GET /api/v1/subscriptions/current/"
+            longevity.api -> longevity.webapp "Returns active Pro subscription with cancel_at and cancel_at_period_end=true"
+            user -> longevity.webapp "Sees Pro still active with a Cancels date because the paid period has not ended"
+        }
+
+        dynamic longevity "subscription-portal-cancellation-reversal" "Dynamic view of Customer Portal cancellation reversal before the paid period ends." {
+            user -> stripe "Clicks Don't cancel subscription in the hosted Customer Portal; Stripe removes the scheduled cancellation from the active subscription"
+            stripe -> longevity.api "POST /api/v1/subscriptions/stripe/webhook/ with signed customer.subscription.updated event showing no scheduled cancellation"
+            longevity.api -> longevity.db "Records the Stripe event idempotently and verifies subscription/customer ownership"
+            longevity.api -> longevity.db "Clears local cancel_at, stores cancel_at_period_end=false, refreshes current period dates, and keeps the paid subscription active"
+            longevity.api -> stripe "Returns 200 acknowledgment"
+            longevity.webapp -> longevity.api "Later GET /api/v1/subscriptions/current/"
+            longevity.api -> longevity.webapp "Returns active Pro subscription with no scheduled cancellation"
+            user -> longevity.webapp "Sees the plan as renewing again"
+        }
+
+        dynamic longevity "subscription-terminal-cancellation-downgrade" "Dynamic view of terminal Stripe cancellation and local downgrade to Free." {
+            stripe -> longevity.api "After the scheduled cancellation timestamp or another terminal cancellation, POST /api/v1/subscriptions/stripe/webhook/ with signed customer.subscription.deleted event"
+            longevity.api -> longevity.db "Inserts unique StripeWebhookEvent provider_event_id; duplicate delivery stops here"
+            longevity.api -> longevity.db "Verifies the Stripe subscription ID and customer ID match the user's current paid subscription and BillingCustomer"
+            longevity.api -> longevity.db "Marks the paid subscription row cancelled/history, clears current paid entitlement, and creates an active Free subscription"
+            longevity.api -> stripe "Returns 200 acknowledgment"
+            longevity.webapp -> longevity.api "Later GET /api/v1/subscriptions/current/"
+            longevity.api -> longevity.webapp "Returns the active Free subscription and Free entitlement limits"
+            user -> longevity.webapp "Sees Free plan state after the paid subscription has actually ended"
+        }
+
+        deployment * localDev "local-development-deployment" "Deployment view for the current local development runtime, including Docker Compose and Stripe CLI webhook forwarding." {
+            include *
+            autolayout lr
         }
 
         deployment * mvpCloud "mvp-cloud-deployment" "Deployment view for the pragmatic MVP cloud runtime." {
