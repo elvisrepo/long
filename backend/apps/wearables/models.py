@@ -7,7 +7,6 @@ from django.db import models
 class WearableConnection(models.Model):
     class Provider(models.TextChoices):
         HEALTH_CONNECT = "health_connect", "Health Connect"
-        SAMSUNG_HEALTH = "samsung_health", "Samsung Health"
 
     class Status(models.TextChoices):
         CONNECTED = "connected", "Connected"
@@ -36,7 +35,7 @@ class WearableConnection(models.Model):
         indexes = [
             models.Index(
                 fields=["user", "provider", "status"],
-                name="wearables_conn_user_provider_status_idx",
+                name="wear_conn_user_provider_status",
             ),
         ]
 

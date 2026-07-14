@@ -14,7 +14,7 @@ class Command(BaseCommand):
             defaults={
                 "name": "Pro",
                 "active_custom_metric_limit": 10,
-                "wearable_connection_limit": 2,
+                "wearable_connection_limit": 1,
                 "sync_interval_minutes": 15,
                 "analytics_enabled": True,
                 "csv_import_enabled": True,

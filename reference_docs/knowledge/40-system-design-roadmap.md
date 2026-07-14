@@ -113,10 +113,12 @@ Django API
   ↓
 Postgres / TimescaleDB
 
+Samsung Health
+  ↓ writes records into
+Health Connect
+  ↓ read on device by
 Android companion app
-  ↓
-Health Connect / Samsung Health
-  ↓
+  ↓ uploads normalized samples to
 Django ingestion API
   ↓
 MetricEntry storage
@@ -234,7 +236,7 @@ Monitoring + audit + compliance
 
 Future mature capabilities:
 
-- Health Connect / Samsung Health sync
+- Samsung Health-originated sync through Health Connect and the Android companion app
 - Apple Health support later
 - direct cloud integrations where useful
 - optional aggregator integration later

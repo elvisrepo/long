@@ -37,7 +37,7 @@
 - Receive alerts on anomalous values
 - Receive live dashboard updates when new wearable data lands (WebSocket)
 
-**Provider scope note:** The current foundation phase is manual-entry only. The MVP adds Samsung Health sync on Android through a companion app and device-bridge flow (preferably Samsung Health → Health Connect → Android app → backend). Aggregator-backed providers such as Garmin, Fitbit, Oura, and Withings are full-requirements work, not MVP.
+**Provider scope note:** The current foundation phase is manual-entry only. The MVP adds Samsung Health-originated sync on Android through the decided device-bridge flow: Samsung Health → Health Connect → Android app → backend. Health Connect is the connection provider; Samsung Health is sample provenance. Aggregator-backed providers such as Garmin, Fitbit, Oura, and Withings are full-requirements work, not MVP.
 
 ### 1.3 Non-Functional Requirements
 
@@ -782,7 +782,7 @@ The `source_connection_id` FK on MetricEntry answers: **"Where did this data poi
 - A manual entry (user typed it in): `source_connection_id = NULL`, `source = 'manual'`
 - An auto-synced entry from Samsung Health on Android: `source_connection_id = 'uuid-of-samsung-connection'`, `source = 'samsung_health'`
 
-This lets us show provenance ("this reading came from your Samsung Health connection"), filter by source, and detect duplicates across sync jobs. If the provider or client can supply a stable source identifier, we store that in `external_source_id` for stronger idempotency.
+This lets us show provenance ("this reading came from Samsung Health through your Health Connect connection"), filter by source app, and detect duplicates across sync jobs. If Health Connect or the Android client can supply a stable source identifier, we store that in `external_source_id` for stronger idempotency.
 
 #### Sample Data Across All Tables
 
@@ -817,7 +817,7 @@ This lets us show provenance ("this reading came from your Samsung Health connec
 | 4 | `a1b2c3d4-...` | `def-custom` (Cold Plunge) | 3.5 | 2026-03-06 09:00 UTC | NULL | manual | NULL |
 | 5 | `e5f6g7h8-...` | `def-001` (Resting HR) | 65 | 2026-03-05 22:00 UTC | `conn-002` | oura | `agg:oura:resting_hr:1741212000` |
 
-Notice row 1: Alice's resting HR of 58 bpm was *auto-synced* from her Samsung Health connection (`source_connection_id = conn-001`). Row 2: her VO2 Max was *manually entered* (`source_connection_id = NULL`). Row 4: her custom "Cold Plunge" metric uses a definition she created herself.
+Notice row 1: Alice's resting HR of 58 bpm was *auto-synced* from Samsung Health through her Health Connect connection (`source_connection_id = conn-001`). Row 2: her VO2 Max was *manually entered* (`source_connection_id = NULL`). Row 4: her custom "Cold Plunge" metric uses a definition she created herself.
 
 **Subscriptions:**
 | id | user_id | plan | status | current_period_end |

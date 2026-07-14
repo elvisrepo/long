@@ -23,5 +23,5 @@
 ### Project Decision
 
 - **Foundation phase:** manual entry only.
-- **MVP:** Samsung Health sync on Android via **device bridge**.
+- **MVP:** Samsung Health writes records into Health Connect; the Android companion app reads permitted Health Connect records and uploads normalized samples through the **device bridge**. The Django backend does not connect directly to either on-device system.
 - **Full requirements:** hybrid model, combining **device bridge** for device-bound ecosystems and **aggregator/direct cloud API** for providers with server-side integrations.

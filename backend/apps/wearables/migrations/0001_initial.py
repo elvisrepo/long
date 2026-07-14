@@ -70,7 +70,7 @@ class Migration(migrations.Migration):
             model_name="wearableconnection",
             index=models.Index(
                 fields=["user", "provider", "status"],
-                name="wearables_conn_user_provider_status_idx",
+                name="wear_conn_user_provider_status",
             ),
         ),
     ]

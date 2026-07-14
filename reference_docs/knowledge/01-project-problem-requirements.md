@@ -42,7 +42,7 @@
 - Receive alerts on anomalous values
 - Receive live dashboard updates when new wearable data lands (WebSocket)
 
-**Provider scope note:** The current foundation phase is manual-entry only. The MVP adds Samsung Health sync on Android through a companion app and device-bridge flow (preferably Samsung Health → Health Connect → Android app → backend). Aggregator-backed providers such as Garmin, Fitbit, Oura, and Withings are full-requirements work, not MVP.
+**Provider scope note:** The current foundation phase is manual-entry only. The MVP adds Samsung Health-originated sync on Android through the decided device-bridge flow: Samsung Health → Health Connect → Android app → backend. Health Connect is the connection provider; Samsung Health is sample provenance. Aggregator-backed providers such as Garmin, Fitbit, Oura, and Withings are full-requirements work, not MVP.
 
 ### 1.3 Non-Functional Requirements
 

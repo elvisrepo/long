@@ -278,19 +278,20 @@ Subscription transition contract:
 - Trusted webhook processing must return or record a conflict when the expected subscription was already replaced.
 - Stripe webhook handlers use provider event idempotency in addition to this local stale-write guard.
 
-#### Samsung / Wearables (R2 internal spike, R3 MVP, JWT required)
+#### Health Connect / Samsung-originated Wearables (R2 internal spike, R3 MVP, JWT required)
 
 Current implementation status:
 - The `WearableConnection` model exists and `GET /api/v1/wearables/connections/` returns the authenticated caller's connections.
-- `POST /api/v1/wearables/connections/` accepts a provider, assigns ownership from the authenticated caller, and enforces the current plan's `wearable_connection_limit`; status and sync/error fields remain server-managed.
+- `POST /api/v1/wearables/connections/` accepts only `provider=health_connect`, assigns ownership from the authenticated caller, and enforces the current plan's `wearable_connection_limit`; status and sync/error fields remain server-managed.
 - Free users with a limit of zero and users who have consumed every connection slot receive `400`. Every registered connection row consumes a slot until the future disconnect flow removes it.
+- The canonical MVP Pro plan permits one Health Connect connection. `samsung_health` is rejected as a connection provider because Samsung-originated records reach the app through Health Connect.
 - Update and disconnect behavior remain the next connection-foundation slices.
 - Do not start with full sample ingestion, resync, Celery jobs, or Android integration until the connection contract exists and is tested.
 
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
 | GET | `/api/v1/wearables/connections/` | List linked sync connections | Implemented; JWT required and results are scoped to the caller |
-| POST | `/api/v1/wearables/connections/` | Register a wearable connection | Accepts `provider`; ownership and initial status are server-managed; current-plan connection limit enforced |
+| POST | `/api/v1/wearables/connections/` | Register a wearable connection | Accepts only `provider=health_connect`; ownership and initial status are server-managed; current-plan connection limit enforced |
 | GET | `/api/v1/wearables/connections/{id}/status/` | Fetch sync state for one connection | Includes `status`, `last_synced_at`, and last error details |
 | POST | `/api/v1/wearables/uploads/` | Upload a normalized wearable metric batch | Idempotent via `upload_id`; called by the Android companion app |
 | DELETE | `/api/v1/wearables/connections/{id}/` | Disconnect provider | Idempotent |
