@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "apps.users",
     "apps.metrics",
     "apps.subscriptions",
+    "apps.wearables",
     "common",
     "rest_framework_simplejwt.token_blacklist",
 ]
