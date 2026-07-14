@@ -282,13 +282,14 @@ Subscription transition contract:
 
 Current implementation status:
 - The `WearableConnection` model exists and `GET /api/v1/wearables/connections/` returns the authenticated caller's connections.
-- Connection creation and update behavior remain the next connection-foundation slices.
+- `POST /api/v1/wearables/connections/` accepts a provider and assigns ownership from the authenticated caller; status and sync/error fields remain server-managed.
+- Wearable entitlement-limit enforcement and update behavior remain the next connection-foundation slices.
 - Do not start with full sample ingestion, resync, Celery jobs, or Android integration until the connection contract exists and is tested.
 
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
 | GET | `/api/v1/wearables/connections/` | List linked sync connections | Implemented; JWT required and results are scoped to the caller |
-| POST | `/api/v1/wearables/connections/` | Register or refresh a wearable connection | Body includes `provider`, `connection_mode`, `platform`, and client metadata |
+| POST | `/api/v1/wearables/connections/` | Register a wearable connection | Initial contract accepts `provider`; ownership and initial status are server-managed |
 | GET | `/api/v1/wearables/connections/{id}/status/` | Fetch sync state for one connection | Includes `status`, `last_synced_at`, and last error details |
 | POST | `/api/v1/wearables/uploads/` | Upload a normalized wearable metric batch | Idempotent via `upload_id`; called by the Android companion app |
 | DELETE | `/api/v1/wearables/connections/{id}/` | Disconnect provider | Idempotent |

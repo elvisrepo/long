@@ -6,7 +6,7 @@ from apps.wearables.models import WearableConnection
 from apps.wearables.serializers import WearableConnectionSerializer
 
 
-class WearableConnectionListView(generics.ListAPIView):
+class WearableConnectionListView(generics.ListCreateAPIView):
     serializer_class = WearableConnectionSerializer
     permission_classes = [IsAuthenticated]
 
@@ -15,3 +15,6 @@ class WearableConnectionListView(generics.ListAPIView):
             "created_at",
             "id",
         )
+
+    def perform_create(self, serializer: WearableConnectionSerializer) -> None:
+        serializer.save(user=self.request.user)

@@ -15,4 +15,11 @@ class WearableConnectionSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
-        read_only_fields = fields
+        read_only_fields = (
+            "id",
+            "status",
+            "last_synced_at",
+            "last_error",
+            "created_at",
+            "updated_at",
+        )
