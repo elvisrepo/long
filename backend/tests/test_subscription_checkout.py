@@ -515,6 +515,53 @@ def test_create_checkout_session_marks_attempt_failed_when_stripe_fails():
     assert attempt.provider_checkout_session_id == ""
 
 
+def test_create_checkout_session_rejects_missing_redirect_url():
+    from apps.subscriptions.services import create_checkout_session
+
+    user = get_user_model().objects.create_user(
+        email="checkout-missing-url@example.com",
+        password="strong-password-123",
+    )
+    free_plan = SubscriptionPlan.objects.get(code="free")
+    Subscription.objects.create(
+        user=user,
+        plan=free_plan,
+        status=Subscription.Status.ACTIVE,
+    )
+    plan = SubscriptionPlan.objects.create(
+        code="pro-checkout-missing-url",
+        name="Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=2,
+        sync_interval_minutes=15,
+    )
+    price = SubscriptionPrice.objects.create(
+        plan=plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_stripe_missing_url",
+        currency="usd",
+        unit_amount=1000,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+        is_active=True,
+    )
+
+    with patch("apps.subscriptions.services.StripeClient") as stripe_client:
+        checkout_session = stripe_client.return_value.v1.checkout.sessions.create
+        checkout_session.return_value.id = "cs_test_missing_url"
+        checkout_session.return_value.url = None
+
+        with pytest.raises(
+            ValueError,
+            match="Stripe Checkout Session did not include a redirect URL.",
+        ):
+            create_checkout_session(user=user, price=price)
+
+    attempt = CheckoutAttempt.objects.get(user=user, price=price)
+
+    assert attempt.status == CheckoutAttempt.Status.FAILED
+    assert attempt.provider_checkout_session_id == ""
+
+
 def test_create_checkout_session_reuses_existing_billing_customer():
     from apps.subscriptions.services import create_checkout_session
 

@@ -69,7 +69,7 @@ def test_current_subscription_returns_authenticated_users_plan_and_entitlements(
 def test_current_subscription_exposes_portal_when_stripe_customer_exists():
     client, user = authenticate_client_for("portal-customer@example.com")
     free_plan = SubscriptionPlan.objects.get(code="free")
-    subscription = Subscription.objects.create(
+    Subscription.objects.create(
         user=user,
         plan=free_plan,
         status=Subscription.Status.ACTIVE,

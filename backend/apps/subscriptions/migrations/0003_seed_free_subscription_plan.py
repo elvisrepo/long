@@ -1,7 +1,12 @@
+from django.apps.registry import Apps
 from django.db import migrations
+from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 
 
-def seed_free_subscription_plan(apps: object, schema_editor: object) -> None:
+def seed_free_subscription_plan(
+    apps: Apps,
+    schema_editor: BaseDatabaseSchemaEditor,
+) -> None:
     # Migrations use the model state at this point in history, not the current
     # model class, so future model changes cannot break old migrations.
     SubscriptionPlan = apps.get_model("subscriptions", "SubscriptionPlan") # django app lable, model name inside that app.
@@ -23,7 +28,10 @@ def seed_free_subscription_plan(apps: object, schema_editor: object) -> None:
     )
 
 
-def remove_free_subscription_plan(apps: object, schema_editor: object) -> None:
+def remove_free_subscription_plan(
+    apps: Apps,
+    schema_editor: BaseDatabaseSchemaEditor,
+) -> None:
     # This reverse operation allows migrating back before this seed safely.
     SubscriptionPlan = apps.get_model("subscriptions", "SubscriptionPlan")
     SubscriptionPlan.objects.filter(code="free").delete()

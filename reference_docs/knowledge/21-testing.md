@@ -427,7 +427,7 @@ Latest local verification checkpoint:
 - `npm run test` passed after adding active custom metric usage and limit-message coverage.
 - `npm run build` passed with the active custom metric usage indicator.
 - `npm run test:e2e` passed with 6 Playwright tests against the isolated Docker-backed E2E runtime.
-- `docker compose exec web uv run pytest` passed with `101` backend tests after explicit subscriptions and plan-backed limits were added.
+- On 2026-07-14, `docker compose exec web uv run pytest -q` passed with `175` backend tests, `uv run ruff check` passed, and `uv run mypy` passed across `72` source files.
 
 Frontend test code hygiene:
 - route tests may start with repeated setup such as:
@@ -450,6 +450,16 @@ Current CI quality gate for the backend:
   - `pytest`
 - the workflow is triggered on backend-related pushes and pull requests
 - the current backend CI workflow is green
+
+MyPy gate repair completed on 2026-07-14:
+- The full CI command exposed `16` errors that smaller focused checks had not shown. Run the same repository-wide `uv run mypy` command used by CI before calling the type gate green.
+- Stripe Checkout parameters now use Stripe's `SessionCreateParams` instead of `dict[str, Any]`. Because hosted Checkout still types `session.url` as optional, the service explicitly marks the local attempt failed and raises when Stripe returns no redirect URL; a regression test covers this behavior.
+- Historical migration callbacks now type the migration registry as `Apps` and the schema editor as `BaseDatabaseSchemaEditor`; empty migration dependency lists receive an explicit element type.
+- DRF `post()` handlers type requests as `Request`, and empty authentication-class declarations specify `list[type[BaseAuthentication]]` so MyPy does not have to infer from an untyped empty list.
+- Serializer values originating from generic `validated_data` are narrowed to their known domain type before model attributes are accessed. Serializer `create()` methods declare their model return type.
+- Login callers explicitly verify the invariant that a successful authentication result contains a non-null user before accessing it.
+- Django `TextChoices` values passed to helpers expecting plain strings are converted explicitly when Django's generated choice typing is ambiguous.
+- These fixes were verified with the complete backend gate: `ruff`, repository-wide `mypy`, `175` pytest tests, migration drift check, and `git diff --check`.
 
 ### Wearable Sync Test Focus
 

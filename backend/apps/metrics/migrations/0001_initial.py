@@ -1,8 +1,10 @@
 import uuid
 
 import django.db.models.deletion
+from django.apps.registry import Apps
 from django.conf import settings
 from django.db import migrations, models
+from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 from django.db.models import Q
 
 
@@ -52,8 +54,8 @@ DEFAULT_METRIC_DEFINITIONS = [
 
 
 def seed_default_metric_definitions(
-    apps: object,
-    schema_editor: object,
+    apps: Apps,
+    schema_editor: BaseDatabaseSchemaEditor,
 ) -> None:
     # Use the historical model from the migration registry, not the live model import,  because
     # migrations must use the historical model state at that migration point.
@@ -74,8 +76,8 @@ def seed_default_metric_definitions(
 
 
 def remove_default_metric_definitions(
-    apps: object,
-    schema_editor: object,
+    apps: Apps,
+    schema_editor: BaseDatabaseSchemaEditor,
 ) -> None:
     # Reverse migration removes only the system defaults created here.
     MetricDefinition = apps.get_model("metrics", "MetricDefinition")

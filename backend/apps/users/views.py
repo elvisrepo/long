@@ -84,6 +84,8 @@ def mobile_login_view(request: Request) -> Response:
       user, error_response = authenticate_login_request(request)
       if error_response is not None:
           return error_response
+      if user is None:
+          raise RuntimeError("Login returned neither a user nor an error response.")
 
       refresh = RefreshToken.for_user(user)
 
@@ -101,6 +103,8 @@ def web_login_view(request: Request) -> Response:
       if error_response is not None:
           logger.warning("Web login failed")
           return error_response
+      if user is None:
+          raise RuntimeError("Login returned neither a user nor an error response.")
 
       
       refresh = RefreshToken.for_user(user)

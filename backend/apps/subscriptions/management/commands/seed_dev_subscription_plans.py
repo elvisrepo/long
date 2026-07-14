@@ -28,14 +28,14 @@ class Command(BaseCommand):
             provider_price_id="price_replace_with_stripe_test_monthly",
             currency="usd",
             unit_amount=1000,
-            billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+            billing_interval=str(SubscriptionPrice.BillingInterval.MONTH),
         )
         self.seed_price(
             plan=pro_plan,
             provider_price_id="price_replace_with_stripe_test_yearly",
             currency="usd",
             unit_amount=10000,
-            billing_interval=SubscriptionPrice.BillingInterval.YEAR,
+            billing_interval=str(SubscriptionPrice.BillingInterval.YEAR),
         )
 
         self.stdout.write(

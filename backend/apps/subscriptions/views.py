@@ -3,7 +3,9 @@ import logging
 from django.conf import settings
 from django.db.models import Prefetch
 from rest_framework import generics, status
+from rest_framework.authentication import BaseAuthentication
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -70,7 +72,7 @@ class SubscriptionPlanListView(generics.ListAPIView):
 class SubscriptionCheckoutView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         serializer = SubscriptionCheckoutSerializer(
             data=request.data,
             context={"request": request},
@@ -98,7 +100,7 @@ class SubscriptionCheckoutView(APIView):
 class SubscriptionPortalView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         billing_customer = BillingCustomer.objects.filter(
             user=request.user,
             provider=BillingCustomer.Provider.STRIPE,
@@ -128,10 +130,10 @@ class SubscriptionPortalView(APIView):
 
 
 class StripeWebhookView(APIView):
-    authentication_classes = []
+    authentication_classes: list[type[BaseAuthentication]] = []
     permission_classes = [AllowAny]
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         signature = request.headers.get("Stripe-Signature", "")
 
         try:

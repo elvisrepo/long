@@ -11,6 +11,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 import stripe
 from stripe import StripeClient
+from stripe.params.checkout import SessionCreateParams
 
 from apps.subscriptions.models import (
     BillingCustomer,
@@ -125,7 +126,7 @@ def create_checkout_session(
         provider=BillingCustomer.Provider.STRIPE,
     ).first()
 
-    session_params: dict[str, Any] = {
+    session_params: SessionCreateParams = {
         # Stripe Checkout uses the provider price ID; clients only send our
         # internal SubscriptionPrice UUID to prevent price manipulation.
         "line_items": [
@@ -164,6 +165,13 @@ def create_checkout_session(
         attempt.status = CheckoutAttempt.Status.FAILED
         attempt.save(update_fields=["status", "updated_at"])
         raise
+
+    if session.url is None:
+        attempt.status = CheckoutAttempt.Status.FAILED
+        attempt.save(update_fields=["status", "updated_at"])
+        raise ValueError(
+            "Stripe Checkout Session did not include a redirect URL."
+        )
 
     # Stripe created the provider session; webhook completion will later decide
     # whether the user's subscription should actually change.

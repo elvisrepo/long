@@ -1,3 +1,5 @@
+from typing import cast
+
 from rest_framework import serializers
 
 from apps.subscriptions.models import (
@@ -109,7 +111,7 @@ class SubscriptionCheckoutSerializer(serializers.Serializer):
 
     def validate(self, attrs: dict[str, object]) -> dict[str, object]:
         request = self.context["request"]
-        price = attrs["price"]
+        price = cast(SubscriptionPrice, attrs["price"])
 
         current_subscription = Subscription.objects.filter(
             user=request.user,
