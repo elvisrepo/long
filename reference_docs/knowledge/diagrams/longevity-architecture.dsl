@@ -4,12 +4,13 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
     model {
         user = person "Longevity User" "Uses the platform to view metrics, manage account data, and review synced health information."
 
-        samsung = softwareSystem "Samsung Health / Health Connect" "On-device health data source used by the Android companion app."
+        samsungHealth = softwareSystem "Samsung Health" "On-device source application that writes Samsung-originated health records into Health Connect."
+        healthConnect = softwareSystem "Health Connect" "Android on-device health data platform that exposes user-permitted records to the companion app."
         stripe = softwareSystem "Stripe" "External billing provider for hosted Checkout and Customer Portal sessions, subscription payment collection, and billing webhooks."
 
         longevity = softwareSystem "Longevity Platform" "Tracks user auth, metrics, analytics, and wearable ingestion." {
             webapp = container "React Web App" "Browser-based client for auth, dashboard, metric catalog/detail management, and settings." "React"
-              android = container "Android Companion App" "Mobile client for Samsung sync and future mobile workflows." "Kotlin Android"
+              android = container "Android Companion App" "Reads user-permitted Health Connect records on device and uploads normalized samples to the Django API." "Kotlin Android"
               api = container "Django API" "Main HTTP API for auth, metrics, analytics, and wearable uploads." "Django + Django REST Framework"
               worker = container "Celery Worker" "Executes asynchronous jobs." "Celery"
               beat = container "Celery Beat" "Schedules recurring jobs." "Celery Beat"
@@ -18,12 +19,13 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         }
 
         user -> longevity "Views metrics, manages account, and reviews health data"
-        samsung -> longevity "Supplies health data indirectly via the Android companion app"
+        healthConnect -> longevity "Supplies permitted on-device health records indirectly through the Android companion app"
         stripe -> longevity "Sends verified billing webhooks after checkout and subscription events"
 
         user -> longevity.webapp "Uses"
-        user -> longevity.android "Uses for Samsung sync"
-        samsung -> longevity.android "Provides health data"
+        user -> longevity.android "Uses to connect and sync on-device health data"
+        samsungHealth -> healthConnect "Writes Samsung-originated health records on device"
+        longevity.android -> healthConnect "Reads user-permitted health records on device"
         user -> stripe "Completes hosted Checkout and manages billing/cancellation in the Customer Portal"
 
           longevity.webapp -> longevity.api "Calls JSON API over HTTPS"
@@ -122,9 +124,16 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                         }
                     }
 
-                    androidNode = deploymentNode "Android Phone" "Android runtime for the companion app" {
+                    androidNode = deploymentNode "Android Phone" "Android runtime for the companion app, Health Connect, and Samsung Health." {
                         tags "ClientZone"
-                        androidClient = infrastructureNode "Android Companion App" "Installed mobile application for Samsung sync and future mobile workflows." {
+
+                        androidClient = containerInstance longevity.android
+
+                        healthConnectRuntime = infrastructureNode "Health Connect" "On-device Android health data platform used by the companion app." {
+                            tags "ClientRuntime"
+                        }
+
+                        samsungHealthRuntime = infrastructureNode "Samsung Health" "On-device source application that writes health records into Health Connect." {
                             tags "ClientRuntime"
                         }
                     }
@@ -200,6 +209,14 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 tags "ClientTraffic"
             }
 
+            mvpCloud.userDevices.androidNode.samsungHealthRuntime -> mvpCloud.userDevices.androidNode.healthConnectRuntime "Writes Samsung-originated health records" {
+                tags "ClientTraffic"
+            }
+
+            mvpCloud.userDevices.androidNode.androidClient -> mvpCloud.userDevices.androidNode.healthConnectRuntime "Reads user-permitted health records" {
+                tags "ClientTraffic"
+            }
+
             mvpCloud.aws.edge.alb -> mvpCloud.aws.compute.apiNode.apiInstance "Routes HTTPS requests" {
                 tags "EdgeTraffic"
             }
@@ -265,7 +282,8 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
     views {
         systemContext longevity "c4-context" "System context view for the Longevity platform." {
             include user
-            include samsung
+            include samsungHealth
+            include healthConnect
             include stripe
             include longevity
             autolayout lr
@@ -395,6 +413,16 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.api -> longevity.webapp "Returns 201/200 on success, or 400 when the active custom metric limit is reached"
         }
 
+        dynamic longevity "wearable-connection-register" "Dynamic view of the implemented backend connection-registration boundary with the planned Android companion app as caller." {
+            user -> longevity.android "Chooses to connect on-device health data through Health Connect"
+            longevity.android -> longevity.api "POST /api/v1/wearables/connections/ with Authorization: Bearer <access-token> and {\"provider\":\"health_connect\"}"
+            longevity.api -> longevity.db "Starts an atomic transaction, locks the authenticated user row, loads the current subscription plan, and counts registered connections"
+            longevity.db -> longevity.api "Returns the caller's current plan entitlement and connection usage"
+            longevity.api -> longevity.db "Creates one WearableConnection owned by the authenticated user with provider health_connect and initial status disconnected when a slot is available"
+            longevity.db -> longevity.api "Returns the stored connection state"
+            longevity.api -> longevity.android "Returns 201 with the caller-owned connection, or 400 when wearable_connection_limit is exhausted"
+        }
+
         dynamic longevity "subscription-checkout-create" "Dynamic view of the implemented Stripe Checkout creation flow from Settings." {
             user -> longevity.webapp "Opens /settings and reviews Current Plan plus Available Plans"
             longevity.webapp -> longevity.api "GET /api/v1/subscriptions/current/ with Authorization: Bearer <access-token>"
@@ -474,7 +502,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             user -> longevity.webapp "Sees Free plan state after the paid subscription has actually ended"
         }
 
-        deployment * localDev "local-development-deployment" "Deployment view for the current local development runtime, including Docker Compose and Stripe CLI webhook forwarding." {
+        deployment * localDev "local-development-deployment" "Deployment view for the current browser/backend local runtime, including Docker Compose and Stripe CLI webhook forwarding; the Android test-device runtime will be added when the companion app exists." {
             include *
             autolayout lr
         }
