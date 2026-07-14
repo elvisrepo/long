@@ -281,13 +281,13 @@ Subscription transition contract:
 #### Samsung / Wearables (R2 internal spike, R3 MVP, JWT required)
 
 Current implementation status:
-- Wearable sync is the next planned slice; these endpoints are not all implemented yet.
-- The immediate next slice is only the connection foundation: `WearableConnection` model plus authenticated connection read/create/update behavior.
+- The `WearableConnection` model exists and the `GET /api/v1/wearables/connections/` route is mounted with JWT authentication enforced.
+- Caller-scoped connection serialization, creation, and update behavior remain the next connection-foundation slices.
 - Do not start with full sample ingestion, resync, Celery jobs, or Android integration until the connection contract exists and is tested.
 
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
-| GET | `/api/v1/wearables/connections/` | List linked sync connections | MVP returns Samsung/Android device-bridge connections |
+| GET | `/api/v1/wearables/connections/` | List linked sync connections | Route and JWT boundary implemented; caller-scoped stored results are next |
 | POST | `/api/v1/wearables/connections/` | Register or refresh a wearable connection | Body includes `provider`, `connection_mode`, `platform`, and client metadata |
 | GET | `/api/v1/wearables/connections/{id}/status/` | Fetch sync state for one connection | Includes `status`, `last_synced_at`, and last error details |
 | POST | `/api/v1/wearables/uploads/` | Upload a normalized wearable metric batch | Idempotent via `upload_id`; called by the Android companion app |
