@@ -457,8 +457,8 @@ Immediate next wearable slice:
 - Start with `WearableConnection` model/API tests before testing ingestion.
 - Model tests should prove provider/status choices, ownership, nullable `last_synced_at`, optional `last_error`, and timestamp behavior.
 - API tests should prove authentication is required, list responses are scoped to the caller, creation stores `request.user`, updates cannot mutate another user's connection, and invalid provider/status values are rejected.
-- API tests now prove that the connection collection rejects unauthenticated requests, lists only the caller's connections, and assigns new connection ownership from the JWT user.
-- Entitlement-limit, invalid-provider, server-managed-field, and update-ownership cases remain on the immediate API test list.
+- API tests now prove that the connection collection rejects unauthenticated requests, lists only the caller's connections, assigns new connection ownership from the JWT user, and rejects creation when the plan limit is exhausted.
+- Free-plan zero-limit, invalid-provider, server-managed-field, and update-ownership cases remain on the immediate API test list.
 - Frontend tests should be added only when a Settings/Wearables UI slice consumes the connection contract.
 
 When testing Samsung-sync behavior:

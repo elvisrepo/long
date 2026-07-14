@@ -1,5 +1,10 @@
+from typing import Any
+
+from django.contrib.auth import get_user_model
+from django.db import transaction
 from rest_framework import serializers
 
+from apps.wearables.limits import validate_wearable_connection_limit
 from apps.wearables.models import WearableConnection
 
 
@@ -23,3 +28,19 @@ class WearableConnectionSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
+
+    def create(self, validated_data: dict[str, Any]) -> WearableConnection:
+        request = self.context["request"]
+
+        with transaction.atomic():
+            locked_user = (
+                get_user_model()
+                .objects.select_for_update()
+                .get(pk=request.user.pk)
+            )
+            validate_wearable_connection_limit(locked_user)
+
+            return WearableConnection.objects.create(
+                user=locked_user,
+                **validated_data,
+            )

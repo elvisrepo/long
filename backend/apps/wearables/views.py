@@ -15,6 +15,3 @@ class WearableConnectionListView(generics.ListCreateAPIView):
             "created_at",
             "id",
         )
-
-    def perform_create(self, serializer: WearableConnectionSerializer) -> None:
-        serializer.save(user=self.request.user)

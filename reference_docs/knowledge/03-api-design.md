@@ -282,14 +282,15 @@ Subscription transition contract:
 
 Current implementation status:
 - The `WearableConnection` model exists and `GET /api/v1/wearables/connections/` returns the authenticated caller's connections.
-- `POST /api/v1/wearables/connections/` accepts a provider and assigns ownership from the authenticated caller; status and sync/error fields remain server-managed.
-- Wearable entitlement-limit enforcement and update behavior remain the next connection-foundation slices.
+- `POST /api/v1/wearables/connections/` accepts a provider, assigns ownership from the authenticated caller, and enforces the current plan's `wearable_connection_limit`; status and sync/error fields remain server-managed.
+- Free users with a limit of zero and users who have consumed every connection slot receive `400`. Every registered connection row consumes a slot until the future disconnect flow removes it.
+- Update and disconnect behavior remain the next connection-foundation slices.
 - Do not start with full sample ingestion, resync, Celery jobs, or Android integration until the connection contract exists and is tested.
 
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
 | GET | `/api/v1/wearables/connections/` | List linked sync connections | Implemented; JWT required and results are scoped to the caller |
-| POST | `/api/v1/wearables/connections/` | Register a wearable connection | Initial contract accepts `provider`; ownership and initial status are server-managed |
+| POST | `/api/v1/wearables/connections/` | Register a wearable connection | Accepts `provider`; ownership and initial status are server-managed; current-plan connection limit enforced |
 | GET | `/api/v1/wearables/connections/{id}/status/` | Fetch sync state for one connection | Includes `status`, `last_synced_at`, and last error details |
 | POST | `/api/v1/wearables/uploads/` | Upload a normalized wearable metric batch | Idempotent via `upload_id`; called by the Android companion app |
 | DELETE | `/api/v1/wearables/connections/{id}/` | Disconnect provider | Idempotent |

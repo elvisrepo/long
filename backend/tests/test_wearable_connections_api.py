@@ -84,3 +84,36 @@ def test_wearable_connection_creation_assigns_authenticated_user():
     assert connection.user == user
     assert connection.provider == WearableConnection.Provider.HEALTH_CONNECT
     assert connection.status == WearableConnection.Status.DISCONNECTED
+
+
+def test_wearable_connection_creation_rejects_reached_plan_limit():
+    client, user = authenticate_client_for("limited-pro@example.com")
+    limited_plan = SubscriptionPlan.objects.create(
+        code="limited-pro",
+        name="Limited Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=1,
+        sync_interval_minutes=15,
+    )
+    Subscription.objects.create(
+        user=user,
+        plan=limited_plan,
+        status=Subscription.Status.ACTIVE,
+    )
+    WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+        status=WearableConnection.Status.CONNECTED,
+    )
+
+    response = client.post(
+        "/api/v1/wearables/connections/",
+        {"provider": "samsung_health"},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "non_field_errors": ["Wearable connection limit reached."]
+    }
+    assert WearableConnection.objects.filter(user=user).count() == 1

@@ -35,6 +35,13 @@ Current metric-usage access-control boundary:
 - Entitlement-changing create and reactivation writes use `transaction.atomic()` plus `SELECT ... FOR UPDATE` on the authenticated user's row. This serializes competing writes for one account and closes the count-then-write race.
 - The lock is scoped per user, so one user's custom metric write does not serialize unrelated users' writes.
 
+Current wearable-connection access-control boundary:
+- Connection collection reads and writes require JWT authentication and are scoped to `request.user`.
+- The client submits only a provider; the backend assigns ownership and initial connection state.
+- Creation loads `wearable_connection_limit` from the authenticated user's current subscription plan and rejects requests when current usage is at the limit.
+- Creation locks the authenticated user row inside a database transaction before counting and inserting, preventing concurrent requests from claiming the same final connection slot.
+- All registered connection rows count toward the limit. The future authenticated disconnect flow must remove the caller-owned row to release a slot.
+
 Current subscription-integrity boundary:
 - Registration creates the user and active free subscription in one transaction, so neither row is persisted alone.
 - A conditional unique constraint permits at most one current subscription per user across `trialing`, `active`, `past_due`, and `incomplete`.
@@ -100,6 +107,7 @@ Current Stripe credential and traffic boundary:
 - **User deletes account mid-sync**: Celery task checks `user.is_active` before writing data. If user is deleted, task aborts gracefully.
 - **Concurrent metric writes for same timestamp**: The unique constraint on `(user_id, metric_definition_id, recorded_at, source, source_connection_id)` prevents silent overwrites for provider-synced data. Manual duplicate submissions still need explicit product policy (allow vs reject).
 - **Concurrent custom metric entitlement writes**: Create/reactivate requests for the same user lock that user's row before counting and writing, so only one request can claim the final active custom metric slot.
+- **Concurrent wearable connection writes**: Creation requests for the same user lock that user's row before counting and inserting, so only one request can claim the final wearable connection slot.
 - **Android upload retry after network loss**: Uploads must be idempotent via `upload_id`. The client retries safely, and the server accepts out-of-order data (sorted by `recorded_at`, not arrival time).
 - **Future aggregator webhook delivery failure**: Signed webhooks should retry, and a scheduled backfill job should repair missed intervals when cloud-based providers are added later.
 
