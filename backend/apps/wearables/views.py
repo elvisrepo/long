@@ -1,11 +1,17 @@
+from django.db.models import QuerySet
+from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.request import Request
-from rest_framework.response import Response
-from rest_framework.views import APIView
+
+from apps.wearables.models import WearableConnection
+from apps.wearables.serializers import WearableConnectionSerializer
 
 
-class WearableConnectionListView(APIView):
+class WearableConnectionListView(generics.ListAPIView):
+    serializer_class = WearableConnectionSerializer
     permission_classes = [IsAuthenticated]
 
-    def get(self, request: Request) -> Response:
-        return Response([])
+    def get_queryset(self) -> QuerySet[WearableConnection]:
+        return WearableConnection.objects.filter(user=self.request.user).order_by(
+            "created_at",
+            "id",
+        )
