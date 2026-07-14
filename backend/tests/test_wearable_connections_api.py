@@ -117,3 +117,25 @@ def test_wearable_connection_creation_rejects_reached_plan_limit():
         "non_field_errors": ["Wearable connection limit reached."]
     }
     assert WearableConnection.objects.filter(user=user).count() == 1
+
+
+def test_free_plan_cannot_create_wearable_connection():
+      client, user = authenticate_client_for("free-wearable@example.com")
+      free_plan = SubscriptionPlan.objects.get(code="free")
+      Subscription.objects.create(
+          user=user,
+          plan=free_plan,
+          status=Subscription.Status.ACTIVE,
+      )
+
+      response = client.post(
+          "/api/v1/wearables/connections/",
+          {"provider": "health_connect"},
+          format="json",
+      )
+
+      assert response.status_code == 400
+      assert response.json() == {
+          "non_field_errors": ["Wearable connection limit reached."]
+      }
+      assert WearableConnection.objects.filter(user=user).exists() is False
