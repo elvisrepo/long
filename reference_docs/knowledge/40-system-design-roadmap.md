@@ -130,43 +130,41 @@ Checkout / Portal / Webhooks
 Subscription + entitlement state
 ```
 
-The next major product slice should be wearable sync groundwork.
+The current wearable connection foundation is implemented: plan-limited Health Connect registration, owner-scoped active list/status reads, soft disconnect, and same-UUID reactivation.
 
 Immediate next slice:
 
 ```text
-WearableConnection model + authenticated connection API
+SyncRun upload receipt + authenticated ingestion contract
 ```
 
-This is intentionally smaller than full wearable sync. It should establish local backend state first, then the Android companion app and ingestion path can build on top of it.
+This should establish batch idempotency and ownership before normalized samples are written into `MetricEntry`.
+
+Refactor trigger before ingestion grows:
+
+- `WearableConnectionSerializer.create()` currently coordinates registration/reactivation, user and connection row locks, entitlement validation, state reset, and persistence.
+- Keep that code in the serializer while it is the single creation workflow, but extract it into `backend/apps/wearables/services.py` when `SyncRun` ingestion adds more connection transitions or when another caller must reuse registration/reactivation.
+- After extraction, serializers should remain responsible for request validation and representation; the service should own transactional connection lifecycle rules.
 
 Recommended order:
 
-1. Add `WearableConnection`
+1. Add `SyncRun` with a client-generated `upload_id`
 
-   Store provider, status, user, last sync time, and error state.
+   Preserve one batch receipt per connection/upload ID for retry idempotency and troubleshooting.
 
-   First-slice fields should be minimal: `user`, `provider`, `status`, `last_synced_at`, `last_error`, `created_at`, and `updated_at`.
-
-2. Add connection status API
-
-   Frontend can show connected, not connected, or sync failed.
-
-   Start with authenticated list/create/update behavior. Scope every read/write to `request.user`.
-
-3. Add ingestion endpoint
+2. Add ingestion endpoint
 
    Android companion app can upload metric samples.
 
-4. Add idempotency
+3. Enforce idempotency
 
    Avoid duplicate samples if the app retries uploads.
 
-5. Normalize wearable data into existing `MetricEntry`
+4. Normalize wearable data into existing `MetricEntry`
 
    Do not create a parallel metric system.
 
-6. Add sync UI
+5. Add sync UI
 
    Settings or a dedicated Wearables page shows connection state and last sync.
 

@@ -9,6 +9,7 @@ class WearableConnection(models.Model):
         HEALTH_CONNECT = "health_connect", "Health Connect"
 
     class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
         CONNECTED = "connected", "Connected"
         DISCONNECTED = "disconnected", "Disconnected"
         ERROR = "error", "Error"
@@ -23,10 +24,11 @@ class WearableConnection(models.Model):
     status = models.CharField(
         max_length=32,
         choices=Status.choices,
-        default=Status.DISCONNECTED,
+        default=Status.PENDING,
     )
     last_synced_at = models.DateTimeField(null=True, blank=True)
     last_error = models.TextField(blank=True, default="")
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

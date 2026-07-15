@@ -16,7 +16,7 @@ We derived entities from the functional requirements by asking: *"What data must
 | **User** | Every feature requires knowing *who*. Multi-tenant system — all data is scoped to a user. | PII encrypted at field level. Email stored as ciphertext plus `email_lookup_hash` (HMAC of normalized email) for uniqueness + login lookups. UUID PKs avoid exposing sequential IDs. |
 | **MetricDefinition** | Users need to know *what* they can track. System needs validation rules (unit, min/max range) per metric type. | Separated from MetricEntry to avoid duplicating metadata on every data point. `user_id=NULL` for system defaults, FK to user for custom metrics. |
 | **MetricEntry** | Core requirement #1 — the actual data points users log. This is where 99% of storage and query load lives. | TimescaleDB hypertable partitioned by `recorded_at` for efficient time-range queries. Denormalized `user_id` for fast row-level filtering. |
-| **WearableConnection** | Core requirement #3 — represents a linked device-bridge connection and its state. | The MVP stores the authenticated user, `provider=health_connect`, status, last sync/error state, and timestamps. Samsung Health is sample provenance, not a direct backend connection provider. We do not store raw Samsung Health or Health Connect tokens. |
+| **WearableConnection** | Core requirement #3 — represents a linked device-bridge connection and its state. | The MVP stores the authenticated user, `provider=health_connect`, status, active lifecycle state, last sync/error state, and timestamps. Disconnect marks the row inactive so its stable identity and future sync history remain available. Samsung Health is sample provenance, not a direct backend connection provider. We do not store raw Samsung Health or Health Connect tokens. |
 | **SubscriptionPlan** | Product tiers need durable, backend-owned entitlement values such as custom metric limits, wearable limits, and sync cadence. | Shared plan rows are separate from individual users. Migration `subscriptions.0003` seeds the canonical active default `free` plan. |
 | **SubscriptionPrice** | A paid plan can be offered through multiple billing options, such as monthly and yearly prices. | Stores backend-owned provider price IDs, currency, minor-unit amount, billing interval, and active availability separately from plan entitlements. |
 | **Subscription** | A user may move between free and paid tiers while retaining subscription history and provider lifecycle state. | Connects a user to one plan and optionally the exact selected price. Free subscriptions have no price; paid subscriptions select a price belonging to their plan. |
@@ -27,7 +27,7 @@ We derived entities from the functional requirements by asking: *"What data must
 | Relationship | Cardinality | Meaning |
 |---|---|---|
 | User → MetricEntry | **1 : M** | A user logs many data points. An entry belongs to exactly one user. |
-| User → WearableConnection | **1 : M** | A user may link different provider types over time, but only one current row is allowed per `(user, provider)`. The MVP therefore permits at most one Health Connect connection per user. |
+| User → WearableConnection | **1 : M** | A user may link different provider types, but only one durable row is allowed per `(user, provider)`. The MVP therefore preserves one Health Connect identity per user and reactivates it after reconnection. |
 | User → Subscription | **1 : M** | A user has subscription history (trialing → active → cancelled). Typically one active at a time, but we keep history. |
 | SubscriptionPlan → Subscription | **1 : M** | A shared plan can govern many user subscriptions. Each subscription references exactly one plan. |
 | SubscriptionPlan → SubscriptionPrice | **1 : M** | A plan can offer multiple billing options. Each price belongs to exactly one plan. |
@@ -41,12 +41,12 @@ We derived entities from the functional requirements by asking: *"What data must
 
 **Current wearable-sync status**
 
-- The minimal `WearableConnection` model and authenticated list/create API now exist.
-- The implementation stores the authenticated user, provider, connection status, last sync timestamp, last error, and timestamps.
-- The initial statuses should support the UI states `connected`, `disconnected`, and `error`.
+- The minimal `WearableConnection` model and authenticated list/create, status, and disconnect APIs now exist.
+- The implementation stores the authenticated user, provider, connection status, active lifecycle state, last sync timestamp, last error, and timestamps.
+- Connection status supports `pending`, `connected`, `disconnected`, and `error`. New and reactivated registrations start as `pending` until a trusted ingestion flow confirms a successful bridge sync; the backend must not claim `connected` merely because registration succeeded.
 - The only MVP connection provider is `health_connect`. Samsung Health writes records into Health Connect and will be represented as source-app provenance on uploaded samples.
 - The seeded Pro entitlement permits one Health Connect connection; Free permits zero.
-- A database unique constraint enforces one connection row per `(user, provider)`; duplicate Health Connect registration receives a provider validation error.
+- A database unique constraint enforces one durable connection row per `(user, provider)`; duplicate active registration receives a provider validation error, while registration after disconnect reactivates the existing UUID.
 - Wearable samples should eventually normalize into `MetricEntry`; do not create a parallel long-term metric storage path.
 - Manual entries remain valid and have no source connection.
 - The backend should not store raw Samsung Health or Health Connect tokens. The MVP device-bridge model has the Android companion app read on-device data and upload normalized samples.

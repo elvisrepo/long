@@ -38,12 +38,12 @@ Current metric-usage access-control boundary:
 Current wearable-connection access-control boundary:
 - Connection collection reads and writes require JWT authentication and are scoped to `request.user`.
 - Connection status reads require JWT authentication and resolve UUIDs only inside the caller-owned queryset, so another user's connection existence and sync/error state are not disclosed.
-- The client may submit only the supported `health_connect` provider; direct `samsung_health` connection registration is rejected. The backend assigns ownership and initial connection state, and rejects client-supplied ownership, status, sync/error, ID, and timestamp fields.
-- Creation loads `wearable_connection_limit` from the authenticated user's current subscription plan and rejects requests when current usage is at the limit.
+- The client may submit only the supported `health_connect` provider; direct `samsung_health` connection registration is rejected. The backend assigns ownership, activation, and initial connection state, and rejects client-supplied ownership, activation, status, sync/error, ID, and timestamp fields.
+- Registration/reactivation loads `wearable_connection_limit` from the authenticated user's current subscription plan and rejects requests when active usage is at the limit.
 - The canonical MVP Pro limit is one Health Connect connection and the Free limit is zero.
-- Creation locks the authenticated user row inside a database transaction before counting and inserting, preventing concurrent requests from claiming the same final connection slot.
-- Duplicate-provider validation runs after that user lock, and a database unique constraint on `(user, provider)` protects non-serializer and future write paths.
-- All registered connection rows count toward the limit. Authenticated disconnect resolves the UUID only inside the caller-owned queryset, returns `404` for unowned or unknown IDs, and removes an owned row to release its slot.
+- Registration/reactivation locks the authenticated user row inside a database transaction before counting and writing, preventing concurrent requests from claiming the same final connection slot.
+- Active duplicate-provider validation runs after that user lock, and a database unique constraint on `(user, provider)` preserves one durable provider identity across disconnect/reactivation cycles.
+- Only active connection rows count toward the limit. Authenticated disconnect uses the same per-user lock, resolves only caller-owned active UUIDs, returns `404` for unowned, unknown, or inactive IDs, and marks an owned row inactive to release its slot without erasing history.
 
 Current subscription-integrity boundary:
 - Registration creates the user and active free subscription in one transaction, so neither row is persisted alone.

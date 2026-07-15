@@ -5,7 +5,7 @@
 - Use the target-state ERD separately for planned Stripe, wearable-sync, and audit tables.
 
 ## Scope
-- `User`, `MetricDefinition`, `MetricEntry`, `SubscriptionPlan`, `SubscriptionPrice`, `BillingCustomer`, `Subscription`, `CheckoutAttempt`, and `StripeWebhookEvent` are implemented domain tables.
+- `User`, `MetricDefinition`, `MetricEntry`, `WearableConnection`, `SubscriptionPlan`, `SubscriptionPrice`, `BillingCustomer`, `Subscription`, `CheckoutAttempt`, and `StripeWebhookEvent` are implemented domain tables.
 - Registration creates an explicit active free subscription, and metric limits resolve through the current subscription's plan.
 - Django framework tables such as auth groups, permissions, sessions, admin logs, and JWT token blacklist tables are intentionally omitted.
 
@@ -15,6 +15,7 @@ erDiagram
 
     USER o|--o{ METRIC_DEFINITION : "owns custom definitions"
     USER ||--o{ METRIC_ENTRY : logs
+    USER ||--o{ WEARABLE_CONNECTION : connects
     METRIC_DEFINITION ||--o{ METRIC_ENTRY : classifies
 
     USER {
@@ -53,6 +54,18 @@ erDiagram
         string external_source_id "nullable"
         json context
         datetime created_at
+    }
+
+    WEARABLE_CONNECTION {
+        uuid id PK
+        uuid user_id FK
+        string provider "health_connect"
+        string status "pending|connected|disconnected|error"
+        datetime last_synced_at "nullable"
+        string last_error
+        boolean is_active
+        datetime created_at
+        datetime updated_at
     }
 
     %% IMPLEMENTED SUBSCRIPTION AND ENTITLEMENT TABLES

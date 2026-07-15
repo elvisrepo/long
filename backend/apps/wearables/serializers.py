@@ -19,6 +19,7 @@ SERVER_MANAGED_FIELDS = frozenset(
         "status",
         "last_synced_at",
         "last_error",
+        "is_active",
         "created_at",
         "updated_at",
     }
@@ -75,6 +76,31 @@ class WearableConnectionSerializer(serializers.ModelSerializer):
                 provider=validated_data["provider"],
             )
             validate_wearable_connection_limit(locked_user)
+
+            inactive_connection = (
+                WearableConnection.objects.select_for_update()
+                .filter(
+                    user=locked_user,
+                    provider=validated_data["provider"],
+                    is_active=False,
+                )
+                .first()
+            )
+            if inactive_connection is not None:
+                inactive_connection.is_active = True
+                inactive_connection.status = (
+                    WearableConnection.Status.PENDING
+                )
+                inactive_connection.last_error = ""
+                inactive_connection.save(
+                    update_fields=(
+                        "is_active",
+                        "status",
+                        "last_error",
+                        "updated_at",
+                    )
+                )
+                return inactive_connection
 
             return WearableConnection.objects.create(
                 user=locked_user,

@@ -418,7 +418,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.android -> longevity.api "POST /api/v1/wearables/connections/ with Authorization: Bearer <access-token> and {\"provider\":\"health_connect\"}"
             longevity.api -> longevity.db "Starts an atomic transaction, locks the authenticated user row, loads the current subscription plan, and counts registered connections"
             longevity.db -> longevity.api "Returns the caller's current plan entitlement and connection usage"
-            longevity.api -> longevity.db "Creates one WearableConnection owned by the authenticated user with provider health_connect and initial status disconnected when a slot is available"
+            longevity.api -> longevity.db "Creates or reactivates one active WearableConnection owned by the authenticated user with provider health_connect and initial status pending when a slot is available"
             longevity.db -> longevity.api "Returns the stored connection state"
             longevity.api -> longevity.android "Returns 201 with the caller-owned connection, or 400 when server-managed state is supplied, the provider is already registered, or wearable_connection_limit is exhausted"
         }
@@ -427,8 +427,8 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             user -> longevity.android "Chooses to disconnect Health Connect"
             longevity.android -> longevity.api "DELETE /api/v1/wearables/connections/{id}/ with Authorization: Bearer <access-token>"
             longevity.api -> longevity.db "Looks up the connection UUID only inside the authenticated user's connections"
-            longevity.api -> longevity.db "Deletes the caller-owned connection row, releasing its wearable_connection_limit slot"
-            longevity.api -> longevity.android "Returns 204 when deleted, or 404 for an unknown, unowned, or already-deleted UUID"
+            longevity.api -> longevity.db "Marks the caller-owned connection inactive, preserving its identity/history while releasing its wearable_connection_limit slot"
+            longevity.api -> longevity.android "Returns 204 when disconnected, or 404 for an unknown, unowned, or already-inactive UUID"
         }
 
         dynamic longevity "wearable-connection-status-read" "Dynamic view of the owner-scoped Health Connect connection-status read." {

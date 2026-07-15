@@ -10,7 +10,7 @@ WEARABLE_CONNECTION_LIMIT_MESSAGE = "Wearable connection limit reached."
 
 def validate_wearable_connection_limit(user: AbstractBaseUser) -> None:
     plan = get_current_subscription_plan(user)
-    used = WearableConnection.objects.filter(user=user).count()
+    used = WearableConnection.objects.filter(user=user, is_active=True).count()
 
     if used >= plan.wearable_connection_limit:
         raise serializers.ValidationError(

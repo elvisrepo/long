@@ -57,6 +57,20 @@ def test_wearable_connections_list_is_scoped_to_authenticated_user():
     assert connections[0]["last_error"] == ""
 
 
+def test_wearable_connections_list_hides_inactive_connections():
+    client, user = authenticate_client_for("inactive-list@example.com")
+    WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+        is_active=False,
+    )
+
+    response = client.get("/api/v1/wearables/connections/")
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
 def test_wearable_connection_creation_assigns_authenticated_user():
     client, user = authenticate_client_for("pro-owner@example.com")
     pro_plan = SubscriptionPlan.objects.create(
@@ -83,7 +97,7 @@ def test_wearable_connection_creation_assigns_authenticated_user():
     connection = WearableConnection.objects.get()
     assert connection.user == user
     assert connection.provider == WearableConnection.Provider.HEALTH_CONNECT
-    assert connection.status == WearableConnection.Status.DISCONNECTED
+    assert connection.status == "pending"
 
 
 def test_wearable_connection_creation_rejects_samsung_health_as_provider():
@@ -226,7 +240,38 @@ def test_wearable_connection_creation_rejects_client_supplied_status():
     assert WearableConnection.objects.filter(user=user).exists() is False
 
 
-def test_wearable_connection_delete_removes_owned_connection():
+def test_wearable_connection_creation_rejects_client_supplied_is_active():
+    client, user = authenticate_client_for("client-active@example.com")
+    pro_plan = SubscriptionPlan.objects.create(
+        code="pro-client-active",
+        name="Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=1,
+        sync_interval_minutes=15,
+    )
+    Subscription.objects.create(
+        user=user,
+        plan=pro_plan,
+        status=Subscription.Status.ACTIVE,
+    )
+
+    response = client.post(
+        "/api/v1/wearables/connections/",
+        {
+            "provider": "health_connect",
+            "is_active": False,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "is_active": ["This field is server-managed."]
+    }
+    assert WearableConnection.objects.filter(user=user).exists() is False
+
+
+def test_wearable_connection_delete_deactivates_owned_connection():
     client, user = authenticate_client_for("disconnect-owner@example.com")
     connection = WearableConnection.objects.create(
         user=user,
@@ -239,7 +284,8 @@ def test_wearable_connection_delete_removes_owned_connection():
     )
 
     assert response.status_code == 204
-    assert WearableConnection.objects.filter(id=connection.id).exists() is False
+    connection.refresh_from_db()
+    assert connection.is_active is False
 
 
 def test_wearable_connection_delete_requires_authentication():
@@ -292,10 +338,11 @@ def test_wearable_connection_delete_is_safe_to_repeat():
 
     assert first_response.status_code == 204
     assert repeated_response.status_code == 404
-    assert WearableConnection.objects.filter(id=connection.id).exists() is False
+    connection.refresh_from_db()
+    assert connection.is_active is False
 
 
-def test_wearable_connection_delete_releases_the_plan_slot():
+def test_wearable_connection_delete_releases_slot_for_reactivation():
     client, user = authenticate_client_for("disconnect-slot@example.com")
     pro_plan = SubscriptionPlan.objects.create(
         code="pro-disconnect-slot",
@@ -312,6 +359,8 @@ def test_wearable_connection_delete_releases_the_plan_slot():
     connection = WearableConnection.objects.create(
         user=user,
         provider=WearableConnection.Provider.HEALTH_CONNECT,
+        status=WearableConnection.Status.ERROR,
+        last_error="Previous sync failed.",
     )
 
     delete_response = client.delete(
@@ -325,8 +374,12 @@ def test_wearable_connection_delete_releases_the_plan_slot():
 
     assert delete_response.status_code == 204
     assert create_response.status_code == 201
-    assert create_response.json()["id"] != str(connection.id)
+    assert create_response.json()["id"] == str(connection.id)
     assert WearableConnection.objects.filter(user=user).count() == 1
+    connection.refresh_from_db()
+    assert connection.is_active is True
+    assert connection.status == WearableConnection.Status.PENDING
+    assert connection.last_error == ""
 
 
 def test_wearable_connection_status_returns_owned_connection_state():
@@ -379,6 +432,21 @@ def test_wearable_connection_status_hides_another_users_connection():
         user=owner,
         provider=WearableConnection.Provider.HEALTH_CONNECT,
         status=WearableConnection.Status.CONNECTED,
+    )
+
+    response = client.get(
+        f"/api/v1/wearables/connections/{connection.id}/status/"
+    )
+
+    assert response.status_code == 404
+
+
+def test_wearable_connection_status_hides_inactive_connection():
+    client, user = authenticate_client_for("status-inactive@example.com")
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+        is_active=False,
     )
 
     response = client.get(

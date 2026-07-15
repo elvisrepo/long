@@ -24,6 +24,7 @@ def test_wearable_connection_stores_owner_provider_status_and_sync_state():
     assert connection.status == "connected"
     assert connection.last_synced_at is None
     assert connection.last_error == ""
+    assert connection.is_active is True
     assert connection.created_at is not None
     assert connection.updated_at is not None
 

@@ -15,6 +15,7 @@ def validate_wearable_connection_provider_available(
     if WearableConnection.objects.filter(
         user=user,
         provider=provider,
+        is_active=True,
     ).exists():
         raise serializers.ValidationError(
             {"provider": [DUPLICATE_PROVIDER_MESSAGE]}
