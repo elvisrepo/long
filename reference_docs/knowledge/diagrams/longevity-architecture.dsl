@@ -420,7 +420,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.db -> longevity.api "Returns the caller's current plan entitlement and connection usage"
             longevity.api -> longevity.db "Creates one WearableConnection owned by the authenticated user with provider health_connect and initial status disconnected when a slot is available"
             longevity.db -> longevity.api "Returns the stored connection state"
-            longevity.api -> longevity.android "Returns 201 with the caller-owned connection, or 400 when the provider is already registered or wearable_connection_limit is exhausted"
+            longevity.api -> longevity.android "Returns 201 with the caller-owned connection, or 400 when server-managed state is supplied, the provider is already registered, or wearable_connection_limit is exhausted"
         }
 
         dynamic longevity "subscription-checkout-create" "Dynamic view of the implemented Stripe Checkout creation flow from Settings." {

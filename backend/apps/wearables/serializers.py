@@ -11,6 +11,21 @@ from apps.wearables.validators import (
 )
 
 
+SERVER_MANAGED_FIELDS = frozenset(
+    {
+        "id",
+        "user",
+        "user_id",
+        "status",
+        "last_synced_at",
+        "last_error",
+        "created_at",
+        "updated_at",
+    }
+)
+SERVER_MANAGED_FIELD_MESSAGE = "This field is server-managed."
+
+
 class WearableConnectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = WearableConnection
@@ -31,6 +46,20 @@ class WearableConnectionSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        supplied_server_managed_fields = sorted(
+            SERVER_MANAGED_FIELDS.intersection(self.initial_data)
+        )
+        if supplied_server_managed_fields:
+            raise serializers.ValidationError(
+                {
+                    field: [SERVER_MANAGED_FIELD_MESSAGE]
+                    for field in supplied_server_managed_fields
+                }
+            )
+
+        return attrs
 
     def create(self, validated_data: dict[str, Any]) -> WearableConnection:
         request = self.context["request"]

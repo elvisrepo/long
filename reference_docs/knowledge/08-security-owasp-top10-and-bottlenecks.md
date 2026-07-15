@@ -37,7 +37,7 @@ Current metric-usage access-control boundary:
 
 Current wearable-connection access-control boundary:
 - Connection collection reads and writes require JWT authentication and are scoped to `request.user`.
-- The client may submit only the supported `health_connect` provider; direct `samsung_health` connection registration is rejected. The backend assigns ownership and initial connection state.
+- The client may submit only the supported `health_connect` provider; direct `samsung_health` connection registration is rejected. The backend assigns ownership and initial connection state, and rejects client-supplied ownership, status, sync/error, ID, and timestamp fields.
 - Creation loads `wearable_connection_limit` from the authenticated user's current subscription plan and rejects requests when current usage is at the limit.
 - The canonical MVP Pro limit is one Health Connect connection and the Free limit is zero.
 - Creation locks the authenticated user row inside a database transaction before counting and inserting, preventing concurrent requests from claiming the same final connection slot.

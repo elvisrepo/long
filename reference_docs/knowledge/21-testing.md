@@ -427,7 +427,7 @@ Latest local verification checkpoint:
 - `npm run test` passed after adding active custom metric usage and limit-message coverage.
 - `npm run build` passed with the active custom metric usage indicator.
 - `npm run test:e2e` passed with 6 Playwright tests against the isolated Docker-backed E2E runtime.
-- On 2026-07-14, `docker compose exec web uv run pytest -q` passed with `179` backend tests, `uv run ruff check` passed, and `uv run mypy` passed across `76` source files.
+- On 2026-07-15, `docker compose exec web uv run pytest -q` passed with `180` backend tests, `uv run ruff check` passed, and repository-wide `uv run mypy` passed across `76` source files.
 
 Frontend test code hygiene:
 - route tests may start with repeated setup such as:
@@ -459,7 +459,7 @@ MyPy gate repair completed on 2026-07-14:
 - Serializer values originating from generic `validated_data` are narrowed to their known domain type before model attributes are accessed. Serializer `create()` methods declare their model return type.
 - Login callers explicitly verify the invariant that a successful authentication result contains a non-null user before accessing it.
 - Django `TextChoices` values passed to helpers expecting plain strings are converted explicitly when Django's generated choice typing is ambiguous.
-- These fixes and the subsequent Health Connect provider/uniqueness migrations were verified with the complete backend gate: `ruff`, repository-wide `mypy`, `179` pytest tests, migration drift check, and `git diff --check`.
+- These fixes and the subsequent Health Connect provider/uniqueness migrations were verified with the complete backend gate: `ruff`, repository-wide `mypy`, `180` pytest tests, migration drift check, and `git diff --check`.
 
 ### Wearable Sync Test Focus
 
@@ -468,7 +468,7 @@ Immediate next wearable slice:
 - Model tests should prove provider/status choices, ownership, nullable `last_synced_at`, optional `last_error`, and timestamp behavior.
 - API tests should prove authentication is required, list responses are scoped to the caller, creation stores `request.user`, updates cannot mutate another user's connection, and invalid provider/status values are rejected.
 - API tests now prove that the connection collection rejects unauthenticated requests, lists only the caller's connections, assigns new connection ownership from the JWT user, rejects `samsung_health` as a direct provider, and rejects creation when the plan limit is exhausted.
-- Free-plan zero-limit and duplicate-provider behavior are covered. Server-managed-field and update-ownership cases remain on the immediate API test list.
+- Free-plan zero-limit, duplicate-provider, and client-supplied status rejection are covered. Additional server-managed-field and update-ownership cases remain on the immediate API test list.
 - Frontend tests should be added only when a Settings/Wearables UI slice consumes the connection contract.
 
 When testing Samsung-sync behavior:

@@ -192,3 +192,35 @@ def test_wearable_connection_creation_rejects_duplicate_provider():
         "provider": ["This provider is already registered."]
     }
     assert WearableConnection.objects.filter(user=user).count() == 1
+
+
+def test_wearable_connection_creation_rejects_client_supplied_status():
+    client, user = authenticate_client_for("client-status@example.com")
+
+    pro_plan = SubscriptionPlan.objects.create(
+        code="pro-client-status",
+        name="Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=1,
+        sync_interval_minutes=15,
+    )
+    Subscription.objects.create(
+        user=user,
+        plan=pro_plan,
+        status=Subscription.Status.ACTIVE,
+    )
+
+    response = client.post(
+        "/api/v1/wearables/connections/",
+        {
+            "provider": "health_connect",
+            "status": "connected",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "status": ["This field is server-managed."]
+    }
+    assert WearableConnection.objects.filter(user=user).exists() is False
