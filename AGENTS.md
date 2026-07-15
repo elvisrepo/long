@@ -62,6 +62,7 @@ Load only the parts you need. You can load multiple files when useful. Be specif
 - `reference_docs/knowledge/38-stripe-testing-and-load-testing.md` when you need Stripe sandbox boundaries, mocked versus integration testing, load-test design, API rate-limit handling, or Stripe credential policy.
 - `reference_docs/knowledge/39-concurrency-locking-and-idempotency.md` when you need race condition, pessimistic row-locking, optimistic stale-check, Stripe idempotency, or webhook idempotency guidance.
 - `reference_docs/knowledge/40-system-design-roadmap.md` when you need the current system design recap, completed slices, major gaps, MVP target, online deployment target, or final architecture direction.
+- `reference_docs/knowledge/41-wearable-ingestion-android-and-async-roadmap.md` when you need the detailed `SyncRun` and ingestion sequence, Android companion-app timing, physical-device testing path, or the boundary between Android WorkManager and Celery/Redis.
 - `reference_docs/knowledge/diagrams/longevity-architecture.dsl` when you need the Structurizr DSL source of truth for C4 architecture views.
 - `reference_docs/knowledge/diagrams/current-plus-subscription-plan-erd.md` when you need the implemented domain ERD plus the next planned subscription/entitlement tables.
 - `reference_docs/knowledge/diagrams/target-state-erd.md` when you need the intended completed-product ERD including billing, Stripe, wearable sync, audit, and long-term subscription state.

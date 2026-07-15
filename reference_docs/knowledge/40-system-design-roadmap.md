@@ -171,6 +171,7 @@ Recommended order:
 Related doc:
 
 - `reference_docs/knowledge/27-integration-modes.md`
+- `reference_docs/knowledge/41-wearable-ingestion-android-and-async-roadmap.md`
 
 ## 5. Online deployment design
 
@@ -259,9 +260,9 @@ Related docs:
 Next real system-design step:
 
 ```text
-WearableConnection model + API
+SyncRun upload receipt + authenticated synchronous ingestion contract
 ```
 
-This should come before more analytics polish, more Stripe work, or production deployment.
+This should come before more analytics polish, Celery-based ingestion, or production deployment.
 
-Reason: wearable sync is the missing bridge from manual tracker to longevity product. Once the connection model and ingestion path exist, the rest of the final architecture starts becoming real.
+Reason: the connection lifecycle now exists. The next missing bridge is turning an idempotent Android upload into normalized `MetricEntry` data. See `reference_docs/knowledge/41-wearable-ingestion-android-and-async-roadmap.md` for the detailed sequence, physical-device test path, and the trigger for introducing Celery/Redis.
