@@ -283,10 +283,11 @@ Subscription transition contract:
 Current implementation status:
 - The `WearableConnection` model exists and `GET /api/v1/wearables/connections/` returns the authenticated caller's connections.
 - `POST /api/v1/wearables/connections/` accepts only `provider=health_connect`, assigns ownership from the authenticated caller, and enforces the current plan's `wearable_connection_limit`. Client-supplied ownership, status, sync/error, ID, or timestamp fields are rejected with `400` rather than silently ignored.
-- Free users with a limit of zero and users who have consumed every connection slot receive `400`. Every registered connection row consumes a slot until the future disconnect flow removes it.
+- Free users with a limit of zero and users who have consumed every connection slot receive `400`. Every registered connection row consumes a slot until the disconnect endpoint removes it.
 - The canonical MVP Pro plan permits one Health Connect connection. `samsung_health` is rejected as a connection provider because Samsung-originated records reach the app through Health Connect.
 - A user cannot register the same provider twice. Duplicate `health_connect` creation returns `400` with `provider: ["This provider is already registered."]`, and the database also enforces uniqueness on `(user, provider)`.
-- Update and disconnect behavior remain the next connection-foundation slices.
+- `DELETE /api/v1/wearables/connections/{id}/` removes only a connection owned by the authenticated caller and immediately releases its plan slot. A successful delete returns `204`; another user's, unknown, or already-deleted UUID returns `404` without changing data.
+- The owner-scoped status read remains the next connection-foundation slice. Connection-state mutations will belong to trusted ingestion/resync services rather than a generic client `PATCH` endpoint.
 - Do not start with full sample ingestion, resync, Celery jobs, or Android integration until the connection contract exists and is tested.
 
 | Method | Endpoint | Description | Notes |
@@ -295,12 +296,13 @@ Current implementation status:
 | POST | `/api/v1/wearables/connections/` | Register a wearable connection | Accepts only `provider=health_connect`; ownership and initial status are server-managed; current-plan connection limit enforced |
 | GET | `/api/v1/wearables/connections/{id}/status/` | Fetch sync state for one connection | Includes `status`, `last_synced_at`, and last error details |
 | POST | `/api/v1/wearables/uploads/` | Upload a normalized wearable metric batch | Idempotent via `upload_id`; called by the Android companion app |
-| DELETE | `/api/v1/wearables/connections/{id}/` | Disconnect provider | Idempotent |
+| DELETE | `/api/v1/wearables/connections/{id}/` | Disconnect provider | Implemented; JWT required; caller-owned rows return `204` and are removed; unknown, unowned, or already-deleted rows return `404`; repeated calls remain state-idempotent |
 | POST | `/api/v1/wearables/connections/{id}/resync/` | Request replay / resync from the client | Returns 202 Accepted — backend records replay intent and the Android client performs the upload |
 
 Immediate connection-foundation contract:
 - All connection endpoints require JWT authentication.
 - The backend scopes all connection reads/writes to `request.user`; another user's connection must not be visible or mutable.
+- Disconnect deletes the caller-owned connection row and releases its entitlement slot; ownership filtering makes another user's UUID indistinguishable from an unknown UUID.
 - The first implementation should expose enough data for Settings or a future Wearables page to show provider, status, `last_synced_at`, and `last_error`.
 - Suggested first response shape:
 

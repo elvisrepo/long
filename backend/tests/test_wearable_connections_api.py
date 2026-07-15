@@ -224,3 +224,106 @@ def test_wearable_connection_creation_rejects_client_supplied_status():
         "status": ["This field is server-managed."]
     }
     assert WearableConnection.objects.filter(user=user).exists() is False
+
+
+def test_wearable_connection_delete_removes_owned_connection():
+    client, user = authenticate_client_for("disconnect-owner@example.com")
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+        status=WearableConnection.Status.CONNECTED,
+    )
+
+    response = client.delete(
+        f"/api/v1/wearables/connections/{connection.id}/"
+    )
+
+    assert response.status_code == 204
+    assert WearableConnection.objects.filter(id=connection.id).exists() is False
+
+
+def test_wearable_connection_delete_requires_authentication():
+    user = User.objects.create_user(
+        email="disconnect-auth@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+
+    response = APIClient().delete(
+        f"/api/v1/wearables/connections/{connection.id}/"
+    )
+
+    assert response.status_code == 401
+    assert WearableConnection.objects.filter(id=connection.id).exists() is True
+
+
+def test_wearable_connection_delete_cannot_remove_another_users_connection():
+    client, _ = authenticate_client_for("disconnect-attacker@example.com")
+    owner = User.objects.create_user(
+        email="disconnect-target@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=owner,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+
+    response = client.delete(
+        f"/api/v1/wearables/connections/{connection.id}/"
+    )
+
+    assert response.status_code == 404
+    assert WearableConnection.objects.filter(id=connection.id).exists() is True
+
+
+def test_wearable_connection_delete_is_safe_to_repeat():
+    client, user = authenticate_client_for("disconnect-repeat@example.com")
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+    url = f"/api/v1/wearables/connections/{connection.id}/"
+
+    first_response = client.delete(url)
+    repeated_response = client.delete(url)
+
+    assert first_response.status_code == 204
+    assert repeated_response.status_code == 404
+    assert WearableConnection.objects.filter(id=connection.id).exists() is False
+
+
+def test_wearable_connection_delete_releases_the_plan_slot():
+    client, user = authenticate_client_for("disconnect-slot@example.com")
+    pro_plan = SubscriptionPlan.objects.create(
+        code="pro-disconnect-slot",
+        name="Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=1,
+        sync_interval_minutes=15,
+    )
+    Subscription.objects.create(
+        user=user,
+        plan=pro_plan,
+        status=Subscription.Status.ACTIVE,
+    )
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+
+    delete_response = client.delete(
+        f"/api/v1/wearables/connections/{connection.id}/"
+    )
+    create_response = client.post(
+        "/api/v1/wearables/connections/",
+        {"provider": "health_connect"},
+        format="json",
+    )
+
+    assert delete_response.status_code == 204
+    assert create_response.status_code == 201
+    assert create_response.json()["id"] != str(connection.id)
+    assert WearableConnection.objects.filter(user=user).count() == 1

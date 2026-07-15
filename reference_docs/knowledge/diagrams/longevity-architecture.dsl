@@ -423,6 +423,14 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.api -> longevity.android "Returns 201 with the caller-owned connection, or 400 when server-managed state is supplied, the provider is already registered, or wearable_connection_limit is exhausted"
         }
 
+        dynamic longevity "wearable-connection-disconnect" "Dynamic view of owner-scoped Health Connect disconnection and entitlement-slot release." {
+            user -> longevity.android "Chooses to disconnect Health Connect"
+            longevity.android -> longevity.api "DELETE /api/v1/wearables/connections/{id}/ with Authorization: Bearer <access-token>"
+            longevity.api -> longevity.db "Looks up the connection UUID only inside the authenticated user's connections"
+            longevity.api -> longevity.db "Deletes the caller-owned connection row, releasing its wearable_connection_limit slot"
+            longevity.api -> longevity.android "Returns 204 when deleted, or 404 for an unknown, unowned, or already-deleted UUID"
+        }
+
         dynamic longevity "subscription-checkout-create" "Dynamic view of the implemented Stripe Checkout creation flow from Settings." {
             user -> longevity.webapp "Opens /settings and reviews Current Plan plus Available Plans"
             longevity.webapp -> longevity.api "GET /api/v1/subscriptions/current/ with Authorization: Bearer <access-token>"

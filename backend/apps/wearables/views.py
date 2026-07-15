@@ -15,3 +15,11 @@ class WearableConnectionListView(generics.ListCreateAPIView):
             "created_at",
             "id",
         )
+
+
+class WearableConnectionDetailView(generics.DestroyAPIView):
+    serializer_class = WearableConnectionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self) -> QuerySet[WearableConnection]:
+        return WearableConnection.objects.filter(user=self.request.user)
