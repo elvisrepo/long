@@ -80,3 +80,16 @@ class WearableConnectionSerializer(serializers.ModelSerializer):
                 user=locked_user,
                 **validated_data,
             )
+
+
+class WearableConnectionStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WearableConnection
+        fields = (
+            "id",
+            "provider",
+            "status",
+            "last_synced_at",
+            "last_error",
+        )
+        read_only_fields = fields

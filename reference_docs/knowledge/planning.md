@@ -192,7 +192,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 |---|---|---|---|
 | GET | `/api/v1/wearables/connections/` | List linked sync connections | MVP returns Samsung/Android device-bridge connections |
 | POST | `/api/v1/wearables/connections/` | Register or refresh a wearable connection | Body includes `provider`, `connection_mode`, `platform`, and client metadata |
-| GET | `/api/v1/wearables/connections/{id}/status/` | Fetch sync state for one connection | Includes `status`, `last_synced_at`, and last error details |
+| GET | `/api/v1/wearables/connections/{id}/status/` | Fetch sync state for one connection | Implemented; JWT required and owner-scoped; includes provider, status, last sync timestamp, and last error; unowned or unknown UUIDs return `404` |
 | POST | `/api/v1/wearables/uploads/` | Upload a normalized wearable metric batch | Idempotent via `upload_id`; called by the Android companion app |
 | DELETE | `/api/v1/wearables/connections/{id}/` | Disconnect provider | Implemented; JWT required; removes only a caller-owned row and releases its plan slot; returns `204` when deleted and `404` for unknown, unowned, or already-deleted rows |
 | POST | `/api/v1/wearables/connections/{id}/resync/` | Request replay / resync from the client | Returns 202 Accepted — backend records replay intent and the Android client performs the upload |

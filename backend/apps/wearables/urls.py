@@ -3,6 +3,7 @@ from django.urls import path
 from apps.wearables.views import (
     WearableConnectionDetailView,
     WearableConnectionListView,
+    WearableConnectionStatusView,
 )
 
 
@@ -16,5 +17,10 @@ urlpatterns = [
         "connections/<uuid:pk>/",
         WearableConnectionDetailView.as_view(),
         name="wearable-connection-detail",
+    ),
+    path(
+        "connections/<uuid:pk>/status/",
+        WearableConnectionStatusView.as_view(),
+        name="wearable-connection-status",
     ),
 ]

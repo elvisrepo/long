@@ -327,3 +327,62 @@ def test_wearable_connection_delete_releases_the_plan_slot():
     assert create_response.status_code == 201
     assert create_response.json()["id"] != str(connection.id)
     assert WearableConnection.objects.filter(user=user).count() == 1
+
+
+def test_wearable_connection_status_returns_owned_connection_state():
+    client, user = authenticate_client_for("status-owner@example.com")
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+        status=WearableConnection.Status.ERROR,
+        last_error="Health Connect permission was revoked.",
+    )
+
+    response = client.get(
+        f"/api/v1/wearables/connections/{connection.id}/status/"
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": str(connection.id),
+        "provider": "health_connect",
+        "status": "error",
+        "last_synced_at": None,
+        "last_error": "Health Connect permission was revoked.",
+    }
+
+
+def test_wearable_connection_status_requires_authentication():
+    user = User.objects.create_user(
+        email="status-auth@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+
+    response = APIClient().get(
+        f"/api/v1/wearables/connections/{connection.id}/status/"
+    )
+
+    assert response.status_code == 401
+
+
+def test_wearable_connection_status_hides_another_users_connection():
+    client, _ = authenticate_client_for("status-attacker@example.com")
+    owner = User.objects.create_user(
+        email="status-target@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=owner,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+        status=WearableConnection.Status.CONNECTED,
+    )
+
+    response = client.get(
+        f"/api/v1/wearables/connections/{connection.id}/status/"
+    )
+
+    assert response.status_code == 404

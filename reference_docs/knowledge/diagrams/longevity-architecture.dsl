@@ -431,6 +431,14 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.api -> longevity.android "Returns 204 when deleted, or 404 for an unknown, unowned, or already-deleted UUID"
         }
 
+        dynamic longevity "wearable-connection-status-read" "Dynamic view of the owner-scoped Health Connect connection-status read." {
+            user -> longevity.android "Views the current Health Connect sync state"
+            longevity.android -> longevity.api "GET /api/v1/wearables/connections/{id}/status/ with Authorization: Bearer <access-token>"
+            longevity.api -> longevity.db "Looks up the connection UUID only inside the authenticated user's connections"
+            longevity.db -> longevity.api "Returns provider, status, last_synced_at, and last_error when owned"
+            longevity.api -> longevity.android "Returns 200 with connection state, or 404 for an unknown or unowned UUID"
+        }
+
         dynamic longevity "subscription-checkout-create" "Dynamic view of the implemented Stripe Checkout creation flow from Settings." {
             user -> longevity.webapp "Opens /settings and reviews Current Plan plus Available Plans"
             longevity.webapp -> longevity.api "GET /api/v1/subscriptions/current/ with Authorization: Bearer <access-token>"
