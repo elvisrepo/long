@@ -23,8 +23,8 @@
 | POST | `/api/auth/mobile/login/` | Mobile login | Returns access + refresh tokens in JSON |
 | POST | `/api/auth/mobile/refresh/` | Mobile refresh | Refresh token supplied explicitly in request body |
 | POST | `/api/auth/mobile/logout/` | Mobile logout | Refresh token supplied explicitly in request body |
-| POST | `/api/v1/auth/password/reset/` | Password reset email | Planned, rate limited: 3/hour |
-| POST | `/api/v1/auth/password/confirm/` | Confirm password reset | Planned |
+| POST | `/api/auth/password/reset/` | Password reset email | Planned, rate limited: 3/hour |
+| POST | `/api/auth/password/confirm/` | Confirm password reset | Planned |
 
 #### Testing (E2E runtime only)
 | Method | Endpoint | Description | Notes |

@@ -107,12 +107,16 @@ We derived entities from the functional requirements by asking: *"What data must
 #### Auth (public — no JWT required)
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
-| POST | `/api/v1/auth/register/` | User registration | Returns 201 + user object |
-| POST | `/api/v1/auth/login/` | JWT token pair | Returns access + refresh tokens |
-| POST | `/api/v1/auth/refresh/` | Refresh access token | Idempotent — same refresh token gives same access token |
-| POST | `/api/v1/auth/logout/` | Blacklist refresh token | |
-| POST | `/api/v1/auth/password/reset/` | Password reset email | Rate limited: 3/hour |
-| POST | `/api/v1/auth/password/confirm/` | Confirm password reset | |
+| POST | `/api/auth/register/` | User registration | Returns `201`; creates the user and active Free subscription atomically |
+| GET | `/api/auth/csrf/` | Web CSRF bootstrap | Issues the CSRF cookie used by cookie-authenticated refresh/logout requests |
+| POST | `/api/auth/web/login/` | Web login | Returns access token JSON and stores refresh token in an `HttpOnly` cookie |
+| POST | `/api/auth/web/refresh/` | Web refresh | Cookie-only and CSRF-protected |
+| POST | `/api/auth/web/logout/` | Web logout | Cookie-only, CSRF-protected, and blacklists the refresh token |
+| POST | `/api/auth/mobile/login/` | Mobile login | Returns access and refresh tokens in JSON |
+| POST | `/api/auth/mobile/refresh/` | Mobile refresh | Accepts refresh token explicitly in request JSON |
+| POST | `/api/auth/mobile/logout/` | Mobile logout | Accepts and blacklists the refresh token supplied in request JSON |
+| POST | `/api/auth/password/reset/` | Password reset email | Planned; rate limited |
+| POST | `/api/auth/password/confirm/` | Confirm password reset | Planned |
 
 #### User & Profile (JWT required)
 | Method | Endpoint | Description | Notes |

@@ -439,6 +439,34 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.api -> longevity.android "Returns 200 with connection state, or 404 for an unknown or unowned UUID"
         }
 
+        dynamic longevity "free-to-pro-health-connect" "End-to-end dynamic view of account registration, Stripe-backed Free-to-Pro transition, and pending Health Connect registration." {
+            user -> longevity.webapp "Registers an account"
+            longevity.webapp -> longevity.api "POST /api/auth/register/"
+            longevity.api -> longevity.db "Atomically creates the User and active Free Subscription"
+            longevity.api -> longevity.webapp "Returns 201 with the registered email"
+            user -> longevity.webapp "Signs in"
+            longevity.webapp -> longevity.api "POST /api/auth/web/login/"
+            longevity.api -> longevity.db "Authenticates the user"
+            longevity.api -> longevity.webapp "Returns an access token and sets the refresh token in an HttpOnly cookie"
+            user -> longevity.webapp "Selects the Pro monthly price in Settings"
+            longevity.webapp -> longevity.api "POST /api/v1/subscriptions/checkout/ with the internal Pro monthly SubscriptionPrice UUID"
+            longevity.api -> longevity.db "Creates CheckoutAttempt(pending, expected_subscription=current Free subscription)"
+            longevity.api -> stripe "Creates a hosted Checkout Session with server-owned Stripe price and attempt idempotency key"
+            stripe -> longevity.api "Returns cs_test session ID and hosted Checkout URL"
+            longevity.api -> longevity.db "Marks CheckoutAttempt completed and stores the Stripe session ID; Free remains current"
+            longevity.api -> longevity.webapp "Returns 201 with the hosted Checkout URL"
+            longevity.webapp -> stripe "Redirects the browser to hosted Checkout"
+            user -> stripe "Completes the Pro monthly payment"
+            stripe -> longevity.api "POSTs a signed checkout.session.completed webhook"
+            longevity.api -> longevity.db "Records the unique Stripe event, cancels the Free subscription into history, creates the active Pro subscription and BillingCustomer, and confirms the attempt"
+            stripe -> longevity.api "POSTs a signed customer.subscription.updated webhook"
+            longevity.api -> longevity.db "Records the unique Stripe event and refreshes the Pro price, billing-period dates, and cancellation state"
+            user -> longevity.android "Chooses Connect Health Connect"
+            longevity.android -> longevity.api "POST /api/v1/wearables/connections/ with provider=health_connect and JWT"
+            longevity.api -> longevity.db "Locks the user, loads active Pro entitlement, counts active connections, and creates WearableConnection(status=pending, is_active=true)"
+            longevity.api -> longevity.android "Returns 201 with the pending connection; no MetricEntry exists until ingestion succeeds"
+        }
+
         dynamic longevity "subscription-checkout-create" "Dynamic view of the implemented Stripe Checkout creation flow from Settings." {
             user -> longevity.webapp "Opens /settings and reviews Current Plan plus Available Plans"
             longevity.webapp -> longevity.api "GET /api/v1/subscriptions/current/ with Authorization: Bearer <access-token>"

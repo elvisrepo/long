@@ -581,7 +581,7 @@ function AuthScreen() {
         <div style={{ textAlign: "center", marginTop: 20, fontSize: 11, color: C.muted, fontFamily: "'DM Mono', monospace" }}>
           Rate limited: 5 attempts / min
         </div>
-        <div className="annotation" style={{ marginTop: 12 }}>POST /api/v1/auth/login/ → JWT access + refresh</div>
+        <div className="annotation" style={{ marginTop: 12 }}>POST /api/auth/web/login/ → access JSON + HttpOnly refresh cookie</div>
       </div>
     </div>
   );

@@ -51,6 +51,93 @@ sequenceDiagram
     API-->>U: Analytics JSON
 ```
 
+## Free to Pro to Health Connect Data-State Timeline
+
+Use this timeline when reasoning about which durable rows change as a newly registered Free user purchases Pro monthly and then registers Health Connect.
+
+Example identifiers:
+
+```text
+U1         = user UUID
+PLAN_FREE  = Free SubscriptionPlan UUID
+PLAN_PRO   = Pro SubscriptionPlan UUID
+PRICE_PRO  = Pro monthly SubscriptionPrice UUID
+SUB_FREE   = original Free Subscription UUID
+SUB_PRO    = replacement Pro Subscription UUID
+ATTEMPT_1  = CheckoutAttempt UUID
+CONN_1     = WearableConnection UUID
+```
+
+| Step | Event | Rows inserted | Rows updated | Resulting state |
+|---:|---|---|---|---|
+| 0 | Product configuration exists | `SubscriptionPlan(free)`, `SubscriptionPlan(pro)`, and active Pro monthly/yearly `SubscriptionPrice` rows | — | Free permits zero wearable connections; Pro permits one Health Connect connection |
+| 1 | User registers | `User(U1)` and `Subscription(SUB_FREE, plan=free, status=active, price=NULL)` | — | `SUB_FREE` is the user's only current subscription |
+| 2 | Django creates a Stripe Checkout Session | `CheckoutAttempt(ATTEMPT_1, price=PRICE_PRO, expected_subscription=SUB_FREE, status=pending)` | `ATTEMPT_1` becomes `completed` and stores `cs_test_...` after Stripe returns a hosted URL | Free remains active; no entitlement changes based on the browser redirect |
+| 3 | Verified `checkout.session.completed` arrives | `StripeWebhookEvent(evt_checkout_...)`, `BillingCustomer(U1, cus_test_...)`, and `Subscription(SUB_PRO, plan=pro, price=PRICE_PRO, status=active, provider_subscription_id=sub_test_...)` | `SUB_FREE` becomes `cancelled`; `ATTEMPT_1` becomes `confirmed` | Pro becomes the only current subscription; Free remains as history |
+| 4 | Verified `customer.subscription.updated` arrives | `StripeWebhookEvent(evt_subscription_...)` | `SUB_PRO` receives recognized price/plan data, current-period dates, and normalized cancellation state | Local billing dates and price match Stripe |
+| 5 | User registers Health Connect | `WearableConnection(CONN_1, user=U1, provider=health_connect, status=pending, is_active=true)` | — | Active wearable usage becomes `1 / 1`; registration does not yet claim a successful sync |
+| 6 | First normalized upload — planned | Future `SyncRun(upload_id=...)` and wearable-sourced `MetricEntry` rows | `CONN_1` becomes `connected` and receives `last_synced_at` after successful ingestion | Retried upload IDs and source record IDs can be deduplicated |
+
+Important final-state properties:
+
+- `Subscription` contains two rows: historical cancelled Free and current active Pro.
+- `BillingCustomer` is the authoritative local mapping from `U1` to Stripe `cus_test_...`.
+- `StripeWebhookEvent` is the provider-event idempotency ledger.
+- `WearableConnection.status=pending` means registration succeeded but no trusted ingestion has proven the bridge works yet.
+- Connecting Health Connect alone creates no `MetricEntry` rows.
+- Step 6 describes the intended ingestion slice; `SyncRun` and automatic wearable ingestion are not implemented yet.
+
+## Free to Pro to Health Connect Sequence
+
+The sequence shows runtime ordering; the timeline above remains the clearer source for row-level state changes.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Web as React Web App
+    participant API as Django API
+    participant Stripe
+    participant DB as PostgreSQL / TimescaleDB
+    participant Android as Android Companion App
+
+    User->>Web: Register account
+    Web->>API: POST /api/auth/register/
+    API->>DB: INSERT User(U1) + active Free Subscription(SUB_FREE)
+    API-->>Web: 201 with registered email
+    User->>Web: Sign in
+    Web->>API: POST /api/auth/web/login/
+    API->>DB: Authenticate U1
+    API-->>Web: 200 access token + HttpOnly refresh cookie
+
+    User->>Web: Select Pro monthly
+    Web->>API: POST /api/v1/subscriptions/checkout/ with price_id=PRICE_PRO
+    API->>DB: INSERT CheckoutAttempt(pending, expected_subscription=SUB_FREE)
+    API->>Stripe: Create Checkout Session with server-owned price and attempt idempotency key
+    Stripe-->>API: cs_test_... + hosted Checkout URL
+    API->>DB: UPDATE CheckoutAttempt status=completed, session=cs_test_...
+    API-->>Web: 201 with hosted URL
+    Web->>Stripe: Redirect browser
+    User->>Stripe: Complete hosted payment
+
+    Stripe->>API: Signed checkout.session.completed webhook
+    API->>DB: INSERT unique StripeWebhookEvent
+    API->>DB: Cancel SUB_FREE, insert active SUB_PRO and BillingCustomer, confirm attempt
+    API-->>Stripe: 200 acknowledgement
+
+    Stripe->>API: Signed customer.subscription.updated webhook
+    API->>DB: INSERT unique StripeWebhookEvent
+    API->>DB: UPDATE SUB_PRO price, period dates, and cancellation state
+    API-->>Stripe: 200 acknowledgement
+
+    User->>Android: Choose Connect Health Connect
+    Android->>API: POST /api/v1/wearables/connections/ with provider=health_connect
+    API->>DB: Lock U1, load active Pro plan, count active connections
+    API->>DB: INSERT active WearableConnection(CONN_1, status=pending)
+    API-->>Android: 201 pending connection
+
+    Note over Android,DB: No MetricEntry exists until the future authenticated ingestion flow succeeds.
+```
+
 ## Metric Definition Include-Inactive Read Flow
 
 Use this flow when reasoning about the `/metrics` catalog and the archived custom metrics UI.
