@@ -113,12 +113,12 @@ def test_wearable_connection_creation_rejects_samsung_health_as_provider():
 
 
 def test_wearable_connection_creation_rejects_reached_plan_limit():
-    client, user = authenticate_client_for("limited-pro@example.com")
+    client, user = authenticate_client_for("zero-limit@example.com")
     limited_plan = SubscriptionPlan.objects.create(
-        code="limited-pro",
-        name="Limited Pro",
+        code="zero-wearable-limit",
+        name="Zero Wearable Limit",
         active_custom_metric_limit=10,
-        wearable_connection_limit=1,
+        wearable_connection_limit=0,
         sync_interval_minutes=15,
     )
     Subscription.objects.create(
@@ -126,12 +126,6 @@ def test_wearable_connection_creation_rejects_reached_plan_limit():
         plan=limited_plan,
         status=Subscription.Status.ACTIVE,
     )
-    WearableConnection.objects.create(
-        user=user,
-        provider=WearableConnection.Provider.HEALTH_CONNECT,
-        status=WearableConnection.Status.CONNECTED,
-    )
-
     response = client.post(
         "/api/v1/wearables/connections/",
         {"provider": "health_connect"},
@@ -142,7 +136,7 @@ def test_wearable_connection_creation_rejects_reached_plan_limit():
     assert response.json() == {
         "non_field_errors": ["Wearable connection limit reached."]
     }
-    assert WearableConnection.objects.filter(user=user).count() == 1
+    assert WearableConnection.objects.filter(user=user).exists() is False
 
 
 def test_free_plan_cannot_create_wearable_connection():
@@ -165,3 +159,36 @@ def test_free_plan_cannot_create_wearable_connection():
         "non_field_errors": ["Wearable connection limit reached."]
     }
     assert WearableConnection.objects.filter(user=user).exists() is False
+
+
+def test_wearable_connection_creation_rejects_duplicate_provider():
+    client, user = authenticate_client_for("duplicate-provider@example.com")
+    multi_connection_plan = SubscriptionPlan.objects.create(
+        code="multi-connection-test",
+        name="Multi Connection Test",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=2,
+        sync_interval_minutes=15,
+    )
+    Subscription.objects.create(
+        user=user,
+        plan=multi_connection_plan,
+        status=Subscription.Status.ACTIVE,
+    )
+    WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+        status=WearableConnection.Status.CONNECTED,
+    )
+
+    response = client.post(
+        "/api/v1/wearables/connections/",
+        {"provider": "health_connect"},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "provider": ["This provider is already registered."]
+    }
+    assert WearableConnection.objects.filter(user=user).count() == 1

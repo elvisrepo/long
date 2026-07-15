@@ -41,6 +41,7 @@ Current wearable-connection access-control boundary:
 - Creation loads `wearable_connection_limit` from the authenticated user's current subscription plan and rejects requests when current usage is at the limit.
 - The canonical MVP Pro limit is one Health Connect connection and the Free limit is zero.
 - Creation locks the authenticated user row inside a database transaction before counting and inserting, preventing concurrent requests from claiming the same final connection slot.
+- Duplicate-provider validation runs after that user lock, and a database unique constraint on `(user, provider)` protects non-serializer and future write paths.
 - All registered connection rows count toward the limit. The future authenticated disconnect flow must remove the caller-owned row to release a slot.
 
 Current subscription-integrity boundary:

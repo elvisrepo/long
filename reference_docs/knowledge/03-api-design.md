@@ -285,6 +285,7 @@ Current implementation status:
 - `POST /api/v1/wearables/connections/` accepts only `provider=health_connect`, assigns ownership from the authenticated caller, and enforces the current plan's `wearable_connection_limit`; status and sync/error fields remain server-managed.
 - Free users with a limit of zero and users who have consumed every connection slot receive `400`. Every registered connection row consumes a slot until the future disconnect flow removes it.
 - The canonical MVP Pro plan permits one Health Connect connection. `samsung_health` is rejected as a connection provider because Samsung-originated records reach the app through Health Connect.
+- A user cannot register the same provider twice. Duplicate `health_connect` creation returns `400` with `provider: ["This provider is already registered."]`, and the database also enforces uniqueness on `(user, provider)`.
 - Update and disconnect behavior remain the next connection-foundation slices.
 - Do not start with full sample ingestion, resync, Celery jobs, or Android integration until the connection contract exists and is tested.
 

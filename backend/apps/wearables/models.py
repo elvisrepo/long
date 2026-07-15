@@ -38,6 +38,12 @@ class WearableConnection(models.Model):
                 name="wear_conn_user_provider_status",
             ),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "provider"],
+                name="wear_conn_unique_user_provider",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.user_id}:{self.provider}:{self.status}"

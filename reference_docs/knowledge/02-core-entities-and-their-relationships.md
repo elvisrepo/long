@@ -27,7 +27,7 @@ We derived entities from the functional requirements by asking: *"What data must
 | Relationship | Cardinality | Meaning |
 |---|---|---|
 | User → MetricEntry | **1 : M** | A user logs many data points. An entry belongs to exactly one user. |
-| User → WearableConnection | **1 : M** | A user links multiple sync sources over time. Each connection belongs to one user. |
+| User → WearableConnection | **1 : M** | A user may link different provider types over time, but only one current row is allowed per `(user, provider)`. The MVP therefore permits at most one Health Connect connection per user. |
 | User → Subscription | **1 : M** | A user has subscription history (trialing → active → cancelled). Typically one active at a time, but we keep history. |
 | SubscriptionPlan → Subscription | **1 : M** | A shared plan can govern many user subscriptions. Each subscription references exactly one plan. |
 | SubscriptionPlan → SubscriptionPrice | **1 : M** | A plan can offer multiple billing options. Each price belongs to exactly one plan. |
@@ -46,6 +46,7 @@ We derived entities from the functional requirements by asking: *"What data must
 - The initial statuses should support the UI states `connected`, `disconnected`, and `error`.
 - The only MVP connection provider is `health_connect`. Samsung Health writes records into Health Connect and will be represented as source-app provenance on uploaded samples.
 - The seeded Pro entitlement permits one Health Connect connection; Free permits zero.
+- A database unique constraint enforces one connection row per `(user, provider)`; duplicate Health Connect registration receives a provider validation error.
 - Wearable samples should eventually normalize into `MetricEntry`; do not create a parallel long-term metric storage path.
 - Manual entries remain valid and have no source connection.
 - The backend should not store raw Samsung Health or Health Connect tokens. The MVP device-bridge model has the Android companion app read on-device data and upload normalized samples.

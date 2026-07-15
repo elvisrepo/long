@@ -6,6 +6,9 @@ from rest_framework import serializers
 
 from apps.wearables.limits import validate_wearable_connection_limit
 from apps.wearables.models import WearableConnection
+from apps.wearables.validators import (
+    validate_wearable_connection_provider_available,
+)
 
 
 class WearableConnectionSerializer(serializers.ModelSerializer):
@@ -37,6 +40,10 @@ class WearableConnectionSerializer(serializers.ModelSerializer):
                 get_user_model()
                 .objects.select_for_update()
                 .get(pk=request.user.pk)
+            )
+            validate_wearable_connection_provider_available(
+                locked_user,
+                provider=validated_data["provider"],
             )
             validate_wearable_connection_limit(locked_user)
 
