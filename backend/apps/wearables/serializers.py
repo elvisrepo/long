@@ -5,7 +5,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from apps.wearables.limits import validate_wearable_connection_limit
-from apps.wearables.models import WearableConnection
+from apps.wearables.models import SyncRun, WearableConnection
 from apps.wearables.validators import (
     validate_wearable_connection_provider_available,
 )
@@ -117,5 +117,32 @@ class WearableConnectionStatusSerializer(serializers.ModelSerializer):
             "status",
             "last_synced_at",
             "last_error",
+        )
+        read_only_fields = fields
+
+
+class WearableUploadSerializer(serializers.Serializer):
+    connection_id = serializers.UUIDField()
+    upload_id = serializers.UUIDField()
+
+
+class SyncRunSerializer(serializers.ModelSerializer):
+    connection_id = serializers.UUIDField(
+        source="wearable_connection_id",
+        read_only=True,
+    )
+
+    class Meta:
+        model = SyncRun
+        fields = (
+            "id",
+            "connection_id",
+            "upload_id",
+            "status",
+            "received_at",
+            "processing_started_at",
+            "finished_at",
+            "entries_imported",
+            "entries_skipped",
         )
         read_only_fields = fields

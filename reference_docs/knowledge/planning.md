@@ -194,16 +194,16 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 #### Samsung / Wearables (R2 internal spike, R3 MVP, JWT required)
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
-| GET | `/api/v1/wearables/connections/` | List linked sync connections | MVP returns Samsung/Android device-bridge connections |
-| POST | `/api/v1/wearables/connections/` | Register or refresh a wearable connection | Body includes `provider`, `connection_mode`, `platform`, and client metadata |
+| GET | `/api/v1/wearables/connections/` | List linked sync connections | Implemented; JWT required; returns only active connections owned by the caller |
+| POST | `/api/v1/wearables/connections/` | Register or reactivate a wearable connection | Implemented; accepts only `provider=health_connect`; ownership, activation, and status are server-managed; enforces the current plan limit |
 | GET | `/api/v1/wearables/connections/{id}/status/` | Fetch sync state for one connection | Implemented; JWT required and owner-scoped; includes provider, status, last sync timestamp, and last error; unowned or unknown UUIDs return `404` |
-| POST | `/api/v1/wearables/uploads/` | Upload a normalized wearable metric batch | Idempotent via `upload_id`; called by the Android companion app |
+| POST | `/api/v1/wearables/uploads/` | Create a wearable upload receipt | Partially implemented; JWT required; accepts `connection_id` and `upload_id`, resolves an active caller-owned connection, and returns `201 SyncRun(status=received)`; retry handling and entries remain next |
 | DELETE | `/api/v1/wearables/connections/{id}/` | Disconnect provider | Implemented; JWT required; marks only a caller-owned active row inactive and releases its plan slot while preserving history; returns `204` when disconnected and `404` for unknown, unowned, or already-inactive rows |
 | POST | `/api/v1/wearables/connections/{id}/resync/` | Request replay / resync from the client | Returns 202 Accepted — backend records replay intent and the Android client performs the upload |
 
 MVP Samsung sync does **not** use provider webhooks or a hosted provider link flow. The Android companion app reads Samsung-originated data on device, uploads batches to our API, and the backend handles validation, deduplication, and persistence. A future aggregator webhook receiver can be added later for providers with cloud-friendly APIs.
 
-**Example: Uploading a Samsung sync batch**
+**Planned example: Uploading a Samsung sync batch after receipt-only work is complete**
 ```json
 POST /api/v1/wearables/uploads/
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
@@ -223,11 +223,11 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
   ]
 }
 
-// Response: 202 Accepted
+// Planned asynchronous response after Celery is introduced: 202 Accepted
 {
   "connection_id": "conn-001",
   "upload_id": "9ea2c91d-63f4-40eb-a6bb-7fbd90c12a34",
-  "status": "queued"
+  "status": "received"
 }
 ```
 

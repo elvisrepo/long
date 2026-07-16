@@ -4,6 +4,7 @@ from apps.wearables.views import (
     WearableConnectionDetailView,
     WearableConnectionListView,
     WearableConnectionStatusView,
+    WearableUploadView,
 )
 
 
@@ -22,5 +23,10 @@ urlpatterns = [
         "connections/<uuid:pk>/status/",
         WearableConnectionStatusView.as_view(),
         name="wearable-connection-status",
+    ),
+    path(
+        "uploads/",
+        WearableUploadView.as_view(),
+        name="wearable-upload",
     ),
 ]

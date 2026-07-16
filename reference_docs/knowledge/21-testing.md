@@ -427,7 +427,7 @@ Latest local verification checkpoint:
 - `npm run test` passed after adding active custom metric usage and limit-message coverage.
 - `npm run build` passed with the active custom metric usage indicator.
 - `npm run test:e2e` passed with 6 Playwright tests against the isolated Docker-backed E2E runtime.
-- On 2026-07-16, `docker compose exec web uv run pytest -q` passed with `194` backend tests, `uv run ruff check` passed, and repository-wide `uv run mypy` passed across `79` source files.
+- On 2026-07-16, `docker compose exec web uv run pytest -q` passed with `195` backend tests, `uv run ruff check` passed, and repository-wide `uv run mypy` passed across `79` source files.
 
 Frontend test code hygiene:
 - route tests may start with repeated setup such as:
@@ -459,17 +459,18 @@ MyPy gate repair completed on 2026-07-14:
 - Serializer values originating from generic `validated_data` are narrowed to their known domain type before model attributes are accessed. Serializer `create()` methods declare their model return type.
 - Login callers explicitly verify the invariant that a successful authentication result contains a non-null user before accessing it.
 - Django `TextChoices` values passed to helpers expecting plain strings are converted explicitly when Django's generated choice typing is ambiguous.
-- These fixes and the subsequent Health Connect provider/lifecycle plus `SyncRun` receipt migrations were verified with the complete backend gate: `ruff`, repository-wide `mypy`, `194` pytest tests, migration drift check, and `git diff --check`.
+- These fixes and the subsequent Health Connect provider/lifecycle plus `SyncRun` receipt work were verified with the complete backend gate: `ruff`, repository-wide `mypy`, `195` pytest tests, migration drift check, and `git diff --check`.
 
 ### Wearable Sync Test Focus
 
 Immediate next wearable slice:
-- The `WearableConnection` model/API foundation and the initial `SyncRun` receipt model are implemented; the next slice is the authenticated synchronous upload endpoint.
+- The `WearableConnection` model/API foundation, `SyncRun` receipt model, and upload-receipt happy path are implemented. The next API tests are authentication, cross-user/inactive connection `404`, malformed UUID validation, and duplicate-retry behavior before entry ingestion begins.
 - Model tests should prove provider/status choices, ownership, nullable `last_synced_at`, optional `last_error`, and timestamp behavior.
 - API tests should prove authentication is required, list and status-detail responses expose only the caller's active connections, creation stores `request.user`, disconnect deactivates only the caller's connection and releases its slot, re-registration restores the same UUID, and invalid provider/server-managed values are rejected. Later trusted ingestion-service tests should cover sync-state updates.
 - API tests now prove that the connection collection rejects unauthenticated requests, lists only the caller's connections, assigns new connection ownership from the JWT user, rejects `samsung_health` as a direct provider, and rejects creation when the plan limit is exhausted.
 - Free-plan zero-limit, active duplicate-provider, and client-supplied status/activation rejection are covered. New registration starts `pending`. Disconnect coverage proves authentication, owner-only soft deactivation, cross-user `404`, harmless repeated disconnect, same-UUID reactivation into `pending`, stale-error reset, and entitlement-slot reuse. List/status coverage hides inactive history. Additional server-managed-field cases remain on the immediate API test list.
 - `SyncRun` model tests prove duplicate `(wearable_connection, upload_id)` rejection, allow the same upload UUID on another connection, and verify the initial `received` state, timestamps, zero counters, and empty error/metadata values.
+- The first upload API test proves an authenticated owner can submit `connection_id` plus `upload_id`, receive `201`, and persist exactly one `SyncRun(status=received)` with empty processing results.
 - Frontend tests should be added only when a Settings/Wearables UI slice consumes the connection contract.
 
 When testing Samsung-sync behavior:

@@ -44,6 +44,7 @@ Current wearable-connection access-control boundary:
 - Registration/reactivation locks the authenticated user row inside a database transaction before counting and writing, preventing concurrent requests from claiming the same final connection slot.
 - Active duplicate-provider validation runs after that user lock, and a database unique constraint on `(user, provider)` preserves one durable provider identity across disconnect/reactivation cycles.
 - Only active connection rows count toward the limit. Authenticated disconnect uses the same per-user lock, resolves only caller-owned active UUIDs, returns `404` for unowned, unknown, or inactive IDs, and marks an owned row inactive to release its slot without erasing history.
+- The upload-receipt endpoint requires JWT authentication and resolves `connection_id` together with `request.user` and `is_active=True`; another user's, unknown, or inactive connection returns `404`. `upload_id` is parsed as a UUID, and the database uniqueness constraint remains the final batch-duplicate boundary. Safe duplicate-retry responses are not implemented yet.
 
 Current subscription-integrity boundary:
 - Registration creates the user and active free subscription in one transaction, so neither row is persisted alone.

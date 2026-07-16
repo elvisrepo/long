@@ -138,7 +138,7 @@ Immediate next slice:
 Authenticated synchronous wearable ingestion contract
 ```
 
-The `SyncRun` receipt and per-connection `upload_id` constraint are implemented. The next slice should use them to establish authenticated ownership and a synchronous request/response contract before normalized samples are written into `MetricEntry`.
+The `SyncRun` receipt, per-connection `upload_id` constraint, and authenticated owner happy path for receipt creation are implemented. Next, complete the receipt boundary with authentication, hidden unowned/inactive connections, malformed UUID, and duplicate-retry behavior before accepting normalized samples or writing `MetricEntry` rows.
 
 Refactor trigger before ingestion grows:
 

@@ -288,6 +288,7 @@ Current implementation status:
 - A user cannot register the same active provider twice. Duplicate active `health_connect` creation returns `400` with `provider: ["This provider is already registered."]`. The database enforces one durable row per `(user, provider)`, and registration after disconnect reactivates that row with the same UUID. New and reactivated rows enter `status=pending` until trusted ingestion proves the bridge is working.
 - `DELETE /api/v1/wearables/connections/{id}/` marks only a caller-owned active connection inactive and immediately releases its plan slot while preserving identity/history. A successful disconnect returns `204`; another user's, unknown, or already-inactive UUID returns `404` without changing data.
 - `GET /api/v1/wearables/connections/{id}/status/` returns the caller-owned connection's provider, status, last sync timestamp, and last error. Another user's or an unknown UUID returns `404`.
+- `POST /api/v1/wearables/uploads/` currently accepts `connection_id` and `upload_id`, requires JWT authentication, resolves only an active connection owned by the caller, creates `SyncRun(status=received)`, and returns the receipt with `201`. Entry payloads, duplicate-retry response handling, state transitions, and `MetricEntry` writes are not implemented yet.
 - Connection-state mutations will belong to trusted ingestion/resync services rather than a generic client `PATCH` endpoint.
 - Do not start with full sample ingestion, resync, Celery jobs, or Android integration until the connection contract exists and is tested.
 
@@ -296,7 +297,7 @@ Current implementation status:
 | GET | `/api/v1/wearables/connections/` | List linked sync connections | Implemented; JWT required; returns only the caller's active connections |
 | POST | `/api/v1/wearables/connections/` | Register a wearable connection | Accepts only `provider=health_connect`; ownership and activation are server-managed; new/reactivated rows use `status=pending`; current-plan connection limit enforced; reactivates the preserved provider row after disconnect |
 | GET | `/api/v1/wearables/connections/{id}/status/` | Fetch sync state for one connection | Implemented; JWT required and owner-scoped; includes `provider`, `status`, `last_synced_at`, and `last_error`; unowned or unknown UUIDs return `404` |
-| POST | `/api/v1/wearables/uploads/` | Upload a normalized wearable metric batch | Idempotent via `upload_id`; called by the Android companion app |
+| POST | `/api/v1/wearables/uploads/` | Create a wearable upload receipt | Partially implemented; JWT required; validates UUIDs and active connection ownership, then returns `201` with `SyncRun(status=received)`. Duplicate-retry handling and normalized entry ingestion remain next |
 | DELETE | `/api/v1/wearables/connections/{id}/` | Disconnect provider | Implemented; JWT required; caller-owned active rows return `204` and become inactive; unknown, unowned, or already-inactive rows return `404`; repeated calls remain state-idempotent |
 | POST | `/api/v1/wearables/connections/{id}/resync/` | Request replay / resync from the client | Returns 202 Accepted — backend records replay intent and the Android client performs the upload |
 
@@ -322,14 +323,14 @@ Immediate connection-foundation contract:
 
 First-slice non-goals:
 - No real Samsung Health or Health Connect integration yet.
-- No wearable sample upload yet.
+- No wearable sample entries are accepted yet; the current upload route creates only the batch receipt.
 - No Celery sync job yet.
 - No TimescaleDB-specific optimization yet.
 - No frontend device authorization flow yet.
 
 MVP Samsung sync does **not** use provider webhooks or a hosted provider link flow. The Android companion app reads Samsung-originated data on device, uploads batches to our API, and the backend handles validation, deduplication, and persistence. A future aggregator webhook receiver can be added later for providers with cloud-friendly APIs.
 
-**Example: Uploading a Samsung sync batch**
+**Planned example: Uploading a Samsung sync batch after receipt-only work is complete**
 ```json
 POST /api/v1/wearables/uploads/
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
@@ -349,11 +350,11 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
   ]
 }
 
-// Response: 202 Accepted
+// Planned asynchronous response after Celery is introduced: 202 Accepted
 {
   "connection_id": "conn-001",
   "upload_id": "9ea2c91d-63f4-40eb-a6bb-7fbd90c12a34",
-  "status": "queued"
+  "status": "received"
 }
 ```
 
