@@ -57,3 +57,26 @@ def test_wearable_upload_creates_received_sync_run_for_owned_connection():
         "entries_imported": 0,
         "entries_skipped": 0,
     }
+
+
+def test_wearable_upload_requires_authentication():
+      user = User.objects.create_user(
+          email="unauthenticated-upload@example.com",
+          password="strong-password-123",
+      )
+      connection = WearableConnection.objects.create(
+          user=user,
+          provider=WearableConnection.Provider.HEALTH_CONNECT,
+      )
+
+      response = APIClient().post(
+          "/api/v1/wearables/uploads/",
+          {
+              "connection_id": str(connection.id),
+              "upload_id": str(uuid.uuid4()),
+          },
+          format="json",
+      )
+
+      assert response.status_code == 401
+      assert SyncRun.objects.exists() is False
