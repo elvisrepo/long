@@ -5,7 +5,7 @@
 - Use the target-state ERD separately for planned Stripe, wearable-sync, and audit tables.
 
 ## Scope
-- `User`, `MetricDefinition`, `MetricEntry`, `WearableConnection`, `SubscriptionPlan`, `SubscriptionPrice`, `BillingCustomer`, `Subscription`, `CheckoutAttempt`, and `StripeWebhookEvent` are implemented domain tables.
+- `User`, `MetricDefinition`, `MetricEntry`, `WearableConnection`, `SyncRun`, `SubscriptionPlan`, `SubscriptionPrice`, `BillingCustomer`, `Subscription`, `CheckoutAttempt`, and `StripeWebhookEvent` are implemented domain tables.
 - Registration creates an explicit active free subscription, and metric limits resolve through the current subscription's plan.
 - Django framework tables such as auth groups, permissions, sessions, admin logs, and JWT token blacklist tables are intentionally omitted.
 
@@ -17,6 +17,7 @@ erDiagram
     USER ||--o{ METRIC_ENTRY : logs
     USER ||--o{ WEARABLE_CONNECTION : connects
     METRIC_DEFINITION ||--o{ METRIC_ENTRY : classifies
+    WEARABLE_CONNECTION ||--o{ SYNC_RUN : receives
 
     USER {
         uuid id PK
@@ -66,6 +67,21 @@ erDiagram
         boolean is_active
         datetime created_at
         datetime updated_at
+    }
+
+    SYNC_RUN {
+        uuid id PK
+        uuid wearable_connection_id FK
+        uuid upload_id "unique per connection"
+        string status "received|processing|succeeded|partial|failed"
+        datetime received_at
+        datetime processing_started_at "nullable"
+        datetime finished_at "nullable"
+        integer entries_imported
+        integer entries_skipped
+        string error_code
+        json error_detail
+        json metadata
     }
 
     %% IMPLEMENTED SUBSCRIPTION AND ENTITLEMENT TABLES
@@ -158,6 +174,7 @@ erDiagram
 - `MetricEntry.metric_definition_id` uses `PROTECT` so definitions with history are not deleted accidentally.
 - `MetricDefinition.user_id` is nullable because system defaults are shared by every user.
 - `MetricEntry.user_id` is required because metric data is always owned by exactly one user.
+- `SyncRun(wearable_connection_id, upload_id)` is unique, providing batch-level idempotency. Ownership resolves through the required connection foreign key.
 - Migration `subscriptions.0003` seeds one shared active default `free` plan.
 - User registration atomically creates one active `Subscription` linked to that plan.
 - A conditional unique constraint permits at most one current subscription per user.

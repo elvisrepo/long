@@ -16,6 +16,7 @@ erDiagram
     User ||--o{ AuditLog : generates
     MetricDefinition ||--o{ MetricEntry : "defines type for"
     WearableConnection ||--o{ MetricEntry : sources
+    WearableConnection ||--o{ SyncRun : receives
 
     User {
         uuid id PK
@@ -88,6 +89,21 @@ erDiagram
         boolean is_active
     }
 
+    SyncRun {
+        uuid id PK
+        uuid wearable_connection_id FK
+        uuid upload_id "unique per connection"
+        string status "received|processing|succeeded|partial|failed"
+        datetime received_at
+        datetime processing_started_at "nullable"
+        datetime finished_at "nullable"
+        integer entries_imported
+        integer entries_skipped
+        string error_code
+        jsonb error_detail
+        jsonb metadata
+    }
+
     AuditLog {
         bigint id PK
         uuid user_id FK
@@ -110,6 +126,7 @@ erDiagram
 - PII encrypted at field level; email lookup via `email_lookup_hash`
 - `Subscription` is the single source of truth for entitlements
 - `WearableConnection` supports both MVP device-bridge sync and future aggregator/cloud integrations without changing the rest of the schema
+- `SyncRun` stores the durable upload receipt and enforces batch idempotency through unique `(wearable_connection_id, upload_id)`
 
 #### What is `recorded_at`?
 

@@ -53,7 +53,7 @@ The Android app is the device bridge. Django cannot directly read Health Connect
 
 | Phase | Work | Exit condition |
 |---:|---|---|
-| 1 | Add `SyncRun` and per-connection upload idempotency | Duplicate `(connection, upload_id)` cannot create a second receipt |
+| 1 | Add `SyncRun` and per-connection upload idempotency — implemented | Duplicate `(connection, upload_id)` cannot create a second receipt |
 | 2 | Define and test `POST /api/v1/wearables/uploads/` | Authenticated owner can submit one valid normalized batch; unowned/inactive connections are rejected |
 | 3 | Process one small batch synchronously | Valid samples create existing `MetricEntry` rows, duplicates are skipped, and terminal `SyncRun` counters are correct |
 | 4 | Create a thin Android companion app | App can use mobile auth, request Health Connect permission, read one selected record type, and call the upload endpoint |

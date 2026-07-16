@@ -135,10 +135,10 @@ The current wearable connection foundation is implemented: plan-limited Health C
 Immediate next slice:
 
 ```text
-SyncRun upload receipt + authenticated ingestion contract
+Authenticated synchronous wearable ingestion contract
 ```
 
-This should establish batch idempotency and ownership before normalized samples are written into `MetricEntry`.
+The `SyncRun` receipt and per-connection `upload_id` constraint are implemented. The next slice should use them to establish authenticated ownership and a synchronous request/response contract before normalized samples are written into `MetricEntry`.
 
 Refactor trigger before ingestion grows:
 
@@ -148,7 +148,7 @@ Refactor trigger before ingestion grows:
 
 Recommended order:
 
-1. Add `SyncRun` with a client-generated `upload_id`
+1. Add `SyncRun` with a client-generated `upload_id` — completed
 
    Preserve one batch receipt per connection/upload ID for retry idempotency and troubleshooting.
 
@@ -260,7 +260,7 @@ Related docs:
 Next real system-design step:
 
 ```text
-SyncRun upload receipt + authenticated synchronous ingestion contract
+Authenticated synchronous wearable ingestion contract
 ```
 
 This should come before more analytics polish, Celery-based ingestion, or production deployment.

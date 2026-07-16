@@ -101,13 +101,14 @@ erDiagram
     SYNC_RUN {
         uuid id PK
         uuid wearable_connection_id FK
-        uuid user_id FK
-        string status "started|succeeded|failed|partial"
-        datetime started_at
-        datetime finished_at
+        uuid upload_id "unique per connection"
+        string status "received|processing|succeeded|partial|failed"
+        datetime received_at
+        datetime processing_started_at "nullable"
+        datetime finished_at "nullable"
         integer entries_imported
         integer entries_skipped
-        string error_code "nullable"
+        string error_code
         json error_detail
         json metadata
     }
@@ -210,5 +211,5 @@ erDiagram
 - `CheckoutAttempt.provider_checkout_session_id` stores the Stripe Checkout Session ID so webhook events and support/debugging can correlate Stripe's `checkout.session.completed` event with the local attempt.
 - `StripeWebhookEvent` should be idempotent through `provider_event_id` and can optionally link to a subscription and/or checkout attempt after processing.
 - `WearableConnection` supports device-bridge, aggregator, and direct-cloud modes without changing `MetricEntry`.
-- `SyncRun` records import attempts separately from imported metric data, which keeps troubleshooting and retry behavior auditable.
+- `SyncRun` records import attempts separately from imported metric data. Unique `(wearable_connection_id, upload_id)` provides batch-level idempotency, while ownership resolves through the required connection foreign key.
 - `AuditLog` is append-only and should store diffs or compact change summaries, not full sensitive snapshots.

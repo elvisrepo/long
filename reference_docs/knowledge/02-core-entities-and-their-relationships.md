@@ -17,6 +17,7 @@ We derived entities from the functional requirements by asking: *"What data must
 | **MetricDefinition** | Users need to know *what* they can track. System needs validation rules (unit, min/max range) per metric type. | Separated from MetricEntry to avoid duplicating metadata on every data point. `user_id=NULL` for system defaults, FK to user for custom metrics. |
 | **MetricEntry** | Core requirement #1 — the actual data points users log. This is where 99% of storage and query load lives. | TimescaleDB hypertable partitioned by `recorded_at` for efficient time-range queries. Denormalized `user_id` for fast row-level filtering. |
 | **WearableConnection** | Core requirement #3 — represents a linked device-bridge connection and its state. | The MVP stores the authenticated user, `provider=health_connect`, status, active lifecycle state, last sync/error state, and timestamps. Disconnect marks the row inactive so its stable identity and future sync history remain available. Samsung Health is sample provenance, not a direct backend connection provider. We do not store raw Samsung Health or Health Connect tokens. |
+| **SyncRun** | Wearable uploads need a durable receipt for retries, processing state, counters, and troubleshooting. | A client-generated `upload_id` is unique per `WearableConnection`, providing batch-level idempotency without making Redis the source of truth. |
 | **SubscriptionPlan** | Product tiers need durable, backend-owned entitlement values such as custom metric limits, wearable limits, and sync cadence. | Shared plan rows are separate from individual users. Migration `subscriptions.0003` seeds the canonical active default `free` plan. |
 | **SubscriptionPrice** | A paid plan can be offered through multiple billing options, such as monthly and yearly prices. | Stores backend-owned provider price IDs, currency, minor-unit amount, billing interval, and active availability separately from plan entitlements. |
 | **Subscription** | A user may move between free and paid tiers while retaining subscription history and provider lifecycle state. | Connects a user to one plan and optionally the exact selected price. Free subscriptions have no price; paid subscriptions select a price belonging to their plan. |
@@ -36,6 +37,7 @@ We derived entities from the functional requirements by asking: *"What data must
 | User → AuditLog | **1 : M** | A user generates many audit entries. Append-only, never updated. |
 | MetricDefinition → MetricEntry | **1 : M** | Each entry is "of" exactly one metric type (e.g., every heart rate reading points to the "Resting Heart Rate" definition). |
 | WearableConnection → MetricEntry | **1 : M** (optional) | Entries *can* be sourced from a linked provider connection (`source_connection_id` is nullable). Manual entries have no source connection. |
+| WearableConnection → SyncRun | **1 : M** | A durable connection has many upload receipts over time. Soft disconnect preserves those receipts; account deletion cascades through the connection. |
 
 > The `MetricDefinition → MetricEntry` split is the most important design choice: separating *what a metric is* (definition) from *each recorded value* (entry) gives us clean normalization, per-metric validation rules, and the ability to add custom metrics without schema changes. The second key choice is making `WearableConnection` support both device-bridge sync (Samsung MVP) and future aggregator/cloud integrations without changing the rest of the data model.
 
@@ -47,6 +49,7 @@ We derived entities from the functional requirements by asking: *"What data must
 - The only MVP connection provider is `health_connect`. Samsung Health writes records into Health Connect and will be represented as source-app provenance on uploaded samples.
 - The seeded Pro entitlement permits one Health Connect connection; Free permits zero.
 - A database unique constraint enforces one durable connection row per `(user, provider)`; duplicate active registration receives a provider validation error, while registration after disconnect reactivates the existing UUID.
+- `SyncRun` now stores batch receipts with `received → processing → succeeded|partial|failed` state, counters, errors, and timestamps. `(wearable_connection, upload_id)` is unique, so retrying the same logical batch cannot create a second receipt.
 - Wearable samples should eventually normalize into `MetricEntry`; do not create a parallel long-term metric storage path.
 - Manual entries remain valid and have no source connection.
 - The backend should not store raw Samsung Health or Health Connect tokens. The MVP device-bridge model has the Android companion app read on-device data and upload normalized samples.

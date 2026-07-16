@@ -76,7 +76,7 @@ CONN_1     = WearableConnection UUID
 | 3 | Verified `checkout.session.completed` arrives | `StripeWebhookEvent(evt_checkout_...)`, `BillingCustomer(U1, cus_test_...)`, and `Subscription(SUB_PRO, plan=pro, price=PRICE_PRO, status=active, provider_subscription_id=sub_test_...)` | `SUB_FREE` becomes `cancelled`; `ATTEMPT_1` becomes `confirmed` | Pro becomes the only current subscription; Free remains as history |
 | 4 | Verified `customer.subscription.updated` arrives | `StripeWebhookEvent(evt_subscription_...)` | `SUB_PRO` receives recognized price/plan data, current-period dates, and normalized cancellation state | Local billing dates and price match Stripe |
 | 5 | User registers Health Connect | `WearableConnection(CONN_1, user=U1, provider=health_connect, status=pending, is_active=true)` | — | Active wearable usage becomes `1 / 1`; registration does not yet claim a successful sync |
-| 6 | First normalized upload — planned | Future `SyncRun(upload_id=...)` and wearable-sourced `MetricEntry` rows | `CONN_1` becomes `connected` and receives `last_synced_at` after successful ingestion | Retried upload IDs and source record IDs can be deduplicated |
+| 6 | First normalized upload — endpoint planned | The implemented `SyncRun` model will store `upload_id`; the future endpoint will create the receipt and wearable-sourced `MetricEntry` rows | `CONN_1` becomes `connected` and receives `last_synced_at` after successful ingestion | Retried upload IDs and source record IDs can be deduplicated |
 
 Important final-state properties:
 
@@ -85,7 +85,7 @@ Important final-state properties:
 - `StripeWebhookEvent` is the provider-event idempotency ledger.
 - `WearableConnection.status=pending` means registration succeeded but no trusted ingestion has proven the bridge works yet.
 - Connecting Health Connect alone creates no `MetricEntry` rows.
-- Step 6 describes the intended ingestion slice; `SyncRun` and automatic wearable ingestion are not implemented yet.
+- The `SyncRun` receipt model and database idempotency constraint are implemented. Step 6's upload endpoint and automatic `MetricEntry` ingestion are not implemented yet.
 
 ## Free to Pro to Health Connect Sequence
 
