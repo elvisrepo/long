@@ -166,3 +166,33 @@ def test_wearable_upload_rejects_malformed_connection_id():
         "connection_id": ["Must be a valid UUID."],
     }
     assert SyncRun.objects.exists() is False
+
+
+def test_wearable_upload_rejects_malformed_upload_id():
+    user = User.objects.create_user(
+        email="malformed-upload-id@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+
+    client = APIClient()
+    access_token = RefreshToken.for_user(user).access_token
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+
+    response = client.post(
+        "/api/v1/wearables/uploads/",
+        {
+            "connection_id": str(connection.id),
+            "upload_id": "not-a-uuid",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "upload_id": ["Must be a valid UUID."],
+    }
+    assert SyncRun.objects.exists() is False
