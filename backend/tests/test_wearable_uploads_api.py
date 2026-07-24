@@ -60,23 +60,55 @@ def test_wearable_upload_creates_received_sync_run_for_owned_connection():
 
 
 def test_wearable_upload_requires_authentication():
-      user = User.objects.create_user(
-          email="unauthenticated-upload@example.com",
-          password="strong-password-123",
-      )
-      connection = WearableConnection.objects.create(
-          user=user,
-          provider=WearableConnection.Provider.HEALTH_CONNECT,
-      )
+    user = User.objects.create_user(
+        email="unauthenticated-upload@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
 
-      response = APIClient().post(
-          "/api/v1/wearables/uploads/",
-          {
-              "connection_id": str(connection.id),
-              "upload_id": str(uuid.uuid4()),
-          },
-          format="json",
-      )
+    response = APIClient().post(
+        "/api/v1/wearables/uploads/",
+        {
+            "connection_id": str(connection.id),
+            "upload_id": str(uuid.uuid4()),
+        },
+        format="json",
+    )
 
-      assert response.status_code == 401
-      assert SyncRun.objects.exists() is False
+    assert response.status_code == 401
+    assert SyncRun.objects.exists() is False
+
+
+def test_wearable_upload_hides_another_users_connection():
+    owner = User.objects.create_user(
+        email="upload-owner@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=owner,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+
+    attacker = User.objects.create_user(
+        email="upload-attacker@example.com",
+        password="strong-password-123",
+    )
+
+    client = APIClient()
+    access_token = RefreshToken.for_user(attacker).access_token
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+
+    response = client.post(
+        "/api/v1/wearables/uploads/",
+        {
+            "connection_id": str(connection.id),
+            "upload_id": str(uuid.uuid4()),
+        },
+        format="json",
+    )
+
+    assert response.status_code == 404
+    assert SyncRun.objects.exists() is False
