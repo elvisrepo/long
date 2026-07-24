@@ -112,3 +112,31 @@ def test_wearable_upload_hides_another_users_connection():
 
     assert response.status_code == 404
     assert SyncRun.objects.exists() is False
+
+
+def test_wearable_upload_hides_inactive_owned_connection():
+    user = User.objects.create_user(
+        email="inactive-upload@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+        is_active=False,
+    )
+
+    client = APIClient()
+    access_token = RefreshToken.for_user(user).access_token
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+
+    response = client.post(
+        "/api/v1/wearables/uploads/",
+        {
+            "connection_id": str(connection.id),
+            "upload_id": str(uuid.uuid4()),
+        },
+        format="json",
+    )
+
+    assert response.status_code == 404
+    assert SyncRun.objects.exists() is False
