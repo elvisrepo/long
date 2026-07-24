@@ -140,3 +140,29 @@ def test_wearable_upload_hides_inactive_owned_connection():
 
     assert response.status_code == 404
     assert SyncRun.objects.exists() is False
+
+
+def test_wearable_upload_rejects_malformed_connection_id():
+    user = User.objects.create_user(
+        email="malformed-connection-upload@example.com",
+        password="strong-password-123",
+    )
+
+    client = APIClient()
+    access_token = RefreshToken.for_user(user).access_token
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+
+    response = client.post(
+        "/api/v1/wearables/uploads/",
+        {
+            "connection_id": "not-a-uuid",
+            "upload_id": str(uuid.uuid4()),
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "connection_id": ["Must be a valid UUID."],
+    }
+    assert SyncRun.objects.exists() is False
