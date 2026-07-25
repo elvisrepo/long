@@ -196,3 +196,42 @@ def test_wearable_upload_rejects_malformed_upload_id():
         "upload_id": ["Must be a valid UUID."],
     }
     assert SyncRun.objects.exists() is False
+
+
+def test_wearable_upload_retry_returns_existing_sync_run():
+    user = User.objects.create_user(
+        email="retry-upload@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+    upload_id = uuid.uuid4()
+
+    client = APIClient()
+    access_token = RefreshToken.for_user(user).access_token
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+
+    payload = {
+        "connection_id": str(connection.id),
+        "upload_id": str(upload_id),
+    }
+    first_response = client.post(
+        "/api/v1/wearables/uploads/",
+        payload,
+        format="json",
+    )
+    retry_response = client.post(
+        "/api/v1/wearables/uploads/",
+        payload,
+        format="json",
+    )
+
+    assert first_response.status_code == 201
+    assert retry_response.status_code == 200
+    assert retry_response.json() == first_response.json()
+    assert SyncRun.objects.filter(
+        wearable_connection=connection,
+        upload_id=upload_id,
+    ).count() == 1

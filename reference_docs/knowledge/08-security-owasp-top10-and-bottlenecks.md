@@ -112,7 +112,7 @@ Current Stripe credential and traffic boundary:
 - **Concurrent metric writes for same timestamp**: The unique constraint on `(user_id, metric_definition_id, recorded_at, source, source_connection_id)` prevents silent overwrites for provider-synced data. Manual duplicate submissions still need explicit product policy (allow vs reject).
 - **Concurrent custom metric entitlement writes**: Create/reactivate requests for the same user lock that user's row before counting and writing, so only one request can claim the final active custom metric slot.
 - **Concurrent wearable connection writes**: Creation requests for the same user lock that user's row before counting and inserting, so only one request can claim the final wearable connection slot.
-- **Android upload retry after network loss**: Uploads must be idempotent via `upload_id`. The client retries safely, and the server accepts out-of-order data (sorted by `recorded_at`, not arrival time).
+- **Android upload retry after network loss**: Upload receipts are idempotent per `(wearable_connection, upload_id)`. The first request returns `201`; a retry returns the existing caller-owned receipt with `200`, while the database unique constraint prevents a concurrent duplicate receipt. Future entry ingestion must preserve this guarantee and accept out-of-order samples by `recorded_at`, not arrival time.
 - **Future aggregator webhook delivery failure**: Signed webhooks should retry, and a scheduled backfill job should repair missed intervals when cloud-based providers are added later.
 
 #### Bottlenecks & Mitigations

@@ -75,14 +75,17 @@ class WearableUploadView(generics.GenericAPIView):
             is_active=True,
         )
 
-        # 4. Create the durable upload receipt in its initial received state.
-        sync_run = SyncRun.objects.create(
+        # 4. Create the receipt once, or reuse it when Android retries the batch.
+        sync_run, created = SyncRun.objects.get_or_create(
             wearable_connection=connection,
             upload_id=serializer.validated_data["upload_id"],
         )
 
-        # 5. Serialize the saved SyncRun and return the 201 response.
+        # 5. Return 201 for the first receipt and 200 for an idempotent retry.
+        response_status = (
+            status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        )
         return Response(
             SyncRunSerializer(sync_run).data,
-            status=status.HTTP_201_CREATED,
+            status=response_status,
         )

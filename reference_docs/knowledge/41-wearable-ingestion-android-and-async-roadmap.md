@@ -54,7 +54,7 @@ The Android app is the device bridge. Django cannot directly read Health Connect
 | Phase | Work | Exit condition |
 |---:|---|---|
 | 1 | Add `SyncRun` and per-connection upload idempotency — implemented | Duplicate `(connection, upload_id)` cannot create a second receipt |
-| 2 | Define and test `POST /api/v1/wearables/uploads/` | Authenticated owner can submit one valid normalized batch; unowned/inactive connections are rejected |
+| 2 | Define and test `POST /api/v1/wearables/uploads/` — receipt boundary implemented | Authenticated owner can submit one valid normalized batch; unowned/inactive connections are rejected |
 | 3 | Process one small batch synchronously | Valid samples create existing `MetricEntry` rows, duplicates are skipped, and terminal `SyncRun` counters are correct |
 | 4 | Create a thin Android companion app | App can use mobile auth, request Health Connect permission, read one selected record type, and call the upload endpoint |
 | 5 | Run a physical-device vertical slice | One Samsung-originated or Health Connect test record becomes a visible backend metric entry |
@@ -89,6 +89,11 @@ Database idempotency boundary:
 UNIQUE(wearable_connection_id, upload_id)
 ```
 
+The receipt endpoint uses this constraint through `get_or_create()`: the first
+submission returns `201`, while a retry returns the unchanged existing receipt
+with `200`. The scope includes the connection so different connections may use
+the same client-generated upload UUID independently.
+
 Agreed status lifecycle:
 
 ```text
@@ -114,7 +119,7 @@ Meanings:
 
 ## 5. Initial Upload Contract
 
-Planned endpoint:
+Implemented receipt endpoint; normalized `entries` remain planned:
 
 ```http
 POST /api/v1/wearables/uploads/

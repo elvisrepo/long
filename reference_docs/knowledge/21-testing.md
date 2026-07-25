@@ -464,13 +464,13 @@ MyPy gate repair completed on 2026-07-14:
 ### Wearable Sync Test Focus
 
 Immediate next wearable slice:
-- The `WearableConnection` model/API foundation, `SyncRun` receipt model, and upload-receipt happy path are implemented. The next API tests are authentication, cross-user/inactive connection `404`, malformed UUID validation, and duplicate-retry behavior before entry ingestion begins.
+- The `WearableConnection` model/API foundation and idempotent `SyncRun` receipt boundary are implemented. Normalized entry validation and synchronous ingestion are next.
 - Model tests should prove provider/status choices, ownership, nullable `last_synced_at`, optional `last_error`, and timestamp behavior.
 - API tests should prove authentication is required, list and status-detail responses expose only the caller's active connections, creation stores `request.user`, disconnect deactivates only the caller's connection and releases its slot, re-registration restores the same UUID, and invalid provider/server-managed values are rejected. Later trusted ingestion-service tests should cover sync-state updates.
 - API tests now prove that the connection collection rejects unauthenticated requests, lists only the caller's connections, assigns new connection ownership from the JWT user, rejects `samsung_health` as a direct provider, and rejects creation when the plan limit is exhausted.
 - Free-plan zero-limit, active duplicate-provider, and client-supplied status/activation rejection are covered. New registration starts `pending`. Disconnect coverage proves authentication, owner-only soft deactivation, cross-user `404`, harmless repeated disconnect, same-UUID reactivation into `pending`, stale-error reset, and entitlement-slot reuse. List/status coverage hides inactive history. Additional server-managed-field cases remain on the immediate API test list.
 - `SyncRun` model tests prove duplicate `(wearable_connection, upload_id)` rejection, allow the same upload UUID on another connection, and verify the initial `received` state, timestamps, zero counters, and empty error/metadata values.
-- The first upload API test proves an authenticated owner can submit `connection_id` plus `upload_id`, receive `201`, and persist exactly one `SyncRun(status=received)` with empty processing results.
+- Upload API tests prove authentication, owner/active scoping, malformed UUID rejection, first-receipt creation with `201`, and an idempotent retry response with `200`. Retrying the same `(connection_id, upload_id)` returns the original serialized receipt and leaves exactly one `SyncRun`.
 - Frontend tests should be added only when a Settings/Wearables UI slice consumes the connection contract.
 
 When testing Samsung-sync behavior:
