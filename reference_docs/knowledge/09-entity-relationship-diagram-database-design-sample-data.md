@@ -158,6 +158,11 @@ The `source_connection_id` FK on MetricEntry answers: **"Where did this data poi
 
 This lets us show provenance ("this reading came from Samsung Health through your Health Connect connection"), filter by source app, and detect duplicates across sync jobs. If Health Connect or the Android client can supply a stable source identifier, we store that in `external_source_id` for stronger idempotency.
 
+PostgreSQL enforces one non-null `external_source_id` per
+`source_connection`. The same namespaced external ID may occur on another
+connection, while manual entries with null connection and external IDs remain
+unconstrained.
+
 The implemented Django field is `MetricEntry.source_connection`; Django stores
 its UUID in the `source_connection_id` database column. `on_delete=RESTRICT`
 prevents hard-deleting a connection while historical entries reference it.

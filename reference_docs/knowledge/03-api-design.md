@@ -289,6 +289,7 @@ Current implementation status:
 - `DELETE /api/v1/wearables/connections/{id}/` marks only a caller-owned active connection inactive and immediately releases its plan slot while preserving identity/history. A successful disconnect returns `204`; another user's, unknown, or already-inactive UUID returns `404` without changing data.
 - `GET /api/v1/wearables/connections/{id}/status/` returns the caller-owned connection's provider, status, last sync timestamp, and last error. Another user's or an unknown UUID returns `404`.
 - `POST /api/v1/wearables/uploads/` currently accepts `connection_id` and `upload_id`, requires JWT authentication, and resolves only an active connection owned by the caller. The first submission creates `SyncRun(status=received)` and returns `201`; retrying the same `(connection_id, upload_id)` returns the unchanged existing receipt with `200`. Entry payloads, state transitions, and `MetricEntry` writes are not implemented yet.
+- `MetricEntry` now has a nullable foreign key to `WearableConnection`, and PostgreSQL enforces at most one non-null `(source_connection, external_source_id)` pair. The future ingestion service must use that record identity to update corrected provider records rather than insert duplicates.
 - Connection-state mutations will belong to trusted ingestion/resync services rather than a generic client `PATCH` endpoint.
 - Do not start with full sample ingestion, resync, Celery jobs, or Android integration until the connection contract exists and is tested.
 

@@ -55,7 +55,7 @@ The Android app is the device bridge. Django cannot directly read Health Connect
 |---:|---|---|
 | 1 | Add `SyncRun` and per-connection upload idempotency — implemented | Duplicate `(connection, upload_id)` cannot create a second receipt |
 | 2 | Define and test `POST /api/v1/wearables/uploads/` — receipt boundary implemented | Authenticated owner can submit one valid normalized batch; unowned/inactive connections are rejected |
-| 3 | Process one small batch synchronously | Valid samples create existing `MetricEntry` rows, duplicates are skipped, and terminal `SyncRun` counters are correct |
+| 3 | Process one small batch synchronously — connection FK and external-record uniqueness implemented | Valid samples create existing `MetricEntry` rows, duplicates are skipped, and terminal `SyncRun` counters are correct |
 | 4 | Create a thin Android companion app | App can use mobile auth, request Health Connect permission, read one selected record type, and call the upload endpoint |
 | 5 | Run a physical-device vertical slice | One Samsung-originated or Health Connect test record becomes a visible backend metric entry |
 | 6 | Add mappings and device scheduling | Supported record types have explicit semantic mappings and Android performs retryable periodic work |
@@ -152,7 +152,7 @@ The backend must verify:
 - The metric definition is a supported active system definition.
 - Value and timestamp satisfy the metric definition and API bounds.
 - Source provenance is allowed and cannot be used to spoof another connection.
-- A stable `external_source_id` is not inserted twice for the same user/metric/source context.
+- PostgreSQL already prevents inserting the same non-null `external_source_id` twice for one source connection. The ingestion service must update corrected records through that identity.
 - Batch size and payload size remain bounded.
 
 The first endpoint should process a deliberately small batch synchronously and return terminal counts. A duplicate retry should return the existing outcome or another explicitly documented idempotent response, not repeat `MetricEntry` inserts.

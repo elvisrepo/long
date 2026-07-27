@@ -548,13 +548,13 @@ graph TB
 | A10 SSRF | No user-supplied URLs in server-side requests, outbound calls restricted to allowlisted provider / aggregator hosts when cloud integrations are added |
 
 #### Edge Cases
-- **Duplicate data from wearable sync**: `MetricEntry.source_connection` now preserves connection provenance, but record-level uniqueness is not enforced yet. Add a conditional unique constraint for non-null `(source_connection, external_source_id)` values, then update corrected provider records rather than inserting duplicates.
+- **Duplicate data from wearable sync**: `MetricEntry.source_connection` preserves connection provenance, and PostgreSQL enforces a conditional unique constraint for non-null `(source_connection, external_source_id)` values. Update corrected provider records rather than inserting duplicates.
 - **Timezone hell**: All timestamps stored as UTC (`timestamptz`). User's timezone stored on profile for display only. `recorded_at` is always UTC — the frontend converts for display.
 - **Metric value out of range**: Rejected at serializer level. MetricDefinition has `min_value` and `max_value` — a heart rate of 500 bpm gets a 400 error.
 - **Stripe webhook replay**: Idempotency key check. Store processed Stripe event IDs in a `StripeEvent` table. If we see the same event ID twice, skip processing.
 - **Token expiry during WebSocket session**: Server sends `AUTH_EXPIRED` frame. Client must close the socket, re-authenticate via REST, get a new WS ticket, and reconnect.
 - **User deletes account mid-sync**: Celery task checks `user.is_active` before writing data. If user is deleted, task aborts gracefully.
-- **Concurrent provider-record writes**: Until the conditional `(source_connection, external_source_id)` unique constraint exists, concurrent wearable batches could insert the same provider record twice. Application-level existence checks alone are insufficient. Manual duplicate submissions remain a separate product-policy decision.
+- **Concurrent provider-record writes**: The conditional `(source_connection, external_source_id)` unique constraint is the final race-safe guard against inserting one provider record twice. Application-level existence checks alone remain insufficient. Manual entries remain outside this constraint.
 - **Android upload retry after network loss**: Uploads must be idempotent via `upload_id`. The client retries safely, and the server accepts out-of-order data (sorted by `recorded_at`, not arrival time).
 - **Future aggregator webhook delivery failure**: Signed webhooks should retry, and a scheduled backfill job should repair missed intervals when cloud-based providers are added later.
 

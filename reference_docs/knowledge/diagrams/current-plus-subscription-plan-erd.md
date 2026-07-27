@@ -52,7 +52,7 @@ erDiagram
         datetime recorded_at
         string source
         uuid source_connection_id FK "nullable"
-        string external_source_id "nullable"
+        string external_source_id "nullable, unique per source connection"
         json context
         datetime created_at
     }

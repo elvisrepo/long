@@ -93,6 +93,13 @@ class MetricEntry(models.Model):
 
     class Meta:
         db_table = "metrics_metric_entry"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["source_connection", "external_source_id"],
+                condition=Q(external_source_id__isnull=False),
+                name="metrics_unique_source_record",
+            ),
+        ]
         indexes = [
             # Primary read path: a user's timeline, newest measurements first.
             models.Index(
