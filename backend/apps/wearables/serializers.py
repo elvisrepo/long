@@ -1,9 +1,10 @@
-from typing import Any
+from typing import Any, cast
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from rest_framework import serializers
 
+from apps.metrics.models import MetricDefinition, MetricEntry
 from apps.wearables.limits import validate_wearable_connection_limit
 from apps.wearables.models import SyncRun, WearableConnection
 from apps.wearables.validators import (
@@ -25,6 +26,7 @@ SERVER_MANAGED_FIELDS = frozenset(
     }
 )
 SERVER_MANAGED_FIELD_MESSAGE = "This field is server-managed."
+SUPPORTED_WEARABLE_METRIC_SLUGS = frozenset({"body_weight"})
 
 
 class WearableConnectionSerializer(serializers.ModelSerializer):
@@ -119,6 +121,47 @@ class WearableConnectionStatusSerializer(serializers.ModelSerializer):
             "last_error",
         )
         read_only_fields = fields
+
+
+class WearableUploadEntrySerializer(serializers.Serializer):
+    metric_definition = serializers.SlugRelatedField(
+        slug_field="slug",
+        queryset=MetricDefinition.objects.filter(
+            user__isnull=True,
+            is_default=True,
+            is_active=True,
+            slug__in=SUPPORTED_WEARABLE_METRIC_SLUGS,
+        ),
+    )
+    value = serializers.FloatField()
+    recorded_at = serializers.DateTimeField()
+    source = serializers.ChoiceField(
+        choices=(MetricEntry.Source.SAMSUNG_HEALTH,),
+    )
+    external_source_id = serializers.CharField(
+        max_length=255,
+        allow_blank=False,
+        trim_whitespace=True,
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        definition = cast(
+            MetricDefinition,
+            attrs["metric_definition"],
+        )
+        value = cast(float, attrs["value"])
+
+        if value < definition.min_value or value > definition.max_value:
+            raise serializers.ValidationError(
+                {
+                    "value": (
+                        f"Value must be between {definition.min_value} "
+                        f"and {definition.max_value}."
+                    )
+                }
+            )
+
+        return attrs
 
 
 class WearableUploadSerializer(serializers.Serializer):

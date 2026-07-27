@@ -428,7 +428,7 @@ Latest local verification checkpoint:
 - `npm run build` passed with the active custom metric usage indicator.
 - `npm run test:e2e` passed with 6 Playwright tests against the isolated Docker-backed E2E runtime.
 - On 2026-07-16, `docker compose exec web uv run pytest -q` passed with `195` backend tests, `uv run ruff check` passed, and repository-wide `uv run mypy` passed across `79` source files.
-- On 2026-07-27, the `MetricEntry.source_connection` foreign-key and external-record uniqueness slices passed all `208` backend tests, repository-wide Ruff, the configured `uv run mypy` gate across `81` source files, migration-drift detection, and `git diff --check`.
+- On 2026-07-27, the `MetricEntry.source_connection` foreign-key, external-record uniqueness, and isolated wearable-entry validation slices passed all `216` backend tests, repository-wide Ruff, the configured `uv run mypy` gate across `81` source files, migration-drift detection, and `git diff --check`.
 
 Frontend test code hygiene:
 - route tests may start with repeated setup such as:
@@ -474,6 +474,7 @@ Immediate next wearable slice:
 - Upload API tests prove authentication, owner/active scoping, malformed UUID rejection, first-receipt creation with `201`, and an idempotent retry response with `200`. Retrying the same `(connection_id, upload_id)` returns the original serialized receipt and leaves exactly one `SyncRun`.
 - Metric-entry relationship tests prove wearable entries reference a real connection, deleting an entry preserves its connection, direct hard deletion of a referenced connection is restricted, and user deletion cascades the user's connection and entry together.
 - Metric-entry deduplication tests prove a repeated non-null `(source_connection, external_source_id)` pair is rejected, the same external ID is allowed on different connections, and manual null-source entries remain unconstrained.
+- Isolated wearable-entry serializer tests prove normalized `body_weight` acceptance, configured range enforcement, active supported system-definition lookup, Samsung Health source restriction, timestamp parsing, and required nonblank external IDs. The serializer is not yet attached to the receipt-only upload endpoint.
 - Frontend tests should be added only when a Settings/Wearables UI slice consumes the connection contract.
 
 When testing Samsung-sync behavior:

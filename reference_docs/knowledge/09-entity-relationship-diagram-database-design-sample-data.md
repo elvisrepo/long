@@ -183,7 +183,7 @@ can still cascade both rows together. Normal disconnects remain soft deletes.
 | `def-001` | NULL | Resting Heart Rate | `resting_hr` | bpm | cardiovascular | 30 | 220 | true |
 | `def-002` | NULL | VO2 Max | `vo2_max` | ml/kg/min | cardiovascular | 10 | 90 | true |
 | `def-003` | NULL | Sleep Duration | `sleep_duration` | hours | recovery | 0 | 24 | true |
-| `def-004` | NULL | Body Weight | `body_weight` | kg | body_composition | 20 | 300 | true |
+| `def-004` | NULL | Body Weight | `body_weight` | kg | body_composition | 20 | 400 | true |
 | `def-005` | NULL | Blood Pressure (Systolic) | `bp_systolic` | mmHg | cardiovascular | 60 | 250 | true |
 | `def-custom` | `a1b2c3d4-...` | Cold Plunge Duration | `cold_plunge` | minutes | recovery | 0 | 60 | false |
 

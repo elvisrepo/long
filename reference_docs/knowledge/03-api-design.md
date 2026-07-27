@@ -290,6 +290,7 @@ Current implementation status:
 - `GET /api/v1/wearables/connections/{id}/status/` returns the caller-owned connection's provider, status, last sync timestamp, and last error. Another user's or an unknown UUID returns `404`.
 - `POST /api/v1/wearables/uploads/` currently accepts `connection_id` and `upload_id`, requires JWT authentication, and resolves only an active connection owned by the caller. The first submission creates `SyncRun(status=received)` and returns `201`; retrying the same `(connection_id, upload_id)` returns the unchanged existing receipt with `200`. Entry payloads, state transitions, and `MetricEntry` writes are not implemented yet.
 - `MetricEntry` now has a nullable foreign key to `WearableConnection`, and PostgreSQL enforces at most one non-null `(source_connection, external_source_id)` pair. The future ingestion service must use that record identity to update corrected provider records rather than insert duplicates.
+- An isolated `WearableUploadEntrySerializer` validates the first normalized mapping without changing the live endpoint yet. It accepts active system `body_weight` definitions only, enforces the configured value range, parses `recorded_at`, accepts Samsung Health provenance only, and requires a nonblank external source ID.
 - Connection-state mutations will belong to trusted ingestion/resync services rather than a generic client `PATCH` endpoint.
 - Do not start with full sample ingestion, resync, Celery jobs, or Android integration until the connection contract exists and is tested.
 
