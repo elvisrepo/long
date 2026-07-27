@@ -79,8 +79,14 @@ class MetricEntry(models.Model):
         choices=Source.choices,
         default=Source.MANUAL,
     )
-    # Kept as a plain UUID until the wearable connection model exists.
-    source_connection_id = models.UUIDField(null=True, blank=True)
+    # Null for manual entries; wearable entries retain their connection source.
+    source_connection = models.ForeignKey(
+        "wearables.WearableConnection",
+        null=True,
+        blank=True,
+        on_delete=models.RESTRICT,
+        related_name="metric_entries",
+    )
     external_source_id = models.CharField(max_length=255, null=True, blank=True)
     context = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

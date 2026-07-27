@@ -51,7 +51,7 @@ erDiagram
         float value
         datetime recorded_at
         string source
-        uuid source_connection_id "nullable, not yet an FK"
+        uuid source_connection_id FK "nullable"
         string external_source_id "nullable"
         json context
         datetime created_at
