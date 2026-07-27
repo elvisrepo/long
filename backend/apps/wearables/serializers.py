@@ -27,6 +27,13 @@ SERVER_MANAGED_FIELDS = frozenset(
 )
 SERVER_MANAGED_FIELD_MESSAGE = "This field is server-managed."
 SUPPORTED_WEARABLE_METRIC_SLUGS = frozenset({"body_weight"})
+WEARABLE_UPLOAD_RECEIPT_FIELDS = frozenset(
+    {
+        "connection_id",
+        "upload_id",
+    }
+)
+UNSUPPORTED_UPLOAD_FIELD_MESSAGE = "This field is not supported yet."
 
 
 class WearableConnectionSerializer(serializers.ModelSerializer):
@@ -167,6 +174,20 @@ class WearableUploadEntrySerializer(serializers.Serializer):
 class WearableUploadSerializer(serializers.Serializer):
     connection_id = serializers.UUIDField()
     upload_id = serializers.UUIDField()
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        unsupported_fields = sorted(
+            set(self.initial_data) - WEARABLE_UPLOAD_RECEIPT_FIELDS
+        )
+        if unsupported_fields:
+            raise serializers.ValidationError(
+                {
+                    field: [UNSUPPORTED_UPLOAD_FIELD_MESSAGE]
+                    for field in unsupported_fields
+                }
+            )
+
+        return attrs
 
 
 class SyncRunSerializer(serializers.ModelSerializer):

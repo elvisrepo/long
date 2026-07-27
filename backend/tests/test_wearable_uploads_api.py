@@ -235,3 +235,44 @@ def test_wearable_upload_retry_returns_existing_sync_run():
         wearable_connection=connection,
         upload_id=upload_id,
     ).count() == 1
+
+
+def test_wearable_upload_rejects_entries_until_ingestion_is_available():
+    user = User.objects.create_user(
+        email="premature-entry-upload@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+
+    client = APIClient()
+    access_token = RefreshToken.for_user(user).access_token
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+
+    response = client.post(
+        "/api/v1/wearables/uploads/",
+        {
+            "connection_id": str(connection.id),
+            "upload_id": str(uuid.uuid4()),
+            "entries": [
+                {
+                    "metric_definition": "body_weight",
+                    "value": 78.4,
+                    "recorded_at": "2026-07-27T08:00:00Z",
+                    "source": "samsung_health",
+                    "external_source_id": (
+                        "health_connect:WeightRecord:record-premature"
+                    ),
+                }
+            ],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "entries": ["This field is not supported yet."],
+    }
+    assert SyncRun.objects.exists() is False

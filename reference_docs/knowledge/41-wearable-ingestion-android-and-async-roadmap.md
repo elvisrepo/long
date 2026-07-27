@@ -161,6 +161,11 @@ metric range (`20–400 kg`), requires a parseable timestamp and nonblank extern
 ID, and remains disconnected from the receipt-only endpoint until persistence
 and payload-reuse protection are ready.
 
+Until that integration is complete, the receipt endpoint accepts only
+`connection_id` and `upload_id`. It rejects `entries` and every other undeclared
+field with `400`, preventing a successful response from masking discarded
+health data.
+
 The first endpoint should process a deliberately small batch synchronously and return terminal counts. A duplicate retry should return the existing outcome or another explicitly documented idempotent response, not repeat `MetricEntry` inserts.
 
 ## 6. When to Create the Android App
