@@ -132,6 +132,25 @@ def test_wearable_upload_entry_rejects_value_outside_metric_range():
     }
 
 
+def test_wearable_upload_entry_rejects_non_finite_value():
+    serializer = WearableUploadEntrySerializer(
+        data={
+            "metric_definition": "body_weight",
+            "value": "NaN",
+            "recorded_at": "2026-07-27T08:00:00Z",
+            "source": "samsung_health",
+            "external_source_id": (
+                "health_connect:WeightRecord:record-not-a-number"
+            ),
+        }
+    )
+
+    assert serializer.is_valid() is False
+    assert serializer.errors == {
+        "value": ["Value must be a finite number."],
+    }
+
+
 def test_wearable_upload_entry_rejects_invalid_recorded_at():
     serializer = WearableUploadEntrySerializer(
         data={

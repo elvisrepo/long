@@ -295,3 +295,46 @@ The tests cover both observable layers:
 - `test_checkout_session_completed_is_idempotent_for_duplicate_event` invokes
   the service twice and proves the paid subscription transition is applied
   once.
+
+## Wearable Upload Idempotency
+
+Wearable uploads use two related boundaries:
+
+```text
+(wearable_connection, upload_id) = identity of one client upload attempt
+payload_hash                     = identity of its validated content
+```
+
+The database unique constraint on `(wearable_connection, upload_id)` prevents
+two `SyncRun` receipts for the same connection-scoped upload. The same UUID may
+be used independently by another connection.
+
+The server-side canonical hash helper:
+
+- accepts only serializer-validated entries;
+- sorts entries by their required `external_source_id`;
+- identifies definitions by stable slug rather than database primary key;
+- normalizes timestamps to UTC with a fixed microsecond representation;
+- serializes a versioned canonical JSON shape;
+- returns the lowercase SHA-256 digest.
+
+The hash deliberately excludes `connection_id` and `upload_id`; those identify
+the receipt, while the hash identifies the content attached to that receipt.
+It is a consistency fingerprint, not an authentication signature, and the
+server must never trust a client-provided digest.
+
+The intended retry decision is:
+
+```text
+new (connection, upload_id)
+    -> store the server-computed hash and process once
+
+existing (connection, upload_id) + same hash
+    -> return the existing outcome without repeating writes
+
+existing (connection, upload_id) + different hash
+    -> reject the conflicting reuse
+```
+
+The canonical hash computation is implemented. Persisting it for normalized
+entry uploads and enforcing the comparison are the next ingestion slice.

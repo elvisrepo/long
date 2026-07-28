@@ -431,6 +431,7 @@ Latest local verification checkpoint:
 - On 2026-07-27, the `MetricEntry.source_connection` foreign-key, external-record uniqueness, isolated wearable entry/batch validation, and strict receipt-input slices passed all `223` backend tests, repository-wide Ruff, the configured `uv run mypy` gate across `81` source files, migration-drift detection, and `git diff --check`.
 - On 2026-07-28, duplicate external IDs within one wearable batch are rejected; all `224` backend tests, repository-wide Ruff, the configured `uv run mypy` gate across `81` source files, migration-drift detection, and `git diff --check` passed.
 - On 2026-07-28, `SyncRun.payload_hash` storage and its backward-compatible empty default were added; all `225` backend tests, repository-wide Ruff, the configured `uv run mypy` gate across `82` source files, migration-drift detection, and `git diff --check` passed.
+- On 2026-07-28, versioned canonical wearable payload hashing and non-finite value rejection were added; all `230` backend tests, repository-wide Ruff, the configured `uv run mypy` gate across `83` source files, migration-drift detection, and `git diff --check` passed.
 
 Frontend test code hygiene:
 - route tests may start with repeated setup such as:
@@ -467,7 +468,7 @@ MyPy gate repair completed on 2026-07-14:
 ### Wearable Sync Test Focus
 
 Immediate next wearable slice:
-- The `WearableConnection` model/API foundation, idempotent `SyncRun` receipt boundary, nullable `MetricEntry.source_connection` foreign key, database-backed external-record uniqueness, isolated entry/batch validation, and `SyncRun.payload_hash` storage are implemented. Canonical payload hashing and mismatch rejection are next, followed by synchronous ingestion.
+- The `WearableConnection` model/API foundation, idempotent `SyncRun` receipt boundary, nullable `MetricEntry.source_connection` foreign key, database-backed external-record uniqueness, isolated entry/batch validation, `SyncRun.payload_hash` storage, and canonical payload hashing are implemented. Persisting and comparing the hash for entry-bearing retries is next, followed by synchronous ingestion.
 - Model tests should prove provider/status choices, ownership, nullable `last_synced_at`, optional `last_error`, and timestamp behavior.
 - API tests should prove authentication is required, list and status-detail responses expose only the caller's active connections, creation stores `request.user`, disconnect deactivates only the caller's connection and releases its slot, re-registration restores the same UUID, and invalid provider/server-managed values are rejected. Later trusted ingestion-service tests should cover sync-state updates.
 - API tests now prove that the connection collection rejects unauthenticated requests, lists only the caller's connections, assigns new connection ownership from the JWT user, rejects `samsung_health` as a direct provider, and rejects creation when the plan limit is exhausted.
@@ -476,8 +477,9 @@ Immediate next wearable slice:
 - Upload API tests prove authentication, owner/active scoping, malformed UUID rejection, first-receipt creation with `201`, and an idempotent retry response with `200`. Retrying the same `(connection_id, upload_id)` returns the original serialized receipt and leaves exactly one `SyncRun`.
 - Metric-entry relationship tests prove wearable entries reference a real connection, deleting an entry preserves its connection, direct hard deletion of a referenced connection is restricted, and user deletion cascades the user's connection and entry together.
 - Metric-entry deduplication tests prove a repeated non-null `(source_connection, external_source_id)` pair is rejected, the same external ID is allowed on different connections, and manual null-source entries remain unconstrained.
-- Isolated wearable-entry serializer tests prove normalized `body_weight` acceptance, configured range enforcement, active supported system-definition lookup, Samsung Health source restriction, timestamp parsing, and required nonblank external IDs. The serializer is not yet attached to the receipt-only upload endpoint.
+- Isolated wearable-entry serializer tests prove normalized `body_weight` acceptance, configured range and finite-number enforcement, active supported system-definition lookup, Samsung Health source restriction, timestamp parsing, and required nonblank external IDs. The serializer is not yet attached to the receipt-only upload endpoint.
 - Isolated wearable-batch serializer tests prove one valid nested entry is normalized, `entries` is required and nonempty, the MVP maximum is `100`, unknown top-level or nested-entry fields are rejected, and one external source ID cannot appear twice in a batch. The serializer remains disconnected from the live endpoint.
+- Canonical payload-hash tests prove entry ordering and equivalent timezone representations do not affect the digest, while changing a value or adding an entry does. They also verify the SHA-256 result is 64-character lowercase hexadecimal.
 - Upload API coverage proves premature `entries` input returns `400` and creates no `SyncRun`, preventing DRF's default unknown-field behavior from silently discarding health data.
 - Frontend tests should be added only when a Settings/Wearables UI slice consumes the connection contract.
 

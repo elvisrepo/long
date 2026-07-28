@@ -7,6 +7,9 @@
 - Testing Health Connect and Samsung-originated data on a physical Android phone.
 - Deciding when Celery, Redis, Celery Beat, or Android WorkManager should enter the flow.
 
+The maintained visual companion for this roadmap is
+`reference_docs/knowledge/diagrams/wearable-ingestion-data-flow.md`.
+
 ## 1. Agreed Direction
 
 The wearable connection foundation is implemented before ingestion:
@@ -55,7 +58,7 @@ The Android app is the device bridge. Django cannot directly read Health Connect
 |---:|---|---|
 | 1 | Add `SyncRun` and per-connection upload idempotency — implemented | Duplicate `(connection, upload_id)` cannot create a second receipt |
 | 2 | Define and test `POST /api/v1/wearables/uploads/` — receipt boundary implemented | Authenticated owner can submit one valid normalized batch; unowned/inactive connections are rejected |
-| 3 | Process one small batch synchronously — connection FK, external-record uniqueness, and isolated entry validation implemented | Valid samples create existing `MetricEntry` rows, duplicates are skipped, and terminal `SyncRun` counters are correct |
+| 3 | Process one small batch synchronously — connection FK, external-record uniqueness, isolated validation, hash storage, and canonical hash computation implemented | Valid samples create existing `MetricEntry` rows, duplicates are skipped, and terminal `SyncRun` counters are correct |
 | 4 | Create a thin Android companion app | App can use mobile auth, request Health Connect permission, read one selected record type, and call the upload endpoint |
 | 5 | Run a physical-device vertical slice | One Samsung-originated or Health Connect test record becomes a visible backend metric entry |
 | 6 | Add mappings and device scheduling | Supported record types have explicit semantic mappings and Android performs retryable periodic work |
@@ -96,8 +99,12 @@ with `200`. The scope includes the connection so different connections may use
 the same client-generated upload UUID independently.
 
 `payload_hash` is implemented as a 64-character internal field. Existing and
-current receipt-only uploads use an empty string. Canonical hash computation and
-same-upload/different-payload rejection remain the next slice.
+current receipt-only uploads use an empty string. A pure server-side helper now
+computes a schema-versioned SHA-256 fingerprint from validated entries. It sorts
+by required external record ID and normalizes timestamps to UTC, so entry order
+and equivalent timezone representations do not change the hash while changed,
+added, or removed records do. Persisting this hash for entry-bearing requests
+and rejecting same-upload/different-payload reuse remain the next slice.
 
 Agreed status lifecycle:
 
@@ -156,15 +163,16 @@ The backend must verify:
 - `upload_id` is idempotent within the connection.
 - The metric definition is a supported active system definition.
 - Value and timestamp satisfy the metric definition and API bounds.
+- Numeric values are finite; `NaN` and infinities cannot enter persistence or canonical hashing.
 - Source provenance is allowed and cannot be used to spoof another connection.
 - PostgreSQL already prevents inserting the same non-null `external_source_id` twice for one source connection. The ingestion service must update corrected records through that identity.
 - Batch size and payload size remain bounded.
 
 The isolated first-entry validator currently supports only active system
 `body_weight` records with Samsung Health provenance. It uses the configured
-metric range (`20–400 kg`), requires a parseable timestamp and nonblank external
-ID, and remains disconnected from the receipt-only endpoint until persistence
-and payload-reuse protection are ready.
+metric range (`20–400 kg`), rejects non-finite numbers, requires a parseable
+timestamp and nonblank external ID, and remains disconnected from the
+receipt-only endpoint until persistence and payload-reuse protection are ready.
 
 Until that integration is complete, the receipt endpoint accepts only
 `connection_id` and `upload_id`. It rejects `entries` and every other undeclared

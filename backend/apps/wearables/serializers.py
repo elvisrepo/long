@@ -1,5 +1,6 @@
 """Validation and representation boundaries for wearable API data."""
 
+import math
 from collections.abc import Mapping
 from typing import Any, cast
 
@@ -202,6 +203,11 @@ class WearableUploadEntrySerializer(StrictFieldsSerializer):
             attrs["metric_definition"],
         )
         value = cast(float, attrs["value"])
+
+        if not math.isfinite(value):
+            raise serializers.ValidationError(
+                {"value": "Value must be a finite number."}
+            )
 
         if value < definition.min_value or value > definition.max_value:
             raise serializers.ValidationError(
