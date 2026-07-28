@@ -1,3 +1,6 @@
+"""Validation and representation boundaries for wearable API data."""
+
+from collections.abc import Mapping
 from typing import Any, cast
 
 from django.contrib.auth import get_user_model
@@ -11,7 +14,7 @@ from apps.wearables.validators import (
     validate_wearable_connection_provider_available,
 )
 
-
+# Clients choose a provider only; ownership and lifecycle state stay trusted.
 SERVER_MANAGED_FIELDS = frozenset(
     {
         "id",
@@ -26,17 +29,45 @@ SERVER_MANAGED_FIELDS = frozenset(
     }
 )
 SERVER_MANAGED_FIELD_MESSAGE = "This field is server-managed."
+
+# The first ingestion slice deliberately maps only Health Connect weight data.
 SUPPORTED_WEARABLE_METRIC_SLUGS = frozenset({"body_weight"})
-WEARABLE_UPLOAD_RECEIPT_FIELDS = frozenset(
-    {
-        "connection_id",
-        "upload_id",
-    }
-)
+
+# Keep future synchronous ingestion requests small and predictable.
+MAX_WEARABLE_UPLOAD_ENTRIES = 100
+
+UNSUPPORTED_FIELD_MESSAGE = "This field is not supported."
 UNSUPPORTED_UPLOAD_FIELD_MESSAGE = "This field is not supported yet."
 
 
+class StrictFieldsSerializer(serializers.Serializer):
+    """Reject undeclared keys before DRF can silently discard them."""
+
+    unsupported_field_message = UNSUPPORTED_FIELD_MESSAGE
+
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
+        # Let DRF produce its normal type error when the input is not an object.
+        if isinstance(data, Mapping):
+            # Compare raw request keys with the serializer's declared contract.
+            unsupported_fields = sorted(set(data) - set(self.fields))
+            if unsupported_fields:
+                raise serializers.ValidationError(
+                    {
+                        field: [self.unsupported_field_message]
+                        for field in unsupported_fields
+                    }
+                )
+
+        # Declared fields still use DRF's normal parsing and validation.
+        return cast(
+            dict[str, Any],
+            super().to_internal_value(data),
+        )
+
+
 class WearableConnectionSerializer(serializers.ModelSerializer):
+    """Read connections and register/reactivate one for the request user."""
+
     class Meta:
         model = WearableConnection
         fields = (
@@ -58,6 +89,8 @@ class WearableConnectionSerializer(serializers.ModelSerializer):
         )
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        # Reject lifecycle or ownership fields rather than silently ignoring
+        # values that only trusted backend code may set.
         supplied_server_managed_fields = sorted(
             SERVER_MANAGED_FIELDS.intersection(self.initial_data)
         )
@@ -75,6 +108,7 @@ class WearableConnectionSerializer(serializers.ModelSerializer):
         request = self.context["request"]
 
         with transaction.atomic():
+            # Serialize plan-slot checks and connection writes for this user.
             locked_user = (
                 get_user_model()
                 .objects.select_for_update()
@@ -86,6 +120,8 @@ class WearableConnectionSerializer(serializers.ModelSerializer):
             )
             validate_wearable_connection_limit(locked_user)
 
+            # Disconnect is a soft delete, so registration restores the
+            # durable provider row instead of creating a second identity.
             inactive_connection = (
                 WearableConnection.objects.select_for_update()
                 .filter(
@@ -118,6 +154,8 @@ class WearableConnectionSerializer(serializers.ModelSerializer):
 
 
 class WearableConnectionStatusSerializer(serializers.ModelSerializer):
+    """Return the caller-owned connection's current sync state."""
+
     class Meta:
         model = WearableConnection
         fields = (
@@ -130,7 +168,10 @@ class WearableConnectionStatusSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class WearableUploadEntrySerializer(serializers.Serializer):
+class WearableUploadEntrySerializer(StrictFieldsSerializer):
+    """Validate one future normalized health record without saving it."""
+
+    # Resolve the stable public slug to a supported active system definition.
     metric_definition = serializers.SlugRelatedField(
         slug_field="slug",
         queryset=MetricDefinition.objects.filter(
@@ -152,6 +193,7 @@ class WearableUploadEntrySerializer(serializers.Serializer):
     )
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        # The definition owns the accepted domain range for this metric.
         definition = cast(
             MetricDefinition,
             attrs["metric_definition"],
@@ -171,26 +213,32 @@ class WearableUploadEntrySerializer(serializers.Serializer):
         return attrs
 
 
-class WearableUploadSerializer(serializers.Serializer):
+class WearableUploadBatchSerializer(StrictFieldsSerializer):
+    """Validate the future bounded batch contract without exposing it yet."""
+
+    connection_id = serializers.UUIDField()
+    upload_id = serializers.UUIDField()
+    entries = WearableUploadEntrySerializer(
+        many=True,
+        allow_empty=False,
+        max_length=MAX_WEARABLE_UPLOAD_ENTRIES,
+    )
+
+
+class WearableUploadSerializer(StrictFieldsSerializer):
+    """Validate the live receipt-only request used by WearableUploadView."""
+
+    # `entries` remains unsupported until hashing and persistence are ready.
+    unsupported_field_message = UNSUPPORTED_UPLOAD_FIELD_MESSAGE
+
     connection_id = serializers.UUIDField()
     upload_id = serializers.UUIDField()
 
-    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-        unsupported_fields = sorted(
-            set(self.initial_data) - WEARABLE_UPLOAD_RECEIPT_FIELDS
-        )
-        if unsupported_fields:
-            raise serializers.ValidationError(
-                {
-                    field: [UNSUPPORTED_UPLOAD_FIELD_MESSAGE]
-                    for field in unsupported_fields
-                }
-            )
-
-        return attrs
-
 
 class SyncRunSerializer(serializers.ModelSerializer):
+    """Render a saved SyncRun receipt; clients cannot mutate its state."""
+
+    # Expose the foreign-key UUID under the public API's connection_id name.
     connection_id = serializers.UUIDField(
         source="wearable_connection_id",
         read_only=True,

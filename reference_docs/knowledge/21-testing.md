@@ -428,7 +428,7 @@ Latest local verification checkpoint:
 - `npm run build` passed with the active custom metric usage indicator.
 - `npm run test:e2e` passed with 6 Playwright tests against the isolated Docker-backed E2E runtime.
 - On 2026-07-16, `docker compose exec web uv run pytest -q` passed with `195` backend tests, `uv run ruff check` passed, and repository-wide `uv run mypy` passed across `79` source files.
-- On 2026-07-27, the `MetricEntry.source_connection` foreign-key, external-record uniqueness, isolated wearable-entry validation, and strict receipt-input slices passed all `217` backend tests, repository-wide Ruff, the configured `uv run mypy` gate across `81` source files, migration-drift detection, and `git diff --check`.
+- On 2026-07-27, the `MetricEntry.source_connection` foreign-key, external-record uniqueness, isolated wearable entry/batch validation, and strict receipt-input slices passed all `223` backend tests, repository-wide Ruff, the configured `uv run mypy` gate across `81` source files, migration-drift detection, and `git diff --check`.
 
 Frontend test code hygiene:
 - route tests may start with repeated setup such as:
@@ -475,6 +475,7 @@ Immediate next wearable slice:
 - Metric-entry relationship tests prove wearable entries reference a real connection, deleting an entry preserves its connection, direct hard deletion of a referenced connection is restricted, and user deletion cascades the user's connection and entry together.
 - Metric-entry deduplication tests prove a repeated non-null `(source_connection, external_source_id)` pair is rejected, the same external ID is allowed on different connections, and manual null-source entries remain unconstrained.
 - Isolated wearable-entry serializer tests prove normalized `body_weight` acceptance, configured range enforcement, active supported system-definition lookup, Samsung Health source restriction, timestamp parsing, and required nonblank external IDs. The serializer is not yet attached to the receipt-only upload endpoint.
+- Isolated wearable-batch serializer tests prove one valid nested entry is normalized, `entries` is required and nonempty, the MVP maximum is `100`, and unknown top-level or nested-entry fields are rejected. The serializer remains disconnected from the live endpoint.
 - Upload API coverage proves premature `entries` input returns `400` and creates no `SyncRun`, preventing DRF's default unknown-field behavior from silently discarding health data.
 - Frontend tests should be added only when a Settings/Wearables UI slice consumes the connection contract.
 
