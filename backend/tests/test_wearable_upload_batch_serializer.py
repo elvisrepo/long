@@ -176,3 +176,36 @@ def test_wearable_upload_batch_rejects_unknown_entry_field():
             }
         ],
     }
+
+
+def test_wearable_upload_batch_rejects_duplicate_external_source_ids():
+    external_source_id = "health_connect:WeightRecord:record-duplicate"
+    serializer = WearableUploadBatchSerializer(
+        data={
+            "connection_id": str(uuid.uuid4()),
+            "upload_id": str(uuid.uuid4()),
+            "entries": [
+                {
+                    "metric_definition": "body_weight",
+                    "value": 78.4,
+                    "recorded_at": "2026-07-27T08:00:00Z",
+                    "source": "samsung_health",
+                    "external_source_id": external_source_id,
+                },
+                {
+                    "metric_definition": "body_weight",
+                    "value": 78.5,
+                    "recorded_at": "2026-07-27T08:01:00Z",
+                    "source": "samsung_health",
+                    "external_source_id": external_source_id,
+                },
+            ],
+        }
+    )
+
+    assert serializer.is_valid() is False
+    assert serializer.errors == {
+        "entries": [
+            "Duplicate external_source_id values are not allowed."
+        ],
+    }

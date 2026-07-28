@@ -38,6 +38,9 @@ MAX_WEARABLE_UPLOAD_ENTRIES = 100
 
 UNSUPPORTED_FIELD_MESSAGE = "This field is not supported."
 UNSUPPORTED_UPLOAD_FIELD_MESSAGE = "This field is not supported yet."
+DUPLICATE_EXTERNAL_SOURCE_ID_MESSAGE = (
+    "Duplicate external_source_id values are not allowed."
+)
 
 
 class StrictFieldsSerializer(serializers.Serializer):
@@ -223,6 +226,21 @@ class WearableUploadBatchSerializer(StrictFieldsSerializer):
         allow_empty=False,
         max_length=MAX_WEARABLE_UPLOAD_ENTRIES,
     )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        # Every external record may appear at most once within one batch.
+        entries = cast(list[dict[str, Any]], attrs["entries"])
+        external_source_ids = [
+            cast(str, entry["external_source_id"]) for entry in entries
+        ]
+        if len(external_source_ids) != len(set(external_source_ids)):
+            raise serializers.ValidationError(
+                {
+                    "entries": [DUPLICATE_EXTERNAL_SOURCE_ID_MESSAGE],
+                }
+            )
+
+        return attrs
 
 
 class WearableUploadSerializer(StrictFieldsSerializer):

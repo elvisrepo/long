@@ -169,7 +169,8 @@ health data.
 The isolated future batch serializer requires `connection_id`, `upload_id`, and
 `1–100` entries. The `100`-entry MVP ceiling keeps synchronous work bounded
 while covering a substantial low-frequency body-weight backfill. Unknown fields
-are rejected at both the batch and entry levels.
+are rejected at both the batch and entry levels, and one external source ID may
+appear only once per batch.
 
 The first endpoint should process a deliberately small batch synchronously and return terminal counts. A duplicate retry should return the existing outcome or another explicitly documented idempotent response, not repeat `MetricEntry` inserts.
 
