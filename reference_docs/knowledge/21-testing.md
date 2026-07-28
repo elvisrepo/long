@@ -430,6 +430,7 @@ Latest local verification checkpoint:
 - On 2026-07-16, `docker compose exec web uv run pytest -q` passed with `195` backend tests, `uv run ruff check` passed, and repository-wide `uv run mypy` passed across `79` source files.
 - On 2026-07-27, the `MetricEntry.source_connection` foreign-key, external-record uniqueness, isolated wearable entry/batch validation, and strict receipt-input slices passed all `223` backend tests, repository-wide Ruff, the configured `uv run mypy` gate across `81` source files, migration-drift detection, and `git diff --check`.
 - On 2026-07-28, duplicate external IDs within one wearable batch are rejected; all `224` backend tests, repository-wide Ruff, the configured `uv run mypy` gate across `81` source files, migration-drift detection, and `git diff --check` passed.
+- On 2026-07-28, `SyncRun.payload_hash` storage and its backward-compatible empty default were added; all `225` backend tests, repository-wide Ruff, the configured `uv run mypy` gate across `82` source files, migration-drift detection, and `git diff --check` passed.
 
 Frontend test code hygiene:
 - route tests may start with repeated setup such as:
@@ -466,12 +467,12 @@ MyPy gate repair completed on 2026-07-14:
 ### Wearable Sync Test Focus
 
 Immediate next wearable slice:
-- The `WearableConnection` model/API foundation, idempotent `SyncRun` receipt boundary, nullable `MetricEntry.source_connection` foreign key, and database-backed external-record uniqueness are implemented. Normalized entry validation and synchronous ingestion are next.
+- The `WearableConnection` model/API foundation, idempotent `SyncRun` receipt boundary, nullable `MetricEntry.source_connection` foreign key, database-backed external-record uniqueness, isolated entry/batch validation, and `SyncRun.payload_hash` storage are implemented. Canonical payload hashing and mismatch rejection are next, followed by synchronous ingestion.
 - Model tests should prove provider/status choices, ownership, nullable `last_synced_at`, optional `last_error`, and timestamp behavior.
 - API tests should prove authentication is required, list and status-detail responses expose only the caller's active connections, creation stores `request.user`, disconnect deactivates only the caller's connection and releases its slot, re-registration restores the same UUID, and invalid provider/server-managed values are rejected. Later trusted ingestion-service tests should cover sync-state updates.
 - API tests now prove that the connection collection rejects unauthenticated requests, lists only the caller's connections, assigns new connection ownership from the JWT user, rejects `samsung_health` as a direct provider, and rejects creation when the plan limit is exhausted.
 - Free-plan zero-limit, active duplicate-provider, and client-supplied status/activation rejection are covered. New registration starts `pending`. Disconnect coverage proves authentication, owner-only soft deactivation, cross-user `404`, harmless repeated disconnect, same-UUID reactivation into `pending`, stale-error reset, and entitlement-slot reuse. List/status coverage hides inactive history. Additional server-managed-field cases remain on the immediate API test list.
-- `SyncRun` model tests prove duplicate `(wearable_connection, upload_id)` rejection, allow the same upload UUID on another connection, and verify the initial `received` state, timestamps, zero counters, and empty error/metadata values.
+- `SyncRun` model tests prove duplicate `(wearable_connection, upload_id)` rejection, allow the same upload UUID on another connection, verify the initial `received` state, timestamps, zero counters, and empty error/metadata values, and prove payload hashes are stored while receipt-only rows default to an empty hash.
 - Upload API tests prove authentication, owner/active scoping, malformed UUID rejection, first-receipt creation with `201`, and an idempotent retry response with `200`. Retrying the same `(connection_id, upload_id)` returns the original serialized receipt and leaves exactly one `SyncRun`.
 - Metric-entry relationship tests prove wearable entries reference a real connection, deleting an entry preserves its connection, direct hard deletion of a referenced connection is restricted, and user deletion cascades the user's connection and entry together.
 - Metric-entry deduplication tests prove a repeated non-null `(source_connection, external_source_id)` pair is rejected, the same external ID is allowed on different connections, and manual null-source entries remain unconstrained.

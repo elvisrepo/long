@@ -72,6 +72,7 @@ Minimal fields:
 id
 wearable_connection_id
 upload_id
+payload_hash
 status
 received_at
 processing_started_at
@@ -93,6 +94,10 @@ The receipt endpoint uses this constraint through `get_or_create()`: the first
 submission returns `201`, while a retry returns the unchanged existing receipt
 with `200`. The scope includes the connection so different connections may use
 the same client-generated upload UUID independently.
+
+`payload_hash` is implemented as a 64-character internal field. Existing and
+current receipt-only uploads use an empty string. Canonical hash computation and
+same-upload/different-payload rejection remain the next slice.
 
 Agreed status lifecycle:
 

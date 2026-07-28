@@ -102,6 +102,7 @@ erDiagram
         uuid id PK
         uuid wearable_connection_id FK
         uuid upload_id "unique per connection"
+        string payload_hash "SHA-256"
         string status "received|processing|succeeded|partial|failed"
         datetime received_at
         datetime processing_started_at "nullable"

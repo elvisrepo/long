@@ -85,6 +85,27 @@ def test_sync_run_starts_received_with_empty_processing_result():
     assert sync_run.finished_at is None
     assert sync_run.entries_imported == 0
     assert sync_run.entries_skipped == 0
+    assert sync_run.payload_hash == ""
     assert sync_run.error_code == ""
     assert sync_run.error_detail == {}
     assert sync_run.metadata == {}
+
+
+def test_sync_run_stores_payload_hash():
+    user = get_user_model().objects.create_user(
+        email="sync-run-payload-hash@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+    payload_hash = "a" * 64
+
+    sync_run = SyncRun.objects.create(
+        wearable_connection=connection,
+        upload_id=uuid.uuid4(),
+        payload_hash=payload_hash,
+    )
+
+    assert sync_run.payload_hash == payload_hash
