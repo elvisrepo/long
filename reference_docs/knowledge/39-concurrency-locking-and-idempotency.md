@@ -336,7 +336,7 @@ existing (connection, upload_id) + different hash
     -> reject the conflicting reuse
 ```
 
-The canonical hash computation and isolated new-batch happy path are
+The canonical hash computation and isolated new/exact-retry/conflict paths are
 implemented. `process_wearable_upload()` locks the connection row and writes
 the hashed `SyncRun`, normalized `MetricEntry` rows, terminal run state, and
 successful connection state inside one database transaction. A failed write
@@ -346,8 +346,12 @@ The isolated service now safely handles an exact retry: inside the connection
 lock, the same `(connection, upload_id, payload_hash)` returns the original
 terminal `SyncRun` before any metric or connection-state write is repeated.
 
-The service is not fully retry-safe yet. Giving the same
-`(connection, upload_id)` different content still needs an explicit domain
-conflict, and already-imported external records still need defined skip
-behavior. The live endpoint remains receipt-only until those behaviors are
-complete.
+Giving the same `(connection, upload_id)` changed content now raises
+`WearableUploadConflictError` before any write. An existing blank hash is also
+a conflict: its historical receipt proves that the identity was already used,
+but cannot prove which entry payload it represented, so the service must not
+silently claim it.
+
+Already-imported external records still need defined skip behavior. The live
+endpoint remains receipt-only until that behavior is complete and the domain
+conflict can be mapped to HTTP `409`.

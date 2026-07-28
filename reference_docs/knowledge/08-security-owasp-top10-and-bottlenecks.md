@@ -45,6 +45,7 @@ Current wearable-connection access-control boundary:
 - Active duplicate-provider validation runs after that user lock, and a database unique constraint on `(user, provider)` preserves one durable provider identity across disconnect/reactivation cycles.
 - Only active connection rows count toward the limit. Authenticated disconnect uses the same per-user lock, resolves only caller-owned active UUIDs, returns `404` for unowned, unknown, or inactive IDs, and marks an owned row inactive to release its slot without erasing history.
 - The upload-receipt endpoint requires JWT authentication and resolves `connection_id` together with `request.user` and `is_active=True`; another user's, unknown, or inactive connection returns `404`. `upload_id` is parsed as a UUID, and the database uniqueness constraint remains the final batch-duplicate boundary. A safe retry returns the unchanged caller-owned receipt without creating another `SyncRun`.
+- The isolated normalized-ingestion service permanently binds `(connection, upload_id)` to its server-computed payload hash while holding the connection lock. Exact retries return the original run; changed content and legacy blank-hash receipts raise a domain conflict before any metric or connection-state write. HTTP `409` mapping remains pending because the live endpoint is still receipt-only.
 
 Current subscription-integrity boundary:
 - Registration creates the user and active free subscription in one transaction, so neither row is persisted alone.

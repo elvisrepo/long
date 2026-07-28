@@ -58,7 +58,7 @@ The Android app is the device bridge. Django cannot directly read Health Connect
 |---:|---|---|
 | 1 | Add `SyncRun` and per-connection upload idempotency — implemented | Duplicate `(connection, upload_id)` cannot create a second receipt |
 | 2 | Define and test `POST /api/v1/wearables/uploads/` — receipt boundary implemented | Authenticated owner can submit one valid normalized batch; unowned/inactive connections are rejected |
-| 3 | Process one small batch synchronously — isolated new-batch and exact-retry paths implemented | Valid samples create existing `MetricEntry` rows, same-payload retries reuse the result, conflicting payload reuse is rejected, duplicates are skipped, and terminal `SyncRun` counters are correct |
+| 3 | Process one small batch synchronously — isolated new-batch, exact-retry, and conflict paths implemented | Valid samples create existing `MetricEntry` rows, same-payload retries reuse the result, conflicting payload reuse is rejected, duplicates are skipped, and terminal `SyncRun` counters are correct |
 | 4 | Create a thin Android companion app | App can use mobile auth, request Health Connect permission, read one selected record type, and call the upload endpoint |
 | 5 | Run a physical-device vertical slice | One Samsung-originated or Health Connect test record becomes a visible backend metric entry |
 | 6 | Add mappings and device scheduling | Supported record types have explicit semantic mappings and Android performs retryable periodic work |
@@ -109,8 +109,9 @@ The isolated `process_wearable_upload()` service locks one connection and
 atomically stores the hash, normalized entries, terminal successful receipt,
 and connected/last-synced state. An exact retry with the same connection,
 upload ID, and canonical hash returns that original receipt before repeating
-any writes. Same-upload/different-payload rejection and duplicate
-external-record skipping remain the next slice.
+any writes. Reusing that identity with changed content or a legacy unknown
+payload raises `WearableUploadConflictError`. Duplicate external-record
+skipping remains the next slice.
 
 Agreed status lifecycle:
 

@@ -11,6 +11,14 @@ from apps.metrics.models import MetricDefinition, MetricEntry
 from apps.wearables.models import SyncRun, WearableConnection
 from apps.wearables.payload_hashing import calculate_wearable_payload_hash
 
+WEARABLE_UPLOAD_CONFLICT_MESSAGE = (
+    "upload_id is already associated with a different payload."
+)
+
+
+class WearableUploadConflictError(Exception):
+    """The connection-scoped upload ID already represents other content."""
+
 
 @transaction.atomic
 def process_wearable_upload(
@@ -28,14 +36,18 @@ def process_wearable_upload(
     )
     payload_hash = calculate_wearable_payload_hash(entries)
 
-    # A network retry of the exact same batch reuses its terminal receipt and
-    # must not repeat MetricEntry writes or connection-state updates.
+    # One connection-scoped upload ID permanently identifies one payload.
     existing_sync_run = SyncRun.objects.filter(
         wearable_connection=locked_connection,
         upload_id=upload_id,
-        payload_hash=payload_hash,
     ).first()
     if existing_sync_run is not None:
+        if existing_sync_run.payload_hash != payload_hash:
+            raise WearableUploadConflictError(
+                WEARABLE_UPLOAD_CONFLICT_MESSAGE
+            )
+
+        # An exact network retry reuses its terminal receipt without writes.
         return existing_sync_run
 
     processing_started_at = timezone.now()

@@ -35,7 +35,7 @@ flowchart LR
         RETRY -->|yes| SAME
         RETRY -->|no| INGEST
         SAME -->|yes| EXISTING["Return existing outcome<br/>without repeated writes"]
-        SAME -->|no| CONFLICT["409 Conflict<br/>upload_id reused for different content"]
+        SAME -->|no| CONFLICT["Domain conflict ready<br/>HTTP 409 mapping pending"]
     end
 
     subgraph Data["PostgreSQL — implemented tables"]
@@ -71,8 +71,8 @@ flowchart LR
     classDef external fill:#f3f4f6,stroke:#4b5563,color:#111827;
 
     class AUTH,RECEIPT,OWNER,CONNECTION,SYNC,ENTRY,READ,REACT implemented;
-    class BATCH,HASH,INGEST,RETRY,SAME,EXISTING ready;
-    class ANDROID,CONFLICT planned;
+    class BATCH,HASH,INGEST,RETRY,SAME,EXISTING,CONFLICT ready;
+    class ANDROID planned;
     class SH,HC external;
 ```
 

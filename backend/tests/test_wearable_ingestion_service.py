@@ -8,7 +8,10 @@ from apps.users.models import User
 from apps.wearables.models import SyncRun, WearableConnection
 from apps.wearables.payload_hashing import calculate_wearable_payload_hash
 from apps.wearables.serializers import WearableUploadBatchSerializer
-from apps.wearables.services import process_wearable_upload
+from apps.wearables.services import (
+    WearableUploadConflictError,
+    process_wearable_upload,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -135,3 +138,122 @@ def test_process_wearable_upload_reuses_same_payload_retry():
     assert MetricEntry.objects.filter(
         source_connection=connection,
     ).count() == 1
+
+
+def test_process_wearable_upload_rejects_different_payload_retry():
+    user = User.objects.create_user(
+        email="wearable-ingestion-conflict@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+    upload_id = uuid.uuid4()
+    original_payload = {
+        "connection_id": str(connection.id),
+        "upload_id": str(upload_id),
+        "entries": [
+            {
+                "metric_definition": "body_weight",
+                "value": 78.4,
+                "recorded_at": "2026-07-27T08:00:00Z",
+                "source": "samsung_health",
+                "external_source_id": (
+                    "health_connect:WeightRecord:record-service-conflict"
+                ),
+            }
+        ],
+    }
+    original_serializer = WearableUploadBatchSerializer(
+        data=original_payload,
+    )
+    assert original_serializer.is_valid(), original_serializer.errors
+    original_entries = cast(
+        list[dict[str, Any]],
+        original_serializer.validated_data["entries"],
+    )
+    original_sync_run = process_wearable_upload(
+        connection=connection,
+        upload_id=upload_id,
+        entries=original_entries,
+    )
+
+    conflicting_serializer = WearableUploadBatchSerializer(
+        data={
+            **original_payload,
+            "entries": [
+                {
+                    **original_payload["entries"][0],
+                    "value": 78.5,
+                }
+            ],
+        }
+    )
+    assert conflicting_serializer.is_valid(), conflicting_serializer.errors
+    conflicting_entries = cast(
+        list[dict[str, Any]],
+        conflicting_serializer.validated_data["entries"],
+    )
+
+    with pytest.raises(
+        WearableUploadConflictError,
+        match="upload_id is already associated with a different payload",
+    ):
+        process_wearable_upload(
+            connection=connection,
+            upload_id=upload_id,
+            entries=conflicting_entries,
+        )
+
+    assert SyncRun.objects.get().id == original_sync_run.id
+    metric_entry = MetricEntry.objects.get()
+    assert metric_entry.value == 78.4
+
+
+def test_process_wearable_upload_rejects_legacy_blank_hash_receipt():
+    user = User.objects.create_user(
+        email="wearable-ingestion-legacy-receipt@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+    upload_id = uuid.uuid4()
+    legacy_sync_run = SyncRun.objects.create(
+        wearable_connection=connection,
+        upload_id=upload_id,
+    )
+    serializer = WearableUploadBatchSerializer(
+        data={
+            "connection_id": str(connection.id),
+            "upload_id": str(upload_id),
+            "entries": [
+                {
+                    "metric_definition": "body_weight",
+                    "value": 78.4,
+                    "recorded_at": "2026-07-27T08:00:00Z",
+                    "source": "samsung_health",
+                    "external_source_id": (
+                        "health_connect:WeightRecord:record-legacy-receipt"
+                    ),
+                }
+            ],
+        }
+    )
+    assert serializer.is_valid(), serializer.errors
+    validated_entries = cast(
+        list[dict[str, Any]],
+        serializer.validated_data["entries"],
+    )
+
+    with pytest.raises(WearableUploadConflictError):
+        process_wearable_upload(
+            connection=connection,
+            upload_id=upload_id,
+            entries=validated_entries,
+        )
+
+    assert SyncRun.objects.get().id == legacy_sync_run.id
+    assert MetricEntry.objects.exists() is False
