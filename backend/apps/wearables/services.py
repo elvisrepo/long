@@ -26,11 +26,23 @@ def process_wearable_upload(
     locked_connection = WearableConnection.objects.select_for_update().get(
         pk=connection.pk,
     )
+    payload_hash = calculate_wearable_payload_hash(entries)
+
+    # A network retry of the exact same batch reuses its terminal receipt and
+    # must not repeat MetricEntry writes or connection-state updates.
+    existing_sync_run = SyncRun.objects.filter(
+        wearable_connection=locked_connection,
+        upload_id=upload_id,
+        payload_hash=payload_hash,
+    ).first()
+    if existing_sync_run is not None:
+        return existing_sync_run
+
     processing_started_at = timezone.now()
     sync_run = SyncRun.objects.create(
         wearable_connection=locked_connection,
         upload_id=upload_id,
-        payload_hash=calculate_wearable_payload_hash(entries),
+        payload_hash=payload_hash,
         status=SyncRun.Status.PROCESSING,
         processing_started_at=processing_started_at,
     )

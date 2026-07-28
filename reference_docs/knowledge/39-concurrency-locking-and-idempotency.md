@@ -342,7 +342,12 @@ the hashed `SyncRun`, normalized `MetricEntry` rows, terminal run state, and
 successful connection state inside one database transaction. A failed write
 therefore cannot commit only part of that state.
 
-The service is not retry-safe yet. Comparing an existing receipt's hash,
-returning the same-payload outcome, rejecting a different payload, and skipping
-already-imported external records are the next ingestion slice. The live
-endpoint remains receipt-only until those behaviors are complete.
+The isolated service now safely handles an exact retry: inside the connection
+lock, the same `(connection, upload_id, payload_hash)` returns the original
+terminal `SyncRun` before any metric or connection-state write is repeated.
+
+The service is not fully retry-safe yet. Giving the same
+`(connection, upload_id)` different content still needs an explicit domain
+conflict, and already-imported external records still need defined skip
+behavior. The live endpoint remains receipt-only until those behaviors are
+complete.

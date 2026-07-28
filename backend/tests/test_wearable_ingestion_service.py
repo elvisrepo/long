@@ -80,3 +80,58 @@ def test_process_wearable_upload_persists_one_valid_batch():
     assert connection.status == WearableConnection.Status.CONNECTED
     assert connection.last_synced_at == sync_run.finished_at
     assert connection.last_error == ""
+
+
+def test_process_wearable_upload_reuses_same_payload_retry():
+    user = User.objects.create_user(
+        email="wearable-ingestion-retry@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+    upload_id = uuid.uuid4()
+    serializer = WearableUploadBatchSerializer(
+        data={
+            "connection_id": str(connection.id),
+            "upload_id": str(upload_id),
+            "entries": [
+                {
+                    "metric_definition": "body_weight",
+                    "value": 78.4,
+                    "recorded_at": "2026-07-27T08:00:00Z",
+                    "source": "samsung_health",
+                    "external_source_id": (
+                        "health_connect:WeightRecord:record-service-retry"
+                    ),
+                }
+            ],
+        }
+    )
+    assert serializer.is_valid(), serializer.errors
+    validated_entries = cast(
+        list[dict[str, Any]],
+        serializer.validated_data["entries"],
+    )
+
+    first_sync_run = process_wearable_upload(
+        connection=connection,
+        upload_id=upload_id,
+        entries=validated_entries,
+    )
+    retry_sync_run = process_wearable_upload(
+        connection=connection,
+        upload_id=upload_id,
+        entries=validated_entries,
+    )
+
+    assert retry_sync_run.id == first_sync_run.id
+    assert retry_sync_run.finished_at == first_sync_run.finished_at
+    assert SyncRun.objects.filter(
+        wearable_connection=connection,
+        upload_id=upload_id,
+    ).count() == 1
+    assert MetricEntry.objects.filter(
+        source_connection=connection,
+    ).count() == 1
