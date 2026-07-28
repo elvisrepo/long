@@ -336,5 +336,13 @@ existing (connection, upload_id) + different hash
     -> reject the conflicting reuse
 ```
 
-The canonical hash computation is implemented. Persisting it for normalized
-entry uploads and enforcing the comparison are the next ingestion slice.
+The canonical hash computation and isolated new-batch happy path are
+implemented. `process_wearable_upload()` locks the connection row and writes
+the hashed `SyncRun`, normalized `MetricEntry` rows, terminal run state, and
+successful connection state inside one database transaction. A failed write
+therefore cannot commit only part of that state.
+
+The service is not retry-safe yet. Comparing an existing receipt's hash,
+returning the same-payload outcome, rejecting a different payload, and skipping
+already-imported external records are the next ingestion slice. The live
+endpoint remains receipt-only until those behaviors are complete.

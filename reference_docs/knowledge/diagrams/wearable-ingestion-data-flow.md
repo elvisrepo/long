@@ -26,7 +26,7 @@ flowchart LR
         HASH["Canonical payload hash<br/>versioned server-computed SHA-256"]
         RETRY{"Existing<br/>(connection, upload_id)?"}
         SAME{"Stored hash<br/>matches?"}
-        INGEST["Synchronous ingestion service<br/>next implementation slice"]
+        INGEST["Synchronous ingestion service<br/>new-batch happy path ready, not wired"]
 
         RECEIPT --> OWNER
         BATCH --> OWNER
@@ -71,8 +71,8 @@ flowchart LR
     classDef external fill:#f3f4f6,stroke:#4b5563,color:#111827;
 
     class AUTH,RECEIPT,OWNER,CONNECTION,SYNC,ENTRY,READ,REACT implemented;
-    class BATCH,HASH ready;
-    class ANDROID,RETRY,SAME,INGEST,EXISTING,CONFLICT planned;
+    class BATCH,HASH,INGEST ready;
+    class ANDROID,RETRY,SAME,EXISTING,CONFLICT planned;
     class SH,HC external;
 ```
 

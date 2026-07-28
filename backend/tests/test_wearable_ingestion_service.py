@@ -1,0 +1,82 @@
+import uuid
+from typing import Any, cast
+
+import pytest
+
+from apps.metrics.models import MetricDefinition, MetricEntry
+from apps.users.models import User
+from apps.wearables.models import SyncRun, WearableConnection
+from apps.wearables.payload_hashing import calculate_wearable_payload_hash
+from apps.wearables.serializers import WearableUploadBatchSerializer
+from apps.wearables.services import process_wearable_upload
+
+pytestmark = pytest.mark.django_db
+
+
+def test_process_wearable_upload_persists_one_valid_batch():
+    user = User.objects.create_user(
+        email="wearable-ingestion@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+    upload_id = uuid.uuid4()
+    serializer = WearableUploadBatchSerializer(
+        data={
+            "connection_id": str(connection.id),
+            "upload_id": str(upload_id),
+            "entries": [
+                {
+                    "metric_definition": "body_weight",
+                    "value": 78.4,
+                    "recorded_at": "2026-07-27T08:00:00Z",
+                    "source": "samsung_health",
+                    "external_source_id": (
+                        "health_connect:WeightRecord:record-service-123"
+                    ),
+                }
+            ],
+        }
+    )
+    assert serializer.is_valid(), serializer.errors
+    validated_entries = cast(
+        list[dict[str, Any]],
+        serializer.validated_data["entries"],
+    )
+
+    sync_run = process_wearable_upload(
+        connection=connection,
+        upload_id=upload_id,
+        entries=validated_entries,
+    )
+
+    sync_run.refresh_from_db()
+    assert sync_run.payload_hash == calculate_wearable_payload_hash(
+        validated_entries
+    )
+    assert sync_run.status == SyncRun.Status.SUCCEEDED
+    assert sync_run.processing_started_at is not None
+    assert sync_run.finished_at is not None
+    assert sync_run.processing_started_at <= sync_run.finished_at
+    assert sync_run.entries_imported == 1
+    assert sync_run.entries_skipped == 0
+
+    entry = MetricEntry.objects.get()
+    body_weight = MetricDefinition.objects.get(slug="body_weight")
+    assert entry.user == user
+    assert entry.metric_definition == body_weight
+    assert entry.value == 78.4
+    assert entry.recorded_at.isoformat() == "2026-07-27T08:00:00+00:00"
+    assert entry.source == MetricEntry.Source.SAMSUNG_HEALTH
+    assert entry.source_connection == connection
+    assert (
+        entry.external_source_id
+        == "health_connect:WeightRecord:record-service-123"
+    )
+
+    connection.refresh_from_db()
+    assert connection.status == WearableConnection.Status.CONNECTED
+    assert connection.last_synced_at == sync_run.finished_at
+    assert connection.last_error == ""

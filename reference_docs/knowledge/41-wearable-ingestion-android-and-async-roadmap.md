@@ -58,7 +58,7 @@ The Android app is the device bridge. Django cannot directly read Health Connect
 |---:|---|---|
 | 1 | Add `SyncRun` and per-connection upload idempotency — implemented | Duplicate `(connection, upload_id)` cannot create a second receipt |
 | 2 | Define and test `POST /api/v1/wearables/uploads/` — receipt boundary implemented | Authenticated owner can submit one valid normalized batch; unowned/inactive connections are rejected |
-| 3 | Process one small batch synchronously — connection FK, external-record uniqueness, isolated validation, hash storage, and canonical hash computation implemented | Valid samples create existing `MetricEntry` rows, duplicates are skipped, and terminal `SyncRun` counters are correct |
+| 3 | Process one small batch synchronously — isolated new-batch happy path implemented | Valid samples create existing `MetricEntry` rows, same-payload retries reuse the result, conflicting payload reuse is rejected, duplicates are skipped, and terminal `SyncRun` counters are correct |
 | 4 | Create a thin Android companion app | App can use mobile auth, request Health Connect permission, read one selected record type, and call the upload endpoint |
 | 5 | Run a physical-device vertical slice | One Samsung-originated or Health Connect test record becomes a visible backend metric entry |
 | 6 | Add mappings and device scheduling | Supported record types have explicit semantic mappings and Android performs retryable periodic work |
@@ -99,12 +99,17 @@ with `200`. The scope includes the connection so different connections may use
 the same client-generated upload UUID independently.
 
 `payload_hash` is implemented as a 64-character internal field. Existing and
-current receipt-only uploads use an empty string. A pure server-side helper now
+current receipt-only uploads use an empty string. A pure server-side helper
 computes a schema-versioned SHA-256 fingerprint from validated entries. It sorts
 by required external record ID and normalizes timestamps to UTC, so entry order
 and equivalent timezone representations do not change the hash while changed,
-added, or removed records do. Persisting this hash for entry-bearing requests
-and rejecting same-upload/different-payload reuse remain the next slice.
+added, or removed records do.
+
+The isolated `process_wearable_upload()` happy path now locks one connection and
+atomically stores the hash, normalized entries, terminal successful receipt,
+and connected/last-synced state. Same-payload retry reuse,
+same-upload/different-payload rejection, and duplicate external-record skipping
+remain the next slice.
 
 Agreed status lifecycle:
 
@@ -172,7 +177,7 @@ The isolated first-entry validator currently supports only active system
 `body_weight` records with Samsung Health provenance. It uses the configured
 metric range (`20–400 kg`), rejects non-finite numbers, requires a parseable
 timestamp and nonblank external ID, and remains disconnected from the
-receipt-only endpoint until persistence and payload-reuse protection are ready.
+receipt-only endpoint until retry and duplicate-record behavior are ready.
 
 Until that integration is complete, the receipt endpoint accepts only
 `connection_id` and `upload_id`. It rejects `entries` and every other undeclared
