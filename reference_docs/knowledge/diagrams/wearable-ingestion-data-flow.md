@@ -26,7 +26,7 @@ flowchart LR
         HASH["Canonical payload hash<br/>versioned server-computed SHA-256"]
         RETRY{"Existing<br/>(connection, upload_id)?"}
         SAME{"Stored hash<br/>matches?"}
-        INGEST["Synchronous ingestion service<br/>new + exact-retry paths ready, not wired"]
+        INGEST["Synchronous ingestion service<br/>new, retry, conflict + identical-record skip ready<br/>not wired"]
 
         RECEIPT --> OWNER
         BATCH --> OWNER
@@ -141,3 +141,6 @@ Important boundaries:
   Health Connect access tokens.
 - The server computes `payload_hash`; the Android client must not provide or
   choose the trusted digest.
+- A different upload containing an identical stored external record receives
+  its own successful `SyncRun`, but increments `entries_skipped` instead of
+  creating another `MetricEntry`.

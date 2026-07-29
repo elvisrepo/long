@@ -58,7 +58,7 @@ The Android app is the device bridge. Django cannot directly read Health Connect
 |---:|---|---|
 | 1 | Add `SyncRun` and per-connection upload idempotency — implemented | Duplicate `(connection, upload_id)` cannot create a second receipt |
 | 2 | Define and test `POST /api/v1/wearables/uploads/` — receipt boundary implemented | Authenticated owner can submit one valid normalized batch; unowned/inactive connections are rejected |
-| 3 | Process one small batch synchronously — isolated new-batch, exact-retry, and conflict paths implemented | Valid samples create existing `MetricEntry` rows, same-payload retries reuse the result, conflicting payload reuse is rejected, duplicates are skipped, and terminal `SyncRun` counters are correct |
+| 3 | Process one small batch synchronously — isolated new-batch, exact-retry, conflict, and identical-record-skip paths implemented | Valid samples create existing `MetricEntry` rows, same-payload retries reuse the result, conflicting payload reuse is rejected, mixed-batch counters are verified, changed provider records follow an explicit policy, and terminal `SyncRun` counters are correct |
 | 4 | Create a thin Android companion app | App can use mobile auth, request Health Connect permission, read one selected record type, and call the upload endpoint |
 | 5 | Run a physical-device vertical slice | One Samsung-originated or Health Connect test record becomes a visible backend metric entry |
 | 6 | Add mappings and device scheduling | Supported record types have explicit semantic mappings and Android performs retryable periodic work |
@@ -110,8 +110,12 @@ atomically stores the hash, normalized entries, terminal successful receipt,
 and connected/last-synced state. An exact retry with the same connection,
 upload ID, and canonical hash returns that original receipt before repeating
 any writes. Reusing that identity with changed content or a legacy unknown
-payload raises `WearableUploadConflictError`. Duplicate external-record
-skipping remains the next slice.
+payload raises `WearableUploadConflictError`.
+
+A new upload containing an external record whose definition, value, timestamp,
+and source exactly match the stored record skips the insert and increments
+`entries_skipped`. Mixed new/duplicate counter coverage and changed-content
+external-record behavior remain next.
 
 Agreed status lifecycle:
 
@@ -179,7 +183,7 @@ The isolated first-entry validator currently supports only active system
 `body_weight` records with Samsung Health provenance. It uses the configured
 metric range (`20–400 kg`), rejects non-finite numbers, requires a parseable
 timestamp and nonblank external ID, and remains disconnected from the
-receipt-only endpoint until retry and duplicate-record behavior are ready.
+receipt-only endpoint until mixed-batch and changed-record behavior are ready.
 
 Until that integration is complete, the receipt endpoint accepts only
 `connection_id` and `upload_id`. It rejects `entries` and every other undeclared

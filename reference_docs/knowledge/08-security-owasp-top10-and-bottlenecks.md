@@ -97,7 +97,7 @@ Current Stripe credential and traffic boundary:
 - See `reference_docs/knowledge/38-stripe-testing-and-load-testing.md`.
 
 #### Edge Cases
-- **Duplicate data from wearable sync**: The implemented `MetricEntry.source_connection` foreign key preserves connection provenance. PostgreSQL enforces a conditional unique constraint for non-null `(source_connection, external_source_id)` values; ingestion must update a corrected provider record rather than insert a duplicate.
+- **Duplicate data from wearable sync**: The implemented `MetricEntry.source_connection` foreign key preserves connection provenance. PostgreSQL enforces a conditional unique constraint for non-null `(source_connection, external_source_id)` values. The isolated ingestion service preloads existing records under the connection lock and counts an identical record as skipped instead of attempting another insert; the database constraint remains the final race-safe guard. Changed-content correction behavior remains to be defined explicitly.
 - **Timezone hell**: All timestamps stored as UTC (`timestamptz`). User's timezone stored on profile for display only. `recorded_at` is always UTC — the frontend converts for display.
 - **Metric value out of range**: Rejected at serializer level. MetricDefinition has `min_value` and `max_value` — a heart rate of 500 bpm gets a 400 error.
 - **Stripe webhook replay**: Store processed Stripe event IDs in `StripeWebhookEvent`. If we see the same event ID twice, skip processing.

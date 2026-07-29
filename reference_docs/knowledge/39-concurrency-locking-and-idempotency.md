@@ -352,6 +352,13 @@ a conflict: its historical receipt proves that the identity was already used,
 but cannot prove which entry payload it represented, so the service must not
 silently claim it.
 
-Already-imported external records still need defined skip behavior. The live
-endpoint remains receipt-only until that behavior is complete and the domain
-conflict can be mapped to HTTP `409`.
+For a new upload identity, the service preloads existing external record IDs
+for the locked connection. If all normalized fields match, it skips the insert
+and increments `entries_skipped`; the new upload still receives its own
+successful `SyncRun`. PostgreSQL's conditional unique constraint remains the
+final concurrency-safe protection.
+
+Changed content under an existing external record ID still needs an explicit
+correction policy, and mixed new/duplicate batch counters need direct coverage.
+The live endpoint remains receipt-only until those boundaries are complete and
+the upload domain conflict can be mapped to HTTP `409`.

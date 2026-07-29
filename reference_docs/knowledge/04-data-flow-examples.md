@@ -77,7 +77,7 @@ CONN_1     = WearableConnection UUID
 | 4 | Verified `customer.subscription.updated` arrives | `StripeWebhookEvent(evt_subscription_...)` | `SUB_PRO` receives recognized price/plan data, current-period dates, and normalized cancellation state | Local billing dates and price match Stripe |
 | 5 | User registers Health Connect | `WearableConnection(CONN_1, user=U1, provider=health_connect, status=pending, is_active=true)` | — | Active wearable usage becomes `1 / 1`; registration does not yet claim a successful sync |
 | 6 | First upload receipt — implemented | `SyncRun(connection=CONN_1, upload_id=UPLOAD_1, status=received)` | — | The first request returns `201`; retrying `(CONN_1, UPLOAD_1)` returns the same receipt with `200` |
-| 7 | First normalized sample ingestion — isolated new/retry/conflict paths implemented; endpoint wiring planned | Wearable-sourced `MetricEntry` rows | `SyncRun` stores its payload hash, reaches `succeeded`, and records the imported count; `CONN_1` becomes `connected` and receives `last_synced_at` | The service writes a new batch atomically, reuses an exact retry, and rejects changed or unknown content for the same upload ID; duplicate-record skipping remains next |
+| 7 | First normalized sample ingestion — isolated new/retry/conflict/exact-record-deduplication paths implemented; endpoint wiring planned | Wearable-sourced `MetricEntry` rows | `SyncRun` stores its payload hash, reaches `succeeded`, and records imported/skipped counts; `CONN_1` becomes `connected` and receives `last_synced_at` | A new upload containing an identical previously imported external record gets its own successful receipt with `imported=0`, `skipped=1`, and no duplicate metric row |
 
 Important final-state properties:
 
@@ -86,7 +86,7 @@ Important final-state properties:
 - `StripeWebhookEvent` is the provider-event idempotency ledger.
 - `WearableConnection.status=pending` means registration succeeded but no trusted ingestion has proven the bridge works yet.
 - Connecting Health Connect alone creates no `MetricEntry` rows.
-- The `SyncRun` receipt model, database idempotency constraint, receipt-only upload endpoint, and isolated new/exact-retry/conflict ingestion paths are implemented. The endpoint still rejects entries until duplicate-record handling makes the full path safe.
+- The `SyncRun` receipt model, database idempotency constraint, receipt-only upload endpoint, and isolated new/exact-retry/conflict/identical-record-skip paths are implemented. The endpoint still rejects entries while changed-content external-record behavior and mixed-batch coverage are finalized.
 
 ## Free to Pro to Health Connect Sequence
 

@@ -257,3 +257,61 @@ def test_process_wearable_upload_rejects_legacy_blank_hash_receipt():
 
     assert SyncRun.objects.get().id == legacy_sync_run.id
     assert MetricEntry.objects.exists() is False
+
+
+def test_process_wearable_upload_skips_identical_external_record():
+    user = User.objects.create_user(
+        email="wearable-ingestion-external-duplicate@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+    entry_payload = {
+        "metric_definition": "body_weight",
+        "value": 78.4,
+        "recorded_at": "2026-07-27T08:00:00Z",
+        "source": "samsung_health",
+        "external_source_id": (
+            "health_connect:WeightRecord:record-external-duplicate"
+        ),
+    }
+
+    validated_batches: list[tuple[uuid.UUID, list[dict[str, Any]]]] = []
+    for upload_id in (uuid.uuid4(), uuid.uuid4()):
+        serializer = WearableUploadBatchSerializer(
+            data={
+                "connection_id": str(connection.id),
+                "upload_id": str(upload_id),
+                "entries": [entry_payload],
+            }
+        )
+        assert serializer.is_valid(), serializer.errors
+        validated_batches.append(
+            (
+                upload_id,
+                cast(
+                    list[dict[str, Any]],
+                    serializer.validated_data["entries"],
+                ),
+            )
+        )
+
+    first_sync_run = process_wearable_upload(
+        connection=connection,
+        upload_id=validated_batches[0][0],
+        entries=validated_batches[0][1],
+    )
+    duplicate_sync_run = process_wearable_upload(
+        connection=connection,
+        upload_id=validated_batches[1][0],
+        entries=validated_batches[1][1],
+    )
+
+    assert duplicate_sync_run.id != first_sync_run.id
+    assert duplicate_sync_run.status == SyncRun.Status.SUCCEEDED
+    assert duplicate_sync_run.entries_imported == 0
+    assert duplicate_sync_run.entries_skipped == 1
+    assert SyncRun.objects.count() == 2
+    assert MetricEntry.objects.count() == 1

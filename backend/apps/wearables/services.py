@@ -1,6 +1,7 @@
 """Trusted domain operations for normalized wearable uploads."""
 
 from collections.abc import Mapping, Sequence
+from datetime import datetime
 from typing import Any, cast
 from uuid import UUID
 
@@ -20,6 +21,25 @@ class WearableUploadConflictError(Exception):
     """The connection-scoped upload ID already represents other content."""
 
 
+def _matches_normalized_entry(
+    existing_entry: MetricEntry,
+    incoming_entry: Mapping[str, Any],
+) -> bool:
+    """Compare a stored provider record with already-validated input."""
+
+    definition = cast(
+        MetricDefinition,
+        incoming_entry["metric_definition"],
+    )
+    return (
+        existing_entry.metric_definition_id == definition.id
+        and existing_entry.value == cast(float, incoming_entry["value"])
+        and existing_entry.recorded_at
+        == cast(datetime, incoming_entry["recorded_at"])
+        and existing_entry.source == str(incoming_entry["source"])
+    )
+
+
 @transaction.atomic
 def process_wearable_upload(
     *,
@@ -27,7 +47,7 @@ def process_wearable_upload(
     upload_id: UUID,
     entries: Sequence[Mapping[str, Any]],
 ) -> SyncRun:
-    """Persist one validated wearable batch and its terminal receipt."""
+    """Persist one serializer-validated batch and its terminal receipt."""
 
     # Serialize ingestion for one connection while its receipt, entries, and
     # latest successful sync state are written as one database transaction.
@@ -59,7 +79,46 @@ def process_wearable_upload(
         processing_started_at=processing_started_at,
     )
 
+    # WearableUploadBatchSerializer has already validated and normalized every
+    # entry. Load all matching stored records in one query so the loop below
+    # does not issue one database query per uploaded entry.
+    existing_entries_by_external_id: dict[str, MetricEntry] = {}
+    external_source_ids = [
+        cast(str, entry["external_source_id"]) for entry in entries
+    ]
+    for existing_entry in MetricEntry.objects.filter(
+        source_connection=locked_connection,
+        external_source_id__in=external_source_ids,
+    ):
+        if existing_entry.external_source_id is not None:
+            existing_entries_by_external_id[
+                existing_entry.external_source_id
+            ] = existing_entry
+
+    entries_imported = 0
+    entries_skipped = 0
     for entry in entries:
+        external_source_id = cast(str, entry["external_source_id"])
+
+        # The provider record ID is unique within one wearable connection.
+        existing_entry = existing_entries_by_external_id.get(
+            external_source_id
+        )
+
+        # A byte-for-byte equivalent normalized record was already imported
+        # through an earlier upload, so count it without inserting it again.
+        if existing_entry is not None and _matches_normalized_entry(
+            existing_entry,
+            entry,
+        ):
+            entries_skipped += 1
+            continue
+
+        # No stored external ID means this is a new record and can be inserted.
+        # If the ID exists but normalized content differs, it reaches the
+        # database uniqueness constraint and rolls back this transaction.
+        # A later slice must define whether such provider corrections update
+        # the stored MetricEntry or raise an explicit record-level conflict.
         MetricEntry.objects.create(
             user_id=locked_connection.user_id,
             metric_definition=cast(
@@ -70,21 +129,21 @@ def process_wearable_upload(
             recorded_at=entry["recorded_at"],
             source=str(entry["source"]),
             source_connection=locked_connection,
-            external_source_id=cast(
-                str,
-                entry["external_source_id"],
-            ),
+            external_source_id=external_source_id,
         )
+        entries_imported += 1
 
     finished_at = timezone.now()
     sync_run.status = SyncRun.Status.SUCCEEDED
     sync_run.finished_at = finished_at
-    sync_run.entries_imported = len(entries)
+    sync_run.entries_imported = entries_imported
+    sync_run.entries_skipped = entries_skipped
     sync_run.save(
         update_fields=(
             "status",
             "finished_at",
             "entries_imported",
+            "entries_skipped",
         )
     )
 
