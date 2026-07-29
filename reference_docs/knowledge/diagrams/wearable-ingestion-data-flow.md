@@ -20,22 +20,22 @@ flowchart LR
 
     subgraph Django["Django backend"]
         AUTH["Mobile login<br/>returns access + refresh JWTs"]
-        RECEIPT["Upload endpoint<br/>currently accepts connection_id + upload_id"]
+        RECEIPT["Upload endpoint<br/>requires IDs + 1–100 normalized entries"]
         OWNER["Authenticate user<br/>validate UUIDs<br/>find active caller-owned connection"]
         BATCH["Normalized batch validation<br/>1–100 strict entries"]
         HASH["Canonical payload hash<br/>versioned server-computed SHA-256"]
         RETRY{"Existing<br/>(connection, upload_id)?"}
         SAME{"Stored hash<br/>matches?"}
-        INGEST["Synchronous ingestion service<br/>new, retry, upload/record conflict + dedupe ready<br/>not wired"]
+        INGEST["Synchronous ingestion service<br/>new, retry, upload/record conflict + dedupe live"]
 
         RECEIPT --> OWNER
         BATCH --> OWNER
-        OWNER -. "next: hash validated entries" .-> HASH
+        OWNER -->|"hash validated entries"| HASH
         HASH --> RETRY
         RETRY -->|yes| SAME
         RETRY -->|no| INGEST
         SAME -->|yes| EXISTING["Return existing outcome<br/>without repeated writes"]
-        SAME -->|no| CONFLICT["Domain conflict ready<br/>HTTP 409 mapping pending"]
+        SAME -->|no| CONFLICT["409 Conflict"]
     end
 
     subgraph Data["PostgreSQL — implemented tables"]
@@ -51,8 +51,8 @@ flowchart LR
 
     ANDROID -->|"POST /api/v1/auth/mobile/login/"| AUTH
     AUTH -->|"access JWT"| ANDROID
-    ANDROID -->|"Current: IDs only + Bearer JWT"| RECEIPT
-    ANDROID -. "Next: IDs + normalized entries" .-> BATCH
+    ANDROID -. "Future client: Bearer JWT + normalized batch" .-> RECEIPT
+    RECEIPT --> BATCH
 
     OWNER -->|"create or return receipt"| SYNC
     OWNER -->|"resolves"| CONNECTION
@@ -70,8 +70,7 @@ flowchart LR
     classDef planned fill:#fef3c7,stroke:#b45309,color:#78350f,stroke-dasharray:5 5;
     classDef external fill:#f3f4f6,stroke:#4b5563,color:#111827;
 
-    class AUTH,RECEIPT,OWNER,CONNECTION,SYNC,ENTRY,READ,REACT implemented;
-    class BATCH,HASH,INGEST,RETRY,SAME,EXISTING,CONFLICT ready;
+    class AUTH,RECEIPT,OWNER,BATCH,HASH,INGEST,RETRY,SAME,EXISTING,CONFLICT,CONNECTION,SYNC,ENTRY,READ,REACT implemented;
     class ANDROID planned;
     class SH,HC external;
 ```
@@ -79,13 +78,13 @@ flowchart LR
 Legend:
 
 - Green: live behavior or an implemented durable table/API.
-- Blue: implemented and tested in isolation, but not connected to the live upload endpoint.
+- Blue: implemented and tested in isolation, but not connected to a live boundary.
 - Amber dashed: the next end-to-end behavior or the later Android slice.
 - Gray: an external on-device system.
 
-## Intended Normalized Upload Contract
+## Implemented Normalized Upload Contract
 
-The Android client will eventually send:
+The future Android client will call the already-implemented backend contract:
 
 ```http
 POST /api/v1/wearables/uploads/
@@ -109,8 +108,9 @@ Content-Type: application/json
 }
 ```
 
-The live endpoint still rejects `entries`. It currently creates or retrieves
-only the `SyncRun` receipt from `connection_id` and `upload_id`.
+The endpoint processes entries synchronously and returns a terminal `SyncRun`.
+New work returns `201`, an exact retry returns `200`, and upload/record
+conflicts return `409`.
 
 ## Durable Record Relationships
 

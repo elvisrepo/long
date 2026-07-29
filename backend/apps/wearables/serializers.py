@@ -38,7 +38,6 @@ SUPPORTED_WEARABLE_METRIC_SLUGS = frozenset({"body_weight"})
 MAX_WEARABLE_UPLOAD_ENTRIES = 100
 
 UNSUPPORTED_FIELD_MESSAGE = "This field is not supported."
-UNSUPPORTED_UPLOAD_FIELD_MESSAGE = "This field is not supported yet."
 DUPLICATE_EXTERNAL_SOURCE_ID_MESSAGE = (
     "Duplicate external_source_id values are not allowed."
 )
@@ -247,16 +246,6 @@ class WearableUploadBatchSerializer(StrictFieldsSerializer):
             )
 
         return attrs
-
-
-class WearableUploadSerializer(StrictFieldsSerializer):
-    """Validate the live receipt-only request used by WearableUploadView."""
-
-    # `entries` remains unsupported until hashing and persistence are ready.
-    unsupported_field_message = UNSUPPORTED_UPLOAD_FIELD_MESSAGE
-
-    connection_id = serializers.UUIDField()
-    upload_id = serializers.UUIDField()
 
 
 class SyncRunSerializer(serializers.ModelSerializer):

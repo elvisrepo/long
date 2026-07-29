@@ -57,8 +57,8 @@ The Android app is the device bridge. Django cannot directly read Health Connect
 | Phase | Work | Exit condition |
 |---:|---|---|
 | 1 | Add `SyncRun` and per-connection upload idempotency — implemented | Duplicate `(connection, upload_id)` cannot create a second receipt |
-| 2 | Define and test `POST /api/v1/wearables/uploads/` — receipt boundary implemented | Authenticated owner can submit one valid normalized batch; unowned/inactive connections are rejected |
-| 3 | Process one small batch synchronously — isolated new-batch, exact-retry, upload-conflict, identical-record-skip, mixed-counter, and record-conflict paths implemented | Exit condition satisfied; endpoint wiring is next |
+| 2 | Define and test `POST /api/v1/wearables/uploads/` — normalized contract implemented | Authenticated owner can submit one valid normalized batch; unowned/inactive connections are rejected |
+| 3 | Process one small batch synchronously — fully wired | New batches, exact retries, upload conflicts, record skips, mixed counters, and record conflicts are covered through the live endpoint/service boundary |
 | 4 | Create a thin Android companion app | App can use mobile auth, request Health Connect permission, read one selected record type, and call the upload endpoint |
 | 5 | Run a physical-device vertical slice | One Samsung-originated or Health Connect test record becomes a visible backend metric entry |
 | 6 | Add mappings and device scheduling | Supported record types have explicit semantic mappings and Android performs retryable periodic work |
@@ -93,13 +93,15 @@ Database idempotency boundary:
 UNIQUE(wearable_connection_id, upload_id)
 ```
 
-The receipt endpoint uses this constraint through `get_or_create()`: the first
-submission returns `201`, while a retry returns the unchanged existing receipt
-with `200`. The scope includes the connection so different connections may use
-the same client-generated upload UUID independently.
+The ingestion service checks this identity while holding the connection lock.
+The first normalized submission returns `201`, while an exact retry returns the
+unchanged terminal result with `200`. The scope includes the connection so
+different connections may use the same client-generated upload UUID
+independently.
 
-`payload_hash` is implemented as a 64-character internal field. Existing and
-current receipt-only uploads use an empty string. A pure server-side helper
+`payload_hash` is a 64-character internal field. Historical receipt-only rows
+may have an empty string; current normalized uploads always store a
+server-computed digest. A pure server-side helper
 computes a schema-versioned SHA-256 fingerprint from validated entries. It sorts
 by required external record ID and normalizes timestamps to UTC, so entry order
 and equivalent timezone representations do not change the hash while changed,
@@ -121,8 +123,8 @@ For the MVP, the same external record ID with different normalized content
 raises `WearableRecordConflictError`. The transaction rolls back the new
 `SyncRun` and preserves the existing metric rather than silently rewriting
 health history. `WearableUploadConflictError` and
-`WearableRecordConflictError` share `WearableIngestionConflictError` so the
-future HTTP layer can map both safely to `409`.
+`WearableRecordConflictError` share `WearableIngestionConflictError`; the live
+HTTP layer maps both safely to `409`.
 
 Agreed status lifecycle:
 
@@ -149,7 +151,7 @@ Meanings:
 
 ## 5. Initial Upload Contract
 
-Implemented receipt endpoint; normalized `entries` remain planned:
+Implemented synchronous normalized upload contract:
 
 ```http
 POST /api/v1/wearables/uploads/
@@ -183,21 +185,15 @@ The backend must verify:
 - Value and timestamp satisfy the metric definition and API bounds.
 - Numeric values are finite; `NaN` and infinities cannot enter persistence or canonical hashing.
 - Source provenance is allowed and cannot be used to spoof another connection.
-- PostgreSQL already prevents inserting the same non-null `external_source_id` twice for one source connection. The ingestion service must update corrected records through that identity.
+- PostgreSQL prevents inserting the same non-null `external_source_id` twice for one source connection. The service skips identical records and, for the MVP, rejects changed content with `409` rather than silently updating history.
 - Batch size and payload size remain bounded.
 
-The isolated first-entry validator currently supports only active system
+The live nested-entry validator currently supports only active system
 `body_weight` records with Samsung Health provenance. It uses the configured
 metric range (`20–400 kg`), rejects non-finite numbers, requires a parseable
-timestamp and nonblank external ID, and remains disconnected from the
-receipt-only endpoint until the next endpoint-wiring slice.
+timestamp and nonblank external ID.
 
-Until that integration is complete, the receipt endpoint accepts only
-`connection_id` and `upload_id`. It rejects `entries` and every other undeclared
-field with `400`, preventing a successful response from masking discarded
-health data.
-
-The isolated future batch serializer requires `connection_id`, `upload_id`, and
+The live batch serializer requires `connection_id`, `upload_id`, and
 `1–100` entries. The `100`-entry MVP ceiling keeps synchronous work bounded
 while covering a substantial low-frequency body-weight backfill. Unknown fields
 are rejected at both the batch and entry levels, and one external source ID may

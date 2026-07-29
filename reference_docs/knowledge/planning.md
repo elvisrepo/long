@@ -197,37 +197,43 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 | GET | `/api/v1/wearables/connections/` | List linked sync connections | Implemented; JWT required; returns only active connections owned by the caller |
 | POST | `/api/v1/wearables/connections/` | Register or reactivate a wearable connection | Implemented; accepts only `provider=health_connect`; ownership, activation, and status are server-managed; enforces the current plan limit |
 | GET | `/api/v1/wearables/connections/{id}/status/` | Fetch sync state for one connection | Implemented; JWT required and owner-scoped; includes provider, status, last sync timestamp, and last error; unowned or unknown UUIDs return `404` |
-| POST | `/api/v1/wearables/uploads/` | Create or retrieve a wearable upload receipt | Partially implemented; JWT required; accepts only `connection_id` and `upload_id`, resolves an active caller-owned connection, returns `201` for a new `SyncRun(status=received)` or `200` for the same connection-scoped upload retry, and rejects undeclared fields such as `entries` with `400` |
+| POST | `/api/v1/wearables/uploads/` | Process a normalized wearable batch | Implemented synchronously; JWT required; accepts `connection_id`, `upload_id`, and `1–100` normalized entries; resolves an active caller-owned connection; returns `201` for new work, `200` for an exact retry, `409` for upload/record conflicts, and `400` for invalid input |
 | DELETE | `/api/v1/wearables/connections/{id}/` | Disconnect provider | Implemented; JWT required; marks only a caller-owned active row inactive and releases its plan slot while preserving history; returns `204` when disconnected and `404` for unknown, unowned, or already-inactive rows |
 | POST | `/api/v1/wearables/connections/{id}/resync/` | Request replay / resync from the client | Returns 202 Accepted — backend records replay intent and the Android client performs the upload |
 
 MVP Samsung sync does **not** use provider webhooks or a hosted provider link flow. The Android companion app reads Samsung-originated data on device, uploads batches to our API, and the backend handles validation, deduplication, and persistence. A future aggregator webhook receiver can be added later for providers with cloud-friendly APIs.
 
-**Planned example: Uploading a Samsung sync batch after receipt-only work is complete**
-```json
+**Implemented synchronous normalized upload example**
+```http
 POST /api/v1/wearables/uploads/
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+Content-Type: application/json
+```
 
+```json
 {
-  "connection_id": "conn-001",
+  "connection_id": "7df7e4ab-7e6f-4558-b9be-17c824fbf54e",
   "upload_id": "9ea2c91d-63f4-40eb-a6bb-7fbd90c12a34",
-  "cursor": "2026-03-05T07:15:00Z",
   "entries": [
     {
-      "metric_definition": "resting_hr",
-      "value": 58,
-      "recorded_at": "2026-03-05T07:15:00Z",
+      "metric_definition": "body_weight",
+      "value": 78.4,
+      "recorded_at": "2026-07-29T08:00:00Z",
       "source": "samsung_health",
-      "external_source_id": "samsung:heart_rate:1741168500"
+      "external_source_id": "health_connect:WeightRecord:record-123"
     }
   ]
 }
+```
 
-// Planned asynchronous response after Celery is introduced: 202 Accepted
+```json
 {
-  "connection_id": "conn-001",
+  "id": "6ac744c4-8202-4cd7-91c7-3d44ea067381",
+  "connection_id": "7df7e4ab-7e6f-4558-b9be-17c824fbf54e",
   "upload_id": "9ea2c91d-63f4-40eb-a6bb-7fbd90c12a34",
-  "status": "received"
+  "status": "succeeded",
+  "entries_imported": 1,
+  "entries_skipped": 0
 }
 ```
 

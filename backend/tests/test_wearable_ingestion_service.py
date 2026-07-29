@@ -50,12 +50,13 @@ def test_process_wearable_upload_persists_one_valid_batch():
         serializer.validated_data["entries"],
     )
 
-    sync_run = process_wearable_upload(
+    sync_run, created = process_wearable_upload(
         connection=connection,
         upload_id=upload_id,
         entries=validated_entries,
     )
 
+    assert created is True
     sync_run.refresh_from_db()
     assert sync_run.payload_hash == calculate_wearable_payload_hash(
         validated_entries
@@ -119,17 +120,19 @@ def test_process_wearable_upload_reuses_same_payload_retry():
         serializer.validated_data["entries"],
     )
 
-    first_sync_run = process_wearable_upload(
+    first_sync_run, first_created = process_wearable_upload(
         connection=connection,
         upload_id=upload_id,
         entries=validated_entries,
     )
-    retry_sync_run = process_wearable_upload(
+    retry_sync_run, retry_created = process_wearable_upload(
         connection=connection,
         upload_id=upload_id,
         entries=validated_entries,
     )
 
+    assert first_created is True
+    assert retry_created is False
     assert retry_sync_run.id == first_sync_run.id
     assert retry_sync_run.finished_at == first_sync_run.finished_at
     assert SyncRun.objects.filter(
@@ -174,11 +177,12 @@ def test_process_wearable_upload_rejects_different_payload_retry():
         list[dict[str, Any]],
         original_serializer.validated_data["entries"],
     )
-    original_sync_run = process_wearable_upload(
+    original_sync_run, created = process_wearable_upload(
         connection=connection,
         upload_id=upload_id,
         entries=original_entries,
     )
+    assert created is True
 
     conflicting_serializer = WearableUploadBatchSerializer(
         data={
@@ -299,17 +303,19 @@ def test_process_wearable_upload_skips_identical_external_record():
             )
         )
 
-    first_sync_run = process_wearable_upload(
+    first_sync_run, first_created = process_wearable_upload(
         connection=connection,
         upload_id=validated_batches[0][0],
         entries=validated_batches[0][1],
     )
-    duplicate_sync_run = process_wearable_upload(
+    duplicate_sync_run, duplicate_created = process_wearable_upload(
         connection=connection,
         upload_id=validated_batches[1][0],
         entries=validated_batches[1][1],
     )
 
+    assert first_created is True
+    assert duplicate_created is True
     assert duplicate_sync_run.id != first_sync_run.id
     assert duplicate_sync_run.status == SyncRun.Status.SUCCEEDED
     assert duplicate_sync_run.entries_imported == 0
@@ -374,7 +380,7 @@ def test_process_wearable_upload_counts_mixed_new_and_duplicate_entries():
     )
     assert mixed_serializer.is_valid(), mixed_serializer.errors
 
-    mixed_sync_run = process_wearable_upload(
+    mixed_sync_run, created = process_wearable_upload(
         connection=connection,
         upload_id=second_upload_id,
         entries=cast(
@@ -383,6 +389,7 @@ def test_process_wearable_upload_counts_mixed_new_and_duplicate_entries():
         ),
     )
 
+    assert created is True
     assert mixed_sync_run.status == SyncRun.Status.SUCCEEDED
     assert mixed_sync_run.entries_imported == 1
     assert mixed_sync_run.entries_skipped == 1
@@ -419,7 +426,7 @@ def test_process_wearable_upload_rejects_changed_external_record():
         }
     )
     assert first_serializer.is_valid(), first_serializer.errors
-    first_sync_run = process_wearable_upload(
+    first_sync_run, created = process_wearable_upload(
         connection=connection,
         upload_id=first_upload_id,
         entries=cast(
@@ -427,6 +434,7 @@ def test_process_wearable_upload_rejects_changed_external_record():
             first_serializer.validated_data["entries"],
         ),
     )
+    assert created is True
 
     conflicting_upload_id = uuid.uuid4()
     conflicting_serializer = WearableUploadBatchSerializer(

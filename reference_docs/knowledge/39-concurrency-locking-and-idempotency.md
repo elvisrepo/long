@@ -336,13 +336,13 @@ existing (connection, upload_id) + different hash
     -> reject the conflicting reuse
 ```
 
-The canonical hash computation and isolated new/exact-retry/conflict paths are
+The canonical hash computation and new/exact-retry/conflict HTTP paths are
 implemented. `process_wearable_upload()` locks the connection row and writes
 the hashed `SyncRun`, normalized `MetricEntry` rows, terminal run state, and
 successful connection state inside one database transaction. A failed write
 therefore cannot commit only part of that state.
 
-The isolated service now safely handles an exact retry: inside the connection
+The service safely handles an exact retry: inside the connection
 lock, the same `(connection, upload_id, payload_hash)` returns the original
 terminal `SyncRun` before any metric or connection-state write is repeated.
 
@@ -364,6 +364,6 @@ existing external record ID raises `WearableRecordConflictError` before the
 insert. The atomic service rolls back the conflicting `SyncRun` and preserves
 the original metric rather than silently rewriting provider history.
 
-The live endpoint remains receipt-only. The next slice connects the completed
-service policy and maps both wearable ingestion conflict subclasses to HTTP
-`409`.
+The live endpoint requires normalized entries and exposes this policy
+synchronously: new work returns `201`, an exact retry returns `200`, and either
+wearable ingestion conflict subclass returns `409`.

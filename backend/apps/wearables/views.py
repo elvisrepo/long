@@ -7,12 +7,16 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from apps.wearables.models import SyncRun, WearableConnection
+from apps.wearables.models import WearableConnection
 from apps.wearables.serializers import (
     SyncRunSerializer,
     WearableConnectionSerializer,
     WearableConnectionStatusSerializer,
-    WearableUploadSerializer,
+    WearableUploadBatchSerializer,
+)
+from apps.wearables.services import (
+    WearableIngestionConflictError,
+    process_wearable_upload,
 )
 
 
@@ -58,12 +62,12 @@ class WearableConnectionStatusView(generics.RetrieveAPIView):
 
 
 class WearableUploadView(generics.GenericAPIView):
-    serializer_class = WearableUploadSerializer
+    serializer_class = WearableUploadBatchSerializer
     # 1. Authenticate the request and populate request.user.
     permission_classes = [IsAuthenticated]
 
     def post(self, request: Request) -> Response:
-        # 2. Validate connection_id and upload_id as UUIDs.
+        # 2. Validate IDs and every normalized entry in the bounded batch.
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -75,13 +79,20 @@ class WearableUploadView(generics.GenericAPIView):
             is_active=True,
         )
 
-        # 4. Create the receipt once, or reuse it when Android retries the batch.
-        sync_run, created = SyncRun.objects.get_or_create(
-            wearable_connection=connection,
-            upload_id=serializer.validated_data["upload_id"],
-        )
+        # 4. Atomically process a new batch or reuse an exact retry.
+        try:
+            sync_run, created = process_wearable_upload(
+                connection=connection,
+                upload_id=serializer.validated_data["upload_id"],
+                entries=serializer.validated_data["entries"],
+            )
+        except WearableIngestionConflictError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_409_CONFLICT,
+            )
 
-        # 5. Return 201 for the first receipt and 200 for an idempotent retry.
+        # 5. Return 201 for new work and 200 for an exact idempotent retry.
         response_status = (
             status.HTTP_201_CREATED if created else status.HTTP_200_OK
         )

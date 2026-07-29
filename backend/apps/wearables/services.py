@@ -57,8 +57,8 @@ def process_wearable_upload(
     connection: WearableConnection,
     upload_id: UUID,
     entries: Sequence[Mapping[str, Any]],
-) -> SyncRun:
-    """Persist one serializer-validated batch and its terminal receipt."""
+) -> tuple[SyncRun, bool]:
+    """Return the terminal run and whether this call created it."""
 
     # Serialize ingestion for one connection while its receipt, entries, and
     # latest successful sync state are written as one database transaction.
@@ -79,7 +79,7 @@ def process_wearable_upload(
             )
 
         # An exact network retry reuses its terminal receipt without writes.
-        return existing_sync_run
+        return existing_sync_run, False
 
     processing_started_at = timezone.now()
     sync_run = SyncRun.objects.create(
@@ -170,4 +170,4 @@ def process_wearable_upload(
         )
     )
 
-    return sync_run
+    return sync_run, True
