@@ -26,7 +26,7 @@ flowchart LR
         HASH["Canonical payload hash<br/>versioned server-computed SHA-256"]
         RETRY{"Existing<br/>(connection, upload_id)?"}
         SAME{"Stored hash<br/>matches?"}
-        INGEST["Synchronous ingestion service<br/>new, retry, conflict + identical-record skip ready<br/>not wired"]
+        INGEST["Synchronous ingestion service<br/>new, retry, upload/record conflict + dedupe ready<br/>not wired"]
 
         RECEIPT --> OWNER
         BATCH --> OWNER
@@ -144,3 +144,6 @@ Important boundaries:
 - A different upload containing an identical stored external record receives
   its own successful `SyncRun`, but increments `entries_skipped` instead of
   creating another `MetricEntry`.
+- Changed normalized content under an existing external record ID raises a
+  record-level domain conflict and rolls back the new receipt instead of
+  rewriting the stored health record.

@@ -15,10 +15,21 @@ from apps.wearables.payload_hashing import calculate_wearable_payload_hash
 WEARABLE_UPLOAD_CONFLICT_MESSAGE = (
     "upload_id is already associated with a different payload."
 )
+WEARABLE_RECORD_CONFLICT_MESSAGE = (
+    "external_source_id is already associated with different content."
+)
 
 
-class WearableUploadConflictError(Exception):
+class WearableIngestionConflictError(Exception):
+    """Base class for safe wearable-ingestion conflict responses."""
+
+
+class WearableUploadConflictError(WearableIngestionConflictError):
     """The connection-scoped upload ID already represents other content."""
+
+
+class WearableRecordConflictError(WearableIngestionConflictError):
+    """A provider record ID already represents different normalized data."""
 
 
 def _matches_normalized_entry(
@@ -105,20 +116,20 @@ def process_wearable_upload(
             external_source_id
         )
 
-        # A byte-for-byte equivalent normalized record was already imported
-        # through an earlier upload, so count it without inserting it again.
-        if existing_entry is not None and _matches_normalized_entry(
-            existing_entry,
-            entry,
-        ):
-            entries_skipped += 1
-            continue
+        if existing_entry is not None:
+            # An equivalent normalized record was imported earlier, so count
+            # it without inserting it again.
+            if _matches_normalized_entry(existing_entry, entry):
+                entries_skipped += 1
+                continue
+
+            # Do not silently rewrite provider history when the stable record
+            # identity arrives with changed normalized content.
+            raise WearableRecordConflictError(
+                WEARABLE_RECORD_CONFLICT_MESSAGE
+            )
 
         # No stored external ID means this is a new record and can be inserted.
-        # If the ID exists but normalized content differs, it reaches the
-        # database uniqueness constraint and rolls back this transaction.
-        # A later slice must define whether such provider corrections update
-        # the stored MetricEntry or raise an explicit record-level conflict.
         MetricEntry.objects.create(
             user_id=locked_connection.user_id,
             metric_definition=cast(

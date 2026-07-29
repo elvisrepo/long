@@ -86,7 +86,7 @@ Important final-state properties:
 - `StripeWebhookEvent` is the provider-event idempotency ledger.
 - `WearableConnection.status=pending` means registration succeeded but no trusted ingestion has proven the bridge works yet.
 - Connecting Health Connect alone creates no `MetricEntry` rows.
-- The `SyncRun` receipt model, database idempotency constraint, receipt-only upload endpoint, and isolated new/exact-retry/conflict/identical-record-skip paths are implemented. Mixed new/duplicate batches correctly report imported and skipped counts. The endpoint still rejects entries while changed-content external-record behavior is finalized.
+- The `SyncRun` receipt model, database idempotency constraint, receipt-only upload endpoint, and isolated new/exact-retry/upload-conflict/record-skip/record-conflict paths are implemented. Mixed new/duplicate batches correctly report imported and skipped counts. Wiring this completed service policy into the endpoint is next.
 
 ## Free to Pro to Health Connect Sequence
 

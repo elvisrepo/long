@@ -437,6 +437,7 @@ Latest local verification checkpoint:
 - On 2026-07-28, conflicting wearable-upload identity reuse and legacy blank-hash receipts gained explicit domain rejection; all `234` backend tests, repository-wide Ruff, the configured `uv run mypy` gate across `84` source files, migration-drift detection, and `git diff --check` passed.
 - On 2026-07-28, identical external wearable records from a new upload became successful skipped entries instead of uniqueness failures; all `235` backend tests, repository-wide Ruff, the configured `uv run mypy` gate across `84` source files, migration-drift detection, and `git diff --check` passed.
 - On 2026-07-29, mixed wearable batches gained direct imported/skipped counter coverage; all `236` backend tests, repository-wide Ruff, the configured `uv run mypy` gate across `84` source files, migration-drift detection, and `git diff --check` passed.
+- On 2026-07-29, changed content under an existing wearable provider-record ID gained explicit domain conflict handling; all `237` backend tests, repository-wide Ruff, the configured `uv run mypy` gate across `84` source files, migration-drift detection, and `git diff --check` passed.
 
 Frontend test code hygiene:
 - route tests may start with repeated setup such as:
@@ -473,7 +474,7 @@ MyPy gate repair completed on 2026-07-14:
 ### Wearable Sync Test Focus
 
 Immediate next wearable slice:
-- The `WearableConnection` model/API foundation, idempotent `SyncRun` receipt boundary, nullable `MetricEntry.source_connection` foreign key, database-backed external-record uniqueness, isolated entry/batch validation, canonical payload hashing, and isolated new/exact-retry/conflict/identical-record-skip ingestion paths are implemented. Mixed new/duplicate batch counters are verified. Changed-content external-record behavior is next; only then should normalized entries be exposed through the endpoint.
+- The `WearableConnection` model/API foundation, idempotent `SyncRun` receipt boundary, nullable `MetricEntry.source_connection` foreign key, database-backed external-record uniqueness, isolated entry/batch validation, canonical payload hashing, and isolated new/exact-retry/upload-conflict/record-skip/record-conflict ingestion paths are implemented. Mixed new/duplicate batch counters are verified. Wiring normalized entries into the endpoint with `201`, `200`, and safe `409` responses is next.
 - Model tests should prove provider/status choices, ownership, nullable `last_synced_at`, optional `last_error`, and timestamp behavior.
 - API tests should prove authentication is required, list and status-detail responses expose only the caller's active connections, creation stores `request.user`, disconnect deactivates only the caller's connection and releases its slot, re-registration restores the same UUID, and invalid provider/server-managed values are rejected. Later trusted ingestion-service tests should cover sync-state updates.
 - API tests now prove that the connection collection rejects unauthenticated requests, lists only the caller's connections, assigns new connection ownership from the JWT user, rejects `samsung_health` as a direct provider, and rejects creation when the plan limit is exhausted.
@@ -488,6 +489,7 @@ Immediate next wearable slice:
 - Ingestion-service tests prove one validated new batch atomically stores its canonical hash, creates its `MetricEntry`, marks the `SyncRun` succeeded with one imported entry, and moves the connection from pending to connected with `last_synced_at`. An exact retry returns the original terminal `SyncRun` without another write. Changed content and a legacy blank-hash receipt both raise `WearableUploadConflictError` without replacing the original receipt or creating metric data.
 - A cross-upload record-deduplication test proves a different `upload_id` containing the same normalized `(connection, external_source_id)` record receives a distinct successful `SyncRun` with `entries_imported=0` and `entries_skipped=1`, while only one `MetricEntry` remains.
 - A mixed-batch test proves one new record plus one identical stored record produces one successful `SyncRun` with `entries_imported=1` and `entries_skipped=1`, leaving exactly the two distinct metric records stored.
+- A changed-record test proves a new upload containing an existing `external_source_id` with different normalized content raises `WearableRecordConflictError`, preserves the original metric value, and rolls back the conflicting `SyncRun`.
 - Upload API coverage proves premature `entries` input returns `400` and creates no `SyncRun`, preventing DRF's default unknown-field behavior from silently discarding health data.
 - Frontend tests should be added only when a Settings/Wearables UI slice consumes the connection contract.
 

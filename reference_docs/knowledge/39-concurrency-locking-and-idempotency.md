@@ -359,7 +359,11 @@ successful `SyncRun`. PostgreSQL's conditional unique constraint remains the
 final concurrency-safe protection.
 
 Mixed new/duplicate batches are directly covered and report their imported and
-skipped counts independently. Changed content under an existing external record
-ID still needs an explicit correction policy. The live endpoint remains
-receipt-only until that boundary is complete and the upload domain conflict can
-be mapped to HTTP `409`.
+skipped counts independently. For the MVP, changed normalized content under an
+existing external record ID raises `WearableRecordConflictError` before the
+insert. The atomic service rolls back the conflicting `SyncRun` and preserves
+the original metric rather than silently rewriting provider history.
+
+The live endpoint remains receipt-only. The next slice connects the completed
+service policy and maps both wearable ingestion conflict subclasses to HTTP
+`409`.
