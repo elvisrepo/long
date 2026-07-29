@@ -358,7 +358,8 @@ and increments `entries_skipped`; the new upload still receives its own
 successful `SyncRun`. PostgreSQL's conditional unique constraint remains the
 final concurrency-safe protection.
 
-Changed content under an existing external record ID still needs an explicit
-correction policy, and mixed new/duplicate batch counters need direct coverage.
-The live endpoint remains receipt-only until those boundaries are complete and
-the upload domain conflict can be mapped to HTTP `409`.
+Mixed new/duplicate batches are directly covered and report their imported and
+skipped counts independently. Changed content under an existing external record
+ID still needs an explicit correction policy. The live endpoint remains
+receipt-only until that boundary is complete and the upload domain conflict can
+be mapped to HTTP `409`.

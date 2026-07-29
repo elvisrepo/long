@@ -315,3 +315,77 @@ def test_process_wearable_upload_skips_identical_external_record():
     assert duplicate_sync_run.entries_skipped == 1
     assert SyncRun.objects.count() == 2
     assert MetricEntry.objects.count() == 1
+
+
+def test_process_wearable_upload_counts_mixed_new_and_duplicate_entries():
+    user = User.objects.create_user(
+        email="wearable-ingestion-mixed-batch@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+    existing_entry_payload = {
+        "metric_definition": "body_weight",
+        "value": 78.4,
+        "recorded_at": "2026-07-27T08:00:00Z",
+        "source": "samsung_health",
+        "external_source_id": (
+            "health_connect:WeightRecord:record-mixed-existing"
+        ),
+    }
+    first_upload_id = uuid.uuid4()
+    first_serializer = WearableUploadBatchSerializer(
+        data={
+            "connection_id": str(connection.id),
+            "upload_id": str(first_upload_id),
+            "entries": [existing_entry_payload],
+        }
+    )
+    assert first_serializer.is_valid(), first_serializer.errors
+    process_wearable_upload(
+        connection=connection,
+        upload_id=first_upload_id,
+        entries=cast(
+            list[dict[str, Any]],
+            first_serializer.validated_data["entries"],
+        ),
+    )
+
+    second_upload_id = uuid.uuid4()
+    mixed_serializer = WearableUploadBatchSerializer(
+        data={
+            "connection_id": str(connection.id),
+            "upload_id": str(second_upload_id),
+            "entries": [
+                existing_entry_payload,
+                {
+                    **existing_entry_payload,
+                    "value": 78.8,
+                    "recorded_at": "2026-07-28T08:00:00Z",
+                    "external_source_id": (
+                        "health_connect:WeightRecord:record-mixed-new"
+                    ),
+                },
+            ],
+        }
+    )
+    assert mixed_serializer.is_valid(), mixed_serializer.errors
+
+    mixed_sync_run = process_wearable_upload(
+        connection=connection,
+        upload_id=second_upload_id,
+        entries=cast(
+            list[dict[str, Any]],
+            mixed_serializer.validated_data["entries"],
+        ),
+    )
+
+    assert mixed_sync_run.status == SyncRun.Status.SUCCEEDED
+    assert mixed_sync_run.entries_imported == 1
+    assert mixed_sync_run.entries_skipped == 1
+    assert SyncRun.objects.count() == 2
+    assert MetricEntry.objects.filter(
+        source_connection=connection,
+    ).count() == 2
