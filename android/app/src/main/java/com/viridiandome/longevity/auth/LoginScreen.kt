@@ -16,8 +16,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.viridiandome.longevity.ui.theme.LongevityTheme
 
+/**
+ * Stateless login UI.
+ *
+ * The caller owns [state]. This composable renders that state and reports user
+ * actions through callbacks, which keeps it reusable and straightforward to test.
+ */
 @Composable
 fun LoginScreen(
     state: LoginFormState,
@@ -57,6 +65,7 @@ fun LoginScreen(
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Password,
             ),
+            // This masks the displayed characters; it does not encrypt or persist the value.
             visualTransformation = PasswordVisualTransformation(),
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
@@ -71,5 +80,24 @@ fun LoginScreen(
         ) {
             Text(text = "Sign in")
         }
+    }
+}
+
+@Preview(
+    showBackground = true,
+    showSystemUi = true,
+)
+@Composable
+private fun LoginScreenPreview() {
+    LongevityTheme {
+        LoginScreen(
+            state = LoginFormState(
+                email = "",
+                password = "",
+            ),
+            onEmailChange = {},
+            onPasswordChange = {},
+            onSignIn = {},
+        )
     }
 }
