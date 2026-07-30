@@ -294,9 +294,14 @@ sequenceDiagram
 > **Strategy: Develop locally with Docker Compose. Deploy MVP to cloud with pragmatic architecture.** Don't start with the absolute simplest diagram, but don't over-engineer either. Include key best practices (reverse proxy, backups, secrets management, CI/CD) but defer full HA and advanced scaling until needed.
 
 #### Local Development Architecture
-This diagram shows the **current backend local runtime** used to build the manual-entry foundation phase.
+This diagram now has a maintained, current counterpart in
+`reference_docs/knowledge/05-local-development-architecture.md` and the
+Structurizr source of truth. The local runtime includes the browser/backend
+loop plus Android Studio/Gradle/adb installing and testing the Compose client
+on a physical phone.
 
-Samsung Health sync is intentionally **not** represented here. The MVP sync path requires an Android companion app and on-device health data access, so this diagram stays backend-only until that work begins.
+The Android shell and login UI exist, while Android-to-Django authentication
+and Health Connect reads remain the next device-bridge steps.
 
 ```mermaid
 graph TB
@@ -944,7 +949,9 @@ git init
 ```
 
 ### 3.2 Docker Compose
-**Current scope:** Docker Compose covers the backend development loop for the manual-entry foundation phase. Samsung sync work adds an Android companion app and emulator/device setup later, but that is intentionally separate from the backend topology described here.
+**Current scope:** Docker Compose covers the backend runtime. The implemented
+Android companion project is built separately with Android Studio/Gradle and
+installed/tested on a physical phone through `adb`.
 
 ```yaml
 # docker-compose.yml (simplified)

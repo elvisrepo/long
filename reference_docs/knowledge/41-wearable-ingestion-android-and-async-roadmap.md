@@ -26,7 +26,9 @@ The next path is:
 SyncRun receipt
     → synchronous upload endpoint
     → first normalized MetricEntry
-    → thin Android companion app
+    → thin Android companion app — in progress
+    → Android mobile authentication
+    → Health Connect weight permission/read/upload
     → physical-device end-to-end test
     → broader record mappings and Android scheduling
     → Celery/Redis when processing needs to become asynchronous
@@ -59,11 +61,33 @@ The Android app is the device bridge. Django cannot directly read Health Connect
 | 1 | Add `SyncRun` and per-connection upload idempotency — implemented | Duplicate `(connection, upload_id)` cannot create a second receipt |
 | 2 | Define and test `POST /api/v1/wearables/uploads/` — normalized contract implemented | Authenticated owner can submit one valid normalized batch; unowned/inactive connections are rejected |
 | 3 | Process one small batch synchronously — fully wired | New batches, exact retries, upload conflicts, record skips, mixed counters, and record conflicts are covered through the live endpoint/service boundary |
-| 4 | Create a thin Android companion app | App can use mobile auth, request Health Connect permission, read one selected record type, and call the upload endpoint |
+| 4 | Create a thin Android companion app — in progress | App can use mobile auth, request Health Connect permission, read one selected record type, and call the upload endpoint |
 | 5 | Run a physical-device vertical slice | One Samsung-originated or Health Connect test record becomes a visible backend metric entry |
 | 6 | Add mappings and device scheduling | Supported record types have explicit semantic mappings and Android performs retryable periodic work |
 | 7 | Move expensive ingestion to Celery/Redis | API returns quickly while workers preserve the same database idempotency and terminal results |
 | 8 | Add sync UI and production hardening | Users can inspect sync state; operators have rate limits, logs, metrics, and repair tools |
+
+### Current Android checkpoint — 2026-07-30
+
+Implemented:
+
+- `android/` is a Kotlin Android application using Jetpack Compose and the Gradle wrapper.
+- Application ID and namespace are `com.viridiandome.longevity`.
+- `minSdk=28` matches the physical Health Connect availability floor; the current project compiles against Android API `37.1` while targeting API `36`.
+- `LoginFormState` owns immutable email/password values and derives whether submission is enabled.
+- `LoginScreen` is a stateless Compose component with controlled email/password fields, masked password display, state-controlled Sign in button, and Android Studio preview.
+- `MainActivity` owns the current in-memory form state and sends immutable state copies back through one-way Compose callbacks.
+- Android Studio/Gradle can build the debug APK, and `adb` can install/run the app and instrumented tests on the physical `FCP-N49` phone.
+- JVM tests cover blank/present credential state. Compose tests cover the isolated blank form and real-Activity credential entry on the physical phone.
+
+Not implemented yet:
+
+- Sign in makes no HTTP request; the callback is deliberately empty.
+- No password, access token, or refresh token is persisted.
+- No Android ViewModel, auth repository, or HTTP client exists.
+- No debug `adb reverse` backend connection or debug-only cleartext policy exists.
+- The app has not registered/read a `WearableConnection`, requested Health Connect permission, read `WeightRecord`, filtered Samsung-originated records, or uploaded a normalized batch.
+- WorkManager, Celery-backed asynchronous ingestion, and production distribution remain later phases.
 
 ## 4. `SyncRun` Receipt and Status Lifecycle
 
@@ -208,13 +232,24 @@ Start the thin Android project after the upload request/response contract exists
 First Android scope:
 
 1. Sign in through `POST /api/auth/mobile/login/`.
-2. Store mobile credentials using Android-appropriate secure storage.
+2. Store returned access/refresh tokens using Android-appropriate secure storage; never persist the password.
 3. Check Health Connect availability.
 4. Request permission for one deliberately selected record type.
 5. Read a small bounded time range.
 6. Normalize records into the backend upload contract.
 7. Generate a stable upload UUID for the batch.
 8. POST the batch and display its result.
+
+Implementation sequence from the current UI checkpoint:
+
+1. Prevent accidental password disclosure through state logging.
+2. Define/test the mobile-login request, response, and failure contract.
+3. Add a ViewModel and repository boundary; do not place HTTP calls directly in `MainActivity`.
+4. Add debug-only network configuration and use `adb reverse tcp:8000 tcp:8000`.
+5. Call Django mobile login and securely store the returned tokens.
+6. Fetch or register the caller-owned Health Connect `WearableConnection`.
+7. Add Health Connect SDK availability and weight-read permission.
+8. Read a bounded `WeightRecord` range, preserve stable external IDs, filter/label provenance correctly, and upload through the existing endpoint.
 
 Do not map a convenient Health Connect type to the wrong domain metric. For example, a generic heart-rate sample is not automatically a resting-heart-rate measurement. Choose the first record type only after confirming its semantics match an existing `MetricDefinition`, or add a correct system definition deliberately.
 
@@ -224,9 +259,9 @@ A public Play Store deployment is not required for the first real Health Connect
 
 Recommended local path:
 
-1. Enable developer options and USB debugging on the Android phone.
-2. Connect the phone to the development machine.
-3. Run the debug build directly from Android Studio, or build a debug APK and install it with `adb install`.
+1. Enable developer options and USB debugging on the Android phone — completed locally.
+2. Connect and authorize the phone with the development machine — completed locally for `FCP-N49`.
+3. Run the debug build and Compose instrumented tests through Android Studio/Gradle and `adb` — completed for the login UI.
 4. Use `adb reverse tcp:8000 tcp:8000` while Django is exposed on local port `8000` so the phone can call the development API through `http://127.0.0.1:8000`.
 5. Allow cleartext HTTP only in the debug Android configuration; production builds must use HTTPS.
 6. Grant the requested Health Connect permissions on the phone.

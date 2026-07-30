@@ -14,7 +14,7 @@ git init
 ```
 
 ### 3.2 Docker Compose
-**Current scope:** Docker Compose covers the backend development loop for the manual-entry foundation phase. Samsung sync work adds an Android companion app and emulator/device setup later, but that is intentionally separate from the backend topology described here.
+**Current scope:** Docker Compose hosts the backend services. The implemented Android companion project runs separately through Android Studio/Gradle on the host and installs debug/test APKs on a physical phone through `adb`.
 
 ```yaml
 # docker-compose.yml (simplified)
@@ -58,7 +58,7 @@ volumes:
 longevity/
 ├── config/           # Settings, URLs, ASGI, Celery
 │   └── settings/     # base.py, dev.py, prod.py, test.py
-├── android/          # Android companion app for Samsung sync (R2/R3+)
+├── android/          # Implemented Kotlin/Compose companion app (R2/R3 in progress)
 ├── apps/
 │   ├── accounts/       # User model, auth, profile, GDPR
 │   ├── metrics/        # MetricDefinition, MetricEntry, analytics
@@ -85,6 +85,34 @@ longevity/
 - mypy
 - pip-audit (security)
 ```
+
+Android companion development:
+
+```text
+Android Studio: /opt/android-studio
+Android SDK:    /home/sevi/Android/Sdk
+ADB:            /home/sevi/Android/Sdk/platform-tools/adb
+Project:        /home/sevi/longevity/android
+Application ID: com.viridiandome.longevity
+Minimum SDK:    28
+Compile SDK:    37.1
+Target SDK:     36
+```
+
+- Do not run `git init` inside `android/`; the companion app is part of the root repository.
+- `android/local.properties`, `.gradle/`, `.idea/`, and build outputs stay ignored; commit the Gradle wrapper and application sources.
+- Use Android Studio's bundled JDK for reproducible command-line builds:
+
+```bash
+cd /home/sevi/longevity/android
+JAVA_HOME=/opt/android-studio/jbr ./gradlew testDebugUnitTest
+JAVA_HOME=/opt/android-studio/jbr ./gradlew connectedDebugAndroidTest
+```
+
+- `connectedDebugAndroidTest` uses `adb` to build/install the app and test APKs, start AndroidJUnitRunner, and report device results.
+- Keep the physical phone awake and unlocked during instrumented Compose tests.
+- The current `LoginScreenPreview` can be rendered from Android Studio's Split/Design editor without a phone.
+- The debug app does not call Django yet. The next networking slice will add debug-only local HTTP configuration and `adb reverse tcp:8000 tcp:8000`; production remains HTTPS-only.
 
 ### 3.5 Environment Variables
 ```bash

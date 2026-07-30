@@ -42,7 +42,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
           longevity.beat -> longevity.redis "Publishes scheduled work"
 
             localDev = deploymentEnvironment "Local Development" {
-                developerMachine = deploymentNode "Developer Machine" "Local host machine used for browser testing, the Vite dev server, and Stripe webhook forwarding." {
+                developerMachine = deploymentNode "Developer Machine" "Local host machine used for browser testing, Vite, Android Studio/Gradle/adb, and Stripe webhook forwarding." {
                     tags "ClientZone"
 
                     localBrowserNode = deploymentNode "Browser" "Local browser runtime" {
@@ -59,6 +59,24 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
 
                     stripeCli = infrastructureNode "Stripe CLI Listener" "Forwards selected Stripe sandbox webhook events to the local Django webhook endpoint." {
                         tags "EdgeService"
+                    }
+
+                    androidTooling = infrastructureNode "Android Studio + Gradle + adb" "Builds the Kotlin/Compose app and installs/runs debug and test APKs on the authorized physical phone." {
+                        tags "ClientRuntime"
+                    }
+                }
+
+                physicalAndroidPhone = deploymentNode "Physical Android Phone" "Current USB-connected test device. The Compose login UI is implemented; Django authentication and Health Connect reads are next." {
+                    tags "ClientZone"
+
+                    localAndroidClient = containerInstance longevity.android
+
+                    localHealthConnect = infrastructureNode "Health Connect" "On-device health platform; permission and WeightRecord integration are not implemented yet." {
+                        tags "ClientRuntime"
+                    }
+
+                    localSamsungHealth = infrastructureNode "Samsung Health" "On-device source application expected to write Samsung-originated records into Health Connect." {
+                        tags "ClientRuntime"
                     }
                 }
 
@@ -92,6 +110,18 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 }
 
                 localDev.developerMachine.localBrowserNode.localBrowser -> localDev.developerMachine.viteNode.localWebapp "Loads React app from Vite" {
+                    tags "ClientTraffic"
+                }
+
+                localDev.developerMachine.androidTooling -> localDev.physicalAndroidPhone.localAndroidClient "Builds, installs, and runs debug/test APKs over USB using adb" {
+                    tags "ClientTraffic"
+                }
+
+                localDev.physicalAndroidPhone.localSamsungHealth -> localDev.physicalAndroidPhone.localHealthConnect "Writes Samsung-originated records on device" {
+                    tags "ClientTraffic"
+                }
+
+                localDev.physicalAndroidPhone.localAndroidClient -> localDev.physicalAndroidPhone.localHealthConnect "Next slice: requests permission and reads WeightRecord data" {
                     tags "ClientTraffic"
                 }
 
@@ -546,7 +576,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             user -> longevity.webapp "Sees Free plan state after the paid subscription has actually ended"
         }
 
-        deployment * localDev "local-development-deployment" "Deployment view for the current browser/backend local runtime, including Docker Compose and Stripe CLI webhook forwarding; the Android test-device runtime will be added when the companion app exists." {
+        deployment * localDev "local-development-deployment" "Current local runtime: browser/Vite, Docker Compose, Stripe CLI forwarding, and Android Studio/Gradle/adb installing and testing the Compose client on a physical phone. Android-to-Django auth and Health Connect reads remain next." {
             include *
             autolayout lr
         }

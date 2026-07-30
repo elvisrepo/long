@@ -1,6 +1,6 @@
 # System Design Roadmap: Local MVP to Production
 
-Current state, bluntly: the project has a solid local MVP foundation, but it is not the final product yet. Manual metrics and Stripe subscription lifecycle are in good shape. Wearable sync, richer analytics, production deployment, and compliance hardening are still ahead.
+Current state, bluntly: the project has a solid local MVP foundation, but it is not the final product yet. Manual metrics, Stripe subscription lifecycle, and synchronous wearable ingestion are in good shape. The Android companion app has started as a tested local client, while real mobile authentication, Health Connect reads, richer analytics, production deployment, and compliance hardening are still ahead.
 
 ## 1. Local system design — what exists now
 
@@ -17,6 +17,12 @@ PostgreSQL / TimescaleDB
 
 Redis + Celery exist for background work
 Stripe CLI forwards local webhooks to Django
+
+Android Studio + Gradle + adb
+  ↓ installs debug and test APKs over USB
+Physical Android phone
+  ↓ currently renders the local Compose login UI
+Android companion app
 ```
 
 Current runtime nuance:
@@ -41,6 +47,10 @@ Implemented slices:
 - Local subscription state synced from Stripe
 - Settings billing UI
 - Basic Pro Insights scaffold
+- Health Connect connection lifecycle and plan limits
+- Idempotent synchronous wearable upload ingestion into `MetricEntry`
+- Kotlin/Compose Android project scaffold
+- Stateful Android login UI with JVM and physical-device Compose tests
 
 Related docs:
 
@@ -91,9 +101,12 @@ Right now, Pro Insights is mostly a placeholder. It proves feature gating and UI
 
 Still missing:
 
-- wearable/device sync
-- Android companion app
-- ingestion idempotency for wearable samples
+- Android-to-Django mobile authentication
+- secure access/refresh-token storage on Android
+- Health Connect availability and permission flow
+- Health Connect `WeightRecord` reads and Samsung-origin filtering
+- Android normalization and upload to the implemented ingestion endpoint
+- retryable Android WorkManager scheduling
 - real analytics endpoint
 - trend calculations
 - production deployment
@@ -130,15 +143,15 @@ Checkout / Portal / Webhooks
 Subscription + entitlement state
 ```
 
-The current wearable connection foundation is implemented: plan-limited Health Connect registration, owner-scoped active list/status reads, soft disconnect, and same-UUID reactivation.
+The wearable backend is implemented through normalized synchronous ingestion: plan-limited Health Connect registration, owner-scoped lifecycle reads, soft disconnect/reactivation, `SyncRun` idempotency, canonical payload hashing, external-record deduplication, conflict handling, and normalized `MetricEntry` persistence.
 
 Immediate next slice:
 
 ```text
-Authenticated synchronous wearable ingestion contract
+Android mobile authentication
 ```
 
-The `SyncRun` receipt, per-connection `upload_id` constraint, and authenticated owner happy path for receipt creation are implemented. Next, complete the receipt boundary with authentication, hidden unowned/inactive connections, malformed UUID, and duplicate-retry behavior before accepting normalized samples or writing `MetricEntry` rows.
+The Android project exists at `android/`. It uses Kotlin, Jetpack Compose, Gradle, and a physical USB-connected device test loop. The login form has immutable state, state-controlled inputs, a disabled/enabled submit rule, a Compose preview, and unit/instrumented coverage. Its Sign in callback is intentionally still a no-op: no Android HTTP client, JWT storage, connection API call, or Health Connect permission exists yet.
 
 Refactor trigger before ingestion grows:
 
@@ -152,19 +165,27 @@ Recommended order:
 
    Preserve one batch receipt per connection/upload ID for retry idempotency and troubleshooting.
 
-2. Add ingestion endpoint
+2. Add ingestion endpoint — completed
 
    Android companion app can upload metric samples.
 
-3. Enforce idempotency
+3. Enforce idempotency — completed
 
    Avoid duplicate samples if the app retries uploads.
 
-4. Normalize wearable data into existing `MetricEntry`
+4. Normalize wearable data into existing `MetricEntry` — completed
 
    Do not create a parallel metric system.
 
-5. Add sync UI
+5. Authenticate the Android client — next
+
+   Call the dedicated mobile-login endpoint, expose loading/error state through a ViewModel, and store tokens securely without persisting the password.
+
+6. Read and upload one Health Connect weight record
+
+   Prove the physical-device bridge through the existing synchronous upload endpoint.
+
+7. Add sync UI
 
    Settings or a dedicated Wearables page shows connection state and last sync.
 
@@ -260,9 +281,9 @@ Related docs:
 Next real system-design step:
 
 ```text
-Authenticated synchronous wearable ingestion contract
+Android mobile authentication on the physical-device client
 ```
 
-This should come before more analytics polish, Celery-based ingestion, or production deployment.
+This should come before Health Connect reads, more analytics polish, Celery-based ingestion, or production deployment.
 
-Reason: the connection lifecycle now exists. The next missing bridge is turning an idempotent Android upload into normalized `MetricEntry` data. See `reference_docs/knowledge/41-wearable-ingestion-android-and-async-roadmap.md` for the detailed sequence, physical-device test path, and the trigger for introducing Celery/Redis.
+Reason: Django already accepts secure, idempotent normalized uploads. The next missing bridge is authenticating the Android user and obtaining the JWT required by the connection and upload endpoints. See `reference_docs/knowledge/41-wearable-ingestion-android-and-async-roadmap.md` for the detailed physical-device sequence and the trigger for introducing Celery/Redis.

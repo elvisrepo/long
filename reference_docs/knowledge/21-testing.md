@@ -475,7 +475,8 @@ MyPy gate repair completed on 2026-07-14:
 ### Wearable Sync Test Focus
 
 Immediate next wearable slice:
-- The normalized wearable ingestion endpoint is implemented synchronously end to end: active owner scoping, strict nested validation, canonical hashing, atomic persistence, terminal counters, exact retry reuse, upload conflicts, record skips, and record conflicts. The next product slice is the thin Android companion app and a physical-device vertical test.
+- The normalized wearable ingestion endpoint is implemented synchronously end to end: active owner scoping, strict nested validation, canonical hashing, atomic persistence, terminal counters, exact retry reuse, upload conflicts, record skips, and record conflicts.
+- The thin Android companion app is now in progress. The immediate next behavior is real mobile authentication through Django, followed by connection registration, Health Connect weight permission/read, and a physical-device upload.
 - Model tests should prove provider/status choices, ownership, nullable `last_synced_at`, optional `last_error`, and timestamp behavior.
 - API tests should prove authentication is required, list and status-detail responses expose only the caller's active connections, creation stores `request.user`, disconnect deactivates only the caller's connection and releases its slot, re-registration restores the same UUID, and invalid provider/server-managed values are rejected. Later trusted ingestion-service tests should cover sync-state updates.
 - API tests now prove that the connection collection rejects unauthenticated requests, lists only the caller's connections, assigns new connection ownership from the JWT user, rejects `samsung_health` as a direct provider, and rejects creation when the plan limit is exhausted.
@@ -493,6 +494,18 @@ Immediate next wearable slice:
 - A changed-record test proves a new upload containing an existing `external_source_id` with different normalized content raises `WearableRecordConflictError`, preserves the original metric value, and rolls back the conflicting `SyncRun`.
 - Upload API coverage proves omitting required `entries` returns `400` and creates no `SyncRun`.
 - Frontend tests should be added only when a Settings/Wearables UI slice consumes the connection contract.
+
+Current Android testing checkpoint — 2026-07-30:
+
+- The Gradle debug build succeeds against `compileSdk 37.1`, `targetSdk 36`, and `minSdk 28`.
+- Local JVM tests cover `LoginFormState`: blank credentials disable submission and present credentials enable it.
+- The isolated `LoginScreen` Compose test renders controlled empty state and proves that email/password inputs are visible while Sign in is disabled.
+- `MainActivityTest` launches the real Activity, types both credentials, observes Compose state updates, and proves Sign in becomes enabled.
+- Both instrumented Compose tests pass on the physical `FCP-N49` phone through `connectedDebugAndroidTest`.
+- Android Studio preview coverage exists through `LoginScreenPreview`; preview is developer tooling rather than a behavioral test.
+- Device tests require an authorized, awake, unlocked phone. A dozing device behind the lock screen was diagnosed to prevent Activity launch and produce “No compose hierarchies found”; rerunning unlocked passed both tests.
+- The app has no HTTP client yet, so current Android tests do not prove Django login, JWT storage, wearable connection registration, Health Connect access, or uploads.
+- Physical-device tests remain a local/pre-release gate. CI should run JVM Android tests first; emulator/instrumented CI can be added when the client behavior warrants its cost.
 
 When testing Samsung-sync behavior:
 - Use canned Samsung / Health Connect fixture payloads in backend tests. Do not depend on live Samsung services in CI.
