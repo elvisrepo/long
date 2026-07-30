@@ -8,13 +8,19 @@ package com.viridiandome.longevity.auth
 data class LoginFormState(
     val email: String,
     val password: String,
+    val isSubmitting: Boolean = false,
+    val isAuthenticated: Boolean = false,
+    val errorMessage: String? = null,
 ) {
-    // Derived state keeps the button rule in one place instead of duplicating it in the UI.
+    // Derived state keeps the button rule in one place and prevents duplicate
+    // taps while the repository is processing the current credentials.
     val canSubmit: Boolean
-        get() = email.isNotBlank() && password.isNotBlank()
+        get() = email.isNotBlank() && password.isNotBlank() && !isSubmitting
 
     // Override the data-class default so accidental logging reveals neither
     // the password nor the user's email address.
     override fun toString(): String =
-        "LoginFormState(emailPresent=${email.isNotBlank()}, password=<redacted>)"
+        "LoginFormState(emailPresent=${email.isNotBlank()}, password=<redacted>, " +
+            "isSubmitting=$isSubmitting, isAuthenticated=$isAuthenticated, " +
+            "errorPresent=${errorMessage != null})"
 }
