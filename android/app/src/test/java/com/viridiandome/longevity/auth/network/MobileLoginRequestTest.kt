@@ -1,5 +1,7 @@
 package com.viridiandome.longevity.auth.network
 
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
@@ -20,5 +22,21 @@ class MobileLoginRequestTest {
         assertEquals(email, request.email)
         assertEquals(password, request.password)
         assertFalse(request.toString().contains(password))
+    }
+
+    @Test
+    fun request_serializes_to_django_mobile_login_json() {
+        val request = MobileLoginRequest(
+            email = "user@example.com",
+            password = "secret-password",
+        )
+
+        // These field names must match LoginSerializer in Django exactly.
+        val json = Json.encodeToString(request)
+
+        assertEquals(
+            """{"email":"user@example.com","password":"secret-password"}""",
+            json,
+        )
     }
 }
