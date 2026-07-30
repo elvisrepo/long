@@ -24,4 +24,17 @@ class LoginFormStateTest {
 
         assertTrue(state.canSubmit)
     }
+
+    @Test
+    fun state_string_does_not_expose_password() {
+        val password = "secret-password"
+        val state = LoginFormState(
+            email = "user@example.com",
+            password = password,
+        )
+
+        // Data classes generate toString(), so guard against accidental
+        // password disclosure through logs or crash diagnostics.
+        assertFalse(state.toString().contains(password))
+    }
 }
