@@ -112,7 +112,9 @@ JAVA_HOME=/opt/android-studio/jbr ./gradlew connectedDebugAndroidTest
 - `connectedDebugAndroidTest` uses `adb` to build/install the app and test APKs, start AndroidJUnitRunner, and report device results.
 - Keep the physical phone awake and unlocked during instrumented Compose tests.
 - The current `LoginScreenPreview` can be rendered from Android Studio's Split/Design editor without a phone.
-- The debug app does not call Django yet. The next networking slice will add debug-only local HTTP configuration and `adb reverse tcp:8000 tcp:8000`; production remains HTTPS-only.
+- The debug build permits local cleartext HTTP while the main/release manifest remains HTTPS-only.
+- After connecting the authorized phone, run `adb reverse tcp:8000 tcp:8000` so `http://127.0.0.1:8000` on the phone reaches local Django. This mapping is temporary and may need to be recreated after reconnecting the phone or restarting ADB.
+- The debug app still does not call Django; the next networking slice adds the concrete HTTP-backed `AuthRepository`.
 
 ### 3.5 Environment Variables
 ```bash

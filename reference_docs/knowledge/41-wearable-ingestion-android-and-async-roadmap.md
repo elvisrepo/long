@@ -74,18 +74,22 @@ Implemented:
 - `android/` is a Kotlin Android application using Jetpack Compose and the Gradle wrapper.
 - Application ID and namespace are `com.viridiandome.longevity`.
 - `minSdk=28` matches the physical Health Connect availability floor; the current project compiles against Android API `37.1` while targeting API `36`.
-- `LoginFormState` owns immutable email/password values and derives whether submission is enabled.
-- `LoginScreen` is a stateless Compose component with controlled email/password fields, masked password display, state-controlled Sign in button, and Android Studio preview.
+- `LoginFormState` owns immutable credential and submission state, redacts credentials from its diagnostic string, and derives whether submission is enabled.
+- `LoginScreen` is a stateless Compose component with controlled email/password fields, masked password display, loading and safe-error feedback, a state-controlled Sign in button, and Android Studio preview.
 - `MainActivity` owns the current in-memory form state and sends immutable state copies back through one-way Compose callbacks.
+- `LoginViewModel` and the `AuthRepository` interface define a testable presentation/authentication boundary; ViewModel tests cover credential changes plus successful and failed submission state.
+- Kotlin serialization models and tests cover the Django mobile-login request, token response, and documented validation/error response shapes without exposing credentials or JWTs through diagnostic strings.
+- The main manifest permits network access but explicitly rejects cleartext traffic; a debug-only manifest overlay permits local HTTP while release remains HTTPS-only.
+- `adb reverse tcp:8000 tcp:8000` lets the connected phone reach local Django at `http://127.0.0.1:8000`; the mapping is temporary and must be recreated after relevant ADB/device reconnects.
 - Android Studio/Gradle can build the debug APK, and `adb` can install/run the app and instrumented tests on the physical `FCP-N49` phone.
-- JVM tests cover blank/present credential state. Compose tests cover the isolated blank form and real-Activity credential entry on the physical phone.
+- JVM tests cover login form, serialization, safe errors, and ViewModel behavior. Compose tests cover blank, submitting, and failed form states plus real-Activity credential entry on the physical phone.
 
 Not implemented yet:
 
 - Sign in makes no HTTP request; the callback is deliberately empty.
 - No password, access token, or refresh token is persisted.
-- No Android ViewModel, auth repository, or HTTP client exists.
-- No debug `adb reverse` backend connection or debug-only cleartext policy exists.
+- No concrete `AuthRepository` implementation or Android HTTP client exists.
+- `MainActivity` is not yet wired to `LoginViewModel`.
 - The app has not registered/read a `WearableConnection`, requested Health Connect permission, read `WeightRecord`, filtered Samsung-originated records, or uploaded a normalized batch.
 - WorkManager, Celery-backed asynchronous ingestion, and production distribution remain later phases.
 
