@@ -1,6 +1,7 @@
 package com.viridiandome.longevity.auth.network
 
 import com.viridiandome.longevity.auth.AuthTokenStore
+import com.viridiandome.longevity.auth.AuthTokens
 import com.viridiandome.longevity.auth.LoginResult
 import kotlinx.coroutines.test.runTest
 import mockwebserver3.MockResponse
@@ -164,5 +165,19 @@ private class RecordingAuthTokenStore : AuthTokenStore {
     ) {
         this.accessToken = accessToken
         this.refreshToken = refreshToken
+    }
+
+    override suspend fun readTokens(): AuthTokens? {
+        val access = accessToken ?: return null
+        val refresh = refreshToken ?: return null
+        return AuthTokens(
+            accessToken = access,
+            refreshToken = refresh,
+        )
+    }
+
+    override suspend fun clearTokens() {
+        accessToken = null
+        refreshToken = null
     }
 }

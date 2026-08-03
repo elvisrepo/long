@@ -11,4 +11,8 @@ interface AuthTokenStore {
         accessToken: String,
         refreshToken: String,
     )
+
+    suspend fun readTokens(): AuthTokens?
+
+    suspend fun clearTokens()
 }

@@ -67,7 +67,7 @@ The Android app is the device bridge. Django cannot directly read Health Connect
 | 7 | Move expensive ingestion to Celery/Redis | API returns quickly while workers preserve the same database idempotency and terminal results |
 | 8 | Add sync UI and production hardening | Users can inspect sync state; operators have rate limits, logs, metrics, and repair tools |
 
-### Current Android checkpoint — 2026-07-30
+### Current Android checkpoint — 2026-08-03
 
 Implemented:
 
@@ -81,6 +81,8 @@ Implemented:
 - Kotlin serialization models and tests cover the Django mobile-login request, token response, and documented validation/error response shapes without exposing credentials or JWTs through diagnostic strings.
 - `HttpAuthRepository` uses OkHttp coroutines to POST the exact Django mobile-login contract, decode safe error responses, translate transport/malformed-response failures, and save both JWTs through the injected `AuthTokenStore` boundary before returning success.
 - MockWebServer tests cover successful token storage, invalid credentials, unavailable Django, and malformed successful responses without requiring the physical phone or live backend.
+- `AndroidKeystoreAuthTokenStore` encrypts each JWT with AES-256-GCM and a fresh IV, binds each ciphertext to its preference key as authenticated data, keeps the non-exportable key in Android Keystore, and stores only encoded IV+ciphertext payloads in private preferences.
+- The production token preference file is excluded from cloud backup and device transfer. A physical-device test proves encrypted-at-rest round-trip and clearing behavior.
 - The main manifest permits network access but explicitly rejects cleartext traffic; a debug-only manifest overlay permits local HTTP while release remains HTTPS-only.
 - `adb reverse tcp:8000 tcp:8000` lets the connected phone reach local Django at `http://127.0.0.1:8000`; the mapping is temporary and must be recreated after relevant ADB/device reconnects.
 - Android Studio/Gradle can build the debug APK, and `adb` can install/run the app and instrumented tests on the physical `FCP-N49` phone.
@@ -89,9 +91,7 @@ Implemented:
 Not implemented yet:
 
 - Sign in makes no HTTP request; the callback is deliberately empty.
-- No password, access token, or refresh token is persisted.
 - `MainActivity` is not yet wired to `LoginViewModel`.
-- No Android-backed secure `AuthTokenStore` implementation exists, so live login cannot safely persist JWTs yet.
 - The app has not registered/read a `WearableConnection`, requested Health Connect permission, read `WeightRecord`, filtered Samsung-originated records, or uploaded a normalized batch.
 - WorkManager, Celery-backed asynchronous ingestion, and production distribution remain later phases.
 

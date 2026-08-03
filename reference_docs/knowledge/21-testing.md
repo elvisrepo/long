@@ -502,10 +502,11 @@ Current Android testing checkpoint — 2026-08-03:
 - MockWebServer tests prove the repository sends `POST /api/auth/mobile/login/` with the exact Django JSON body, stores both tokens before returning success, maps invalid credentials safely, and handles offline or malformed-success responses without storing tokens.
 - Isolated `LoginScreen` Compose tests cover blank, submitting, and safe-error states.
 - `MainActivityTest` launches the real Activity, types both credentials, observes Compose state updates, and proves Sign in becomes enabled.
-- All four instrumented Compose tests pass on the physical `FCP-N49` phone through `connectedDebugAndroidTest`.
+- A physical-device token-store test proves access/refresh tokens round-trip through Android Keystore AES-GCM encryption, raw preferences contain neither plaintext token, and clearing removes the session.
+- All five instrumented tests pass on the physical `FCP-N49` phone through `connectedDebugAndroidTest`.
 - Android Studio preview coverage exists through `LoginScreenPreview`; preview is developer tooling rather than a behavioral test.
 - Device tests require an authorized, awake, unlocked phone. A dozing device behind the lock screen was diagnosed to prevent Activity launch and produce “No compose hierarchies found”; rerunning unlocked passed both tests.
-- The HTTP repository uses a local fake server in JVM tests. Tests do not yet prove live Django login from the phone, a production JWT store, wearable connection registration, Health Connect access, or uploads.
+- The HTTP repository uses a local fake server in JVM tests and the production token store is verified independently on-device. Tests do not yet prove the combined live Django login flow from the phone, wearable connection registration, Health Connect access, or uploads.
 - Physical-device tests remain a local/pre-release gate. CI should run JVM Android tests first; emulator/instrumented CI can be added when the client behavior warrants its cost.
 
 When testing Samsung-sync behavior:

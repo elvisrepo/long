@@ -38,6 +38,9 @@
 - **Refresh token**: longer-lived JWT, target 7 days, used only to mint new access tokens.
 - **Web client**: store the refresh token in an `HttpOnly`, `Secure` cookie; keep the access token short-lived and send it in the authorization header.
 - **Android client**: store tokens in secure platform storage, not plain local storage equivalents.
+- **Implemented Android storage**: `AndroidKeystoreAuthTokenStore` encrypts access and refresh tokens separately with AES-256-GCM, keeps the non-exportable AES key in Android Keystore, and stores only IV+ciphertext payloads in private `SharedPreferences`.
+- The token preference file is excluded from cloud backup and device transfer because a restored ciphertext file would not have its original device-bound Keystore key.
+- Per-use device authentication is intentionally not required for this key because background token refresh and wearable uploads must work while the phone is locked. This protects tokens at rest but does not attempt to require biometric confirmation for every sync.
 
 ### Security Notes
 
