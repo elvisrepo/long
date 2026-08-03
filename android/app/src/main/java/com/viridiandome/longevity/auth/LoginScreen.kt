@@ -12,17 +12,23 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.viridiandome.longevity.ui.theme.LongevityTheme
 
 /**
- * Stateless login UI.
+ * Stateless authentication UI.
  *
  * The caller owns [state]. This composable renders that state and reports user
  * actions through callbacks, which keeps it reusable and straightforward to test.
@@ -35,6 +41,15 @@ fun LoginScreen(
     onSignIn: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    if (state.isAuthenticated) {
+        AuthenticatedContent(modifier = modifier)
+        return
+    }
+
+    // Visibility is temporary presentation state. It defaults back to hidden
+    // after Activity recreation and never changes where the password is stored.
+    var isPasswordVisible by remember { mutableStateOf(false) }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -64,10 +79,31 @@ fun LoginScreen(
             onValueChange = onPasswordChange,
             label = { Text(text = "Password") },
             keyboardOptions = KeyboardOptions(
+                // Retain password semantics for keyboards, accessibility, and autofill
+                // even while the user temporarily reveals the drawn characters.
                 keyboardType = KeyboardType.Password,
             ),
-            // This masks the displayed characters; it does not encrypt or persist the value.
-            visualTransformation = PasswordVisualTransformation(),
+            // Masking controls only what is drawn; it does not encrypt or persist the value.
+            visualTransformation = if (isPasswordVisible) {
+                VisualTransformation.None
+            } else {
+                PasswordVisualTransformation()
+            },
+            trailingIcon = {
+                TextButton(
+                    onClick = {
+                        isPasswordVisible = !isPasswordVisible
+                    },
+                ) {
+                    Text(
+                        text = if (isPasswordVisible) {
+                            "Hide password"
+                        } else {
+                            "Show password"
+                        },
+                    )
+                }
+            },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -102,6 +138,27 @@ fun LoginScreen(
     }
 }
 
+/** Confirms authentication without exposing credentials or stored JWTs. */
+@Composable
+private fun AuthenticatedContent(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = "Signed in",
+            style = MaterialTheme.typography.headlineMedium,
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(text = "Your Longevity session is ready.")
+    }
+}
+
 @Preview(
     showBackground = true,
     showSystemUi = true,
@@ -113,6 +170,23 @@ private fun LoginScreenPreview() {
             state = LoginFormState(
                 email = "",
                 password = "",
+            ),
+            onEmailChange = {},
+            onPasswordChange = {},
+            onSignIn = {},
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun AuthenticatedContentPreview() {
+    LongevityTheme {
+        LoginScreen(
+            state = LoginFormState(
+                email = "user@example.com",
+                password = "",
+                isAuthenticated = true,
             ),
             onEmailChange = {},
             onPasswordChange = {},

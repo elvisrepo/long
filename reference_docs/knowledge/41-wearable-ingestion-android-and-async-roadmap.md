@@ -75,7 +75,7 @@ Implemented:
 - Application ID and namespace are `com.viridiandome.longevity`.
 - `minSdk=28` matches the physical Health Connect availability floor; the current project compiles against Android API `37.1` while targeting API `36`.
 - `LoginFormState` owns immutable credential and submission state, redacts credentials from its diagnostic string, and derives whether submission is enabled.
-- `LoginScreen` is a stateless Compose component with controlled email/password fields, masked password display, loading and safe-error feedback, a state-controlled Sign in button, and Android Studio preview.
+- `LoginScreen` is a stateless Compose component with controlled email/password fields, masked-by-default password display, a temporary Show/Hide password control, loading and safe-error feedback, a state-controlled Sign in button, authenticated-success content, and Android Studio previews.
 - `MainActivity` obtains `LoginViewModel` from a factory, collects its `StateFlow` with lifecycle awareness, and sends UI events back through one-way Compose callbacks. The ViewModel retains in-memory credentials across Activity recreation without persisting the password to saved state.
 - `LoginViewModel` and the `AuthRepository` interface define a testable presentation/authentication boundary; ViewModel tests cover credential changes plus successful and failed submission state.
 - Kotlin serialization models and tests cover the Django mobile-login request, token response, and documented validation/error response shapes without exposing credentials or JWTs through diagnostic strings.
@@ -88,11 +88,11 @@ Implemented:
 - The main manifest permits network access but explicitly rejects cleartext traffic; a debug-only manifest overlay permits local HTTP while release remains HTTPS-only.
 - `adb reverse tcp:8000 tcp:8000` lets the connected phone reach local Django at `http://127.0.0.1:8000`; the mapping is temporary and must be recreated after relevant ADB/device reconnects.
 - Android Studio/Gradle can build the debug APK, and `adb` can install/run the app and instrumented tests on the physical `FCP-N49` phone.
-- JVM tests cover login form, serialization, safe errors, and ViewModel behavior. Compose tests cover blank, submitting, and failed form states plus real-Activity credential entry and Activity-recreation retention on the physical phone.
+- JVM tests cover login form, serialization, safe errors, and ViewModel behavior. Compose tests cover blank, submitting, failed, authenticated-success, and password-visibility states plus real-Activity credential entry and Activity-recreation retention on the physical phone.
 
 Not implemented yet:
 
-- The complete physical-device login against live local Django has not been manually verified yet, even though Sign in is now wired through the real HTTP repository and encrypted token store.
+- Live local Django returned `200` for the physical phone's credentials and both JWTs were verified as encrypted ciphertext in app-private preferences. The authenticated-success screen was added afterward and still needs one final manual visual confirmation.
 - The app has not registered/read a `WearableConnection`, requested Health Connect permission, read `WeightRecord`, filtered Samsung-originated records, or uploaded a normalized batch.
 - WorkManager, Celery-backed asynchronous ingestion, and production distribution remain later phases.
 

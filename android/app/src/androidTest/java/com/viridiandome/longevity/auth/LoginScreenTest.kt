@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import org.junit.Rule
 import org.junit.Test
 
@@ -69,5 +70,49 @@ class LoginScreenTest {
         composeTestRule
             .onNodeWithText("Invalid email or password.")
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun authenticated_state_replaces_credentials_with_success_message() {
+        composeTestRule.setContent {
+            LoginScreen(
+                state = LoginFormState(
+                    email = "user@example.com",
+                    password = "",
+                    isAuthenticated = true,
+                ),
+                onEmailChange = {},
+                onPasswordChange = {},
+                onSignIn = {},
+            )
+        }
+
+        composeTestRule.onNodeWithText("Signed in").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Email").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Password").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Sign in").assertDoesNotExist()
+    }
+
+    @Test
+    fun password_visibility_control_toggles_masking() {
+        composeTestRule.setContent {
+            LoginScreen(
+                state = LoginFormState(
+                    email = "user@example.com",
+                    password = "secret-password",
+                ),
+                onEmailChange = {},
+                onPasswordChange = {},
+                onSignIn = {},
+            )
+        }
+
+        composeTestRule.onNodeWithText("Show password").performClick()
+        composeTestRule.onNodeWithText("Hide password").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Show password").assertDoesNotExist()
+
+        composeTestRule.onNodeWithText("Hide password").performClick()
+        composeTestRule.onNodeWithText("Show password").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Hide password").assertDoesNotExist()
     }
 }
