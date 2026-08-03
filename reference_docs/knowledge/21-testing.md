@@ -495,16 +495,17 @@ Immediate next wearable slice:
 - Upload API coverage proves omitting required `entries` returns `400` and creates no `SyncRun`.
 - Frontend tests should be added only when a Settings/Wearables UI slice consumes the connection contract.
 
-Current Android testing checkpoint — 2026-07-30:
+Current Android testing checkpoint — 2026-08-03:
 
 - The Gradle debug build succeeds against `compileSdk 37.1`, `targetSdk 36`, and `minSdk 28`.
-- Local JVM tests cover `LoginFormState`: blank credentials disable submission and present credentials enable it.
-- The isolated `LoginScreen` Compose test renders controlled empty state and proves that email/password inputs are visible while Sign in is disabled.
+- Local JVM tests cover login form state, request/response/error serialization, safe diagnostic strings, ViewModel success/failure state, and the HTTP repository contract.
+- MockWebServer tests prove the repository sends `POST /api/auth/mobile/login/` with the exact Django JSON body, stores both tokens before returning success, maps invalid credentials safely, and handles offline or malformed-success responses without storing tokens.
+- Isolated `LoginScreen` Compose tests cover blank, submitting, and safe-error states.
 - `MainActivityTest` launches the real Activity, types both credentials, observes Compose state updates, and proves Sign in becomes enabled.
-- Both instrumented Compose tests pass on the physical `FCP-N49` phone through `connectedDebugAndroidTest`.
+- All four instrumented Compose tests pass on the physical `FCP-N49` phone through `connectedDebugAndroidTest`.
 - Android Studio preview coverage exists through `LoginScreenPreview`; preview is developer tooling rather than a behavioral test.
 - Device tests require an authorized, awake, unlocked phone. A dozing device behind the lock screen was diagnosed to prevent Activity launch and produce “No compose hierarchies found”; rerunning unlocked passed both tests.
-- The app has no HTTP client yet, so current Android tests do not prove Django login, JWT storage, wearable connection registration, Health Connect access, or uploads.
+- The HTTP repository uses a local fake server in JVM tests. Tests do not yet prove live Django login from the phone, a production JWT store, wearable connection registration, Health Connect access, or uploads.
 - Physical-device tests remain a local/pre-release gate. CI should run JVM Android tests first; emulator/instrumented CI can be added when the client behavior warrants its cost.
 
 When testing Samsung-sync behavior:
