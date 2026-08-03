@@ -32,15 +32,57 @@ class HttpAuthRepository(
         .newBuilder()
         .addPathSegments("api/auth/mobile/login/")
         .build()
+    private val refreshUrl = baseUrl
+        .toHttpUrl()
+        .newBuilder()
+        .addPathSegments("api/auth/mobile/refresh/")
+        .build()
 
-    override suspend fun restoreSession(): Boolean =
-        try {
-            // The repository owns token persistence so presentation code never
-            // receives or inspects either JWT.
-            tokenStore.readTokens() != null
+    override suspend fun restoreSession(): Boolean {
+        // The repository owns token persistence so presentation code never
+        // receives or inspects either JWT.
+        val storedTokens = try {
+            tokenStore.readTokens()
         } catch (_: IOException) {
-            false
+            return false
+        } ?: return false
+
+        val requestJson = json.encodeToString(
+            MobileRefreshRequest(refresh = storedTokens.refreshToken),
+        )
+        val request = Request.Builder()
+            .url(refreshUrl)
+            .post(requestJson.toRequestBody(JSON_MEDIA_TYPE))
+            .build()
+
+        try {
+            client.newCall(request).executeAsync().use { response ->
+                if (response.code == HTTP_UNAUTHORIZED) {
+                    // Django has authoritatively rejected this refresh token.
+                    // Keeping it would create a permanently stale local session.
+                    tokenStore.clearTokens()
+                    return false
+                }
+                if (!response.isSuccessful) {
+                    return false
+                }
+
+                val refreshedTokens = json.decodeFromString<MobileRefreshResponse>(
+                    response.body.string(),
+                )
+                tokenStore.saveTokens(
+                    accessToken = refreshedTokens.access,
+                    // SimpleJWT returns this only when refresh rotation is enabled.
+                    refreshToken = refreshedTokens.refresh ?: storedTokens.refreshToken,
+                )
+                return true
+            }
+        } catch (_: IOException) {
+            return false
+        } catch (_: SerializationException) {
+            return false
         }
+    }
 
     override suspend fun login(
         email: String,
@@ -91,6 +133,7 @@ class HttpAuthRepository(
 
     private companion object {
         val JSON_MEDIA_TYPE = "application/json".toMediaType()
+        const val HTTP_UNAUTHORIZED = 401
         const val GENERIC_LOGIN_ERROR = "Unable to sign in. Please try again."
     }
 }

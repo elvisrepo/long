@@ -79,12 +79,12 @@ Implemented:
 - `MainActivity` obtains `LoginViewModel` from a factory, collects its `StateFlow` with lifecycle awareness, and sends UI events back through one-way Compose callbacks. The ViewModel retains in-memory credentials across Activity recreation without persisting the password to saved state.
 - `LoginViewModel` and the `AuthRepository` interface define a testable presentation/authentication boundary; ViewModel tests cover credential changes, successful and failed submission, and startup restoration from a stored session.
 - Kotlin serialization models and tests cover the Django mobile-login request, token response, and documented validation/error response shapes without exposing credentials or JWTs through diagnostic strings.
-- Kotlin serialization models also cover the mobile-refresh request and both valid response shapes: required replacement `access` with an optional rotated `refresh`. Repository network orchestration is not wired yet.
+- Kotlin serialization models cover the mobile-refresh request and both valid response shapes: required replacement `access` with an optional rotated `refresh`.
 - `HttpAuthRepository` uses OkHttp coroutines to POST the exact Django mobile-login contract, decode safe error responses, translate transport/malformed-response failures, and save both JWTs through the injected `AuthTokenStore` boundary before returning success.
 - MockWebServer tests cover successful token storage, invalid credentials, unavailable Django, and malformed successful responses without requiring the physical phone or live backend.
 - `AndroidKeystoreAuthTokenStore` encrypts each JWT with AES-256-GCM and a fresh IV, binds each ciphertext to its preference key as authenticated data, keeps the non-exportable key in Android Keystore, and stores only encoded IV+ciphertext payloads in private preferences.
 - The production token preference file is excluded from cloud backup and device transfer. A physical-device test proves encrypted-at-rest round-trip and clearing behavior.
-- On app startup, `LoginViewModel` asks `AuthRepository.restoreSession()` once. The HTTP repository reads only whether the Keystore-backed store contains a validly decryptable token pair; it does not expose either token to UI state.
+- On app startup, `LoginViewModel` asks `AuthRepository.restoreSession()` once. The HTTP repository reads the Keystore-backed pair, validates the refresh token through Django, persists replacement/rotated tokens, and exposes only a Boolean result to UI state.
 - `LongevityApplication` is the minimal application-level dependency container: it shares one OkHttp client, one `HttpAuthRepository`, and the Android-Keystore token store without introducing a dependency-injection framework prematurely.
 - The debug build targets local Django at `http://127.0.0.1:8000/` through `adb reverse`; the release base URL is intentionally unset until the production HTTPS endpoint exists.
 - The main manifest permits network access but explicitly rejects cleartext traffic; a debug-only manifest overlay permits local HTTP while release remains HTTPS-only.
@@ -94,7 +94,7 @@ Implemented:
 
 Not implemented yet:
 
-- Startup restoration currently trusts a locally readable token pair. It does not yet refresh with Django, validate expiry/revocation, persist rotation, or clear rejected tokens.
+- The app does not yet show a dedicated session-checking state while startup refresh is in flight, so the login form can appear briefly before authenticated content.
 - The app has not registered/read a `WearableConnection`, requested Health Connect permission, read `WeightRecord`, filtered Samsung-originated records, or uploaded a normalized batch.
 - WorkManager, Celery-backed asynchronous ingestion, and production distribution remain later phases.
 

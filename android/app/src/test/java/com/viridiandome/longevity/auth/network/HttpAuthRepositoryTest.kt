@@ -10,6 +10,7 @@ import okhttp3.Headers.Companion.headersOf
 import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -153,7 +154,14 @@ class HttpAuthRepositoryTest {
     }
 
     @Test
-    fun stored_tokens_restore_session_without_exposing_them() = runTest {
+    fun stored_tokens_are_refreshed_and_non_rotated_refresh_is_retained() = runTest {
+        server.enqueue(
+            MockResponse(
+                code = 200,
+                headers = headersOf("Content-Type", "application/json"),
+                body = """{"access":"new-access-token"}""",
+            ),
+        )
         val tokenStore = RecordingAuthTokenStore().apply {
             saveTokens(
                 accessToken = "stored-access-token",
@@ -167,6 +175,102 @@ class HttpAuthRepositoryTest {
         )
 
         assertTrue(repository.restoreSession())
+        assertEquals(1, server.requestCount)
+        val request = server.takeRequest()
+        assertEquals("POST", request.method)
+        assertEquals("/api/auth/mobile/refresh/", request.url.encodedPath)
+        assertEquals(
+            """{"refresh":"stored-refresh-token"}""",
+            request.body?.utf8(),
+        )
+        assertEquals("new-access-token", tokenStore.accessToken)
+        assertEquals("stored-refresh-token", tokenStore.refreshToken)
+    }
+
+    @Test
+    fun rotated_refresh_replaces_stored_refresh_token() = runTest {
+        server.enqueue(
+            MockResponse(
+                code = 200,
+                headers = headersOf("Content-Type", "application/json"),
+                body = """{"access":"new-access-token","refresh":"rotated-refresh-token"}""",
+            ),
+        )
+        val tokenStore = RecordingAuthTokenStore().apply {
+            saveTokens(
+                accessToken = "stored-access-token",
+                refreshToken = "stored-refresh-token",
+            )
+        }
+        val repository = HttpAuthRepository(
+            client = OkHttpClient(),
+            baseUrl = server.url("/").toString(),
+            tokenStore = tokenStore,
+        )
+
+        assertTrue(repository.restoreSession())
+        assertEquals("new-access-token", tokenStore.accessToken)
+        assertEquals("rotated-refresh-token", tokenStore.refreshToken)
+    }
+
+    @Test
+    fun rejected_refresh_clears_stored_session() = runTest {
+        server.enqueue(
+            MockResponse(
+                code = 401,
+                headers = headersOf("Content-Type", "application/json"),
+                body = """{"detail":"Token is invalid."}""",
+            ),
+        )
+        val tokenStore = RecordingAuthTokenStore().apply {
+            saveTokens(
+                accessToken = "stored-access-token",
+                refreshToken = "rejected-refresh-token",
+            )
+        }
+        val repository = HttpAuthRepository(
+            client = OkHttpClient(),
+            baseUrl = server.url("/").toString(),
+            tokenStore = tokenStore,
+        )
+
+        assertFalse(repository.restoreSession())
+        assertNull(tokenStore.accessToken)
+        assertNull(tokenStore.refreshToken)
+    }
+
+    @Test
+    fun missing_stored_tokens_skip_refresh_request() = runTest {
+        val tokenStore = RecordingAuthTokenStore()
+        val repository = HttpAuthRepository(
+            client = OkHttpClient(),
+            baseUrl = server.url("/").toString(),
+            tokenStore = tokenStore,
+        )
+
+        assertFalse(repository.restoreSession())
+        assertEquals(0, server.requestCount)
+    }
+
+    @Test
+    fun unavailable_refresh_server_keeps_tokens_for_later_retry() = runTest {
+        val baseUrl = server.url("/").toString()
+        server.close()
+        val tokenStore = RecordingAuthTokenStore().apply {
+            saveTokens(
+                accessToken = "stored-access-token",
+                refreshToken = "stored-refresh-token",
+            )
+        }
+        val repository = HttpAuthRepository(
+            client = OkHttpClient(),
+            baseUrl = baseUrl,
+            tokenStore = tokenStore,
+        )
+
+        assertFalse(repository.restoreSession())
+        assertEquals("stored-access-token", tokenStore.accessToken)
+        assertEquals("stored-refresh-token", tokenStore.refreshToken)
     }
 }
 

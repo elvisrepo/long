@@ -42,8 +42,9 @@
 - The token preference file is excluded from cloud backup and device transfer because a restored ciphertext file would not have its original device-bound Keystore key.
 - Per-use device authentication is intentionally not required for this key because background token refresh and wearable uploads must work while the phone is locked. This protects tokens at rest but does not attempt to require biometric confirmation for every sync.
 - **Implemented Android startup restoration**: `LoginViewModel` asks `AuthRepository.restoreSession()` once at creation. `HttpAuthRepository` reports whether the Keystore-backed token store contains a readable token pair; token values never enter ViewModel or Compose state.
-- **Current restoration limitation**: local token presence is not yet proof that the access or refresh token remains valid. The next hardening step must call the mobile refresh endpoint, persist any rotated token pair, and clear the local session when refresh is rejected.
-- **Implemented refresh serialization boundary**: Android now has redacted Kotlin serialization models for `{"refresh":"..."}` requests and responses with required `access` plus optional rotated `refresh`. Network orchestration is the next implementation slice.
+- **Implemented Android refresh restoration**: when a stored pair exists, `HttpAuthRepository.restoreSession()` posts the stored refresh token to `/api/auth/mobile/refresh/`, saves the replacement access token, and saves a rotated refresh token when Django returns one. Without rotation, it retains the existing refresh token.
+- A Django `401` is authoritative rejection, so Android clears both local tokens and returns to logged-out state. Missing local tokens skip the request. Network/transport failure returns logged-out state for that startup but retains tokens for a later retry.
+- Android uses redacted Kotlin serialization models for `{"refresh":"..."}` requests and responses with required `access` plus optional rotated `refresh`.
 
 ### Security Notes
 
