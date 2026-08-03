@@ -8,8 +8,10 @@ package com.viridiandome.longevity.auth
 data class LoginFormState(
     val email: String,
     val password: String,
+    val isCheckingSession: Boolean = false,
     val isSubmitting: Boolean = false,
     val isAuthenticated: Boolean = false,
+    val isLoggingOut: Boolean = false,
     val errorMessage: String? = null,
 ) {
     // Derived state keeps the button rule in one place and prevents duplicate
@@ -21,6 +23,7 @@ data class LoginFormState(
     // the password nor the user's email address.
     override fun toString(): String =
         "LoginFormState(emailPresent=${email.isNotBlank()}, password=<redacted>, " +
-            "isSubmitting=$isSubmitting, isAuthenticated=$isAuthenticated, " +
+            "isCheckingSession=$isCheckingSession, isSubmitting=$isSubmitting, " +
+            "isAuthenticated=$isAuthenticated, isLoggingOut=$isLoggingOut, " +
             "errorPresent=${errorMessage != null})"
 }

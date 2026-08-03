@@ -37,6 +37,11 @@ class HttpAuthRepository(
         .newBuilder()
         .addPathSegments("api/auth/mobile/refresh/")
         .build()
+    private val logoutUrl = baseUrl
+        .toHttpUrl()
+        .newBuilder()
+        .addPathSegments("api/auth/mobile/logout/")
+        .build()
 
     override suspend fun restoreSession(): Boolean {
         // The repository owns token persistence so presentation code never
@@ -123,6 +128,38 @@ class HttpAuthRepository(
         }
     }
 
+    override suspend fun logout(): Boolean {
+        val storedTokens = try {
+            tokenStore.readTokens()
+        } catch (_: IOException) {
+            return false
+        } ?: return true
+
+        val requestJson = json.encodeToString(
+            MobileLogoutRequest(refresh = storedTokens.refreshToken),
+        )
+        val request = Request.Builder()
+            .url(logoutUrl)
+            .post(requestJson.toRequestBody(JSON_MEDIA_TYPE))
+            .build()
+
+        try {
+            client.newCall(request).executeAsync().use { response ->
+                // A 400 means Django considers the submitted refresh token invalid;
+                // it cannot refresh again, so clearing the stale local pair is safe.
+                if (!response.isSuccessful && response.code != HTTP_BAD_REQUEST) {
+                    return false
+                }
+
+                tokenStore.clearTokens()
+                return true
+            }
+        } catch (_: IOException) {
+            // Preserve the pair so the user can retry server-side revocation.
+            return false
+        }
+    }
+
     private fun decodeErrorMessage(responseBody: String): String =
         try {
             json.decodeFromString<MobileLoginErrorResponse>(responseBody).userMessage
@@ -133,6 +170,7 @@ class HttpAuthRepository(
 
     private companion object {
         val JSON_MEDIA_TYPE = "application/json".toMediaType()
+        const val HTTP_BAD_REQUEST = 400
         const val HTTP_UNAUTHORIZED = 401
         const val GENERIC_LOGIN_ERROR = "Unable to sign in. Please try again."
     }

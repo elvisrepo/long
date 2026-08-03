@@ -14,4 +14,7 @@ interface AuthRepository {
         email: String,
         password: String,
     ): LoginResult
+
+    /** Clears this device's stored session and reports whether deletion succeeded. */
+    suspend fun logout(): Boolean
 }

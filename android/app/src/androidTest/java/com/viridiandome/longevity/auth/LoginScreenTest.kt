@@ -6,11 +6,34 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import org.junit.Rule
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LoginScreenTest {
     @get:Rule
     val composeTestRule = createComposeRule()
+
+    @Test
+    fun session_checking_replaces_login_form() {
+        composeTestRule.setContent {
+            LoginScreen(
+                state = LoginFormState(
+                    email = "",
+                    password = "",
+                    isCheckingSession = true,
+                ),
+                onEmailChange = {},
+                onPasswordChange = {},
+                onSignIn = {},
+                onLogout = {},
+            )
+        }
+
+        composeTestRule.onNodeWithText("Checking session...").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Email").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Password").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Sign in").assertDoesNotExist()
+    }
 
     @Test
     fun blank_login_form_disables_sign_in() {
@@ -23,6 +46,7 @@ class LoginScreenTest {
                 onEmailChange = {},
                 onPasswordChange = {},
                 onSignIn = {},
+                onLogout = {},
             )
         }
 
@@ -43,6 +67,7 @@ class LoginScreenTest {
                 onEmailChange = {},
                 onPasswordChange = {},
                 onSignIn = {},
+                onLogout = {},
             )
         }
 
@@ -64,6 +89,7 @@ class LoginScreenTest {
                 onEmailChange = {},
                 onPasswordChange = {},
                 onSignIn = {},
+                onLogout = {},
             )
         }
 
@@ -84,6 +110,7 @@ class LoginScreenTest {
                 onEmailChange = {},
                 onPasswordChange = {},
                 onSignIn = {},
+                onLogout = {},
             )
         }
 
@@ -91,6 +118,28 @@ class LoginScreenTest {
         composeTestRule.onNodeWithText("Email").assertDoesNotExist()
         composeTestRule.onNodeWithText("Password").assertDoesNotExist()
         composeTestRule.onNodeWithText("Sign in").assertDoesNotExist()
+    }
+
+    @Test
+    fun authenticated_state_forwards_logout_click() {
+        var logoutRequested = false
+        composeTestRule.setContent {
+            LoginScreen(
+                state = LoginFormState(
+                    email = "user@example.com",
+                    password = "",
+                    isAuthenticated = true,
+                ),
+                onEmailChange = {},
+                onPasswordChange = {},
+                onSignIn = {},
+                onLogout = { logoutRequested = true },
+            )
+        }
+
+        composeTestRule.onNodeWithText("Logout").performClick()
+
+        assertTrue(logoutRequested)
     }
 
     @Test
@@ -104,6 +153,7 @@ class LoginScreenTest {
                 onEmailChange = {},
                 onPasswordChange = {},
                 onSignIn = {},
+                onLogout = {},
             )
         }
 

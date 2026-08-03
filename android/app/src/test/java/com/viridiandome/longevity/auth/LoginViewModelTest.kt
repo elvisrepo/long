@@ -105,6 +105,55 @@ class LoginViewModelTest {
         assertEquals(1, repository.restoreRequests)
         assertTrue(viewModel.state.value.isAuthenticated)
     }
+
+    @Test
+    fun session_checking_remains_visible_until_restoration_finishes() = runTest {
+        val repository = ControllableSessionRestoreAuthRepository()
+        val viewModel = LoginViewModel(repository)
+
+        assertTrue(viewModel.state.value.isCheckingSession)
+        runCurrent()
+        assertTrue(viewModel.state.value.isCheckingSession)
+
+        repository.complete(hasStoredSession = false)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.isCheckingSession)
+        assertFalse(viewModel.state.value.isAuthenticated)
+    }
+
+    @Test
+    fun successful_logout_returns_to_blank_login_state() = runTest {
+        val repository = LogoutAuthRepository()
+        val viewModel = LoginViewModel(repository)
+        advanceUntilIdle()
+        assertTrue(viewModel.state.value.isAuthenticated)
+
+        viewModel.logout()
+        advanceUntilIdle()
+
+        assertEquals(1, repository.logoutRequests)
+        val state = viewModel.state.value
+        assertFalse(state.isAuthenticated)
+        assertEquals("", state.email)
+        assertEquals("", state.password)
+        assertNull(state.errorMessage)
+    }
+
+    @Test
+    fun failed_logout_keeps_authenticated_state_and_shows_safe_error() = runTest {
+        val repository = LogoutAuthRepository(logoutSucceeds = false)
+        val viewModel = LoginViewModel(repository)
+        advanceUntilIdle()
+
+        viewModel.logout()
+        advanceUntilIdle()
+
+        val state = viewModel.state.value
+        assertTrue(state.isAuthenticated)
+        assertFalse(state.isLoggingOut)
+        assertEquals("Unable to log out. Please try again.", state.errorMessage)
+    }
 }
 
 /**
@@ -118,6 +167,9 @@ private class NeverCalledAuthRepository : AuthRepository {
         email: String,
         password: String,
     ): LoginResult = error("Repository must not be called while editing credentials.")
+
+    override suspend fun logout(): Boolean =
+        error("Repository must not be called while editing credentials.")
 }
 
 private class ControllableAuthRepository : AuthRepository {
@@ -142,6 +194,8 @@ private class ControllableAuthRepository : AuthRepository {
     fun complete(loginResult: LoginResult) {
         result.complete(loginResult)
     }
+
+    override suspend fun logout(): Boolean = error("Logout is not under test.")
 }
 
 private class StoredSessionAuthRepository : AuthRepository {
@@ -157,4 +211,42 @@ private class StoredSessionAuthRepository : AuthRepository {
         email: String,
         password: String,
     ): LoginResult = error("Login must not run while restoring an existing session.")
+
+    override suspend fun logout(): Boolean = error("Logout is not under test.")
+}
+
+private class ControllableSessionRestoreAuthRepository : AuthRepository {
+    private val restoreResult = CompletableDeferred<Boolean>()
+
+    override suspend fun restoreSession(): Boolean = restoreResult.await()
+
+    override suspend fun login(
+        email: String,
+        password: String,
+    ): LoginResult = error("Login must not run while checking the stored session.")
+
+    fun complete(hasStoredSession: Boolean) {
+        restoreResult.complete(hasStoredSession)
+    }
+
+    override suspend fun logout(): Boolean = error("Logout is not under test.")
+}
+
+private class LogoutAuthRepository(
+    private val logoutSucceeds: Boolean = true,
+) : AuthRepository {
+    var logoutRequests: Int = 0
+        private set
+
+    override suspend fun restoreSession(): Boolean = true
+
+    override suspend fun login(
+        email: String,
+        password: String,
+    ): LoginResult = error("Login must not run for an authenticated session.")
+
+    override suspend fun logout(): Boolean {
+        logoutRequests += 1
+        return logoutSucceeds
+    }
 }

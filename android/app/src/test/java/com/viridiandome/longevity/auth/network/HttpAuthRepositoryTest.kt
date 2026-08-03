@@ -272,6 +272,54 @@ class HttpAuthRepositoryTest {
         assertEquals("stored-access-token", tokenStore.accessToken)
         assertEquals("stored-refresh-token", tokenStore.refreshToken)
     }
+
+    @Test
+    fun successful_logout_revokes_refresh_then_clears_local_tokens() = runTest {
+        server.enqueue(MockResponse(code = 204))
+        val tokenStore = RecordingAuthTokenStore().apply {
+            saveTokens(
+                accessToken = "stored-access-token",
+                refreshToken = "stored-refresh-token",
+            )
+        }
+        val repository = HttpAuthRepository(
+            client = OkHttpClient(),
+            baseUrl = server.url("/").toString(),
+            tokenStore = tokenStore,
+        )
+
+        assertTrue(repository.logout())
+        assertEquals(1, server.requestCount)
+        val request = server.takeRequest()
+        assertEquals("POST", request.method)
+        assertEquals("/api/auth/mobile/logout/", request.url.encodedPath)
+        assertEquals(
+            """{"refresh":"stored-refresh-token"}""",
+            request.body?.utf8(),
+        )
+        assertNull(tokenStore.accessToken)
+        assertNull(tokenStore.refreshToken)
+    }
+
+    @Test
+    fun failed_logout_revocation_retains_local_tokens_for_retry() = runTest {
+        server.enqueue(MockResponse(code = 500))
+        val tokenStore = RecordingAuthTokenStore().apply {
+            saveTokens(
+                accessToken = "stored-access-token",
+                refreshToken = "stored-refresh-token",
+            )
+        }
+        val repository = HttpAuthRepository(
+            client = OkHttpClient(),
+            baseUrl = server.url("/").toString(),
+            tokenStore = tokenStore,
+        )
+
+        assertFalse(repository.logout())
+        assertEquals("stored-access-token", tokenStore.accessToken)
+        assertEquals("stored-refresh-token", tokenStore.refreshToken)
+    }
 }
 
 private class RecordingAuthTokenStore : AuthTokenStore {

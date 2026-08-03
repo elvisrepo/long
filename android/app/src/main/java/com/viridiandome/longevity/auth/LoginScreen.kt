@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -39,10 +40,20 @@ fun LoginScreen(
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onSignIn: () -> Unit,
+    onLogout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    if (state.isCheckingSession) {
+        SessionCheckingContent(modifier = modifier)
+        return
+    }
+
     if (state.isAuthenticated) {
-        AuthenticatedContent(modifier = modifier)
+        AuthenticatedContent(
+            state = state,
+            onLogout = onLogout,
+            modifier = modifier,
+        )
         return
     }
 
@@ -138,9 +149,31 @@ fun LoginScreen(
     }
 }
 
+/** Prevents the logged-out form from flashing while Django validates a stored session. */
+@Composable
+private fun SessionCheckingContent(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        CircularProgressIndicator()
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(text = "Checking session...")
+    }
+}
+
 /** Confirms authentication without exposing credentials or stored JWTs. */
 @Composable
-private fun AuthenticatedContent(modifier: Modifier = Modifier) {
+private fun AuthenticatedContent(
+    state: LoginFormState,
+    onLogout: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -156,6 +189,30 @@ private fun AuthenticatedContent(modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(text = "Your Longevity session is ready.")
+
+        state.errorMessage?.let { errorMessage ->
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = errorMessage,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+            onClick = onLogout,
+            enabled = !state.isLoggingOut,
+        ) {
+            Text(
+                text = if (state.isLoggingOut) {
+                    "Logging out..."
+                } else {
+                    "Logout"
+                },
+            )
+        }
     }
 }
 
@@ -174,6 +231,7 @@ private fun LoginScreenPreview() {
             onEmailChange = {},
             onPasswordChange = {},
             onSignIn = {},
+            onLogout = {},
         )
     }
 }
@@ -191,6 +249,7 @@ private fun AuthenticatedContentPreview() {
             onEmailChange = {},
             onPasswordChange = {},
             onSignIn = {},
+            onLogout = {},
         )
     }
 }

@@ -50,6 +50,7 @@ class MainActivity : ComponentActivity() {
                         onEmailChange = loginViewModel::onEmailChange,
                         onPasswordChange = loginViewModel::onPasswordChange,
                         onSignIn = loginViewModel::signIn,
+                        onLogout = loginViewModel::logout,
                         modifier = Modifier.padding(innerPadding),
                     )
                 }

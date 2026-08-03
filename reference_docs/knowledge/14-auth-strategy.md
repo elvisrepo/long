@@ -41,7 +41,7 @@
 - **Implemented Android storage**: `AndroidKeystoreAuthTokenStore` encrypts access and refresh tokens separately with AES-256-GCM, keeps the non-exportable AES key in Android Keystore, and stores only IV+ciphertext payloads in private `SharedPreferences`.
 - The token preference file is excluded from cloud backup and device transfer because a restored ciphertext file would not have its original device-bound Keystore key.
 - Per-use device authentication is intentionally not required for this key because background token refresh and wearable uploads must work while the phone is locked. This protects tokens at rest but does not attempt to require biometric confirmation for every sync.
-- **Implemented Android startup restoration**: `LoginViewModel` asks `AuthRepository.restoreSession()` once at creation. `HttpAuthRepository` reports whether the Keystore-backed token store contains a readable token pair; token values never enter ViewModel or Compose state.
+- **Implemented Android startup restoration**: `LoginViewModel` asks `AuthRepository.restoreSession()` once at creation and exposes an explicit checking state so the credential form does not flash during refresh. Token values never enter ViewModel or Compose state.
 - **Implemented Android refresh restoration**: when a stored pair exists, `HttpAuthRepository.restoreSession()` posts the stored refresh token to `/api/auth/mobile/refresh/`, saves the replacement access token, and saves a rotated refresh token when Django returns one. Without rotation, it retains the existing refresh token.
 - A Django `401` is authoritative rejection, so Android clears both local tokens and returns to logged-out state. Missing local tokens skip the request. Network/transport failure returns logged-out state for that startup but retains tokens for a later retry.
 - Android uses redacted Kotlin serialization models for `{"refresh":"..."}` requests and responses with required `access` plus optional rotated `refresh`.
@@ -245,6 +245,14 @@ Current mobile logout behavior:
 - if `refresh` is malformed or invalid, response is `400`
 - after logout, that same refresh token can no longer be used at `/api/auth/mobile/refresh/`
 - logout currently revokes refresh capability, not already-issued access tokens
+
+Current Android logout behavior:
+- authenticated content exposes a state-controlled Logout button
+- `HttpAuthRepository` reads the stored refresh token and posts it to `/api/auth/mobile/logout/`
+- after Django returns `204`, Android deletes both encrypted local tokens and returns to the blank login form
+- Django `400` means the submitted refresh token is already unusable, so Android also clears the stale local pair
+- network errors and server `5xx` responses retain the local pair, keep the UI authenticated, and show a safe retry message rather than falsely claiming revocation succeeded
+- the already-issued access token remains valid only until its short expiry; logout does not maintain an access-token denylist
 
 Current web logout behavior:
 - `POST /api/auth/web/logout/`
