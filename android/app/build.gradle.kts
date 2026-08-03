@@ -23,7 +23,13 @@ android {
     }
 
     buildTypes {
+        debug {
+            // adb reverse maps the phone's loopback port to Django on this machine.
+            buildConfigField("String", "API_BASE_URL", "\"http://127.0.0.1:8000/\"")
+        }
         release {
+            // Deliberately unset until the production API has a real HTTPS hostname.
+            buildConfigField("String", "API_BASE_URL", "\"\"")
             optimization {
                 enable = false
             }
@@ -34,6 +40,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
     buildFeatures {
+        buildConfig = true
         compose = true
     }
 }
@@ -46,6 +53,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.kotlinx.serialization.json)

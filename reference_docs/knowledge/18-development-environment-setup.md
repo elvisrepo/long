@@ -114,8 +114,9 @@ JAVA_HOME=/opt/android-studio/jbr ./gradlew connectedDebugAndroidTest
 - The current `LoginScreenPreview` can be rendered from Android Studio's Split/Design editor without a phone.
 - The debug build permits local cleartext HTTP while the main/release manifest remains HTTPS-only.
 - After connecting the authorized phone, run `adb reverse tcp:8000 tcp:8000` so `http://127.0.0.1:8000` on the phone reaches local Django. This mapping is temporary and may need to be recreated after reconnecting the phone or restarting ADB.
+- The debug build sets `BuildConfig.API_BASE_URL` to `http://127.0.0.1:8000/`; this is useful only with the `adb reverse` mapping above. The release URL remains deliberately unset until an HTTPS production API exists.
 - `HttpAuthRepository` implements and mock-server-tests the mobile-login HTTP contract. `AndroidKeystoreAuthTokenStore` provides the production AES-GCM/Android-Keystore storage boundary and is verified on the physical phone.
-- `MainActivity` is not wired to those implementations yet, so tapping Sign in still does not call local Django.
+- `LongevityApplication` creates the shared HTTP/auth dependencies. `MainActivity` obtains `LoginViewModel` through `LoginViewModelFactory`, collects its state with lifecycle awareness, and delegates Sign in to the real repository.
 
 ### 3.5 Environment Variables
 ```bash

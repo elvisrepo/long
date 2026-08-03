@@ -11,8 +11,8 @@ import kotlinx.coroutines.launch
 /**
  * Owns login-screen state and coordinates authentication through [AuthRepository].
  *
- * Submission behavior is added in the next TDD step. Keeping the repository
- * injected now makes that behavior testable without Django or a physical phone.
+ * Keeping the repository injected makes submission behavior testable without
+ * Django or a physical phone.
  */
 class LoginViewModel(
     private val authRepository: AuthRepository,
