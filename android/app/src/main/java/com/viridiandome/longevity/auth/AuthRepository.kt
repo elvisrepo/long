@@ -7,6 +7,9 @@ package com.viridiandome.longevity.auth
  * serialization and secure token storage without exposing either to UI code.
  */
 interface AuthRepository {
+    /** Returns whether this client has a locally restorable authentication session. */
+    suspend fun restoreSession(): Boolean
+
     suspend fun login(
         email: String,
         password: String,

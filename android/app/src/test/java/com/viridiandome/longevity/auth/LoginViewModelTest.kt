@@ -94,6 +94,17 @@ class LoginViewModelTest {
         assertEquals("Invalid email or password.", state.errorMessage)
         assertTrue(state.canSubmit)
     }
+
+    @Test
+    fun stored_session_restores_authenticated_state() = runTest {
+        val repository = StoredSessionAuthRepository()
+        val viewModel = LoginViewModel(repository)
+
+        advanceUntilIdle()
+
+        assertEquals(1, repository.restoreRequests)
+        assertTrue(viewModel.state.value.isAuthenticated)
+    }
 }
 
 /**
@@ -101,6 +112,8 @@ class LoginViewModelTest {
  * is called accidentally, the test fails immediately.
  */
 private class NeverCalledAuthRepository : AuthRepository {
+    override suspend fun restoreSession(): Boolean = false
+
     override suspend fun login(
         email: String,
         password: String,
@@ -115,6 +128,8 @@ private class ControllableAuthRepository : AuthRepository {
     var receivedPassword: String? = null
         private set
 
+    override suspend fun restoreSession(): Boolean = false
+
     override suspend fun login(
         email: String,
         password: String,
@@ -127,4 +142,19 @@ private class ControllableAuthRepository : AuthRepository {
     fun complete(loginResult: LoginResult) {
         result.complete(loginResult)
     }
+}
+
+private class StoredSessionAuthRepository : AuthRepository {
+    var restoreRequests: Int = 0
+        private set
+
+    override suspend fun restoreSession(): Boolean {
+        restoreRequests += 1
+        return true
+    }
+
+    override suspend fun login(
+        email: String,
+        password: String,
+    ): LoginResult = error("Login must not run while restoring an existing session.")
 }

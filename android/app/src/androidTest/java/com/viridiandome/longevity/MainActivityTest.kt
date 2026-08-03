@@ -5,10 +5,25 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTextInput
+import androidx.test.platform.app.InstrumentationRegistry
+import com.viridiandome.longevity.auth.AndroidKeystoreAuthTokenStore
+import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
+import org.junit.BeforeClass
 
 class MainActivityTest {
+    companion object {
+        @BeforeClass
+        @JvmStatic
+        fun clearStoredSessionBeforeActivityLaunch() = runBlocking {
+            // Activity tests exercise the logged-out form. Clear any real local
+            // session before createAndroidComposeRule launches the first Activity.
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            AndroidKeystoreAuthTokenStore(context).clearTokens()
+        }
+    }
+
     @get:Rule
     val composeTestRule = createAndroidComposeRule<MainActivity>()
 

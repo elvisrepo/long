@@ -498,15 +498,15 @@ Immediate next wearable slice:
 Current Android testing checkpoint — 2026-08-03:
 
 - The Gradle debug build succeeds against `compileSdk 37.1`, `targetSdk 36`, and `minSdk 28`.
-- Local JVM tests cover login form state, request/response/error serialization, safe diagnostic strings, ViewModel success/failure state, and the HTTP repository contract.
-- MockWebServer tests prove the repository sends `POST /api/auth/mobile/login/` with the exact Django JSON body, stores both tokens before returning success, maps invalid credentials safely, and handles offline or malformed-success responses without storing tokens.
+- Local JVM tests cover login form state, request/response/error serialization, safe diagnostic strings, ViewModel success/failure/session-restoration state, and the HTTP repository contract.
+- MockWebServer and repository tests prove the repository sends `POST /api/auth/mobile/login/` with the exact Django JSON body, stores both tokens before returning success, detects a readable stored token pair for startup restoration, maps invalid credentials safely, and handles offline or malformed-success responses without storing tokens.
 - Isolated `LoginScreen` Compose tests cover blank, submitting, safe-error, authenticated-success, and password-visibility-toggle states. The visibility test proves the user control transitions between Show and Hide while the field retains Android password semantics for keyboards, autofill, and accessibility.
-- `MainActivityTest` launches the real Activity, types both credentials, observes ViewModel-backed Compose state updates, proves Sign in becomes enabled, and proves in-memory credentials survive Activity recreation without saved-state persistence.
+- `MainActivityTest` clears any real stored token pair at class setup, then launches the Activity, types both credentials, observes ViewModel-backed Compose state updates, proves Sign in becomes enabled, and proves in-memory credentials survive Activity recreation without saved-state persistence. This keeps the logged-out tests deterministic on both clean CI devices and developer phones with an existing session.
 - A physical-device token-store test proves access/refresh tokens round-trip through Android Keystore AES-GCM encryption, raw preferences contain neither plaintext token, and clearing removes the session.
 - All eight instrumented tests pass on the physical `FCP-N49` phone through `connectedDebugAndroidTest`.
 - Android Studio preview coverage exists through `LoginScreenPreview`; preview is developer tooling rather than a behavioral test.
 - Device tests require an authorized, awake, unlocked phone. A dozing device behind the lock screen was diagnosed to prevent Activity launch and produce “No compose hierarchies found”; rerunning unlocked passed both tests.
-- The HTTP repository uses a local fake server in JVM tests, the production token store is verified independently on-device, and the real Activity-to-ViewModel wiring is covered on-device. Tests do not yet prove the combined live Django login flow from the phone, wearable connection registration, Health Connect access, or uploads.
+- The HTTP repository uses a local fake server in JVM tests, the production token store is verified independently on-device, and the real Activity-to-ViewModel wiring is covered on-device. A manual physical-device run also proved live Django login returned `200`, encrypted both JWTs, and rendered `Signed in`. Automated tests do not yet prove mobile refresh/expiry validation, wearable connection registration, Health Connect access, or uploads.
 - Physical-device tests remain a local/pre-release gate. CI should run JVM Android tests first; emulator/instrumented CI can be added when the client behavior warrants its cost.
 
 When testing Samsung-sync behavior:

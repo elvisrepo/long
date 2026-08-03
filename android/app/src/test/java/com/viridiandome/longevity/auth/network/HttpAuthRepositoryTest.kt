@@ -151,6 +151,23 @@ class HttpAuthRepositoryTest {
         assertNull(tokenStore.accessToken)
         assertNull(tokenStore.refreshToken)
     }
+
+    @Test
+    fun stored_tokens_restore_session_without_exposing_them() = runTest {
+        val tokenStore = RecordingAuthTokenStore().apply {
+            saveTokens(
+                accessToken = "stored-access-token",
+                refreshToken = "stored-refresh-token",
+            )
+        }
+        val repository = HttpAuthRepository(
+            client = OkHttpClient(),
+            baseUrl = server.url("/").toString(),
+            tokenStore = tokenStore,
+        )
+
+        assertTrue(repository.restoreSession())
+    }
 }
 
 private class RecordingAuthTokenStore : AuthTokenStore {

@@ -41,6 +41,8 @@
 - **Implemented Android storage**: `AndroidKeystoreAuthTokenStore` encrypts access and refresh tokens separately with AES-256-GCM, keeps the non-exportable AES key in Android Keystore, and stores only IV+ciphertext payloads in private `SharedPreferences`.
 - The token preference file is excluded from cloud backup and device transfer because a restored ciphertext file would not have its original device-bound Keystore key.
 - Per-use device authentication is intentionally not required for this key because background token refresh and wearable uploads must work while the phone is locked. This protects tokens at rest but does not attempt to require biometric confirmation for every sync.
+- **Implemented Android startup restoration**: `LoginViewModel` asks `AuthRepository.restoreSession()` once at creation. `HttpAuthRepository` reports whether the Keystore-backed token store contains a readable token pair; token values never enter ViewModel or Compose state.
+- **Current restoration limitation**: local token presence is not yet proof that the access or refresh token remains valid. The next hardening step must call the mobile refresh endpoint, persist any rotated token pair, and clear the local session when refresh is rejected.
 
 ### Security Notes
 

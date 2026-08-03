@@ -25,6 +25,19 @@ class LoginViewModel(
     )
     val state: StateFlow<LoginFormState> = _state.asStateFlow()
 
+    init {
+        viewModelScope.launch {
+            if (authRepository.restoreSession()) {
+                _state.update { current ->
+                    current.copy(
+                        isAuthenticated = true,
+                        errorMessage = null,
+                    )
+                }
+            }
+        }
+    }
+
     fun onEmailChange(email: String) {
         _state.update { current ->
             current.copy(email = email)

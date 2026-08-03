@@ -33,6 +33,15 @@ class HttpAuthRepository(
         .addPathSegments("api/auth/mobile/login/")
         .build()
 
+    override suspend fun restoreSession(): Boolean =
+        try {
+            // The repository owns token persistence so presentation code never
+            // receives or inspects either JWT.
+            tokenStore.readTokens() != null
+        } catch (_: IOException) {
+            false
+        }
+
     override suspend fun login(
         email: String,
         password: String,

@@ -77,12 +77,13 @@ Implemented:
 - `LoginFormState` owns immutable credential and submission state, redacts credentials from its diagnostic string, and derives whether submission is enabled.
 - `LoginScreen` is a stateless Compose component with controlled email/password fields, masked-by-default password display, a temporary Show/Hide password control, loading and safe-error feedback, a state-controlled Sign in button, authenticated-success content, and Android Studio previews.
 - `MainActivity` obtains `LoginViewModel` from a factory, collects its `StateFlow` with lifecycle awareness, and sends UI events back through one-way Compose callbacks. The ViewModel retains in-memory credentials across Activity recreation without persisting the password to saved state.
-- `LoginViewModel` and the `AuthRepository` interface define a testable presentation/authentication boundary; ViewModel tests cover credential changes plus successful and failed submission state.
+- `LoginViewModel` and the `AuthRepository` interface define a testable presentation/authentication boundary; ViewModel tests cover credential changes, successful and failed submission, and startup restoration from a stored session.
 - Kotlin serialization models and tests cover the Django mobile-login request, token response, and documented validation/error response shapes without exposing credentials or JWTs through diagnostic strings.
 - `HttpAuthRepository` uses OkHttp coroutines to POST the exact Django mobile-login contract, decode safe error responses, translate transport/malformed-response failures, and save both JWTs through the injected `AuthTokenStore` boundary before returning success.
 - MockWebServer tests cover successful token storage, invalid credentials, unavailable Django, and malformed successful responses without requiring the physical phone or live backend.
 - `AndroidKeystoreAuthTokenStore` encrypts each JWT with AES-256-GCM and a fresh IV, binds each ciphertext to its preference key as authenticated data, keeps the non-exportable key in Android Keystore, and stores only encoded IV+ciphertext payloads in private preferences.
 - The production token preference file is excluded from cloud backup and device transfer. A physical-device test proves encrypted-at-rest round-trip and clearing behavior.
+- On app startup, `LoginViewModel` asks `AuthRepository.restoreSession()` once. The HTTP repository reads only whether the Keystore-backed store contains a validly decryptable token pair; it does not expose either token to UI state.
 - `LongevityApplication` is the minimal application-level dependency container: it shares one OkHttp client, one `HttpAuthRepository`, and the Android-Keystore token store without introducing a dependency-injection framework prematurely.
 - The debug build targets local Django at `http://127.0.0.1:8000/` through `adb reverse`; the release base URL is intentionally unset until the production HTTPS endpoint exists.
 - The main manifest permits network access but explicitly rejects cleartext traffic; a debug-only manifest overlay permits local HTTP while release remains HTTPS-only.
@@ -92,7 +93,7 @@ Implemented:
 
 Not implemented yet:
 
-- Live local Django returned `200` for the physical phone's credentials and both JWTs were verified as encrypted ciphertext in app-private preferences. The authenticated-success screen was added afterward and still needs one final manual visual confirmation.
+- Startup restoration currently trusts a locally readable token pair. It does not yet refresh with Django, validate expiry/revocation, persist rotation, or clear rejected tokens.
 - The app has not registered/read a `WearableConnection`, requested Health Connect permission, read `WeightRecord`, filtered Samsung-originated records, or uploaded a normalized batch.
 - WorkManager, Celery-backed asynchronous ingestion, and production distribution remain later phases.
 
@@ -253,7 +254,7 @@ Implementation sequence from the current UI checkpoint:
 2. Define/test the mobile-login request, response, and failure contract.
 3. Add a ViewModel and repository boundary; do not place HTTP calls directly in `MainActivity`. — implemented
 4. Add debug-only network configuration and use `adb reverse tcp:8000 tcp:8000`. — implemented
-5. Call Django mobile login and securely store the returned tokens. — implemented in code; live physical-device verification remains
+5. Call Django mobile login and securely store the returned tokens. — implemented and manually verified on the physical phone
 6. Fetch or register the caller-owned Health Connect `WearableConnection`.
 7. Add Health Connect SDK availability and weight-read permission.
 8. Read a bounded `WeightRecord` range, preserve stable external IDs, filter/label provenance correctly, and upload through the existing endpoint.
