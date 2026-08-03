@@ -1,6 +1,6 @@
 # System Design Roadmap: Local MVP to Production
 
-Current state, bluntly: the project has a solid local MVP foundation, but it is not the final product yet. Manual metrics, Stripe subscription lifecycle, and synchronous wearable ingestion are in good shape. The Android companion app has started as a tested local client, while real mobile authentication, Health Connect reads, richer analytics, production deployment, and compliance hardening are still ahead.
+Current state, bluntly: the project has a solid local MVP foundation, but it is not the final product yet. Manual metrics, Stripe subscription lifecycle, synchronous wearable ingestion, and Android mobile authentication are in good shape. Health Connect reads, richer analytics, production deployment, and compliance hardening are still ahead.
 
 ## 1. Local system design — what exists now
 
@@ -21,7 +21,7 @@ Stripe CLI forwards local webhooks to Django
 Android Studio + Gradle + adb
   ↓ installs debug and test APKs over USB
 Physical Android phone
-  ↓ currently renders the local Compose login UI
+  ↓ authenticates against local Django through adb reverse
 Android companion app
 ```
 
@@ -50,7 +50,8 @@ Implemented slices:
 - Health Connect connection lifecycle and plan limits
 - Idempotent synchronous wearable upload ingestion into `MetricEntry`
 - Kotlin/Compose Android project scaffold
-- Stateful Android login UI with JVM and physical-device Compose tests
+- Android login, refresh, encrypted JWT storage, session checking, and server-revoking logout
+- Stateful Android authentication UI with JVM, Compose, and physical-device validation
 
 Related docs:
 
@@ -101,8 +102,8 @@ Right now, Pro Insights is mostly a placeholder. It proves feature gating and UI
 
 Still missing:
 
-- Android-to-Django mobile authentication
-- secure access/refresh-token storage on Android
+- reusable authenticated Android requests for product APIs
+- Android registration/read of its backend Health Connect connection
 - Health Connect availability and permission flow
 - Health Connect `WeightRecord` reads and Samsung-origin filtering
 - Android normalization and upload to the implemented ingestion endpoint
@@ -148,10 +149,10 @@ The wearable backend is implemented through normalized synchronous ingestion: pl
 Immediate next slice:
 
 ```text
-Android mobile authentication
+Authenticated Android wearable-connection registration
 ```
 
-The Android project exists at `android/`. It uses Kotlin, Jetpack Compose, Gradle, and a physical USB-connected device test loop. The login form has immutable state, state-controlled inputs, a disabled/enabled submit rule, a Compose preview, and unit/instrumented coverage. Its Sign in callback is intentionally still a no-op: no Android HTTP client, JWT storage, connection API call, or Health Connect permission exists yet.
+The Android project exists at `android/`. It uses Kotlin, Jetpack Compose, Gradle, and a physical USB-connected device test loop. Login, refresh-token rotation, Android-Keystore-backed JWT storage, startup restoration, and server-side refresh-token revocation on logout are implemented and manually proven against local Django. The next boundary is a reusable authenticated request helper followed by `GET`/`POST /api/v1/wearables/connections/`; Health Connect permission is intentionally after backend connection registration works.
 
 Refactor trigger before ingestion grows:
 
@@ -177,15 +178,19 @@ Recommended order:
 
    Do not create a parallel metric system.
 
-5. Authenticate the Android client — next
+5. Authenticate the Android client — completed
 
-   Call the dedicated mobile-login endpoint, expose loading/error state through a ViewModel, and store tokens securely without persisting the password.
+   Dedicated mobile login, refresh, encrypted storage, session restoration, and server-revoking logout are implemented.
 
-6. Read and upload one Health Connect weight record
+6. Register/read the Android Health Connect connection — next
+
+   Reuse the stored access token for authenticated product API requests and establish the caller-owned backend connection.
+
+7. Read and upload one Health Connect weight record
 
    Prove the physical-device bridge through the existing synchronous upload endpoint.
 
-7. Add sync UI
+8. Add sync UI
 
    Settings or a dedicated Wearables page shows connection state and last sync.
 

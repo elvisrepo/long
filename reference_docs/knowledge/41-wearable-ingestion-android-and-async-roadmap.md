@@ -95,9 +95,15 @@ Implemented:
 
 Not implemented yet:
 
-- Live phone-to-Django refresh and logout still need a manual validation pass after the physical device reconnects.
 - The app has not registered/read a `WearableConnection`, requested Health Connect permission, read `WeightRecord`, filtered Samsung-originated records, or uploaded a normalized batch.
 - WorkManager, Celery-backed asynchronous ingestion, and production distribution remain later phases.
+
+Manually validated on the physical phone:
+
+- login reaches local Django through `adb reverse`, stores the JWT pair, and renders authenticated content
+- reinstalling the current debug build preserves the encrypted session and startup refresh restores authenticated state
+- Logout calls Django revocation, clears the local session, and returns to the login form
+- reconnecting USB/ADB may remove the reverse mapping; restoring `adb reverse tcp:8000 tcp:8000` restores local API access without a rebuild
 
 ## 4. `SyncRun` Receipt and Status Lifecycle
 
