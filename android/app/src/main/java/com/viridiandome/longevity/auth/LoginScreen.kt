@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -71,6 +72,18 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth(),
         )
 
+        state.errorMessage?.let { errorMessage ->
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // The ViewModel receives only client-sanitized repository messages;
+            // raw backend error details must never be passed into this state.
+            Text(
+                text = errorMessage,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
@@ -78,7 +91,13 @@ fun LoginScreen(
             enabled = state.canSubmit,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(text = "Sign in")
+            Text(
+                text = if (state.isSubmitting) {
+                    "Signing in..."
+                } else {
+                    "Sign in"
+                },
+            )
         }
     }
 }

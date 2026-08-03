@@ -29,4 +29,45 @@ class LoginScreenTest {
         composeTestRule.onNodeWithText("Password").assertIsDisplayed()
         composeTestRule.onNodeWithText("Sign in").assertIsNotEnabled()
     }
+
+    @Test
+    fun submitting_form_disables_button_and_shows_progress_text() {
+        composeTestRule.setContent {
+            LoginScreen(
+                state = LoginFormState(
+                    email = "user@example.com",
+                    password = "secret-password",
+                    isSubmitting = true,
+                ),
+                onEmailChange = {},
+                onPasswordChange = {},
+                onSignIn = {},
+            )
+        }
+
+        composeTestRule
+            .onNodeWithText("Signing in...")
+            .assertIsDisplayed()
+            .assertIsNotEnabled()
+    }
+
+    @Test
+    fun failed_login_displays_safe_error_message() {
+        composeTestRule.setContent {
+            LoginScreen(
+                state = LoginFormState(
+                    email = "user@example.com",
+                    password = "wrong-password",
+                    errorMessage = "Invalid email or password.",
+                ),
+                onEmailChange = {},
+                onPasswordChange = {},
+                onSignIn = {},
+            )
+        }
+
+        composeTestRule
+            .onNodeWithText("Invalid email or password.")
+            .assertIsDisplayed()
+    }
 }
