@@ -17,6 +17,7 @@ frontend/.venv/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+android/.kotlin/
 .coverage
 htmlcov/
 
