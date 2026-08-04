@@ -169,15 +169,16 @@ For the login endpoint:
 - `POST /api/auth/web/refresh/`
 - refresh token is read only from the `refresh_token` cookie
 - request must also supply a valid CSRF token
-- success response: `200` with a new `access` token
-- with rotation enabled, refresh may also issue a new refresh token and the backend updates the refresh cookie
+- success response: `200` with only a new `access` token in the JSON body
+- with rotation enabled, the backend transports the new refresh token exclusively through the updated `HttpOnly` refresh cookie; it is never included in the web JSON response
 - missing refresh token response: `400`
 - invalid refresh token response: `401`
 - failed CSRF response: `403`
 
 Current boundary:
 - keep login custom because the app authenticates by email through the custom Django backend
-- keep refresh on the library default path until there is a real reason to customize claims, rotation, blacklist behavior, or transport
+- keep the custom web/mobile refresh views because they own different token transports and security rules
+- delegate JWT validation, rotation, and blacklist mechanics to SimpleJWT through the shared transactional rotation service
 
 ### Current Frontend Web Session Bootstrap
 

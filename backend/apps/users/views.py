@@ -29,10 +29,12 @@ def enforce_csrf(request: Request) -> None:
 
 
 def build_refresh_cookie_response(
-    response_data: dict[str, str],
+    access_token: str,
     refresh_token: str,
 ) -> Response:
-      response = Response(response_data, status=status.HTTP_200_OK)
+      # Web JavaScript receives only the short-lived access token. The rotated
+      # refresh token is transported exclusively in the HttpOnly cookie below.
+      response = Response({"access": access_token}, status=status.HTTP_200_OK)
       response.set_cookie(
           key=REFRESH_TOKEN_COOKIE_NAME,
           value=refresh_token,
@@ -111,7 +113,7 @@ def web_login_view(request: Request) -> Response:
       logger.info("Web login succeeded for user_id=%s", user.id)
 
       return build_refresh_cookie_response(
-          response_data={"access": str(refresh.access_token)},
+          access_token=str(refresh.access_token),
           refresh_token=str(refresh),
       )
 
@@ -204,7 +206,7 @@ def web_refresh_view(request: Request) -> Response:
       rotated_refresh = response_data.get("refresh")
       if rotated_refresh:
           return build_refresh_cookie_response(
-              response_data=response_data,
+              access_token=response_data["access"],
               refresh_token=rotated_refresh,
           )
 

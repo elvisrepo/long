@@ -35,4 +35,4 @@ def test_web_refresh_succeeds_with_cookie_and_csrf():
     )
 
     assert response.status_code == 200
-    assert "access" in response.json()
+    assert set(response.json()) == {"access"}

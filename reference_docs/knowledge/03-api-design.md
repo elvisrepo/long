@@ -18,7 +18,7 @@
 | POST | `/api/auth/register/` | User registration | Returns 201; atomically creates the user and an active subscription to the seeded free plan |
 | GET | `/api/auth/csrf/` | Issue CSRF cookie for SPA bootstrap | Web clients call this before cookie-based refresh/logout |
 | POST | `/api/auth/web/login/` | Web login | Returns `access` only in JSON and sets the refresh token in an `HttpOnly` cookie |
-| POST | `/api/auth/web/refresh/` | Web refresh | Cookie-only, CSRF-protected |
+| POST | `/api/auth/web/refresh/` | Web refresh | Cookie-only and CSRF-protected; returns `access` only in JSON and rotates the refresh token exclusively through an `HttpOnly` cookie |
 | POST | `/api/auth/web/logout/` | Web logout | Cookie-only, CSRF-protected, blacklists refresh token |
 | POST | `/api/auth/mobile/login/` | Mobile login | Returns access + refresh tokens in JSON |
 | POST | `/api/auth/mobile/refresh/` | Mobile refresh | Refresh token supplied explicitly in request body |
@@ -29,7 +29,7 @@
 Refresh concurrency behavior:
 - web-cookie and mobile-body refresh use the same transactional rotation service;
 - the service validates the signed refresh token, locks its SimpleJWT `OutstandingToken` row, and performs blacklist validation plus rotation while holding that PostgreSQL lock;
-- two concurrent requests presenting the same refresh token cannot both rotate it: exactly one returns `200` with replacement credentials and the waiting replay returns `401` with `{"detail": "Token is invalid."}`;
+- two concurrent requests presenting the same refresh token cannot both rotate it: exactly one returns `200` with replacement credentials appropriate to its client transport and the waiting replay returns `401` with `{"detail": "Token is invalid."}`;
 - different outstanding refresh tokens lock different rows and can still rotate concurrently.
 
 #### Testing (E2E runtime only)

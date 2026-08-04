@@ -616,6 +616,7 @@ Current auth endpoint coverage includes:
 - mobile refresh happy path for a valid refresh token
 - mobile refresh invalid-token rejection
 - web refresh happy path for a valid `refresh_token` cookie
+- web refresh returns only `access` in JSON so frontend JavaScript cannot read the rotated refresh token
 - web refresh rotates the `refresh_token` cookie
 - web refresh rejects cookie-based refresh attempts without CSRF
 - web refresh succeeds with `refresh_token` cookie plus `X-CSRFToken`
