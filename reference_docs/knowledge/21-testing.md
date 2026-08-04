@@ -60,6 +60,8 @@ Current frontend testing checkpoint:
   - sends `X-CSRFToken`
   - relies on cookie transport with `credentials: 'include'`
   - stores the returned access token
+  - concurrent callers share one CSRF-plus-refresh sequence
+  - Web Locks serialize refresh-cookie rotation across browser tabs when supported
 - a focused `logoutWeb()` helper test set now covers the web logout helper contract:
   - posts to `/api/auth/web/logout/`
   - sends `credentials: 'include'`
@@ -120,6 +122,8 @@ What the current frontend tests are proving:
   - frontend then calls the web refresh endpoint with `X-CSRFToken`
   - access token restoration still relies on browser cookie transport for the refresh token
   - successful refresh stores the new access token in the session layer
+  - one tab uses a single in-flight promise, including under React `StrictMode` effect replay
+  - browser tabs request the same `longevity-auth-refresh` Web Lock before rotating the shared cookie
 - `logoutWeb()` tests now prove the frontend web logout helper contract:
   - frontend does not read the refresh token directly
   - frontend relies on cookie transport plus `X-CSRFToken`

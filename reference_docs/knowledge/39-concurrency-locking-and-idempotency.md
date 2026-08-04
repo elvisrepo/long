@@ -1,9 +1,10 @@
-# Concurrency, Locking, And Stripe Idempotency
+# Concurrency, Locking, And Idempotency
 
 ## Use When
 
 - You need to reason about race conditions, row locks, optimistic stale checks, or external provider idempotency.
 - You are changing metric-definition entitlement writes, subscription plan transitions, or Stripe Checkout creation.
+- You are changing rotating JWT refresh behavior in the browser or Android client.
 - You need to decide whether a problem should be solved with database locking, optimistic locking, idempotency keys, or a combination.
 
 ## Core Terms
@@ -28,6 +29,39 @@ Idempotency:
 - Repeating the same logical operation should not perform the side effect twice.
 - For Stripe, the idempotency key tells Stripe that a repeated `POST` is a retry of the same operation.
 - This protects external provider side effects, not just our database rows.
+
+## Rotating Refresh-Token Coordination
+
+Refresh rotation intentionally invalidates the refresh token that was just used.
+Without coordination, two overlapping requests can submit the same token:
+
+```text
+Request A reads refresh R1
+Request B reads refresh R1
+Request A rotates R1 → R2 and blacklists R1
+Request B submits R1 and is rejected, or races before the blacklist is visible
+```
+
+Implemented Android protection:
+
+- `AuthenticatedApiClient` owns one coroutine mutex in the application-wide client.
+- After a product API `401`, a caller acquires the mutex and rereads encrypted storage.
+- If another request already replaced the access token, the waiting request skips refresh and retries with that replacement.
+- Otherwise it performs one refresh and one product-request retry.
+
+Implemented web protection:
+
+- concurrent `restoreWebSession()` calls in one JavaScript tab share one module-level in-flight promise;
+- this prevents React development `StrictMode` effect replay from issuing duplicate refreshes;
+- browser contexts request the same-origin `longevity-auth-refresh` Web Lock when that API is available;
+- tabs therefore rotate the shared HttpOnly refresh cookie sequentially rather than concurrently.
+
+Boundary:
+
+- these are client-coordination controls, not a global backend lock;
+- SimpleJWT currently checks the blacklist, blacklists the presented token, and then rotates it without taking a PostgreSQL row lock for that token;
+- direct concurrent replay, unsupported Web Locks browsers across tabs, or multiple independent clients using the exact same refresh token can still reach the backend concurrently;
+- if that threat must be closed, add a transaction-scoped lock around the outstanding refresh-token identity and a backend concurrency test. Do not claim the client mutex/promise makes the endpoint globally atomic.
 
 ## Where We Use Pessimistic Locking
 

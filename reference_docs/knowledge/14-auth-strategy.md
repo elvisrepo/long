@@ -388,6 +388,10 @@ Current proven SPA browser path:
 - frontend can call `GET /api/auth/csrf/` to bootstrap the CSRF cookie
 - login sets the `refresh_token` cookie
 - cookie-based refresh succeeds when the browser supplies the refresh cookie and the frontend supplies `X-CSRFToken`
+- concurrent `restoreWebSession()` calls in one tab share one module-level in-flight promise, preventing React `StrictMode` effect replay from rotating the same cookie twice
+- when the browser exposes the Web Locks API, tabs serialize refresh through the same-origin `longevity-auth-refresh` lock; a waiting tab refreshes only after the prior tab's rotated cookie has been stored
+- the in-flight promise is cleared after either success or failure, allowing a later intentional restore attempt
+- this coordination protects the web client flow; the backend refresh endpoint still needs separate per-token serialization if concurrent direct replay must be rejected atomically
 - cookie-based logout succeeds when the browser supplies the refresh cookie and the frontend supplies `X-CSRFToken`
 
 ### Cookie vs Token
