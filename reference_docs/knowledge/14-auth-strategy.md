@@ -47,6 +47,7 @@
 - Android uses redacted Kotlin serialization models for `{"refresh":"..."}` requests and responses with required `access` plus optional rotated `refresh`.
 - **Implemented authenticated Android product requests**: `AuthenticatedApiClient` reads the encrypted pair inside the data layer, adds `Authorization: Bearer <access>`, buffers/closes the OkHttp response, and returns a body-redacted result to feature repositories.
 - A product-request `401` triggers at most one refresh and retry. A coroutine mutex serializes refresh decisions; after acquiring it, the client rereads storage and reuses a token already rotated by another request instead of rotating twice. Rejected refresh returns `NoSession`; transient storage/network/refresh failure returns `Unavailable` without exposing tokens.
+- **Implemented backend refresh serialization**: both web and mobile refresh call `rotate_refresh_token()`. It validates signature, expiry, and refresh-token type, locks the matching SimpleJWT `OutstandingToken` row inside a transaction, and only then performs blacklist validation and rotation. Concurrent use of one token yields one `200` rotation and one `401` replay rejection.
 
 ### Security Notes
 
@@ -391,7 +392,7 @@ Current proven SPA browser path:
 - concurrent `restoreWebSession()` calls in one tab share one module-level in-flight promise, preventing React `StrictMode` effect replay from rotating the same cookie twice
 - when the browser exposes the Web Locks API, tabs serialize refresh through the same-origin `longevity-auth-refresh` lock; a waiting tab refreshes only after the prior tab's rotated cookie has been stored
 - the in-flight promise is cleared after either success or failure, allowing a later intentional restore attempt
-- this coordination protects the web client flow; the backend refresh endpoint still needs separate per-token serialization if concurrent direct replay must be rejected atomically
+- backend per-token serialization independently rejects concurrent direct replay even when a client lacks or bypasses its local coordination
 - cookie-based logout succeeds when the browser supplies the refresh cookie and the frontend supplies `X-CSRFToken`
 
 ### Cookie vs Token

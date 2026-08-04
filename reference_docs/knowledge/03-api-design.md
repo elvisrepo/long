@@ -26,6 +26,12 @@
 | POST | `/api/auth/password/reset/` | Password reset email | Planned, rate limited: 3/hour |
 | POST | `/api/auth/password/confirm/` | Confirm password reset | Planned |
 
+Refresh concurrency behavior:
+- web-cookie and mobile-body refresh use the same transactional rotation service;
+- the service validates the signed refresh token, locks its SimpleJWT `OutstandingToken` row, and performs blacklist validation plus rotation while holding that PostgreSQL lock;
+- two concurrent requests presenting the same refresh token cannot both rotate it: exactly one returns `200` with replacement credentials and the waiting replay returns `401` with `{"detail": "Token is invalid."}`;
+- different outstanding refresh tokens lock different rows and can still rotate concurrently.
+
 #### Testing (E2E runtime only)
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|

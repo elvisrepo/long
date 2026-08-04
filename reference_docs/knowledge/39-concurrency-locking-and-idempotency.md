@@ -56,12 +56,21 @@ Implemented web protection:
 - browser contexts request the same-origin `longevity-auth-refresh` Web Lock when that API is available;
 - tabs therefore rotate the shared HttpOnly refresh cookie sequentially rather than concurrently.
 
+Implemented backend protection:
+
+- `apps.users.services.rotate_refresh_token()` validates the token signature, expiry, refresh type, and JTI before database mutation;
+- it selects the matching SimpleJWT `OutstandingToken` with `select_for_update()` inside `transaction.atomic()`;
+- only after obtaining that row lock does `TokenRefreshSerializer` perform blacklist validation and rotation;
+- a concurrent waiter reloads blacklist state after the first transaction commits, then rejects the replay with `401`;
+- web-cookie and mobile-body refresh views share this service, while different token JTIs lock different rows and remain concurrent;
+- `tests/test_auth_refresh_concurrency.py` proves both transports produce exactly one `200` and one `401` under a controlled real-PostgreSQL race.
+
 Boundary:
 
-- these are client-coordination controls, not a global backend lock;
-- SimpleJWT currently checks the blacklist, blacklists the presented token, and then rotates it without taking a PostgreSQL row lock for that token;
-- direct concurrent replay, unsupported Web Locks browsers across tabs, or multiple independent clients using the exact same refresh token can still reach the backend concurrently;
-- if that threat must be closed, add a transaction-scoped lock around the outstanding refresh-token identity and a backend concurrency test. Do not claim the client mutex/promise makes the endpoint globally atomic.
+- the client promise, browser lock, Android mutex, and backend row lock are complementary layers;
+- the row lock serializes concurrent rotation of the exact same outstanding token, but it is not refresh-token-family revocation;
+- a refresh racing with logout can still leave a newly rotated descendant usable if refresh commits first;
+- closing that broader theft/logout scenario requires explicit token-family lineage and family-wide revocation rather than another lock around only the presented token.
 
 ## Where We Use Pessimistic Locking
 

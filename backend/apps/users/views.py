@@ -8,10 +8,10 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.users.serializers import LoginSerializer, RegisterSerializer
+from apps.users.services import rotate_refresh_token
 
 import logging
 
@@ -165,15 +165,14 @@ def mobile_refresh_view(request: Request) -> Response:
           )
 
       try:
-          serializer = TokenRefreshSerializer(data={"refresh": refresh_token})
-          serializer.is_valid(raise_exception=True)
+          response_data = rotate_refresh_token(refresh_token=refresh_token)
       except TokenError:
           return Response(
               {"detail": "Token is invalid."},
               status=status.HTTP_401_UNAUTHORIZED,
           )
 
-      return Response(serializer.validated_data, status=status.HTTP_200_OK)
+      return Response(response_data, status=status.HTTP_200_OK)
 
 
 # this sets csrf cookie
@@ -195,22 +194,21 @@ def web_refresh_view(request: Request) -> Response:
       enforce_csrf(request)
 
       try:
-          serializer = TokenRefreshSerializer(data={"refresh": refresh_token})
-          serializer.is_valid(raise_exception=True)
+          response_data = rotate_refresh_token(refresh_token=refresh_token)
       except TokenError:
           return Response(
               {"detail": "Token is invalid."},
               status=status.HTTP_401_UNAUTHORIZED,
           )
 
-      rotated_refresh = serializer.validated_data.get("refresh")
+      rotated_refresh = response_data.get("refresh")
       if rotated_refresh:
           return build_refresh_cookie_response(
-              response_data=serializer.validated_data,
+              response_data=response_data,
               refresh_token=rotated_refresh,
           )
 
-      return Response(serializer.validated_data, status=status.HTTP_200_OK)
+      return Response(response_data, status=status.HTTP_200_OK)
 
 
 

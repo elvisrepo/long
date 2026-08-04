@@ -638,12 +638,14 @@ For the refresh slice specifically:
 - keep SimpleJWT token validation inside `TokenRefreshSerializer`
 - keep the custom project views focused on transport and security rules for the explicit web/mobile split
 - test the public refresh endpoint contract rather than re-testing the library internals at a lower level
+- `tests/test_auth_refresh_concurrency.py` uses two committed PostgreSQL connections and a controlled blacklist-check race to prove the same mobile-body or web-cookie refresh token produces exactly one `200` rotation and one `401` replay rejection
+- the concurrency test exercises the real URLs, DRF views, shared rotation service, SimpleJWT blacklist tables, transaction, and row lock
 
 Current auth foundation status:
 - the backend suite now covers the explicit web/mobile auth transport split
 - generic login, refresh, and logout aliases have been removed
 - logout refresh-token revocation, cookie clearing, csrf bootstrap, and web csrf enforcement are covered
-- current backend suite status at this checkpoint: `37 passed`
+- current backend suite status at this checkpoint: `242 passed`
 
 Frontend test harness note:
 - route tests use `window.history.pushState(...)` to set the active URL before mounting `RouterProvider`
