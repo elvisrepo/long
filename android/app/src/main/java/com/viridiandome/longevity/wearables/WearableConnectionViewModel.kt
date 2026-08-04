@@ -11,6 +11,8 @@ import kotlinx.coroutines.launch
 
 /** UI state for resolving the signed-in user's Health Connect connection. */
 sealed interface WearableConnectionUiState {
+    data object Idle : WearableConnectionUiState
+
     data object Loading : WearableConnectionUiState
 
     data class Ready(
@@ -29,17 +31,23 @@ class WearableConnectionViewModel(
     private val repository: WearableConnectionRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow<WearableConnectionUiState>(
-        WearableConnectionUiState.Loading,
+        WearableConnectionUiState.Idle,
     )
     val state: StateFlow<WearableConnectionUiState> = _state.asStateFlow()
     private var resolutionJob: Job? = null
 
-    init {
+    fun load() {
         resolveHealthConnectConnection()
     }
 
     fun retry() {
         resolveHealthConnectConnection()
+    }
+
+    fun resetForLogout() {
+        resolutionJob?.cancel()
+        resolutionJob = null
+        _state.value = WearableConnectionUiState.Idle
     }
 
     private fun resolveHealthConnectConnection() {

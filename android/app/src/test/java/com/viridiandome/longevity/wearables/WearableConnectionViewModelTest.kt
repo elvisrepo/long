@@ -36,6 +36,11 @@ class WearableConnectionViewModelTest {
             val repository = ControllableWearableConnectionRepository()
             val viewModel = WearableConnectionViewModel(repository)
 
+            assertSame(WearableConnectionUiState.Idle, viewModel.state.value)
+            assertEquals(0, repository.resolutionRequests)
+
+            viewModel.load()
+
             assertSame(WearableConnectionUiState.Loading, viewModel.state.value)
             runCurrent()
             assertEquals(1, repository.resolutionRequests)
@@ -57,6 +62,7 @@ class WearableConnectionViewModelTest {
     fun rejected_registration_remains_a_distinct_ui_state() = runTest {
         val repository = ControllableWearableConnectionRepository()
         val viewModel = WearableConnectionViewModel(repository)
+        viewModel.load()
         runCurrent()
 
         repository.complete(WearableConnectionResolutionResult.Rejected)
@@ -69,6 +75,7 @@ class WearableConnectionViewModelTest {
     fun lost_session_remains_a_distinct_ui_state() = runTest {
         val repository = ControllableWearableConnectionRepository()
         val viewModel = WearableConnectionViewModel(repository)
+        viewModel.load()
         runCurrent()
 
         repository.complete(WearableConnectionResolutionResult.NoSession)
@@ -81,6 +88,7 @@ class WearableConnectionViewModelTest {
     fun temporary_failure_remains_an_unavailable_ui_state() = runTest {
         val repository = ControllableWearableConnectionRepository()
         val viewModel = WearableConnectionViewModel(repository)
+        viewModel.load()
         runCurrent()
 
         repository.complete(WearableConnectionResolutionResult.Unavailable)
@@ -100,6 +108,7 @@ class WearableConnectionViewModelTest {
             WearableConnectionResolutionResult.Success(connection),
         )
         val viewModel = WearableConnectionViewModel(repository)
+        viewModel.load()
         advanceUntilIdle()
         assertSame(
             WearableConnectionUiState.Unavailable,
@@ -118,6 +127,7 @@ class WearableConnectionViewModelTest {
     fun retry_does_not_overlap_an_active_resolution_request() = runTest {
         val repository = ControllableWearableConnectionRepository()
         val viewModel = WearableConnectionViewModel(repository)
+        viewModel.load()
         runCurrent()
         assertEquals(1, repository.resolutionRequests)
 
@@ -126,6 +136,24 @@ class WearableConnectionViewModelTest {
 
         assertEquals(1, repository.resolutionRequests)
         assertSame(WearableConnectionUiState.Loading, viewModel.state.value)
+    }
+
+    @Test
+    fun clear_cancels_resolution_and_removes_previous_user_state() = runTest {
+        val repository = ControllableWearableConnectionRepository()
+        val viewModel = WearableConnectionViewModel(repository)
+        viewModel.load()
+        runCurrent()
+
+        viewModel.resetForLogout()
+        repository.complete(
+            WearableConnectionResolutionResult.Success(
+                healthConnectConnection(status = "connected"),
+            ),
+        )
+        advanceUntilIdle()
+
+        assertSame(WearableConnectionUiState.Idle, viewModel.state.value)
     }
 }
 

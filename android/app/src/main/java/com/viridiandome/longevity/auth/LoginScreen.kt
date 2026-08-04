@@ -27,6 +27,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.viridiandome.longevity.ui.theme.LongevityTheme
+import com.viridiandome.longevity.wearables.WearableConnectionUiState
 
 /**
  * Stateless authentication UI.
@@ -41,6 +42,10 @@ fun LoginScreen(
     onPasswordChange: (String) -> Unit,
     onSignIn: () -> Unit,
     onLogout: () -> Unit,
+    wearableConnectionState: WearableConnectionUiState =
+        WearableConnectionUiState.Idle,
+    onConnectHealthConnect: () -> Unit = {},
+    onRetryHealthConnect: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     if (state.isCheckingSession) {
@@ -52,6 +57,9 @@ fun LoginScreen(
         AuthenticatedContent(
             state = state,
             onLogout = onLogout,
+            wearableConnectionState = wearableConnectionState,
+            onConnectHealthConnect = onConnectHealthConnect,
+            onRetryHealthConnect = onRetryHealthConnect,
             modifier = modifier,
         )
         return
@@ -172,6 +180,9 @@ private fun SessionCheckingContent(modifier: Modifier = Modifier) {
 private fun AuthenticatedContent(
     state: LoginFormState,
     onLogout: () -> Unit,
+    wearableConnectionState: WearableConnectionUiState,
+    onConnectHealthConnect: () -> Unit,
+    onRetryHealthConnect: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -189,6 +200,14 @@ private fun AuthenticatedContent(
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(text = "Your Longevity session is ready.")
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        HealthConnectContent(
+            state = wearableConnectionState,
+            onConnect = onConnectHealthConnect,
+            onRetry = onRetryHealthConnect,
+        )
 
         state.errorMessage?.let { errorMessage ->
             Spacer(modifier = Modifier.height(12.dp))
@@ -212,6 +231,67 @@ private fun AuthenticatedContent(
                     "Logout"
                 },
             )
+        }
+    }
+}
+
+/** Renders connection state without initiating registration during composition. */
+@Composable
+private fun HealthConnectContent(
+    state: WearableConnectionUiState,
+    onConnect: () -> Unit,
+    onRetry: () -> Unit,
+) {
+    Text(
+        text = "Health Connect",
+        style = MaterialTheme.typography.titleMedium,
+    )
+
+    Spacer(modifier = Modifier.height(8.dp))
+
+    when (state) {
+        WearableConnectionUiState.Idle -> {
+            Text(text = "Not connected")
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // The explicit tap is the consent boundary for backend registration.
+            Button(onClick = onConnect) {
+                Text(text = "Connect Health Connect")
+            }
+        }
+
+        WearableConnectionUiState.Loading -> {
+            CircularProgressIndicator()
+            Text(text = "Connecting Health Connect...")
+        }
+
+        is WearableConnectionUiState.Ready -> {
+            val statusText = when (state.connection.status) {
+                "connected" -> "Connected"
+                "pending" -> "Setup pending"
+                "error" -> "Needs attention"
+                else -> "Disconnected"
+            }
+            Text(text = statusText)
+        }
+
+        WearableConnectionUiState.Rejected -> {
+            Text(text = "Health Connect is unavailable for your current plan.")
+        }
+
+        WearableConnectionUiState.NoSession -> {
+            Text(text = "Your session expired. Log out and sign in again.")
+        }
+
+        WearableConnectionUiState.Unavailable -> {
+            Text(text = "Unable to connect Health Connect.")
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(onClick = onRetry) {
+                Text(text = "Retry")
+            }
         }
     }
 }

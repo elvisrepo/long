@@ -67,7 +67,7 @@ The Android app is the device bridge. Django cannot directly read Health Connect
 | 7 | Move expensive ingestion to Celery/Redis | API returns quickly while workers preserve the same database idempotency and terminal results |
 | 8 | Add sync UI and production hardening | Users can inspect sync state; operators have rate limits, logs, metrics, and repair tools |
 
-### Current Android checkpoint — 2026-08-03
+### Current Android checkpoint — 2026-08-04
 
 Implemented:
 
@@ -87,7 +87,10 @@ Implemented:
 - On app startup, `LoginViewModel` asks `AuthRepository.restoreSession()` once. The UI remains in session-checking state while the HTTP repository validates the Keystore-backed refresh token through Django, persists replacement/rotated tokens, and exposes only a Boolean result.
 - Android logout posts the stored refresh token to Django for SimpleJWT blacklisting before deleting the encrypted local pair. Server/network failure retains the authenticated state and credentials for an honest retry.
 - `AuthenticatedApiClient` is the reusable product-API boundary: it reads encrypted access credentials, adds the Bearer header, buffers/closes responses, refreshes and retries once after `401`, and returns `NoSession` or `Unavailable` without leaking response bodies through diagnostics. A mutex plus a storage recheck prevents concurrent expired requests from rotating the same refresh token twice.
-- `LongevityApplication` is the minimal application-level dependency container: it shares one OkHttp client, one `HttpAuthRepository`, one `AuthenticatedApiClient`, and the Android-Keystore token store without introducing a dependency-injection framework prematurely.
+- `LongevityApplication` is the minimal application-level dependency container: it shares one OkHttp client, one `HttpAuthRepository`, one `AuthenticatedApiClient`, one `HttpWearableConnectionRepository`, and the Android-Keystore token store without introducing a dependency-injection framework prematurely.
+- The wearable repository can list caller-owned connections and explicitly register/reactivate Health Connect through the authenticated API client. Its GET-then-POST orchestration reuses an existing row, creates one only when absent, and keeps no-session, domain-rejection, and temporary-unavailability outcomes distinct.
+- `WearableConnectionViewModel` starts without network side effects, resolves Health Connect only after the authenticated user explicitly chooses Connect, prevents overlapping retries, and cancels and resets its state on logout so one user's connection metadata cannot leak into a later session.
+- The authenticated Compose screen renders idle, loading, pending/connected, rejected, expired-session, and retryable-unavailable connection states. Rendering or signing in alone does not consume a wearable plan slot; the Connect action is the backend-registration consent boundary.
 - The debug build targets local Django at `http://127.0.0.1:8000/` through `adb reverse`; the release base URL is intentionally unset until the production HTTPS endpoint exists.
 - The main manifest permits network access but explicitly rejects cleartext traffic; a debug-only manifest overlay permits local HTTP while release remains HTTPS-only.
 - `adb reverse tcp:8000 tcp:8000` lets the connected phone reach local Django at `http://127.0.0.1:8000`; the mapping is temporary and must be recreated after relevant ADB/device reconnects.
@@ -96,7 +99,7 @@ Implemented:
 
 Not implemented yet:
 
-- The app has not registered/read a `WearableConnection`, requested Health Connect permission, read `WeightRecord`, filtered Samsung-originated records, or uploaded a normalized batch.
+- The repository/UI connection flow is implemented but has not yet been manually validated against local Django on the physical phone. The app has not requested Health Connect permission, read `WeightRecord`, filtered Samsung-originated records, or uploaded a normalized batch.
 - WorkManager, Celery-backed asynchronous ingestion, and production distribution remain later phases.
 
 Manually validated on the physical phone:

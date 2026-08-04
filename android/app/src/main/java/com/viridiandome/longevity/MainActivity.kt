@@ -8,6 +8,7 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -15,6 +16,8 @@ import com.viridiandome.longevity.auth.LoginScreen
 import com.viridiandome.longevity.auth.LoginViewModel
 import com.viridiandome.longevity.auth.LoginViewModelFactory
 import com.viridiandome.longevity.ui.theme.LongevityTheme
+import com.viridiandome.longevity.wearables.WearableConnectionViewModel
+import com.viridiandome.longevity.wearables.WearableConnectionViewModelFactory
 
 /**
  * Android's entry point for the app.
@@ -29,6 +32,11 @@ class MainActivity : ComponentActivity() {
         LoginViewModelFactory(app.authRepository)
     }
 
+    private val wearableConnectionViewModel: WearableConnectionViewModel by viewModels {
+        val app = application as LongevityApplication
+        WearableConnectionViewModelFactory(app.wearableConnectionRepository)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -41,6 +49,17 @@ class MainActivity : ComponentActivity() {
                 // Stop collecting when the Activity is not visible, then resume with
                 // the ViewModel's latest state when its lifecycle starts again.
                 val loginState by loginViewModel.state.collectAsStateWithLifecycle()
+                val wearableConnectionState by wearableConnectionViewModel.state
+                    .collectAsStateWithLifecycle()
+
+                // Logout removes the previous user's connection state. Merely
+                // becoming authenticated does not register a wearable connection;
+                // the user must choose Connect Health Connect below.
+                LaunchedEffect(loginState.isAuthenticated) {
+                    if (!loginState.isAuthenticated) {
+                        wearableConnectionViewModel.resetForLogout()
+                    }
+                }
 
                 // Scaffold provides the screen structure and system-bar insets.
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -51,6 +70,9 @@ class MainActivity : ComponentActivity() {
                         onPasswordChange = loginViewModel::onPasswordChange,
                         onSignIn = loginViewModel::signIn,
                         onLogout = loginViewModel::logout,
+                        wearableConnectionState = wearableConnectionState,
+                        onConnectHealthConnect = wearableConnectionViewModel::load,
+                        onRetryHealthConnect = wearableConnectionViewModel::retry,
                         modifier = Modifier.padding(innerPadding),
                     )
                 }

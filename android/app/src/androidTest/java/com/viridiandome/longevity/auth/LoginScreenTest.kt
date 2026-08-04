@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import com.viridiandome.longevity.wearables.WearableConnectionUiState
 import org.junit.Rule
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -140,6 +141,31 @@ class LoginScreenTest {
         composeTestRule.onNodeWithText("Logout").performClick()
 
         assertTrue(logoutRequested)
+    }
+
+    @Test
+    fun authenticated_idle_state_forwards_health_connect_click() {
+        var connectionRequested = false
+        composeTestRule.setContent {
+            LoginScreen(
+                state = LoginFormState(
+                    email = "user@example.com",
+                    password = "",
+                    isAuthenticated = true,
+                ),
+                wearableConnectionState = WearableConnectionUiState.Idle,
+                onEmailChange = {},
+                onPasswordChange = {},
+                onSignIn = {},
+                onLogout = {},
+                onConnectHealthConnect = { connectionRequested = true },
+            )
+        }
+
+        composeTestRule.onNodeWithText("Connect Health Connect")
+            .performClick()
+
+        assertTrue(connectionRequested)
     }
 
     @Test
