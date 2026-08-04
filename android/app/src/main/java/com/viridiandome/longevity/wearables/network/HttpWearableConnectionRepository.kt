@@ -4,6 +4,7 @@ import com.viridiandome.longevity.auth.network.AuthenticatedApiClient
 import com.viridiandome.longevity.auth.network.AuthenticatedApiResult
 import com.viridiandome.longevity.wearables.WearableConnectionRegistrationResult
 import com.viridiandome.longevity.wearables.WearableConnectionRepository
+import com.viridiandome.longevity.wearables.WearableConnectionResolutionResult
 import com.viridiandome.longevity.wearables.WearableConnectionsResult
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromString
@@ -74,6 +75,27 @@ class HttpWearableConnectionRepository(
         }
     }
 
+    override suspend fun getOrRegisterHealthConnect():
+        WearableConnectionResolutionResult =
+        when (val connectionsResult = getConnections()) {
+            is WearableConnectionsResult.Success -> {
+                val existingConnection = connectionsResult.connections
+                    .firstOrNull { it.provider == HEALTH_CONNECT_PROVIDER }
+
+                if (existingConnection != null) {
+                    WearableConnectionResolutionResult.Success(existingConnection)
+                } else {
+                    resolveRegistration(registerHealthConnect())
+                }
+            }
+
+            WearableConnectionsResult.NoSession ->
+                WearableConnectionResolutionResult.NoSession
+
+            WearableConnectionsResult.Unavailable ->
+                WearableConnectionResolutionResult.Unavailable
+        }
+
     private fun decodeResponse(
         response: AuthenticatedApiResult.Response,
     ): WearableConnectionsResult {
@@ -112,6 +134,23 @@ class HttpWearableConnectionRepository(
             WearableConnectionRegistrationResult.Unavailable
         }
     }
+
+    private fun resolveRegistration(
+        result: WearableConnectionRegistrationResult,
+    ): WearableConnectionResolutionResult =
+        when (result) {
+            is WearableConnectionRegistrationResult.Success ->
+                WearableConnectionResolutionResult.Success(result.connection)
+
+            WearableConnectionRegistrationResult.Rejected ->
+                WearableConnectionResolutionResult.Rejected
+
+            WearableConnectionRegistrationResult.NoSession ->
+                WearableConnectionResolutionResult.NoSession
+
+            WearableConnectionRegistrationResult.Unavailable ->
+                WearableConnectionResolutionResult.Unavailable
+        }
 
     private companion object {
         val JSON_MEDIA_TYPE = "application/json".toMediaType()

@@ -6,6 +6,7 @@ import com.viridiandome.longevity.auth.AuthTokens
 import com.viridiandome.longevity.auth.LoginResult
 import com.viridiandome.longevity.auth.network.AuthenticatedApiClient
 import com.viridiandome.longevity.wearables.WearableConnectionRegistrationResult
+import com.viridiandome.longevity.wearables.WearableConnectionResolutionResult
 import com.viridiandome.longevity.wearables.WearableConnectionsResult
 import kotlinx.coroutines.test.runTest
 import mockwebserver3.MockResponse
@@ -239,6 +240,132 @@ class HttpWearableConnectionRepositoryTest {
         val result = repository.registerHealthConnect()
 
         assertSame(WearableConnectionRegistrationResult.Unavailable, result)
+    }
+
+    @Test
+    fun existing_health_connect_connection_is_reused_without_registration() = runTest {
+        server.enqueue(
+            MockResponse(
+                code = 200,
+                body =
+                    """
+                    [{
+                      "id": "7df7e4ab-7e6f-4558-b9be-17c824fbf54e",
+                      "provider": "health_connect",
+                      "status": "connected",
+                      "last_synced_at": "2026-08-04T10:00:00Z",
+                      "last_error": "",
+                      "created_at": "2026-08-01T10:00:00Z",
+                      "updated_at": "2026-08-04T10:00:00Z"
+                    }]
+                    """.trimIndent(),
+            ),
+        )
+        val repository = buildRepository(
+            tokens = AuthTokens(
+                accessToken = "stored-access-token",
+                refreshToken = "stored-refresh-token",
+            ),
+        )
+
+        val result = repository.getOrRegisterHealthConnect()
+
+        assertTrue(result is WearableConnectionResolutionResult.Success)
+        result as WearableConnectionResolutionResult.Success
+        assertEquals(
+            "7df7e4ab-7e6f-4558-b9be-17c824fbf54e",
+            result.connection.id,
+        )
+        assertEquals(1, server.requestCount)
+        assertEquals("GET", server.takeRequest().method)
+    }
+
+    @Test
+    fun missing_health_connect_connection_is_registered_after_list_read() = runTest {
+        server.enqueue(MockResponse(code = 200, body = "[]"))
+        server.enqueue(
+            MockResponse(
+                code = 201,
+                body =
+                    """
+                    {
+                      "id": "7df7e4ab-7e6f-4558-b9be-17c824fbf54e",
+                      "provider": "health_connect",
+                      "status": "pending",
+                      "last_synced_at": null,
+                      "last_error": "",
+                      "created_at": "2026-08-04T10:00:00Z",
+                      "updated_at": "2026-08-04T10:00:00Z"
+                    }
+                    """.trimIndent(),
+            ),
+        )
+        val repository = buildRepository(
+            tokens = AuthTokens(
+                accessToken = "stored-access-token",
+                refreshToken = "stored-refresh-token",
+            ),
+        )
+
+        val result = repository.getOrRegisterHealthConnect()
+
+        assertTrue(result is WearableConnectionResolutionResult.Success)
+        result as WearableConnectionResolutionResult.Success
+        assertEquals("pending", result.connection.status)
+        assertEquals("GET", server.takeRequest().method)
+        val registrationRequest = server.takeRequest()
+        assertEquals("POST", registrationRequest.method)
+        assertEquals(
+            """{"provider":"health_connect"}""",
+            registrationRequest.body?.utf8(),
+        )
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
+    fun connection_resolution_without_session_stops_before_registration() = runTest {
+        val repository = buildRepository(tokens = null)
+
+        val result = repository.getOrRegisterHealthConnect()
+
+        assertEquals(WearableConnectionResolutionResult.NoSession, result)
+        assertEquals(0, server.requestCount)
+    }
+
+    @Test
+    fun unavailable_connection_list_stops_before_registration() = runTest {
+        server.enqueue(MockResponse(code = 500))
+        val repository = buildRepository(
+            tokens = AuthTokens(
+                accessToken = "stored-access-token",
+                refreshToken = "stored-refresh-token",
+            ),
+        )
+
+        val result = repository.getOrRegisterHealthConnect()
+
+        assertEquals(WearableConnectionResolutionResult.Unavailable, result)
+        assertEquals("GET", server.takeRequest().method)
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun rejected_health_connect_registration_is_preserved_by_resolution() = runTest {
+        server.enqueue(MockResponse(code = 200, body = "[]"))
+        server.enqueue(MockResponse(code = 400))
+        val repository = buildRepository(
+            tokens = AuthTokens(
+                accessToken = "stored-access-token",
+                refreshToken = "stored-refresh-token",
+            ),
+        )
+
+        val result = repository.getOrRegisterHealthConnect()
+
+        assertEquals(WearableConnectionResolutionResult.Rejected, result)
+        assertEquals("GET", server.takeRequest().method)
+        assertEquals("POST", server.takeRequest().method)
+        assertEquals(2, server.requestCount)
     }
 
     private fun buildRepository(tokens: AuthTokens?): HttpWearableConnectionRepository {
