@@ -11,6 +11,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viridiandome.longevity.auth.LoginScreen
 import com.viridiandome.longevity.auth.LoginViewModel
@@ -18,6 +19,9 @@ import com.viridiandome.longevity.auth.LoginViewModelFactory
 import com.viridiandome.longevity.ui.theme.LongevityTheme
 import com.viridiandome.longevity.wearables.WearableConnectionViewModel
 import com.viridiandome.longevity.wearables.WearableConnectionViewModelFactory
+import com.viridiandome.longevity.wearables.WearableConnectionUiState
+import com.viridiandome.longevity.wearables.healthconnect.WEIGHT_READ_PERMISSION
+import com.viridiandome.longevity.wearables.healthconnect.WEIGHT_READ_PERMISSIONS
 
 /**
  * Android's entry point for the app.
@@ -34,7 +38,18 @@ class MainActivity : ComponentActivity() {
 
     private val wearableConnectionViewModel: WearableConnectionViewModel by viewModels {
         val app = application as LongevityApplication
-        WearableConnectionViewModelFactory(app.wearableConnectionRepository)
+        WearableConnectionViewModelFactory(
+            app.wearableConnectionRepository,
+            app.healthConnectAccess,
+        )
+    }
+
+    private val healthPermissionLauncher = registerForActivityResult(
+        PermissionController.createRequestPermissionResultContract(),
+    ) { grantedPermissions ->
+        wearableConnectionViewModel.onWeightReadPermissionResult(
+            isGranted = WEIGHT_READ_PERMISSION in grantedPermissions,
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,6 +73,17 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(loginState.isAuthenticated) {
                     if (!loginState.isAuthenticated) {
                         wearableConnectionViewModel.resetForLogout()
+                    }
+                }
+
+                // Activity Result owns the system permission screen. The
+                // ViewModel owns why it is needed and what happens afterward.
+                LaunchedEffect(wearableConnectionState) {
+                    if (
+                        wearableConnectionState ===
+                        WearableConnectionUiState.PermissionRequired
+                    ) {
+                        healthPermissionLauncher.launch(WEIGHT_READ_PERMISSIONS)
                     }
                 }
 

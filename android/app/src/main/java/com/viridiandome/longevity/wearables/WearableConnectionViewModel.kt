@@ -3,6 +3,7 @@ package com.viridiandome.longevity.wearables
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viridiandome.longevity.wearables.network.WearableConnectionResponse
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,6 +15,14 @@ sealed interface WearableConnectionUiState {
     data object Idle : WearableConnectionUiState
 
     data object Loading : WearableConnectionUiState
+
+    data object PermissionRequired : WearableConnectionUiState
+
+    data object PermissionDenied : WearableConnectionUiState
+
+    data object ProviderUpdateRequired : WearableConnectionUiState
+
+    data object HealthConnectUnavailable : WearableConnectionUiState
 
     data class Ready(
         val connection: WearableConnectionResponse,
@@ -29,6 +38,7 @@ sealed interface WearableConnectionUiState {
 /** Coordinates Health Connect registration without exposing HTTP details to Compose. */
 class WearableConnectionViewModel(
     private val repository: WearableConnectionRepository,
+    private val healthConnectAccess: HealthConnectAccess,
 ) : ViewModel() {
     private val _state = MutableStateFlow<WearableConnectionUiState>(
         WearableConnectionUiState.Idle,
@@ -44,6 +54,15 @@ class WearableConnectionViewModel(
         resolveHealthConnectConnection()
     }
 
+    fun onWeightReadPermissionResult(isGranted: Boolean) {
+        if (!isGranted) {
+            _state.value = WearableConnectionUiState.PermissionDenied
+            return
+        }
+
+        resolveBackendAfterPermissionGrant()
+    }
+
     fun resetForLogout() {
         resolutionJob?.cancel()
         resolutionJob = null
@@ -57,21 +76,50 @@ class WearableConnectionViewModel(
 
         _state.value = WearableConnectionUiState.Loading
         resolutionJob = viewModelScope.launch {
-            _state.value = when (
-                val result = repository.getOrRegisterHealthConnect()
-            ) {
-                is WearableConnectionResolutionResult.Success ->
-                    WearableConnectionUiState.Ready(result.connection)
+            _state.value = try {
+                when (healthConnectAccess.getWeightReadAccess()) {
+                    WeightReadAccess.Granted -> resolveBackendConnection()
 
-                WearableConnectionResolutionResult.Rejected ->
-                    WearableConnectionUiState.Rejected
+                    WeightReadAccess.PermissionRequired ->
+                        WearableConnectionUiState.PermissionRequired
 
-                WearableConnectionResolutionResult.NoSession ->
-                    WearableConnectionUiState.NoSession
+                    WeightReadAccess.ProviderUpdateRequired ->
+                        WearableConnectionUiState.ProviderUpdateRequired
 
-                WearableConnectionResolutionResult.Unavailable ->
-                    WearableConnectionUiState.Unavailable
+                    WeightReadAccess.Unavailable ->
+                        WearableConnectionUiState.HealthConnectUnavailable
+                }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                WearableConnectionUiState.Unavailable
             }
         }
     }
+
+    private fun resolveBackendAfterPermissionGrant() {
+        if (resolutionJob?.isActive == true) {
+            return
+        }
+
+        _state.value = WearableConnectionUiState.Loading
+        resolutionJob = viewModelScope.launch {
+            _state.value = resolveBackendConnection()
+        }
+    }
+
+    private suspend fun resolveBackendConnection(): WearableConnectionUiState =
+        when (val result = repository.getOrRegisterHealthConnect()) {
+            is WearableConnectionResolutionResult.Success ->
+                WearableConnectionUiState.Ready(result.connection)
+
+            WearableConnectionResolutionResult.Rejected ->
+                WearableConnectionUiState.Rejected
+
+            WearableConnectionResolutionResult.NoSession ->
+                WearableConnectionUiState.NoSession
+
+            WearableConnectionResolutionResult.Unavailable ->
+                WearableConnectionUiState.Unavailable
+        }
 }

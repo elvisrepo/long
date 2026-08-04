@@ -4,6 +4,13 @@
 
     <!-- Normal permission: Android grants it at install time without a runtime prompt. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- MVP requests read-only access to weight; no other health type is declared. -->
+    <uses-permission android:name="android.permission.health.READ_WEIGHT" />
+
+    <!-- Required on Android 13 and earlier where Health Connect is an APK. -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
 
     <application
         android:name=".LongevityApplication"
@@ -28,6 +35,27 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Opened from the privacy-policy link in Health Connect permission UI. -->
+        <activity
+            android:name=".PermissionsRationaleActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE"
+            android:targetActivity=".PermissionsRationaleActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
     </application>
 
 </manifest>

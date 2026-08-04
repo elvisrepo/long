@@ -91,6 +91,9 @@ Implemented:
 - The wearable repository can list caller-owned connections and explicitly register/reactivate Health Connect through the authenticated API client. Its GET-then-POST orchestration reuses an existing row, creates one only when absent, and keeps no-session, domain-rejection, and temporary-unavailability outcomes distinct.
 - `WearableConnectionViewModel` starts without network side effects, resolves Health Connect only after the authenticated user explicitly chooses Connect, prevents overlapping retries, and cancels and resets its state on logout so one user's connection metadata cannot leak into a later session.
 - The authenticated Compose screen renders idle, loading, pending/connected, rejected, expired-session, and retryable-unavailable connection states. Rendering or signing in alone does not consume a wearable plan slot; the Connect action is the backend-registration consent boundary.
+- The Android app uses stable `androidx.health.connect:connect-client:1.1.0`, checks `HealthConnectClient.getSdkStatus()`, and checks the existing `WeightRecord` read grant before touching the backend connection. Unsupported, provider-update-required, permission-required, permission-denied, and transient-check failures remain distinct UI outcomes.
+- The manifest declares only `android.permission.health.READ_WEIGHT`, the pre-Android-14 Health Connect package query, and the required pre/post-Android-14 permission-rationale intents. A local rationale screen explains that authorized weight samples are read and normalized for the user's account; the app does not write or delete Health Connect data.
+- `MainActivity` launches the official Health Connect permission Activity Result contract only after an explicit Connect action. A grant continues backend registration; a denial creates no backend connection and remains retryable.
 - The debug build targets local Django at `http://127.0.0.1:8000/` through `adb reverse`; the release base URL is intentionally unset until the production HTTPS endpoint exists.
 - The main manifest permits network access but explicitly rejects cleartext traffic; a debug-only manifest overlay permits local HTTP while release remains HTTPS-only.
 - `adb reverse tcp:8000 tcp:8000` lets the connected phone reach local Django at `http://127.0.0.1:8000`; the mapping is temporary and must be recreated after relevant ADB/device reconnects.
@@ -99,7 +102,7 @@ Implemented:
 
 Not implemented yet:
 
-- The repository/UI connection flow is implemented but has not yet been manually validated against local Django on the physical phone. The app has not requested Health Connect permission, read `WeightRecord`, filtered Samsung-originated records, or uploaded a normalized batch.
+- The repository/UI connection flow and weight-permission request are implemented but have not yet been manually validated end-to-end on the physical phone. The app has not read `WeightRecord`, filtered Samsung-originated records, or uploaded a normalized batch.
 - WorkManager, Celery-backed asynchronous ingestion, and production distribution remain later phases.
 
 Manually validated on the physical phone:

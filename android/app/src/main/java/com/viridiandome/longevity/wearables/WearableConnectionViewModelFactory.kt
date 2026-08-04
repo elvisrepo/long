@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 /** Creates [WearableConnectionViewModel] with its repository dependency. */
 class WearableConnectionViewModelFactory(
     private val repository: WearableConnectionRepository,
+    private val healthConnectAccess: HealthConnectAccess,
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (!modelClass.isAssignableFrom(WearableConnectionViewModel::class.java)) {
@@ -13,6 +14,6 @@ class WearableConnectionViewModelFactory(
         }
 
         @Suppress("UNCHECKED_CAST")
-        return WearableConnectionViewModel(repository) as T
+        return WearableConnectionViewModel(repository, healthConnectAccess) as T
     }
 }

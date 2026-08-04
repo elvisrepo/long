@@ -34,7 +34,10 @@ class WearableConnectionViewModelTest {
     fun connection_resolution_stays_loading_until_health_connect_is_ready() =
         runTest {
             val repository = ControllableWearableConnectionRepository()
-            val viewModel = WearableConnectionViewModel(repository)
+            val viewModel = WearableConnectionViewModel(
+                repository,
+                GrantedWeightReadHealthConnectAccess,
+            )
 
             assertSame(WearableConnectionUiState.Idle, viewModel.state.value)
             assertEquals(0, repository.resolutionRequests)
@@ -61,7 +64,10 @@ class WearableConnectionViewModelTest {
     @Test
     fun rejected_registration_remains_a_distinct_ui_state() = runTest {
         val repository = ControllableWearableConnectionRepository()
-        val viewModel = WearableConnectionViewModel(repository)
+        val viewModel = WearableConnectionViewModel(
+            repository,
+            GrantedWeightReadHealthConnectAccess,
+        )
         viewModel.load()
         runCurrent()
 
@@ -74,7 +80,10 @@ class WearableConnectionViewModelTest {
     @Test
     fun lost_session_remains_a_distinct_ui_state() = runTest {
         val repository = ControllableWearableConnectionRepository()
-        val viewModel = WearableConnectionViewModel(repository)
+        val viewModel = WearableConnectionViewModel(
+            repository,
+            GrantedWeightReadHealthConnectAccess,
+        )
         viewModel.load()
         runCurrent()
 
@@ -87,7 +96,10 @@ class WearableConnectionViewModelTest {
     @Test
     fun temporary_failure_remains_an_unavailable_ui_state() = runTest {
         val repository = ControllableWearableConnectionRepository()
-        val viewModel = WearableConnectionViewModel(repository)
+        val viewModel = WearableConnectionViewModel(
+            repository,
+            GrantedWeightReadHealthConnectAccess,
+        )
         viewModel.load()
         runCurrent()
 
@@ -107,7 +119,10 @@ class WearableConnectionViewModelTest {
             WearableConnectionResolutionResult.Unavailable,
             WearableConnectionResolutionResult.Success(connection),
         )
-        val viewModel = WearableConnectionViewModel(repository)
+        val viewModel = WearableConnectionViewModel(
+            repository,
+            GrantedWeightReadHealthConnectAccess,
+        )
         viewModel.load()
         advanceUntilIdle()
         assertSame(
@@ -126,7 +141,10 @@ class WearableConnectionViewModelTest {
     @Test
     fun retry_does_not_overlap_an_active_resolution_request() = runTest {
         val repository = ControllableWearableConnectionRepository()
-        val viewModel = WearableConnectionViewModel(repository)
+        val viewModel = WearableConnectionViewModel(
+            repository,
+            GrantedWeightReadHealthConnectAccess,
+        )
         viewModel.load()
         runCurrent()
         assertEquals(1, repository.resolutionRequests)
@@ -141,7 +159,10 @@ class WearableConnectionViewModelTest {
     @Test
     fun clear_cancels_resolution_and_removes_previous_user_state() = runTest {
         val repository = ControllableWearableConnectionRepository()
-        val viewModel = WearableConnectionViewModel(repository)
+        val viewModel = WearableConnectionViewModel(
+            repository,
+            GrantedWeightReadHealthConnectAccess,
+        )
         viewModel.load()
         runCurrent()
 
@@ -155,6 +176,121 @@ class WearableConnectionViewModelTest {
 
         assertSame(WearableConnectionUiState.Idle, viewModel.state.value)
     }
+
+    @Test
+    fun unavailable_health_connect_stops_before_backend_registration() = runTest {
+        val repository = ControllableWearableConnectionRepository()
+        val viewModel = WearableConnectionViewModel(
+            repository,
+            FixedHealthConnectAccess(WeightReadAccess.Unavailable),
+        )
+
+        viewModel.load()
+        advanceUntilIdle()
+
+        assertSame(
+            WearableConnectionUiState.HealthConnectUnavailable,
+            viewModel.state.value,
+        )
+        assertEquals(0, repository.resolutionRequests)
+    }
+
+    @Test
+    fun missing_weight_permission_stops_before_backend_registration() = runTest {
+        val repository = ControllableWearableConnectionRepository()
+        val viewModel = WearableConnectionViewModel(
+            repository,
+            FixedHealthConnectAccess(WeightReadAccess.PermissionRequired),
+        )
+
+        viewModel.load()
+        advanceUntilIdle()
+
+        assertSame(
+            WearableConnectionUiState.PermissionRequired,
+            viewModel.state.value,
+        )
+        assertEquals(0, repository.resolutionRequests)
+    }
+
+    @Test
+    fun granted_weight_permission_continues_backend_registration() = runTest {
+        val repository = ControllableWearableConnectionRepository()
+        val viewModel = WearableConnectionViewModel(
+            repository,
+            FixedHealthConnectAccess(WeightReadAccess.PermissionRequired),
+        )
+        viewModel.load()
+        advanceUntilIdle()
+
+        viewModel.onWeightReadPermissionResult(isGranted = true)
+        runCurrent()
+
+        assertEquals(1, repository.resolutionRequests)
+        val connection = healthConnectConnection(status = "pending")
+        repository.complete(
+            WearableConnectionResolutionResult.Success(connection),
+        )
+        advanceUntilIdle()
+        assertEquals(
+            WearableConnectionUiState.Ready(connection),
+            viewModel.state.value,
+        )
+    }
+
+    @Test
+    fun denied_weight_permission_does_not_register_backend_connection() = runTest {
+        val repository = ControllableWearableConnectionRepository()
+        val viewModel = WearableConnectionViewModel(
+            repository,
+            FixedHealthConnectAccess(WeightReadAccess.PermissionRequired),
+        )
+        viewModel.load()
+        advanceUntilIdle()
+
+        viewModel.onWeightReadPermissionResult(isGranted = false)
+
+        assertSame(
+            WearableConnectionUiState.PermissionDenied,
+            viewModel.state.value,
+        )
+        assertEquals(0, repository.resolutionRequests)
+    }
+
+    @Test
+    fun health_connect_check_failure_becomes_retryable_unavailable_state() =
+        runTest {
+            val repository = ControllableWearableConnectionRepository()
+            val viewModel = WearableConnectionViewModel(
+                repository,
+                FailingHealthConnectAccess,
+            )
+
+            viewModel.load()
+            advanceUntilIdle()
+
+            assertSame(
+                WearableConnectionUiState.Unavailable,
+                viewModel.state.value,
+            )
+            assertEquals(0, repository.resolutionRequests)
+        }
+}
+
+private data class FixedHealthConnectAccess(
+    private val access: WeightReadAccess,
+) : HealthConnectAccess {
+    override suspend fun getWeightReadAccess(): WeightReadAccess = access
+}
+
+private object GrantedWeightReadHealthConnectAccess : HealthConnectAccess {
+    override suspend fun getWeightReadAccess(): WeightReadAccess =
+        WeightReadAccess.Granted
+}
+
+private object FailingHealthConnectAccess : HealthConnectAccess {
+    override suspend fun getWeightReadAccess(): WeightReadAccess =
+        error("Health Connect changed while checking availability.")
 }
 
 private class ControllableWearableConnectionRepository :

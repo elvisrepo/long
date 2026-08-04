@@ -263,7 +263,29 @@ private fun HealthConnectContent(
 
         WearableConnectionUiState.Loading -> {
             CircularProgressIndicator()
-            Text(text = "Connecting Health Connect...")
+            Text(text = "Checking Health Connect...")
+        }
+
+        WearableConnectionUiState.PermissionRequired -> {
+            Text(text = "Weight read permission is required.")
+        }
+
+        WearableConnectionUiState.PermissionDenied -> {
+            Text(text = "Weight permission was not granted.")
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(onClick = onRetry) {
+                Text(text = "Retry")
+            }
+        }
+
+        WearableConnectionUiState.ProviderUpdateRequired -> {
+            Text(text = "Install or update Health Connect to continue.")
+        }
+
+        WearableConnectionUiState.HealthConnectUnavailable -> {
+            Text(text = "Health Connect is not available on this device.")
         }
 
         is WearableConnectionUiState.Ready -> {
