@@ -8,14 +8,35 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         healthConnect = softwareSystem "Health Connect" "Android on-device health data platform that exposes user-permitted records to the companion app."
         stripe = softwareSystem "Stripe" "External billing provider for hosted Checkout and Customer Portal sessions, subscription payment collection, and billing webhooks."
 
-        longevity = softwareSystem "Longevity Platform" "Tracks user auth, metrics, analytics, and wearable ingestion." {
-            webapp = container "React Web App" "Browser-based client for auth, dashboard, metric catalog/detail management, and settings." "React"
-              android = container "Android Companion App" "Reads user-permitted Health Connect records on device and uploads normalized samples to the Django API." "Kotlin Android"
-              api = container "Django API" "Main HTTP API for auth, metrics, analytics, and wearable uploads." "Django + Django REST Framework"
-              worker = container "Celery Worker" "Executes asynchronous jobs." "Celery"
-              beat = container "Celery Beat" "Schedules recurring jobs." "Celery Beat"
-            db = container "PostgreSQL / TimescaleDB" "System of record for users, metrics, and analytics data." "PostgreSQL + TimescaleDB"
-            redis = container "Redis" "Broker and cache-style infrastructure for Celery and future coordination." "Redis"
+        longevity = softwareSystem "Longevity Platform" "Tracks user auth, subscriptions, metrics, analytics entitlements, and wearable ingestion." {
+            webapp = container "React Web App" "Implemented browser client for registration, hardened web sessions, dashboard/manual metrics, metric catalog/detail management, and Stripe-backed settings." "React + TypeScript" {
+                webRoutes = component "Routes and Screens" "TanStack Router pages for registration, login, protected Dashboard, Metrics, Metric Detail, and Settings flows." "React + TanStack Router"
+                webAuth = component "Web Auth Session" "Bootstraps CSRF, keeps the access token in memory, relies on an HttpOnly refresh cookie, shares in-flight refreshes, and uses the browser Lock Manager for cross-tab rotation when available." "TypeScript"
+                webServerState = component "Server State Layer" "Fetches, caches, mutates, and invalidates current-user, metric, and subscription server state." "TanStack Query"
+            }
+
+            android = container "Android Companion App" "Implemented mobile login, encrypted JWT storage, refresh/retry, and logout client; backend Health Connect connection registration and on-device record reads are next." "Kotlin + Jetpack Compose"
+
+            api = container "Django API" "Synchronous HTTP API for auth, subscriptions/Stripe, metrics, and wearable connection/upload workflows." "Django + Django REST Framework" {
+                authApi = component "Authentication" "Registration, web/mobile login, CSRF, current-user, logout, and concurrency-safe SimpleJWT refresh rotation." "Django REST Framework + SimpleJWT"
+                subscriptionsApi = component "Subscriptions and Billing" "Plan/price reads, entitlement state, Checkout/Portal session creation, and idempotent signed Stripe webhook reconciliation." "Django REST Framework + Stripe SDK"
+                metricsApi = component "Metrics" "Metric definitions, entitlement-limited custom metrics, manual entries, history reads, and entry maintenance." "Django REST Framework"
+                wearablesApi = component "Wearables" "Plan-limited Health Connect connection lifecycle and synchronous idempotent normalized upload ingestion." "Django REST Framework"
+            }
+
+            worker = container "Celery Worker" "Prepared local/future runtime for asynchronous wearable processing, exports, deletion, and other background jobs; no current product flow depends on it." "Celery" {
+                tags "PreparedInfrastructure"
+            }
+
+            beat = container "Celery Beat" "Prepared local/future scheduler; no current product flow depends on scheduled Celery work." "Celery Beat" {
+                tags "PreparedInfrastructure"
+            }
+
+            db = container "PostgreSQL / TimescaleDB" "System of record for encrypted user identity, JWT revocation state, subscriptions, Stripe receipts, metric data, wearable connections, and sync receipts. Timescale-specific features are not enabled yet." "PostgreSQL + TimescaleDB"
+
+            redis = container "Redis" "Running-capable Celery broker infrastructure reserved for future asynchronous work; current product requests do not depend on it." "Redis" {
+                tags "PreparedInfrastructure"
+            }
         }
 
         user -> longevity "Views metrics, manages account, and reviews health data"
@@ -25,36 +46,70 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         user -> longevity.webapp "Uses"
         user -> longevity.android "Uses to connect and sync on-device health data"
         samsungHealth -> healthConnect "Writes Samsung-originated health records on device"
-        longevity.android -> healthConnect "Reads user-permitted health records on device"
+          longevity.android -> healthConnect "Planned next slice: reads user-permitted health records on device"
         user -> stripe "Completes hosted Checkout and manages billing/cancellation in the Customer Portal"
 
           longevity.webapp -> longevity.api "Calls JSON API over HTTPS"
           longevity.webapp -> stripe "Redirects user to hosted Stripe Checkout and Customer Portal URLs"
+          stripe -> longevity.webapp "Redirects the browser to server-configured Settings return URLs"
           longevity.android -> longevity.api "Calls JSON API over HTTPS"
 
           longevity.api -> longevity.db "Reads and writes data"
           longevity.api -> stripe "Creates Checkout Sessions with server-owned Stripe Price IDs and on-demand Customer Portal Sessions; verifies signed webhook events"
           stripe -> longevity.api "POSTs signed billing webhook events"
-          longevity.api -> longevity.redis "Uses"
-          longevity.api -> longevity.worker "Enqueues asynchronous jobs"
-          longevity.worker -> longevity.db "Reads and writes data"
-          longevity.worker -> longevity.redis "Uses as broker"
-          longevity.beat -> longevity.redis "Publishes scheduled work"
+          user -> longevity.webapp.webRoutes "Uses browser screens"
+          longevity.webapp.webRoutes -> longevity.webapp.webAuth "Requires session state and protected-route checks"
+          longevity.webapp.webRoutes -> longevity.webapp.webServerState "Reads and mutates product data"
+          longevity.webapp.webAuth -> longevity.api "Calls web auth endpoints with CSRF, bearer access tokens, and browser cookies"
+          longevity.webapp.webServerState -> longevity.api "Calls authenticated metric and subscription endpoints"
+          longevity.webapp.webRoutes -> stripe "Navigates to hosted Checkout and Customer Portal pages"
+
+          longevity.webapp -> longevity.api.authApi "Uses web auth and current-user endpoints"
+          longevity.webapp -> longevity.api.metricsApi "Uses metric definition and entry endpoints"
+          longevity.webapp -> longevity.api.subscriptionsApi "Uses subscription, Checkout, and Portal endpoints"
+          longevity.android -> longevity.api.authApi "Uses mobile auth endpoints"
+          longevity.android -> longevity.api.wearablesApi "Next client slice: uses the implemented wearable connection and upload endpoints"
+
+          longevity.api.authApi -> longevity.db "Reads users and writes SimpleJWT outstanding/blacklisted token state"
+          longevity.api.authApi -> longevity.api.subscriptionsApi "Creates the default Free subscription during registration"
+          longevity.api.metricsApi -> longevity.db "Reads and writes metric definitions and entries"
+          longevity.api.metricsApi -> longevity.api.subscriptionsApi "Checks current plan entitlements"
+          longevity.api.subscriptionsApi -> longevity.db "Reads and writes plans, subscriptions, billing mappings, attempts, and webhook receipts"
+          longevity.api.subscriptionsApi -> stripe "Creates hosted sessions and verifies signed events"
+          stripe -> longevity.api.subscriptionsApi "POSTs signed subscription events"
+          longevity.api.wearablesApi -> longevity.db "Reads and writes connections, SyncRuns, and normalized MetricEntries"
+          longevity.api.wearablesApi -> longevity.api.subscriptionsApi "Checks wearable connection entitlements"
+
+          longevity.api -> longevity.redis "Planned: publishes asynchronous work through the broker" {
+              tags "PreparedTraffic"
+          }
+          longevity.worker -> longevity.db "Planned: reads and writes durable job state" {
+              tags "PreparedTraffic"
+          }
+          longevity.worker -> longevity.redis "Prepared broker connection" {
+              tags "PreparedTraffic"
+          }
+          longevity.beat -> longevity.redis "Prepared scheduled-work publisher" {
+              tags "PreparedTraffic"
+          }
 
             localDev = deploymentEnvironment "Local Development" {
                 developerMachine = deploymentNode "Developer Machine" "Local host machine used for browser testing, Vite, Android Studio/Gradle/adb, and Stripe webhook forwarding." {
                     tags "ClientZone"
 
-                    localBrowserNode = deploymentNode "Browser" "Local browser runtime" {
+                    localBrowserNode = deploymentNode "Browser" "Local browser runtime that executes the React application." {
                         tags "ClientZone"
                         localBrowser = infrastructureNode "Local Web Browser" "Loads the Vite-served React application and follows Stripe hosted redirects." {
                             tags "ClientRuntime"
                         }
+                        localWebapp = containerInstance longevity.webapp
                     }
 
-                    viteNode = deploymentNode "Vite Dev Server" "Local frontend development server" {
+                    viteNode = deploymentNode "Vite Dev Server" "Serves React assets on :5173 and proxies relative /api requests to Django on :8000." {
                         tags "ClientZone"
-                        localWebapp = containerInstance longevity.webapp
+                        viteServer = infrastructureNode "Vite Runtime and /api Proxy" "Provides frontend development assets and the same-origin API proxy." {
+                            tags "ClientRuntime"
+                        }
                     }
 
                     stripeCli = infrastructureNode "Stripe CLI Listener" "Forwards selected Stripe sandbox webhook events to the local Django webhook endpoint." {
@@ -64,9 +119,13 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                     androidTooling = infrastructureNode "Android Studio + Gradle + adb" "Builds the Kotlin/Compose app and installs/runs debug and test APKs on the authorized physical phone." {
                         tags "ClientRuntime"
                     }
+
+                    adbReverse = infrastructureNode "adb reverse Tunnel" "Forwards the phone's localhost:8000 traffic to the host Django development port for physical-device API testing." {
+                        tags "EdgeService"
+                    }
                 }
 
-                physicalAndroidPhone = deploymentNode "Physical Android Phone" "Current USB-connected test device. The Compose login UI is implemented; Django authentication and Health Connect reads are next." {
+                physicalAndroidPhone = deploymentNode "Physical Android Phone" "Current USB-connected test device. Django mobile authentication is implemented and manually verified; backend wearable connection registration and Health Connect reads are next." {
                     tags "ClientZone"
 
                     localAndroidClient = containerInstance longevity.android
@@ -109,7 +168,11 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                     }
                 }
 
-                localDev.developerMachine.localBrowserNode.localBrowser -> localDev.developerMachine.viteNode.localWebapp "Loads React app from Vite" {
+                localDev.developerMachine.localBrowserNode.localBrowser -> localDev.developerMachine.viteNode.viteServer "Loads React application assets from :5173" {
+                    tags "ClientTraffic"
+                }
+
+                localDev.developerMachine.viteNode.viteServer -> localDev.developerMachine.localBrowserNode.localWebapp "Serves the application executed by the browser" {
                     tags "ClientTraffic"
                 }
 
@@ -122,10 +185,26 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 }
 
                 localDev.physicalAndroidPhone.localAndroidClient -> localDev.physicalAndroidPhone.localHealthConnect "Next slice: requests permission and reads WeightRecord data" {
+                    tags "PreparedTraffic"
+                }
+
+                localDev.physicalAndroidPhone.localAndroidClient -> localDev.developerMachine.adbReverse "Calls Django mobile auth through the debug localhost tunnel" {
                     tags "ClientTraffic"
                 }
 
-                localDev.developerMachine.viteNode.localWebapp -> stripe "Redirects to hosted Checkout and Customer Portal" {
+                localDev.developerMachine.adbReverse -> localDev.dockerCompose.localApiNode.localApi "Forwards TCP port 8000 to Django" {
+                    tags "EdgeTraffic"
+                }
+
+                localDev.developerMachine.localBrowserNode.localWebapp -> localDev.developerMachine.viteNode.viteServer "Calls relative /api URLs through the Vite proxy" {
+                    tags "ClientTraffic"
+                }
+
+                localDev.developerMachine.viteNode.viteServer -> localDev.dockerCompose.localApiNode.localApi "Proxies /api requests to host port 8000" {
+                    tags "EdgeTraffic"
+                }
+
+                localDev.developerMachine.localBrowserNode.localWebapp -> stripe "Redirects to hosted Checkout and Customer Portal" {
                     tags "ClientTraffic"
                 }
 
@@ -147,11 +226,12 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 userDevices = deploymentNode "User Devices" "Where end users run the browser and Android clients." {
                     tags "ClientZone"
 
-                    browserNode = deploymentNode "Browser" "Web browser runtime" {
+                    browserNode = deploymentNode "Browser" "Web browser runtime that executes the deployed React client." {
                         tags "ClientZone"
-                        browserClient = infrastructureNode "Web Browser" "Loads and runs the React web application." {
+                        browserRuntime = infrastructureNode "Web Browser" "Loads and runs the React web application." {
                             tags "ClientRuntime"
                         }
+                        browserClient = containerInstance longevity.webapp
                     }
 
                     androidNode = deploymentNode "Android Phone" "Android runtime for the companion app, Health Connect, and Samsung Health." {
@@ -231,7 +311,11 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 }
             }
 
-            mvpCloud.userDevices.browserNode.browserClient -> mvpCloud.aws.edge.alb "Uses HTTPS" {
+            mvpCloud.userDevices.browserNode.browserRuntime -> mvpCloud.userDevices.browserNode.browserClient "Runs the React application" {
+                tags "ClientTraffic"
+            }
+
+            mvpCloud.userDevices.browserNode.browserClient -> mvpCloud.aws.edge.alb "Calls the API over HTTPS" {
                 tags "ClientTraffic"
             }
 
@@ -324,11 +408,33 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             autolayout lr
         }
 
+        component longevity.webapp "c4-web-components" "Implemented React web-client responsibilities and their external dependencies." {
+            include user
+            include longevity.webapp.webRoutes
+            include longevity.webapp.webAuth
+            include longevity.webapp.webServerState
+            include longevity.api
+            include stripe
+            autolayout lr
+        }
+
+        component longevity.api "c4-api-components" "Implemented Django domain boundaries and their principal dependencies." {
+            include longevity.webapp
+            include longevity.android
+            include stripe
+            include longevity.api.authApi
+            include longevity.api.subscriptionsApi
+            include longevity.api.metricsApi
+            include longevity.api.wearablesApi
+            include longevity.db
+            autolayout lr
+        }
+
         dynamic longevity "web-auth-register" "Dynamic view of the current web registration flow." {
             user -> longevity.webapp "Visits /register, enters email user@example.com and password Secret123!, then submits the form"
             longevity.webapp -> longevity.api "POST /api/auth/register/ with JSON, e.g. {\"email\":\"user@example.com\",\"password\":\"Secret123!\"}; RegisterSerializer validates email format, checks email_lookup_hash uniqueness, and runs Django password validation"
-            longevity.api -> longevity.db "Creates user record after validation, normalizes/stores email according to the custom user model, stores a hashed password, and persists lookup data"
-            longevity.db -> longevity.api "Returns created user, e.g. user id 42 -> user@example.com"
+            longevity.api -> longevity.db "Inside one transaction, creates the user with encrypted normalized email, keyed email_lookup_hash, and hashed password, then creates the user's active default Free Subscription"
+            longevity.db -> longevity.api "Commits both records or rolls both back; returns created user, e.g. user id 42 -> user@example.com"
             longevity.api -> longevity.webapp "Returns 201 JSON, e.g. {\"email\":\"user@example.com\"}"
             user -> longevity.webapp "Is redirected to /login and can sign in with the newly created account"
         }
@@ -340,25 +446,27 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.webapp -> longevity.api "POST /api/auth/web/login/ with email and password"
             longevity.api -> longevity.db "Loads user record and verifies credentials"
             longevity.db -> longevity.api "Returns user data"
-            longevity.api -> longevity.webapp "Returns access token in JSON and refresh_token cookie"
+            longevity.api -> longevity.db "Registers the issued refresh JWT in SimpleJWT's OutstandingToken table"
+            longevity.api -> longevity.webapp "Returns only {\"access\":\"...\"} in JSON and sets refresh_token as an HttpOnly, Secure, SameSite=Lax cookie"
             user -> longevity.webapp "Uses authenticated web session"
         }
 
-        dynamic longevity "web-auth-refresh" "Dynamic view of the current web refresh flow." {
+        dynamic longevity "web-auth-refresh" "Dynamic view of concurrency-safe web refresh rotation and cookie-only refresh transport." {
             user -> longevity.webapp "Continues an existing authenticated web session"
-            longevity.webapp -> longevity.api "POST /api/auth/web/refresh/ with X-CSRFToken: abc123 and browser cookies, e.g. csrftoken=abc123; refresh_token=eyJhbGciOi..."
-            longevity.api -> longevity.db "Validates refresh token and loads token-backed user state, e.g. user id 42 -> alice@example.com"
-            longevity.db -> longevity.api "Returns current token and user state for alice@example.com"
-            longevity.api -> longevity.webapp "Returns 200 JSON, e.g. {\"access\":\"eyJhbGciOi...\"}, and may rotate refresh_token cookie"
+            longevity.webapp -> longevity.api "After same-tab in-flight sharing and, when available, the cross-tab browser lock, POST /api/auth/web/refresh/ with X-CSRFToken and the browser-managed refresh_token cookie"
+            longevity.api -> longevity.db "Validates the signed refresh token type/JTI, starts a transaction, and SELECT FOR UPDATE locks its token_blacklist_outstandingtoken row"
+            longevity.db -> longevity.api "Returns the one outstanding-token row while holding its PostgreSQL row lock"
+            longevity.api -> longevity.db "TokenRefreshSerializer checks blacklist state, inserts BlacklistedToken for the old JTI, registers the rotated OutstandingToken, and commits"
+            longevity.api -> longevity.webapp "Returns 200 JSON containing only {\"access\":\"...\"}; transports the rotated refresh token exclusively in a new HttpOnly cookie"
             user -> longevity.webapp "Continues authenticated session with refreshed access token"
         }
 
         dynamic longevity "web-auth-logout" "Dynamic view of the current web logout flow." {
             user -> longevity.webapp "Chooses to sign out from an authenticated web session"
-            longevity.webapp -> longevity.api "POST /api/auth/web/logout/ with X-CSRFToken header"
-            longevity.api -> longevity.db "Validates refresh token state and revokes refresh capability"
-            longevity.db -> longevity.api "Returns token-related user state"
-            longevity.api -> longevity.webapp "Returns 204 and clears refresh_token cookie"
+            longevity.webapp -> longevity.api "POST /api/auth/web/logout/ with X-CSRFToken and the browser-managed refresh_token cookie"
+            longevity.api -> longevity.db "Validates the cookie refresh JWT and inserts a BlacklistedToken row for its OutstandingToken"
+            longevity.db -> longevity.api "Confirms the presented refresh token is revoked"
+            longevity.api -> longevity.webapp "Returns 204, expires the refresh_token cookie, and exposes no refresh token to JavaScript"
             user -> longevity.webapp "Returns to an unauthenticated web state"
         }
 
@@ -373,17 +481,31 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
 
         dynamic longevity "web-session-bootstrap" "Dynamic view of browser session restoration before protected route access." {
             user -> longevity.webapp "Opens or reloads the web application"
+            user -> longevity.webapp "AuthBootstrapGate blocks route rendering while one shared restore operation runs"
             longevity.webapp -> longevity.api "GET /api/auth/csrf/ to establish the CSRF cookie"
             longevity.api -> longevity.webapp "Returns the CSRF cookie"
-            longevity.webapp -> longevity.api "POST /api/auth/web/refresh/ with browser cookies and X-CSRFToken"
-            longevity.api -> longevity.db "Validates refresh-token state and loads the token-backed user"
-            longevity.db -> longevity.api "Returns current refresh-token and user state"
-            longevity.api -> longevity.webapp "Returns a renewed access token and may rotate the HttpOnly refresh_token cookie"
+            longevity.webapp -> longevity.api "After same-tab sharing and the browser lock when available, POST /api/auth/web/refresh/ with browser cookies and X-CSRFToken"
+            longevity.api -> longevity.db "Locks the OutstandingToken row and atomically validates, blacklists, and rotates the refresh token"
+            longevity.db -> longevity.api "Commits the blacklist row plus the new outstanding refresh-token row"
+            longevity.api -> longevity.webapp "Returns only the renewed access token in JSON and rotates the HttpOnly refresh_token cookie"
             longevity.webapp -> longevity.api "GET /api/auth/me/ with Authorization: Bearer <renewed-access-token>"
             longevity.api -> longevity.db "Loads the authenticated user"
             longevity.db -> longevity.api "Returns current user data"
             longevity.api -> longevity.webapp "Returns 200 current-user JSON"
             user -> longevity.webapp "TanStack Router allows the protected route after session restoration succeeds"
+        }
+
+        dynamic longevity "web-dashboard" "Dynamic view of the implemented protected Dashboard read and manual-entry flow." {
+            user -> longevity.webapp "Opens / after the protected-route current-user check succeeds"
+            longevity.webapp -> longevity.api "TanStack Query requests GET /api/v1/metrics/definitions/, GET /api/v1/metrics/entries/?limit=50, and GET /api/v1/subscriptions/current/ with the in-memory bearer access token"
+            longevity.api -> longevity.db "Loads visible metric definitions, the authenticated user's newest entries, and current plan entitlements"
+            longevity.db -> longevity.api "Returns metric catalog/history plus Free or Pro subscription state"
+            longevity.api -> longevity.webapp "Returns JSON used for latest-value cards, recent-entry filtering, and client-computed locked/unlocked Pro Insights"
+            user -> longevity.webapp "Submits a manual value from a metric card"
+            longevity.webapp -> longevity.api "POST /api/v1/metrics/entries/ with metric_definition, value, recorded_at, and optional context"
+            longevity.api -> longevity.db "Validates ownership/visibility and metric range, assigns source=manual server-side, then creates MetricEntry"
+            longevity.db -> longevity.api "Returns the saved entry"
+            longevity.api -> longevity.webapp "Returns 201; TanStack Query invalidates entry caches and the Dashboard renders the updated value/history"
         }
 
         dynamic longevity "metrics-definition-entry-api" "Dynamic view of the current metric definition and metric entry API slice." {
@@ -518,6 +640,8 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.api -> longevity.webapp "Returns 201 JSON {\"url\":\"https://checkout.stripe.com/c/...\"}"
             longevity.webapp -> stripe "Redirects browser with window.location.assign(checkout.url)"
             user -> stripe "Sees hosted Stripe Checkout page and enters test payment details"
+            stripe -> longevity.webapp "Redirects to server-configured /settings?checkout=success or /settings?checkout=cancelled"
+            user -> longevity.webapp "Sees an informational result message; entitlement still changes only after the verified webhook is reconciled"
         }
 
         dynamic longevity "subscription-checkout-webhook" "Dynamic view of verified Stripe Checkout completion and local entitlement reconciliation." {
@@ -540,6 +664,8 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.api -> longevity.webapp "Returns 201 JSON {\"url\":\"https://billing.stripe.com/p/session/...\"}; provider details stay server-side on errors"
             longevity.webapp -> stripe "Redirects browser to the hosted Customer Portal"
             user -> stripe "Manages payment method, scheduled cancellation, or cancellation reversal in Stripe-hosted UI"
+            stripe -> longevity.webapp "Returns the browser to the server-controlled /settings URL"
+            user -> longevity.webapp "Settings refetches current local subscription state; webhook reconciliation remains authoritative"
         }
 
         dynamic longevity "subscription-portal-scheduled-cancellation" "Dynamic view of Customer Portal scheduled cancellation and local subscription preservation." {
@@ -576,7 +702,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             user -> longevity.webapp "Sees Free plan state after the paid subscription has actually ended"
         }
 
-        deployment * localDev "local-development-deployment" "Current local runtime: browser/Vite, Docker Compose, Stripe CLI forwarding, and Android Studio/Gradle/adb installing and testing the Compose client on a physical phone. Android-to-Django auth and Health Connect reads remain next." {
+        deployment * localDev "local-development-deployment" "Current local runtime: browser-executed React app with Vite /api proxy, synchronous Django/PostgreSQL product flows, Stripe CLI webhook forwarding, and an adb-installed Android client with working mobile auth. Android wearable registration and Health Connect reads are next; Redis/Celery/Beat are prepared but unused by current product flows." {
             include *
             autolayout lr
         }
@@ -718,6 +844,12 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                   stroke #4d9f93
               }
 
+              element "PreparedInfrastructure" {
+                  background #eceff3
+                  color #52606d
+                  stroke #9aa5b1
+              }
+
               relationship "Relationship" {
                   color #5b6770
                   thickness 2
@@ -758,6 +890,13 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
               relationship "StorageTraffic" {
                   color #c19a16
                   thickness 3
+                  routing Orthogonal
+              }
+
+              relationship "PreparedTraffic" {
+                  color #9aa5b1
+                  thickness 2
+                  dashed true
                   routing Orthogonal
               }
           }
