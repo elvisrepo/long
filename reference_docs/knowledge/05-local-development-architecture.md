@@ -9,7 +9,7 @@
 
 This diagram shows the current browser/backend runtime plus the newly implemented Android development loop.
 
-The Android companion project now exists and is installed/tested on a physical phone through Android Studio, Gradle, and `adb`. Its Compose login UI is local-only at this checkpoint: it does not yet call Django or read Health Connect. The dotted edges below are the next vertical slice, not implemented traffic.
+The Android companion project is installed/tested on a physical phone through Android Studio, Gradle, and `adb`. Mobile login, encrypted JWT storage, refresh/retry, session restoration, and server-revoking logout now call local Django through `adb reverse`. Backend wearable connection registration and Health Connect reads remain the next client slices.
 
 Redis, Celery Worker, Celery Beat, and TimescaleDB are present in the local runtime, but they are mostly prepared infrastructure at the current project stage. The implemented auth, manual metrics, Settings, Stripe Checkout, Stripe Portal, and Stripe webhook flows run synchronously inside Django. Celery becomes important when wearable sync, backfills, retries, analytics precomputation, and export/delete jobs are implemented. TimescaleDB becomes important when metric volume and range/aggregate queries justify hypertables, continuous aggregates, retention, or compression policies.
 
@@ -44,7 +44,7 @@ graph TB
     STUDIO -->|"build/install/test over USB"| APP
     SAMSUNG --> HC
     APP -. "next: permission + WeightRecord read" .-> HC
-    APP -. "next: mobile JWT API via adb reverse" .-> DEV
+    APP -->|"implemented mobile auth via adb reverse"| DEV
 ```
 
 **Scope notes**
@@ -55,4 +55,4 @@ graph TB
 - PostgreSQL is required now; TimescaleDB-specific features are planned leverage rather than active core behavior.
 - Redis/Celery/Beat are running-capable locally, but current product behavior does not depend on meaningful asynchronous jobs yet.
 - In the Samsung-sync MVP, data is uploaded from an Android companion app; the backend does not call a Samsung cloud API directly.
-- The Android-to-Django and Android-to-Health-Connect edges remain next-step behavior.
+- Android-to-Django mobile authentication is implemented through `adb reverse`; the Android wearable connection client and Android-to-Health-Connect record reads remain next-step behavior.

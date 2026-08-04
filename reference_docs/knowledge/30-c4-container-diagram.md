@@ -41,7 +41,7 @@ Current container view includes:
 
 - This is a container-level architecture view, not a deployment diagram.
 - It intentionally shows the main runtime pieces, not every module or Django app.
-- The web app is represented as a distinct client container even though it is not scaffolded in the repo yet, because it is the planned next major slice.
+- The implemented React web app is a distinct browser-executed client container with registration/login, protected Dashboard and Metrics routes, and Stripe-backed Settings flows.
 - The Android companion app is a first-class container because Samsung sync is client-mediated in the MVP design.
 - Samsung Health data does not flow directly into the backend in MVP. It is read on device, then uploaded by the Android app.
 - GitHub Actions is intentionally not part of this C4 container view because it belongs to the delivery pipeline, not the runtime system.
@@ -56,53 +56,34 @@ Current container view includes:
 - PostgreSQL / TimescaleDB is the system of record.
 - Redis is used for broker/cache-style infrastructure concerns around Celery and future background coordination.
 
-### What This Diagram Does Not Cover
+### Component Views
 
-- Internal backend module boundaries such as users, metrics, wearables, and analytics.
-- Detailed request ordering for auth, metric logging, or sync flows.
-- Cloud deployment specifics such as ALB, ECS, Secrets Manager, or CloudWatch.
+The Structurizr workspace now contains two focused component views because both client and backend boundaries have stabilized:
+
+- `c4-web-components`: Routes/Screens, Web Auth Session, and TanStack Query Server State.
+- `c4-api-components`: Authentication, Subscriptions/Billing, Metrics, and Wearables.
+
+These are responsibility maps, not class or file-tree diagrams. Database entities remain in the ERD source documents.
+
+### What These Diagrams Do Not Cover
+
+- Class/function-level implementation details.
+- Database entity attributes and constraints.
 - Delivery pipeline concerns such as GitHub Actions.
-
-Use separate diagrams for those:
-- component diagram for backend internals
-- sequence diagrams for auth and sync flows
-- deployment diagram for cloud/runtime placement later
-
-### When To Add A C4 Component Diagram
-
-Do not add a component diagram too early.
-
-It becomes worth adding when:
-- one container has enough internal structure that people repeatedly need an internal map
-- module responsibilities are stabilizing
-- the diagram would help implementation or review decisions
-
-For this project, a backend component diagram becomes useful once the Django API has clearer internal module boundaries such as:
-- users/auth
-- metrics
-- wearables ingestion
-- analytics
-- common/tasks
-
-Until then:
-- keep the context and container diagrams
-- prefer sequence diagrams for important flows
-- avoid a premature component diagram that would mostly restate a small file tree and go stale quickly
+- Health Connect record mapping details, which remain in the wearable ingestion data-flow documentation.
 
 ### Current Dynamic View Scope
 
-Current implemented dynamic views should stay limited to the auth flows that actually exist in the backend:
+Current dynamic views cover implemented behavior across:
 - web auth login
 - web auth refresh
 - web auth logout
 - web current-user bootstrap and protected-route access
-- metric definitions dashboard read plus metric-entry create/list API behavior
+- Dashboard/manual metric entry
+- metric catalog/detail/history management
+- custom metric entitlement locking
+- Stripe Checkout, Portal, webhook, scheduled-cancellation, reversal, and terminal-downgrade flows
+- implemented backend wearable connection lifecycle
+- the Free-to-Pro-to-pending-Health-Connect state transition
 
-That is enough for the current project state.
-
-Do not add more dynamic views until the corresponding slices are actually implemented.
-
-Good future candidates once real code exists:
-- Samsung sync upload flow
-- frontend metric-entry form flow
-- future password-reset flow
+Health Connect device reads and Android upload calls remain planned and should not be shown as completed traffic until the physical-device slice passes.
