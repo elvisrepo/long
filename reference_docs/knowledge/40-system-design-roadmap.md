@@ -102,7 +102,6 @@ Right now, Pro Insights is mostly a placeholder. It proves feature gating and UI
 
 Still missing:
 
-- reusable authenticated Android requests for product APIs
 - Android registration/read of its backend Health Connect connection
 - Health Connect availability and permission flow
 - Health Connect `WeightRecord` reads and Samsung-origin filtering
@@ -152,7 +151,7 @@ Immediate next slice:
 Authenticated Android wearable-connection registration
 ```
 
-The Android project exists at `android/`. It uses Kotlin, Jetpack Compose, Gradle, and a physical USB-connected device test loop. Login, refresh-token rotation, Android-Keystore-backed JWT storage, startup restoration, and server-side refresh-token revocation on logout are implemented and manually proven against local Django. The next boundary is a reusable authenticated request helper followed by `GET`/`POST /api/v1/wearables/connections/`; Health Connect permission is intentionally after backend connection registration works.
+The Android project exists at `android/`. It uses Kotlin, Jetpack Compose, Gradle, and a physical USB-connected device test loop. Login, refresh-token rotation, Android-Keystore-backed JWT storage, startup restoration, and server-side refresh-token revocation on logout are implemented and manually proven against local Django. A reusable authenticated API client now attaches Bearer access tokens, refreshes/retries once after `401`, and serializes rotation decisions. The next boundary is Android models/repository support for `GET`/`POST /api/v1/wearables/connections/`; Health Connect permission is intentionally after backend connection registration works.
 
 Refactor trigger before ingestion grows:
 
@@ -184,7 +183,7 @@ Recommended order:
 
 6. Register/read the Android Health Connect connection — next
 
-   Reuse the stored access token for authenticated product API requests and establish the caller-owned backend connection.
+   The authenticated request helper is complete; add the connection contract models/repository and establish the caller-owned backend connection.
 
 7. Read and upload one Health Connect weight record
 

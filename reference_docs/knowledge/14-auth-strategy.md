@@ -45,6 +45,8 @@
 - **Implemented Android refresh restoration**: when a stored pair exists, `HttpAuthRepository.restoreSession()` posts the stored refresh token to `/api/auth/mobile/refresh/`, saves the replacement access token, and saves a rotated refresh token when Django returns one. Without rotation, it retains the existing refresh token.
 - A Django `401` is authoritative rejection, so Android clears both local tokens and returns to logged-out state. Missing local tokens skip the request. Network/transport failure returns logged-out state for that startup but retains tokens for a later retry.
 - Android uses redacted Kotlin serialization models for `{"refresh":"..."}` requests and responses with required `access` plus optional rotated `refresh`.
+- **Implemented authenticated Android product requests**: `AuthenticatedApiClient` reads the encrypted pair inside the data layer, adds `Authorization: Bearer <access>`, buffers/closes the OkHttp response, and returns a body-redacted result to feature repositories.
+- A product-request `401` triggers at most one refresh and retry. A coroutine mutex serializes refresh decisions; after acquiring it, the client rereads storage and reuses a token already rotated by another request instead of rotating twice. Rejected refresh returns `NoSession`; transient storage/network/refresh failure returns `Unavailable` without exposing tokens.
 
 ### Security Notes
 

@@ -3,6 +3,8 @@ package com.viridiandome.longevity
 import android.app.Application
 import com.viridiandome.longevity.auth.AndroidKeystoreAuthTokenStore
 import com.viridiandome.longevity.auth.AuthRepository
+import com.viridiandome.longevity.auth.AuthTokenStore
+import com.viridiandome.longevity.auth.network.AuthenticatedApiClient
 import com.viridiandome.longevity.auth.network.HttpAuthRepository
 import okhttp3.OkHttpClient
 
@@ -18,6 +20,10 @@ class LongevityApplication : Application() {
         OkHttpClient()
     }
 
+    private val tokenStore: AuthTokenStore by lazy {
+        AndroidKeystoreAuthTokenStore(this)
+    }
+
     val authRepository: AuthRepository by lazy {
         check(BuildConfig.API_BASE_URL.isNotBlank()) {
             "The production API base URL is not configured."
@@ -26,7 +32,15 @@ class LongevityApplication : Application() {
         HttpAuthRepository(
             client = httpClient,
             baseUrl = BuildConfig.API_BASE_URL,
-            tokenStore = AndroidKeystoreAuthTokenStore(this),
+            tokenStore = tokenStore,
+        )
+    }
+
+    val authenticatedApiClient: AuthenticatedApiClient by lazy {
+        AuthenticatedApiClient(
+            client = httpClient,
+            tokenStore = tokenStore,
+            authRepository = authRepository,
         )
     }
 }
