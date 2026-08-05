@@ -95,6 +95,7 @@ Implemented:
 - `HealthConnectWeightSample` is the SDK-independent domain representation for one future `WeightRecord`: stable record ID, kilograms, recorded timestamp, and source package. Its diagnostic string redacts all health values. `HealthConnectWeightReader` defines an explicit start/end read window so later cursor and retry behavior does not depend on hidden adapter-selected time ranges.
 - `AndroidHealthConnectAccess` implements the reader through `HealthConnectClient.readRecords()`. The adapter queries the explicit window in ascending order, follows every Health Connect page token, converts mass to kilograms, and maps the SDK record ID, timestamp, and `dataOrigin.packageName` without exposing SDK types to higher layers.
 - `InitialWeightSyncPlanner` uses an injected UTC clock to request the previous 30 days, keeps only records whose Health Connect data origin is Samsung Health (`com.sec.android.app.shealth`), preserves chronological order, and splits them into batches of at most 100 entries to match the live backend request limit. No Samsung records produces no upload batches.
+- Android upload request models serialize the live Django contract exactly: caller-owned connection UUID, retry-stable upload UUID, and normalized `body_weight` entries with kilograms, ISO-8601 timestamps, Samsung Health provenance, and `health_connect:WeightRecord:<record-id>` external identities. Their diagnostic strings redact health values and record identifiers.
 - The manifest declares only `android.permission.health.READ_WEIGHT`, the pre-Android-14 Health Connect package query, and the required pre/post-Android-14 permission-rationale intents. A local rationale screen explains that authorized weight samples are read and normalized for the user's account; the app does not write or delete Health Connect data.
 - `MainActivity` launches the official Health Connect permission Activity Result contract only after an explicit Connect action. A grant continues backend registration; a denial creates no backend connection and remains retryable.
 - The debug build targets local Django at `http://127.0.0.1:8000/` through `adb reverse`; the release base URL is intentionally unset until the production HTTPS endpoint exists.
@@ -105,7 +106,7 @@ Implemented:
 
 Not implemented yet:
 
-- Health Connect availability, the weight-read permission request, the paginated Android `WeightRecord` reader adapter, and the initial read/filter/batching application service are implemented. No ViewModel or product-flow orchestrator invokes the planner yet, so the app has not physically read a record through the product flow or uploaded a normalized batch.
+- Health Connect availability, the weight-read permission request, the paginated Android `WeightRecord` reader adapter, the initial read/filter/batching application service, and upload request mapping are implemented. No ViewModel or product-flow orchestrator invokes the planner yet, and no Android HTTP repository posts an upload, so the app has not physically read and uploaded a record through the product flow.
 - WorkManager, Celery-backed asynchronous ingestion, and production distribution remain later phases.
 
 Manually validated on the physical phone:
