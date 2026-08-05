@@ -3,6 +3,8 @@ package com.viridiandome.longevity.wearables.sync
 import com.viridiandome.longevity.wearables.WearableUploadReceipt
 import com.viridiandome.longevity.wearables.WearableUploadRepository
 import com.viridiandome.longevity.wearables.WearableUploadResult
+import com.viridiandome.longevity.wearables.WeightReadPermissionRequiredException
+import com.viridiandome.longevity.wearables.WeightReadUnavailableException
 import java.util.UUID
 
 /** Runs one explicit initial read-and-upload operation for a connection. */
@@ -12,7 +14,13 @@ class InitialWeightSyncCoordinator(
     private val uploadIdFactory: () -> String = { UUID.randomUUID().toString() },
 ) {
     suspend fun sync(connectionId: String): InitialWeightSyncResult {
-        val batches = planner.readBatches()
+        val batches = try {
+            planner.readBatches()
+        } catch (_: WeightReadPermissionRequiredException) {
+            return interrupted(emptyList(), InitialWeightSyncFailure.PermissionRequired)
+        } catch (_: WeightReadUnavailableException) {
+            return interrupted(emptyList(), InitialWeightSyncFailure.ReadUnavailable)
+        }
         if (batches.isEmpty()) {
             return InitialWeightSyncResult.NoData
         }
@@ -71,6 +79,10 @@ sealed interface InitialWeightSyncResult {
 }
 
 sealed interface InitialWeightSyncFailure {
+    data object PermissionRequired : InitialWeightSyncFailure
+
+    data object ReadUnavailable : InitialWeightSyncFailure
+
     data object Conflict : InitialWeightSyncFailure
 
     data object Rejected : InitialWeightSyncFailure

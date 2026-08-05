@@ -5,11 +5,14 @@ import com.viridiandome.longevity.wearables.HealthConnectWeightSample
 import com.viridiandome.longevity.wearables.WearableUploadReceipt
 import com.viridiandome.longevity.wearables.WearableUploadRepository
 import com.viridiandome.longevity.wearables.WearableUploadResult
+import com.viridiandome.longevity.wearables.WeightReadPermissionRequiredException
+import com.viridiandome.longevity.wearables.WeightReadUnavailableException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.IOException
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
@@ -133,6 +136,61 @@ class InitialWeightSyncCoordinatorTest {
         assertEquals(InitialWeightSyncFailure.Unavailable, result.failure)
     }
 
+    @Test
+    fun revoked_read_permission_stops_before_identity_or_upload() = runTest {
+        val planner = InitialWeightSyncPlanner(
+            reader = FailingCoordinatorWeightReader(
+                WeightReadPermissionRequiredException(
+                    SecurityException("permission revoked"),
+                ),
+            ),
+            clock = fixedClock(),
+        )
+        val repository = RecordingUploadRepository(results = emptyList())
+        var generatedIdentityCount = 0
+        val coordinator = InitialWeightSyncCoordinator(
+            planner = planner,
+            uploadRepository = repository,
+            uploadIdFactory = {
+                generatedIdentityCount += 1
+                UPLOAD_ID
+            },
+        )
+
+        val result = coordinator.sync(CONNECTION_ID)
+
+        assertTrue(result is InitialWeightSyncResult.Interrupted)
+        result as InitialWeightSyncResult.Interrupted
+        assertTrue(result.completedReceipts.isEmpty())
+        assertEquals(InitialWeightSyncFailure.PermissionRequired, result.failure)
+        assertEquals(0, generatedIdentityCount)
+        assertTrue(repository.calls.isEmpty())
+    }
+
+    @Test
+    fun health_connect_read_failure_stops_before_upload_as_retryable() = runTest {
+        val planner = InitialWeightSyncPlanner(
+            reader = FailingCoordinatorWeightReader(
+                WeightReadUnavailableException(IOException("provider unavailable")),
+            ),
+            clock = fixedClock(),
+        )
+        val repository = RecordingUploadRepository(results = emptyList())
+        val coordinator = InitialWeightSyncCoordinator(
+            planner = planner,
+            uploadRepository = repository,
+            uploadIdFactory = { error("A failed read must not generate an upload ID.") },
+        )
+
+        val result = coordinator.sync(CONNECTION_ID)
+
+        assertTrue(result is InitialWeightSyncResult.Interrupted)
+        result as InitialWeightSyncResult.Interrupted
+        assertEquals(InitialWeightSyncFailure.ReadUnavailable, result.failure)
+        assertTrue(result.completedReceipts.isEmpty())
+        assertTrue(repository.calls.isEmpty())
+    }
+
     private fun weightSample(id: String): HealthConnectWeightSample =
         HealthConnectWeightSample(
             recordId = id,
@@ -173,6 +231,15 @@ private class CoordinatorWeightReader(
         startTime: Instant,
         endTime: Instant,
     ): List<HealthConnectWeightSample> = samples
+}
+
+private class FailingCoordinatorWeightReader(
+    private val failure: Exception,
+) : HealthConnectWeightReader {
+    override suspend fun readWeightSamples(
+        startTime: Instant,
+        endTime: Instant,
+    ): List<HealthConnectWeightSample> = throw failure
 }
 
 private data class UploadCall(

@@ -22,9 +22,9 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 androidApiClient = component "Authenticated API Client" "Attaches stored bearer access tokens, coordinates one refresh after a 401, and retries the original product request once." "Kotlin + OkHttp + Coroutines"
                 androidWearables = component "Wearable Connection Repository" "Lists and registers caller-owned Health Connect connections through the authenticated API client." "Kotlin + kotlinx.serialization"
                 androidUploads = component "Wearable Upload Repository" "Posts normalized, retry-stable weight batches and maps Django SyncRun receipts and conflict/rejection outcomes without exposing transport DTOs." "Kotlin + OkHttp + kotlinx.serialization"
-                androidHealthAccess = component "Health Connect Access" "Checks SDK availability and WeightRecord permission, then maps paginated SDK reads into SDK-independent weight samples." "AndroidX Health Connect"
+                androidHealthAccess = component "Health Connect Access" "Checks SDK availability and WeightRecord permission, maps paginated SDK reads into SDK-independent weight samples, and translates permission races separately from retryable device-read failures." "AndroidX Health Connect"
                 androidWeightSyncPlanner = component "Initial Weight Sync Planner" "Requests a clock-bounded 30-day window, keeps exact Samsung Health provenance, and splits ordered samples into backend-safe batches." "Kotlin + Coroutines"
-                androidWeightSyncCoordinator = component "Initial Weight Sync Coordinator" "Coordinates ordered planned batches and authenticated uploads with one UUID per batch, preserving completed receipts when later work stops; no UI action invokes it yet." "Kotlin + Coroutines"
+                androidWeightSyncCoordinator = component "Initial Weight Sync Coordinator" "Coordinates ordered planned batches and authenticated uploads with one UUID per batch, preserves completed receipts when later work stops, and separates permission/read/upload failures; no UI action invokes it yet." "Kotlin + Coroutines"
             }
 
             api = container "Django API" "Synchronous HTTP API for auth, subscriptions/Stripe, metrics, and wearable connection/upload workflows." "Django + Django REST Framework" {
@@ -694,7 +694,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.android.androidWeightSyncPlanner -> longevity.android.androidHealthAccess "Requests the previous 30 days of WeightRecord data"
             longevity.android.androidHealthAccess -> healthConnect "Reads every page in ascending order"
             healthConnect -> longevity.android.androidHealthAccess "Returns permitted records with stable IDs, timestamps, mass, and data-origin package"
-            longevity.android.androidHealthAccess -> longevity.android.androidWeightSyncPlanner "Returns SDK-independent normalized weight samples"
+            longevity.android.androidHealthAccess -> longevity.android.androidWeightSyncPlanner "Returns SDK-independent samples, permission-required, or retryable read-unavailable outcome"
             longevity.android.androidWeightSyncPlanner -> longevity.android.androidWeightSyncCoordinator "Returns only Samsung-originated samples in ordered batches of at most 100"
             longevity.android.androidWeightSyncCoordinator -> longevity.android.androidUploads "Generates one upload UUID and submits each batch sequentially"
             longevity.android.androidUploads -> longevity.android.androidApiClient "Serializes the normalized batch without handling JWT values"

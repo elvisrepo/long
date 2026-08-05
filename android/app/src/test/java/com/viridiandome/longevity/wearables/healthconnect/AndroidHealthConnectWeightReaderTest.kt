@@ -4,10 +4,13 @@ import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.response.ReadRecordsResponse
 import androidx.health.connect.client.units.Mass
+import com.viridiandome.longevity.wearables.WeightReadPermissionRequiredException
+import com.viridiandome.longevity.wearables.WeightReadUnavailableException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.IOException
 import java.time.Instant
 
 class AndroidHealthConnectWeightReaderTest {
@@ -85,6 +88,32 @@ class AndroidHealthConnectWeightReaderTest {
 
         assertEquals(listOf(null, "next-page"), requests)
         assertEquals(listOf("record-1", "record-2"), samples.map { it.recordId })
+    }
+
+    @Test
+    fun revoked_permission_is_translated_to_domain_read_failure() = runTest {
+        val failure = runCatching {
+            readHealthConnectWeightSamples(
+                startTime = Instant.parse("2026-08-04T00:00:00Z"),
+                endTime = Instant.parse("2026-08-05T00:00:00Z"),
+                readPage = { throw SecurityException("permission revoked") },
+            )
+        }.exceptionOrNull()
+
+        assertTrue(failure is WeightReadPermissionRequiredException)
+    }
+
+    @Test
+    fun health_connect_io_failure_is_translated_to_domain_unavailability() = runTest {
+        val failure = runCatching {
+            readHealthConnectWeightSamples(
+                startTime = Instant.parse("2026-08-04T00:00:00Z"),
+                endTime = Instant.parse("2026-08-05T00:00:00Z"),
+                readPage = { throw IOException("provider unavailable") },
+            )
+        }.exceptionOrNull()
+
+        assertTrue(failure is WeightReadUnavailableException)
     }
 
     private fun weightRecord(

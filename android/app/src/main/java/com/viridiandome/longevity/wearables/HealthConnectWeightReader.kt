@@ -9,3 +9,13 @@ interface HealthConnectWeightReader {
         endTime: Instant,
     ): List<HealthConnectWeightSample>
 }
+
+/** Permission disappeared between the access check and the actual read. */
+class WeightReadPermissionRequiredException(
+    cause: SecurityException,
+) : Exception("Health Connect weight permission is required.", cause)
+
+/** Health Connect could not complete a permitted weight read. */
+class WeightReadUnavailableException(
+    cause: Throwable,
+) : Exception("Health Connect weight reading is temporarily unavailable.", cause)
