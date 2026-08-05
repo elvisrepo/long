@@ -1,6 +1,5 @@
 package com.viridiandome.longevity.auth.network
 
-import com.viridiandome.longevity.auth.AuthRepository
 import com.viridiandome.longevity.auth.AuthTokenStore
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -30,13 +29,12 @@ sealed interface AuthenticatedApiResult {
 /**
  * Executes Django product API requests without exposing JWTs to UI code.
  *
- * The refresh dependency is injected now because the next TDD behavior will
- * use it to refresh and retry once after an access-token `401`.
+ * A rejected access token triggers one coordinated refresh and one retry.
  */
 class AuthenticatedApiClient(
     private val client: OkHttpClient,
     private val tokenStore: AuthTokenStore,
-    private val authRepository: AuthRepository,
+    private val sessionRefresher: SessionRefresher,
 ) {
     private val refreshMutex = Mutex()
 
@@ -93,7 +91,7 @@ class AuthenticatedApiClient(
 
         // A short-lived access token may expire between startup restoration and
         // this request. Refresh through the existing owner of rotation/storage.
-        if (!authRepository.restoreSession()) {
+        if (!sessionRefresher.refreshSession()) {
             return@withLock ReplacementAccessToken.Failed(
                 resultAfterFailedRefresh(),
             )

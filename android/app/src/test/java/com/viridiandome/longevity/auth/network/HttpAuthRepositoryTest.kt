@@ -154,7 +154,34 @@ class HttpAuthRepositoryTest {
     }
 
     @Test
-    fun stored_tokens_are_refreshed_and_non_rotated_refresh_is_retained() = runTest {
+    fun stored_tokens_restore_session_without_network_refresh() = runTest {
+        server.enqueue(
+            MockResponse(
+                code = 200,
+                headers = headersOf("Content-Type", "application/json"),
+                body = """{"access":"unexpected-access-token"}""",
+            ),
+        )
+        val tokenStore = RecordingAuthTokenStore().apply {
+            saveTokens(
+                accessToken = "stored-access-token",
+                refreshToken = "stored-refresh-token",
+            )
+        }
+        val repository = HttpAuthRepository(
+            client = OkHttpClient(),
+            baseUrl = server.url("/").toString(),
+            tokenStore = tokenStore,
+        )
+
+        assertTrue(repository.restoreSession())
+        assertEquals(0, server.requestCount)
+        assertEquals("stored-access-token", tokenStore.accessToken)
+        assertEquals("stored-refresh-token", tokenStore.refreshToken)
+    }
+
+    @Test
+    fun refresh_replaces_access_and_retains_non_rotated_refresh_token() = runTest {
         server.enqueue(
             MockResponse(
                 code = 200,
@@ -174,8 +201,7 @@ class HttpAuthRepositoryTest {
             tokenStore = tokenStore,
         )
 
-        assertTrue(repository.restoreSession())
-        assertEquals(1, server.requestCount)
+        assertTrue(repository.refreshSession())
         val request = server.takeRequest()
         assertEquals("POST", request.method)
         assertEquals("/api/auth/mobile/refresh/", request.url.encodedPath)
@@ -208,7 +234,7 @@ class HttpAuthRepositoryTest {
             tokenStore = tokenStore,
         )
 
-        assertTrue(repository.restoreSession())
+        assertTrue(repository.refreshSession())
         assertEquals("new-access-token", tokenStore.accessToken)
         assertEquals("rotated-refresh-token", tokenStore.refreshToken)
     }
@@ -234,7 +260,7 @@ class HttpAuthRepositoryTest {
             tokenStore = tokenStore,
         )
 
-        assertFalse(repository.restoreSession())
+        assertFalse(repository.refreshSession())
         assertNull(tokenStore.accessToken)
         assertNull(tokenStore.refreshToken)
     }
@@ -248,7 +274,7 @@ class HttpAuthRepositoryTest {
             tokenStore = tokenStore,
         )
 
-        assertFalse(repository.restoreSession())
+        assertFalse(repository.refreshSession())
         assertEquals(0, server.requestCount)
     }
 
@@ -268,7 +294,7 @@ class HttpAuthRepositoryTest {
             tokenStore = tokenStore,
         )
 
-        assertFalse(repository.restoreSession())
+        assertFalse(repository.refreshSession())
         assertEquals("stored-access-token", tokenStore.accessToken)
         assertEquals("stored-refresh-token", tokenStore.refreshToken)
     }

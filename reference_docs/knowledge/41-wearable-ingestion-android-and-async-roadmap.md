@@ -84,7 +84,7 @@ Implemented:
 - MockWebServer tests cover successful token storage, invalid credentials, unavailable Django, and malformed successful responses without requiring the physical phone or live backend.
 - `AndroidKeystoreAuthTokenStore` encrypts each JWT with AES-256-GCM and a fresh IV, binds each ciphertext to its preference key as authenticated data, keeps the non-exportable key in Android Keystore, and stores only encoded IV+ciphertext payloads in private preferences.
 - The production token preference file is excluded from cloud backup and device transfer. A physical-device test proves encrypted-at-rest round-trip and clearing behavior.
-- On app startup, `LoginViewModel` asks `AuthRepository.restoreSession()` once. The UI remains in session-checking state while the HTTP repository validates the Keystore-backed refresh token through Django, persists replacement/rotated tokens, and exposes only a Boolean result.
+- On app startup, `LoginViewModel` asks `AuthRepository.restoreSession()` once. The UI remains in session-checking state while the repository checks for a readable Keystore-backed local pair; startup does not rotate refresh credentials. Product requests reuse the stored access token, and the separate `SessionRefresher` performs rotation only after an access-token `401`.
 - Android logout posts the stored refresh token to Django for SimpleJWT blacklisting before deleting the encrypted local pair. Server/network failure retains the authenticated state and credentials for an honest retry.
 - `AuthenticatedApiClient` is the reusable product-API boundary: it reads encrypted access credentials, adds the Bearer header, buffers/closes responses, refreshes and retries once after `401`, and returns `NoSession` or `Unavailable` without leaking response bodies through diagnostics. A mutex plus a storage recheck prevents concurrent expired requests from rotating the same refresh token twice.
 - `LongevityApplication` is the minimal application-level dependency container: it shares one OkHttp client, one `HttpAuthRepository`, one `AuthenticatedApiClient`, one `HttpWearableConnectionRepository`, and the Android-Keystore token store without introducing a dependency-injection framework prematurely.
@@ -102,13 +102,14 @@ Implemented:
 
 Not implemented yet:
 
-- The repository/UI connection flow and weight-permission request are implemented but have not yet been manually validated end-to-end on the physical phone. The app has not read `WeightRecord`, filtered Samsung-originated records, or uploaded a normalized batch.
+- Health Connect availability and the weight-read permission request are implemented and manually validated on the physical phone. The app has not yet read `WeightRecord`, filtered Samsung-originated records, or uploaded a normalized batch.
 - WorkManager, Celery-backed asynchronous ingestion, and production distribution remain later phases.
 
 Manually validated on the physical phone:
 
 - login reaches local Django through `adb reverse`, stores the JWT pair, and renders authenticated content
-- reinstalling the current debug build preserves the encrypted session and startup refresh restores authenticated state
+- reinstalling the current debug build preserves the encrypted pair and local startup restoration reuses it without an immediate refresh request
+- the Health Connect system permission flow grants Longevity access to read the requested health data; the current manifest and client slice request only `READ_WEIGHT`
 - Logout calls Django revocation, clears the local session, and returns to the login form
 - reconnecting USB/ADB may remove the reverse mapping; restoring `adb reverse tcp:8000 tcp:8000` restores local API access without a rebuild
 

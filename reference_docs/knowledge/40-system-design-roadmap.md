@@ -151,7 +151,7 @@ Immediate next slice:
 Authenticated Android wearable-connection registration
 ```
 
-The Android project exists at `android/`. It uses Kotlin, Jetpack Compose, Gradle, and a physical USB-connected device test loop. Login, refresh-token rotation, Android-Keystore-backed JWT storage, startup restoration, and server-side refresh-token revocation on logout are implemented and manually proven against local Django. A reusable authenticated API client now attaches Bearer access tokens, refreshes/retries once after `401`, and serializes rotation decisions. The next boundary is Android models/repository support for `GET`/`POST /api/v1/wearables/connections/`; Health Connect permission is intentionally after backend connection registration works.
+The Android project exists at `android/`. It uses Kotlin, Jetpack Compose, Gradle, and a physical USB-connected device test loop. Login, Android-Keystore-backed JWT storage, local startup restoration, on-demand refresh-token rotation, and server-side refresh-token revocation on logout are implemented and manually proven against local Django. A reusable authenticated API client attaches Bearer access tokens, refreshes/retries once after `401`, and serializes rotation decisions. Backend Health Connect registration and the on-device `READ_WEIGHT` permission flow are implemented; the next boundary is reading one `WeightRecord`, mapping its source identity, and uploading a normalized batch.
 
 Refactor trigger before ingestion grows:
 

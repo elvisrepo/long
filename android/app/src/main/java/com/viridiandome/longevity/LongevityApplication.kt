@@ -28,7 +28,7 @@ class LongevityApplication : Application() {
         AndroidKeystoreAuthTokenStore(this)
     }
 
-    val authRepository: AuthRepository by lazy {
+    private val httpAuthRepository: HttpAuthRepository by lazy {
         check(BuildConfig.API_BASE_URL.isNotBlank()) {
             "The production API base URL is not configured."
         }
@@ -40,11 +40,14 @@ class LongevityApplication : Application() {
         )
     }
 
+    val authRepository: AuthRepository
+        get() = httpAuthRepository
+
     val authenticatedApiClient: AuthenticatedApiClient by lazy {
         AuthenticatedApiClient(
             client = httpClient,
             tokenStore = tokenStore,
-            authRepository = authRepository,
+            sessionRefresher = httpAuthRepository,
         )
     }
 

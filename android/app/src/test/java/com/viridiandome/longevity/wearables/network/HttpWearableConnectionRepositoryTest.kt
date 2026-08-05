@@ -1,10 +1,9 @@
 package com.viridiandome.longevity.wearables.network
 
-import com.viridiandome.longevity.auth.AuthRepository
 import com.viridiandome.longevity.auth.AuthTokenStore
 import com.viridiandome.longevity.auth.AuthTokens
-import com.viridiandome.longevity.auth.LoginResult
 import com.viridiandome.longevity.auth.network.AuthenticatedApiClient
+import com.viridiandome.longevity.auth.network.SessionRefresher
 import com.viridiandome.longevity.wearables.WearableConnectionRegistrationResult
 import com.viridiandome.longevity.wearables.WearableConnectionResolutionResult
 import com.viridiandome.longevity.wearables.WearableConnectionsResult
@@ -372,7 +371,7 @@ class HttpWearableConnectionRepositoryTest {
         val authenticatedApiClient = AuthenticatedApiClient(
             client = OkHttpClient(),
             tokenStore = FixedAuthTokenStore(tokens),
-            authRepository = NeverRefreshAuthRepository(),
+            sessionRefresher = NeverRefreshSessionRefresher(),
         )
         return HttpWearableConnectionRepository(
             authenticatedApiClient = authenticatedApiClient,
@@ -394,14 +393,7 @@ private class FixedAuthTokenStore(
     override suspend fun clearTokens() = Unit
 }
 
-private class NeverRefreshAuthRepository : AuthRepository {
-    override suspend fun restoreSession(): Boolean =
+private class NeverRefreshSessionRefresher : SessionRefresher {
+    override suspend fun refreshSession(): Boolean =
         error("A successful connection read must not refresh the session.")
-
-    override suspend fun login(
-        email: String,
-        password: String,
-    ): LoginResult = error("Login is not under test.")
-
-    override suspend fun logout(): Boolean = error("Logout is not under test.")
 }

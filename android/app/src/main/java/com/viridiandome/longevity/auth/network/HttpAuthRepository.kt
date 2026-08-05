@@ -26,7 +26,7 @@ class HttpAuthRepository(
     baseUrl: String,
     private val tokenStore: AuthTokenStore,
     private val json: Json = Json,
-) : AuthRepository {
+) : AuthRepository, SessionRefresher {
     private val loginUrl = baseUrl
         .toHttpUrl()
         .newBuilder()
@@ -44,8 +44,18 @@ class HttpAuthRepository(
         .build()
 
     override suspend fun restoreSession(): Boolean {
-        // The repository owns token persistence so presentation code never
-        // receives or inspects either JWT.
+        // Startup restoration is deliberately local. Product API requests use
+        // the stored access token and refresh only if Django rejects it.
+        return try {
+            tokenStore.readTokens() != null
+        } catch (_: IOException) {
+            false
+        }
+    }
+
+    override suspend fun refreshSession(): Boolean {
+        // The repository owns token rotation and persistence so callers never
+        // receive or inspect either JWT.
         val storedTokens = try {
             tokenStore.readTokens()
         } catch (_: IOException) {

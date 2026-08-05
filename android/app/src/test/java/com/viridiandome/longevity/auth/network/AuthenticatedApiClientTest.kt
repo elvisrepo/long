@@ -1,9 +1,7 @@
 package com.viridiandome.longevity.auth.network
 
-import com.viridiandome.longevity.auth.AuthRepository
 import com.viridiandome.longevity.auth.AuthTokenStore
 import com.viridiandome.longevity.auth.AuthTokens
-import com.viridiandome.longevity.auth.LoginResult
 import kotlinx.coroutines.test.runTest
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
@@ -42,7 +40,7 @@ class AuthenticatedApiClientTest {
         val client = AuthenticatedApiClient(
             client = OkHttpClient(),
             tokenStore = tokenStore,
-            authRepository = NeverRefreshAuthRepository(),
+            sessionRefresher = NeverRefreshSessionRefresher(),
         )
 
         val result = client.execute(
@@ -72,11 +70,11 @@ class AuthenticatedApiClientTest {
                 refreshToken = "stored-refresh-token",
             ),
         )
-        val authRepository = RefreshingAuthRepository(tokenStore)
+        val sessionRefresher = RecordingSessionRefresher(tokenStore)
         val client = AuthenticatedApiClient(
             client = OkHttpClient(),
             tokenStore = tokenStore,
-            authRepository = authRepository,
+            sessionRefresher = sessionRefresher,
         )
 
         val result = client.execute(
@@ -89,7 +87,7 @@ class AuthenticatedApiClientTest {
         assertTrue(result is AuthenticatedApiResult.Response)
         result as AuthenticatedApiResult.Response
         assertEquals(200, result.statusCode)
-        assertEquals(1, authRepository.restoreRequests)
+        assertEquals(1, sessionRefresher.refreshRequests)
         assertEquals(
             "Bearer expired-access-token",
             server.takeRequest().headers["Authorization"],
@@ -105,7 +103,7 @@ class AuthenticatedApiClientTest {
         val client = AuthenticatedApiClient(
             client = OkHttpClient(),
             tokenStore = TestAuthTokenStore(tokens = null),
-            authRepository = NeverRefreshAuthRepository(),
+            sessionRefresher = NeverRefreshSessionRefresher(),
         )
 
         val result = client.execute(
@@ -128,11 +126,11 @@ class AuthenticatedApiClientTest {
                 refreshToken = "rejected-refresh-token",
             ),
         )
-        val authRepository = RejectedRefreshAuthRepository(tokenStore)
+        val sessionRefresher = RejectedSessionRefresher(tokenStore)
         val client = AuthenticatedApiClient(
             client = OkHttpClient(),
             tokenStore = tokenStore,
-            authRepository = authRepository,
+            sessionRefresher = sessionRefresher,
         )
 
         val result = client.execute(
@@ -143,7 +141,7 @@ class AuthenticatedApiClientTest {
         )
 
         assertSame(AuthenticatedApiResult.NoSession, result)
-        assertEquals(1, authRepository.restoreRequests)
+        assertEquals(1, sessionRefresher.refreshRequests)
         assertEquals(1, server.requestCount)
     }
 
@@ -155,7 +153,7 @@ class AuthenticatedApiClientTest {
         val client = AuthenticatedApiClient(
             client = OkHttpClient(),
             tokenStore = tokenStore,
-            authRepository = NeverRefreshAuthRepository(),
+            sessionRefresher = NeverRefreshSessionRefresher(),
         )
 
         val result = client.execute(
@@ -196,59 +194,38 @@ private class TestAuthTokenStore(
     }
 }
 
-private class NeverRefreshAuthRepository : AuthRepository {
-    override suspend fun restoreSession(): Boolean =
+private class NeverRefreshSessionRefresher : SessionRefresher {
+    override suspend fun refreshSession(): Boolean =
         error("A successful product request must not refresh the session.")
-
-    override suspend fun login(
-        email: String,
-        password: String,
-    ): LoginResult = error("Login is not under test.")
-
-    override suspend fun logout(): Boolean = error("Logout is not under test.")
 }
 
-private class RefreshingAuthRepository(
+private class RecordingSessionRefresher(
     private val tokenStore: TestAuthTokenStore,
-) : AuthRepository {
-    var restoreRequests: Int = 0
+) : SessionRefresher {
+    var refreshRequests: Int = 0
         private set
 
-    override suspend fun restoreSession(): Boolean {
-        restoreRequests += 1
+    override suspend fun refreshSession(): Boolean {
+        refreshRequests += 1
         tokenStore.saveTokens(
             accessToken = "refreshed-access-token",
             refreshToken = "rotated-refresh-token",
         )
         return true
     }
-
-    override suspend fun login(
-        email: String,
-        password: String,
-    ): LoginResult = error("Login is not under test.")
-
-    override suspend fun logout(): Boolean = error("Logout is not under test.")
 }
 
-private class RejectedRefreshAuthRepository(
+private class RejectedSessionRefresher(
     private val tokenStore: TestAuthTokenStore,
-) : AuthRepository {
-    var restoreRequests: Int = 0
+) : SessionRefresher {
+    var refreshRequests: Int = 0
         private set
 
-    override suspend fun restoreSession(): Boolean {
-        restoreRequests += 1
+    override suspend fun refreshSession(): Boolean {
+        refreshRequests += 1
         tokenStore.clearTokens()
         return false
     }
-
-    override suspend fun login(
-        email: String,
-        password: String,
-    ): LoginResult = error("Login is not under test.")
-
-    override suspend fun logout(): Boolean = error("Logout is not under test.")
 }
 
 private class TokenChangesAfterFirstReadStore : AuthTokenStore {
