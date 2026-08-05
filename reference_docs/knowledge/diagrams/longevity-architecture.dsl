@@ -15,7 +15,14 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 webServerState = component "Server State Layer" "Fetches, caches, mutates, and invalidates current-user, metric, and subscription server state." "TanStack Query"
             }
 
-            android = container "Android Companion App" "Implemented mobile login, encrypted JWT storage, refresh/retry, and logout client; backend Health Connect connection registration and on-device record reads are next." "Kotlin + Jetpack Compose"
+            android = container "Android Companion App" "Implemented mobile authentication, encrypted JWT storage, on-demand refresh/retry, Health Connect availability and permission handling, and backend connection registration; on-device record reads and uploads are next." "Kotlin + Jetpack Compose" {
+                androidPresentation = component "Compose UI and ViewModels" "Renders login/session and Health Connect connection state, handles user actions, and coordinates the official permission Activity Result." "Jetpack Compose + AndroidX Lifecycle"
+                androidAuth = component "Mobile Auth Repository" "Implements mobile login, local startup restoration, on-demand refresh rotation, logout revocation, and safe error translation." "Kotlin + OkHttp"
+                androidTokenStore = component "Keystore Token Store" "Encrypts access and refresh JWTs with an Android-Keystore key and durably stores only ciphertext in private SharedPreferences." "Android Keystore + AES-GCM"
+                androidApiClient = component "Authenticated API Client" "Attaches stored bearer access tokens, coordinates one refresh after a 401, and retries the original product request once." "Kotlin + OkHttp + Coroutines"
+                androidWearables = component "Wearable Connection Repository" "Lists and registers caller-owned Health Connect connections through the authenticated API client." "Kotlin + kotlinx.serialization"
+                androidHealthAccess = component "Health Connect Access" "Checks Health Connect SDK availability and current WeightRecord read permission without reading records yet." "AndroidX Health Connect"
+            }
 
             api = container "Django API" "Synchronous HTTP API for auth, subscriptions/Stripe, metrics, and wearable connection/upload workflows." "Django + Django REST Framework" {
                 authApi = component "Authentication" "Registration, web/mobile login, CSRF, current-user, logout, and concurrency-safe SimpleJWT refresh rotation." "Django REST Framework + SimpleJWT"
@@ -46,7 +53,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         user -> longevity.webapp "Uses"
         user -> longevity.android "Uses to connect and sync on-device health data"
         samsungHealth -> healthConnect "Writes Samsung-originated health records on device"
-          longevity.android -> healthConnect "Planned next slice: reads user-permitted health records on device"
+          longevity.android -> healthConnect "Checks SDK availability and requests WeightRecord read permission; record reads are next"
         user -> stripe "Completes hosted Checkout and manages billing/cancellation in the Customer Portal"
 
           longevity.webapp -> longevity.api "Calls JSON API over HTTPS"
@@ -63,12 +70,26 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
           longevity.webapp.webAuth -> longevity.api "Calls web auth endpoints with CSRF, bearer access tokens, and browser cookies"
           longevity.webapp.webServerState -> longevity.api "Calls authenticated metric and subscription endpoints"
           longevity.webapp.webRoutes -> stripe "Navigates to hosted Checkout and Customer Portal pages"
+          user -> longevity.android.androidPresentation "Uses mobile screens"
+          longevity.android.androidPresentation -> longevity.android.androidAuth "Restores, creates, and revokes the mobile session"
+          longevity.android.androidPresentation -> longevity.android.androidWearables "Starts Health Connect connection registration"
+          longevity.android.androidPresentation -> longevity.android.androidHealthAccess "Checks Health Connect availability and existing permission"
+          longevity.android.androidPresentation -> healthConnect "Launches the official permission Activity Result contract"
+          longevity.android.androidAuth -> longevity.android.androidTokenStore "Reads, encrypts, commits, and clears JWT pairs"
+          longevity.android.androidAuth -> longevity.api "Calls mobile authentication endpoints"
+          longevity.android.androidAuth -> longevity.api.authApi "Calls mobile login, refresh, and logout endpoints"
+          longevity.android.androidApiClient -> longevity.android.androidTokenStore "Reads bearer credentials and rereads after refresh coordination"
+          longevity.android.androidApiClient -> longevity.android.androidAuth "Requests one refresh after a rejected access token"
+          longevity.android.androidApiClient -> longevity.api "Calls authenticated product endpoints"
+          longevity.android.androidApiClient -> longevity.api.wearablesApi "Calls authenticated wearable connection endpoints"
+          longevity.android.androidWearables -> longevity.android.androidApiClient "Executes authenticated connection requests"
+          longevity.android.androidHealthAccess -> healthConnect "Checks SDK availability and WeightRecord read grant"
 
           longevity.webapp -> longevity.api.authApi "Uses web auth and current-user endpoints"
           longevity.webapp -> longevity.api.metricsApi "Uses metric definition and entry endpoints"
           longevity.webapp -> longevity.api.subscriptionsApi "Uses subscription, Checkout, and Portal endpoints"
           longevity.android -> longevity.api.authApi "Uses mobile auth endpoints"
-          longevity.android -> longevity.api.wearablesApi "Next client slice: uses the implemented wearable connection and upload endpoints"
+          longevity.android -> longevity.api.wearablesApi "Uses implemented connection endpoints; normalized mobile uploads are next"
 
           longevity.api.authApi -> longevity.db "Reads users and writes SimpleJWT outstanding/blacklisted token state"
           longevity.api.authApi -> longevity.api.subscriptionsApi "Creates the default Free subscription during registration"
@@ -125,12 +146,12 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                     }
                 }
 
-                physicalAndroidPhone = deploymentNode "Physical Android Phone" "Current USB-connected test device. Django mobile authentication is implemented and manually verified; backend wearable connection registration and Health Connect reads are next." {
+                physicalAndroidPhone = deploymentNode "Physical Android Phone" "Current USB-connected test device. Mobile authentication, backend wearable connection registration, and Health Connect WeightRecord permission are implemented; record reads and uploads are next." {
                     tags "ClientZone"
 
                     localAndroidClient = containerInstance longevity.android
 
-                    localHealthConnect = infrastructureNode "Health Connect" "On-device health platform; permission and WeightRecord integration are not implemented yet." {
+                    localHealthConnect = infrastructureNode "Health Connect" "On-device health platform with implemented SDK availability and WeightRecord permission handling; record reads are next." {
                         tags "ClientRuntime"
                     }
 
@@ -184,11 +205,11 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                     tags "ClientTraffic"
                 }
 
-                localDev.physicalAndroidPhone.localAndroidClient -> localDev.physicalAndroidPhone.localHealthConnect "Next slice: requests permission and reads WeightRecord data" {
-                    tags "PreparedTraffic"
+                localDev.physicalAndroidPhone.localAndroidClient -> localDev.physicalAndroidPhone.localHealthConnect "Checks availability and requests WeightRecord read permission; record reads are next" {
+                    tags "ClientTraffic"
                 }
 
-                localDev.physicalAndroidPhone.localAndroidClient -> localDev.developerMachine.adbReverse "Calls Django mobile auth through the debug localhost tunnel" {
+                localDev.physicalAndroidPhone.localAndroidClient -> localDev.developerMachine.adbReverse "Calls Django mobile auth and wearable connection APIs through the debug localhost tunnel" {
                     tags "ClientTraffic"
                 }
 
@@ -418,6 +439,19 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             autolayout lr
         }
 
+        component longevity.android "c4-android-components" "Implemented Android authentication, secure storage, authenticated API, wearable connection, and Health Connect permission responsibilities." {
+            include user
+            include longevity.android.androidPresentation
+            include longevity.android.androidAuth
+            include longevity.android.androidTokenStore
+            include longevity.android.androidApiClient
+            include longevity.android.androidWearables
+            include longevity.android.androidHealthAccess
+            include longevity.api
+            include healthConnect
+            autolayout lr
+        }
+
         component longevity.api "c4-api-components" "Implemented Django domain boundaries and their principal dependencies." {
             include longevity.webapp
             include longevity.android
@@ -495,6 +529,62 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             user -> longevity.webapp "TanStack Router allows the protected route after session restoration succeeds"
         }
 
+        dynamic longevity.android "mobile-auth-login" "Dynamic view of Android login and durable encrypted token storage." {
+            user -> longevity.android.androidPresentation "Enters email and password and chooses Sign in"
+            longevity.android.androidPresentation -> longevity.android.androidAuth "Calls login with the submitted credentials; JWTs never enter Compose or ViewModel state"
+            longevity.android.androidAuth -> longevity.api "POST /api/auth/mobile/login/ with JSON email and password"
+            longevity.api -> longevity.db "Loads the encrypted user identity through email_lookup_hash, verifies the Django password hash, and registers the issued refresh JWT in SimpleJWT's OutstandingToken table"
+            longevity.db -> longevity.api "Returns the authenticated user and committed outstanding-token state"
+            longevity.api -> longevity.android.androidAuth "Returns 200 JSON containing access and refresh JWTs"
+            longevity.android.androidAuth -> longevity.android.androidTokenStore "Encrypts each token with AES-GCM and synchronously commits both ciphertext values before reporting success"
+            longevity.android.androidAuth -> longevity.android.androidPresentation "Returns success without exposing token values"
+            user -> longevity.android.androidPresentation "Sees the authenticated mobile screen"
+        }
+
+        dynamic longevity.android "mobile-session-restore" "Dynamic view of Android cold-start session restoration without unnecessary refresh rotation." {
+            user -> longevity.android.androidPresentation "Cold-starts or reopens the Android app"
+            longevity.android.androidPresentation -> longevity.android.androidAuth "LoginViewModel asks whether a local session can be restored"
+            longevity.android.androidAuth -> longevity.android.androidTokenStore "Reads and decrypts the stored access/refresh pair"
+            longevity.android.androidTokenStore -> longevity.android.androidAuth "Returns a readable pair or no session"
+            longevity.android.androidAuth -> longevity.android.androidPresentation "Returns only a Boolean restoration result; no API request or token rotation occurs"
+            user -> longevity.android.androidPresentation "Sees the authenticated screen when the encrypted pair is readable"
+        }
+
+        dynamic longevity.android "mobile-auth-refresh-retry" "Dynamic view of Android on-demand refresh rotation after a protected product request receives 401." {
+            user -> longevity.android.androidPresentation "Starts an authenticated product action such as Health Connect registration"
+            longevity.android.androidPresentation -> longevity.android.androidWearables "Requests the wearable connection operation"
+            longevity.android.androidWearables -> longevity.android.androidApiClient "Builds the product request without handling JWT values"
+            longevity.android.androidApiClient -> longevity.android.androidTokenStore "Reads the stored access token"
+            longevity.android.androidApiClient -> longevity.api "Sends the protected wearable request with Authorization: Bearer <stored-access-token>"
+            longevity.api -> longevity.android.androidApiClient "Returns 401 because the access token is expired or otherwise rejected"
+            longevity.android.androidApiClient -> longevity.android.androidTokenStore "Inside a coroutine mutex, rereads storage and reuses a token already refreshed by another request when available"
+            longevity.android.androidApiClient -> longevity.android.androidAuth "Requests one refresh when the rejected access token is still current"
+            longevity.android.androidAuth -> longevity.android.androidTokenStore "Reads the stored refresh token"
+            longevity.android.androidAuth -> longevity.api "POST /api/auth/mobile/refresh/ with the refresh token in JSON"
+            longevity.api -> longevity.db "Validates type/JTI, SELECT FOR UPDATE locks the matching OutstandingToken row, blacklists the submitted token, registers the rotated token, and commits atomically"
+            longevity.db -> longevity.api "Returns committed refresh-rotation state"
+            longevity.api -> longevity.android.androidAuth "Returns replacement access and rotated refresh JWTs"
+            longevity.android.androidAuth -> longevity.android.androidTokenStore "Encrypts and synchronously commits the replacement pair"
+            longevity.android.androidAuth -> longevity.android.androidApiClient "Reports successful refresh without exposing token values"
+            longevity.android.androidApiClient -> longevity.api "Retries the original wearable request once with the replacement access token"
+            longevity.api -> longevity.android.androidApiClient "Returns the final product response"
+            longevity.android.androidApiClient -> longevity.android.androidWearables "Returns the buffered, closed response without logging health data"
+            longevity.android.androidWearables -> longevity.android.androidPresentation "Returns the connection result for UI state"
+        }
+
+        dynamic longevity.android "mobile-auth-logout" "Dynamic view of Android server-side refresh revocation followed by local credential deletion." {
+            user -> longevity.android.androidPresentation "Chooses Logout"
+            longevity.android.androidPresentation -> longevity.android.androidAuth "Requests logout without receiving JWT values"
+            longevity.android.androidAuth -> longevity.android.androidTokenStore "Reads the stored refresh token"
+            longevity.android.androidAuth -> longevity.api "POST /api/auth/mobile/logout/ with the refresh token in JSON"
+            longevity.api -> longevity.db "Validates the refresh JWT and inserts a BlacklistedToken row for its OutstandingToken"
+            longevity.db -> longevity.api "Confirms server-side revocation"
+            longevity.api -> longevity.android.androidAuth "Returns 204; unexpected server/network failure leaves local credentials available for an honest retry"
+            longevity.android.androidAuth -> longevity.android.androidTokenStore "Synchronously clears the encrypted local pair after accepted revocation"
+            longevity.android.androidAuth -> longevity.android.androidPresentation "Reports logout success"
+            user -> longevity.android.androidPresentation "Returns to the mobile login form"
+        }
+
         dynamic longevity "web-dashboard" "Dynamic view of the implemented protected Dashboard read and manual-entry flow." {
             user -> longevity.webapp "Opens / after the protected-route current-user check succeeds"
             longevity.webapp -> longevity.api "TanStack Query requests GET /api/v1/metrics/definitions/, GET /api/v1/metrics/entries/?limit=50, and GET /api/v1/subscriptions/current/ with the in-memory bearer access token"
@@ -565,27 +655,41 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.api -> longevity.webapp "Returns 201/200 on success, or 400 when the active custom metric limit is reached"
         }
 
-        dynamic longevity "wearable-connection-register" "Dynamic view of the implemented backend connection-registration boundary with the planned Android companion app as caller." {
-            user -> longevity.android "Chooses to connect on-device health data through Health Connect"
-            longevity.android -> longevity.api "POST /api/v1/wearables/connections/ with Authorization: Bearer <access-token> and {\"provider\":\"health_connect\"}"
-            longevity.api -> longevity.db "Starts an atomic transaction, locks the authenticated user row, loads the current subscription plan, and counts registered connections"
-            longevity.db -> longevity.api "Returns the caller's current plan entitlement and connection usage"
-            longevity.api -> longevity.db "Creates or reactivates one active WearableConnection owned by the authenticated user with provider health_connect and initial status pending when a slot is available"
-            longevity.db -> longevity.api "Returns the stored connection state"
-            longevity.api -> longevity.android "Returns 201 with the caller-owned connection, or 400 when server-managed state is supplied, the provider is already registered, or wearable_connection_limit is exhausted"
+        dynamic longevity.android "wearable-connection-register" "Dynamic view of the implemented Android Health Connect permission and backend connection-registration flow." {
+            user -> longevity.android.androidPresentation "Chooses Connect Health Connect"
+            longevity.android.androidPresentation -> longevity.android.androidHealthAccess "Checks SDK availability and the existing WeightRecord read grant"
+            longevity.android.androidHealthAccess -> healthConnect "Queries Health Connect SDK status and granted permissions"
+            healthConnect -> longevity.android.androidHealthAccess "Returns available with permission granted, permission required, provider update required, or unavailable"
+            longevity.android.androidHealthAccess -> longevity.android.androidPresentation "Returns the typed access state"
+            longevity.android.androidPresentation -> healthConnect "When required, launches the official READ_WEIGHT permission Activity Result contract"
+            healthConnect -> longevity.android.androidPresentation "Returns the user's grant or denial; denial stops without consuming a backend plan slot"
+            longevity.android.androidPresentation -> longevity.android.androidWearables "After an existing or new grant, resolves the backend Health Connect connection"
+            longevity.android.androidWearables -> longevity.android.androidApiClient "Builds GET /api/v1/wearables/connections/"
+            longevity.android.androidApiClient -> longevity.api "Sends owner-scoped GET /api/v1/wearables/connections/ with Authorization: Bearer <access-token>"
+            longevity.api -> longevity.db "Loads the authenticated user's connections"
+            longevity.db -> longevity.api "Returns current connection rows"
+            longevity.api -> longevity.android.androidApiClient "Returns 200 with the caller-owned connection list"
+            longevity.android.androidApiClient -> longevity.android.androidWearables "Returns the buffered response"
+            longevity.android.androidWearables -> longevity.android.androidApiClient "Only when health_connect is absent, builds POST with {\"provider\":\"health_connect\"}"
+            longevity.android.androidApiClient -> longevity.api "Sends POST /api/v1/wearables/connections/ with Authorization: Bearer <access-token>"
+            longevity.api -> longevity.db "Atomically locks the user, loads current plan entitlement, counts active connections, and creates or reactivates WearableConnection(status=pending) when a slot is available"
+            longevity.db -> longevity.api "Returns the stored caller-owned connection"
+            longevity.api -> longevity.android.androidApiClient "Returns 201, or 400 when the wearable_connection_limit is exhausted"
+            longevity.android.androidApiClient -> longevity.android.androidWearables "Returns the final connection response"
+            longevity.android.androidWearables -> longevity.android.androidPresentation "Publishes Ready, Rejected, NoSession, or Unavailable UI state"
         }
 
-        dynamic longevity "wearable-connection-disconnect" "Dynamic view of owner-scoped Health Connect disconnection and entitlement-slot release." {
-            user -> longevity.android "Chooses to disconnect Health Connect"
-            longevity.android -> longevity.api "DELETE /api/v1/wearables/connections/{id}/ with Authorization: Bearer <access-token>"
+        dynamic longevity "wearable-connection-disconnect" "Dynamic view of the implemented backend disconnect boundary; the Android client action is planned." {
+            user -> longevity.android "Planned client action: chooses to disconnect Health Connect"
+            longevity.android -> longevity.api "Planned client call to implemented DELETE /api/v1/wearables/connections/{id}/ with Authorization: Bearer <access-token>"
             longevity.api -> longevity.db "Looks up the connection UUID only inside the authenticated user's connections"
             longevity.api -> longevity.db "Marks the caller-owned connection inactive, preserving its identity/history while releasing its wearable_connection_limit slot"
             longevity.api -> longevity.android "Returns 204 when disconnected, or 404 for an unknown, unowned, or already-inactive UUID"
         }
 
-        dynamic longevity "wearable-connection-status-read" "Dynamic view of the owner-scoped Health Connect connection-status read." {
-            user -> longevity.android "Views the current Health Connect sync state"
-            longevity.android -> longevity.api "GET /api/v1/wearables/connections/{id}/status/ with Authorization: Bearer <access-token>"
+        dynamic longevity "wearable-connection-status-read" "Dynamic view of the implemented backend status-read boundary; the Android client call is planned." {
+            user -> longevity.android "Planned client action: views detailed Health Connect sync state"
+            longevity.android -> longevity.api "Planned client call to implemented GET /api/v1/wearables/connections/{id}/status/ with Authorization: Bearer <access-token>"
             longevity.api -> longevity.db "Looks up the connection UUID only inside the authenticated user's connections"
             longevity.db -> longevity.api "Returns provider, status, last_synced_at, and last_error when owned"
             longevity.api -> longevity.android "Returns 200 with connection state, or 404 for an unknown or unowned UUID"
@@ -613,8 +717,15 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.api -> longevity.db "Records the unique Stripe event, cancels the Free subscription into history, creates the active Pro subscription and BillingCustomer, and confirms the attempt"
             stripe -> longevity.api "POSTs a signed customer.subscription.updated webhook"
             longevity.api -> longevity.db "Records the unique Stripe event and refreshes the Pro price, billing-period dates, and cancellation state"
+            user -> longevity.android "Opens the Android app and completes mobile login or local session restoration"
             user -> longevity.android "Chooses Connect Health Connect"
-            longevity.android -> longevity.api "POST /api/v1/wearables/connections/ with provider=health_connect and JWT"
+            longevity.android -> healthConnect "Checks availability and existing READ_WEIGHT permission, launching the official permission UI when required"
+            healthConnect -> longevity.android "Returns the grant; denial stops before backend registration"
+            longevity.android -> longevity.api "GET /api/v1/wearables/connections/ with the stored bearer access token"
+            longevity.api -> longevity.db "Loads existing caller-owned wearable connections"
+            longevity.db -> longevity.api "Returns no Health Connect connection for this first registration"
+            longevity.api -> longevity.android "Returns 200 with the current connection list"
+            longevity.android -> longevity.api "POST /api/v1/wearables/connections/ with provider=health_connect and the stored bearer access token"
             longevity.api -> longevity.db "Locks the user, loads active Pro entitlement, counts active connections, and creates WearableConnection(status=pending, is_active=true)"
             longevity.api -> longevity.android "Returns 201 with the pending connection; no MetricEntry exists until ingestion succeeds"
         }
@@ -702,7 +813,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             user -> longevity.webapp "Sees Free plan state after the paid subscription has actually ended"
         }
 
-        deployment * localDev "local-development-deployment" "Current local runtime: browser-executed React app with Vite /api proxy, synchronous Django/PostgreSQL product flows, Stripe CLI webhook forwarding, and an adb-installed Android client with working mobile auth. Android wearable registration and Health Connect reads are next; Redis/Celery/Beat are prepared but unused by current product flows." {
+        deployment * localDev "local-development-deployment" "Current local runtime: browser-executed React app with Vite /api proxy, synchronous Django/PostgreSQL product flows, Stripe CLI webhook forwarding, and an adb-installed Android client with working mobile auth, Health Connect permission, and wearable registration. WeightRecord reads/uploads are next; Redis/Celery/Beat are prepared but unused by current product flows." {
             include *
             autolayout lr
         }
