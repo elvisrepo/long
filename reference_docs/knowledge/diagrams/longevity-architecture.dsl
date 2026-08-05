@@ -15,13 +15,14 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 webServerState = component "Server State Layer" "Fetches, caches, mutates, and invalidates current-user, metric, and subscription server state." "TanStack Query"
             }
 
-            android = container "Android Companion App" "Implemented mobile authentication, encrypted JWT storage, on-demand refresh/retry, Health Connect permission and paginated WeightRecord adapter, and backend connection registration; product-flow reads and uploads are next." "Kotlin + Jetpack Compose" {
+            android = container "Android Companion App" "Implemented mobile authentication, encrypted JWT storage, on-demand refresh/retry, Health Connect permission and paginated WeightRecord adapter, initial Samsung weight sync planning, and backend connection registration; product-flow orchestration and uploads are next." "Kotlin + Jetpack Compose" {
                 androidPresentation = component "Compose UI and ViewModels" "Renders login/session and Health Connect connection state, handles user actions, and coordinates the official permission Activity Result." "Jetpack Compose + AndroidX Lifecycle"
                 androidAuth = component "Mobile Auth Repository" "Implements mobile login, local startup restoration, on-demand refresh rotation, logout revocation, and safe error translation." "Kotlin + OkHttp"
                 androidTokenStore = component "Keystore Token Store" "Encrypts access and refresh JWTs with an Android-Keystore key and durably stores only ciphertext in private SharedPreferences." "Android Keystore + AES-GCM"
                 androidApiClient = component "Authenticated API Client" "Attaches stored bearer access tokens, coordinates one refresh after a 401, and retries the original product request once." "Kotlin + OkHttp + Coroutines"
                 androidWearables = component "Wearable Connection Repository" "Lists and registers caller-owned Health Connect connections through the authenticated API client." "Kotlin + kotlinx.serialization"
-                androidHealthAccess = component "Health Connect Access" "Checks SDK availability and WeightRecord permission, then maps paginated SDK reads into SDK-independent weight samples; no product service invokes reads yet." "AndroidX Health Connect"
+                androidHealthAccess = component "Health Connect Access" "Checks SDK availability and WeightRecord permission, then maps paginated SDK reads into SDK-independent weight samples." "AndroidX Health Connect"
+                androidWeightSyncPlanner = component "Initial Weight Sync Planner" "Requests a clock-bounded 30-day window, keeps exact Samsung Health provenance, and splits ordered samples into backend-safe batches; no product orchestrator invokes it yet." "Kotlin + Coroutines"
             }
 
             api = container "Django API" "Synchronous HTTP API for auth, subscriptions/Stripe, metrics, and wearable connection/upload workflows." "Django + Django REST Framework" {
@@ -74,6 +75,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
           longevity.android.androidPresentation -> longevity.android.androidAuth "Restores, creates, and revokes the mobile session"
           longevity.android.androidPresentation -> longevity.android.androidWearables "Starts Health Connect connection registration"
           longevity.android.androidPresentation -> longevity.android.androidHealthAccess "Checks Health Connect availability and existing permission"
+          longevity.android.androidWeightSyncPlanner -> longevity.android.androidHealthAccess "Reads normalized weight samples for the initial sync window"
           longevity.android.androidPresentation -> healthConnect "Launches the official permission Activity Result contract"
           longevity.android.androidAuth -> longevity.android.androidTokenStore "Reads, encrypts, commits, and clears JWT pairs"
           longevity.android.androidAuth -> longevity.api "Calls mobile authentication endpoints"
@@ -447,6 +449,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             include longevity.android.androidApiClient
             include longevity.android.androidWearables
             include longevity.android.androidHealthAccess
+            include longevity.android.androidWeightSyncPlanner
             include longevity.api
             include healthConnect
             autolayout lr
