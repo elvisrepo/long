@@ -15,13 +15,13 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 webServerState = component "Server State Layer" "Fetches, caches, mutates, and invalidates current-user, metric, and subscription server state." "TanStack Query"
             }
 
-            android = container "Android Companion App" "Implemented mobile authentication, encrypted JWT storage, on-demand refresh/retry, Health Connect availability and permission handling, and backend connection registration; on-device record reads and uploads are next." "Kotlin + Jetpack Compose" {
+            android = container "Android Companion App" "Implemented mobile authentication, encrypted JWT storage, on-demand refresh/retry, Health Connect permission and paginated WeightRecord adapter, and backend connection registration; product-flow reads and uploads are next." "Kotlin + Jetpack Compose" {
                 androidPresentation = component "Compose UI and ViewModels" "Renders login/session and Health Connect connection state, handles user actions, and coordinates the official permission Activity Result." "Jetpack Compose + AndroidX Lifecycle"
                 androidAuth = component "Mobile Auth Repository" "Implements mobile login, local startup restoration, on-demand refresh rotation, logout revocation, and safe error translation." "Kotlin + OkHttp"
                 androidTokenStore = component "Keystore Token Store" "Encrypts access and refresh JWTs with an Android-Keystore key and durably stores only ciphertext in private SharedPreferences." "Android Keystore + AES-GCM"
                 androidApiClient = component "Authenticated API Client" "Attaches stored bearer access tokens, coordinates one refresh after a 401, and retries the original product request once." "Kotlin + OkHttp + Coroutines"
                 androidWearables = component "Wearable Connection Repository" "Lists and registers caller-owned Health Connect connections through the authenticated API client." "Kotlin + kotlinx.serialization"
-                androidHealthAccess = component "Health Connect Access" "Checks Health Connect SDK availability and current WeightRecord read permission without reading records yet." "AndroidX Health Connect"
+                androidHealthAccess = component "Health Connect Access" "Checks SDK availability and WeightRecord permission, then maps paginated SDK reads into SDK-independent weight samples; no product service invokes reads yet." "AndroidX Health Connect"
             }
 
             api = container "Django API" "Synchronous HTTP API for auth, subscriptions/Stripe, metrics, and wearable connection/upload workflows." "Django + Django REST Framework" {
@@ -53,7 +53,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         user -> longevity.webapp "Uses"
         user -> longevity.android "Uses to connect and sync on-device health data"
         samsungHealth -> healthConnect "Writes Samsung-originated health records on device"
-          longevity.android -> healthConnect "Checks SDK availability and requests WeightRecord read permission; record reads are next"
+          longevity.android -> healthConnect "Checks SDK availability and permission and exposes paginated WeightRecord reads; product orchestration is next"
         user -> stripe "Completes hosted Checkout and manages billing/cancellation in the Customer Portal"
 
           longevity.webapp -> longevity.api "Calls JSON API over HTTPS"
@@ -146,12 +146,12 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                     }
                 }
 
-                physicalAndroidPhone = deploymentNode "Physical Android Phone" "Current USB-connected test device. Mobile authentication, backend wearable connection registration, and Health Connect WeightRecord permission are implemented; record reads and uploads are next." {
+                physicalAndroidPhone = deploymentNode "Physical Android Phone" "Current USB-connected test device. Mobile authentication, backend connection registration, WeightRecord permission, and the reader adapter are implemented; a real product-flow read/upload is next." {
                     tags "ClientZone"
 
                     localAndroidClient = containerInstance longevity.android
 
-                    localHealthConnect = infrastructureNode "Health Connect" "On-device health platform with implemented SDK availability and WeightRecord permission handling; record reads are next." {
+                    localHealthConnect = infrastructureNode "Health Connect" "On-device platform with implemented availability, WeightRecord permission, and paginated reader integration; the product flow does not invoke reads yet." {
                         tags "ClientRuntime"
                     }
 
@@ -205,7 +205,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                     tags "ClientTraffic"
                 }
 
-                localDev.physicalAndroidPhone.localAndroidClient -> localDev.physicalAndroidPhone.localHealthConnect "Checks availability and requests WeightRecord read permission; record reads are next" {
+                localDev.physicalAndroidPhone.localAndroidClient -> localDev.physicalAndroidPhone.localHealthConnect "Checks availability/permission and can issue paginated WeightRecord reads; product orchestration is next" {
                     tags "ClientTraffic"
                 }
 
@@ -813,7 +813,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             user -> longevity.webapp "Sees Free plan state after the paid subscription has actually ended"
         }
 
-        deployment * localDev "local-development-deployment" "Current local runtime: browser-executed React app with Vite /api proxy, synchronous Django/PostgreSQL product flows, Stripe CLI webhook forwarding, and an adb-installed Android client with working mobile auth, Health Connect permission, and wearable registration. WeightRecord reads/uploads are next; Redis/Celery/Beat are prepared but unused by current product flows." {
+        deployment * localDev "local-development-deployment" "Current local runtime: browser-executed React app with Vite /api proxy, synchronous Django/PostgreSQL product flows, Stripe CLI forwarding, and an adb-installed Android client with mobile auth, Health Connect permission/reader adapter, and wearable registration. A physical record-to-upload flow is next; Redis/Celery/Beat remain unused by product flows." {
             include *
             autolayout lr
         }
