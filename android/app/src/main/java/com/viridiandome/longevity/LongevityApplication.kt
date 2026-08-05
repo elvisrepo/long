@@ -6,10 +6,12 @@ import com.viridiandome.longevity.auth.AuthRepository
 import com.viridiandome.longevity.auth.AuthTokenStore
 import com.viridiandome.longevity.auth.network.AuthenticatedApiClient
 import com.viridiandome.longevity.auth.network.HttpAuthRepository
-import com.viridiandome.longevity.wearables.WearableConnectionRepository
 import com.viridiandome.longevity.wearables.HealthConnectAccess
+import com.viridiandome.longevity.wearables.WearableConnectionRepository
+import com.viridiandome.longevity.wearables.WearableUploadRepository
 import com.viridiandome.longevity.wearables.healthconnect.AndroidHealthConnectAccess
 import com.viridiandome.longevity.wearables.network.HttpWearableConnectionRepository
+import com.viridiandome.longevity.wearables.network.HttpWearableUploadRepository
 import okhttp3.OkHttpClient
 
 /**
@@ -53,6 +55,13 @@ class LongevityApplication : Application() {
 
     val wearableConnectionRepository: WearableConnectionRepository by lazy {
         HttpWearableConnectionRepository(
+            authenticatedApiClient = authenticatedApiClient,
+            baseUrl = BuildConfig.API_BASE_URL,
+        )
+    }
+
+    val wearableUploadRepository: WearableUploadRepository by lazy {
+        HttpWearableUploadRepository(
             authenticatedApiClient = authenticatedApiClient,
             baseUrl = BuildConfig.API_BASE_URL,
         )

@@ -15,12 +15,13 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 webServerState = component "Server State Layer" "Fetches, caches, mutates, and invalidates current-user, metric, and subscription server state." "TanStack Query"
             }
 
-            android = container "Android Companion App" "Implemented mobile authentication, encrypted JWT storage, on-demand refresh/retry, Health Connect permission and paginated WeightRecord adapter, initial Samsung weight sync planning, and backend connection registration; product-flow orchestration and uploads are next." "Kotlin + Jetpack Compose" {
+            android = container "Android Companion App" "Implemented mobile authentication, encrypted JWT storage, on-demand refresh/retry, Health Connect permission and paginated WeightRecord adapter, initial Samsung weight sync planning, backend connection registration, and authenticated upload transport; product-flow orchestration is next." "Kotlin + Jetpack Compose" {
                 androidPresentation = component "Compose UI and ViewModels" "Renders login/session and Health Connect connection state, handles user actions, and coordinates the official permission Activity Result." "Jetpack Compose + AndroidX Lifecycle"
                 androidAuth = component "Mobile Auth Repository" "Implements mobile login, local startup restoration, on-demand refresh rotation, logout revocation, and safe error translation." "Kotlin + OkHttp"
                 androidTokenStore = component "Keystore Token Store" "Encrypts access and refresh JWTs with an Android-Keystore key and durably stores only ciphertext in private SharedPreferences." "Android Keystore + AES-GCM"
                 androidApiClient = component "Authenticated API Client" "Attaches stored bearer access tokens, coordinates one refresh after a 401, and retries the original product request once." "Kotlin + OkHttp + Coroutines"
                 androidWearables = component "Wearable Connection Repository" "Lists and registers caller-owned Health Connect connections through the authenticated API client." "Kotlin + kotlinx.serialization"
+                androidUploads = component "Wearable Upload Repository" "Posts normalized, retry-stable weight batches and maps Django SyncRun receipts and conflict/rejection outcomes without exposing transport DTOs." "Kotlin + OkHttp + kotlinx.serialization"
                 androidHealthAccess = component "Health Connect Access" "Checks SDK availability and WeightRecord permission, then maps paginated SDK reads into SDK-independent weight samples." "AndroidX Health Connect"
                 androidWeightSyncPlanner = component "Initial Weight Sync Planner" "Requests a clock-bounded 30-day window, keeps exact Samsung Health provenance, and splits ordered samples into backend-safe batches; no product orchestrator invokes it yet." "Kotlin + Coroutines"
             }
@@ -83,15 +84,16 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
           longevity.android.androidApiClient -> longevity.android.androidTokenStore "Reads bearer credentials and rereads after refresh coordination"
           longevity.android.androidApiClient -> longevity.android.androidAuth "Requests one refresh after a rejected access token"
           longevity.android.androidApiClient -> longevity.api "Calls authenticated product endpoints"
-          longevity.android.androidApiClient -> longevity.api.wearablesApi "Calls authenticated wearable connection endpoints"
+          longevity.android.androidApiClient -> longevity.api.wearablesApi "Calls authenticated wearable connection and upload endpoints"
           longevity.android.androidWearables -> longevity.android.androidApiClient "Executes authenticated connection requests"
+          longevity.android.androidUploads -> longevity.android.androidApiClient "Executes authenticated normalized upload requests"
           longevity.android.androidHealthAccess -> healthConnect "Checks SDK availability and WeightRecord read grant"
 
           longevity.webapp -> longevity.api.authApi "Uses web auth and current-user endpoints"
           longevity.webapp -> longevity.api.metricsApi "Uses metric definition and entry endpoints"
           longevity.webapp -> longevity.api.subscriptionsApi "Uses subscription, Checkout, and Portal endpoints"
           longevity.android -> longevity.api.authApi "Uses mobile auth endpoints"
-          longevity.android -> longevity.api.wearablesApi "Uses implemented connection endpoints; normalized mobile uploads are next"
+          longevity.android -> longevity.api.wearablesApi "Uses implemented connection and normalized upload endpoints; product-flow orchestration is next"
 
           longevity.api.authApi -> longevity.db "Reads users and writes SimpleJWT outstanding/blacklisted token state"
           longevity.api.authApi -> longevity.api.subscriptionsApi "Creates the default Free subscription during registration"
@@ -448,6 +450,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             include longevity.android.androidTokenStore
             include longevity.android.androidApiClient
             include longevity.android.androidWearables
+            include longevity.android.androidUploads
             include longevity.android.androidHealthAccess
             include longevity.android.androidWeightSyncPlanner
             include longevity.api
