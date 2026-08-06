@@ -12,8 +12,8 @@ import com.viridiandome.longevity.wearables.WearableUploadRepository
 import com.viridiandome.longevity.wearables.healthconnect.AndroidHealthConnectAccess
 import com.viridiandome.longevity.wearables.network.HttpWearableConnectionRepository
 import com.viridiandome.longevity.wearables.network.HttpWearableUploadRepository
-import com.viridiandome.longevity.wearables.sync.InitialWeightSyncCoordinator
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncPlanner
+import com.viridiandome.longevity.wearables.sync.WeightSyncCoordinator
 import okhttp3.OkHttpClient
 
 /**
@@ -76,8 +76,8 @@ class LongevityApplication : Application() {
     val healthConnectAccess: HealthConnectAccess
         get() = androidHealthConnectAccess
 
-    val initialWeightSyncCoordinator: InitialWeightSyncCoordinator by lazy {
-        InitialWeightSyncCoordinator(
+    val initialWeightSyncCoordinator: WeightSyncCoordinator by lazy {
+        WeightSyncCoordinator(
             planner = InitialWeightSyncPlanner(androidHealthConnectAccess),
             uploadRepository = wearableUploadRepository,
         )

@@ -9,8 +9,8 @@ import java.time.Duration
 class InitialWeightSyncPlanner(
     private val reader: HealthConnectWeightReader,
     private val clock: Clock = Clock.systemUTC(),
-) {
-    suspend fun readBatches(): List<List<HealthConnectWeightSample>> {
+) : WeightSyncBatchPlanner {
+    override suspend fun readBatches(): List<List<HealthConnectWeightSample>> {
         val endTime = clock.instant()
         val startTime = endTime.minus(INITIAL_LOOKBACK)
         val samsungSamples = reader.readWeightSamples(

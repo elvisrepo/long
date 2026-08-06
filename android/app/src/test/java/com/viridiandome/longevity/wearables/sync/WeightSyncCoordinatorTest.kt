@@ -17,19 +17,19 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 
-class InitialWeightSyncCoordinatorTest {
+/** Proves orchestration independently from any one weight-selection policy. */
+class WeightSyncCoordinatorTest {
     @Test
-    fun one_planned_batch_is_uploaded_with_one_generated_identity() = runTest {
-        val sample = weightSample("record-123")
-        val planner = InitialWeightSyncPlanner(
-            reader = CoordinatorWeightReader(listOf(sample)),
-            clock = fixedClock(),
-        )
+    fun coordinator_accepts_a_planner_boundary_without_health_connect() = runTest {
+        val sample = weightSample("record-from-planner-boundary")
+        val planner = WeightSyncBatchPlanner {
+            listOf(listOf(sample))
+        }
         val receipt = successfulReceipt(UPLOAD_ID)
         val repository = RecordingUploadRepository(
             results = listOf(WearableUploadResult.Success(receipt)),
         )
-        val coordinator = InitialWeightSyncCoordinator(
+        val coordinator = WeightSyncCoordinator(
             planner = planner,
             uploadRepository = repository,
             uploadIdFactory = { UPLOAD_ID },
@@ -41,8 +41,34 @@ class InitialWeightSyncCoordinatorTest {
             listOf(UploadCall(CONNECTION_ID, UPLOAD_ID, listOf(sample))),
             repository.calls,
         )
-        assertTrue(result is InitialWeightSyncResult.Completed)
-        result as InitialWeightSyncResult.Completed
+        assertEquals(WeightSyncResult.Completed(listOf(receipt)), result)
+    }
+
+    @Test
+    fun one_planned_batch_is_uploaded_with_one_generated_identity() = runTest {
+        val sample = weightSample("record-123")
+        val planner = InitialWeightSyncPlanner(
+            reader = CoordinatorWeightReader(listOf(sample)),
+            clock = fixedClock(),
+        )
+        val receipt = successfulReceipt(UPLOAD_ID)
+        val repository = RecordingUploadRepository(
+            results = listOf(WearableUploadResult.Success(receipt)),
+        )
+        val coordinator = WeightSyncCoordinator(
+            planner = planner,
+            uploadRepository = repository,
+            uploadIdFactory = { UPLOAD_ID },
+        )
+
+        val result = coordinator.sync(CONNECTION_ID)
+
+        assertEquals(
+            listOf(UploadCall(CONNECTION_ID, UPLOAD_ID, listOf(sample))),
+            repository.calls,
+        )
+        assertTrue(result is WeightSyncResult.Completed)
+        result as WeightSyncResult.Completed
         assertEquals(listOf(receipt), result.receipts)
     }
 
@@ -54,7 +80,7 @@ class InitialWeightSyncCoordinatorTest {
         )
         val repository = RecordingUploadRepository(results = emptyList())
         var generatedIdentityCount = 0
-        val coordinator = InitialWeightSyncCoordinator(
+        val coordinator = WeightSyncCoordinator(
             planner = planner,
             uploadRepository = repository,
             uploadIdFactory = {
@@ -65,7 +91,7 @@ class InitialWeightSyncCoordinatorTest {
 
         val result = coordinator.sync(CONNECTION_ID)
 
-        assertSame(InitialWeightSyncResult.NoData, result)
+        assertSame(WeightSyncResult.NoData, result)
         assertEquals(0, generatedIdentityCount)
         assertTrue(repository.calls.isEmpty())
     }
@@ -86,7 +112,7 @@ class InitialWeightSyncCoordinatorTest {
             ),
         )
         val uploadIds = listOf(UPLOAD_ID, SECOND_UPLOAD_ID).iterator()
-        val coordinator = InitialWeightSyncCoordinator(
+        val coordinator = WeightSyncCoordinator(
             planner = planner,
             uploadRepository = repository,
             uploadIdFactory = uploadIds::next,
@@ -101,8 +127,8 @@ class InitialWeightSyncCoordinatorTest {
         )
         assertEquals("record-1", repository.calls.first().samples.first().recordId)
         assertEquals("record-101", repository.calls.last().samples.single().recordId)
-        assertTrue(result is InitialWeightSyncResult.Completed)
-        result as InitialWeightSyncResult.Completed
+        assertTrue(result is WeightSyncResult.Completed)
+        result as WeightSyncResult.Completed
         assertEquals(listOf(firstReceipt, secondReceipt), result.receipts)
     }
 
@@ -121,7 +147,7 @@ class InitialWeightSyncCoordinatorTest {
             ),
         )
         val uploadIds = listOf(UPLOAD_ID, SECOND_UPLOAD_ID).iterator()
-        val coordinator = InitialWeightSyncCoordinator(
+        val coordinator = WeightSyncCoordinator(
             planner = planner,
             uploadRepository = repository,
             uploadIdFactory = uploadIds::next,
@@ -130,10 +156,10 @@ class InitialWeightSyncCoordinatorTest {
         val result = coordinator.sync(CONNECTION_ID)
 
         assertEquals(2, repository.calls.size)
-        assertTrue(result is InitialWeightSyncResult.Interrupted)
-        result as InitialWeightSyncResult.Interrupted
+        assertTrue(result is WeightSyncResult.Interrupted)
+        result as WeightSyncResult.Interrupted
         assertEquals(listOf(firstReceipt), result.completedReceipts)
-        assertEquals(InitialWeightSyncFailure.Unavailable, result.failure)
+        assertEquals(WeightSyncFailure.Unavailable, result.failure)
     }
 
     @Test
@@ -148,7 +174,7 @@ class InitialWeightSyncCoordinatorTest {
         )
         val repository = RecordingUploadRepository(results = emptyList())
         var generatedIdentityCount = 0
-        val coordinator = InitialWeightSyncCoordinator(
+        val coordinator = WeightSyncCoordinator(
             planner = planner,
             uploadRepository = repository,
             uploadIdFactory = {
@@ -159,10 +185,10 @@ class InitialWeightSyncCoordinatorTest {
 
         val result = coordinator.sync(CONNECTION_ID)
 
-        assertTrue(result is InitialWeightSyncResult.Interrupted)
-        result as InitialWeightSyncResult.Interrupted
+        assertTrue(result is WeightSyncResult.Interrupted)
+        result as WeightSyncResult.Interrupted
         assertTrue(result.completedReceipts.isEmpty())
-        assertEquals(InitialWeightSyncFailure.PermissionRequired, result.failure)
+        assertEquals(WeightSyncFailure.PermissionRequired, result.failure)
         assertEquals(0, generatedIdentityCount)
         assertTrue(repository.calls.isEmpty())
     }
@@ -176,7 +202,7 @@ class InitialWeightSyncCoordinatorTest {
             clock = fixedClock(),
         )
         val repository = RecordingUploadRepository(results = emptyList())
-        val coordinator = InitialWeightSyncCoordinator(
+        val coordinator = WeightSyncCoordinator(
             planner = planner,
             uploadRepository = repository,
             uploadIdFactory = { error("A failed read must not generate an upload ID.") },
@@ -184,9 +210,9 @@ class InitialWeightSyncCoordinatorTest {
 
         val result = coordinator.sync(CONNECTION_ID)
 
-        assertTrue(result is InitialWeightSyncResult.Interrupted)
-        result as InitialWeightSyncResult.Interrupted
-        assertEquals(InitialWeightSyncFailure.ReadUnavailable, result.failure)
+        assertTrue(result is WeightSyncResult.Interrupted)
+        result as WeightSyncResult.Interrupted
+        assertEquals(WeightSyncFailure.ReadUnavailable, result.failure)
         assertTrue(result.completedReceipts.isEmpty())
         assertTrue(repository.calls.isEmpty())
     }

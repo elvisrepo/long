@@ -7,22 +7,22 @@ import com.viridiandome.longevity.wearables.WeightReadPermissionRequiredExceptio
 import com.viridiandome.longevity.wearables.WeightReadUnavailableException
 import java.util.UUID
 
-/** Runs one explicit initial read-and-upload operation for a connection. */
-class InitialWeightSyncCoordinator(
-    private val planner: InitialWeightSyncPlanner,
+/** Runs one planned weight read-and-upload operation for a connection. */
+class WeightSyncCoordinator(
+    private val planner: WeightSyncBatchPlanner,
     private val uploadRepository: WearableUploadRepository,
     private val uploadIdFactory: () -> String = { UUID.randomUUID().toString() },
-) : InitialWeightSyncRunner {
-    override suspend fun sync(connectionId: String): InitialWeightSyncResult {
+) : WeightSyncRunner {
+    override suspend fun sync(connectionId: String): WeightSyncResult {
         val batches = try {
             planner.readBatches()
         } catch (_: WeightReadPermissionRequiredException) {
-            return interrupted(emptyList(), InitialWeightSyncFailure.PermissionRequired)
+            return interrupted(emptyList(), WeightSyncFailure.PermissionRequired)
         } catch (_: WeightReadUnavailableException) {
-            return interrupted(emptyList(), InitialWeightSyncFailure.ReadUnavailable)
+            return interrupted(emptyList(), WeightSyncFailure.ReadUnavailable)
         }
         if (batches.isEmpty()) {
-            return InitialWeightSyncResult.NoData
+            return WeightSyncResult.NoData
         }
 
         val receipts = mutableListOf<WearableUploadReceipt>()
@@ -39,60 +39,60 @@ class InitialWeightSyncCoordinator(
             ) {
                 is WearableUploadResult.Success -> receipts += result.receipt
                 WearableUploadResult.Conflict ->
-                    return interrupted(receipts, InitialWeightSyncFailure.Conflict)
+                    return interrupted(receipts, WeightSyncFailure.Conflict)
 
                 WearableUploadResult.Rejected ->
-                    return interrupted(receipts, InitialWeightSyncFailure.Rejected)
+                    return interrupted(receipts, WeightSyncFailure.Rejected)
 
                 WearableUploadResult.NoSession ->
-                    return interrupted(receipts, InitialWeightSyncFailure.NoSession)
+                    return interrupted(receipts, WeightSyncFailure.NoSession)
 
                 WearableUploadResult.Unavailable ->
-                    return interrupted(receipts, InitialWeightSyncFailure.Unavailable)
+                    return interrupted(receipts, WeightSyncFailure.Unavailable)
             }
         }
 
-        return InitialWeightSyncResult.Completed(receipts.toList())
+        return WeightSyncResult.Completed(receipts.toList())
     }
 
     private fun interrupted(
         receipts: List<WearableUploadReceipt>,
-        failure: InitialWeightSyncFailure,
-    ): InitialWeightSyncResult.Interrupted =
-        InitialWeightSyncResult.Interrupted(
+        failure: WeightSyncFailure,
+    ): WeightSyncResult.Interrupted =
+        WeightSyncResult.Interrupted(
             completedReceipts = receipts.toList(),
             failure = failure,
         )
 }
 
-/** ViewModel-facing boundary for one explicit initial weight sync. */
-fun interface InitialWeightSyncRunner {
-    suspend fun sync(connectionId: String): InitialWeightSyncResult
+/** Shared caller boundary for explicit UI sync and future background work. */
+fun interface WeightSyncRunner {
+    suspend fun sync(connectionId: String): WeightSyncResult
 }
 
-sealed interface InitialWeightSyncResult {
+sealed interface WeightSyncResult {
     data class Completed(
         val receipts: List<WearableUploadReceipt>,
-    ) : InitialWeightSyncResult
+    ) : WeightSyncResult
 
-    data object NoData : InitialWeightSyncResult
+    data object NoData : WeightSyncResult
 
     data class Interrupted(
         val completedReceipts: List<WearableUploadReceipt>,
-        val failure: InitialWeightSyncFailure,
-    ) : InitialWeightSyncResult
+        val failure: WeightSyncFailure,
+    ) : WeightSyncResult
 }
 
-sealed interface InitialWeightSyncFailure {
-    data object PermissionRequired : InitialWeightSyncFailure
+sealed interface WeightSyncFailure {
+    data object PermissionRequired : WeightSyncFailure
 
-    data object ReadUnavailable : InitialWeightSyncFailure
+    data object ReadUnavailable : WeightSyncFailure
 
-    data object Conflict : InitialWeightSyncFailure
+    data object Conflict : WeightSyncFailure
 
-    data object Rejected : InitialWeightSyncFailure
+    data object Rejected : WeightSyncFailure
 
-    data object NoSession : InitialWeightSyncFailure
+    data object NoSession : WeightSyncFailure
 
-    data object Unavailable : InitialWeightSyncFailure
+    data object Unavailable : WeightSyncFailure
 }

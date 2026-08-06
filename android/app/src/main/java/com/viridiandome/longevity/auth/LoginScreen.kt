@@ -28,8 +28,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.viridiandome.longevity.ui.theme.LongevityTheme
 import com.viridiandome.longevity.wearables.WearableConnectionUiState
-import com.viridiandome.longevity.wearables.sync.InitialWeightSyncFailure
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncUiState
+import com.viridiandome.longevity.wearables.sync.WeightSyncFailure
 
 /**
  * Stateless authentication UI.
@@ -383,16 +383,16 @@ private fun InitialWeightSyncContent(
             }
             Text(text = state.failure.userMessage())
 
-            if (state.failure === InitialWeightSyncFailure.PermissionRequired) {
+            if (state.failure === WeightSyncFailure.PermissionRequired) {
                 Button(onClick = onReviewPermission) {
                     Text(text = "Review Health Connect permission")
                 }
             }
 
             if (
-                state.failure !== InitialWeightSyncFailure.Conflict &&
-                state.failure !== InitialWeightSyncFailure.Rejected &&
-                state.failure !== InitialWeightSyncFailure.NoSession
+                state.failure !== WeightSyncFailure.Conflict &&
+                state.failure !== WeightSyncFailure.Rejected &&
+                state.failure !== WeightSyncFailure.NoSession
             ) {
                 Button(onClick = onSync) {
                     Text(text = "Retry weight sync")
@@ -409,24 +409,24 @@ private fun InitialWeightSyncContent(
     }
 }
 
-private fun InitialWeightSyncFailure.userMessage(): String =
+private fun WeightSyncFailure.userMessage(): String =
     when (this) {
-        InitialWeightSyncFailure.PermissionRequired ->
+        WeightSyncFailure.PermissionRequired ->
             "Health Connect weight permission is required."
 
-        InitialWeightSyncFailure.ReadUnavailable ->
+        WeightSyncFailure.ReadUnavailable ->
             "Health Connect could not read weight records right now."
 
-        InitialWeightSyncFailure.Conflict ->
+        WeightSyncFailure.Conflict ->
             "A stored health record conflicts with this sync."
 
-        InitialWeightSyncFailure.Rejected ->
+        WeightSyncFailure.Rejected ->
             "The weight sync was rejected for this connection."
 
-        InitialWeightSyncFailure.NoSession ->
+        WeightSyncFailure.NoSession ->
             "Your session expired. Log out and sign in again."
 
-        InitialWeightSyncFailure.Unavailable ->
+        WeightSyncFailure.Unavailable ->
             "The server could not complete the weight sync right now."
     }
 

@@ -17,7 +17,7 @@ internal data class WearableUploadEntryRequest(
     val externalSourceId: String,
 ) {
     companion object {
-        /** Map a sample already selected by InitialWeightSyncPlanner. */
+        /** Map a sample already selected by the active weight-sync planner. */
         fun from(sample: HealthConnectWeightSample): WearableUploadEntryRequest =
             WearableUploadEntryRequest(
                 metricDefinition = BODY_WEIGHT_METRIC,

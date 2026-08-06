@@ -47,7 +47,7 @@ class InitialWeightSyncViewModelTest {
         assertEquals(CONNECTION_ID, runner.connectionId)
 
         runner.complete(
-            InitialWeightSyncResult.Completed(
+            WeightSyncResult.Completed(
                 receipts = listOf(successfulReceipt()),
             ),
         )
@@ -80,7 +80,7 @@ class InitialWeightSyncViewModelTest {
     @Test
     fun empty_sync_window_is_a_no_data_state() = runTest {
         val viewModel = InitialWeightSyncViewModel(
-            FixedInitialWeightSyncRunner(InitialWeightSyncResult.NoData),
+            FixedInitialWeightSyncRunner(WeightSyncResult.NoData),
         )
 
         viewModel.sync(CONNECTION_ID)
@@ -93,9 +93,9 @@ class InitialWeightSyncViewModelTest {
     fun interrupted_sync_exposes_only_completed_counts_and_recovery_reason() = runTest {
         val viewModel = InitialWeightSyncViewModel(
             FixedInitialWeightSyncRunner(
-                InitialWeightSyncResult.Interrupted(
+                WeightSyncResult.Interrupted(
                     completedReceipts = listOf(successfulReceipt()),
-                    failure = InitialWeightSyncFailure.PermissionRequired,
+                    failure = WeightSyncFailure.PermissionRequired,
                 ),
             ),
         )
@@ -108,7 +108,7 @@ class InitialWeightSyncViewModelTest {
                 completedBatchCount = 1,
                 entriesImported = 1,
                 entriesSkipped = 0,
-                failure = InitialWeightSyncFailure.PermissionRequired,
+                failure = WeightSyncFailure.PermissionRequired,
             ),
             viewModel.state.value,
         )
@@ -123,7 +123,7 @@ class InitialWeightSyncViewModelTest {
 
         viewModel.resetForLogout()
         runner.complete(
-            InitialWeightSyncResult.Completed(
+            WeightSyncResult.Completed(
                 receipts = listOf(successfulReceipt()),
             ),
         )
@@ -150,27 +150,27 @@ class InitialWeightSyncViewModelTest {
     }
 }
 
-private class ControllableInitialWeightSyncRunner : InitialWeightSyncRunner {
-    private val result = CompletableDeferred<InitialWeightSyncResult>()
+private class ControllableInitialWeightSyncRunner : WeightSyncRunner {
+    private val result = CompletableDeferred<WeightSyncResult>()
 
     var requests = 0
         private set
     var connectionId: String? = null
         private set
 
-    override suspend fun sync(connectionId: String): InitialWeightSyncResult {
+    override suspend fun sync(connectionId: String): WeightSyncResult {
         requests += 1
         this.connectionId = connectionId
         return result.await()
     }
 
-    fun complete(value: InitialWeightSyncResult) {
+    fun complete(value: WeightSyncResult) {
         result.complete(value)
     }
 }
 
 private class FixedInitialWeightSyncRunner(
-    private val result: InitialWeightSyncResult,
-) : InitialWeightSyncRunner {
-    override suspend fun sync(connectionId: String): InitialWeightSyncResult = result
+    private val result: WeightSyncResult,
+) : WeightSyncRunner {
+    override suspend fun sync(connectionId: String): WeightSyncResult = result
 }

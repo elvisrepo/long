@@ -28,7 +28,7 @@ sealed interface InitialWeightSyncUiState {
         val completedBatchCount: Int,
         val entriesImported: Int,
         val entriesSkipped: Int,
-        val failure: InitialWeightSyncFailure,
+        val failure: WeightSyncFailure,
     ) : InitialWeightSyncUiState
 
     /** Unexpected application failure; safe to show without exception details. */
@@ -37,7 +37,7 @@ sealed interface InitialWeightSyncUiState {
 
 /** Converts coordinator results into state that Compose can render safely. */
 class InitialWeightSyncViewModel(
-    private val runner: InitialWeightSyncRunner,
+    private val runner: WeightSyncRunner,
 ) : ViewModel() {
     private val _state = MutableStateFlow<InitialWeightSyncUiState>(
         InitialWeightSyncUiState.Idle,
@@ -68,14 +68,14 @@ class InitialWeightSyncViewModel(
         _state.value = InitialWeightSyncUiState.Idle
     }
 
-    private fun InitialWeightSyncResult.toUiState(): InitialWeightSyncUiState =
+    private fun WeightSyncResult.toUiState(): InitialWeightSyncUiState =
         when (this) {
-            is InitialWeightSyncResult.Completed ->
+            is WeightSyncResult.Completed ->
                 receipts.toCompletedUiState()
 
-            InitialWeightSyncResult.NoData -> InitialWeightSyncUiState.NoData
+            WeightSyncResult.NoData -> InitialWeightSyncUiState.NoData
 
-            is InitialWeightSyncResult.Interrupted ->
+            is WeightSyncResult.Interrupted ->
                 InitialWeightSyncUiState.Interrupted(
                     completedBatchCount = completedReceipts.size,
                     entriesImported = completedReceipts.sumOf(

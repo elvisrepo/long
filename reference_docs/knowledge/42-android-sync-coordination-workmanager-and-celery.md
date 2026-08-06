@@ -13,7 +13,13 @@ This document describes the implemented Android flow as of 2026-08-06 and the ag
 
 ## 1. Implemented Android sync components
 
-There is no `InitialHealthSyncCoordinator`. The implemented class is `InitialWeightSyncCoordinator`, because the current slice handles only weight records.
+The current slice handles only weight records. Its 30-day selection policy remains explicitly initial, while its orchestration is now reusable for a future incremental policy.
+
+### `WeightSyncBatchPlanner`
+
+Path: `android/app/src/main/java/com/viridiandome/longevity/wearables/sync/WeightSyncBatchPlanner.kt`
+
+This small interface supplies ordered, backend-sized batches for one chosen sync window. It separates *which records belong in this run* from the shared read-and-upload orchestration.
 
 ### `InitialWeightSyncPlanner`
 
@@ -29,9 +35,9 @@ The planner decides which Health Connect data belongs in the initial upload:
 
 The planner does not perform HTTP requests, generate upload IDs, or update Compose state.
 
-### `InitialWeightSyncCoordinator`
+### `WeightSyncCoordinator`
 
-Path: `android/app/src/main/java/com/viridiandome/longevity/wearables/sync/InitialWeightSyncCoordinator.kt`
+Path: `android/app/src/main/java/com/viridiandome/longevity/wearables/sync/WeightSyncCoordinator.kt`
 
 The coordinator orchestrates one complete read-and-upload attempt:
 
@@ -60,12 +66,12 @@ It translates lower-level failures into domain outcomes:
 
 The coordinator does not know about Compose controls or user-facing text.
 
-### `InitialWeightSyncRunner`
+### `WeightSyncRunner`
 
-`InitialWeightSyncRunner` is the small interface implemented by the coordinator:
+`WeightSyncRunner` is the small interface implemented by the coordinator:
 
 ```kotlin
-suspend fun sync(connectionId: String): InitialWeightSyncResult
+suspend fun sync(connectionId: String): WeightSyncResult
 ```
 
 The ViewModel depends on this interface instead of the concrete coordinator. Tests can supply a fake runner without using Health Connect, Django, or a physical phone. A future WorkManager worker can depend on an appropriate runner without depending on the UI ViewModel.
@@ -78,7 +84,7 @@ The ViewModel is the UI-facing sync controller. It:
 
 - starts the current explicit sync after the user chooses **Sync weight now**;
 - prevents overlapping sync jobs;
-- calls `InitialWeightSyncRunner`;
+- calls `WeightSyncRunner`;
 - converts coordinator results into health-safe Compose states: `Idle`, `Syncing`, `NoData`, `Completed`, `Interrupted`, or `Unavailable`;
 - aggregates imported/skipped counters from Django receipts;
 - cancels and clears its state during logout.
@@ -89,7 +95,7 @@ It does not read Health Connect or make HTTP requests itself.
 
 Path: `android/app/src/main/java/com/viridiandome/longevity/wearables/sync/InitialWeightSyncViewModelFactory.kt`
 
-The factory contains no synchronization business logic. Android normally creates ViewModels itself, but `InitialWeightSyncViewModel` requires an `InitialWeightSyncRunner` constructor dependency. The factory supplies it:
+The factory contains no synchronization business logic. Android normally creates ViewModels itself, but `InitialWeightSyncViewModel` requires a `WeightSyncRunner` constructor dependency. The factory supplies it:
 
 ```text
 Android asks for InitialWeightSyncViewModel
@@ -112,7 +118,7 @@ Path: `android/app/src/main/java/com/viridiandome/longevity/LongevityApplication
 - wearable upload repository;
 - Health Connect adapter;
 - initial weight planner;
-- initial weight coordinator.
+- `WeightSyncCoordinator` configured with `InitialWeightSyncPlanner`.
 
 This keeps dependencies out of Compose recomposition without introducing a dependency-injection framework before the MVP needs one.
 
@@ -171,7 +177,7 @@ MainActivity obtains the Ready connection ID
     ↓
 InitialWeightSyncViewModel.sync(connectionId)
     ↓
-InitialWeightSyncCoordinator
+WeightSyncCoordinator
     ↓
 InitialWeightSyncPlanner
     ↓
