@@ -1,5 +1,6 @@
 from django.db.models import Q
 from rest_framework import generics
+from rest_framework.exceptions import APIException
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
 
@@ -15,6 +16,12 @@ from rest_framework.views import APIView
 from apps.metrics.limits import get_active_custom_metric_usage
 
 DEFAULT_METRIC_ENTRY_LIMIT = 50
+
+
+class SyncedMetricEntryMutationError(APIException):
+      status_code = 409
+      default_detail = "Synced metric entries cannot be edited or deleted."
+      default_code = "synced_metric_entry_immutable"
 
 class MetricDefinitionListView(generics.ListCreateAPIView):
     serializer_class = MetricDefinitionSerializer
@@ -95,6 +102,19 @@ class MetricEntryDetailView(generics.RetrieveUpdateDestroyAPIView):
               .select_related("metric_definition")
               .order_by("-recorded_at", "-id")
           )
+
+      def perform_update(self, serializer: MetricEntrySerializer) -> None:
+          entry = serializer.instance
+          if entry is not None and not entry.is_user_editable:
+              raise SyncedMetricEntryMutationError
+
+          serializer.save()
+
+      def perform_destroy(self, instance: MetricEntry) -> None:
+          if not instance.is_user_editable:
+              raise SyncedMetricEntryMutationError
+
+          instance.delete()
 
 
 def parse_positive_int(value: str | None) -> int | None:

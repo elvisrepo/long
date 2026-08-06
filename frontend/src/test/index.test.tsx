@@ -382,7 +382,7 @@ describe('dashboard route', () => {
         metric_definition: 'resting_hr',
         value: 58,
         recorded_at: '2026-03-05T07:15:00Z',
-        source: 'manual',
+        source: 'samsung_health',
         context: {},
         created_at: '2026-03-05T07:15:02Z',
       },
@@ -393,6 +393,8 @@ describe('dashboard route', () => {
     await screen.findByRole('heading', { name: /dashboard/i })
 
     expect(screen.getAllByText(/resting heart rate/i).length).toBeGreaterThan(0)
+    expect(screen.getByText(/manual and synced records/i)).toBeInTheDocument()
+    expect(screen.getByText(/samsung health/i)).toBeInTheDocument()
     expect(screen.getByText(/58 bpm/i)).toBeInTheDocument()
     expect(screen.getByText(/mar 5, 2026, 7:15 am/i)).toBeInTheDocument()
   })

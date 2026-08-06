@@ -380,6 +380,43 @@ describe('metric detail route', () => {
     expect(deleteMetricEntryMutateAsyncMock).toHaveBeenCalledWith(1)
   })
 
+  it('labels wearable entries and does not offer manual edit actions', async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitions()
+    mockLoadedMetricEntries([
+      {
+        id: 1,
+        metric_definition: 'resting_hr',
+        value: 58,
+        recorded_at: '2026-03-05T07:15:00Z',
+        source: 'samsung_health',
+        context: {},
+        created_at: '2026-03-05T07:15:02Z',
+      },
+    ])
+    mockMetricEntryMutations()
+
+    renderRoute('/metrics/resting_hr')
+
+    const history = await screen.findByRole('region', {
+      name: /metric entry history/i,
+    })
+
+    expect(within(history).getByText(/samsung health/i)).toBeInTheDocument()
+    expect(
+      within(history).queryByRole('button', {
+        name: /edit resting heart rate entry/i,
+      }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(history).queryByRole('button', {
+        name: /delete resting heart rate entry/i,
+      }),
+    ).not.toBeInTheDocument()
+  })
+
   it('shows an error when updating an entry fails', async () => {
     const user = userEvent.setup()
 

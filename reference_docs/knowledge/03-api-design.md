@@ -54,8 +54,8 @@ Refresh concurrency behavior:
 | GET | `/api/v1/metrics/usage/` | Read metric entitlement usage | Implemented; returns the authenticated user's active custom metric count and current limit |
 | GET | `/api/v1/metrics/entries/?metric=resting_hr&from=2026-01-01&to=2026-03-01&limit=50` | Query entries | Implemented for authenticated user's entries; supports optional `metric`, `from`, `to`, and positive integer `limit` filters; returns newest first |
 | POST | `/api/v1/metrics/entries/` | Log a metric entry | Implemented for manual entries; accepts `metric_definition` as a slug such as `resting_hr`; not idempotent — repeated calls create duplicate entries |
-| PATCH | `/api/v1/metrics/entries/{id}/` | Update a metric entry | Implemented for authenticated user's own entries; partial updates allowed; value range validation still applies |
-| DELETE | `/api/v1/metrics/entries/{id}/` | Delete a metric entry | Implemented for authenticated user's own entries; returns 204 on success |
+| PATCH | `/api/v1/metrics/entries/{id}/` | Update a metric entry | Implemented for authenticated user's own manual entries; synced/imported entries are immutable and return `409`; value range validation still applies |
+| DELETE | `/api/v1/metrics/entries/{id}/` | Delete a metric entry | Implemented for authenticated user's own manual entries; returns `204` on success; synced/imported entries return `409` |
 | POST | `/api/v1/metrics/entries/bulk/` | Bulk import | |
 | GET | `/api/v1/metrics/analytics/{slug}/?range=30d` | Analytics for one metric | `slug` is required (path param), `range` is optional (query param, default 30d) |
 
@@ -192,10 +192,11 @@ Metric-entry create behavior:
 - Another user's custom metric definitions cannot be used, even if the slug is known.
 
 Metric-entry detail behavior:
-- `PATCH /api/v1/metrics/entries/{id}/` supports partial updates for an authenticated user's own entry.
+- `PATCH /api/v1/metrics/entries/{id}/` supports partial updates for an authenticated user's own manual entry.
 - `PATCH` can update fields such as `value`, `recorded_at`, and `context`.
 - Update validation still uses the entry's metric definition, so `value` must remain between that metric's `min_value` and `max_value`.
-- `DELETE /api/v1/metrics/entries/{id}/` deletes an authenticated user's own entry and returns `204`.
+- `DELETE /api/v1/metrics/entries/{id}/` deletes an authenticated user's own manual entry and returns `204`.
+- Provider/import-owned entries are immutable through the generic metric-entry detail endpoint. `PATCH` and `DELETE` return `409` with `Synced metric entries cannot be edited or deleted.` so local edits cannot diverge from the durable provider record identity or cause a deleted record to be imported again.
 - Entry detail lookups are scoped to `request.user`; another user's entry returns `404` rather than `403` because it is outside the caller's visible queryset.
 
 #### Subscriptions (R4+, JWT required)
@@ -296,6 +297,7 @@ Current implementation status:
 - `GET /api/v1/wearables/connections/{id}/status/` returns the caller-owned connection's provider, status, last sync timestamp, and last error. Another user's or an unknown UUID returns `404`.
 - `POST /api/v1/wearables/uploads/` requires JWT authentication and a body containing `connection_id`, `upload_id`, and `1–100` normalized `entries`. It resolves only an active connection owned by the caller and processes the batch synchronously. A new batch returns `201` with a terminal successful `SyncRun`; an exact retry returns the unchanged run with `200`; conflicting upload or external-record identity reuse returns `409`. Missing, invalid, or undeclared fields return `400`.
 - `MetricEntry` has a nullable foreign key to `WearableConnection`, and PostgreSQL enforces at most one non-null `(source_connection, external_source_id)` pair. The ingestion service skips identical stored provider records. For the MVP, changed normalized content under an existing external ID raises a record-level conflict and preserves the stored history rather than updating it silently.
+- Metric history exposes each entry's trusted `source`. The web UI labels Samsung-originated rows as `Samsung Health` and withholds manual Edit/Delete controls; the backend independently rejects direct mutation attempts with `409`.
 - `WearableUploadEntrySerializer` is the live nested-entry boundary. It accepts active system `body_weight` definitions only, enforces the configured value range, rejects non-finite numbers, parses `recorded_at`, accepts Samsung Health provenance only, and requires a nonblank external source ID.
 - `WearableUploadBatchSerializer` is the live request boundary. It composes `connection_id`, `upload_id`, and a required list of `1–100` normalized entries, rejects undeclared fields at both levels, and rejects repeated `external_source_id` values within one batch.
 - The server-side canonical payload-hash helper fingerprints validated entries with schema version `1`, stable external-record ordering, UTC timestamps, and SHA-256. The live ingestion service uses it to reuse exact retries and reject conflicting upload identity reuse.

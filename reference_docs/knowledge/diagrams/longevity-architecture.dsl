@@ -690,7 +690,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.android.androidWearables -> longevity.android.androidPresentation "Publishes Ready, Rejected, NoSession, or Unavailable UI state"
         }
 
-        dynamic longevity.android "mobile-initial-weight-sync-coordinator" "Dynamic view of the implemented explicit initial weight sync from Compose through Django ingestion; physical record-to-database validation is pending." {
+        dynamic longevity.android "mobile-initial-weight-sync-coordinator" "Dynamic view of the implemented and physically validated explicit initial weight sync from Compose through Django ingestion and React display." {
             user -> longevity.android.androidPresentation "Chooses Sync weight now for a resolved Health Connect connection"
             longevity.android.androidPresentation -> longevity.android.androidWeightSyncCoordinator "InitialWeightSyncViewModel starts one non-overlapping sync with the caller-owned connection ID"
             longevity.android.androidWeightSyncCoordinator -> longevity.android.androidWeightSyncPlanner "Requests the initial weight batches for one caller-owned connection"

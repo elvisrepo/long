@@ -4,7 +4,9 @@ import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
+
 from apps.metrics.models import MetricDefinition, MetricEntry
+from apps.wearables.models import WearableConnection
 
 pytestmark = pytest.mark.django_db
 
@@ -431,6 +433,36 @@ def test_user_can_update_their_own_metric_entry():
       )
     assert entry.context == {"notes": "after walk"} 
 
+
+def test_user_cannot_update_wearable_synced_metric_entry():
+    client, user = authenticate_client_for("alice@example.com")
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+    entry = MetricEntry.objects.create(
+        user=user,
+        metric_definition=MetricDefinition.objects.get(slug="body_weight"),
+        value=78.4,
+        recorded_at="2026-08-05T08:00:00Z",
+        source=MetricEntry.Source.SAMSUNG_HEALTH,
+        source_connection=connection,
+        external_source_id="health_connect:WeightRecord:immutable-update",
+    )
+
+    response = client.patch(
+        f"/api/v1/metrics/entries/{entry.id}/",
+        {"value": 80.0},
+        format="json",
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {
+        "detail": "Synced metric entries cannot be edited or deleted."
+    }
+    entry.refresh_from_db()
+    assert entry.value == 78.4
+
 def test_user_cannot_update_another_users_metric_entry():
       alice_client, _alice = authenticate_client_for("alice@example.com")
       bob = get_user_model().objects.create_user(
@@ -477,6 +509,31 @@ def test_user_can_delete_their_own_metric_entry():
 
       assert response.status_code == 204
       assert not MetricEntry.objects.filter(id=entry.id).exists()
+
+
+def test_user_cannot_delete_wearable_synced_metric_entry():
+      client, user = authenticate_client_for("alice@example.com")
+      connection = WearableConnection.objects.create(
+          user=user,
+          provider=WearableConnection.Provider.HEALTH_CONNECT,
+      )
+      entry = MetricEntry.objects.create(
+          user=user,
+          metric_definition=MetricDefinition.objects.get(slug="body_weight"),
+          value=78.4,
+          recorded_at="2026-08-05T08:00:00Z",
+          source=MetricEntry.Source.SAMSUNG_HEALTH,
+          source_connection=connection,
+          external_source_id="health_connect:WeightRecord:immutable-delete",
+      )
+
+      response = client.delete(f"/api/v1/metrics/entries/{entry.id}/")
+
+      assert response.status_code == 409
+      assert response.json() == {
+          "detail": "Synced metric entries cannot be edited or deleted."
+      }
+      assert MetricEntry.objects.filter(id=entry.id).exists()
 
 def test_user_cannot_delete_another_users_metric_entry():
       alice_client, _alice = authenticate_client_for("alice@example.com")

@@ -114,3 +114,12 @@ class MetricEntry(models.Model):
 
     def __str__(self) -> str:
         return f"{self.metric_definition.slug}: {self.value}"
+
+    @property
+    def is_user_editable(self) -> bool:
+        """Return whether this entry was created manually by the user."""
+        return (
+            self.source == self.Source.MANUAL
+            and self.source_connection_id is None
+            and self.external_source_id is None
+        )

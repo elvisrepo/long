@@ -2,6 +2,7 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 
 import { requireAuthBeforeLoad } from '../features/auth/require-auth-before-load'
+import { formatMetricEntrySource } from '../features/metrics/metric-entry-formatters'
 import { MetricTrendChart } from '../features/metrics/metric-trend-chart'
 import { useDeleteMetricEntryMutation } from '../features/metrics/use-delete-metric-entry-mutation'
 import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-definitions-query'
@@ -203,7 +204,7 @@ function MetricDetailRoute() {
       <section className="entries-card" aria-label="Metric entry history">
         <div className="entries-toolbar">
           <div>
-            <p className="eyebrow">Recorded manually</p>
+            <p className="eyebrow">Manual and synced records</p>
             <h2>Entry History</h2>
           </div>
 
@@ -358,6 +359,7 @@ function MetricEntryHistoryRow({
     <article className="entry-row">
       <div>
         <p className="entry-label">{metricName}</p>
+        <p className="meta-label">{formatMetricEntrySource(entry.source)}</p>
         <time dateTime={entry.recorded_at}>
           {formatMetricEntryRecordedAt(entry.recorded_at)}
         </time>
@@ -367,14 +369,16 @@ function MetricEntryHistoryRow({
         <p className="entry-value">
           {entry.value} {unit}
         </p>
-        <div className="entry-actions">
-          <button type="button" onClick={onEdit}>
-            Edit {metricName} entry
-          </button>
-          <button disabled={isDeleting} type="button" onClick={onDelete}>
-            {isDeleting ? 'Deleting...' : `Delete ${metricName} entry`}
-          </button>
-        </div>
+        {entry.source === 'manual' ? (
+          <div className="entry-actions">
+            <button type="button" onClick={onEdit}>
+              Edit {metricName} entry
+            </button>
+            <button disabled={isDeleting} type="button" onClick={onDelete}>
+              {isDeleting ? 'Deleting...' : `Delete ${metricName} entry`}
+            </button>
+          </div>
+        ) : null}
       </div>
     </article>
   )

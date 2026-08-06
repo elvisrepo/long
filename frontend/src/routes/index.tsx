@@ -1,6 +1,7 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load";
+import { formatMetricEntrySource } from "../features/metrics/metric-entry-formatters";
 import { useCreateMetricEntryMutation } from "../features/metrics/use-create-metric-entry-mutation";
 import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
 import { useMetricEntriesQuery } from "../features/metrics/use-metric-entries-query";
@@ -151,7 +152,7 @@ function DashboardRoute() {
       <section className="entries-card" aria-label="Metric entries">
         <div className="entries-toolbar">
           <div>
-            <p className="eyebrow">Recorded manually</p>
+            <p className="eyebrow">Manual and synced records</p>
             <h2>Recent Entries</h2>
           </div>
 
@@ -249,7 +250,9 @@ function MetricEntrySummary({
         </Link>
         <p className="entry-time">
           <time dateTime={recordedAt}>{displayRecordedAt}</time>
-          <span className="entry-source">{source}</span>
+          <span className="entry-source">
+            {formatMetricEntrySource(source)}
+          </span>
         </p>
       </div>
       <p className="entry-value">{displayValue}</p>

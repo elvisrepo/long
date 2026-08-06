@@ -480,7 +480,7 @@ MyPy gate repair completed on 2026-07-14:
 
 Immediate next wearable slice:
 - The normalized wearable ingestion endpoint is implemented synchronously end to end: active owner scoping, strict nested validation, canonical hashing, atomic persistence, terminal counters, exact retry reuse, upload conflicts, record skips, and record conflicts.
-- The thin Android companion app is now in progress. The immediate next behavior is real mobile authentication through Django, followed by connection registration, Health Connect weight permission/read, and a physical-device upload.
+- The thin Android companion app has completed its first physical-device vertical slice: live mobile authentication, connection registration, Health Connect weight permission/read, and a real Samsung-originated upload into Django and the React metric history.
 - Model tests should prove provider/status choices, ownership, nullable `last_synced_at`, optional `last_error`, and timestamp behavior.
 - API tests should prove authentication is required, list and status-detail responses expose only the caller's active connections, creation stores `request.user`, disconnect deactivates only the caller's connection and releases its slot, re-registration restores the same UUID, and invalid provider/server-managed values are rejected. Later trusted ingestion-service tests should cover sync-state updates.
 - API tests now prove that the connection collection rejects unauthenticated requests, lists only the caller's connections, assigns new connection ownership from the JWT user, rejects `samsung_health` as a direct provider, and rejects creation when the plan limit is exhausted.
@@ -497,7 +497,8 @@ Immediate next wearable slice:
 - A mixed-batch test proves one new record plus one identical stored record produces one successful `SyncRun` with `entries_imported=1` and `entries_skipped=1`, leaving exactly the two distinct metric records stored.
 - A changed-record test proves a new upload containing an existing `external_source_id` with different normalized content raises `WearableRecordConflictError`, preserves the original metric value, and rolls back the conflicting `SyncRun`.
 - Upload API coverage proves omitting required `entries` returns `400` and creates no `SyncRun`.
-- Frontend tests should be added only when a Settings/Wearables UI slice consumes the connection contract.
+- Metric-entry detail tests prove manual entries remain editable/deletable while provider/import-owned entries reject `PATCH` and `DELETE` with `409` and preserve the stored record.
+- The metric-detail route test proves a Samsung Health entry renders its source label without manual Edit/Delete controls.
 
 Current Android testing checkpoint — 2026-08-04:
 
@@ -519,7 +520,7 @@ Current Android testing checkpoint — 2026-08-04:
 - The focused `LoginScreenTest` suite now runs nine tests on the physical `FCP-N49` phone, including the ready-connection Sync weight now action and callback boundary.
 - Android Studio preview coverage exists through `LoginScreenPreview`; preview is developer tooling rather than a behavioral test.
 - Device tests require an authorized, awake, unlocked phone. A dozing device behind the lock screen was diagnosed to prevent Activity launch and produce “No compose hierarchies found”; rerunning unlocked passed both tests.
-- The HTTP repository uses a local fake server in JVM tests, the production token store is verified independently on-device, and the real Activity-to-ViewModel wiring is covered on-device. Manual physical-device runs prove live Django login, encrypted JWT persistence, local startup restoration, server-revoking logout, subsequent login after restoring the temporary `adb reverse` mapping, and Health Connect permission grant. Reading a real Health Connect record and uploading it remain unproven on-device.
+- The HTTP repository uses a local fake server in JVM tests, the production token store is verified independently on-device, and the real Activity-to-ViewModel wiring is covered on-device. Manual physical-device runs prove live Django login, encrypted JWT persistence, local startup restoration, server-revoking logout, subsequent login after restoring the temporary `adb reverse` mapping, Health Connect permission grant, and a complete Samsung Health weight sync. On 2026-08-06, the two latest Samsung-originated weight records were read through Health Connect, uploaded through `adb reverse`, stored by Django, and displayed in the React metric history.
 - Physical-device tests remain a local/pre-release gate. CI should run JVM Android tests first; emulator/instrumented CI can be added when the client behavior warrants its cost.
 
 When testing Samsung-sync behavior:

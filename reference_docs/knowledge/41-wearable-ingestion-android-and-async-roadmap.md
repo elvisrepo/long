@@ -61,13 +61,13 @@ The Android app is the device bridge. Django cannot directly read Health Connect
 | 1 | Add `SyncRun` and per-connection upload idempotency — implemented | Duplicate `(connection, upload_id)` cannot create a second receipt |
 | 2 | Define and test `POST /api/v1/wearables/uploads/` — normalized contract implemented | Authenticated owner can submit one valid normalized batch; unowned/inactive connections are rejected |
 | 3 | Process one small batch synchronously — fully wired | New batches, exact retries, upload conflicts, record skips, mixed counters, and record conflicts are covered through the live endpoint/service boundary |
-| 4 | Create a thin Android companion app — in progress | App can use mobile auth, request Health Connect permission, read one selected record type, and call the upload endpoint |
-| 5 | Run a physical-device vertical slice | One Samsung-originated or Health Connect test record becomes a visible backend metric entry |
+| 4 | Create a thin Android companion app — initial weight slice implemented | App can use mobile auth, request Health Connect permission, read weight records, and call the upload endpoint |
+| 5 | Run a physical-device vertical slice — completed 2026-08-06 | Two Samsung-originated records became visible React metric-history entries through the live local stack |
 | 6 | Add mappings and device scheduling | Supported record types have explicit semantic mappings and Android performs retryable periodic work |
 | 7 | Move expensive ingestion to Celery/Redis | API returns quickly while workers preserve the same database idempotency and terminal results |
 | 8 | Add sync UI and production hardening | Users can inspect sync state; operators have rate limits, logs, metrics, and repair tools |
 
-### Current Android checkpoint — 2026-08-04
+### Current Android checkpoint — 2026-08-06
 
 Implemented:
 
@@ -110,7 +110,6 @@ Implemented:
 
 Not implemented yet:
 
-- Health Connect availability, the weight-read permission request, paginated Android `WeightRecord` reader, initial planner/coordinator, request/response mapping, authenticated upload repository, ViewModel, and explicit Compose sync action are implemented. The end-to-end flow has not yet been manually run with a real Samsung-originated record against local Django.
 - WorkManager, Celery-backed asynchronous ingestion, and production distribution remain later phases.
 
 Manually validated on the physical phone:
@@ -118,6 +117,7 @@ Manually validated on the physical phone:
 - login reaches local Django through `adb reverse`, stores the JWT pair, and renders authenticated content
 - reinstalling the current debug build preserves the encrypted pair and local startup restoration reuses it without an immediate refresh request
 - the Health Connect system permission flow grants Longevity access to read the requested health data; the current manifest and client slice request only `READ_WEIGHT`
+- the explicit sync action read the two latest Samsung-originated weight records through Health Connect, uploaded them through `adb reverse`, created the corresponding Django sync/metric state, and made both values visible in the React metric history
 - Logout calls Django revocation, clears the local session, and returns to the login form
 - reconnecting USB/ADB may remove the reverse mapping; restoring `adb reverse tcp:8000 tcp:8000` restores local API access without a rebuild
 
