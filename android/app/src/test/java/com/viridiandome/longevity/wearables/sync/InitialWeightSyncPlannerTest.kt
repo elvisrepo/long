@@ -29,7 +29,7 @@ class InitialWeightSyncPlannerTest {
             clock = Clock.fixed(now, ZoneOffset.UTC),
         )
 
-        val batches = planner.readBatches()
+        val batches = planner.readBatches(CONNECTION_ID)
 
         assertEquals(Instant.parse("2026-07-06T12:00:00Z"), reader.startTime)
         assertEquals(now, reader.endTime)
@@ -52,7 +52,7 @@ class InitialWeightSyncPlannerTest {
             ),
         )
 
-        val batches = planner.readBatches()
+        val batches = planner.readBatches(CONNECTION_ID)
 
         assertEquals(listOf(100, 1), batches.map { it.size })
         assertEquals("record-1", batches.first().first().recordId)
@@ -77,7 +77,7 @@ class InitialWeightSyncPlannerTest {
             ),
         )
 
-        val batches = planner.readBatches()
+        val batches = planner.readBatches(CONNECTION_ID)
 
         assertEquals(emptyList<List<HealthConnectWeightSample>>(), batches)
     }
@@ -91,6 +91,10 @@ class InitialWeightSyncPlannerTest {
         recordedAt = Instant.parse("2026-08-04T07:30:00Z"),
         sourcePackageName = sourcePackageName,
     )
+
+    private companion object {
+        const val CONNECTION_ID = "7df7e4ab-7e6f-4558-b9be-17c824fbf54e"
+    }
 }
 
 private class RecordingWeightReader(

@@ -15,7 +15,7 @@ class WeightSyncCoordinator(
 ) : WeightSyncRunner {
     override suspend fun sync(connectionId: String): WeightSyncResult {
         val batches = try {
-            planner.readBatches()
+            planner.readBatches(connectionId)
         } catch (_: WeightReadPermissionRequiredException) {
             return interrupted(emptyList(), WeightSyncFailure.PermissionRequired)
         } catch (_: WeightReadUnavailableException) {

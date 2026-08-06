@@ -241,7 +241,18 @@ Shared weight-upload coordinator
     → domain results
 ```
 
-The exact incremental cursor policy must be decided and tested before periodic execution is wired. A timestamp plus a small overlap is a pragmatic MVP option because stable external record IDs make repeated records harmless. Health Connect change tokens are a stronger later option when edits/deletions and full provider reconciliation are supported.
+The timestamp-based MVP cursor policy is now implemented and unit-tested at the domain boundary:
+
+- cursors are scoped by backend connection ID so sessions/accounts on the same phone cannot share progress;
+- an existing watermark is read with a 24-hour overlap;
+- a missing watermark falls back to an exact 30-day window;
+- the incremental runner captures its candidate watermark before the read starts;
+- `Completed` and valid `NoData` outcomes persist that watermark;
+- `Interrupted` outcomes do not advance it.
+
+The overlap is deliberately generous for low-volume weight data. Stable Health Connect record IDs and backend `external_source_id` deduplication make repeated records harmless. Health Connect change tokens remain a stronger later option when edits/deletions and full provider reconciliation are supported.
+
+`WeightSyncCursorStore` is currently only a domain interface. No durable Android adapter is wired into `LongevityApplication`, and no background work is scheduled yet.
 
 ## 4. Android WorkManager
 
@@ -344,13 +355,14 @@ Celery processes data after it reaches the backend.
 
 ## 6. Recommended next implementation order
 
-1. Extract or define a shared weight-upload orchestration boundary without changing the successful initial flow.
-2. Add and test an incremental read-window policy with a deliberate overlap.
-3. Add WorkManager and worker test infrastructure.
-4. Implement a worker that calls the incremental runner, never the UI ViewModel.
-5. Map domain outcomes to WorkManager `success`, `retry`, and permanent `failure` deliberately.
-6. Add the background Health Connect feature check, manifest permission, and foreground permission request.
-7. Schedule one unique network-constrained periodic job only for an authenticated user with a Ready connection and granted background access.
-8. Cancel the user's unique background work on logout or connection disconnect.
-9. Validate the worker on the physical phone with the visible app closed.
-10. Add Celery/Redis ingestion only after synchronous backend processing becomes a measured bottleneck or requires server-independent retries.
+1. ~~Extract or define a shared weight-upload orchestration boundary without changing the successful initial flow.~~ Completed.
+2. ~~Add and test an incremental read-window policy with a deliberate overlap.~~ Completed at the domain boundary.
+3. Implement and test a durable per-connection cursor-store adapter.
+4. Add WorkManager and worker test infrastructure.
+5. Implement a worker that calls the incremental runner, never the UI ViewModel.
+6. Map domain outcomes to WorkManager `success`, `retry`, and permanent `failure` deliberately.
+7. Add the background Health Connect feature check, manifest permission, and foreground permission request.
+8. Schedule one unique network-constrained periodic job only for an authenticated user with a Ready connection and granted background access.
+9. Cancel the user's unique background work on logout or connection disconnect.
+10. Validate the worker on the physical phone with the visible app closed.
+11. Add Celery/Redis ingestion only after synchronous backend processing becomes a measured bottleneck or requires server-independent retries.

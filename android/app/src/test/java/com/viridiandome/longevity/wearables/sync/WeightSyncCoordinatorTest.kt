@@ -22,7 +22,9 @@ class WeightSyncCoordinatorTest {
     @Test
     fun coordinator_accepts_a_planner_boundary_without_health_connect() = runTest {
         val sample = weightSample("record-from-planner-boundary")
-        val planner = WeightSyncBatchPlanner {
+        var plannedConnectionId: String? = null
+        val planner = WeightSyncBatchPlanner { connectionId ->
+            plannedConnectionId = connectionId
             listOf(listOf(sample))
         }
         val receipt = successfulReceipt(UPLOAD_ID)
@@ -37,6 +39,7 @@ class WeightSyncCoordinatorTest {
 
         val result = coordinator.sync(CONNECTION_ID)
 
+        assertEquals(CONNECTION_ID, plannedConnectionId)
         assertEquals(
             listOf(UploadCall(CONNECTION_ID, UPLOAD_ID, listOf(sample))),
             repository.calls,
