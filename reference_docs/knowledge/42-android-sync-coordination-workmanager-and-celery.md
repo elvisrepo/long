@@ -252,7 +252,7 @@ The timestamp-based MVP cursor policy is now implemented and unit-tested at the 
 
 The overlap is deliberately generous for low-volume weight data. Stable Health Connect record IDs and backend `external_source_id` deduplication make repeated records harmless. Health Connect change tokens remain a stronger later option when edits/deletions and full provider reconciliation are supported.
 
-`WeightSyncCursorStore` is currently only a domain interface. No durable Android adapter is wired into `LongevityApplication`, and no background work is scheduled yet.
+`SharedPreferencesWeightSyncCursorStore` implements `WeightSyncCursorStore` with private, durable, per-connection epoch-millisecond values. Store recreation, connection isolation, missing values, and corrupted-value removal are verified on the physical phone. `LongevityApplication` now constructs the complete incremental runner graph, but no background work invokes or schedules it yet.
 
 ## 4. Android WorkManager
 
@@ -357,7 +357,7 @@ Celery processes data after it reaches the backend.
 
 1. ~~Extract or define a shared weight-upload orchestration boundary without changing the successful initial flow.~~ Completed.
 2. ~~Add and test an incremental read-window policy with a deliberate overlap.~~ Completed at the domain boundary.
-3. Implement and test a durable per-connection cursor-store adapter.
+3. ~~Implement and test a durable per-connection cursor-store adapter.~~ Completed and physically verified.
 4. Add WorkManager and worker test infrastructure.
 5. Implement a worker that calls the incremental runner, never the UI ViewModel.
 6. Map domain outcomes to WorkManager `success`, `retry`, and permanent `failure` deliberately.

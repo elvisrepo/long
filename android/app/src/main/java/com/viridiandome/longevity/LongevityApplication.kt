@@ -12,8 +12,13 @@ import com.viridiandome.longevity.wearables.WearableUploadRepository
 import com.viridiandome.longevity.wearables.healthconnect.AndroidHealthConnectAccess
 import com.viridiandome.longevity.wearables.network.HttpWearableConnectionRepository
 import com.viridiandome.longevity.wearables.network.HttpWearableUploadRepository
+import com.viridiandome.longevity.wearables.sync.IncrementalWeightSyncPlanner
+import com.viridiandome.longevity.wearables.sync.IncrementalWeightSyncRunner
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncPlanner
+import com.viridiandome.longevity.wearables.sync.SharedPreferencesWeightSyncCursorStore
 import com.viridiandome.longevity.wearables.sync.WeightSyncCoordinator
+import com.viridiandome.longevity.wearables.sync.WeightSyncCursorStore
+import com.viridiandome.longevity.wearables.sync.WeightSyncRunner
 import okhttp3.OkHttpClient
 
 /**
@@ -80,6 +85,25 @@ class LongevityApplication : Application() {
         WeightSyncCoordinator(
             planner = InitialWeightSyncPlanner(androidHealthConnectAccess),
             uploadRepository = wearableUploadRepository,
+        )
+    }
+
+    private val weightSyncCursorStore: WeightSyncCursorStore by lazy {
+        SharedPreferencesWeightSyncCursorStore(this)
+    }
+
+    /** Domain runner reserved for the upcoming WorkManager integration. */
+    val incrementalWeightSyncRunner: WeightSyncRunner by lazy {
+        val coordinator = WeightSyncCoordinator(
+            planner = IncrementalWeightSyncPlanner(
+                reader = androidHealthConnectAccess,
+                cursorStore = weightSyncCursorStore,
+            ),
+            uploadRepository = wearableUploadRepository,
+        )
+        IncrementalWeightSyncRunner(
+            delegate = coordinator,
+            cursorStore = weightSyncCursorStore,
         )
     }
 }
