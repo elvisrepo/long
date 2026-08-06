@@ -15,8 +15,8 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 webServerState = component "Server State Layer" "Fetches, caches, mutates, and invalidates current-user, metric, and subscription server state." "TanStack Query"
             }
 
-            android = container "Android Companion App" "Implemented mobile authentication, encrypted JWT storage, on-demand refresh/retry, Health Connect permission and paginated WeightRecord adapter, initial Samsung weight sync coordination, backend connection registration, and authenticated upload transport; the UI sync action is next." "Kotlin + Jetpack Compose" {
-                androidPresentation = component "Compose UI and ViewModels" "Renders login/session and Health Connect connection state, handles user actions, and coordinates the official permission Activity Result." "Jetpack Compose + AndroidX Lifecycle"
+            android = container "Android Companion App" "Implemented mobile authentication, encrypted JWT storage, on-demand refresh/retry, Health Connect permission and paginated WeightRecord adapter, explicit initial Samsung weight sync coordination, backend connection registration, and authenticated upload transport; physical end-to-end validation is next." "Kotlin + Jetpack Compose" {
+                androidPresentation = component "Compose UI and ViewModels" "Renders login/session, Health Connect connection, and safe aggregate weight-sync state; handles explicit connect/sync actions and coordinates the official permission Activity Result." "Jetpack Compose + AndroidX Lifecycle"
                 androidAuth = component "Mobile Auth Repository" "Implements mobile login, local startup restoration, on-demand refresh rotation, logout revocation, and safe error translation." "Kotlin + OkHttp"
                 androidTokenStore = component "Keystore Token Store" "Encrypts access and refresh JWTs with an Android-Keystore key and durably stores only ciphertext in private SharedPreferences." "Android Keystore + AES-GCM"
                 androidApiClient = component "Authenticated API Client" "Attaches stored bearer access tokens, coordinates one refresh after a 401, and retries the original product request once." "Kotlin + OkHttp + Coroutines"
@@ -24,7 +24,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 androidUploads = component "Wearable Upload Repository" "Posts normalized, retry-stable weight batches and maps Django SyncRun receipts and conflict/rejection outcomes without exposing transport DTOs." "Kotlin + OkHttp + kotlinx.serialization"
                 androidHealthAccess = component "Health Connect Access" "Checks SDK availability and WeightRecord permission, maps paginated SDK reads into SDK-independent weight samples, and translates permission races separately from retryable device-read failures." "AndroidX Health Connect"
                 androidWeightSyncPlanner = component "Initial Weight Sync Planner" "Requests a clock-bounded 30-day window, keeps exact Samsung Health provenance, and splits ordered samples into backend-safe batches." "Kotlin + Coroutines"
-                androidWeightSyncCoordinator = component "Initial Weight Sync Coordinator" "Coordinates ordered planned batches and authenticated uploads with one UUID per batch, preserves completed receipts when later work stops, and separates permission/read/upload failures; no UI action invokes it yet." "Kotlin + Coroutines"
+                androidWeightSyncCoordinator = component "Initial Weight Sync Coordinator" "Coordinates ordered planned batches and authenticated uploads with one UUID per batch, preserves completed receipts when later work stops, and separates permission/read/upload failures for the explicit UI action." "Kotlin + Coroutines"
             }
 
             api = container "Django API" "Synchronous HTTP API for auth, subscriptions/Stripe, metrics, and wearable connection/upload workflows." "Django + Django REST Framework" {
@@ -56,7 +56,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         user -> longevity.webapp "Uses"
         user -> longevity.android "Uses to connect and sync on-device health data"
         samsungHealth -> healthConnect "Writes Samsung-originated health records on device"
-          longevity.android -> healthConnect "Checks SDK availability and permission and exposes paginated WeightRecord reads to the initial sync coordinator; the UI sync action is next"
+          longevity.android -> healthConnect "Checks SDK availability and permission and reads paginated WeightRecord data after the explicit UI sync action"
         user -> stripe "Completes hosted Checkout and manages billing/cancellation in the Customer Portal"
 
           longevity.webapp -> longevity.api "Calls JSON API over HTTPS"
@@ -77,6 +77,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
           longevity.android.androidPresentation -> longevity.android.androidAuth "Restores, creates, and revokes the mobile session"
           longevity.android.androidPresentation -> longevity.android.androidWearables "Starts Health Connect connection registration"
           longevity.android.androidPresentation -> longevity.android.androidHealthAccess "Checks Health Connect availability and existing permission"
+          longevity.android.androidPresentation -> longevity.android.androidWeightSyncCoordinator "Starts explicit weight sync and renders aggregate outcome"
           longevity.android.androidWeightSyncPlanner -> longevity.android.androidHealthAccess "Reads normalized weight samples for the initial sync window"
           longevity.android.androidWeightSyncCoordinator -> longevity.android.androidWeightSyncPlanner "Requests ordered Samsung-originated weight batches"
           longevity.android.androidWeightSyncCoordinator -> longevity.android.androidUploads "Uploads each planned batch with one generated UUID"
@@ -96,7 +97,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
           longevity.webapp -> longevity.api.metricsApi "Uses metric definition and entry endpoints"
           longevity.webapp -> longevity.api.subscriptionsApi "Uses subscription, Checkout, and Portal endpoints"
           longevity.android -> longevity.api.authApi "Uses mobile auth endpoints"
-          longevity.android -> longevity.api.wearablesApi "Uses implemented connection and normalized upload endpoints; the UI sync action is next"
+          longevity.android -> longevity.api.wearablesApi "Uses implemented connection and normalized upload endpoints through explicit mobile actions"
 
           longevity.api.authApi -> longevity.db "Reads users and writes SimpleJWT outstanding/blacklisted token state"
           longevity.api.authApi -> longevity.api.subscriptionsApi "Creates the default Free subscription during registration"
@@ -689,7 +690,9 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.android.androidWearables -> longevity.android.androidPresentation "Publishes Ready, Rejected, NoSession, or Unavailable UI state"
         }
 
-        dynamic longevity.android "mobile-initial-weight-sync-coordinator" "Dynamic view of the implemented initial weight coordinator through Django ingestion; no Compose or ViewModel action invokes this boundary yet." {
+        dynamic longevity.android "mobile-initial-weight-sync-coordinator" "Dynamic view of the implemented explicit initial weight sync from Compose through Django ingestion; physical record-to-database validation is pending." {
+            user -> longevity.android.androidPresentation "Chooses Sync weight now for a resolved Health Connect connection"
+            longevity.android.androidPresentation -> longevity.android.androidWeightSyncCoordinator "InitialWeightSyncViewModel starts one non-overlapping sync with the caller-owned connection ID"
             longevity.android.androidWeightSyncCoordinator -> longevity.android.androidWeightSyncPlanner "Requests the initial weight batches for one caller-owned connection"
             longevity.android.androidWeightSyncPlanner -> longevity.android.androidHealthAccess "Requests the previous 30 days of WeightRecord data"
             longevity.android.androidHealthAccess -> healthConnect "Reads every page in ascending order"
@@ -704,6 +707,8 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.api -> longevity.android.androidApiClient "Returns 201 for new work, 200 for an exact retry, or a safe rejection/conflict"
             longevity.android.androidApiClient -> longevity.android.androidUploads "Returns the buffered response without logging health data"
             longevity.android.androidUploads -> longevity.android.androidWeightSyncCoordinator "Returns a typed receipt or explicit conflict/rejection/session/unavailable outcome"
+            longevity.android.androidWeightSyncCoordinator -> longevity.android.androidPresentation "Returns aggregate imported/skipped counts, no-data, or a safe recovery outcome without records or receipt IDs"
+            user -> longevity.android.androidPresentation "Sees the completed or actionable sync state"
         }
 
         dynamic longevity "wearable-connection-disconnect" "Dynamic view of the implemented backend disconnect boundary; the Android client action is planned." {
@@ -840,7 +845,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             user -> longevity.webapp "Sees Free plan state after the paid subscription has actually ended"
         }
 
-        deployment * localDev "local-development-deployment" "Current local runtime: browser-executed React app with Vite /api proxy, synchronous Django/PostgreSQL product flows, Stripe CLI forwarding, and an adb-installed Android client with mobile auth, Health Connect permission/reader adapter, and wearable registration. A physical record-to-upload flow is next; Redis/Celery/Beat remain unused by product flows." {
+        deployment * localDev "local-development-deployment" "Current local runtime: browser-executed React app with Vite /api proxy, synchronous Django/PostgreSQL product flows, Stripe CLI forwarding, and an adb-installed Android client with mobile auth, Health Connect permission/reader, wearable registration, and explicit weight-sync UI. Physical record-to-database validation is next; Redis/Celery/Beat remain unused by product flows." {
             include *
             autolayout lr
         }

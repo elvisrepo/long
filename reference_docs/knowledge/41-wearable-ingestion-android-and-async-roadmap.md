@@ -99,6 +99,7 @@ Implemented:
 - `SyncRunResponse` decodes Django's read-only upload receipt, including imported/skipped counters and nullable processing/finish timestamps so the Android boundary supports both today's synchronous terminal result and the planned asynchronous lifecycle.
 - `HttpWearableUploadRepository` maps planned samples into the normalized request and posts it through the shared authenticated client. New `201` and exact-retry `200` receipts are success; `409` content conflicts, `400`/`404` rejections, missing sessions, and retryable/malformed failures remain distinct. Its public receipt uses typed `Instant` values and does not expose transport DTOs.
 - `InitialWeightSyncCoordinator` connects the planner to the upload repository. It creates one UUID per ordered batch, returns all terminal receipts when complete, avoids generating identities or requests when there is no Samsung data, and stops on the first failed batch while preserving receipts for earlier batches already committed by Django. Permission loss and retryable Health Connect read failure stop before UUID generation and remain distinct from backend upload outcomes.
+- `InitialWeightSyncViewModel` runs only after the user chooses Sync weight now, prevents overlapping work, aggregates receipts into imported/skipped counts, exposes recovery outcomes without health records or receipt IDs, and cancels/clears state on logout. The authenticated Compose screen shows the action only for a resolved caller-owned connection and renders idle, syncing, no-data, completed, interrupted, and safe unavailable states.
 - The manifest declares only `android.permission.health.READ_WEIGHT`, the pre-Android-14 Health Connect package query, and the required pre/post-Android-14 permission-rationale intents. A local rationale screen explains that authorized weight samples are read and normalized for the user's account; the app does not write or delete Health Connect data.
 - `MainActivity` launches the official Health Connect permission Activity Result contract only after an explicit Connect action. A grant continues backend registration; a denial creates no backend connection and remains retryable.
 - The debug build targets local Django at `http://127.0.0.1:8000/` through `adb reverse`; the release base URL is intentionally unset until the production HTTPS endpoint exists.
@@ -109,7 +110,7 @@ Implemented:
 
 Not implemented yet:
 
-- Health Connect availability, the weight-read permission request, the paginated Android `WeightRecord` reader adapter, initial planning/coordinator services, request/response mapping, and authenticated upload repository are implemented. No ViewModel or Compose action invokes the coordinator yet, so the app has not physically read and uploaded a record through the product flow.
+- Health Connect availability, the weight-read permission request, paginated Android `WeightRecord` reader, initial planner/coordinator, request/response mapping, authenticated upload repository, ViewModel, and explicit Compose sync action are implemented. The end-to-end flow has not yet been manually run with a real Samsung-originated record against local Django.
 - WorkManager, Celery-backed asynchronous ingestion, and production distribution remain later phases.
 
 Manually validated on the physical phone:

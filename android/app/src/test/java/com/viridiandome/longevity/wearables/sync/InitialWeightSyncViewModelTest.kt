@@ -1,0 +1,176 @@
+package com.viridiandome.longevity.wearables.sync
+
+import com.viridiandome.longevity.wearables.WearableUploadReceipt
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
+import org.junit.Before
+import org.junit.Test
+import java.time.Instant
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class InitialWeightSyncViewModelTest {
+    private val testDispatcher = StandardTestDispatcher()
+
+    @Before
+    fun setUp() {
+        Dispatchers.setMain(testDispatcher)
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
+    @Test
+    fun explicit_sync_publishes_completed_batch_summary() = runTest {
+        val runner = ControllableInitialWeightSyncRunner()
+        val viewModel = InitialWeightSyncViewModel(runner)
+
+        assertSame(InitialWeightSyncUiState.Idle, viewModel.state.value)
+        assertEquals(0, runner.requests)
+
+        viewModel.sync(CONNECTION_ID)
+
+        assertSame(InitialWeightSyncUiState.Syncing, viewModel.state.value)
+        runCurrent()
+        assertEquals(1, runner.requests)
+        assertEquals(CONNECTION_ID, runner.connectionId)
+
+        runner.complete(
+            InitialWeightSyncResult.Completed(
+                receipts = listOf(successfulReceipt()),
+            ),
+        )
+        advanceUntilIdle()
+
+        assertEquals(
+            InitialWeightSyncUiState.Completed(
+                batchCount = 1,
+                entriesImported = 1,
+                entriesSkipped = 0,
+            ),
+            viewModel.state.value,
+        )
+    }
+
+    @Test
+    fun repeated_tap_does_not_overlap_an_active_sync() = runTest {
+        val runner = ControllableInitialWeightSyncRunner()
+        val viewModel = InitialWeightSyncViewModel(runner)
+
+        viewModel.sync(CONNECTION_ID)
+        runCurrent()
+        viewModel.sync(CONNECTION_ID)
+        runCurrent()
+
+        assertEquals(1, runner.requests)
+        assertSame(InitialWeightSyncUiState.Syncing, viewModel.state.value)
+    }
+
+    @Test
+    fun empty_sync_window_is_a_no_data_state() = runTest {
+        val viewModel = InitialWeightSyncViewModel(
+            FixedInitialWeightSyncRunner(InitialWeightSyncResult.NoData),
+        )
+
+        viewModel.sync(CONNECTION_ID)
+        advanceUntilIdle()
+
+        assertSame(InitialWeightSyncUiState.NoData, viewModel.state.value)
+    }
+
+    @Test
+    fun interrupted_sync_exposes_only_completed_counts_and_recovery_reason() = runTest {
+        val viewModel = InitialWeightSyncViewModel(
+            FixedInitialWeightSyncRunner(
+                InitialWeightSyncResult.Interrupted(
+                    completedReceipts = listOf(successfulReceipt()),
+                    failure = InitialWeightSyncFailure.PermissionRequired,
+                ),
+            ),
+        )
+
+        viewModel.sync(CONNECTION_ID)
+        advanceUntilIdle()
+
+        assertEquals(
+            InitialWeightSyncUiState.Interrupted(
+                completedBatchCount = 1,
+                entriesImported = 1,
+                entriesSkipped = 0,
+                failure = InitialWeightSyncFailure.PermissionRequired,
+            ),
+            viewModel.state.value,
+        )
+    }
+
+    @Test
+    fun logout_cancels_sync_and_clears_previous_user_state() = runTest {
+        val runner = ControllableInitialWeightSyncRunner()
+        val viewModel = InitialWeightSyncViewModel(runner)
+        viewModel.sync(CONNECTION_ID)
+        runCurrent()
+
+        viewModel.resetForLogout()
+        runner.complete(
+            InitialWeightSyncResult.Completed(
+                receipts = listOf(successfulReceipt()),
+            ),
+        )
+        advanceUntilIdle()
+
+        assertSame(InitialWeightSyncUiState.Idle, viewModel.state.value)
+    }
+
+    private fun successfulReceipt(): WearableUploadReceipt =
+        WearableUploadReceipt(
+            id = "6ac744c4-8202-4cd7-91c7-3d44ea067381",
+            connectionId = CONNECTION_ID,
+            uploadId = "9ea2c91d-63f4-40eb-a6bb-7fbd90c12a34",
+            status = "succeeded",
+            receivedAt = Instant.parse("2026-08-05T12:00:01Z"),
+            processingStartedAt = Instant.parse("2026-08-05T12:00:01Z"),
+            finishedAt = Instant.parse("2026-08-05T12:00:02Z"),
+            entriesImported = 1,
+            entriesSkipped = 0,
+        )
+
+    private companion object {
+        const val CONNECTION_ID = "7df7e4ab-7e6f-4558-b9be-17c824fbf54e"
+    }
+}
+
+private class ControllableInitialWeightSyncRunner : InitialWeightSyncRunner {
+    private val result = CompletableDeferred<InitialWeightSyncResult>()
+
+    var requests = 0
+        private set
+    var connectionId: String? = null
+        private set
+
+    override suspend fun sync(connectionId: String): InitialWeightSyncResult {
+        requests += 1
+        this.connectionId = connectionId
+        return result.await()
+    }
+
+    fun complete(value: InitialWeightSyncResult) {
+        result.complete(value)
+    }
+}
+
+private class FixedInitialWeightSyncRunner(
+    private val result: InitialWeightSyncResult,
+) : InitialWeightSyncRunner {
+    override suspend fun sync(connectionId: String): InitialWeightSyncResult = result
+}

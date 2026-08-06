@@ -22,6 +22,8 @@ import com.viridiandome.longevity.wearables.WearableConnectionViewModelFactory
 import com.viridiandome.longevity.wearables.WearableConnectionUiState
 import com.viridiandome.longevity.wearables.healthconnect.WEIGHT_READ_PERMISSION
 import com.viridiandome.longevity.wearables.healthconnect.WEIGHT_READ_PERMISSIONS
+import com.viridiandome.longevity.wearables.sync.InitialWeightSyncViewModel
+import com.viridiandome.longevity.wearables.sync.InitialWeightSyncViewModelFactory
 
 /**
  * Android's entry point for the app.
@@ -42,6 +44,11 @@ class MainActivity : ComponentActivity() {
             app.wearableConnectionRepository,
             app.healthConnectAccess,
         )
+    }
+
+    private val initialWeightSyncViewModel: InitialWeightSyncViewModel by viewModels {
+        val app = application as LongevityApplication
+        InitialWeightSyncViewModelFactory(app.initialWeightSyncCoordinator)
     }
 
     private val healthPermissionLauncher = registerForActivityResult(
@@ -66,6 +73,8 @@ class MainActivity : ComponentActivity() {
                 val loginState by loginViewModel.state.collectAsStateWithLifecycle()
                 val wearableConnectionState by wearableConnectionViewModel.state
                     .collectAsStateWithLifecycle()
+                val initialWeightSyncState by initialWeightSyncViewModel.state
+                    .collectAsStateWithLifecycle()
 
                 // Logout removes the previous user's connection state. Merely
                 // becoming authenticated does not register a wearable connection;
@@ -73,6 +82,7 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(loginState.isAuthenticated) {
                     if (!loginState.isAuthenticated) {
                         wearableConnectionViewModel.resetForLogout()
+                        initialWeightSyncViewModel.resetForLogout()
                     }
                 }
 
@@ -97,8 +107,18 @@ class MainActivity : ComponentActivity() {
                         onSignIn = loginViewModel::signIn,
                         onLogout = loginViewModel::logout,
                         wearableConnectionState = wearableConnectionState,
+                        initialWeightSyncState = initialWeightSyncState,
                         onConnectHealthConnect = wearableConnectionViewModel::load,
                         onRetryHealthConnect = wearableConnectionViewModel::retry,
+                        onSyncWeight = {
+                            val connection = (
+                                wearableConnectionState as?
+                                    WearableConnectionUiState.Ready
+                                )?.connection
+                            if (connection != null) {
+                                initialWeightSyncViewModel.sync(connection.id)
+                            }
+                        },
                         modifier = Modifier.padding(innerPadding),
                     )
                 }

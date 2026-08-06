@@ -6,6 +6,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.viridiandome.longevity.wearables.WearableConnectionUiState
+import com.viridiandome.longevity.wearables.network.WearableConnectionResponse
+import com.viridiandome.longevity.wearables.sync.InitialWeightSyncUiState
 import org.junit.Rule
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -166,6 +168,41 @@ class LoginScreenTest {
             .performClick()
 
         assertTrue(connectionRequested)
+    }
+
+    @Test
+    fun ready_health_connect_state_forwards_explicit_weight_sync_click() {
+        var syncRequested = false
+        composeTestRule.setContent {
+            LoginScreen(
+                state = LoginFormState(
+                    email = "user@example.com",
+                    password = "",
+                    isAuthenticated = true,
+                ),
+                wearableConnectionState = WearableConnectionUiState.Ready(
+                    WearableConnectionResponse(
+                        id = "7df7e4ab-7e6f-4558-b9be-17c824fbf54e",
+                        provider = "health_connect",
+                        status = "pending",
+                        lastSyncedAt = null,
+                        lastError = "",
+                        createdAt = "2026-08-05T10:00:00Z",
+                        updatedAt = "2026-08-05T10:00:00Z",
+                    ),
+                ),
+                initialWeightSyncState = InitialWeightSyncUiState.Idle,
+                onEmailChange = {},
+                onPasswordChange = {},
+                onSignIn = {},
+                onLogout = {},
+                onSyncWeight = { syncRequested = true },
+            )
+        }
+
+        composeTestRule.onNodeWithText("Sync weight now").performClick()
+
+        assertTrue(syncRequested)
     }
 
     @Test

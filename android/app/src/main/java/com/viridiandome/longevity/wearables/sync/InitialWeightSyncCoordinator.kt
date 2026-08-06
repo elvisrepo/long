@@ -12,8 +12,8 @@ class InitialWeightSyncCoordinator(
     private val planner: InitialWeightSyncPlanner,
     private val uploadRepository: WearableUploadRepository,
     private val uploadIdFactory: () -> String = { UUID.randomUUID().toString() },
-) {
-    suspend fun sync(connectionId: String): InitialWeightSyncResult {
+) : InitialWeightSyncRunner {
+    override suspend fun sync(connectionId: String): InitialWeightSyncResult {
         val batches = try {
             planner.readBatches()
         } catch (_: WeightReadPermissionRequiredException) {
@@ -63,6 +63,11 @@ class InitialWeightSyncCoordinator(
             completedReceipts = receipts.toList(),
             failure = failure,
         )
+}
+
+/** ViewModel-facing boundary for one explicit initial weight sync. */
+fun interface InitialWeightSyncRunner {
+    suspend fun sync(connectionId: String): InitialWeightSyncResult
 }
 
 sealed interface InitialWeightSyncResult {

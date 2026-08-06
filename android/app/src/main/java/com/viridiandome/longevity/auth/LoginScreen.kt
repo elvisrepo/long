@@ -28,6 +28,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.viridiandome.longevity.ui.theme.LongevityTheme
 import com.viridiandome.longevity.wearables.WearableConnectionUiState
+import com.viridiandome.longevity.wearables.sync.InitialWeightSyncFailure
+import com.viridiandome.longevity.wearables.sync.InitialWeightSyncUiState
 
 /**
  * Stateless authentication UI.
@@ -44,8 +46,11 @@ fun LoginScreen(
     onLogout: () -> Unit,
     wearableConnectionState: WearableConnectionUiState =
         WearableConnectionUiState.Idle,
+    initialWeightSyncState: InitialWeightSyncUiState =
+        InitialWeightSyncUiState.Idle,
     onConnectHealthConnect: () -> Unit = {},
     onRetryHealthConnect: () -> Unit = {},
+    onSyncWeight: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     if (state.isCheckingSession) {
@@ -58,8 +63,10 @@ fun LoginScreen(
             state = state,
             onLogout = onLogout,
             wearableConnectionState = wearableConnectionState,
+            initialWeightSyncState = initialWeightSyncState,
             onConnectHealthConnect = onConnectHealthConnect,
             onRetryHealthConnect = onRetryHealthConnect,
+            onSyncWeight = onSyncWeight,
             modifier = modifier,
         )
         return
@@ -181,8 +188,10 @@ private fun AuthenticatedContent(
     state: LoginFormState,
     onLogout: () -> Unit,
     wearableConnectionState: WearableConnectionUiState,
+    initialWeightSyncState: InitialWeightSyncUiState,
     onConnectHealthConnect: () -> Unit,
     onRetryHealthConnect: () -> Unit,
+    onSyncWeight: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -205,8 +214,10 @@ private fun AuthenticatedContent(
 
         HealthConnectContent(
             state = wearableConnectionState,
+            initialWeightSyncState = initialWeightSyncState,
             onConnect = onConnectHealthConnect,
             onRetry = onRetryHealthConnect,
+            onSyncWeight = onSyncWeight,
         )
 
         state.errorMessage?.let { errorMessage ->
@@ -239,8 +250,10 @@ private fun AuthenticatedContent(
 @Composable
 private fun HealthConnectContent(
     state: WearableConnectionUiState,
+    initialWeightSyncState: InitialWeightSyncUiState,
     onConnect: () -> Unit,
     onRetry: () -> Unit,
+    onSyncWeight: () -> Unit,
 ) {
     Text(
         text = "Health Connect",
@@ -296,6 +309,14 @@ private fun HealthConnectContent(
                 else -> "Disconnected"
             }
             Text(text = statusText)
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            InitialWeightSyncContent(
+                state = initialWeightSyncState,
+                onSync = onSyncWeight,
+                onReviewPermission = onRetry,
+            )
         }
 
         WearableConnectionUiState.Rejected -> {
@@ -317,6 +338,97 @@ private fun HealthConnectContent(
         }
     }
 }
+
+/** Renders aggregate sync state without exposing records or receipt identifiers. */
+@Composable
+private fun InitialWeightSyncContent(
+    state: InitialWeightSyncUiState,
+    onSync: () -> Unit,
+    onReviewPermission: () -> Unit,
+) {
+    when (state) {
+        InitialWeightSyncUiState.Idle -> {
+            Button(onClick = onSync) {
+                Text(text = "Sync weight now")
+            }
+        }
+
+        InitialWeightSyncUiState.Syncing -> {
+            CircularProgressIndicator()
+            Text(text = "Syncing weight...")
+        }
+
+        InitialWeightSyncUiState.NoData -> {
+            Text(text = "No Samsung Health weight records found in the last 30 days.")
+            Button(onClick = onSync) {
+                Text(text = "Sync again")
+            }
+        }
+
+        is InitialWeightSyncUiState.Completed -> {
+            Text(
+                text = "Weight sync complete: ${state.entriesImported} imported, " +
+                    "${state.entriesSkipped} already present.",
+            )
+            Button(onClick = onSync) {
+                Text(text = "Sync again")
+            }
+        }
+
+        is InitialWeightSyncUiState.Interrupted -> {
+            if (state.completedBatchCount > 0) {
+                Text(
+                    text = "${state.completedBatchCount} batch(es) completed before sync stopped.",
+                )
+            }
+            Text(text = state.failure.userMessage())
+
+            if (state.failure === InitialWeightSyncFailure.PermissionRequired) {
+                Button(onClick = onReviewPermission) {
+                    Text(text = "Review Health Connect permission")
+                }
+            }
+
+            if (
+                state.failure !== InitialWeightSyncFailure.Conflict &&
+                state.failure !== InitialWeightSyncFailure.Rejected &&
+                state.failure !== InitialWeightSyncFailure.NoSession
+            ) {
+                Button(onClick = onSync) {
+                    Text(text = "Retry weight sync")
+                }
+            }
+        }
+
+        InitialWeightSyncUiState.Unavailable -> {
+            Text(text = "Unable to sync weight right now.")
+            Button(onClick = onSync) {
+                Text(text = "Retry weight sync")
+            }
+        }
+    }
+}
+
+private fun InitialWeightSyncFailure.userMessage(): String =
+    when (this) {
+        InitialWeightSyncFailure.PermissionRequired ->
+            "Health Connect weight permission is required."
+
+        InitialWeightSyncFailure.ReadUnavailable ->
+            "Health Connect could not read weight records right now."
+
+        InitialWeightSyncFailure.Conflict ->
+            "A stored health record conflicts with this sync."
+
+        InitialWeightSyncFailure.Rejected ->
+            "The weight sync was rejected for this connection."
+
+        InitialWeightSyncFailure.NoSession ->
+            "Your session expired. Log out and sign in again."
+
+        InitialWeightSyncFailure.Unavailable ->
+            "The server could not complete the weight sync right now."
+    }
 
 @Preview(
     showBackground = true,
