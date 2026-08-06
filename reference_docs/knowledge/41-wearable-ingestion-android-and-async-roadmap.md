@@ -102,6 +102,7 @@ Implemented:
 - `IncrementalWeightSyncPlanner` and `WeightSyncCursorStore` now define the background read-window policy at the domain boundary. Cursor lookup is scoped by caller-owned connection ID; an existing watermark receives a 24-hour overlap, a missing watermark safely falls back to 30 days, and stable external record IDs make overlap duplicates harmless at ingestion.
 - `IncrementalWeightSyncRunner` wraps a shared runner and captures the conservative watermark before reading. It persists that watermark after `Completed` or `NoData`, but never after `Interrupted`, so failed or partially completed work remains inside the next retry window.
 - `SharedPreferencesWeightSyncCursorStore` persists epoch-millisecond watermarks in private application storage with one key per connection. Writes use durable `commit()` on the I/O dispatcher; missing values return `null`, and wrong-typed corrupted values are removed before the planner falls back safely. Cursor preferences are excluded from cloud backup and device transfer so an old device watermark cannot skip Health Connect history on a different phone. The store and incremental runner are constructed at application scope, but no WorkManager job invokes them yet.
+- Stable AndroidX WorkManager `2.11.2` and its `work-testing` artifact are configured. `WeightSyncResult.toWorkResult()` is the tested domain-to-scheduler boundary: `Completed`/`NoData` become success; `ReadUnavailable`/`Unavailable` become retry; permission, conflict, rejection, and missing-session outcomes become failure. No `CoroutineWorker` or scheduled work exists yet.
 - `InitialWeightSyncViewModel` runs only after the user chooses Sync weight now, prevents overlapping work, aggregates receipts into imported/skipped counts, exposes recovery outcomes without health records or receipt IDs, and cancels/clears state on logout. The authenticated Compose screen shows the action only for a resolved caller-owned connection and renders idle, syncing, no-data, completed, interrupted, and safe unavailable states.
 - The manifest declares only `android.permission.health.READ_WEIGHT`, the pre-Android-14 Health Connect package query, and the required pre/post-Android-14 permission-rationale intents. A local rationale screen explains that authorized weight samples are read and normalized for the user's account; the app does not write or delete Health Connect data.
 - `MainActivity` launches the official Health Connect permission Activity Result contract only after an explicit Connect action. A grant continues backend registration; a denial creates no backend connection and remains retryable.
@@ -113,7 +114,7 @@ Implemented:
 
 Not implemented yet:
 
-- WorkManager, Celery-backed asynchronous ingestion, and production distribution remain later phases.
+- The WorkManager worker/factory, periodic scheduling, Celery-backed asynchronous ingestion, and production distribution remain later phases.
 
 Manually validated on the physical phone:
 

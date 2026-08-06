@@ -20,7 +20,7 @@
 | **Web UI Primitives** | shadcn/ui | Editable component primitives instead of a black-box component package |
 | **Web Styling** | Tailwind CSS | Works naturally with shadcn/ui and speeds app-shell styling |
 | **Web Lint/Format** | ESLint + Prettier | Separate correctness checks from formatting, matches React guidance |
-| **Mobile** | Kotlin Android app + Jetpack Compose + OkHttp | Required for Samsung-sync MVP because Samsung data is read on device; OkHttp provides the explicit coroutine-aware HTTP boundary |
+| **Mobile** | Kotlin Android app + Jetpack Compose + OkHttp + AndroidX WorkManager | Required for Samsung-sync MVP because Samsung data is read on device; OkHttp provides the explicit coroutine-aware HTTP boundary, while WorkManager 2.11.2 provides the stable background-work runtime and test infrastructure |
 | **On-Device Health Access** | Health Connect (preferred) / Samsung Health Data SDK if required | Health Connect reduces Samsung-specific coupling; direct Samsung SDK is a fallback for metrics not exposed through Health Connect |
 | **Payments** | Stripe | Best docs, Checkout + Customer Portal = minimal frontend work |
 | **Auth** | djangorestframework-simplejwt | JWT, stays in DRF ecosystem |

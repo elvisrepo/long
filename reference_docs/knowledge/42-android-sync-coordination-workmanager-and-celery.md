@@ -280,6 +280,14 @@ Worker returns success, retry, or permanent failure
 
 The worker must not use `InitialWeightSyncViewModel`. ViewModels belong to visible UI lifecycles. WorkManager should depend on a domain runner/coordinator supplied from application-level dependencies.
 
+Stable WorkManager `2.11.2` and `work-testing` are now configured. The implemented `WeightSyncResult.toWorkResult()` boundary maps:
+
+- `Completed` and `NoData` to `Result.success()`;
+- temporary Health Connect read failure and server/network unavailability to `Result.retry()`;
+- permission, conflict, rejection, and missing-session outcomes to `Result.failure()` because automatic retries cannot repair them.
+
+The mapper and testing dependency are implemented; the injectable `CoroutineWorker`, its factory, and scheduling are not.
+
 Periodic WorkManager execution is inexact. Android may delay work because of Doze, battery optimization, and other constraints. The platform has a 15-minute minimum periodic interval, but a 15-minute request is not a guarantee that work runs exactly every 15 minutes.
 
 Background Health Connect reads also require:
@@ -358,11 +366,10 @@ Celery processes data after it reaches the backend.
 1. ~~Extract or define a shared weight-upload orchestration boundary without changing the successful initial flow.~~ Completed.
 2. ~~Add and test an incremental read-window policy with a deliberate overlap.~~ Completed at the domain boundary.
 3. ~~Implement and test a durable per-connection cursor-store adapter.~~ Completed and physically verified.
-4. Add WorkManager and worker test infrastructure.
-5. Implement a worker that calls the incremental runner, never the UI ViewModel.
-6. Map domain outcomes to WorkManager `success`, `retry`, and permanent `failure` deliberately.
-7. Add the background Health Connect feature check, manifest permission, and foreground permission request.
-8. Schedule one unique network-constrained periodic job only for an authenticated user with a Ready connection and granted background access.
-9. Cancel the user's unique background work on logout or connection disconnect.
-10. Validate the worker on the physical phone with the visible app closed.
-11. Add Celery/Redis ingestion only after synchronous backend processing becomes a measured bottleneck or requires server-independent retries.
+4. ~~Add stable WorkManager runtime/testing dependencies and test the domain-to-work result policy.~~ Completed.
+5. Implement and test an injected `CoroutineWorker` that calls the incremental runner, never the UI ViewModel.
+6. Add the background Health Connect feature check, manifest permission, and foreground permission request.
+7. Schedule one unique network-constrained periodic job only for an authenticated user with a Ready connection and granted background access.
+8. Cancel the user's unique background work on logout or connection disconnect.
+9. Validate the worker on the physical phone with the visible app closed.
+10. Add Celery/Redis ingestion only after synchronous backend processing becomes a measured bottleneck or requires server-independent retries.
