@@ -12,6 +12,7 @@ import {
 } from 'chart.js'
 import { useEffect, useMemo, useRef } from 'react'
 
+import { formatMetricValue } from './metric-entry-formatters'
 import type { MetricEntry } from './metric-entries-api'
 
 // Chart.js is modular: every controller, scale, element, and plugin used by
@@ -30,17 +31,19 @@ ChartJS.register(
 interface MetricTrendChartProps {
   entries: MetricEntry[]
   metricName: string
+  metricSlug: string
   unit: string
 }
 
 export function MetricTrendChart({
   entries,
   metricName,
+  metricSlug,
   unit,
 }: MetricTrendChartProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   // The chart is a daily trend, not a raw event plot. Entry History still shows
-  // every log, but the chart uses the latest manually recorded value per day.
+  // every manual or synced record, but the chart uses the latest value per day.
   const chartEntries = useMemo(() => getLatestEntriesByDay(entries), [entries])
   const values = useMemo(
     () => chartEntries.map((entry) => entry.value),
@@ -48,7 +51,7 @@ export function MetricTrendChart({
   )
   const chartSummary =
     values.length > 0
-      ? `${Math.min(...values)} to ${Math.max(...values)} ${unit}`
+      ? `${formatMetricValue(Math.min(...values), metricSlug)} to ${formatMetricValue(Math.max(...values), metricSlug)} ${unit}`
       : undefined
 
   useEffect(() => {
@@ -105,7 +108,13 @@ export function MetricTrendChart({
         plugins: {
           tooltip: {
             callbacks: {
-              label: (tooltipItem) => `${tooltipItem.parsed.y} ${unit}`,
+              label: (tooltipItem) => {
+                const value = tooltipItem.parsed.y
+
+                return value === null
+                  ? 'No value'
+                  : `${formatMetricValue(value, metricSlug)} ${unit}`
+              },
             },
           },
         },
@@ -120,7 +129,8 @@ export function MetricTrendChart({
             grid: { color: 'rgba(133, 151, 176, 0.14)' },
             ticks: {
               color: '#8597b0',
-              callback: (value) => `${value} ${unit}`,
+              callback: (value) =>
+                `${typeof value === 'number' ? formatMetricValue(value, metricSlug) : value} ${unit}`,
             },
           },
         },
@@ -132,7 +142,7 @@ export function MetricTrendChart({
     return () => {
       chart.destroy()
     }
-  }, [chartEntries, metricName, unit, values])
+  }, [chartEntries, metricName, metricSlug, unit, values])
 
   if (chartEntries.length === 0) {
     return <p className="trend-empty">No chart data yet.</p>

@@ -31,6 +31,7 @@ describe('MetricTrendChart', () => {
       <MetricTrendChart
         entries={metricEntries}
         metricName="Resting Heart Rate"
+        metricSlug="resting_hr"
         unit="bpm"
       />,
     )
@@ -40,6 +41,38 @@ describe('MetricTrendChart', () => {
     ).toBeInTheDocument()
     expect(screen.getByText(/56 to 60 bpm/i)).toBeInTheDocument()
     expect(screen.getByText(/daily latest values/i)).toBeInTheDocument()
+  })
+
+  it('formats body-weight floating-point noise in the chart summary', () => {
+    render(
+      <MetricTrendChart
+        entries={[
+          {
+            id: 1,
+            metric_definition: 'body_weight',
+            value: 83.5999984741211,
+            recorded_at: '2026-08-05T07:15:00Z',
+            source: 'samsung_health',
+            context: {},
+            created_at: '2026-08-05T07:15:02Z',
+          },
+          {
+            id: 2,
+            metric_definition: 'body_weight',
+            value: 87,
+            recorded_at: '2026-05-19T07:15:00Z',
+            source: 'manual',
+            context: {},
+            created_at: '2026-05-19T07:15:02Z',
+          },
+        ]}
+        metricName="Body Weight"
+        metricSlug="body_weight"
+        unit="kg"
+      />,
+    )
+
+    expect(screen.getByText(/83\.6 to 87 kg/i)).toBeInTheDocument()
   })
 
   it('uses the latest entry per day for chart data', () => {
@@ -83,6 +116,7 @@ describe('MetricTrendChart', () => {
           },
         ]}
         metricName="Resting Heart Rate"
+        metricSlug="resting_hr"
         unit="bpm"
       />,
     )
@@ -100,6 +134,7 @@ describe('MetricTrendChart', () => {
       <MetricTrendChart
         entries={[]}
         metricName="Resting Heart Rate"
+        metricSlug="resting_hr"
         unit="bpm"
       />,
     )

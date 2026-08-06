@@ -408,9 +408,10 @@ Current frontend metrics testing checkpoint:
 - `use-create-metric-entry-mutation.test.tsx` covers manual metric-entry mutation and invalidation of metric-entry list queries.
 - `use-update-metric-entry-mutation.test.tsx` covers manual metric-entry update mutation and invalidation of metric-entry list queries.
 - `use-delete-metric-entry-mutation.test.tsx` covers manual metric-entry delete mutation and invalidation of metric-entry list queries.
-- `metric-trend-chart.test.tsx` covers the Chart.js-backed trend component contract: accessible chart region, empty state, summary text, and latest-entry-per-local-day aggregation before chart config is built.
+- `metric-trend-chart.test.tsx` covers the Chart.js-backed trend component contract: accessible chart region, empty state, summary text, latest-entry-per-local-day aggregation before chart config is built, and body-weight float-noise formatting.
 - dashboard route tests cover the first metric-entry form behavior: submit, input clearing after success, and visible error on failed save.
 - dashboard route tests also cover rendering logged metric entries in the `Recent Entries` section with user-facing metric names, unit-formatted values, and readable timestamps.
+- dashboard and metric-detail route tests prove a stored body-weight value such as `83.5999984741211` displays as `83.6 kg`, including latest cards, entry rows, trend statistics, and a computed `-3.4 kg` delta; this does not assert that persistence was rounded.
 - dashboard route tests cover that metric-card latest values use an independent unfiltered `useMetricEntriesQuery({ limit: 50 })` read, so recent-entry filtering does not hide card values for other metrics.
 - dashboard route tests cover selecting a metric filter and passing the selected metric slug into `useMetricEntriesQuery({ metric, limit: 5 })`.
 - dashboard route tests cover the default recent-entry read limit with `useMetricEntriesQuery({ limit: 5 })`.

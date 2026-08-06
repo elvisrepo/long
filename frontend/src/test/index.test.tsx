@@ -532,6 +532,40 @@ describe('dashboard route', () => {
     )
   })
 
+  it('formats body-weight floating-point noise across the dashboard', async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    mockLoadedMetricDefinitionsWithManyMetrics()
+    const noisyBodyWeightEntry = {
+      id: 1,
+      metric_definition: 'body_weight',
+      value: 83.5999984741211,
+      recorded_at: '2026-08-05T07:15:00Z',
+      source: 'samsung_health',
+      context: {},
+      created_at: '2026-08-05T07:15:02Z',
+    }
+    mockMetricEntriesByFilters({
+      cardEntries: [noisyBodyWeightEntry],
+      recentEntries: [noisyBodyWeightEntry],
+    })
+
+    renderRoute('/')
+
+    await screen.findByRole('heading', { name: /dashboard/i })
+
+    const bodyWeightCard = screen
+      .getByRole('heading', { name: /body weight/i })
+      .closest('.metric-card') as HTMLElement
+    const recentEntries = screen.getByRole('region', {
+      name: /metric entries/i,
+    })
+
+    expect(bodyWeightCard).toHaveTextContent(/83\.6\s*kg/i)
+    expect(within(recentEntries).getByText(/^83\.6 kg$/i)).toBeInTheDocument()
+  })
+
   it('keeps card latest values unfiltered when recent entries are filtered', async () => {
     const user = userEvent.setup()
 

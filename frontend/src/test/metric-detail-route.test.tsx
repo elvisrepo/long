@@ -271,6 +271,65 @@ describe('metric detail route', () => {
     expect(within(trendStats).getByText(/\+2 bpm/i)).toBeInTheDocument()
   })
 
+  it('formats body-weight floating-point noise in the latest value', async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: 'user@example.com',
+    })
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: 'body-weight-id',
+          name: 'Body Weight',
+          slug: 'body_weight',
+          unit: 'kg',
+          category: 'body_composition',
+          min_value: 20,
+          max_value: 400,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>)
+    mockLoadedMetricEntries([
+      {
+        id: 1,
+        metric_definition: 'body_weight',
+        value: 83.5999984741211,
+        recorded_at: '2026-08-05T07:15:00Z',
+        source: 'samsung_health',
+        context: {},
+        created_at: '2026-08-05T07:15:02Z',
+      },
+      {
+        id: 2,
+        metric_definition: 'body_weight',
+        value: 87,
+        recorded_at: '2026-05-19T07:15:00Z',
+        source: 'manual',
+        context: {},
+        created_at: '2026-05-19T07:15:02Z',
+      },
+    ])
+    mockMetricEntryMutations()
+
+    renderRoute('/metrics/body_weight')
+
+    const summary = await screen.findByRole('region', {
+      name: /metric summary/i,
+    })
+
+    expect(within(summary).getByLabelText(/83\.6 kg/i)).toBeInTheDocument()
+
+    const trend = screen.getByRole('region', { name: /trend overview/i })
+    expect(within(trend).getByText(/-3\.4 kg/i)).toBeInTheDocument()
+
+    const history = screen.getByRole('region', {
+      name: /metric entry history/i,
+    })
+    expect(within(history).getByText(/^83\.6 kg$/i)).toBeInTheDocument()
+  })
+
   it('shows an empty state when the metric has no entries', async () => {
     vi.mocked(getMe).mockResolvedValue({
       email: 'user@example.com',

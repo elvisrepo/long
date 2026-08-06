@@ -11,3 +11,19 @@ const metricEntrySourceLabels: Record<string, string> = {
 export function formatMetricEntrySource(source: string): string {
   return metricEntrySourceLabels[source] ?? 'Imported record'
 }
+
+const metricMaximumFractionDigits: Record<string, number> = {
+  body_weight: 1,
+}
+
+export function formatMetricValue(value: number, metricSlug: string): string {
+  const maximumFractionDigits = metricMaximumFractionDigits[metricSlug]
+
+  if (maximumFractionDigits === undefined) {
+    return String(value)
+  }
+
+  return new Intl.NumberFormat('en-US', {
+    maximumFractionDigits,
+  }).format(value)
+}

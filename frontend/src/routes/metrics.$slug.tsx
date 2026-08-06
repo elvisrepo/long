@@ -2,7 +2,10 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 
 import { requireAuthBeforeLoad } from '../features/auth/require-auth-before-load'
-import { formatMetricEntrySource } from '../features/metrics/metric-entry-formatters'
+import {
+  formatMetricEntrySource,
+  formatMetricValue,
+} from '../features/metrics/metric-entry-formatters'
 import { MetricTrendChart } from '../features/metrics/metric-trend-chart'
 import { useDeleteMetricEntryMutation } from '../features/metrics/use-delete-metric-entry-mutation'
 import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-definitions-query'
@@ -76,6 +79,9 @@ function MetricDetailRoute() {
   }
 
   const latestEntry = metricEntries[0]
+  const formattedLatestValue = latestEntry
+    ? formatMetricValue(latestEntry.value, metricDefinition.slug)
+    : undefined
   const valueRange = `${metricDefinition.min_value}-${metricDefinition.max_value} ${metricDefinition.unit}`
   const oldestEntry = metricEntries.at(-1)
   const trendDelta =
@@ -83,7 +89,7 @@ function MetricDetailRoute() {
   const formattedTrendDelta =
     trendDelta === undefined
       ? '—'
-      : `${trendDelta > 0 ? '+' : ''}${trendDelta} ${metricDefinition.unit}`
+      : `${trendDelta > 0 ? '+' : ''}${formatMetricValue(trendDelta, metricDefinition.slug)} ${metricDefinition.unit}`
 
   function handleRangeSelect(range: MetricEntryRange) {
     if (selectedRange.label === range.label) {
@@ -144,10 +150,10 @@ function MetricDetailRoute() {
         <article className="metric-detail-stat metric-detail-stat-primary">
           <p className="meta-label">Latest value</p>
           <p
-            aria-label={`${latestEntry?.value ?? 'No value'} ${metricDefinition.unit}`}
+            aria-label={`${formattedLatestValue ?? 'No value'} ${metricDefinition.unit}`}
             className="metric-detail-value"
           >
-            <span>{latestEntry?.value ?? '—'}</span>
+            <span>{formattedLatestValue ?? '—'}</span>
             <small>{metricDefinition.unit}</small>
           </p>
         </article>
@@ -176,6 +182,7 @@ function MetricDetailRoute() {
         <MetricTrendChart
           entries={metricEntries}
           metricName={metricDefinition.name}
+          metricSlug={metricDefinition.slug}
           unit={metricDefinition.unit}
         />
 
@@ -183,14 +190,18 @@ function MetricDetailRoute() {
           <article>
             <p className="meta-label">Oldest</p>
             <p className="trend-value">
-              {oldestEntry ? `${oldestEntry.value} ${metricDefinition.unit}` : '—'}
+              {oldestEntry
+                ? `${formatMetricValue(oldestEntry.value, metricDefinition.slug)} ${metricDefinition.unit}`
+                : '—'}
             </p>
           </article>
 
           <article>
             <p className="meta-label">Latest</p>
             <p className="trend-value">
-              {latestEntry ? `${latestEntry.value} ${metricDefinition.unit}` : '—'}
+              {latestEntry
+                ? `${formatMetricValue(latestEntry.value, metricDefinition.slug)} ${metricDefinition.unit}`
+                : '—'}
             </p>
           </article>
 
@@ -246,6 +257,7 @@ function MetricDetailRoute() {
                 isUpdating={updateMetricEntryMutation.isPending}
                 key={entry.id}
                 metricName={metricDefinition.name}
+                metricSlug={metricDefinition.slug}
                 onCancelEdit={() => setEditingEntryId(null)}
                 onDelete={() => handleDeleteEntry(entry.id)}
                 onEdit={() => {
@@ -269,6 +281,7 @@ interface MetricEntryHistoryRowProps {
   isEditing: boolean
   isUpdating: boolean
   metricName: string
+  metricSlug: string
   onCancelEdit: () => void
   onDelete: () => void
   onEdit: () => void
@@ -286,6 +299,7 @@ function MetricEntryHistoryRow({
   isEditing,
   isUpdating,
   metricName,
+  metricSlug,
   onCancelEdit,
   onDelete,
   onEdit,
@@ -367,7 +381,7 @@ function MetricEntryHistoryRow({
 
       <div className="entry-row-side">
         <p className="entry-value">
-          {entry.value} {unit}
+          {formatMetricValue(entry.value, metricSlug)} {unit}
         </p>
         {entry.source === 'manual' ? (
           <div className="entry-actions">

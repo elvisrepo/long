@@ -1,7 +1,10 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load";
-import { formatMetricEntrySource } from "../features/metrics/metric-entry-formatters";
+import {
+  formatMetricEntrySource,
+  formatMetricValue,
+} from "../features/metrics/metric-entry-formatters";
 import { useCreateMetricEntryMutation } from "../features/metrics/use-create-metric-entry-mutation";
 import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
 import { useMetricEntriesQuery } from "../features/metrics/use-metric-entries-query";
@@ -101,6 +104,7 @@ function DashboardRoute() {
 
             <MetricDefinitionValue
               entry={latestEntriesByMetric.get(definition.slug)}
+              metricSlug={definition.slug}
               unit={definition.unit}
             />
 
@@ -206,13 +210,20 @@ interface MetricDefinitionValueProps {
         value: number;
       }
     | undefined;
+  metricSlug: string;
   unit: string;
 }
 
-function MetricDefinitionValue({ entry, unit }: MetricDefinitionValueProps) {
+function MetricDefinitionValue({
+  entry,
+  metricSlug,
+  unit,
+}: MetricDefinitionValueProps) {
   return (
     <div className="metric-current-value">
-      <span>{entry?.value ?? "—"}</span>
+      <span>
+        {entry ? formatMetricValue(entry.value, metricSlug) : "—"}
+      </span>
       <small>{unit}</small>
     </div>
   );
@@ -235,7 +246,8 @@ function MetricEntrySummary({
   unit,
   value,
 }: MetricEntrySummaryProps) {
-  const displayValue = unit ? `${value} ${unit}` : value;
+  const formattedValue = formatMetricValue(value, metricSlug);
+  const displayValue = unit ? `${formattedValue} ${unit}` : formattedValue;
   const displayRecordedAt = formatMetricEntryRecordedAt(recordedAt);
 
   return (

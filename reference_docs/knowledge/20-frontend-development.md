@@ -232,6 +232,7 @@ Current metrics API integration checkpoint:
 - The `Recent Entries` section has a metric filter dropdown that passes the selected metric slug while preserving the dashboard limit, using `useMetricEntriesQuery({ metric, limit: 5 })`.
 - Recent entries resolve the metric slug against loaded metric definitions so the UI can show the user-facing metric name.
 - Recent entries format the value with the metric unit, for example `58 bpm`.
+- Known body-weight values use at most one displayed decimal across dashboard cards, recent/history rows, trend summaries, deltas, tooltips, and numeric chart labels. This presentation-only normalization turns binary floating-point artifacts such as `83.5999984741211` into `83.6 kg` without altering the API value or stored measurement. Unknown and custom metrics keep their current numeric representation until explicit display precision becomes part of the metric-definition contract.
 - Recent entries keep the raw ISO timestamp in the semantic `<time dateTime="...">` attribute while displaying a readable UTC timestamp.
 - The dashboard reads `useCurrentSubscriptionQuery()` so it can use `plan.analytics_enabled` for the first subscription-aware Pro value surface.
 - Free users see a locked **Pro Insights** card that explains trend summaries require Pro.
