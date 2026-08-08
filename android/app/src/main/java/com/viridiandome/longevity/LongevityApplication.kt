@@ -1,6 +1,7 @@
 package com.viridiandome.longevity
 
 import android.app.Application
+import androidx.work.Configuration
 import com.viridiandome.longevity.auth.AndroidKeystoreAuthTokenStore
 import com.viridiandome.longevity.auth.AuthRepository
 import com.viridiandome.longevity.auth.AuthTokenStore
@@ -15,6 +16,7 @@ import com.viridiandome.longevity.wearables.network.HttpWearableUploadRepository
 import com.viridiandome.longevity.wearables.sync.IncrementalWeightSyncPlanner
 import com.viridiandome.longevity.wearables.sync.IncrementalWeightSyncRunner
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncPlanner
+import com.viridiandome.longevity.wearables.sync.LongevityWorkerFactory
 import com.viridiandome.longevity.wearables.sync.SharedPreferencesWeightSyncCursorStore
 import com.viridiandome.longevity.wearables.sync.WeightSyncCoordinator
 import com.viridiandome.longevity.wearables.sync.WeightSyncCursorStore
@@ -28,7 +30,7 @@ import okhttp3.OkHttpClient
  * repository instead of rebuilding network infrastructure on every recomposition.
  * A dependency-injection framework would add ceremony before this app needs it.
  */
-class LongevityApplication : Application() {
+class LongevityApplication : Application(), Configuration.Provider {
     private val httpClient: OkHttpClient by lazy {
         OkHttpClient()
     }
@@ -92,7 +94,7 @@ class LongevityApplication : Application() {
         SharedPreferencesWeightSyncCursorStore(this)
     }
 
-    /** Domain runner reserved for the upcoming WorkManager integration. */
+    /** Domain runner shared by WorkManager and any future manual incremental-sync trigger. */
     val incrementalWeightSyncRunner: WeightSyncRunner by lazy {
         val coordinator = WeightSyncCoordinator(
             planner = IncrementalWeightSyncPlanner(
@@ -106,4 +108,17 @@ class LongevityApplication : Application() {
             cursorStore = weightSyncCursorStore,
         )
     }
+
+    private val longevityWorkerFactory by lazy {
+        LongevityWorkerFactory(
+            incrementalWeightSyncRunner = { incrementalWeightSyncRunner },
+        )
+    }
+
+    /** Lets WorkManager construct workers that require Longevity domain dependencies. */
+    override val workManagerConfiguration: Configuration
+        get() =
+            Configuration.Builder()
+                .setWorkerFactory(longevityWorkerFactory)
+                .build()
 }

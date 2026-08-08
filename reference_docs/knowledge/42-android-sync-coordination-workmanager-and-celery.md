@@ -252,7 +252,7 @@ The timestamp-based MVP cursor policy is now implemented and unit-tested at the 
 
 The overlap is deliberately generous for low-volume weight data. Stable Health Connect record IDs and backend `external_source_id` deduplication make repeated records harmless. Health Connect change tokens remain a stronger later option when edits/deletions and full provider reconciliation are supported.
 
-`SharedPreferencesWeightSyncCursorStore` implements `WeightSyncCursorStore` with private, durable, per-connection epoch-millisecond values. Store recreation, connection isolation, missing values, and corrupted-value removal are verified on the physical phone. `LongevityApplication` now constructs the complete incremental runner graph, but no background work invokes or schedules it yet.
+`SharedPreferencesWeightSyncCursorStore` implements `WeightSyncCursorStore` with private, durable, per-connection epoch-millisecond values. Store recreation, connection isolation, missing values, and corrupted-value removal are verified on the physical phone. `LongevityApplication` constructs the complete incremental runner graph used by the WorkManager adapter.
 
 ## 4. Android WorkManager
 
@@ -264,7 +264,7 @@ WorkManager is Android's operating-system-aware scheduler for reliable deferred 
 - battery and Doze restrictions allow execution;
 - a temporary failure should be retried.
 
-The intended background flow is:
+The worker execution boundary is now implemented:
 
 ```text
 Android WorkManager starts a worker
@@ -286,7 +286,11 @@ Stable WorkManager `2.11.2` and `work-testing` are now configured. The implement
 - temporary Health Connect read failure and server/network unavailability to `Result.retry()`;
 - permission, conflict, rejection, and missing-session outcomes to `Result.failure()` because automatic retries cannot repair them.
 
-The mapper and testing dependency are implemented; the injectable `CoroutineWorker`, its factory, and scheduling are not.
+`IncrementalWeightSyncWorker` accepts only a `connection_id` as WorkManager input, calls the injected `WeightSyncRunner`, and returns the mapping above. Missing or blank input is a permanent failure and does not touch Health Connect or Django.
+
+`LongevityWorkerFactory` creates that worker with the application-scoped incremental runner. `LongevityApplication` implements `Configuration.Provider`, and the manifest removes WorkManager's default initializer so the custom factory owns construction. Unknown worker class names return `null`, as required by the `WorkerFactory` chain contract.
+
+This slice does **not** enqueue work. Background Health Connect access, unique periodic scheduling, and logout/disconnect cancellation remain the next boundaries.
 
 Periodic WorkManager execution is inexact. Android may delay work because of Doze, battery optimization, and other constraints. The platform has a 15-minute minimum periodic interval, but a 15-minute request is not a guarantee that work runs exactly every 15 minutes.
 
@@ -367,7 +371,7 @@ Celery processes data after it reaches the backend.
 2. ~~Add and test an incremental read-window policy with a deliberate overlap.~~ Completed at the domain boundary.
 3. ~~Implement and test a durable per-connection cursor-store adapter.~~ Completed and physically verified.
 4. ~~Add stable WorkManager runtime/testing dependencies and test the domain-to-work result policy.~~ Completed.
-5. Implement and test an injected `CoroutineWorker` that calls the incremental runner, never the UI ViewModel.
+5. ~~Implement and test an injected `CoroutineWorker` that calls the incremental runner, never the UI ViewModel.~~ Completed and physically verified.
 6. Add the background Health Connect feature check, manifest permission, and foreground permission request.
 7. Schedule one unique network-constrained periodic job only for an authenticated user with a Ready connection and granted background access.
 8. Cancel the user's unique background work on logout or connection disconnect.

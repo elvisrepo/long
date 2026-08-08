@@ -10,7 +10,7 @@
 
 ```mermaid
 flowchart LR
-    subgraph Phone["Android phone — planned companion-app slice"]
+    subgraph Phone["Android phone — implemented weight-sync slice"]
         SH["Samsung Health<br/>writes a source record"]
         HC["Health Connect<br/>exposes user-permitted records"]
         ANDROID["Android companion app<br/>reads and normalizes records<br/>creates stable upload_id"]
@@ -51,7 +51,7 @@ flowchart LR
 
     ANDROID -->|"POST /api/v1/auth/mobile/login/"| AUTH
     AUTH -->|"access JWT"| ANDROID
-    ANDROID -. "Future client: Bearer JWT + normalized batch" .-> RECEIPT
+    ANDROID -->|"Bearer JWT + normalized batch"| RECEIPT
     RECEIPT --> BATCH
 
     OWNER -->|"create or return receipt"| SYNC
@@ -71,7 +71,7 @@ flowchart LR
     classDef external fill:#f3f4f6,stroke:#4b5563,color:#111827;
 
     class AUTH,RECEIPT,OWNER,BATCH,HASH,INGEST,RETRY,SAME,EXISTING,CONFLICT,CONNECTION,SYNC,ENTRY,READ,REACT implemented;
-    class ANDROID planned;
+    class ANDROID implemented;
     class SH,HC external;
 ```
 
@@ -79,12 +79,12 @@ Legend:
 
 - Green: live behavior or an implemented durable table/API.
 - Blue: implemented and tested in isolation, but not connected to a live boundary.
-- Amber dashed: the next end-to-end behavior or the later Android slice.
+- Amber dashed: planned behavior not yet connected to a live boundary.
 - Gray: an external on-device system.
 
 ## Implemented Normalized Upload Contract
 
-The future Android client will call the already-implemented backend contract:
+The Android client calls the implemented backend contract:
 
 ```http
 POST /api/v1/wearables/uploads/
