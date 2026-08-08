@@ -42,6 +42,15 @@ flowchart TD
         ENTITLEMENT --> REGISTERED{"Accepted?"}
         REGISTERED -->|No| CONNECT_RECOVERY
         REGISTERED -->|Yes| READY
+        READY --> BACKGROUND_CHECK["Check background-read feature<br/>and existing additional-access grant"]
+        BACKGROUND_CHECK --> BACKGROUND_ACCESS{"Background access state?"}
+        BACKGROUND_ACCESS -->|Granted| BACKGROUND_READY["Background capability ready"]
+        BACKGROUND_ACCESS -->|Unsupported| BACKGROUND_UNAVAILABLE["Keep manual sync available<br/>Hide background action"]
+        BACKGROUND_ACCESS -->|Permission required| BACKGROUND_ACTION["Show Allow background sync"]
+        BACKGROUND_ACTION -->|User taps| BACKGROUND_PERMISSION["Launch official background-read<br/>permission contract in foreground"]
+        BACKGROUND_PERMISSION --> BACKGROUND_RESULT{"User grants<br/>additional access?"}
+        BACKGROUND_RESULT -->|Yes| BACKGROUND_READY
+        BACKGROUND_RESULT -->|No| BACKGROUND_ACTION
     end
 
     subgraph EXPLICIT_SYNC["Implemented explicit initial weight sync"]
@@ -110,8 +119,8 @@ flowchart TD
     classDef planned fill:#fef3c7,stroke:#b45309,color:#78350f,stroke-dasharray:5 5;
     classDef recovery fill:#fee2e2,stroke:#dc2626,color:#7f1d1d;
 
-    class START,RESTORE,FORM,LOGIN,DJANGO_LOGIN,STORE,AUTHENTICATED,CONNECT_ACTION,SDK_CHECK,PERMISSION,RESOLVE_CONNECTION,REGISTER,ENTITLEMENT,READY,SYNC_ACTION,INITIAL_VM,COORDINATOR,INITIAL_PLANNER,HC_READ,FILTER,UPLOAD_ID,UPLOAD,AUTH_CLIENT,DJANGO_AUTH,INGEST,RECEIPT,RESULT,SYNC_UI,WEB,REFRESH_LOCK,RETRY_REQUEST,REFRESH_REQUEST,REPLACE_TOKENS,WORKER,INCREMENTAL_RUNNER,CURSOR,WORK_RESULT,CURSOR_ADVANCE,KEEP_CURSOR,LOGOUT_ACTION,REVOKE,CLEAR implemented;
-    class SESSION,LOGIN_OK,SDK_READY,PERMISSION_RESULT,CONNECTION_EXISTS,REGISTERED,API_RESPONSE,ALREADY_ROTATED,REFRESH_OK,CURSOR_DECISION,LOGOUT_OK decision;
+    class START,RESTORE,FORM,LOGIN,DJANGO_LOGIN,STORE,AUTHENTICATED,CONNECT_ACTION,SDK_CHECK,PERMISSION,RESOLVE_CONNECTION,REGISTER,ENTITLEMENT,READY,BACKGROUND_CHECK,BACKGROUND_READY,BACKGROUND_UNAVAILABLE,BACKGROUND_ACTION,BACKGROUND_PERMISSION,SYNC_ACTION,INITIAL_VM,COORDINATOR,INITIAL_PLANNER,HC_READ,FILTER,UPLOAD_ID,UPLOAD,AUTH_CLIENT,DJANGO_AUTH,INGEST,RECEIPT,RESULT,SYNC_UI,WEB,REFRESH_LOCK,RETRY_REQUEST,REFRESH_REQUEST,REPLACE_TOKENS,WORKER,INCREMENTAL_RUNNER,CURSOR,WORK_RESULT,CURSOR_ADVANCE,KEEP_CURSOR,LOGOUT_ACTION,REVOKE,CLEAR implemented;
+    class SESSION,LOGIN_OK,SDK_READY,PERMISSION_RESULT,CONNECTION_EXISTS,REGISTERED,BACKGROUND_ACCESS,BACKGROUND_RESULT,API_RESPONSE,ALREADY_ROTATED,REFRESH_OK,CURSOR_DECISION,LOGOUT_OK decision;
     class SAMSUNG,HEALTH_CONNECT external;
     class DATABASE storage;
     class FUTURE_SCHEDULE,CANCEL_WORK planned;
@@ -123,9 +132,9 @@ flowchart TD
 - Passwords are used only for login and are never persisted by the Android app.
 - Access and refresh JWTs are encrypted through Android Keystore before durable storage.
 - Refresh happens only after a protected API request receives `401`; ordinary app startup reuses a readable local session without rotating it.
-- Health Connect permission is requested before backend connection registration, so denial does not consume a plan slot.
+- Weight permission is requested before backend connection registration, so denial does not consume a plan slot. Background permission is separate and optional after the connection is ready.
 - The Android app reads Health Connect. Django and Celery cannot directly access on-device records.
 - `SyncRun` records an upload attempt; `MetricEntry` remains the canonical metric store.
 - Explicit initial synchronization is implemented and physically validated.
 - The incremental worker and dependency factory are implemented, but no WorkManager request is currently enqueued.
-- Background Health Connect permission, periodic scheduling, and logout/disconnect work cancellation are planned next.
+- Background feature detection and foreground permission consent are implemented. Periodic scheduling and logout/disconnect work cancellation are planned next.

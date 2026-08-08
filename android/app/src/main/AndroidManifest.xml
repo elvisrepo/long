@@ -6,6 +6,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- MVP requests read-only access to weight; no other health type is declared. -->
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
+    <!-- Requested explicitly only on devices that support background health reads. -->
+    <uses-permission
+        android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
 
     <!-- Required on Android 13 and earlier where Health Connect is an APK. -->
     <queries>

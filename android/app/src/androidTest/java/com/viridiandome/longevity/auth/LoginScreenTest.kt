@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import com.viridiandome.longevity.wearables.BackgroundReadAccess
 import com.viridiandome.longevity.wearables.WearableConnectionUiState
 import com.viridiandome.longevity.wearables.network.WearableConnectionResponse
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncUiState
@@ -203,6 +204,76 @@ class LoginScreenTest {
         composeTestRule.onNodeWithText("Sync weight now").performClick()
 
         assertTrue(syncRequested)
+    }
+
+    @Test
+    fun ready_connection_forwards_background_permission_click_when_required() {
+        var backgroundPermissionRequested = false
+        composeTestRule.setContent {
+            LoginScreen(
+                state = LoginFormState(
+                    email = "user@example.com",
+                    password = "",
+                    isAuthenticated = true,
+                ),
+                wearableConnectionState = WearableConnectionUiState.Ready(
+                    connection = WearableConnectionResponse(
+                        id = "7df7e4ab-7e6f-4558-b9be-17c824fbf54e",
+                        provider = "health_connect",
+                        status = "connected",
+                        lastSyncedAt = null,
+                        lastError = "",
+                        createdAt = "2026-08-05T10:00:00Z",
+                        updatedAt = "2026-08-05T10:00:00Z",
+                    ),
+                    backgroundReadAccess = BackgroundReadAccess.PermissionRequired,
+                ),
+                onEmailChange = {},
+                onPasswordChange = {},
+                onSignIn = {},
+                onLogout = {},
+                onEnableBackgroundSync = {
+                    backgroundPermissionRequested = true
+                },
+            )
+        }
+
+        composeTestRule.onNodeWithText("Allow background sync").performClick()
+
+        assertTrue(backgroundPermissionRequested)
+    }
+
+    @Test
+    fun ready_connection_hides_background_action_when_feature_is_unavailable() {
+        composeTestRule.setContent {
+            LoginScreen(
+                state = LoginFormState(
+                    email = "user@example.com",
+                    password = "",
+                    isAuthenticated = true,
+                ),
+                wearableConnectionState = WearableConnectionUiState.Ready(
+                    connection = WearableConnectionResponse(
+                        id = "7df7e4ab-7e6f-4558-b9be-17c824fbf54e",
+                        provider = "health_connect",
+                        status = "connected",
+                        lastSyncedAt = null,
+                        lastError = "",
+                        createdAt = "2026-08-05T10:00:00Z",
+                        updatedAt = "2026-08-05T10:00:00Z",
+                    ),
+                    backgroundReadAccess = BackgroundReadAccess.Unavailable,
+                ),
+                onEmailChange = {},
+                onPasswordChange = {},
+                onSignIn = {},
+                onLogout = {},
+            )
+        }
+
+        composeTestRule.onNodeWithText("Allow background sync")
+            .assertDoesNotExist()
+        composeTestRule.onNodeWithText("Sync weight now").assertIsDisplayed()
     }
 
     @Test

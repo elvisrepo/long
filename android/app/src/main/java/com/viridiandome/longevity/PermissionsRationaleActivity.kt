@@ -36,6 +36,8 @@ class PermissionsRationaleActivity : ComponentActivity() {
                     Text(
                         text = "Longevity reads weight records you authorize " +
                             "and uploads normalized samples to your account. " +
+                            "If you enable background sync, it may read those " +
+                            "authorized records while the app is not visible. " +
                             "It does not write or delete Health Connect data.",
                         modifier = Modifier.padding(vertical = 16.dp),
                     )

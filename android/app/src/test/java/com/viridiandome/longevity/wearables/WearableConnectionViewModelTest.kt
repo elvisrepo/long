@@ -239,6 +239,90 @@ class WearableConnectionViewModelTest {
     }
 
     @Test
+    fun missing_background_permission_keeps_foreground_connection_ready() = runTest {
+        val connection = healthConnectConnection(status = "connected")
+        val repository = SequencedWearableConnectionRepository(
+            WearableConnectionResolutionResult.Success(connection),
+        )
+        val viewModel = WearableConnectionViewModel(
+            repository,
+            FixedHealthConnectAccess(
+                access = WeightReadAccess.Granted,
+                backgroundAccess = BackgroundReadAccess.PermissionRequired,
+            ),
+        )
+
+        viewModel.load()
+        advanceUntilIdle()
+
+        assertEquals(
+            WearableConnectionUiState.Ready(
+                connection = connection,
+                backgroundReadAccess = BackgroundReadAccess.PermissionRequired,
+            ),
+            viewModel.state.value,
+        )
+    }
+
+    @Test
+    fun granted_background_permission_updates_ready_state_without_reregistering() =
+        runTest {
+            val connection = healthConnectConnection(status = "connected")
+            val repository = SequencedWearableConnectionRepository(
+                WearableConnectionResolutionResult.Success(connection),
+            )
+            val viewModel = WearableConnectionViewModel(
+                repository,
+                FixedHealthConnectAccess(
+                    access = WeightReadAccess.Granted,
+                    backgroundAccess = BackgroundReadAccess.PermissionRequired,
+                ),
+            )
+            viewModel.load()
+            advanceUntilIdle()
+
+            viewModel.onBackgroundReadPermissionResult(isGranted = true)
+
+            assertEquals(
+                WearableConnectionUiState.Ready(
+                    connection = connection,
+                    backgroundReadAccess = BackgroundReadAccess.Granted,
+                ),
+                viewModel.state.value,
+            )
+            assertEquals(1, repository.resolutionRequests)
+        }
+
+    @Test
+    fun denied_background_permission_remains_retryable_without_reregistering() =
+        runTest {
+            val connection = healthConnectConnection(status = "connected")
+            val repository = SequencedWearableConnectionRepository(
+                WearableConnectionResolutionResult.Success(connection),
+            )
+            val viewModel = WearableConnectionViewModel(
+                repository,
+                FixedHealthConnectAccess(
+                    access = WeightReadAccess.Granted,
+                    backgroundAccess = BackgroundReadAccess.PermissionRequired,
+                ),
+            )
+            viewModel.load()
+            advanceUntilIdle()
+
+            viewModel.onBackgroundReadPermissionResult(isGranted = false)
+
+            assertEquals(
+                WearableConnectionUiState.Ready(
+                    connection = connection,
+                    backgroundReadAccess = BackgroundReadAccess.PermissionRequired,
+                ),
+                viewModel.state.value,
+            )
+            assertEquals(1, repository.resolutionRequests)
+        }
+
+    @Test
     fun denied_weight_permission_does_not_register_backend_connection() = runTest {
         val repository = ControllableWearableConnectionRepository()
         val viewModel = WearableConnectionViewModel(
@@ -279,8 +363,13 @@ class WearableConnectionViewModelTest {
 
 private data class FixedHealthConnectAccess(
     private val access: WeightReadAccess,
+    private val backgroundAccess: BackgroundReadAccess =
+        BackgroundReadAccess.Unavailable,
 ) : HealthConnectAccess {
     override suspend fun getWeightReadAccess(): WeightReadAccess = access
+
+    override suspend fun getBackgroundReadAccess(): BackgroundReadAccess =
+        backgroundAccess
 }
 
 private object GrantedWeightReadHealthConnectAccess : HealthConnectAccess {

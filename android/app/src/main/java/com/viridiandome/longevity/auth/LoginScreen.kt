@@ -27,6 +27,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.viridiandome.longevity.ui.theme.LongevityTheme
+import com.viridiandome.longevity.wearables.BackgroundReadAccess
 import com.viridiandome.longevity.wearables.WearableConnectionUiState
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncUiState
 import com.viridiandome.longevity.wearables.sync.WeightSyncFailure
@@ -50,6 +51,7 @@ fun LoginScreen(
         InitialWeightSyncUiState.Idle,
     onConnectHealthConnect: () -> Unit = {},
     onRetryHealthConnect: () -> Unit = {},
+    onEnableBackgroundSync: () -> Unit = {},
     onSyncWeight: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -66,6 +68,7 @@ fun LoginScreen(
             initialWeightSyncState = initialWeightSyncState,
             onConnectHealthConnect = onConnectHealthConnect,
             onRetryHealthConnect = onRetryHealthConnect,
+            onEnableBackgroundSync = onEnableBackgroundSync,
             onSyncWeight = onSyncWeight,
             modifier = modifier,
         )
@@ -191,6 +194,7 @@ private fun AuthenticatedContent(
     initialWeightSyncState: InitialWeightSyncUiState,
     onConnectHealthConnect: () -> Unit,
     onRetryHealthConnect: () -> Unit,
+    onEnableBackgroundSync: () -> Unit,
     onSyncWeight: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -217,6 +221,7 @@ private fun AuthenticatedContent(
             initialWeightSyncState = initialWeightSyncState,
             onConnect = onConnectHealthConnect,
             onRetry = onRetryHealthConnect,
+            onEnableBackgroundSync = onEnableBackgroundSync,
             onSyncWeight = onSyncWeight,
         )
 
@@ -253,6 +258,7 @@ private fun HealthConnectContent(
     initialWeightSyncState: InitialWeightSyncUiState,
     onConnect: () -> Unit,
     onRetry: () -> Unit,
+    onEnableBackgroundSync: () -> Unit,
     onSyncWeight: () -> Unit,
 ) {
     Text(
@@ -311,6 +317,19 @@ private fun HealthConnectContent(
             Text(text = statusText)
 
             Spacer(modifier = Modifier.height(12.dp))
+
+            if (
+                state.backgroundReadAccess ===
+                BackgroundReadAccess.PermissionRequired
+            ) {
+                // Background health access is an additional explicit consent;
+                // it never blocks the existing foreground sync action below.
+                Button(onClick = onEnableBackgroundSync) {
+                    Text(text = "Allow background sync")
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             InitialWeightSyncContent(
                 state = initialWeightSyncState,

@@ -20,6 +20,8 @@ import com.viridiandome.longevity.ui.theme.LongevityTheme
 import com.viridiandome.longevity.wearables.WearableConnectionViewModel
 import com.viridiandome.longevity.wearables.WearableConnectionViewModelFactory
 import com.viridiandome.longevity.wearables.WearableConnectionUiState
+import com.viridiandome.longevity.wearables.healthconnect.BACKGROUND_READ_PERMISSION
+import com.viridiandome.longevity.wearables.healthconnect.BACKGROUND_READ_PERMISSIONS
 import com.viridiandome.longevity.wearables.healthconnect.WEIGHT_READ_PERMISSION
 import com.viridiandome.longevity.wearables.healthconnect.WEIGHT_READ_PERMISSIONS
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncViewModel
@@ -56,6 +58,14 @@ class MainActivity : ComponentActivity() {
     ) { grantedPermissions ->
         wearableConnectionViewModel.onWeightReadPermissionResult(
             isGranted = WEIGHT_READ_PERMISSION in grantedPermissions,
+        )
+    }
+
+    private val backgroundHealthPermissionLauncher = registerForActivityResult(
+        PermissionController.createRequestPermissionResultContract(),
+    ) { grantedPermissions ->
+        wearableConnectionViewModel.onBackgroundReadPermissionResult(
+            isGranted = BACKGROUND_READ_PERMISSION in grantedPermissions,
         )
     }
 
@@ -110,6 +120,13 @@ class MainActivity : ComponentActivity() {
                         initialWeightSyncState = initialWeightSyncState,
                         onConnectHealthConnect = wearableConnectionViewModel::load,
                         onRetryHealthConnect = wearableConnectionViewModel::retry,
+                        onEnableBackgroundSync = {
+                            // The user starts this separate additional-access
+                            // request from an already-ready connection state.
+                            backgroundHealthPermissionLauncher.launch(
+                                BACKGROUND_READ_PERMISSIONS,
+                            )
+                        },
                         onSyncWeight = {
                             val connection = (
                                 wearableConnectionState as?

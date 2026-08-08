@@ -290,7 +290,7 @@ Stable WorkManager `2.11.2` and `work-testing` are now configured. The implement
 
 `LongevityWorkerFactory` creates that worker with the application-scoped incremental runner. `LongevityApplication` implements `Configuration.Provider`, and the manifest removes WorkManager's default initializer so the custom factory owns construction. Unknown worker class names return `null`, as required by the `WorkerFactory` chain contract.
 
-This slice does **not** enqueue work. Background Health Connect access, unique periodic scheduling, and logout/disconnect cancellation remain the next boundaries.
+This slice does **not** enqueue work. Background feature detection, manifest declaration, and foreground consent are implemented independently from manual sync. Unique periodic scheduling and logout/disconnect cancellation remain the next boundaries.
 
 Periodic WorkManager execution is inexact. Android may delay work because of Doze, battery optimization, and other constraints. The platform has a 15-minute minimum periodic interval, but a 15-minute request is not a guarantee that work runs exactly every 15 minutes.
 
@@ -300,6 +300,8 @@ Background Health Connect reads also require:
 - `READ_HEALTH_DATA_IN_BACKGROUND`;
 - a feature-availability check;
 - explicit permission granted while the app is in the foreground.
+
+The app now checks `FEATURE_READ_HEALTH_DATA_IN_BACKGROUND` through the Health Connect client and maps it to `Granted`, `PermissionRequired`, or `Unavailable`. An already-ready connection exposes **Allow background sync** only for `PermissionRequired`; unsupported devices keep manual sync available without presenting an unusable action. The official permission Activity Result updates only local capability state and never repeats backend connection registration.
 
 References:
 
@@ -372,7 +374,7 @@ Celery processes data after it reaches the backend.
 3. ~~Implement and test a durable per-connection cursor-store adapter.~~ Completed and physically verified.
 4. ~~Add stable WorkManager runtime/testing dependencies and test the domain-to-work result policy.~~ Completed.
 5. ~~Implement and test an injected `CoroutineWorker` that calls the incremental runner, never the UI ViewModel.~~ Completed and physically verified.
-6. Add the background Health Connect feature check, manifest permission, and foreground permission request.
+6. ~~Add the background Health Connect feature check, manifest permission, and foreground permission request.~~ Implemented; physical system-dialog verification remains.
 7. Schedule one unique network-constrained periodic job only for an authenticated user with a Ready connection and granted background access.
 8. Cancel the user's unique background work on logout or connection disconnect.
 9. Validate the worker on the physical phone with the visible app closed.

@@ -26,6 +26,8 @@ sealed interface WearableConnectionUiState {
 
     data class Ready(
         val connection: WearableConnectionResponse,
+        val backgroundReadAccess: BackgroundReadAccess =
+            BackgroundReadAccess.Unavailable,
     ) : WearableConnectionUiState
 
     data object Rejected : WearableConnectionUiState
@@ -61,6 +63,18 @@ class WearableConnectionViewModel(
         }
 
         resolveBackendAfterPermissionGrant()
+    }
+
+    fun onBackgroundReadPermissionResult(isGranted: Boolean) {
+        val readyState =
+            _state.value as? WearableConnectionUiState.Ready ?: return
+        _state.value = readyState.copy(
+            backgroundReadAccess = if (isGranted) {
+                BackgroundReadAccess.Granted
+            } else {
+                BackgroundReadAccess.PermissionRequired
+            },
+        )
     }
 
     fun resetForLogout() {
@@ -111,7 +125,10 @@ class WearableConnectionViewModel(
     private suspend fun resolveBackendConnection(): WearableConnectionUiState =
         when (val result = repository.getOrRegisterHealthConnect()) {
             is WearableConnectionResolutionResult.Success ->
-                WearableConnectionUiState.Ready(result.connection)
+                WearableConnectionUiState.Ready(
+                    connection = result.connection,
+                    backgroundReadAccess = resolveBackgroundReadAccess(),
+                )
 
             WearableConnectionResolutionResult.Rejected ->
                 WearableConnectionUiState.Rejected
@@ -121,5 +138,16 @@ class WearableConnectionViewModel(
 
             WearableConnectionResolutionResult.Unavailable ->
                 WearableConnectionUiState.Unavailable
+        }
+
+    private suspend fun resolveBackgroundReadAccess(): BackgroundReadAccess =
+        try {
+            healthConnectAccess.getBackgroundReadAccess()
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (_: Exception) {
+            // Background capability is optional. A feature-check failure must
+            // not disable the already-working explicit foreground sync.
+            BackgroundReadAccess.Unavailable
         }
 }
