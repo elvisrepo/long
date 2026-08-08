@@ -2,6 +2,7 @@ package com.viridiandome.longevity
 
 import android.app.Application
 import androidx.work.Configuration
+import androidx.work.WorkManager
 import com.viridiandome.longevity.auth.AndroidKeystoreAuthTokenStore
 import com.viridiandome.longevity.auth.AuthRepository
 import com.viridiandome.longevity.auth.AuthTokenStore
@@ -21,6 +22,8 @@ import com.viridiandome.longevity.wearables.sync.SharedPreferencesWeightSyncCurs
 import com.viridiandome.longevity.wearables.sync.WeightSyncCoordinator
 import com.viridiandome.longevity.wearables.sync.WeightSyncCursorStore
 import com.viridiandome.longevity.wearables.sync.WeightSyncRunner
+import com.viridiandome.longevity.wearables.sync.WeightSyncScheduler
+import com.viridiandome.longevity.wearables.sync.WorkManagerWeightSyncScheduler
 import okhttp3.OkHttpClient
 
 /**
@@ -107,6 +110,11 @@ class LongevityApplication : Application(), Configuration.Provider {
             delegate = coordinator,
             cursorStore = weightSyncCursorStore,
         )
+    }
+
+    /** Owns durable device-side scheduling separately from sync business logic. */
+    val weightSyncScheduler: WeightSyncScheduler by lazy {
+        WorkManagerWeightSyncScheduler(WorkManager.getInstance(this))
     }
 
     private val longevityWorkerFactory by lazy {

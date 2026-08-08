@@ -9,7 +9,7 @@ Use this document when:
 - separating initial backfill from incremental background synchronization;
 - deciding when Android WorkManager, Django, Redis, Celery, or Celery Beat should run work.
 
-This document describes the implemented Android flow as of 2026-08-06 and the agreed next architecture. The current Android slice supports weight records only.
+This document describes the implemented Android flow as of 2026-08-08 and the agreed next architecture. The current Android slice supports weight records only.
 
 ## 1. Implemented Android sync components
 
@@ -290,7 +290,9 @@ Stable WorkManager `2.11.2` and `work-testing` are now configured. The implement
 
 `LongevityWorkerFactory` creates that worker with the application-scoped incremental runner. `LongevityApplication` implements `Configuration.Provider`, and the manifest removes WorkManager's default initializer so the custom factory owns construction. Unknown worker class names return `null`, as required by the `WorkerFactory` chain contract.
 
-This slice does **not** enqueue work. Background feature detection, manifest declaration, and foreground consent are implemented independently from manual sync. Unique periodic scheduling and logout/disconnect cancellation remain the next boundaries.
+`WorkManagerWeightSyncScheduler` now builds and enqueues one unique periodic request per connection. The request carries only `connection_id`, requires a connected network, repeats at WorkManager's 15-minute minimum, and has a stable tag for account-level cleanup. Reapplying the same connection uses `ExistingPeriodicWorkPolicy.UPDATE`, so Compose state changes do not create duplicate schedules.
+
+`MainActivity` applies a pure, tested scheduling decision. It schedules only when the local session is authenticated, the caller-owned connection is Ready, and background access is granted. It does nothing during startup session checking because WorkManager state survives process restarts; treating that temporary unauthenticated state as logout would incorrectly erase valid work. A confirmed successful logout cancels every tagged weight-sync request. Connection-disconnect cancellation remains pending until the Android disconnect action exists.
 
 Periodic WorkManager execution is inexact. Android may delay work because of Doze, battery optimization, and other constraints. The platform has a 15-minute minimum periodic interval, but a 15-minute request is not a guarantee that work runs exactly every 15 minutes.
 
@@ -308,6 +310,8 @@ References:
 - [Health Connect background reads](https://developer.android.com/health-and-fitness/health-connect/read-data)
 - [Health Connect permission reference](https://developer.android.com/reference/androidx/health/connect/client/permission/HealthPermission)
 - [WorkManager periodic-work reference](https://developer.android.com/reference/androidx/work/PeriodicWorkRequest)
+- [Define WorkManager requests](https://developer.android.com/develop/background-work/background-tasks/persistent/getting-started/define-work)
+- [Update unique WorkManager work](https://developer.android.com/develop/background-work/background-tasks/persistent/how-to/update-work)
 
 ## 5. WorkManager versus Celery
 
@@ -374,8 +378,8 @@ Celery processes data after it reaches the backend.
 3. ~~Implement and test a durable per-connection cursor-store adapter.~~ Completed and physically verified.
 4. ~~Add stable WorkManager runtime/testing dependencies and test the domain-to-work result policy.~~ Completed.
 5. ~~Implement and test an injected `CoroutineWorker` that calls the incremental runner, never the UI ViewModel.~~ Completed and physically verified.
-6. ~~Add the background Health Connect feature check, manifest permission, and foreground permission request.~~ Implemented; physical system-dialog verification remains.
-7. Schedule one unique network-constrained periodic job only for an authenticated user with a Ready connection and granted background access.
-8. Cancel the user's unique background work on logout or connection disconnect.
+6. ~~Add the background Health Connect feature check, manifest permission, and foreground permission request.~~ Implemented and physically granted.
+7. ~~Schedule one unique network-constrained periodic job only for an authenticated user with a Ready connection and granted background access.~~ Implemented.
+8. Cancel the user's unique background work on logout or connection disconnect. Logout cancellation is implemented; connection-disconnect cancellation waits for the Android disconnect action.
 9. Validate the worker on the physical phone with the visible app closed.
 10. Add Celery/Redis ingestion only after synchronous backend processing becomes a measured bottleneck or requires server-independent retries.

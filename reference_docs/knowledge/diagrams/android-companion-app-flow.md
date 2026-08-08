@@ -3,7 +3,7 @@
 ## Use When
 
 - You need the complete Android lifecycle from application launch through authentication, Health Connect registration, weight synchronization, token refresh, and logout.
-- You need to distinguish the implemented explicit-sync flow from the configured but unscheduled WorkManager flow.
+- You need to distinguish explicit initial sync from scheduled incremental WorkManager sync.
 - You need to see which responsibilities belong to Compose, Android domain services, Health Connect, Django, and PostgreSQL.
 
 This is a behavioral flow diagram. Structurizr DSL remains the source of truth for C4 architecture views.
@@ -89,8 +89,9 @@ flowchart TD
         REFRESH_OK -->|Temporary failure| RETRYABLE_API_ERROR["Keep session and return<br/>retryable unavailable outcome"]
     end
 
-    subgraph BACKGROUND["WorkManager foundation — configured, not scheduled"]
-        FUTURE_SCHEDULE["Planned unique periodic request<br/>requires network + background health access"] -.-> WORKER["IncrementalWeightSyncWorker<br/>validates connection_id"]
+    subgraph BACKGROUND["Implemented periodic incremental weight sync"]
+        BACKGROUND_READY --> SCHEDULE["WorkManagerWeightSyncScheduler<br/>enqueues unique work for connection_id<br/>UPDATE policy · network required · 15-minute minimum"]
+        SCHEDULE --> WORKER["IncrementalWeightSyncWorker<br/>validates connection_id"]
         WORKER --> INCREMENTAL_RUNNER["Injected IncrementalWeightSyncRunner"]
         INCREMENTAL_RUNNER --> CURSOR["Load per-connection cursor<br/>use 24-hour overlap or 30-day fallback"]
         CURSOR --> HC_READ
@@ -109,7 +110,7 @@ flowchart TD
         CLEAR --> FORM
         LOGOUT_OK -->|No| LOGOUT_RETRY["Retain session so revocation<br/>can be retried honestly"]
         LOGOUT_RETRY --> AUTHENTICATED
-        CLEAR -. "Planned with scheduling" .-> CANCEL_WORK["Cancel user's unique periodic work"]
+        CLEAR --> CANCEL_WORK["Cancel every weight-sync request<br/>through the stable WorkManager tag"]
     end
 
     classDef implemented fill:#dcfce7,stroke:#15803d,color:#14532d;
@@ -119,11 +120,10 @@ flowchart TD
     classDef planned fill:#fef3c7,stroke:#b45309,color:#78350f,stroke-dasharray:5 5;
     classDef recovery fill:#fee2e2,stroke:#dc2626,color:#7f1d1d;
 
-    class START,RESTORE,FORM,LOGIN,DJANGO_LOGIN,STORE,AUTHENTICATED,CONNECT_ACTION,SDK_CHECK,PERMISSION,RESOLVE_CONNECTION,REGISTER,ENTITLEMENT,READY,BACKGROUND_CHECK,BACKGROUND_READY,BACKGROUND_UNAVAILABLE,BACKGROUND_ACTION,BACKGROUND_PERMISSION,SYNC_ACTION,INITIAL_VM,COORDINATOR,INITIAL_PLANNER,HC_READ,FILTER,UPLOAD_ID,UPLOAD,AUTH_CLIENT,DJANGO_AUTH,INGEST,RECEIPT,RESULT,SYNC_UI,WEB,REFRESH_LOCK,RETRY_REQUEST,REFRESH_REQUEST,REPLACE_TOKENS,WORKER,INCREMENTAL_RUNNER,CURSOR,WORK_RESULT,CURSOR_ADVANCE,KEEP_CURSOR,LOGOUT_ACTION,REVOKE,CLEAR implemented;
+    class START,RESTORE,FORM,LOGIN,DJANGO_LOGIN,STORE,AUTHENTICATED,CONNECT_ACTION,SDK_CHECK,PERMISSION,RESOLVE_CONNECTION,REGISTER,ENTITLEMENT,READY,BACKGROUND_CHECK,BACKGROUND_READY,BACKGROUND_UNAVAILABLE,BACKGROUND_ACTION,BACKGROUND_PERMISSION,SCHEDULE,SYNC_ACTION,INITIAL_VM,COORDINATOR,INITIAL_PLANNER,HC_READ,FILTER,UPLOAD_ID,UPLOAD,AUTH_CLIENT,DJANGO_AUTH,INGEST,RECEIPT,RESULT,SYNC_UI,WEB,REFRESH_LOCK,RETRY_REQUEST,REFRESH_REQUEST,REPLACE_TOKENS,WORKER,INCREMENTAL_RUNNER,CURSOR,WORK_RESULT,CURSOR_ADVANCE,KEEP_CURSOR,LOGOUT_ACTION,REVOKE,CLEAR,CANCEL_WORK implemented;
     class SESSION,LOGIN_OK,SDK_READY,PERMISSION_RESULT,CONNECTION_EXISTS,REGISTERED,BACKGROUND_ACCESS,BACKGROUND_RESULT,API_RESPONSE,ALREADY_ROTATED,REFRESH_OK,CURSOR_DECISION,LOGOUT_OK decision;
     class SAMSUNG,HEALTH_CONNECT external;
     class DATABASE storage;
-    class FUTURE_SCHEDULE,CANCEL_WORK planned;
     class SAFE_LOGIN_ERROR,CONNECT_RECOVERY,SESSION_EXPIRED,RETRYABLE_API_ERROR,LOGOUT_RETRY recovery;
 ```
 
@@ -136,5 +136,5 @@ flowchart TD
 - The Android app reads Health Connect. Django and Celery cannot directly access on-device records.
 - `SyncRun` records an upload attempt; `MetricEntry` remains the canonical metric store.
 - Explicit initial synchronization is implemented and physically validated.
-- The incremental worker and dependency factory are implemented, but no WorkManager request is currently enqueued.
-- Background feature detection and foreground permission consent are implemented. Periodic scheduling and logout/disconnect work cancellation are planned next.
+- Background feature detection and foreground permission consent are implemented. A grant schedules one unique, network-constrained periodic weight job per connection using UPDATE semantics.
+- Startup session checking preserves durable work. Confirmed logout cancels all tagged weight work; connection-disconnect cancellation remains planned with the Android disconnect UI.

@@ -26,6 +26,8 @@ import com.viridiandome.longevity.wearables.healthconnect.WEIGHT_READ_PERMISSION
 import com.viridiandome.longevity.wearables.healthconnect.WEIGHT_READ_PERMISSIONS
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncViewModel
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncViewModelFactory
+import com.viridiandome.longevity.wearables.sync.WeightSyncScheduleAction
+import com.viridiandome.longevity.wearables.sync.decideWeightSyncScheduleAction
 
 /**
  * Android's entry point for the app.
@@ -71,6 +73,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val weightSyncScheduler =
+            (application as LongevityApplication).weightSyncScheduler
 
         // Draw behind the system bars. Scaffold supplies safe content padding below.
         enableEdgeToEdge()
@@ -93,6 +97,32 @@ class MainActivity : ComponentActivity() {
                     if (!loginState.isAuthenticated) {
                         wearableConnectionViewModel.resetForLogout()
                         initialWeightSyncViewModel.resetForLogout()
+                    }
+                }
+
+                // WorkManager survives process restarts. Only confirmed logout
+                // cancels it; startup's temporary unauthenticated state does not.
+                // Re-enqueueing the ready connection is safe because the scheduler
+                // uses one unique periodic-work name per connection with UPDATE.
+                LaunchedEffect(
+                    loginState.isCheckingSession,
+                    loginState.isAuthenticated,
+                    wearableConnectionState,
+                ) {
+                    when (
+                        val action = decideWeightSyncScheduleAction(
+                            isCheckingSession = loginState.isCheckingSession,
+                            isAuthenticated = loginState.isAuthenticated,
+                            connectionState = wearableConnectionState,
+                        )
+                    ) {
+                        is WeightSyncScheduleAction.Schedule ->
+                            weightSyncScheduler.schedule(action.connectionId)
+
+                        WeightSyncScheduleAction.CancelAll ->
+                            weightSyncScheduler.cancelAll()
+
+                        WeightSyncScheduleAction.None -> Unit
                     }
                 }
 
