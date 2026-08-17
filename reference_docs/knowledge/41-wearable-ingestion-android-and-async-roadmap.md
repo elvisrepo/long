@@ -118,7 +118,7 @@ Implemented:
 
 Not implemented yet:
 
-- Physical closed-app periodic execution, live end-to-end manual validation of the new disconnect action, additional metric mappings, Celery-backed asynchronous ingestion, and production distribution remain later phases.
+- Reliable closed-process periodic execution, additional metric mappings, Celery-backed asynchronous ingestion, and production distribution remain later phases. Foreground periodic sync and live end-to-end disconnect were manually validated on 2026-08-17. A process-death test confirmed the WorkManager request survives and becomes runnable, but Honor OS delayed dispatch beyond the requested 15-minute minimum; no closed-process upload was claimed from that run.
 
 Manually validated on the physical phone:
 
@@ -127,7 +127,9 @@ Manually validated on the physical phone:
 - the Health Connect system permission flow grants Longevity `READ_WEIGHT` plus supported background-read access; granting the optional permission keeps explicit foreground sync available and enables periodic scheduling
 - the explicit sync action read the two latest Samsung-originated weight records through Health Connect, uploaded them through `adb reverse`, created the corresponding Django sync/metric state, and made both values visible in the React metric history
 - Logout calls Django revocation, clears the local session, and returns to the login form
+- Disconnect Health Connect calls Django's owner-scoped soft-delete boundary, releases the live plan slot, cancels the connection-scoped device work, clears its cursor, and returns the UI to Not connected
 - reconnecting USB/ADB may remove the reverse mapping; restoring `adb reverse tcp:8000 tcp:8000` restores local API access without a rebuild
+- WorkManager's 15-minute periodic interval is a minimum, not a deadline. Force-stopping an Android app prevents all of its scheduled work until the user launches it again; ordinary backgrounding or process death preserves work, but Android and OEM battery policy may delay execution.
 
 ## 4. `SyncRun` Receipt and Status Lifecycle
 

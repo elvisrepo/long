@@ -33,6 +33,7 @@ import com.viridiandome.longevity.wearables.WearableConnectionUiState
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncUiState
 import com.viridiandome.longevity.wearables.sync.ManualSyncAvailability
 import com.viridiandome.longevity.wearables.sync.WeightSyncFailure
+import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -340,12 +341,31 @@ private fun HealthConnectContent(
             if (syncPolicy != null) {
                 Text(
                     text = if (syncPolicy.automaticSyncEnabled) {
-                        "Automatic sync every ${syncPolicy.syncIntervalMinutes} minutes"
+                        "Automatic sync approximately every " +
+                            "${syncPolicy.syncIntervalMinutes} minutes"
                     } else {
                         "Manual sync every ${syncPolicy.syncIntervalMinutes} minutes"
                     },
                 )
+
+                if (syncPolicy.automaticSyncEnabled) {
+                    // WorkManager respects the interval as a minimum. Android may
+                    // batch background work after the app leaves the foreground.
+                    Text(text = "Android may delay sync while the app is closed.")
+                }
             }
+
+            val lastSyncedAt = state.connection.lastSyncedAt
+                ?.let { timestamp ->
+                    runCatching { Instant.parse(timestamp) }.getOrNull()
+                }
+            Text(
+                text = if (lastSyncedAt != null) {
+                    "Last successful sync: ${lastSyncedAt.formatLocalDateTime()}"
+                } else {
+                    "No successful sync yet."
+                },
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -503,6 +523,11 @@ private fun InitialWeightSyncContent(
 
 private fun java.time.Instant.formatLocalTime(): String =
     DateTimeFormatter.ofPattern("HH:mm")
+        .withZone(ZoneId.systemDefault())
+        .format(this)
+
+private fun Instant.formatLocalDateTime(): String =
+    DateTimeFormatter.ofPattern("MMM d, yyyy, HH:mm")
         .withZone(ZoneId.systemDefault())
         .format(this)
 

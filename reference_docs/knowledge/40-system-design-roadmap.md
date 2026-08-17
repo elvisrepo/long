@@ -197,13 +197,13 @@ Recommended order:
 
    Django soft-disconnects first; Android then cancels only that connection's work and clears its cursor.
 
-10. Validate automatic work with the visible app closed — next
+10. Validate automatic work with the visible app closed — in progress
 
-   Confirm WorkManager executes and uploads without an Activity in the foreground.
+   Foreground periodic execution is proven. A process-death test proved the unique WorkManager request survives and becomes runnable, but Honor OS delayed dispatch beyond the 15-minute minimum. Complete a normal Home/swipe-away run and require a new Django `SyncRun` before marking closed-app ingestion complete. Explicit Android Force stop is out of scope because the platform suppresses all app work until relaunch.
 
-11. Add richer sync status UI
+11. Add richer sync status UI — partially completed
 
-   Settings or a dedicated Wearables page shows connection state and last sync.
+   Android now shows connection state, honest approximate scheduling language, and the latest successful Django sync time. A dedicated history/error view remains later work.
 
 Related doc:
 
@@ -297,7 +297,7 @@ Related docs:
 Next real system-design step:
 
 ```text
-Validate closed-app periodic execution, then expose durable sync status
+Validate normal-background periodic ingestion and document OEM battery guidance
 ```
 
-This closes the remaining device-runtime uncertainty before adding more metric types or beginning production distribution. Celery/Redis remains deferred until synchronous ingestion is a measured bottleneck or needs server-independent retries.
+This closes the remaining device-runtime uncertainty before adding more metric types or beginning production distribution. The UI already exposes the latest successful sync and avoids promising exact WorkManager timing. Celery/Redis remains deferred until synchronous ingestion is a measured bottleneck or needs server-independent retries.

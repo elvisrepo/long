@@ -213,6 +213,50 @@ class LoginScreenTest {
     }
 
     @Test
+    fun automatic_sync_copy_is_inexact_and_shows_last_successful_sync() {
+        composeTestRule.setContent {
+            LoginScreen(
+                state = LoginFormState(
+                    email = "pro@example.com",
+                    password = "",
+                    isAuthenticated = true,
+                ),
+                wearableConnectionState = WearableConnectionUiState.Ready(
+                    WearableConnectionResponse(
+                        id = "7df7e4ab-7e6f-4558-b9be-17c824fbf54e",
+                        provider = "health_connect",
+                        status = "connected",
+                        lastSyncedAt = "2026-08-08T10:00:00Z",
+                        lastError = "",
+                        createdAt = "2026-08-05T10:00:00Z",
+                        updatedAt = "2026-08-08T10:00:00Z",
+                    ),
+                ),
+                syncPolicyState = SyncPolicyUiState.Ready(
+                    SyncPolicy(
+                        automaticSyncEnabled = true,
+                        syncIntervalMinutes = 15,
+                    ),
+                ),
+                onEmailChange = {},
+                onPasswordChange = {},
+                onSignIn = {},
+                onLogout = {},
+            )
+        }
+
+        composeTestRule
+            .onNodeWithText("Automatic sync approximately every 15 minutes")
+            .assertIsDisplayed()
+        composeTestRule
+            .onNodeWithText("Last successful sync:", substring = true)
+            .assertIsDisplayed()
+        composeTestRule
+            .onNodeWithText("Automatic sync every 15 minutes")
+            .assertDoesNotExist()
+    }
+
+    @Test
     fun ready_health_connect_state_forwards_disconnect_click() {
         var disconnectRequested = false
         composeTestRule.setContent {

@@ -313,6 +313,18 @@ The worker receives a `SubscriptionAwareWeightSyncRunner`. It fetches the curren
 
 Periodic WorkManager execution is inexact. Android may delay work because of Doze, battery optimization, and other constraints. The platform has a 15-minute minimum periodic interval, but a 15-minute request is not a guarantee that work runs exactly every 15 minutes.
 
+There are three materially different runtime states:
+
+| State | Expected behavior |
+|---|---|
+| Activity visible | Eligible work usually dispatches promptly because the app is active |
+| Activity backgrounded or process reclaimed/killed | Durable WorkManager requests remain registered, but Android and OEM policy choose the eventual execution time |
+| App explicitly **Force stopped** | Android suppresses the app and its scheduled work until the user launches it again; application code cannot bypass this platform rule |
+
+The Android UI therefore says **approximately every N minutes**, explains that Android may delay closed-app work, and displays Django's latest successful connection sync time. This status is more honest and operationally useful than treating WorkManager's requested interval as a clock deadline.
+
+On the physical Honor test phone on 2026-08-17, foreground periodic sync completed successfully. After `adb am kill` removed the Longevity process without force-stopping the package, the connection-scoped job survived, satisfied its timing/connectivity/quota and Honor-specific constraints, and reached `READY`. Honor OS still kept the runnable job batched for more than six minutes beyond the 15-minute minimum, and no new Django `SyncRun` was observed during that window. This proves durable scheduling state, not closed-process ingestion. A normal Home/swipe-away validation and OEM battery-policy guidance remain required before calling that path release-ready.
+
 Background Health Connect reads also require:
 
 - the ordinary record permission, currently `READ_WEIGHT`;
@@ -401,6 +413,6 @@ Celery processes data after it reaches the backend.
 7. ~~Schedule one unique network-constrained periodic job only for an authenticated user with a Ready connection and granted background access.~~ Implemented.
 8. ~~Consume server-owned subscription policy, cancel automatic work for Free, pass the server interval to WorkManager, and recheck entitlement inside each worker.~~ Completed.
 9. ~~Gate explicit sync with the durable plan cooldown and reuse the incremental runner for foreground taps.~~ Completed.
-10. ~~Cancel the user's unique background work and remove its local cursor after confirmed connection disconnect.~~ Implemented and physically covered at the Compose/cursor boundaries.
-11. Validate the subscription-aware worker on the physical phone with the visible app closed.
+10. ~~Cancel the user's unique background work and remove its local cursor after confirmed connection disconnect.~~ Implemented, covered at the Compose/cursor boundaries, and manually proven against live local Django on 2026-08-17.
+11. Validate the subscription-aware worker on the physical phone after normal Home/swipe-away behavior, separately from explicit Android Force stop. Record OEM delay/battery-policy behavior and require a new Django `SyncRun` before calling closed-app ingestion proven.
 12. Add Celery/Redis ingestion only after synchronous backend processing becomes a measured bottleneck or requires server-independent retries.
