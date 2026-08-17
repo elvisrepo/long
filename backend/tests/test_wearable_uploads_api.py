@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime
 
 import pytest
 from rest_framework.test import APIClient
@@ -87,6 +88,64 @@ def test_wearable_upload_processes_one_normalized_entry():
         "entries_imported": 1,
         "entries_skipped": 0,
     }
+
+
+def test_wearable_upload_processes_one_normalized_steps_interval():
+    user = User.objects.create_user(
+        email="steps-upload@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+
+    client = APIClient()
+    access_token = RefreshToken.for_user(user).access_token
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+
+    response = client.post(
+        "/api/v1/wearables/uploads/",
+        {
+            "connection_id": str(connection.id),
+            "upload_id": str(uuid.uuid4()),
+            "entries": [
+                {
+                    "metric_definition": "steps",
+                    "value": 420,
+                    "period_start": "2026-07-29T07:45:00Z",
+                    "recorded_at": "2026-07-29T08:00:00Z",
+                    "source": "samsung_health",
+                    "external_source_id": (
+                        "health_connect:StepsRecord:record-api-123"
+                    ),
+                }
+            ],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.json()["entries_imported"] == 1
+
+    metric_entry = MetricEntry.objects.get()
+    assert metric_entry.metric_definition.slug == "steps"
+    assert metric_entry.value == 420
+    assert metric_entry.period_start == datetime(
+        2026,
+        7,
+        29,
+        7,
+        45,
+        tzinfo=UTC,
+    )
+    assert metric_entry.recorded_at == datetime(
+        2026,
+        7,
+        29,
+        8,
+        tzinfo=UTC,
+    )
 
 
 def test_wearable_upload_requires_authentication():

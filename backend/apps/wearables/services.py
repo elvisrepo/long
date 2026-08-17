@@ -45,6 +45,8 @@ def _matches_normalized_entry(
     return (
         existing_entry.metric_definition_id == definition.id
         and existing_entry.value == cast(float, incoming_entry["value"])
+        and existing_entry.period_start
+        == cast(datetime | None, incoming_entry.get("period_start"))
         and existing_entry.recorded_at
         == cast(datetime, incoming_entry["recorded_at"])
         and existing_entry.source == str(incoming_entry["source"])
@@ -137,6 +139,7 @@ def process_wearable_upload(
                 entry["metric_definition"],
             ),
             value=cast(float, entry["value"]),
+            period_start=cast(datetime | None, entry.get("period_start")),
             recorded_at=entry["recorded_at"],
             source=str(entry["source"]),
             source_connection=locked_connection,

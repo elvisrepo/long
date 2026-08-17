@@ -73,6 +73,9 @@ class MetricEntry(models.Model):
         related_name="entries",
     )
     value = models.FloatField()
+    # Null for instantaneous measurements. Interval metrics such as Steps use
+    # recorded_at as the interval end and retain their beginning here.
+    period_start = models.DateTimeField(null=True, blank=True)
     recorded_at = models.DateTimeField()
     source = models.CharField(
         max_length=32,
@@ -94,6 +97,13 @@ class MetricEntry(models.Model):
     class Meta:
         db_table = "metrics_metric_entry"
         constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(period_start__isnull=True)
+                    | Q(period_start__lt=models.F("recorded_at"))
+                ),
+                name="metrics_valid_entry_period",
+            ),
             models.UniqueConstraint(
                 fields=["source_connection", "external_source_id"],
                 condition=Q(external_source_id__isnull=False),

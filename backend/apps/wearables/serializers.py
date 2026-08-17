@@ -2,6 +2,7 @@
 
 import math
 from collections.abc import Mapping
+from datetime import datetime
 from typing import Any, cast
 
 from django.contrib.auth import get_user_model
@@ -31,8 +32,10 @@ SERVER_MANAGED_FIELDS = frozenset(
 )
 SERVER_MANAGED_FIELD_MESSAGE = "This field is server-managed."
 
-# The first ingestion slice deliberately maps only Health Connect weight data.
-SUPPORTED_WEARABLE_METRIC_SLUGS = frozenset({"body_weight"})
+# Every supported record type uses the shared ingestion path, while retaining
+# metric-specific time semantics during normalization.
+SUPPORTED_WEARABLE_METRIC_SLUGS = frozenset({"body_weight", "steps"})
+INTERVAL_WEARABLE_METRIC_SLUGS = frozenset({"steps"})
 
 # Keep future synchronous ingestion requests small and predictable.
 MAX_WEARABLE_UPLOAD_ENTRIES = 100
@@ -185,6 +188,7 @@ class WearableUploadEntrySerializer(StrictFieldsSerializer):
         ),
     )
     value = serializers.FloatField()
+    period_start = serializers.DateTimeField(required=False, allow_null=True)
     recorded_at = serializers.DateTimeField()
     source = serializers.ChoiceField(
         choices=(MetricEntry.Source.SAMSUNG_HEALTH,),
@@ -202,6 +206,8 @@ class WearableUploadEntrySerializer(StrictFieldsSerializer):
             attrs["metric_definition"],
         )
         value = cast(float, attrs["value"])
+        period_start = cast(datetime | None, attrs.get("period_start"))
+        recorded_at = cast(datetime, attrs["recorded_at"])
 
         if not math.isfinite(value):
             raise serializers.ValidationError(
@@ -214,6 +220,24 @@ class WearableUploadEntrySerializer(StrictFieldsSerializer):
                     "value": (
                         f"Value must be between {definition.min_value} "
                         f"and {definition.max_value}."
+                    )
+                }
+            )
+
+        if definition.slug in INTERVAL_WEARABLE_METRIC_SLUGS:
+            if period_start is None:
+                raise serializers.ValidationError(
+                    {"period_start": "This field is required."}
+                )
+            if period_start >= recorded_at:
+                raise serializers.ValidationError(
+                    {"period_start": "Must be earlier than recorded_at."}
+                )
+        elif period_start is not None:
+            raise serializers.ValidationError(
+                {
+                    "period_start": (
+                        "This field is only supported for interval metrics."
                     )
                 }
             )

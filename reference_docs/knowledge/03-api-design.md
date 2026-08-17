@@ -302,9 +302,9 @@ Current implementation status:
 - The Android client now exposes this disconnect action from its Ready state. A confirmed `204`, or a `404` from stale already-inactive local state, cancels only that connection's unique WorkManager request and removes only that connection's device cursor. Authentication, transport, and server failures keep the Ready state retryable and do not perform local cleanup.
 - `GET /api/v1/wearables/connections/{id}/status/` returns the caller-owned connection's provider, status, last sync timestamp, and last error. Another user's or an unknown UUID returns `404`.
 - `POST /api/v1/wearables/uploads/` requires JWT authentication and a body containing `connection_id`, `upload_id`, and `1–100` normalized `entries`. It resolves only an active connection owned by the caller and processes the batch synchronously. A new batch returns `201` with a terminal successful `SyncRun`; an exact retry returns the unchanged run with `200`; conflicting upload or external-record identity reuse returns `409`. Missing, invalid, or undeclared fields return `400`.
-- `MetricEntry` has a nullable foreign key to `WearableConnection`, and PostgreSQL enforces at most one non-null `(source_connection, external_source_id)` pair. The ingestion service skips identical stored provider records. For the MVP, changed normalized content under an existing external ID raises a record-level conflict and preserves the stored history rather than updating it silently.
+- `MetricEntry` has a nullable foreign key to `WearableConnection` and a nullable `period_start`. Instantaneous metrics leave `period_start` null; interval metrics use `recorded_at` as the interval end. PostgreSQL requires a non-null period start to precede `recorded_at` and enforces at most one non-null `(source_connection, external_source_id)` pair. The ingestion service skips identical stored provider records. For the MVP, changed normalized content under an existing external ID raises a record-level conflict and preserves the stored history rather than updating it silently.
 - Metric history exposes each entry's trusted `source`. The web UI labels Samsung-originated rows as `Samsung Health` and withholds manual Edit/Delete controls; the backend independently rejects direct mutation attempts with `409`.
-- `WearableUploadEntrySerializer` is the live nested-entry boundary. It accepts active system `body_weight` definitions only, enforces the configured value range, rejects non-finite numbers, parses `recorded_at`, accepts Samsung Health provenance only, and requires a nonblank external source ID.
+- `WearableUploadEntrySerializer` is the live nested-entry boundary. It accepts active system `body_weight` and `steps` definitions, enforces each configured value range, rejects non-finite numbers, parses timestamps, accepts Samsung Health provenance only, and requires a nonblank external source ID. Steps requires `period_start < recorded_at`; instantaneous Weight rejects a supplied period start.
 - `WearableUploadBatchSerializer` is the live request boundary. It composes `connection_id`, `upload_id`, and a required list of `1–100` normalized entries, rejects undeclared fields at both levels, and rejects repeated `external_source_id` values within one batch.
 - The server-side canonical payload-hash helper fingerprints validated entries with schema version `1`, stable external-record ordering, UTC timestamps, and SHA-256. The live ingestion service uses it to reuse exact retries and reject conflicting upload identity reuse.
 - Connection-state mutations will belong to trusted ingestion/resync services rather than a generic client `PATCH` endpoint.
@@ -347,7 +347,7 @@ First-slice non-goals:
 
 MVP Samsung sync does **not** use provider webhooks or a hosted provider link flow. The Android companion app reads Samsung-originated data on device, uploads batches to our API, and the backend handles validation, deduplication, and persistence. A future aggregator webhook receiver can be added later for providers with cloud-friendly APIs.
 
-**Implemented synchronous example: uploading one normalized body-weight batch**
+**Implemented synchronous example: uploading normalized Weight and Steps records**
 ```http
 POST /api/v1/wearables/uploads/
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
@@ -365,6 +365,14 @@ Content-Type: application/json
       "recorded_at": "2026-07-29T08:00:00Z",
       "source": "samsung_health",
       "external_source_id": "health_connect:WeightRecord:record-123"
+    },
+    {
+      "metric_definition": "steps",
+      "value": 420,
+      "period_start": "2026-07-29T07:45:00Z",
+      "recorded_at": "2026-07-29T08:00:00Z",
+      "source": "samsung_health",
+      "external_source_id": "health_connect:StepsRecord:record-123"
     }
   ]
 }

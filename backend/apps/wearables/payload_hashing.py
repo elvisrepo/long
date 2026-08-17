@@ -24,21 +24,27 @@ def calculate_wearable_payload_hash(
     ):
         definition = cast(MetricDefinition, entry["metric_definition"])
         recorded_at = cast(datetime, entry["recorded_at"]).astimezone(UTC)
+        period_start = cast(datetime | None, entry.get("period_start"))
 
-        canonical_entries.append(
-            {
-                "external_source_id": cast(
-                    str,
-                    entry["external_source_id"],
-                ),
-                "metric_definition": definition.slug,
-                "recorded_at": recorded_at.isoformat(
-                    timespec="microseconds",
-                ).replace("+00:00", "Z"),
-                "source": str(entry["source"]),
-                "value": cast(float, entry["value"]),
-            }
-        )
+        canonical_entry = {
+            "external_source_id": cast(
+                str,
+                entry["external_source_id"],
+            ),
+            "metric_definition": definition.slug,
+            "recorded_at": recorded_at.isoformat(
+                timespec="microseconds",
+            ).replace("+00:00", "Z"),
+            "source": str(entry["source"]),
+            "value": cast(float, entry["value"]),
+        }
+        # Keep the canonical form of existing instantaneous Weight payloads
+        # unchanged so a retry spanning this deployment still matches.
+        if period_start is not None:
+            canonical_entry["period_start"] = period_start.astimezone(
+                UTC
+            ).isoformat(timespec="microseconds").replace("+00:00", "Z")
+        canonical_entries.append(canonical_entry)
 
     canonical_payload = {
         "schema_version": PAYLOAD_HASH_SCHEMA_VERSION,
