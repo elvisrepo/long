@@ -5,11 +5,16 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import com.viridiandome.longevity.subscriptions.SyncPolicy
+import com.viridiandome.longevity.subscriptions.SyncPolicyUiState
 import com.viridiandome.longevity.wearables.BackgroundReadAccess
 import com.viridiandome.longevity.wearables.WearableConnectionUiState
 import com.viridiandome.longevity.wearables.network.WearableConnectionResponse
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncUiState
+import com.viridiandome.longevity.wearables.sync.ManualSyncAvailability
+import java.time.Instant
 import org.junit.Rule
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -193,6 +198,7 @@ class LoginScreenTest {
                     ),
                 ),
                 initialWeightSyncState = InitialWeightSyncUiState.Idle,
+                manualSyncAvailability = ManualSyncAvailability.Available,
                 onEmailChange = {},
                 onPasswordChange = {},
                 onSignIn = {},
@@ -204,6 +210,51 @@ class LoginScreenTest {
         composeTestRule.onNodeWithText("Sync weight now").performClick()
 
         assertTrue(syncRequested)
+    }
+
+    @Test
+    fun cooling_down_manual_sync_cannot_forward_another_click() {
+        var syncRequested = false
+        composeTestRule.setContent {
+            LoginScreen(
+                state = LoginFormState(
+                    email = "free@example.com",
+                    password = "",
+                    isAuthenticated = true,
+                ),
+                wearableConnectionState = WearableConnectionUiState.Ready(
+                    WearableConnectionResponse(
+                        id = "7df7e4ab-7e6f-4558-b9be-17c824fbf54e",
+                        provider = "health_connect",
+                        status = "connected",
+                        lastSyncedAt = "2026-08-08T10:00:00Z",
+                        lastError = "",
+                        createdAt = "2026-08-05T10:00:00Z",
+                        updatedAt = "2026-08-08T10:00:00Z",
+                    ),
+                ),
+                manualSyncAvailability = ManualSyncAvailability.CoolingDown(
+                    availableAt = Instant.parse("2026-08-08T10:30:00Z"),
+                ),
+                syncPolicyState = SyncPolicyUiState.Ready(
+                    SyncPolicy(
+                        automaticSyncEnabled = false,
+                        syncIntervalMinutes = 30,
+                    ),
+                ),
+                onEmailChange = {},
+                onPasswordChange = {},
+                onSignIn = {},
+                onLogout = {},
+                onSyncWeight = { syncRequested = true },
+            )
+        }
+
+        composeTestRule.onNodeWithText("Sync weight now")
+            .assertIsNotEnabled()
+            .performClick()
+
+        assertFalse(syncRequested)
     }
 
     @Test
@@ -227,6 +278,12 @@ class LoginScreenTest {
                         updatedAt = "2026-08-05T10:00:00Z",
                     ),
                     backgroundReadAccess = BackgroundReadAccess.PermissionRequired,
+                ),
+                syncPolicyState = SyncPolicyUiState.Ready(
+                    SyncPolicy(
+                        automaticSyncEnabled = true,
+                        syncIntervalMinutes = 15,
+                    ),
                 ),
                 onEmailChange = {},
                 onPasswordChange = {},

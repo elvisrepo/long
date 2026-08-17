@@ -13,7 +13,10 @@ internal const val WEIGHT_SYNC_WORK_TAG = "health_connect_weight_sync"
 
 /** Device-side boundary for starting and stopping durable background weight sync. */
 interface WeightSyncScheduler {
-    fun schedule(connectionId: String)
+    fun schedule(
+        connectionId: String,
+        repeatIntervalMinutes: Long,
+    )
 
     fun cancelAll()
 }
@@ -37,15 +40,24 @@ class WorkManagerWeightSyncScheduler internal constructor(
         cancelAllWorkByTag = workManager::cancelAllWorkByTag,
     )
 
-    override fun schedule(connectionId: String) {
+    override fun schedule(
+        connectionId: String,
+        repeatIntervalMinutes: Long,
+    ) {
         require(connectionId.isNotBlank()) {
             "A wearable connection ID is required to schedule weight sync."
+        }
+        require(repeatIntervalMinutes >= MINIMUM_PERIODIC_INTERVAL_MINUTES) {
+            "Periodic weight sync cannot run more often than every 15 minutes."
         }
 
         enqueueUniquePeriodicWork(
             uniqueWeightSyncWorkName(connectionId),
             ExistingPeriodicWorkPolicy.UPDATE,
-            buildIncrementalWeightSyncWorkRequest(connectionId),
+            buildIncrementalWeightSyncWorkRequest(
+                connectionId = connectionId,
+                repeatIntervalMinutes = repeatIntervalMinutes,
+            ),
         )
     }
 
@@ -60,9 +72,10 @@ internal fun uniqueWeightSyncWorkName(connectionId: String): String =
 /** Builds the durable device-side contract for one connection's periodic sync. */
 internal fun buildIncrementalWeightSyncWorkRequest(
     connectionId: String,
+    repeatIntervalMinutes: Long,
 ): PeriodicWorkRequest =
     PeriodicWorkRequestBuilder<IncrementalWeightSyncWorker>(
-        repeatInterval = 15,
+        repeatInterval = repeatIntervalMinutes,
         repeatIntervalTimeUnit = TimeUnit.MINUTES,
     )
         .setConstraints(
@@ -77,3 +90,5 @@ internal fun buildIncrementalWeightSyncWorkRequest(
         )
         .addTag(WEIGHT_SYNC_WORK_TAG)
         .build()
+
+private const val MINIMUM_PERIODIC_INTERVAL_MINUTES = 15L

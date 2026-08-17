@@ -8,6 +8,8 @@ import com.viridiandome.longevity.auth.AuthRepository
 import com.viridiandome.longevity.auth.AuthTokenStore
 import com.viridiandome.longevity.auth.network.AuthenticatedApiClient
 import com.viridiandome.longevity.auth.network.HttpAuthRepository
+import com.viridiandome.longevity.subscriptions.SyncPolicyRepository
+import com.viridiandome.longevity.subscriptions.network.HttpSyncPolicyRepository
 import com.viridiandome.longevity.wearables.HealthConnectAccess
 import com.viridiandome.longevity.wearables.WearableConnectionRepository
 import com.viridiandome.longevity.wearables.WearableUploadRepository
@@ -16,9 +18,9 @@ import com.viridiandome.longevity.wearables.network.HttpWearableConnectionReposi
 import com.viridiandome.longevity.wearables.network.HttpWearableUploadRepository
 import com.viridiandome.longevity.wearables.sync.IncrementalWeightSyncPlanner
 import com.viridiandome.longevity.wearables.sync.IncrementalWeightSyncRunner
-import com.viridiandome.longevity.wearables.sync.InitialWeightSyncPlanner
 import com.viridiandome.longevity.wearables.sync.LongevityWorkerFactory
 import com.viridiandome.longevity.wearables.sync.SharedPreferencesWeightSyncCursorStore
+import com.viridiandome.longevity.wearables.sync.SubscriptionAwareWeightSyncRunner
 import com.viridiandome.longevity.wearables.sync.WeightSyncCoordinator
 import com.viridiandome.longevity.wearables.sync.WeightSyncCursorStore
 import com.viridiandome.longevity.wearables.sync.WeightSyncRunner
@@ -79,6 +81,13 @@ class LongevityApplication : Application(), Configuration.Provider {
         )
     }
 
+    val syncPolicyRepository: SyncPolicyRepository by lazy {
+        HttpSyncPolicyRepository(
+            authenticatedApiClient = authenticatedApiClient,
+            baseUrl = BuildConfig.API_BASE_URL,
+        )
+    }
+
     private val androidHealthConnectAccess by lazy {
         AndroidHealthConnectAccess(this)
     }
@@ -86,14 +95,7 @@ class LongevityApplication : Application(), Configuration.Provider {
     val healthConnectAccess: HealthConnectAccess
         get() = androidHealthConnectAccess
 
-    val initialWeightSyncCoordinator: WeightSyncCoordinator by lazy {
-        WeightSyncCoordinator(
-            planner = InitialWeightSyncPlanner(androidHealthConnectAccess),
-            uploadRepository = wearableUploadRepository,
-        )
-    }
-
-    private val weightSyncCursorStore: WeightSyncCursorStore by lazy {
+    val weightSyncCursorStore: WeightSyncCursorStore by lazy {
         SharedPreferencesWeightSyncCursorStore(this)
     }
 
@@ -112,6 +114,18 @@ class LongevityApplication : Application(), Configuration.Provider {
         )
     }
 
+    /**
+     * WorkManager re-checks the current server-owned subscription policy before
+     * every run. A downgrade therefore stops background reads even if stale
+     * periodic work remains queued temporarily on the phone.
+     */
+    private val periodicWeightSyncRunner: WeightSyncRunner by lazy {
+        SubscriptionAwareWeightSyncRunner(
+            policyRepository = syncPolicyRepository,
+            delegate = incrementalWeightSyncRunner,
+        )
+    }
+
     /** Owns durable device-side scheduling separately from sync business logic. */
     val weightSyncScheduler: WeightSyncScheduler by lazy {
         WorkManagerWeightSyncScheduler(WorkManager.getInstance(this))
@@ -119,7 +133,7 @@ class LongevityApplication : Application(), Configuration.Provider {
 
     private val longevityWorkerFactory by lazy {
         LongevityWorkerFactory(
-            incrementalWeightSyncRunner = { incrementalWeightSyncRunner },
+            incrementalWeightSyncRunner = { periodicWeightSyncRunner },
         )
     }
 

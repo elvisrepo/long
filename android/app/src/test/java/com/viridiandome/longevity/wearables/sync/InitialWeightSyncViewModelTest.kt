@@ -5,6 +5,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -15,7 +16,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Before
 import org.junit.Test
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class InitialWeightSyncViewModelTest {
@@ -32,6 +35,18 @@ class InitialWeightSyncViewModelTest {
     }
 
     @Test
+    fun unconfigured_manual_sync_does_not_run() = runTest {
+        val runner = ControllableInitialWeightSyncRunner()
+        val viewModel = InitialWeightSyncViewModel(runner)
+
+        viewModel.sync(CONNECTION_ID)
+        runCurrent()
+
+        assertEquals(0, runner.requests)
+        assertSame(InitialWeightSyncUiState.Idle, viewModel.state.value)
+    }
+
+    @Test
     fun explicit_sync_publishes_completed_batch_summary() = runTest {
         val runner = ControllableInitialWeightSyncRunner()
         val viewModel = InitialWeightSyncViewModel(runner)
@@ -39,6 +54,8 @@ class InitialWeightSyncViewModelTest {
         assertSame(InitialWeightSyncUiState.Idle, viewModel.state.value)
         assertEquals(0, runner.requests)
 
+        viewModel.configureAvailableManualSync()
+        runCurrent()
         viewModel.sync(CONNECTION_ID)
 
         assertSame(InitialWeightSyncUiState.Syncing, viewModel.state.value)
@@ -68,6 +85,8 @@ class InitialWeightSyncViewModelTest {
         val runner = ControllableInitialWeightSyncRunner()
         val viewModel = InitialWeightSyncViewModel(runner)
 
+        viewModel.configureAvailableManualSync()
+        runCurrent()
         viewModel.sync(CONNECTION_ID)
         runCurrent()
         viewModel.sync(CONNECTION_ID)
@@ -78,15 +97,91 @@ class InitialWeightSyncViewModelTest {
     }
 
     @Test
+    fun manual_sync_is_blocked_until_the_plan_cooldown_has_elapsed() = runTest {
+        val runner = ControllableInitialWeightSyncRunner()
+        val lastSuccessfulSyncAt = Instant.parse("2026-08-08T10:00:00Z")
+        val viewModel = InitialWeightSyncViewModel(
+            runner = runner,
+            cursorStore = FixedWeightSyncCursorStore(lastSuccessfulSyncAt),
+            clock = Clock.fixed(
+                Instant.parse("2026-08-08T10:20:00Z"),
+                ZoneOffset.UTC,
+            ),
+        )
+
+        viewModel.configureManualSync(
+            connectionId = CONNECTION_ID,
+            cooldownMinutes = 30,
+            backendLastSyncedAt = null,
+        )
+        runCurrent()
+
+        assertEquals(
+            ManualSyncAvailability.CoolingDown(
+                availableAt = Instant.parse("2026-08-08T10:30:00Z"),
+            ),
+            viewModel.manualSyncAvailability.value,
+        )
+
+        viewModel.configureAvailableManualSync()
+        runCurrent()
+        viewModel.sync(CONNECTION_ID)
+        runCurrent()
+
+        assertEquals(0, runner.requests)
+
+        advanceTimeBy(10 * 60 * 1_000L)
+        runCurrent()
+
+        assertSame(
+            ManualSyncAvailability.Available,
+            viewModel.manualSyncAvailability.value,
+        )
+    }
+
+    @Test
     fun empty_sync_window_is_a_no_data_state() = runTest {
         val viewModel = InitialWeightSyncViewModel(
             FixedInitialWeightSyncRunner(WeightSyncResult.NoData),
         )
 
+        viewModel.configureAvailableManualSync()
+        runCurrent()
         viewModel.sync(CONNECTION_ID)
         advanceUntilIdle()
 
         assertSame(InitialWeightSyncUiState.NoData, viewModel.state.value)
+    }
+
+    @Test
+    fun successful_no_data_sync_starts_the_plan_cooldown() = runTest {
+        val now = Instant.parse("2026-08-08T10:00:00Z")
+        val viewModel = InitialWeightSyncViewModel(
+            runner = FixedInitialWeightSyncRunner(WeightSyncResult.NoData),
+            cursorStore = FixedWeightSyncCursorStore(cursor = null),
+            clock = Clock.fixed(now, ZoneOffset.UTC),
+        )
+        viewModel.configureManualSync(
+            connectionId = CONNECTION_ID,
+            cooldownMinutes = 30,
+            backendLastSyncedAt = null,
+        )
+        runCurrent()
+        assertSame(
+            ManualSyncAvailability.Available,
+            viewModel.manualSyncAvailability.value,
+        )
+
+        viewModel.sync(CONNECTION_ID)
+        runCurrent()
+
+        assertSame(InitialWeightSyncUiState.NoData, viewModel.state.value)
+        assertEquals(
+            ManualSyncAvailability.CoolingDown(
+                availableAt = Instant.parse("2026-08-08T10:30:00Z"),
+            ),
+            viewModel.manualSyncAvailability.value,
+        )
     }
 
     @Test
@@ -100,6 +195,8 @@ class InitialWeightSyncViewModelTest {
             ),
         )
 
+        viewModel.configureAvailableManualSync()
+        runCurrent()
         viewModel.sync(CONNECTION_ID)
         advanceUntilIdle()
 
@@ -118,6 +215,8 @@ class InitialWeightSyncViewModelTest {
     fun logout_cancels_sync_and_clears_previous_user_state() = runTest {
         val runner = ControllableInitialWeightSyncRunner()
         val viewModel = InitialWeightSyncViewModel(runner)
+        viewModel.configureAvailableManualSync()
+        runCurrent()
         viewModel.sync(CONNECTION_ID)
         runCurrent()
 
@@ -144,6 +243,14 @@ class InitialWeightSyncViewModelTest {
             entriesImported = 1,
             entriesSkipped = 0,
         )
+
+    private fun InitialWeightSyncViewModel.configureAvailableManualSync() {
+        configureManualSync(
+            connectionId = CONNECTION_ID,
+            cooldownMinutes = 30,
+            backendLastSyncedAt = null,
+        )
+    }
 
     private companion object {
         const val CONNECTION_ID = "7df7e4ab-7e6f-4558-b9be-17c824fbf54e"
@@ -173,4 +280,12 @@ private class FixedInitialWeightSyncRunner(
     private val result: WeightSyncResult,
 ) : WeightSyncRunner {
     override suspend fun sync(connectionId: String): WeightSyncResult = result
+}
+
+private class FixedWeightSyncCursorStore(
+    private val cursor: Instant?,
+) : WeightSyncCursorStore {
+    override suspend fun read(connectionId: String): Instant? = cursor
+
+    override suspend fun write(connectionId: String, cursor: Instant) = Unit
 }

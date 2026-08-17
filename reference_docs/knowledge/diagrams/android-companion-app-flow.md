@@ -3,7 +3,7 @@
 ## Use When
 
 - You need the complete Android lifecycle from application launch through authentication, Health Connect registration, weight synchronization, token refresh, and logout.
-- You need to distinguish explicit initial sync from scheduled incremental WorkManager sync.
+- You need to distinguish explicit plan-cooled foreground sync from subscription-enabled WorkManager sync.
 - You need to see which responsibilities belong to Compose, Android domain services, Health Connect, Django, and PostgreSQL.
 
 This is a behavioral flow diagram. Structurizr DSL remains the source of truth for C4 architecture views.
@@ -24,6 +24,8 @@ flowchart TD
     LOGIN_OK -->|Yes| STORE["Encrypt JWTs with Android Keystore<br/>Store ciphertext in private preferences"]
     STORE --> AUTHENTICATED
     SESSION -->|Yes| AUTHENTICATED["Authenticated Android screen"]
+    AUTHENTICATED --> POLICY_REQUEST["HttpSyncPolicyRepository<br/>GET /api/v1/subscriptions/current/"]
+    POLICY_REQUEST --> POLICY_READY["SyncPolicyViewModel exposes<br/>automatic_sync_enabled + sync_interval_minutes"]
 
     subgraph CONNECTION["Health Connect connection"]
         AUTHENTICATED --> CONNECT_ACTION["User chooses Connect Health Connect"]
@@ -53,12 +55,16 @@ flowchart TD
         BACKGROUND_RESULT -->|No| BACKGROUND_ACTION
     end
 
-    subgraph EXPLICIT_SYNC["Implemented explicit initial weight sync"]
-        READY --> SYNC_ACTION["User chooses Sync weight now"]
+    subgraph EXPLICIT_SYNC["Implemented plan-cooled foreground weight sync"]
+        READY --> MANUAL_GATE{"Latest successful sync plus<br/>plan cooldown has elapsed?"}
+        POLICY_READY -. "Supplies plan cooldown" .-> MANUAL_GATE
+        MANUAL_GATE -->|No| COOLDOWN["Disable Sync weight now<br/>Show next available local time"]
+        COOLDOWN --> MANUAL_GATE
+        MANUAL_GATE -->|Yes| SYNC_ACTION["User chooses Sync weight now"]
         SYNC_ACTION --> INITIAL_VM["InitialWeightSyncViewModel<br/>prevents overlapping visible syncs"]
         INITIAL_VM --> COORDINATOR["WeightSyncCoordinator"]
-        COORDINATOR --> INITIAL_PLANNER["InitialWeightSyncPlanner<br/>selects the previous 30 days"]
-        INITIAL_PLANNER --> HC_READ["AndroidHealthConnectAccess<br/>reads every WeightRecord page"]
+        COORDINATOR --> INCREMENTAL_PLANNER["IncrementalWeightSyncPlanner<br/>uses 24-hour cursor overlap<br/>or 30-day first-run fallback"]
+        INCREMENTAL_PLANNER --> HC_READ["AndroidHealthConnectAccess<br/>reads every WeightRecord page"]
         SAMSUNG["Samsung Health"] -->|Writes on-device records| HEALTH_CONNECT["Health Connect"]
         HEALTH_CONNECT -->|Returns permitted records| HC_READ
         HC_READ --> FILTER["Keep Samsung-originated samples<br/>Sort and batch at most 100 entries"]
@@ -72,6 +78,7 @@ flowchart TD
         DATABASE --> RECEIPT["Return 201 new receipt,<br/>200 exact retry, or safe conflict/rejection"]
         RECEIPT --> RESULT["Coordinator returns Completed,<br/>NoData, or Interrupted"]
         RESULT --> SYNC_UI["Compose shows safe aggregate<br/>imported/skipped or recovery state"]
+        RESULT -. "Completed or valid NoData" .-> MANUAL_COOLDOWN["Persist successful cursor<br/>Start plan cooldown"]
         DATABASE --> WEB["React web app later reads the same<br/>MetricEntry rows through Django"]
     end
 
@@ -90,9 +97,15 @@ flowchart TD
     end
 
     subgraph BACKGROUND["Implemented periodic incremental weight sync"]
-        BACKGROUND_READY --> SCHEDULE["WorkManagerWeightSyncScheduler<br/>enqueues unique work for connection_id<br/>UPDATE policy · network required · 15-minute minimum"]
+        BACKGROUND_READY --> AUTO_DECISION{"Current policy enables<br/>automatic sync?"}
+        POLICY_READY -. "Supplies automatic policy + interval" .-> AUTO_DECISION
+        AUTO_DECISION -->|No / Free| CANCEL_STALE["Cancel tagged periodic work<br/>Do not request background permission"]
+        AUTO_DECISION -->|Yes / Pro| SCHEDULE["WorkManagerWeightSyncScheduler<br/>enqueues unique work for connection_id<br/>UPDATE · network required · server interval"]
         SCHEDULE --> WORKER["IncrementalWeightSyncWorker<br/>validates connection_id"]
-        WORKER --> INCREMENTAL_RUNNER["Injected IncrementalWeightSyncRunner"]
+        WORKER --> WORKER_POLICY["SubscriptionAwareWeightSyncRunner<br/>fetches current policy again"]
+        WORKER_POLICY --> WORKER_ALLOWED{"Automatic sync<br/>still enabled?"}
+        WORKER_ALLOWED -->|No| STOP_WORK["Stop before reading Health Connect"]
+        WORKER_ALLOWED -->|Yes| INCREMENTAL_RUNNER["Injected IncrementalWeightSyncRunner"]
         INCREMENTAL_RUNNER --> CURSOR["Load per-connection cursor<br/>use 24-hour overlap or 30-day fallback"]
         CURSOR --> HC_READ
         RESULT -. "When the incremental runner owns this attempt" .-> CURSOR_DECISION{"Completed or<br/>valid NoData?"}
@@ -120,8 +133,8 @@ flowchart TD
     classDef planned fill:#fef3c7,stroke:#b45309,color:#78350f,stroke-dasharray:5 5;
     classDef recovery fill:#fee2e2,stroke:#dc2626,color:#7f1d1d;
 
-    class START,RESTORE,FORM,LOGIN,DJANGO_LOGIN,STORE,AUTHENTICATED,CONNECT_ACTION,SDK_CHECK,PERMISSION,RESOLVE_CONNECTION,REGISTER,ENTITLEMENT,READY,BACKGROUND_CHECK,BACKGROUND_READY,BACKGROUND_UNAVAILABLE,BACKGROUND_ACTION,BACKGROUND_PERMISSION,SCHEDULE,SYNC_ACTION,INITIAL_VM,COORDINATOR,INITIAL_PLANNER,HC_READ,FILTER,UPLOAD_ID,UPLOAD,AUTH_CLIENT,DJANGO_AUTH,INGEST,RECEIPT,RESULT,SYNC_UI,WEB,REFRESH_LOCK,RETRY_REQUEST,REFRESH_REQUEST,REPLACE_TOKENS,WORKER,INCREMENTAL_RUNNER,CURSOR,WORK_RESULT,CURSOR_ADVANCE,KEEP_CURSOR,LOGOUT_ACTION,REVOKE,CLEAR,CANCEL_WORK implemented;
-    class SESSION,LOGIN_OK,SDK_READY,PERMISSION_RESULT,CONNECTION_EXISTS,REGISTERED,BACKGROUND_ACCESS,BACKGROUND_RESULT,API_RESPONSE,ALREADY_ROTATED,REFRESH_OK,CURSOR_DECISION,LOGOUT_OK decision;
+    class START,RESTORE,FORM,LOGIN,DJANGO_LOGIN,STORE,AUTHENTICATED,POLICY_REQUEST,POLICY_READY,CONNECT_ACTION,SDK_CHECK,PERMISSION,RESOLVE_CONNECTION,REGISTER,ENTITLEMENT,READY,BACKGROUND_CHECK,BACKGROUND_READY,BACKGROUND_UNAVAILABLE,BACKGROUND_ACTION,BACKGROUND_PERMISSION,SCHEDULE,SYNC_ACTION,INITIAL_VM,COORDINATOR,INCREMENTAL_PLANNER,HC_READ,FILTER,UPLOAD_ID,UPLOAD,AUTH_CLIENT,DJANGO_AUTH,INGEST,RECEIPT,RESULT,SYNC_UI,MANUAL_COOLDOWN,WEB,REFRESH_LOCK,RETRY_REQUEST,REFRESH_REQUEST,REPLACE_TOKENS,WORKER,WORKER_POLICY,INCREMENTAL_RUNNER,CURSOR,WORK_RESULT,CURSOR_ADVANCE,KEEP_CURSOR,CANCEL_STALE,STOP_WORK,LOGOUT_ACTION,REVOKE,CLEAR,CANCEL_WORK implemented;
+    class SESSION,LOGIN_OK,SDK_READY,PERMISSION_RESULT,CONNECTION_EXISTS,REGISTERED,BACKGROUND_ACCESS,BACKGROUND_RESULT,MANUAL_GATE,AUTO_DECISION,WORKER_ALLOWED,API_RESPONSE,ALREADY_ROTATED,REFRESH_OK,CURSOR_DECISION,LOGOUT_OK decision;
     class SAMSUNG,HEALTH_CONNECT external;
     class DATABASE storage;
     class SAFE_LOGIN_ERROR,CONNECT_RECOVERY,SESSION_EXPIRED,RETRYABLE_API_ERROR,LOGOUT_RETRY recovery;
@@ -135,6 +148,7 @@ flowchart TD
 - Weight permission is requested before backend connection registration, so denial does not consume a plan slot. Background permission is separate and optional after the connection is ready.
 - The Android app reads Health Connect. Django and Celery cannot directly access on-device records.
 - `SyncRun` records an upload attempt; `MetricEntry` remains the canonical metric store.
-- Explicit initial synchronization is implemented and physically validated.
-- Background feature detection and foreground permission consent are implemented. A grant schedules one unique, network-constrained periodic weight job per connection using UPDATE semantics.
+- Foreground sync uses the incremental cursor with a 30-day first-run fallback. The official client disables its action until the server-owned cooldown has elapsed, including after a successful no-data run.
+- Background feature detection and foreground permission consent are implemented. Only an automatically enabled plan may expose the permission action and schedule one unique, network-constrained periodic weight job at the server-provided valid interval.
+- Every background execution fetches current policy again, so stale work after a downgrade stops before Health Connect access.
 - Startup session checking preserves durable work. Confirmed logout cancels all tagged weight work; connection-disconnect cancellation remains planned with the Android disconnect UI.

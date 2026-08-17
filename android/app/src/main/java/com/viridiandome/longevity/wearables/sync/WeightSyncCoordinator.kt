@@ -84,6 +84,8 @@ sealed interface WeightSyncResult {
 }
 
 sealed interface WeightSyncFailure {
+    data object AutomaticSyncDisabled : WeightSyncFailure
+
     data object PermissionRequired : WeightSyncFailure
 
     data object ReadUnavailable : WeightSyncFailure

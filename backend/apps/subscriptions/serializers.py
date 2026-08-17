@@ -20,6 +20,7 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
             "name",
             "active_custom_metric_limit",
             "wearable_connection_limit",
+            "automatic_sync_enabled",
             "sync_interval_minutes",
             "analytics_enabled",
             "csv_import_enabled",

@@ -153,7 +153,7 @@ def test_wearable_connection_creation_rejects_reached_plan_limit():
     assert WearableConnection.objects.filter(user=user).exists() is False
 
 
-def test_free_plan_cannot_create_wearable_connection():
+def test_free_plan_can_create_one_manual_sync_wearable_connection():
     client, user = authenticate_client_for("free-wearable@example.com")
     free_plan = SubscriptionPlan.objects.get(code="free")
     Subscription.objects.create(
@@ -168,11 +168,14 @@ def test_free_plan_cannot_create_wearable_connection():
         format="json",
     )
 
-    assert response.status_code == 400
-    assert response.json() == {
-        "non_field_errors": ["Wearable connection limit reached."]
-    }
-    assert WearableConnection.objects.filter(user=user).exists() is False
+    assert response.status_code == 201
+    assert response.json()["provider"] == "health_connect"
+    assert response.json()["status"] == "pending"
+    assert WearableConnection.objects.filter(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+        is_active=True,
+    ).count() == 1
 
 
 def test_wearable_connection_creation_rejects_duplicate_provider():

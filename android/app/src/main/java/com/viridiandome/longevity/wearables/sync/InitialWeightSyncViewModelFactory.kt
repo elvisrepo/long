@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 /** Creates [InitialWeightSyncViewModel] with its application-level runner. */
 class InitialWeightSyncViewModelFactory(
     private val runner: WeightSyncRunner,
+    private val cursorStore: WeightSyncCursorStore,
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (!modelClass.isAssignableFrom(InitialWeightSyncViewModel::class.java)) {
@@ -13,6 +14,9 @@ class InitialWeightSyncViewModelFactory(
         }
 
         @Suppress("UNCHECKED_CAST")
-        return InitialWeightSyncViewModel(runner) as T
+        return InitialWeightSyncViewModel(
+            runner = runner,
+            cursorStore = cursorStore,
+        ) as T
     }
 }

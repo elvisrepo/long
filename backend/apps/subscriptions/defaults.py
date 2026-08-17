@@ -4,8 +4,9 @@ from apps.subscriptions.models import SubscriptionPlan
 FREE_SUBSCRIPTION_PLAN = {
     "name": "Free",
     "active_custom_metric_limit": 3,
-    "wearable_connection_limit": 0,
-    "sync_interval_minutes": 60,
+    "wearable_connection_limit": 1,
+    "automatic_sync_enabled": False,
+    "sync_interval_minutes": 30,
     "analytics_enabled": False,
     "csv_import_enabled": False,
     "is_default": True,

@@ -9,7 +9,7 @@
 
 This diagram shows the current browser/backend runtime plus the newly implemented Android development loop.
 
-The Android companion project is installed/tested on a physical phone through Android Studio, Gradle, and `adb`. Mobile login, encrypted JWT storage, refresh/retry, session restoration, and server-revoking logout now call local Django through `adb reverse`. Backend wearable connection registration and Health Connect reads remain the next client slices.
+The Android companion project is installed/tested on a physical phone through Android Studio, Gradle, and `adb`. Mobile auth calls local Django through `adb reverse`; Health Connect connection registration, Samsung weight reads/uploads, durable incremental cursors, subscription-aware WorkManager scheduling, and plan-cooled foreground sync are implemented. Closed-app periodic execution and Android disconnect UX remain physical/manual follow-up slices.
 
 Redis, Celery Worker, Celery Beat, and TimescaleDB are present in the local runtime, but they are mostly prepared infrastructure at the current project stage. The implemented auth, manual metrics, Settings, Stripe Checkout, Stripe Portal, and Stripe webhook flows run synchronously inside Django. Celery becomes important when wearable sync, backfills, retries, analytics precomputation, and export/delete jobs are implemented. TimescaleDB becomes important when metric volume and range/aggregate queries justify hypertables, continuous aggregates, retention, or compression policies.
 

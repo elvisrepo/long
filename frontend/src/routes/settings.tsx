@@ -10,6 +10,7 @@ import { requireAuthBeforeLoad } from '../features/auth/require-auth-before-load
 import { useMeQuery } from '../features/auth/use-me-query'
 import { redirectToCheckout } from '../features/subscriptions/checkout-redirect'
 import { redirectToPortal } from '../features/subscriptions/portal-redirect'
+import type { SubscriptionPlan } from '../features/subscriptions/subscriptions-api'
 import { useCreateSubscriptionCheckoutMutation } from '../features/subscriptions/use-create-subscription-checkout-mutation'
 import { useCreateSubscriptionPortalMutation } from '../features/subscriptions/use-create-subscription-portal-mutation'
 import { useCurrentSubscriptionQuery } from '../features/subscriptions/use-current-subscription-query'
@@ -17,6 +18,11 @@ import { useSubscriptionPlansQuery } from '../features/subscriptions/use-subscri
 
 interface SettingsSearch {
   checkout?: 'success' | 'cancelled'
+}
+
+function formatSyncPolicy(plan: SubscriptionPlan): string {
+  const mode = plan.automatic_sync_enabled ? 'Automatic' : 'Manual'
+  return `${mode} sync every ${plan.sync_interval_minutes} minutes`
 }
 
 export const Route = createFileRoute('/settings')({
@@ -167,9 +173,7 @@ function SettingsRoute() {
                 <div>
                   <span className="subscription-detail-label">Sync</span>
                   <strong>
-                    Sync every{' '}
-                    {currentSubscriptionQuery.data.plan.sync_interval_minutes}{' '}
-                    minutes
+                    {formatSyncPolicy(currentSubscriptionQuery.data.plan)}
                   </strong>
                 </div>
                 {currentSubscriptionQuery.data.price ? (
@@ -252,7 +256,7 @@ function SettingsRoute() {
             <div>
               <h3>{plan.name}</h3>
               <p>{plan.active_custom_metric_limit} custom metrics</p>
-              <p>Sync every {plan.sync_interval_minutes} minutes</p>
+              <p>{formatSyncPolicy(plan)}</p>
             </div>
             <ul className="subscription-price-list">
               {plan.prices.map((price) => (

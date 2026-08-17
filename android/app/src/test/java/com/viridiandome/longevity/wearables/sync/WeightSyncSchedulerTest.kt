@@ -11,7 +11,10 @@ import org.junit.Test
 class WeightSyncSchedulerTest {
     @Test
     fun periodic_request_contains_connection_network_and_interval_contract() {
-        val request = buildIncrementalWeightSyncWorkRequest(CONNECTION_ID)
+        val request = buildIncrementalWeightSyncWorkRequest(
+            connectionId = CONNECTION_ID,
+            repeatIntervalMinutes = 30,
+        )
 
         assertEquals(
             CONNECTION_ID,
@@ -24,7 +27,7 @@ class WeightSyncSchedulerTest {
             request.workSpec.constraints.requiredNetworkType,
         )
         assertEquals(
-            TimeUnit.MINUTES.toMillis(15),
+            TimeUnit.MINUTES.toMillis(30),
             request.workSpec.intervalDuration,
         )
         assertTrue(WEIGHT_SYNC_WORK_TAG in request.tags)
@@ -44,7 +47,10 @@ class WeightSyncSchedulerTest {
             cancelAllWorkByTag = {},
         )
 
-        scheduler.schedule(CONNECTION_ID)
+        scheduler.schedule(
+            connectionId = CONNECTION_ID,
+            repeatIntervalMinutes = 30,
+        )
 
         assertEquals(
             "$WEIGHT_SYNC_WORK_TAG:$CONNECTION_ID",
@@ -56,6 +62,10 @@ class WeightSyncSchedulerTest {
             enqueuedRequest?.workSpec?.input?.getString(
                 IncrementalWeightSyncWorker.CONNECTION_ID_INPUT,
             ),
+        )
+        assertEquals(
+            TimeUnit.MINUTES.toMillis(30),
+            enqueuedRequest?.workSpec?.intervalDuration,
         )
     }
 

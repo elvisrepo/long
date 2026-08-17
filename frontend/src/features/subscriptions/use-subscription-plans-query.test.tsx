@@ -35,6 +35,7 @@ describe('useSubscriptionPlansQuery', () => {
         name: 'Pro',
         active_custom_metric_limit: 10,
         wearable_connection_limit: 2,
+        automatic_sync_enabled: true,
         sync_interval_minutes: 15,
         analytics_enabled: true,
         csv_import_enabled: true,

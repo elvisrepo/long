@@ -1,5 +1,7 @@
 package com.viridiandome.longevity.wearables.sync
 
+import com.viridiandome.longevity.subscriptions.SyncPolicy
+import com.viridiandome.longevity.subscriptions.SyncPolicyUiState
 import com.viridiandome.longevity.wearables.BackgroundReadAccess
 import com.viridiandome.longevity.wearables.WearableConnectionUiState
 import com.viridiandome.longevity.wearables.network.WearableConnectionResponse
@@ -9,11 +11,29 @@ import org.junit.Test
 
 class WeightSyncScheduleActionTest {
     @Test
+    fun disabled_automatic_sync_cancels_existing_durable_work() {
+        val action = decideWeightSyncScheduleAction(
+            isCheckingSession = false,
+            isAuthenticated = true,
+            connectionState = readyConnection(BackgroundReadAccess.Granted),
+            syncPolicyState = SyncPolicyUiState.Ready(
+                SyncPolicy(
+                    automaticSyncEnabled = false,
+                    syncIntervalMinutes = 30,
+                ),
+            ),
+        )
+
+        assertSame(WeightSyncScheduleAction.CancelAll, action)
+    }
+
+    @Test
     fun session_check_does_not_cancel_durable_work() {
         val action = decideWeightSyncScheduleAction(
             isCheckingSession = true,
             isAuthenticated = false,
             connectionState = WearableConnectionUiState.Idle,
+            syncPolicyState = SyncPolicyUiState.Idle,
         )
 
         assertSame(WeightSyncScheduleAction.None, action)
@@ -25,6 +45,7 @@ class WeightSyncScheduleActionTest {
             isCheckingSession = false,
             isAuthenticated = false,
             connectionState = WearableConnectionUiState.Idle,
+            syncPolicyState = SyncPolicyUiState.Idle,
         )
 
         assertSame(WeightSyncScheduleAction.CancelAll, action)
@@ -36,9 +57,16 @@ class WeightSyncScheduleActionTest {
             isCheckingSession = false,
             isAuthenticated = true,
             connectionState = readyConnection(BackgroundReadAccess.Granted),
+            syncPolicyState = enabledPolicyState(),
         )
 
-        assertEquals(WeightSyncScheduleAction.Schedule(CONNECTION_ID), action)
+        assertEquals(
+            WeightSyncScheduleAction.Schedule(
+                connectionId = CONNECTION_ID,
+                repeatIntervalMinutes = 15,
+            ),
+            action,
+        )
     }
 
     @Test
@@ -49,6 +77,7 @@ class WeightSyncScheduleActionTest {
             connectionState = readyConnection(
                 BackgroundReadAccess.PermissionRequired,
             ),
+            syncPolicyState = enabledPolicyState(),
         )
 
         assertSame(WeightSyncScheduleAction.None, action)
@@ -60,6 +89,7 @@ class WeightSyncScheduleActionTest {
             isCheckingSession = false,
             isAuthenticated = true,
             connectionState = WearableConnectionUiState.Idle,
+            syncPolicyState = enabledPolicyState(),
         )
 
         assertSame(WeightSyncScheduleAction.None, action)
@@ -79,6 +109,14 @@ class WeightSyncScheduleActionTest {
                 updatedAt = "2026-08-08T08:00:00Z",
             ),
             backgroundReadAccess = backgroundReadAccess,
+        )
+
+    private fun enabledPolicyState(): SyncPolicyUiState.Ready =
+        SyncPolicyUiState.Ready(
+            SyncPolicy(
+                automaticSyncEnabled = true,
+                syncIntervalMinutes = 15,
+            ),
         )
 
     private companion object {

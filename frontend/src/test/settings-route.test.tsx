@@ -59,8 +59,9 @@ function freeSubscription(): CurrentSubscription {
       code: 'free',
       name: 'Free',
       active_custom_metric_limit: 3,
-      wearable_connection_limit: 0,
-      sync_interval_minutes: 60,
+      wearable_connection_limit: 1,
+      automatic_sync_enabled: false,
+      sync_interval_minutes: 30,
       analytics_enabled: false,
       csv_import_enabled: false,
     },
@@ -86,6 +87,7 @@ function proSubscription(): CurrentSubscription {
       name: 'Pro',
       active_custom_metric_limit: 10,
       wearable_connection_limit: 2,
+      automatic_sync_enabled: true,
       sync_interval_minutes: 15,
       analytics_enabled: true,
       csv_import_enabled: true,
@@ -129,7 +131,7 @@ describe('settings route', () => {
     ).toBeInTheDocument()
     expect(screen.getByText(/free/i)).toBeInTheDocument()
     expect(screen.getByText(/3 custom metrics/i)).toBeInTheDocument()
-    expect(screen.getByText(/sync every 60 minutes/i)).toBeInTheDocument()
+    expect(screen.getByText(/manual sync every 30 minutes/i)).toBeInTheDocument()
   })
 
   it('hides portal management when no Stripe billing customer exists', async () => {
@@ -194,8 +196,9 @@ describe('settings route', () => {
         code: 'free',
         name: 'Free',
         active_custom_metric_limit: 3,
-        wearable_connection_limit: 0,
-        sync_interval_minutes: 60,
+        wearable_connection_limit: 1,
+        automatic_sync_enabled: false,
+        sync_interval_minutes: 30,
         analytics_enabled: false,
         csv_import_enabled: false,
         is_default: true,
@@ -206,6 +209,7 @@ describe('settings route', () => {
         name: 'Pro',
         active_custom_metric_limit: 10,
         wearable_connection_limit: 2,
+        automatic_sync_enabled: true,
         sync_interval_minutes: 15,
         analytics_enabled: true,
         csv_import_enabled: true,
@@ -257,6 +261,7 @@ describe('settings route', () => {
         name: 'Pro',
         active_custom_metric_limit: 10,
         wearable_connection_limit: 2,
+        automatic_sync_enabled: true,
         sync_interval_minutes: 15,
         analytics_enabled: true,
         csv_import_enabled: true,
@@ -306,6 +311,7 @@ describe('settings route', () => {
         name: 'Pro',
         active_custom_metric_limit: 10,
         wearable_connection_limit: 2,
+        automatic_sync_enabled: true,
         sync_interval_minutes: 15,
         analytics_enabled: true,
         csv_import_enabled: true,

@@ -210,6 +210,9 @@ Metric-entry detail behavior:
 
 Current-subscription read behavior:
 - `GET /api/v1/subscriptions/current/` returns the authenticated user's current subscription `id`, lifecycle `status`, `billing_portal_available`, billing-period state (`current_period_start`, `current_period_end`), cancellation state (`cancel_at`, `cancel_at_period_end`), current billing `price`, plan identity, and backend-owned entitlement values.
+- Wearable sync policy is explicit: `automatic_sync_enabled` controls whether official clients may schedule unattended work, while `sync_interval_minutes` is the minimum cadence used for periodic scheduling or manual-sync cooldown. Clients must consume these values instead of inferring policy from `plan.code`.
+- The MVP Free policy is one Health Connect connection, `automatic_sync_enabled=false`, and manual sync every 30 minutes. The MVP Pro policy enables automatic sync every 15 minutes; monthly and yearly prices share the same Pro entitlements.
+- PostgreSQL rejects an automatically syncing plan whose interval is below WorkManager's 15-minute platform minimum. Android also rejects such a response defensively instead of attempting an invalid schedule.
 - Free subscriptions and newly-created paid subscriptions can return `null` for period dates, `cancel_at`, and `price`. Paid Stripe subscriptions return price as `{currency, unit_amount, billing_interval}` without exposing Stripe provider price IDs.
 - `billing_portal_available` is a backend-derived boolean that is true when the authenticated user has a local Stripe `BillingCustomer`. It lets clients decide whether to offer billing management without exposing the provider customer ID.
 - Current means `trialing`, `active`, `past_due`, or `incomplete`; cancelled rows remain history and are excluded.
@@ -290,8 +293,9 @@ Subscription transition contract:
 Current implementation status:
 - The `WearableConnection` model exists and `GET /api/v1/wearables/connections/` returns the authenticated caller's connections.
 - `POST /api/v1/wearables/connections/` accepts only `provider=health_connect`, assigns ownership from the authenticated caller, and enforces the current plan's `wearable_connection_limit`. Client-supplied ownership, activation, status, sync/error, ID, or timestamp fields are rejected with `400` rather than silently ignored.
-- Free users with a limit of zero and users who have consumed every connection slot receive `400`. Only active connection rows consume slots.
-- The canonical MVP Pro plan permits one Health Connect connection. `samsung_health` is rejected as a connection provider because Samsung-originated records reach the app through Health Connect.
+- Users who have consumed every connection slot receive `400`. Only active connection rows consume slots.
+- The canonical MVP Free and Pro plans each permit one Health Connect bridge. Free permits explicit manual sync only; Pro additionally permits automatic scheduling. `samsung_health` is rejected as a connection provider because Samsung-originated records reach the app through Health Connect.
+- The official Android client reads the current subscription before scheduling or enabling manual sync. Free cancels stale periodic work and permits a new foreground tap only after the persisted 30-minute cooldown; Pro schedules the server-provided 15-minute interval and rechecks automatic entitlement inside each worker execution.
 - A user cannot register the same active provider twice. Duplicate active `health_connect` creation returns `400` with `provider: ["This provider is already registered."]`. The database enforces one durable row per `(user, provider)`, and registration after disconnect reactivates that row with the same UUID. New and reactivated rows enter `status=pending` until trusted ingestion proves the bridge is working.
 - `DELETE /api/v1/wearables/connections/{id}/` marks only a caller-owned active connection inactive and immediately releases its plan slot while preserving identity/history. A successful disconnect returns `204`; another user's, unknown, or already-inactive UUID returns `404` without changing data.
 - `GET /api/v1/wearables/connections/{id}/status/` returns the caller-owned connection's provider, status, last sync timestamp, and last error. Another user's or an unknown UUID returns `404`.

@@ -13,7 +13,7 @@ This document describes the implemented Android flow as of 2026-08-08 and the ag
 
 ## 1. Implemented Android sync components
 
-The current slice handles only weight records. Its 30-day selection policy remains explicitly initial, while its orchestration is now reusable for a future incremental policy.
+The current slice handles only weight records. Both foreground taps and background work now use the incremental policy; a connection without a cursor still receives the bounded 30-day fallback.
 
 ### `WeightSyncBatchPlanner`
 
@@ -21,17 +21,17 @@ Path: `android/app/src/main/java/com/viridiandome/longevity/wearables/sync/Weigh
 
 This small interface supplies ordered, backend-sized batches for one chosen sync window. It separates *which records belong in this run* from the shared read-and-upload orchestration.
 
-### `InitialWeightSyncPlanner`
+### `InitialWeightSyncPlanner` and `IncrementalWeightSyncPlanner`
 
 Path: `android/app/src/main/java/com/viridiandome/longevity/wearables/sync/InitialWeightSyncPlanner.kt`
 
-The planner decides which Health Connect data belongs in the initial upload:
+`InitialWeightSyncPlanner` remains a tested reference for the original bounded backfill. The live application graph uses `IncrementalWeightSyncPlanner`, which:
 
-1. Build a 30-day window ending at the current injected UTC clock time.
-2. Read weight records through `HealthConnectWeightReader`.
-3. Keep only records whose source package is Samsung Health: `com.sec.android.app.shealth`.
-4. Preserve chronological order.
-5. Split the selected records into batches of at most 100.
+1. reads the per-connection successful cursor;
+2. uses a 24-hour overlap when the cursor exists, or the previous 30 days when absent;
+3. reads through `HealthConnectWeightReader`;
+4. keeps only Samsung Health records from `com.sec.android.app.shealth`;
+5. preserves chronological order and splits at 100 entries.
 
 The planner does not perform HTTP requests, generate upload IDs, or update Compose state.
 
@@ -74,7 +74,7 @@ The coordinator does not know about Compose controls or user-facing text.
 suspend fun sync(connectionId: String): WeightSyncResult
 ```
 
-The ViewModel depends on this interface instead of the concrete coordinator. Tests can supply a fake runner without using Health Connect, Django, or a physical phone. A future WorkManager worker can depend on an appropriate runner without depending on the UI ViewModel.
+The ViewModel depends on this interface instead of the concrete coordinator. Tests can supply a fake runner without using Health Connect, Django, or a physical phone. The implemented WorkManager worker depends on a subscription-aware runner wrapper without depending on the UI ViewModel.
 
 ### `InitialWeightSyncViewModel`
 
@@ -83,6 +83,10 @@ Path: `android/app/src/main/java/com/viridiandome/longevity/wearables/sync/Initi
 The ViewModel is the UI-facing sync controller. It:
 
 - starts the current explicit sync after the user chooses **Sync weight now**;
+- refuses sync until the current plan and last successful timestamp have resolved;
+- applies `sync_interval_minutes` as the manual cooldown;
+- resolves the newest of Django's `last_synced_at` and the durable device cursor;
+- starts a new cooldown after `Completed` or valid `NoData`, while failures remain retryable;
 - prevents overlapping sync jobs;
 - calls `WeightSyncRunner`;
 - converts coordinator results into health-safe Compose states: `Idle`, `Syncing`, `NoData`, `Completed`, `Interrupted`, or `Unavailable`;
@@ -95,14 +99,14 @@ It does not read Health Connect or make HTTP requests itself.
 
 Path: `android/app/src/main/java/com/viridiandome/longevity/wearables/sync/InitialWeightSyncViewModelFactory.kt`
 
-The factory contains no synchronization business logic. Android normally creates ViewModels itself, but `InitialWeightSyncViewModel` requires a `WeightSyncRunner` constructor dependency. The factory supplies it:
+The factory contains no synchronization business logic. Android normally creates ViewModels itself, but `InitialWeightSyncViewModel` requires the incremental runner and cursor store. The factory supplies both:
 
 ```text
 Android asks for InitialWeightSyncViewModel
     ↓
-Factory receives the application-level runner
+Factory receives the application-level runner and cursor store
     ↓
-Factory creates InitialWeightSyncViewModel(runner)
+Factory creates InitialWeightSyncViewModel(runner, cursorStore)
 ```
 
 ### `LongevityApplication`
@@ -116,9 +120,11 @@ Path: `android/app/src/main/java/com/viridiandome/longevity/LongevityApplication
 - authenticated API client;
 - wearable connection repository;
 - wearable upload repository;
+- current-subscription sync-policy repository;
 - Health Connect adapter;
-- initial weight planner;
-- `WeightSyncCoordinator` configured with `InitialWeightSyncPlanner`.
+- durable per-connection cursor store;
+- `WeightSyncCoordinator` configured with `IncrementalWeightSyncPlanner`;
+- `SubscriptionAwareWeightSyncRunner` used only by WorkManager.
 
 This keeps dependencies out of Compose recomposition without introducing a dependency-injection framework before the MVP needs one.
 
@@ -168,24 +174,30 @@ Compose renders Ready
 
 Rendering or signing in does not consume a connection slot. Registration begins only after explicit user intent and Health Connect permission resolution.
 
-### Explicit initial weight sync
+### Explicit subscription-aware incremental weight sync
 
 ```text
 User chooses Sync weight now
     ↓
 MainActivity obtains the Ready connection ID
     ↓
+SyncPolicyViewModel supplies the server-owned cadence
+    ↓
+InitialWeightSyncViewModel checks the latest device/backend success timestamp
+    ↓
+If still cooling down, the tap remains disabled
+    ↓
 InitialWeightSyncViewModel.sync(connectionId)
     ↓
 WeightSyncCoordinator
     ↓
-InitialWeightSyncPlanner
+IncrementalWeightSyncPlanner
     ↓
 AndroidHealthConnectAccess
     ↓
 Health Connect returns paginated WeightRecord values
     ↓
-Planner keeps Samsung Health records from the previous 30 days
+Planner keeps Samsung Health records since cursor-overlap, or the previous 30 days on first run
     ↓
 Planner creates batches of at most 100
     ↓
@@ -210,6 +222,8 @@ Coordinator collects receipts
 ViewModel aggregates imported/skipped counts
     ↓
 Compose renders a safe terminal state
+    ↓
+Completed or valid NoData starts the plan cooldown
 ```
 
 The Android application does not call React. The web application later reads the same `MetricEntry` rows from Django.
@@ -218,21 +232,19 @@ The Android application does not call React. The web application later reads the
 
 The Android logout flow asks Django to revoke the stored refresh token before clearing the encrypted local token pair. After authentication becomes false, `MainActivity` resets both wearable ViewModels; active UI work is cancelled and previous-user connection/sync state is removed.
 
-## 3. Agreed separation: initial versus incremental sync
+## 3. Implemented initial-versus-incremental separation
 
-The current planner is intentionally an initial 30-day backfill planner. Reusing it every 15 minutes would be safe because Health Connect record IDs and backend deduplication are stable, but it would repeatedly reread and re-upload the same 30-day history.
-
-Do not turn `InitialWeightSyncPlanner` into the permanent background planner.
-
-The agreed direction is:
+The application no longer reruns a full initial planner after every tap. The implemented split is:
 
 ```text
 InitialWeightSyncPlanner
-    → first bounded 30-day backfill
+    → retained tested reference for a bounded backfill
 
 IncrementalWeightSyncPlanner
+    → live foreground and background policy
     → records since the previous successful sync
     → includes a deliberate overlap window for safety
+    → falls back to 30 days when no cursor exists
 
 Shared weight-upload coordinator
     → batching
@@ -290,9 +302,13 @@ Stable WorkManager `2.11.2` and `work-testing` are now configured. The implement
 
 `LongevityWorkerFactory` creates that worker with the application-scoped incremental runner. `LongevityApplication` implements `Configuration.Provider`, and the manifest removes WorkManager's default initializer so the custom factory owns construction. Unknown worker class names return `null`, as required by the `WorkerFactory` chain contract.
 
-`WorkManagerWeightSyncScheduler` now builds and enqueues one unique periodic request per connection. The request carries only `connection_id`, requires a connected network, repeats at WorkManager's 15-minute minimum, and has a stable tag for account-level cleanup. Reapplying the same connection uses `ExistingPeriodicWorkPolicy.UPDATE`, so Compose state changes do not create duplicate schedules.
+`HttpSyncPolicyRepository` reads `automatic_sync_enabled` and `sync_interval_minutes` from `GET /api/v1/subscriptions/current/`. Android never infers scheduling from `plan.code`. `SyncPolicyViewModel` makes that policy available to Compose and the pure scheduling decision.
 
-`MainActivity` applies a pure, tested scheduling decision. It schedules only when the local session is authenticated, the caller-owned connection is Ready, and background access is granted. It does nothing during startup session checking because WorkManager state survives process restarts; treating that temporary unauthenticated state as logout would incorrectly erase valid work. A confirmed successful logout cancels every tagged weight-sync request. Connection-disconnect cancellation remains pending until the Android disconnect action exists.
+`WorkManagerWeightSyncScheduler` builds and enqueues one unique periodic request per connection. The request carries only `connection_id`, requires a connected network, uses the validated server interval (currently Pro 15 minutes), and has a stable tag for account-level cleanup. Reapplying the same connection uses `ExistingPeriodicWorkPolicy.UPDATE`, so Compose state changes do not create duplicate schedules. Android and PostgreSQL both reject an automatically syncing interval below WorkManager's 15-minute minimum.
+
+`MainActivity` applies a pure, tested scheduling decision. It schedules only when the local session is authenticated, the caller-owned connection is Ready, background access is granted, and server policy enables automatic sync. A manual-only policy cancels tagged work, closing the normal downgrade path. It does nothing during startup session or policy checking because WorkManager state survives process restarts; treating temporary unresolved state as logout would incorrectly erase valid work. A confirmed successful logout cancels every tagged weight-sync request. Connection-disconnect cancellation remains pending until the Android disconnect action exists.
+
+The worker receives a `SubscriptionAwareWeightSyncRunner`. It fetches the current policy again immediately before device access. Therefore stale queued work that races with a downgrade stops before reading Health Connect. A transient policy failure maps to retry; a manual-only policy maps to permanent failure for that execution.
 
 Periodic WorkManager execution is inexact. Android may delay work because of Doze, battery optimization, and other constraints. The platform has a 15-minute minimum periodic interval, but a 15-minute request is not a guarantee that work runs exactly every 15 minutes.
 
@@ -303,7 +319,9 @@ Background Health Connect reads also require:
 - a feature-availability check;
 - explicit permission granted while the app is in the foreground.
 
-The app now checks `FEATURE_READ_HEALTH_DATA_IN_BACKGROUND` through the Health Connect client and maps it to `Granted`, `PermissionRequired`, or `Unavailable`. An already-ready connection exposes **Allow background sync** only for `PermissionRequired`; unsupported devices keep manual sync available without presenting an unusable action. The official permission Activity Result updates only local capability state and never repeats backend connection registration.
+The app checks `FEATURE_READ_HEALTH_DATA_IN_BACKGROUND` through the Health Connect client and maps it to `Granted`, `PermissionRequired`, or `Unavailable`. An already-ready Pro connection exposes **Allow background sync** only for `PermissionRequired`; Free/manual-only plans and unsupported devices keep manual sync without presenting an unusable action. The official permission Activity Result updates only local capability state and never repeats backend connection registration.
+
+The manual cooldown is enforced by the official Android UI and ViewModel, using the newest successful timestamp from the device cursor and Django connection. It is not currently an upload-endpoint rate limit: one logical sync may legitimately POST multiple batches, so per-request throttling would reject valid work. If abuse control is later required, add a server-recognized logical sync-attempt identity rather than throttling individual batch requests.
 
 References:
 
@@ -380,6 +398,8 @@ Celery processes data after it reaches the backend.
 5. ~~Implement and test an injected `CoroutineWorker` that calls the incremental runner, never the UI ViewModel.~~ Completed and physically verified.
 6. ~~Add the background Health Connect feature check, manifest permission, and foreground permission request.~~ Implemented and physically granted.
 7. ~~Schedule one unique network-constrained periodic job only for an authenticated user with a Ready connection and granted background access.~~ Implemented.
-8. Cancel the user's unique background work on logout or connection disconnect. Logout cancellation is implemented; connection-disconnect cancellation waits for the Android disconnect action.
-9. Validate the worker on the physical phone with the visible app closed.
-10. Add Celery/Redis ingestion only after synchronous backend processing becomes a measured bottleneck or requires server-independent retries.
+8. ~~Consume server-owned subscription policy, cancel automatic work for Free, pass the server interval to WorkManager, and recheck entitlement inside each worker.~~ Completed.
+9. ~~Gate explicit sync with the durable plan cooldown and reuse the incremental runner for foreground taps.~~ Completed.
+10. Cancel the user's unique background work on connection disconnect when the Android disconnect action is added. Logout and downgrade cancellation are implemented.
+11. Validate the subscription-aware worker on the physical phone with the visible app closed.
+12. Add Celery/Redis ingestion only after synchronous backend processing becomes a measured bottleneck or requires server-independent retries.

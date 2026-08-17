@@ -13,6 +13,10 @@ class SubscriptionPlan(models.Model):
     name = models.CharField(max_length=100)
     active_custom_metric_limit = models.PositiveIntegerField()
     wearable_connection_limit = models.PositiveIntegerField()
+    # Whether an official client may schedule unattended wearable sync work.
+    # Manual sync remains available when the plan has a wearable slot.
+    automatic_sync_enabled = models.BooleanField(default=False)
+    # Minimum cadence used by automatic scheduling or manual-sync cooldown.
     sync_interval_minutes = models.PositiveIntegerField()
     analytics_enabled = models.BooleanField(default=False)
     csv_import_enabled = models.BooleanField(default=False)
@@ -23,6 +27,15 @@ class SubscriptionPlan(models.Model):
 
     class Meta:
         db_table = "subscriptions_subscription_plan"
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(automatic_sync_enabled=False)
+                    | Q(sync_interval_minutes__gte=15)
+                ),
+                name="subscription_plan_auto_sync_min_15",
+            ),
+        ]
 
     def __str__(self) -> str:
         return self.name

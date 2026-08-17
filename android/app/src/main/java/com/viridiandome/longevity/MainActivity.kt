@@ -16,6 +16,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viridiandome.longevity.auth.LoginScreen
 import com.viridiandome.longevity.auth.LoginViewModel
 import com.viridiandome.longevity.auth.LoginViewModelFactory
+import com.viridiandome.longevity.subscriptions.SyncPolicyViewModel
+import com.viridiandome.longevity.subscriptions.SyncPolicyViewModelFactory
+import com.viridiandome.longevity.subscriptions.SyncPolicyUiState
 import com.viridiandome.longevity.ui.theme.LongevityTheme
 import com.viridiandome.longevity.wearables.WearableConnectionViewModel
 import com.viridiandome.longevity.wearables.WearableConnectionViewModelFactory
@@ -28,6 +31,7 @@ import com.viridiandome.longevity.wearables.sync.InitialWeightSyncViewModel
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncViewModelFactory
 import com.viridiandome.longevity.wearables.sync.WeightSyncScheduleAction
 import com.viridiandome.longevity.wearables.sync.decideWeightSyncScheduleAction
+import java.time.Instant
 
 /**
  * Android's entry point for the app.
@@ -50,9 +54,19 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    private val syncPolicyViewModel: SyncPolicyViewModel by viewModels {
+        val app = application as LongevityApplication
+        SyncPolicyViewModelFactory(app.syncPolicyRepository)
+    }
+
     private val initialWeightSyncViewModel: InitialWeightSyncViewModel by viewModels {
         val app = application as LongevityApplication
-        InitialWeightSyncViewModelFactory(app.initialWeightSyncCoordinator)
+        // Foreground taps now use the same incremental cursor semantics as the
+        // worker. The first run still falls back to the bounded 30-day window.
+        InitialWeightSyncViewModelFactory(
+            runner = app.incrementalWeightSyncRunner,
+            cursorStore = app.weightSyncCursorStore,
+        )
     }
 
     private val healthPermissionLauncher = registerForActivityResult(
@@ -87,8 +101,13 @@ class MainActivity : ComponentActivity() {
                 val loginState by loginViewModel.state.collectAsStateWithLifecycle()
                 val wearableConnectionState by wearableConnectionViewModel.state
                     .collectAsStateWithLifecycle()
+                val syncPolicyState by syncPolicyViewModel.state
+                    .collectAsStateWithLifecycle()
                 val initialWeightSyncState by initialWeightSyncViewModel.state
                     .collectAsStateWithLifecycle()
+                val manualSyncAvailability by
+                    initialWeightSyncViewModel.manualSyncAvailability
+                        .collectAsStateWithLifecycle()
 
                 // Logout removes the previous user's connection state. Merely
                 // becoming authenticated does not register a wearable connection;
@@ -97,6 +116,9 @@ class MainActivity : ComponentActivity() {
                     if (!loginState.isAuthenticated) {
                         wearableConnectionViewModel.resetForLogout()
                         initialWeightSyncViewModel.resetForLogout()
+                        syncPolicyViewModel.resetForLogout()
+                    } else {
+                        syncPolicyViewModel.load()
                     }
                 }
 
@@ -108,21 +130,51 @@ class MainActivity : ComponentActivity() {
                     loginState.isCheckingSession,
                     loginState.isAuthenticated,
                     wearableConnectionState,
+                    syncPolicyState,
                 ) {
                     when (
                         val action = decideWeightSyncScheduleAction(
                             isCheckingSession = loginState.isCheckingSession,
                             isAuthenticated = loginState.isAuthenticated,
                             connectionState = wearableConnectionState,
+                            syncPolicyState = syncPolicyState,
                         )
                     ) {
                         is WeightSyncScheduleAction.Schedule ->
-                            weightSyncScheduler.schedule(action.connectionId)
+                            weightSyncScheduler.schedule(
+                                connectionId = action.connectionId,
+                                repeatIntervalMinutes =
+                                    action.repeatIntervalMinutes,
+                            )
 
                         WeightSyncScheduleAction.CancelAll ->
                             weightSyncScheduler.cancelAll()
 
                         WeightSyncScheduleAction.None -> Unit
+                    }
+                }
+
+                // The plan supplies the cooldown; the latest successful cursor
+                // from either Django or this device supplies its starting point.
+                LaunchedEffect(wearableConnectionState, syncPolicyState) {
+                    val connection = (
+                        wearableConnectionState as?
+                            WearableConnectionUiState.Ready
+                        )?.connection
+                    val policy = (
+                        syncPolicyState as?
+                            SyncPolicyUiState.Ready
+                        )?.policy
+                    if (connection != null && policy != null) {
+                        initialWeightSyncViewModel.configureManualSync(
+                            connectionId = connection.id,
+                            cooldownMinutes = policy.syncIntervalMinutes,
+                            backendLastSyncedAt = connection.lastSyncedAt
+                                ?.let { timestamp ->
+                                    runCatching { Instant.parse(timestamp) }
+                                        .getOrNull()
+                                },
+                        )
                     }
                 }
 
@@ -148,6 +200,8 @@ class MainActivity : ComponentActivity() {
                         onLogout = loginViewModel::logout,
                         wearableConnectionState = wearableConnectionState,
                         initialWeightSyncState = initialWeightSyncState,
+                        manualSyncAvailability = manualSyncAvailability,
+                        syncPolicyState = syncPolicyState,
                         onConnectHealthConnect = wearableConnectionViewModel::load,
                         onRetryHealthConnect = wearableConnectionViewModel::retry,
                         onEnableBackgroundSync = {

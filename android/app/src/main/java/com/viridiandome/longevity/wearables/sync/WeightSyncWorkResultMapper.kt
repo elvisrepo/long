@@ -16,6 +16,7 @@ internal fun WeightSyncResult.toWorkResult(): ListenableWorker.Result =
                 -> ListenableWorker.Result.retry()
 
                 WeightSyncFailure.PermissionRequired,
+                WeightSyncFailure.AutomaticSyncDisabled,
                 WeightSyncFailure.Conflict,
                 WeightSyncFailure.Rejected,
                 WeightSyncFailure.NoSession,

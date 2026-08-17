@@ -34,6 +34,7 @@ def test_subscription_plan_stores_entitlement_limits():
     assert plan.code == "starter"
     assert plan.active_custom_metric_limit == 3
     assert plan.wearable_connection_limit == 0
+    assert plan.automatic_sync_enabled is False
     assert plan.sync_interval_minutes == 60
     assert plan.is_default is True
     assert plan.is_active is True
@@ -73,12 +74,26 @@ def test_default_free_plan_is_seeded():
 
     assert plan.name == "Free"
     assert plan.active_custom_metric_limit == 3
-    assert plan.wearable_connection_limit == 0
-    assert plan.sync_interval_minutes == 60
+    assert plan.wearable_connection_limit == 1
+    assert plan.automatic_sync_enabled is False
+    assert plan.sync_interval_minutes == 30
     assert plan.analytics_enabled is False
     assert plan.csv_import_enabled is False
     assert plan.is_default is True
     assert plan.is_active is True
+
+
+def test_automatic_sync_interval_cannot_be_below_workmanager_minimum():
+    with pytest.raises(IntegrityError):
+        with transaction.atomic():
+            SubscriptionPlan.objects.create(
+                code="too-frequent-auto-sync",
+                name="Too Frequent",
+                active_custom_metric_limit=10,
+                wearable_connection_limit=1,
+                automatic_sync_enabled=True,
+                sync_interval_minutes=14,
+            )
 
 
 def test_user_cannot_have_multiple_current_subscriptions():

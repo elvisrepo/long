@@ -5,6 +5,7 @@ export interface SubscriptionPlan {
   name: string
   active_custom_metric_limit: number
   wearable_connection_limit: number
+  automatic_sync_enabled: boolean
   sync_interval_minutes: number
   analytics_enabled: boolean
   csv_import_enabled: boolean

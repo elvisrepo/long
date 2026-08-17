@@ -27,10 +27,14 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.viridiandome.longevity.ui.theme.LongevityTheme
+import com.viridiandome.longevity.subscriptions.SyncPolicyUiState
 import com.viridiandome.longevity.wearables.BackgroundReadAccess
 import com.viridiandome.longevity.wearables.WearableConnectionUiState
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncUiState
+import com.viridiandome.longevity.wearables.sync.ManualSyncAvailability
 import com.viridiandome.longevity.wearables.sync.WeightSyncFailure
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 /**
  * Stateless authentication UI.
@@ -49,6 +53,9 @@ fun LoginScreen(
         WearableConnectionUiState.Idle,
     initialWeightSyncState: InitialWeightSyncUiState =
         InitialWeightSyncUiState.Idle,
+    manualSyncAvailability: ManualSyncAvailability =
+        ManualSyncAvailability.Unconfigured,
+    syncPolicyState: SyncPolicyUiState = SyncPolicyUiState.Idle,
     onConnectHealthConnect: () -> Unit = {},
     onRetryHealthConnect: () -> Unit = {},
     onEnableBackgroundSync: () -> Unit = {},
@@ -66,6 +73,8 @@ fun LoginScreen(
             onLogout = onLogout,
             wearableConnectionState = wearableConnectionState,
             initialWeightSyncState = initialWeightSyncState,
+            manualSyncAvailability = manualSyncAvailability,
+            syncPolicyState = syncPolicyState,
             onConnectHealthConnect = onConnectHealthConnect,
             onRetryHealthConnect = onRetryHealthConnect,
             onEnableBackgroundSync = onEnableBackgroundSync,
@@ -192,6 +201,8 @@ private fun AuthenticatedContent(
     onLogout: () -> Unit,
     wearableConnectionState: WearableConnectionUiState,
     initialWeightSyncState: InitialWeightSyncUiState,
+    manualSyncAvailability: ManualSyncAvailability,
+    syncPolicyState: SyncPolicyUiState,
     onConnectHealthConnect: () -> Unit,
     onRetryHealthConnect: () -> Unit,
     onEnableBackgroundSync: () -> Unit,
@@ -219,6 +230,8 @@ private fun AuthenticatedContent(
         HealthConnectContent(
             state = wearableConnectionState,
             initialWeightSyncState = initialWeightSyncState,
+            manualSyncAvailability = manualSyncAvailability,
+            syncPolicyState = syncPolicyState,
             onConnect = onConnectHealthConnect,
             onRetry = onRetryHealthConnect,
             onEnableBackgroundSync = onEnableBackgroundSync,
@@ -256,6 +269,8 @@ private fun AuthenticatedContent(
 private fun HealthConnectContent(
     state: WearableConnectionUiState,
     initialWeightSyncState: InitialWeightSyncUiState,
+    manualSyncAvailability: ManualSyncAvailability,
+    syncPolicyState: SyncPolicyUiState,
     onConnect: () -> Unit,
     onRetry: () -> Unit,
     onEnableBackgroundSync: () -> Unit,
@@ -308,6 +323,7 @@ private fun HealthConnectContent(
         }
 
         is WearableConnectionUiState.Ready -> {
+            val syncPolicy = (syncPolicyState as? SyncPolicyUiState.Ready)?.policy
             val statusText = when (state.connection.status) {
                 "connected" -> "Connected"
                 "pending" -> "Setup pending"
@@ -316,11 +332,22 @@ private fun HealthConnectContent(
             }
             Text(text = statusText)
 
+            if (syncPolicy != null) {
+                Text(
+                    text = if (syncPolicy.automaticSyncEnabled) {
+                        "Automatic sync every ${syncPolicy.syncIntervalMinutes} minutes"
+                    } else {
+                        "Manual sync every ${syncPolicy.syncIntervalMinutes} minutes"
+                    },
+                )
+            }
+
             Spacer(modifier = Modifier.height(12.dp))
 
             if (
                 state.backgroundReadAccess ===
-                BackgroundReadAccess.PermissionRequired
+                BackgroundReadAccess.PermissionRequired &&
+                syncPolicy?.automaticSyncEnabled == true
             ) {
                 // Background health access is an additional explicit consent;
                 // it never blocks the existing foreground sync action below.
@@ -333,6 +360,7 @@ private fun HealthConnectContent(
 
             InitialWeightSyncContent(
                 state = initialWeightSyncState,
+                availability = manualSyncAvailability,
                 onSync = onSyncWeight,
                 onReviewPermission = onRetry,
             )
@@ -362,12 +390,29 @@ private fun HealthConnectContent(
 @Composable
 private fun InitialWeightSyncContent(
     state: InitialWeightSyncUiState,
+    availability: ManualSyncAvailability,
     onSync: () -> Unit,
     onReviewPermission: () -> Unit,
 ) {
+    val canSync = availability === ManualSyncAvailability.Available
+    when (availability) {
+        ManualSyncAvailability.Unconfigured,
+        ManualSyncAvailability.Checking,
+        -> Text(text = "Checking manual sync availability...")
+
+        is ManualSyncAvailability.CoolingDown -> Text(
+            text = "Sync available again at ${availability.availableAt.formatLocalTime()}.",
+        )
+
+        ManualSyncAvailability.Unavailable ->
+            Text(text = "Unable to verify manual sync availability.")
+
+        ManualSyncAvailability.Available -> Unit
+    }
+
     when (state) {
         InitialWeightSyncUiState.Idle -> {
-            Button(onClick = onSync) {
+            Button(onClick = onSync, enabled = canSync) {
                 Text(text = "Sync weight now")
             }
         }
@@ -379,7 +424,7 @@ private fun InitialWeightSyncContent(
 
         InitialWeightSyncUiState.NoData -> {
             Text(text = "No Samsung Health weight records found in the last 30 days.")
-            Button(onClick = onSync) {
+            Button(onClick = onSync, enabled = canSync) {
                 Text(text = "Sync again")
             }
         }
@@ -389,7 +434,7 @@ private fun InitialWeightSyncContent(
                 text = "Weight sync complete: ${state.entriesImported} imported, " +
                     "${state.entriesSkipped} already present.",
             )
-            Button(onClick = onSync) {
+            Button(onClick = onSync, enabled = canSync) {
                 Text(text = "Sync again")
             }
         }
@@ -409,11 +454,12 @@ private fun InitialWeightSyncContent(
             }
 
             if (
+                state.failure !== WeightSyncFailure.AutomaticSyncDisabled &&
                 state.failure !== WeightSyncFailure.Conflict &&
                 state.failure !== WeightSyncFailure.Rejected &&
                 state.failure !== WeightSyncFailure.NoSession
             ) {
-                Button(onClick = onSync) {
+                Button(onClick = onSync, enabled = canSync) {
                     Text(text = "Retry weight sync")
                 }
             }
@@ -421,15 +467,23 @@ private fun InitialWeightSyncContent(
 
         InitialWeightSyncUiState.Unavailable -> {
             Text(text = "Unable to sync weight right now.")
-            Button(onClick = onSync) {
+            Button(onClick = onSync, enabled = canSync) {
                 Text(text = "Retry weight sync")
             }
         }
     }
 }
 
+private fun java.time.Instant.formatLocalTime(): String =
+    DateTimeFormatter.ofPattern("HH:mm")
+        .withZone(ZoneId.systemDefault())
+        .format(this)
+
 private fun WeightSyncFailure.userMessage(): String =
     when (this) {
+        WeightSyncFailure.AutomaticSyncDisabled ->
+            "Automatic weight sync is not available on the current plan."
+
         WeightSyncFailure.PermissionRequired ->
             "Health Connect weight permission is required."
 

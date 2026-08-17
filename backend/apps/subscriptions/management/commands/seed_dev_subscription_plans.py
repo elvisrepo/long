@@ -15,6 +15,7 @@ class Command(BaseCommand):
                 "name": "Pro",
                 "active_custom_metric_limit": 10,
                 "wearable_connection_limit": 1,
+                "automatic_sync_enabled": True,
                 "sync_interval_minutes": 15,
                 "analytics_enabled": True,
                 "csv_import_enabled": True,
