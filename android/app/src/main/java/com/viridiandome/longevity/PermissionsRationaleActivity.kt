@@ -34,7 +34,7 @@ class PermissionsRationaleActivity : ComponentActivity() {
                         style = MaterialTheme.typography.headlineSmall,
                     )
                     Text(
-                        text = "Longevity reads weight records you authorize " +
+                        text = "Longevity reads weight and step records you authorize " +
                             "and uploads normalized samples to your account. " +
                             "If you enable background sync, it may read those " +
                             "authorized records while the app is not visible. " +

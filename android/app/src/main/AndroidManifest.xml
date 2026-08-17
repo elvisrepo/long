@@ -4,8 +4,9 @@
 
     <!-- Normal permission: Android grants it at install time without a runtime prompt. -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- MVP requests read-only access to weight; no other health type is declared. -->
+    <!-- MVP reads only the explicitly supported Health Connect record types. -->
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
     <!-- Requested explicitly only on devices that support background health reads. -->
     <uses-permission
         android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
