@@ -118,4 +118,6 @@ private class RecordingWeightSyncCursorStore(
         connectionId: String,
         cursor: Instant,
     ) = Unit
+
+    override suspend fun remove(connectionId: String) = Unit
 }

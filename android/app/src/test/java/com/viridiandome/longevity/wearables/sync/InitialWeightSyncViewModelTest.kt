@@ -288,4 +288,6 @@ private class FixedWeightSyncCursorStore(
     override suspend fun read(connectionId: String): Instant? = cursor
 
     override suspend fun write(connectionId: String, cursor: Instant) = Unit
+
+    override suspend fun remove(connectionId: String) = Unit
 }

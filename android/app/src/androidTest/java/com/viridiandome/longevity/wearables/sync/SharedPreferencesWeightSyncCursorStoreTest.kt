@@ -85,6 +85,23 @@ class SharedPreferencesWeightSyncCursorStoreTest {
         assertFalse(preferences.contains(cursorKey))
     }
 
+    @Test
+    fun removing_one_cursor_preserves_other_connections() = runTest {
+        val store = SharedPreferencesWeightSyncCursorStore(
+            context = context,
+            preferencesName = TEST_PREFERENCES_NAME,
+        )
+        val firstCursor = Instant.parse("2026-08-06T12:00:00Z")
+        val secondCursor = Instant.parse("2026-08-06T13:00:00Z")
+        store.write(CONNECTION_ID, firstCursor)
+        store.write(SECOND_CONNECTION_ID, secondCursor)
+
+        store.remove(CONNECTION_ID)
+
+        assertNull(store.read(CONNECTION_ID))
+        assertEquals(secondCursor, store.read(SECOND_CONNECTION_ID))
+    }
+
     private companion object {
         const val TEST_PREFERENCES_NAME = "longevity_weight_sync_cursors_test"
         const val CONNECTION_ID = "7df7e4ab-7e6f-4558-b9be-17c824fbf54e"

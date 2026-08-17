@@ -21,13 +21,13 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 androidTokenStore = component "Keystore Token Store" "Encrypts access and refresh JWTs with an Android-Keystore key and durably stores only ciphertext in private SharedPreferences." "Android Keystore + AES-GCM"
                 androidApiClient = component "Authenticated API Client" "Attaches stored bearer access tokens, coordinates one refresh after a 401, and retries the original product request once." "Kotlin + OkHttp + Coroutines"
                 androidSyncPolicy = component "Subscription Sync Policy" "Reads server-owned automatic-sync and cadence entitlements, validates WorkManager-compatible intervals, exposes UI state, and gates background execution after downgrades." "Kotlin + OkHttp + Coroutines"
-                androidWearables = component "Wearable Connection Repository" "Lists and registers caller-owned Health Connect connections through the authenticated API client." "Kotlin + kotlinx.serialization"
+                androidWearables = component "Wearable Connection Repository" "Lists, registers, and disconnects caller-owned Health Connect connections; confirmed disconnect performs connection-scoped scheduler and cursor cleanup." "Kotlin + kotlinx.serialization"
                 androidUploads = component "Wearable Upload Repository" "Posts normalized, retry-stable weight batches and maps Django SyncRun receipts and conflict/rejection outcomes without exposing transport DTOs." "Kotlin + OkHttp + kotlinx.serialization"
                 androidHealthAccess = component "Health Connect Access" "Checks SDK, WeightRecord permission, background-read feature/grant, maps paginated reads into domain samples, and keeps optional background capability separate from manual sync." "AndroidX Health Connect"
                 androidWeightSyncPlanner = component "Weight Sync Planners" "The initial policy reads a bounded 30-day window; the incremental policy reads per-connection watermarks with a 24-hour overlap and 30-day fallback. Both keep Samsung provenance and produce backend-safe batches." "Kotlin + Coroutines"
                 androidWeightSyncCoordinator = component "Weight Sync Coordinator and Runners" "Reusable orchestration uploads ordered batches with one UUID each and preserves partial receipts. The incremental runner advances its conservative watermark only after completed or valid no-data outcomes." "Kotlin + Coroutines"
-                androidWeightSyncCursor = component "Weight Sync Cursor Store" "Durably stores private device-local epoch-millisecond watermarks per backend connection, returns missing values safely, removes corrupted values, and is excluded from backup/device transfer." "Android SharedPreferences + Coroutines"
-                androidWeightSyncScheduler = component "Weight Sync Scheduler" "Enqueues one network-constrained periodic request at the validated server interval using unique UPDATE semantics; cancels tagged work after logout or a manual-only policy." "AndroidX WorkManager"
+                androidWeightSyncCursor = component "Weight Sync Cursor Store" "Durably stores private device-local epoch-millisecond watermarks per backend connection, returns missing values safely, removes corrupted/disconnected connection values, and is excluded from backup/device transfer." "Android SharedPreferences + Coroutines"
+                androidWeightSyncScheduler = component "Weight Sync Scheduler" "Enqueues one network-constrained periodic request at the validated server interval using unique UPDATE semantics; cancels one connection after disconnect or all tagged work after logout/manual-only policy." "AndroidX WorkManager"
                 androidWeightSyncWorker = component "Incremental Weight Sync Worker" "CoroutineWorker that validates a connection ID, rechecks automatic-sync entitlement before device access, invokes the incremental runner, and maps outcomes to success, retry, or failure." "AndroidX WorkManager + Kotlin Coroutines"
             }
 
@@ -104,6 +104,8 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
           longevity.android.androidApiClient -> longevity.api.subscriptionsApi "Calls the authenticated current-subscription endpoint"
           longevity.android.androidSyncPolicy -> longevity.android.androidApiClient "Executes authenticated current-subscription reads"
           longevity.android.androidWearables -> longevity.android.androidApiClient "Executes authenticated connection requests"
+          longevity.android.androidWearables -> longevity.android.androidWeightSyncScheduler "Cancels confirmed disconnected connection work"
+          longevity.android.androidWearables -> longevity.android.androidWeightSyncCursor "Removes the confirmed disconnected connection cursor"
           longevity.android.androidUploads -> longevity.android.androidApiClient "Executes authenticated normalized upload requests"
           longevity.android.androidHealthAccess -> healthConnect "Checks SDK availability and WeightRecord read grant"
 
@@ -773,12 +775,17 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             user -> longevity.android.androidPresentation "Sees the completed or actionable sync state"
         }
 
-        dynamic longevity "wearable-connection-disconnect" "Dynamic view of the implemented backend disconnect boundary; the Android client action is planned." {
-            user -> longevity.android "Planned client action: chooses to disconnect Health Connect"
-            longevity.android -> longevity.api "Planned client call to implemented DELETE /api/v1/wearables/connections/{id}/ with Authorization: Bearer <access-token>"
-            longevity.api -> longevity.db "Looks up the connection UUID only inside the authenticated user's connections"
-            longevity.api -> longevity.db "Marks the caller-owned connection inactive, preserving its identity/history while releasing its wearable_connection_limit slot"
-            longevity.api -> longevity.android "Returns 204 when disconnected, or 404 for an unknown, unowned, or already-inactive UUID"
+        dynamic longevity.android "wearable-connection-disconnect" "Dynamic view of implemented Android Health Connect disconnect, backend soft deactivation, and connection-scoped device cleanup." {
+            user -> longevity.android.androidPresentation "Chooses Disconnect Health Connect from the Ready state"
+            longevity.android.androidPresentation -> longevity.android.androidWearables "Requests disconnect for the resolved caller-owned connection ID"
+            longevity.android.androidWearables -> longevity.android.androidApiClient "Builds DELETE /api/v1/wearables/connections/{id}/"
+            longevity.android.androidApiClient -> longevity.api.wearablesApi "Sends the authenticated DELETE with the stored bearer access token"
+            longevity.api.wearablesApi -> longevity.db "Owner-scopes and marks the connection inactive while preserving identity/history and releasing its plan slot"
+            longevity.api.wearablesApi -> longevity.android.androidApiClient "Returns 204, or stale 404 when the row is already inactive"
+            longevity.android.androidApiClient -> longevity.android.androidWearables "Returns terminal success, no-session, or retryable unavailable"
+            longevity.android.androidWearables -> longevity.android.androidWeightSyncScheduler "After terminal success, cancels only the connection-scoped unique periodic work"
+            longevity.android.androidWearables -> longevity.android.androidWeightSyncCursor "Removes only the disconnected connection's local cursor"
+            longevity.android.androidWearables -> longevity.android.androidPresentation "Publishes Idle after success or preserves Ready with a safe retry error after temporary failure"
         }
 
         dynamic longevity "wearable-connection-status-read" "Dynamic view of the implemented backend status-read boundary; the Android client call is planned." {

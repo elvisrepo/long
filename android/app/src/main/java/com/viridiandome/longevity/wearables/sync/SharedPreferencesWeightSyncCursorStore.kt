@@ -42,6 +42,16 @@ class SharedPreferencesWeightSyncCursorStore(
         }
     }
 
+    override suspend fun remove(connectionId: String) =
+        withContext(Dispatchers.IO) {
+            val committed = preferences.edit()
+                .remove(cursorKey(connectionId))
+                .commit()
+            if (!committed) {
+                throw IOException("Unable to remove the weight sync cursor.")
+            }
+        }
+
     private fun cursorKey(connectionId: String): String {
         require(connectionId.isNotBlank()) { "Connection ID must not be blank." }
         return "$CURSOR_KEY_PREFIX$connectionId"

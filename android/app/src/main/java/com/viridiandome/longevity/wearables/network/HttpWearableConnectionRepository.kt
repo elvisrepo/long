@@ -2,6 +2,7 @@ package com.viridiandome.longevity.wearables.network
 
 import com.viridiandome.longevity.auth.network.AuthenticatedApiClient
 import com.viridiandome.longevity.auth.network.AuthenticatedApiResult
+import com.viridiandome.longevity.wearables.WearableConnectionDisconnectResult
 import com.viridiandome.longevity.wearables.WearableConnectionRegistrationResult
 import com.viridiandome.longevity.wearables.WearableConnectionRepository
 import com.viridiandome.longevity.wearables.WearableConnectionResolutionResult
@@ -96,6 +97,44 @@ class HttpWearableConnectionRepository(
                 WearableConnectionResolutionResult.Unavailable
         }
 
+    override suspend fun disconnect(
+        connectionId: String,
+    ): WearableConnectionDisconnectResult {
+        require(connectionId.isNotBlank()) {
+            "A wearable connection ID is required to disconnect."
+        }
+        val connectionUrl = connectionsUrl.newBuilder()
+            .addPathSegment(connectionId)
+            .addPathSegment("")
+            .build()
+        val result = authenticatedApiClient.execute(
+            Request.Builder()
+                .url(connectionUrl)
+                .delete()
+                .build(),
+        )
+
+        return when (result) {
+            AuthenticatedApiResult.NoSession ->
+                WearableConnectionDisconnectResult.NoSession
+
+            AuthenticatedApiResult.Unavailable ->
+                WearableConnectionDisconnectResult.Unavailable
+
+            is AuthenticatedApiResult.Response ->
+                if (
+                    result.statusCode == HTTP_NO_CONTENT ||
+                    result.statusCode == HTTP_NOT_FOUND
+                ) {
+                    // A stale/already-disconnected caller-owned row is already in
+                    // the requested terminal state, so local cleanup can proceed.
+                    WearableConnectionDisconnectResult.Success
+                } else {
+                    WearableConnectionDisconnectResult.Unavailable
+                }
+        }
+    }
+
     private fun decodeResponse(
         response: AuthenticatedApiResult.Response,
     ): WearableConnectionsResult {
@@ -155,6 +194,8 @@ class HttpWearableConnectionRepository(
     private companion object {
         val JSON_MEDIA_TYPE = "application/json".toMediaType()
         const val HTTP_BAD_REQUEST = 400
+        const val HTTP_NOT_FOUND = 404
+        const val HTTP_NO_CONTENT = 204
         val SUCCESS_STATUS_RANGE = 200..299
     }
 }

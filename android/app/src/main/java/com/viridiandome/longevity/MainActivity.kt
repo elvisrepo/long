@@ -203,6 +203,8 @@ class MainActivity : ComponentActivity() {
                         manualSyncAvailability = manualSyncAvailability,
                         syncPolicyState = syncPolicyState,
                         onConnectHealthConnect = wearableConnectionViewModel::load,
+                        onDisconnectHealthConnect =
+                            wearableConnectionViewModel::disconnect,
                         onRetryHealthConnect = wearableConnectionViewModel::retry,
                         onEnableBackgroundSync = {
                             // The user starts this separate additional-access

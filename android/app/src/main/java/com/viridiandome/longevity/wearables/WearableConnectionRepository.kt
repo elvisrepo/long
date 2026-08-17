@@ -9,6 +9,8 @@ interface WearableConnectionRepository {
     suspend fun registerHealthConnect(): WearableConnectionRegistrationResult
 
     suspend fun getOrRegisterHealthConnect(): WearableConnectionResolutionResult
+
+    suspend fun disconnect(connectionId: String): WearableConnectionDisconnectResult
 }
 
 /** Explicit outcomes keep missing authentication separate from temporary failure. */
@@ -46,4 +48,13 @@ sealed interface WearableConnectionResolutionResult {
     data object NoSession : WearableConnectionResolutionResult
 
     data object Unavailable : WearableConnectionResolutionResult
+}
+
+/** Disconnect outcomes keep an expired session separate from a retryable failure. */
+sealed interface WearableConnectionDisconnectResult {
+    data object Success : WearableConnectionDisconnectResult
+
+    data object NoSession : WearableConnectionDisconnectResult
+
+    data object Unavailable : WearableConnectionDisconnectResult
 }

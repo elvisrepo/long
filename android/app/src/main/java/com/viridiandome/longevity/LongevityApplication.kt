@@ -10,6 +10,7 @@ import com.viridiandome.longevity.auth.network.AuthenticatedApiClient
 import com.viridiandome.longevity.auth.network.HttpAuthRepository
 import com.viridiandome.longevity.subscriptions.SyncPolicyRepository
 import com.viridiandome.longevity.subscriptions.network.HttpSyncPolicyRepository
+import com.viridiandome.longevity.wearables.DisconnectingWearableConnectionRepository
 import com.viridiandome.longevity.wearables.HealthConnectAccess
 import com.viridiandome.longevity.wearables.WearableConnectionRepository
 import com.viridiandome.longevity.wearables.WearableUploadRepository
@@ -68,9 +69,13 @@ class LongevityApplication : Application(), Configuration.Provider {
     }
 
     val wearableConnectionRepository: WearableConnectionRepository by lazy {
-        HttpWearableConnectionRepository(
-            authenticatedApiClient = authenticatedApiClient,
-            baseUrl = BuildConfig.API_BASE_URL,
+        DisconnectingWearableConnectionRepository(
+            delegate = HttpWearableConnectionRepository(
+                authenticatedApiClient = authenticatedApiClient,
+                baseUrl = BuildConfig.API_BASE_URL,
+            ),
+            scheduler = weightSyncScheduler,
+            cursorStore = weightSyncCursorStore,
         )
     }
 

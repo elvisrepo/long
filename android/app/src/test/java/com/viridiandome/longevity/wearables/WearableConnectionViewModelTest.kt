@@ -359,6 +359,60 @@ class WearableConnectionViewModelTest {
             )
             assertEquals(0, repository.resolutionRequests)
         }
+
+    @Test
+    fun successful_disconnect_returns_to_idle_connection_state() = runTest {
+        val connection = healthConnectConnection(status = "connected")
+        val repository = DisconnectableWearableConnectionRepository(
+            connection = connection,
+            disconnectResult = WearableConnectionDisconnectResult.Success,
+        )
+        val viewModel = WearableConnectionViewModel(
+            repository,
+            GrantedWeightReadHealthConnectAccess,
+        )
+        viewModel.load()
+        advanceUntilIdle()
+
+        viewModel.disconnect()
+
+        assertEquals(
+            WearableConnectionUiState.Ready(
+                connection = connection,
+                isDisconnecting = true,
+            ),
+            viewModel.state.value,
+        )
+        advanceUntilIdle()
+        assertSame(WearableConnectionUiState.Idle, viewModel.state.value)
+        assertEquals(listOf(connection.id), repository.disconnectRequests)
+    }
+
+    @Test
+    fun failed_disconnect_keeps_the_ready_connection_retryable() = runTest {
+        val connection = healthConnectConnection(status = "connected")
+        val repository = DisconnectableWearableConnectionRepository(
+            connection = connection,
+            disconnectResult = WearableConnectionDisconnectResult.Unavailable,
+        )
+        val viewModel = WearableConnectionViewModel(
+            repository,
+            GrantedWeightReadHealthConnectAccess,
+        )
+        viewModel.load()
+        advanceUntilIdle()
+
+        viewModel.disconnect()
+        advanceUntilIdle()
+
+        assertEquals(
+            WearableConnectionUiState.Ready(
+                connection = connection,
+                disconnectFailed = true,
+            ),
+            viewModel.state.value,
+        )
+    }
 }
 
 private data class FixedHealthConnectAccess(
@@ -406,6 +460,11 @@ private class ControllableWearableConnectionRepository :
     override suspend fun registerHealthConnect():
         WearableConnectionRegistrationResult =
         error("Direct registration is not expected from the ViewModel.")
+
+    override suspend fun disconnect(
+        connectionId: String,
+    ): WearableConnectionDisconnectResult =
+        error("Disconnect is not under test.")
 }
 
 private class SequencedWearableConnectionRepository(
@@ -420,6 +479,36 @@ private class SequencedWearableConnectionRepository(
         WearableConnectionResolutionResult {
         resolutionRequests += 1
         return remainingResults.removeFirst()
+    }
+
+    override suspend fun getConnections(): WearableConnectionsResult =
+        error("Direct connection reads are not expected from the ViewModel.")
+
+    override suspend fun registerHealthConnect():
+        WearableConnectionRegistrationResult =
+        error("Direct registration is not expected from the ViewModel.")
+
+    override suspend fun disconnect(
+        connectionId: String,
+    ): WearableConnectionDisconnectResult =
+        error("Disconnect is not under test.")
+}
+
+private class DisconnectableWearableConnectionRepository(
+    private val connection: WearableConnectionResponse,
+    private val disconnectResult: WearableConnectionDisconnectResult,
+) : WearableConnectionRepository {
+    val disconnectRequests = mutableListOf<String>()
+
+    override suspend fun getOrRegisterHealthConnect():
+        WearableConnectionResolutionResult =
+        WearableConnectionResolutionResult.Success(connection)
+
+    override suspend fun disconnect(
+        connectionId: String,
+    ): WearableConnectionDisconnectResult {
+        disconnectRequests += connectionId
+        return disconnectResult
     }
 
     override suspend fun getConnections(): WearableConnectionsResult =

@@ -57,6 +57,7 @@ fun LoginScreen(
         ManualSyncAvailability.Unconfigured,
     syncPolicyState: SyncPolicyUiState = SyncPolicyUiState.Idle,
     onConnectHealthConnect: () -> Unit = {},
+    onDisconnectHealthConnect: () -> Unit = {},
     onRetryHealthConnect: () -> Unit = {},
     onEnableBackgroundSync: () -> Unit = {},
     onSyncWeight: () -> Unit = {},
@@ -76,6 +77,7 @@ fun LoginScreen(
             manualSyncAvailability = manualSyncAvailability,
             syncPolicyState = syncPolicyState,
             onConnectHealthConnect = onConnectHealthConnect,
+            onDisconnectHealthConnect = onDisconnectHealthConnect,
             onRetryHealthConnect = onRetryHealthConnect,
             onEnableBackgroundSync = onEnableBackgroundSync,
             onSyncWeight = onSyncWeight,
@@ -204,6 +206,7 @@ private fun AuthenticatedContent(
     manualSyncAvailability: ManualSyncAvailability,
     syncPolicyState: SyncPolicyUiState,
     onConnectHealthConnect: () -> Unit,
+    onDisconnectHealthConnect: () -> Unit,
     onRetryHealthConnect: () -> Unit,
     onEnableBackgroundSync: () -> Unit,
     onSyncWeight: () -> Unit,
@@ -233,6 +236,7 @@ private fun AuthenticatedContent(
             manualSyncAvailability = manualSyncAvailability,
             syncPolicyState = syncPolicyState,
             onConnect = onConnectHealthConnect,
+            onDisconnect = onDisconnectHealthConnect,
             onRetry = onRetryHealthConnect,
             onEnableBackgroundSync = onEnableBackgroundSync,
             onSyncWeight = onSyncWeight,
@@ -272,6 +276,7 @@ private fun HealthConnectContent(
     manualSyncAvailability: ManualSyncAvailability,
     syncPolicyState: SyncPolicyUiState,
     onConnect: () -> Unit,
+    onDisconnect: () -> Unit,
     onRetry: () -> Unit,
     onEnableBackgroundSync: () -> Unit,
     onSyncWeight: () -> Unit,
@@ -364,6 +369,28 @@ private fun HealthConnectContent(
                 onSync = onSyncWeight,
                 onReviewPermission = onRetry,
             )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            TextButton(
+                onClick = onDisconnect,
+                enabled = !state.isDisconnecting,
+            ) {
+                Text(
+                    text = if (state.isDisconnecting) {
+                        "Disconnecting..."
+                    } else {
+                        "Disconnect Health Connect"
+                    },
+                )
+            }
+
+            if (state.disconnectFailed) {
+                Text(
+                    text = "Unable to disconnect Health Connect. Please try again.",
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
         }
 
         WearableConnectionUiState.Rejected -> {

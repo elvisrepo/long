@@ -10,4 +10,6 @@ interface WeightSyncCursorStore {
         connectionId: String,
         cursor: Instant,
     )
+
+    suspend fun remove(connectionId: String)
 }

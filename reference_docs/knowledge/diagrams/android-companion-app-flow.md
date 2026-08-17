@@ -115,6 +115,19 @@ flowchart TD
         KEEP_CURSOR --> WORK_RESULT
     end
 
+    subgraph DISCONNECT["Health Connect disconnect"]
+        READY --> DISCONNECT_ACTION["User chooses Disconnect Health Connect"]
+        DISCONNECT_ACTION --> DISCONNECT_REQUEST["Authenticated repository<br/>DELETE /api/v1/wearables/connections/{id}/"]
+        DISCONNECT_REQUEST --> DJANGO_DISCONNECT["Django owner-scopes and soft-disconnects<br/>the durable connection row"]
+        DJANGO_DISCONNECT --> DISCONNECT_RESULT{"Confirmed disconnected<br/>or stale already inactive?"}
+        DISCONNECT_RESULT -->|No / temporary failure| DISCONNECT_RETRY["Keep Ready state, unique work, and cursor<br/>Show safe retry message"]
+        DISCONNECT_RETRY --> READY
+        DISCONNECT_RESULT -->|Yes| CANCEL_CONNECTION_WORK["Cancel only this connection's<br/>unique WorkManager request"]
+        CANCEL_CONNECTION_WORK --> REMOVE_CONNECTION_CURSOR["Remove only this connection's<br/>device-local sync cursor"]
+        REMOVE_CONNECTION_CURSOR --> DISCONNECTED["Show Not connected<br/>Plan slot is available again"]
+        DISCONNECTED --> CONNECT_ACTION
+    end
+
     subgraph LOGOUT["Logout"]
         AUTHENTICATED --> LOGOUT_ACTION["User chooses Logout"]
         LOGOUT_ACTION --> REVOKE["POST /api/auth/mobile/logout/<br/>with stored refresh token"]
@@ -133,11 +146,11 @@ flowchart TD
     classDef planned fill:#fef3c7,stroke:#b45309,color:#78350f,stroke-dasharray:5 5;
     classDef recovery fill:#fee2e2,stroke:#dc2626,color:#7f1d1d;
 
-    class START,RESTORE,FORM,LOGIN,DJANGO_LOGIN,STORE,AUTHENTICATED,POLICY_REQUEST,POLICY_READY,CONNECT_ACTION,SDK_CHECK,PERMISSION,RESOLVE_CONNECTION,REGISTER,ENTITLEMENT,READY,BACKGROUND_CHECK,BACKGROUND_READY,BACKGROUND_UNAVAILABLE,BACKGROUND_ACTION,BACKGROUND_PERMISSION,SCHEDULE,SYNC_ACTION,INITIAL_VM,COORDINATOR,INCREMENTAL_PLANNER,HC_READ,FILTER,UPLOAD_ID,UPLOAD,AUTH_CLIENT,DJANGO_AUTH,INGEST,RECEIPT,RESULT,SYNC_UI,MANUAL_COOLDOWN,WEB,REFRESH_LOCK,RETRY_REQUEST,REFRESH_REQUEST,REPLACE_TOKENS,WORKER,WORKER_POLICY,INCREMENTAL_RUNNER,CURSOR,WORK_RESULT,CURSOR_ADVANCE,KEEP_CURSOR,CANCEL_STALE,STOP_WORK,LOGOUT_ACTION,REVOKE,CLEAR,CANCEL_WORK implemented;
-    class SESSION,LOGIN_OK,SDK_READY,PERMISSION_RESULT,CONNECTION_EXISTS,REGISTERED,BACKGROUND_ACCESS,BACKGROUND_RESULT,MANUAL_GATE,AUTO_DECISION,WORKER_ALLOWED,API_RESPONSE,ALREADY_ROTATED,REFRESH_OK,CURSOR_DECISION,LOGOUT_OK decision;
+    class START,RESTORE,FORM,LOGIN,DJANGO_LOGIN,STORE,AUTHENTICATED,POLICY_REQUEST,POLICY_READY,CONNECT_ACTION,SDK_CHECK,PERMISSION,RESOLVE_CONNECTION,REGISTER,ENTITLEMENT,READY,BACKGROUND_CHECK,BACKGROUND_READY,BACKGROUND_UNAVAILABLE,BACKGROUND_ACTION,BACKGROUND_PERMISSION,SCHEDULE,SYNC_ACTION,INITIAL_VM,COORDINATOR,INCREMENTAL_PLANNER,HC_READ,FILTER,UPLOAD_ID,UPLOAD,AUTH_CLIENT,DJANGO_AUTH,INGEST,RECEIPT,RESULT,SYNC_UI,MANUAL_COOLDOWN,WEB,REFRESH_LOCK,RETRY_REQUEST,REFRESH_REQUEST,REPLACE_TOKENS,WORKER,WORKER_POLICY,INCREMENTAL_RUNNER,CURSOR,WORK_RESULT,CURSOR_ADVANCE,KEEP_CURSOR,CANCEL_STALE,STOP_WORK,DISCONNECT_ACTION,DISCONNECT_REQUEST,DJANGO_DISCONNECT,CANCEL_CONNECTION_WORK,REMOVE_CONNECTION_CURSOR,DISCONNECTED,LOGOUT_ACTION,REVOKE,CLEAR,CANCEL_WORK implemented;
+    class SESSION,LOGIN_OK,SDK_READY,PERMISSION_RESULT,CONNECTION_EXISTS,REGISTERED,BACKGROUND_ACCESS,BACKGROUND_RESULT,MANUAL_GATE,AUTO_DECISION,WORKER_ALLOWED,API_RESPONSE,ALREADY_ROTATED,REFRESH_OK,CURSOR_DECISION,DISCONNECT_RESULT,LOGOUT_OK decision;
     class SAMSUNG,HEALTH_CONNECT external;
     class DATABASE storage;
-    class SAFE_LOGIN_ERROR,CONNECT_RECOVERY,SESSION_EXPIRED,RETRYABLE_API_ERROR,LOGOUT_RETRY recovery;
+    class SAFE_LOGIN_ERROR,CONNECT_RECOVERY,SESSION_EXPIRED,RETRYABLE_API_ERROR,DISCONNECT_RETRY,LOGOUT_RETRY recovery;
 ```
 
 ## Important Boundaries
@@ -151,4 +164,4 @@ flowchart TD
 - Foreground sync uses the incremental cursor with a 30-day first-run fallback. The official client disables its action until the server-owned cooldown has elapsed, including after a successful no-data run.
 - Background feature detection and foreground permission consent are implemented. Only an automatically enabled plan may expose the permission action and schedule one unique, network-constrained periodic weight job at the server-provided valid interval.
 - Every background execution fetches current policy again, so stale work after a downgrade stops before Health Connect access.
-- Startup session checking preserves durable work. Confirmed logout cancels all tagged weight work; connection-disconnect cancellation remains planned with the Android disconnect UI.
+- Startup session checking preserves durable work. Confirmed logout cancels all tagged weight work. Confirmed connection disconnect cancels only its unique work and removes only its cursor; temporary server failure preserves both for retry.

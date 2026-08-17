@@ -28,6 +28,8 @@ sealed interface WearableConnectionUiState {
         val connection: WearableConnectionResponse,
         val backgroundReadAccess: BackgroundReadAccess =
             BackgroundReadAccess.Unavailable,
+        val isDisconnecting: Boolean = false,
+        val disconnectFailed: Boolean = false,
     ) : WearableConnectionUiState
 
     data object Rejected : WearableConnectionUiState
@@ -54,6 +56,37 @@ class WearableConnectionViewModel(
 
     fun retry() {
         resolveHealthConnectConnection()
+    }
+
+    fun disconnect() {
+        val readyState = _state.value as? WearableConnectionUiState.Ready
+            ?: return
+        if (readyState.isDisconnecting || resolutionJob?.isActive == true) {
+            return
+        }
+
+        _state.value = readyState.copy(
+            isDisconnecting = true,
+            disconnectFailed = false,
+        )
+        resolutionJob = viewModelScope.launch {
+            _state.value = try {
+                when (repository.disconnect(readyState.connection.id)) {
+                    WearableConnectionDisconnectResult.Success ->
+                        WearableConnectionUiState.Idle
+
+                    WearableConnectionDisconnectResult.NoSession ->
+                        WearableConnectionUiState.NoSession
+
+                    WearableConnectionDisconnectResult.Unavailable ->
+                        readyState.copy(disconnectFailed = true)
+                }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                readyState.copy(disconnectFailed = true)
+            }
+        }
     }
 
     fun onWeightReadPermissionResult(isGranted: Boolean) {

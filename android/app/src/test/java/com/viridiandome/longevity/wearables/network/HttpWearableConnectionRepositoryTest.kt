@@ -4,6 +4,7 @@ import com.viridiandome.longevity.auth.AuthTokenStore
 import com.viridiandome.longevity.auth.AuthTokens
 import com.viridiandome.longevity.auth.network.AuthenticatedApiClient
 import com.viridiandome.longevity.auth.network.SessionRefresher
+import com.viridiandome.longevity.wearables.WearableConnectionDisconnectResult
 import com.viridiandome.longevity.wearables.WearableConnectionRegistrationResult
 import com.viridiandome.longevity.wearables.WearableConnectionResolutionResult
 import com.viridiandome.longevity.wearables.WearableConnectionsResult
@@ -367,6 +368,53 @@ class HttpWearableConnectionRepositoryTest {
         assertEquals(2, server.requestCount)
     }
 
+    @Test
+    fun disconnect_deletes_the_caller_owned_connection() = runTest {
+        server.enqueue(MockResponse(code = 204))
+        val repository = buildRepository(
+            tokens = AuthTokens(
+                accessToken = "stored-access-token",
+                refreshToken = "stored-refresh-token",
+            ),
+        )
+
+        val result = repository.disconnect(CONNECTION_ID)
+
+        assertSame(WearableConnectionDisconnectResult.Success, result)
+        val request = server.takeRequest()
+        assertEquals("DELETE", request.method)
+        assertEquals(
+            "/api/v1/wearables/connections/$CONNECTION_ID/",
+            request.url.encodedPath,
+        )
+    }
+
+    @Test
+    fun disconnect_without_tokens_returns_no_session_without_request() = runTest {
+        val repository = buildRepository(tokens = null)
+
+        val result = repository.disconnect(CONNECTION_ID)
+
+        assertSame(WearableConnectionDisconnectResult.NoSession, result)
+        assertEquals(0, server.requestCount)
+    }
+
+    @Test
+    fun disconnect_server_failure_preserves_retryable_unavailable_result() =
+        runTest {
+            server.enqueue(MockResponse(code = 500))
+            val repository = buildRepository(
+                tokens = AuthTokens(
+                    accessToken = "stored-access-token",
+                    refreshToken = "stored-refresh-token",
+                ),
+            )
+
+            val result = repository.disconnect(CONNECTION_ID)
+
+            assertSame(WearableConnectionDisconnectResult.Unavailable, result)
+        }
+
     private fun buildRepository(tokens: AuthTokens?): HttpWearableConnectionRepository {
         val authenticatedApiClient = AuthenticatedApiClient(
             client = OkHttpClient(),
@@ -377,6 +425,10 @@ class HttpWearableConnectionRepositoryTest {
             authenticatedApiClient = authenticatedApiClient,
             baseUrl = server.url("/").toString(),
         )
+    }
+
+    private companion object {
+        const val CONNECTION_ID = "7df7e4ab-7e6f-4558-b9be-17c824fbf54e"
     }
 }
 

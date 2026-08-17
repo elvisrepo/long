@@ -45,6 +45,7 @@ class WeightSyncSchedulerTest {
                 enqueuedRequest = request
             },
             cancelAllWorkByTag = {},
+            cancelUniqueWork = {},
         )
 
         scheduler.schedule(
@@ -75,11 +76,29 @@ class WeightSyncSchedulerTest {
         val scheduler = WorkManagerWeightSyncScheduler(
             enqueueUniquePeriodicWork = { _, _, _ -> },
             cancelAllWorkByTag = { tag -> cancelledTag = tag },
+            cancelUniqueWork = {},
         )
 
         scheduler.cancelAll()
 
         assertEquals(WEIGHT_SYNC_WORK_TAG, cancelledTag)
+    }
+
+    @Test
+    fun cancel_stops_only_the_connection_scoped_unique_work() {
+        var cancelledWorkName: String? = null
+        val scheduler = WorkManagerWeightSyncScheduler(
+            enqueueUniquePeriodicWork = { _, _, _ -> },
+            cancelAllWorkByTag = {},
+            cancelUniqueWork = { workName -> cancelledWorkName = workName },
+        )
+
+        scheduler.cancel(CONNECTION_ID)
+
+        assertEquals(
+            "$WEIGHT_SYNC_WORK_TAG:$CONNECTION_ID",
+            cancelledWorkName,
+        )
     }
 
     private companion object {

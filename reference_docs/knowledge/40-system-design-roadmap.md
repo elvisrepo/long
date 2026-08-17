@@ -1,6 +1,6 @@
 # System Design Roadmap: Local MVP to Production
 
-Current state, bluntly: the project has a solid local MVP foundation, but it is not the final product yet. Manual metrics, Stripe subscription lifecycle, synchronous wearable ingestion, and Android mobile authentication are in good shape. Health Connect reads, richer analytics, production deployment, and compliance hardening are still ahead.
+Current state, bluntly: the project has a solid local MVP foundation, but it is not the final product yet. Manual metrics, Stripe subscription lifecycle, synchronous wearable ingestion, Android mobile authentication, Health Connect weight reads, and subscription-aware device scheduling are in good shape. Additional health metrics, richer analytics, production deployment, and compliance hardening are still ahead.
 
 ## 1. Local system design — what exists now
 
@@ -148,10 +148,10 @@ The wearable backend is implemented through normalized synchronous ingestion: pl
 Immediate next slice:
 
 ```text
-Authenticated Android wearable-connection registration
+Physical closed-app periodic validation, then user-visible sync status
 ```
 
-The Android project exists at `android/`. It uses Kotlin, Jetpack Compose, Gradle, and a physical USB-connected device test loop. Login, Android-Keystore-backed JWT storage, local startup restoration, on-demand refresh-token rotation, and server-side refresh-token revocation on logout are implemented and manually proven against local Django. A reusable authenticated API client attaches Bearer access tokens, refreshes/retries once after `401`, and serializes rotation decisions. Backend Health Connect registration and the on-device `READ_WEIGHT` permission flow are implemented; the next boundary is reading one `WeightRecord`, mapping its source identity, and uploading a normalized batch.
+The Android project at `android/` now implements mobile authentication, Keystore-backed JWT storage and rotation, Health Connect weight permission/read, caller-owned connection registration, normalized incremental upload, subscription-aware manual cooldowns, Pro WorkManager scheduling, and connection disconnect. A physical phone has completed the Samsung Health → Health Connect → Android → Django → React weight path. Disconnect is covered on-device at the UI/cursor boundaries and cancels connection-scoped work after Django confirms the soft disconnect.
 
 Refactor trigger before ingestion grows:
 
@@ -181,15 +181,27 @@ Recommended order:
 
    Dedicated mobile login, refresh, encrypted storage, session restoration, and server-revoking logout are implemented.
 
-6. Register/read the Android Health Connect connection — next
+6. Register/read the Android Health Connect connection — completed
 
-   The authenticated request helper is complete; add the connection contract models/repository and establish the caller-owned backend connection.
+   The client establishes and reuses the caller-owned backend connection.
 
-7. Read and upload one Health Connect weight record
+7. Read and upload Health Connect weight records — completed
 
-   Prove the physical-device bridge through the existing synchronous upload endpoint.
+   The physical-device bridge is proven through the synchronous upload endpoint.
 
-8. Add sync UI
+8. Add subscription-aware manual and periodic sync UI — completed
+
+   Free receives a server-owned cooldown; Pro receives periodic scheduling.
+
+9. Add Android connection disconnect — completed
+
+   Django soft-disconnects first; Android then cancels only that connection's work and clears its cursor.
+
+10. Validate automatic work with the visible app closed — next
+
+   Confirm WorkManager executes and uploads without an Activity in the foreground.
+
+11. Add richer sync status UI
 
    Settings or a dedicated Wearables page shows connection state and last sync.
 
@@ -285,9 +297,7 @@ Related docs:
 Next real system-design step:
 
 ```text
-Android mobile authentication on the physical-device client
+Validate closed-app periodic execution, then expose durable sync status
 ```
 
-This should come before Health Connect reads, more analytics polish, Celery-based ingestion, or production deployment.
-
-Reason: Django already accepts secure, idempotent normalized uploads. The next missing bridge is authenticating the Android user and obtaining the JWT required by the connection and upload endpoints. See `reference_docs/knowledge/41-wearable-ingestion-android-and-async-roadmap.md` for the detailed physical-device sequence and the trigger for introducing Celery/Redis.
+This closes the remaining device-runtime uncertainty before adding more metric types or beginning production distribution. Celery/Redis remains deferred until synchronous ingestion is a measured bottleneck or needs server-independent retries.

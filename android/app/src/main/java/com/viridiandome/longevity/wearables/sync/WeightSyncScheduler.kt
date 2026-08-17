@@ -18,6 +18,8 @@ interface WeightSyncScheduler {
         repeatIntervalMinutes: Long,
     )
 
+    fun cancel(connectionId: String)
+
     fun cancelAll()
 }
 
@@ -34,10 +36,12 @@ class WorkManagerWeightSyncScheduler internal constructor(
         PeriodicWorkRequest,
     ) -> Unit,
     private val cancelAllWorkByTag: (String) -> Unit,
+    private val cancelUniqueWork: (String) -> Unit,
 ) : WeightSyncScheduler {
     constructor(workManager: WorkManager) : this(
         enqueueUniquePeriodicWork = workManager::enqueueUniquePeriodicWork,
         cancelAllWorkByTag = workManager::cancelAllWorkByTag,
+        cancelUniqueWork = workManager::cancelUniqueWork,
     )
 
     override fun schedule(
@@ -59,6 +63,13 @@ class WorkManagerWeightSyncScheduler internal constructor(
                 repeatIntervalMinutes = repeatIntervalMinutes,
             ),
         )
+    }
+
+    override fun cancel(connectionId: String) {
+        require(connectionId.isNotBlank()) {
+            "A wearable connection ID is required to cancel weight sync."
+        }
+        cancelUniqueWork(uniqueWeightSyncWorkName(connectionId))
     }
 
     override fun cancelAll() {

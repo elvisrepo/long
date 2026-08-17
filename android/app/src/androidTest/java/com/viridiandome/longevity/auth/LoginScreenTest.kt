@@ -213,6 +213,43 @@ class LoginScreenTest {
     }
 
     @Test
+    fun ready_health_connect_state_forwards_disconnect_click() {
+        var disconnectRequested = false
+        composeTestRule.setContent {
+            LoginScreen(
+                state = LoginFormState(
+                    email = "user@example.com",
+                    password = "",
+                    isAuthenticated = true,
+                ),
+                wearableConnectionState = WearableConnectionUiState.Ready(
+                    WearableConnectionResponse(
+                        id = "7df7e4ab-7e6f-4558-b9be-17c824fbf54e",
+                        provider = "health_connect",
+                        status = "connected",
+                        lastSyncedAt = null,
+                        lastError = "",
+                        createdAt = "2026-08-05T10:00:00Z",
+                        updatedAt = "2026-08-05T10:00:00Z",
+                    ),
+                ),
+                onEmailChange = {},
+                onPasswordChange = {},
+                onSignIn = {},
+                onLogout = {},
+                onDisconnectHealthConnect = {
+                    disconnectRequested = true
+                },
+            )
+        }
+
+        composeTestRule.onNodeWithText("Disconnect Health Connect")
+            .performClick()
+
+        assertTrue(disconnectRequested)
+    }
+
+    @Test
     fun cooling_down_manual_sync_cannot_forward_another_click() {
         var syncRequested = false
         composeTestRule.setContent {

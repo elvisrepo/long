@@ -98,6 +98,8 @@ private class RunnerRecordingCursorStore : WeightSyncCursorStore {
     ) {
         writes += CursorWrite(connectionId, cursor)
     }
+
+    override suspend fun remove(connectionId: String) = Unit
 }
 
 private data class CursorWrite(

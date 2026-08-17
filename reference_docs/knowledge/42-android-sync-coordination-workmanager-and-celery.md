@@ -9,7 +9,7 @@ Use this document when:
 - separating initial backfill from incremental background synchronization;
 - deciding when Android WorkManager, Django, Redis, Celery, or Celery Beat should run work.
 
-This document describes the implemented Android flow as of 2026-08-08 and the agreed next architecture. The current Android slice supports weight records only.
+This document describes the implemented Android flow as of 2026-08-17 and the agreed next architecture. The current Android slice supports weight records only.
 
 ## 1. Implemented Android sync components
 
@@ -119,6 +119,7 @@ Path: `android/app/src/main/java/com/viridiandome/longevity/LongevityApplication
 - authentication repository;
 - authenticated API client;
 - wearable connection repository;
+- a disconnecting connection-repository decorator that performs connection-scoped WorkManager and cursor cleanup only after Django confirms disconnect;
 - wearable upload repository;
 - current-subscription sync-policy repository;
 - Health Connect adapter;
@@ -400,6 +401,6 @@ Celery processes data after it reaches the backend.
 7. ~~Schedule one unique network-constrained periodic job only for an authenticated user with a Ready connection and granted background access.~~ Implemented.
 8. ~~Consume server-owned subscription policy, cancel automatic work for Free, pass the server interval to WorkManager, and recheck entitlement inside each worker.~~ Completed.
 9. ~~Gate explicit sync with the durable plan cooldown and reuse the incremental runner for foreground taps.~~ Completed.
-10. Cancel the user's unique background work on connection disconnect when the Android disconnect action is added. Logout and downgrade cancellation are implemented.
+10. ~~Cancel the user's unique background work and remove its local cursor after confirmed connection disconnect.~~ Implemented and physically covered at the Compose/cursor boundaries.
 11. Validate the subscription-aware worker on the physical phone with the visible app closed.
 12. Add Celery/Redis ingestion only after synchronous backend processing becomes a measured bottleneck or requires server-independent retries.
