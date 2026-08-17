@@ -32,6 +32,54 @@ def test_wearable_upload_entry_accepts_normalized_body_weight():
     }
 
 
+def test_wearable_upload_entry_requires_period_start_for_steps():
+    serializer = WearableUploadEntrySerializer(
+        data={
+            "metric_definition": "steps",
+            "value": 420,
+            "recorded_at": "2026-07-27T08:00:00Z",
+            "source": "samsung_health",
+            "external_source_id": (
+                "health_connect:StepsRecord:record-missing-period-start"
+            ),
+        }
+    )
+
+    assert serializer.is_valid() is False
+    assert serializer.errors == {
+        "period_start": ["This field is required."],
+    }
+
+
+@pytest.mark.parametrize(
+    "period_start",
+    (
+        "2026-07-27T08:00:00Z",
+        "2026-07-27T08:00:01Z",
+    ),
+)
+def test_wearable_upload_entry_rejects_invalid_steps_period(
+    period_start: str,
+):
+    serializer = WearableUploadEntrySerializer(
+        data={
+            "metric_definition": "steps",
+            "value": 420,
+            "period_start": period_start,
+            "recorded_at": "2026-07-27T08:00:00Z",
+            "source": "samsung_health",
+            "external_source_id": (
+                "health_connect:StepsRecord:record-invalid-period"
+            ),
+        }
+    )
+
+    assert serializer.is_valid() is False
+    assert serializer.errors == {
+        "period_start": ["Must be earlier than recorded_at."],
+    }
+
+
 def test_wearable_upload_entry_rejects_blank_external_source_id():
     serializer = WearableUploadEntrySerializer(
         data={
