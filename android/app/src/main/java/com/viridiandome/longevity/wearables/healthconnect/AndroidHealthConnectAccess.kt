@@ -7,6 +7,8 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.WeightRecord
 import com.viridiandome.longevity.wearables.BackgroundReadAccess
 import com.viridiandome.longevity.wearables.HealthConnectAccess
+import com.viridiandome.longevity.wearables.HealthConnectStepsReader
+import com.viridiandome.longevity.wearables.HealthConnectStepsSample
 import com.viridiandome.longevity.wearables.HealthConnectWeightReader
 import com.viridiandome.longevity.wearables.HealthConnectWeightSample
 import com.viridiandome.longevity.wearables.WeightReadAccess
@@ -25,7 +27,7 @@ val BACKGROUND_READ_PERMISSIONS: Set<String> = setOf(BACKGROUND_READ_PERMISSION)
 /** Reads Health Connect SDK and permission state from the current Android device. */
 class AndroidHealthConnectAccess(
     private val context: Context,
-) : HealthConnectAccess, HealthConnectWeightReader {
+) : HealthConnectAccess, HealthConnectWeightReader, HealthConnectStepsReader {
     private val client: HealthConnectClient by lazy {
         HealthConnectClient.getOrCreate(context)
     }
@@ -69,6 +71,16 @@ class AndroidHealthConnectAccess(
         endTime: Instant,
     ): List<HealthConnectWeightSample> =
         readHealthConnectWeightSamples(
+            startTime = startTime,
+            endTime = endTime,
+            readPage = client::readRecords,
+        )
+
+    override suspend fun readStepsSamples(
+        startTime: Instant,
+        endTime: Instant,
+    ): List<HealthConnectStepsSample> =
+        readHealthConnectStepsSamples(
             startTime = startTime,
             endTime = endTime,
             readPage = client::readRecords,
