@@ -275,7 +275,7 @@ Best-practice testing shape for this project:
 Current backend metrics testing checkpoint:
 - `tests/test_metric_definitions.py` covers the first metrics API slice.
 - The list endpoint requires JWT authentication.
-- Authenticated users receive active system default metric definitions.
+- Authenticated users receive active system default metric definitions, including the seeded `steps` activity metric.
 - Authenticated users also receive their own active custom metric definitions.
 - Other users' custom definitions and inactive definitions are not returned by the default active-only list.
 - `include_inactive=true` list tests prove the API includes the authenticated user's inactive custom metric definitions without leaking another user's inactive definitions or inactive system defaults.

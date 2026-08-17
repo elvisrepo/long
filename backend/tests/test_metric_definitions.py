@@ -110,6 +110,7 @@ def test_metric_definitions_lists_defaults_and_user_owned_custom_metrics():
 
     assert "resting_hr" in slugs
     assert "vo2_max" in slugs
+    assert "steps" in slugs
     assert "mood" in slugs
     assert "other_user_metric" not in slugs
     assert "inactive_metric" not in slugs

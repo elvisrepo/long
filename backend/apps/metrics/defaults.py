@@ -42,6 +42,14 @@ DEFAULT_METRIC_DEFINITIONS = [
         "min_value": 0,
         "max_value": 24,
     },
+    {
+        "name": "Steps",
+        "slug": "steps",
+        "unit": "steps",
+        "category": MetricDefinition.Category.ACTIVITY,
+        "min_value": 0,
+        "max_value": 200_000,
+    },
 ]
 
 

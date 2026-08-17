@@ -48,7 +48,7 @@ Refresh concurrency behavior:
 #### Metrics (JWT required)
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
-| GET | `/api/v1/metrics/definitions/` | List available metrics | Implemented; includes active defaults + authenticated user's active custom definitions; optional `include_inactive=true` also includes the authenticated user's inactive custom definitions |
+| GET | `/api/v1/metrics/definitions/` | List available metrics | Implemented; includes active defaults (including the `steps` activity metric) + authenticated user's active custom definitions; optional `include_inactive=true` also includes the authenticated user's inactive custom definitions |
 | POST | `/api/v1/metrics/definitions/` | Create custom metric | Implemented for authenticated users; creates user-owned non-default metric definitions |
 | PATCH | `/api/v1/metrics/definitions/{id}/` | Update custom metric | Implemented for authenticated user's own custom metric definitions, including inactive ones for reactivation; slug is immutable |
 | GET | `/api/v1/metrics/usage/` | Read metric entitlement usage | Implemented; returns the authenticated user's active custom metric count and current limit |
@@ -140,6 +140,7 @@ Custom metric-definition update behavior:
 
 Custom metric-definition list behavior:
 - `GET /api/v1/metrics/definitions/` is active-only by default.
+- The system-owned `steps` definition uses unit `steps`, category `activity`, and an accepted per-entry range of `0` through `200000`.
 - `GET /api/v1/metrics/definitions/?include_inactive=true` returns active system defaults plus the authenticated user's custom metric definitions, including inactive ones.
 - Inactive system defaults remain hidden.
 - Another user's custom definitions are never returned, regardless of `include_inactive`.
