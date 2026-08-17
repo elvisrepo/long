@@ -199,7 +199,7 @@ Recommended order:
 
 10. Validate automatic work with the visible app closed — in progress
 
-   Foreground periodic execution is proven. A process-death test proved the unique WorkManager request survives and becomes runnable, but Honor OS delayed dispatch beyond the 15-minute minimum. Complete a normal Home/swipe-away run and require a new Django `SyncRun` before marking closed-app ingestion complete. Explicit Android Force stop is out of scope because the platform suppresses all app work until relaunch.
+   Foreground periodic execution is proven. Process-death and normal-Home tests proved the unique WorkManager request survives, but Honor OS delayed execution beyond the 15-minute minimum. In the normal-Home run, no Django state appeared until reopening Longevity triggered the pending job. Review Honor/MagicOS background-launch settings and require a new Django `SyncRun` before reopening the app to mark background ingestion complete. Explicit Android Force stop is out of scope because the platform suppresses all app work until relaunch.
 
 11. Add richer sync status UI — partially completed
 

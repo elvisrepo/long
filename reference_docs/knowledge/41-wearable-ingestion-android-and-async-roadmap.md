@@ -118,7 +118,7 @@ Implemented:
 
 Not implemented yet:
 
-- Reliable closed-process periodic execution, additional metric mappings, Celery-backed asynchronous ingestion, and production distribution remain later phases. Foreground periodic sync and live end-to-end disconnect were manually validated on 2026-08-17. A process-death test confirmed the WorkManager request survives and becomes runnable, but Honor OS delayed dispatch beyond the requested 15-minute minimum; no closed-process upload was claimed from that run.
+- Reliable background/closed-process periodic execution, additional metric mappings, Celery-backed asynchronous ingestion, and production distribution remain later phases. Foreground periodic sync and live end-to-end disconnect were manually validated on 2026-08-17. Process-death and normal-Home tests confirmed the WorkManager request survives, but Honor OS delayed execution beyond the requested 15-minute minimum. The normal-Home upload occurred only after Longevity was reopened, so no background upload is claimed.
 
 Manually validated on the physical phone:
 
