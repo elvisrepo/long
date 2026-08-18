@@ -203,11 +203,11 @@ class LoginScreenTest {
                 onPasswordChange = {},
                 onSignIn = {},
                 onLogout = {},
-                onSyncWeight = { syncRequested = true },
+                onSyncMetrics = { syncRequested = true },
             )
         }
 
-        composeTestRule.onNodeWithText("Sync weight now").performClick()
+        composeTestRule.onNodeWithText("Sync now").performClick()
 
         assertTrue(syncRequested)
     }
@@ -327,11 +327,11 @@ class LoginScreenTest {
                 onPasswordChange = {},
                 onSignIn = {},
                 onLogout = {},
-                onSyncWeight = { syncRequested = true },
+                onSyncMetrics = { syncRequested = true },
             )
         }
 
-        composeTestRule.onNodeWithText("Sync weight now")
+        composeTestRule.onNodeWithText("Sync now")
             .assertIsNotEnabled()
             .performClick()
 
@@ -411,7 +411,7 @@ class LoginScreenTest {
 
         composeTestRule.onNodeWithText("Allow background sync")
             .assertDoesNotExist()
-        composeTestRule.onNodeWithText("Sync weight now").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Sync now").assertIsDisplayed()
     }
 
     @Test

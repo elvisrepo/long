@@ -1,6 +1,7 @@
 package com.viridiandome.longevity.wearables.network
 
 import com.viridiandome.longevity.wearables.HealthConnectWeightSample
+import com.viridiandome.longevity.wearables.HealthConnectStepsSample
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -39,6 +40,46 @@ class WearableUploadRequestTest {
                   "recorded_at": "2026-08-05T08:00:00Z",
                   "source": "samsung_health",
                   "external_source_id": "health_connect:WeightRecord:record-123"
+                }
+              ]
+            }
+            """.trimIndent(),
+        ).jsonObject
+
+        assertEquals(expected, actual)
+    }
+
+    @Test
+    fun steps_sample_serializes_interval_to_django_upload_contract() {
+        val sample = HealthConnectStepsSample(
+            recordId = "record-steps-123",
+            count = 420,
+            periodStart = Instant.parse("2026-08-05T07:45:00Z"),
+            periodEnd = Instant.parse("2026-08-05T08:00:00Z"),
+            sourcePackageName = "com.sec.android.app.shealth",
+        )
+        val request = WearableUploadRequest(
+            connectionId = "7df7e4ab-7e6f-4558-b9be-17c824fbf54e",
+            uploadId = "9ea2c91d-63f4-40eb-a6bb-7fbd90c12a34",
+            entries = listOf(WearableUploadEntryRequest.from(sample)),
+        )
+
+        val actual = Json.parseToJsonElement(
+            Json.encodeToString(request),
+        ).jsonObject
+        val expected = Json.parseToJsonElement(
+            """
+            {
+              "connection_id": "7df7e4ab-7e6f-4558-b9be-17c824fbf54e",
+              "upload_id": "9ea2c91d-63f4-40eb-a6bb-7fbd90c12a34",
+              "entries": [
+                {
+                  "metric_definition": "steps",
+                  "value": 420.0,
+                  "period_start": "2026-08-05T07:45:00Z",
+                  "recorded_at": "2026-08-05T08:00:00Z",
+                  "source": "samsung_health",
+                  "external_source_id": "health_connect:StepsRecord:record-steps-123"
                 }
               ]
             }

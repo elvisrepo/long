@@ -2,6 +2,7 @@ package com.viridiandome.longevity.wearables.sync
 
 import com.viridiandome.longevity.wearables.HealthConnectWeightReader
 import com.viridiandome.longevity.wearables.HealthConnectWeightSample
+import com.viridiandome.longevity.wearables.HealthConnectStepsSample
 import com.viridiandome.longevity.wearables.WearableUploadReceipt
 import com.viridiandome.longevity.wearables.WearableUploadRepository
 import com.viridiandome.longevity.wearables.WearableUploadResult
@@ -291,4 +292,12 @@ private class RecordingUploadRepository(
         calls += UploadCall(connectionId, uploadId, samples)
         return results[resultIndex++]
     }
+
+    override suspend fun uploadStepsBatch(
+        connectionId: String,
+        uploadId: String,
+        samples: List<HealthConnectStepsSample>,
+    ): WearableUploadResult = error(
+        "A WeightSyncCoordinator must not upload Steps samples.",
+    )
 }

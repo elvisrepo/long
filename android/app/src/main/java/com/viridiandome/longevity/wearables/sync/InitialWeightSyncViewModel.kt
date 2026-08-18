@@ -14,7 +14,7 @@ import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 
-/** Health-safe presentation state for one explicit weight sync. */
+/** Health-safe presentation state for one explicit supported-metrics sync. */
 sealed interface InitialWeightSyncUiState {
     data object Idle : InitialWeightSyncUiState
 

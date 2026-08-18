@@ -25,8 +25,7 @@ import com.viridiandome.longevity.wearables.WearableConnectionViewModelFactory
 import com.viridiandome.longevity.wearables.WearableConnectionUiState
 import com.viridiandome.longevity.wearables.healthconnect.BACKGROUND_READ_PERMISSION
 import com.viridiandome.longevity.wearables.healthconnect.BACKGROUND_READ_PERMISSIONS
-import com.viridiandome.longevity.wearables.healthconnect.WEIGHT_READ_PERMISSION
-import com.viridiandome.longevity.wearables.healthconnect.WEIGHT_READ_PERMISSIONS
+import com.viridiandome.longevity.wearables.healthconnect.SUPPORTED_METRIC_READ_PERMISSIONS
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncViewModel
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncViewModelFactory
 import com.viridiandome.longevity.wearables.sync.WeightSyncScheduleAction
@@ -73,7 +72,9 @@ class MainActivity : ComponentActivity() {
         PermissionController.createRequestPermissionResultContract(),
     ) { grantedPermissions ->
         wearableConnectionViewModel.onWeightReadPermissionResult(
-            isGranted = WEIGHT_READ_PERMISSION in grantedPermissions,
+            isGranted = grantedPermissions.containsAll(
+                SUPPORTED_METRIC_READ_PERMISSIONS,
+            ),
         )
     }
 
@@ -185,7 +186,9 @@ class MainActivity : ComponentActivity() {
                         wearableConnectionState ===
                         WearableConnectionUiState.PermissionRequired
                     ) {
-                        healthPermissionLauncher.launch(WEIGHT_READ_PERMISSIONS)
+                        healthPermissionLauncher.launch(
+                            SUPPORTED_METRIC_READ_PERMISSIONS,
+                        )
                     }
                 }
 
@@ -213,7 +216,7 @@ class MainActivity : ComponentActivity() {
                                 BACKGROUND_READ_PERMISSIONS,
                             )
                         },
-                        onSyncWeight = {
+                        onSyncMetrics = {
                             val connection = (
                                 wearableConnectionState as?
                                     WearableConnectionUiState.Ready

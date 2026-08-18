@@ -61,7 +61,7 @@ fun LoginScreen(
     onDisconnectHealthConnect: () -> Unit = {},
     onRetryHealthConnect: () -> Unit = {},
     onEnableBackgroundSync: () -> Unit = {},
-    onSyncWeight: () -> Unit = {},
+    onSyncMetrics: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     if (state.isCheckingSession) {
@@ -81,7 +81,7 @@ fun LoginScreen(
             onDisconnectHealthConnect = onDisconnectHealthConnect,
             onRetryHealthConnect = onRetryHealthConnect,
             onEnableBackgroundSync = onEnableBackgroundSync,
-            onSyncWeight = onSyncWeight,
+            onSyncMetrics = onSyncMetrics,
             modifier = modifier,
         )
         return
@@ -210,7 +210,7 @@ private fun AuthenticatedContent(
     onDisconnectHealthConnect: () -> Unit,
     onRetryHealthConnect: () -> Unit,
     onEnableBackgroundSync: () -> Unit,
-    onSyncWeight: () -> Unit,
+    onSyncMetrics: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -240,7 +240,7 @@ private fun AuthenticatedContent(
             onDisconnect = onDisconnectHealthConnect,
             onRetry = onRetryHealthConnect,
             onEnableBackgroundSync = onEnableBackgroundSync,
-            onSyncWeight = onSyncWeight,
+            onSyncMetrics = onSyncMetrics,
         )
 
         state.errorMessage?.let { errorMessage ->
@@ -280,7 +280,7 @@ private fun HealthConnectContent(
     onDisconnect: () -> Unit,
     onRetry: () -> Unit,
     onEnableBackgroundSync: () -> Unit,
-    onSyncWeight: () -> Unit,
+    onSyncMetrics: () -> Unit,
 ) {
     Text(
         text = "Health Connect",
@@ -386,7 +386,7 @@ private fun HealthConnectContent(
             InitialWeightSyncContent(
                 state = initialWeightSyncState,
                 availability = manualSyncAvailability,
-                onSync = onSyncWeight,
+                onSync = onSyncMetrics,
                 onReviewPermission = onRetry,
             )
 
@@ -460,17 +460,17 @@ private fun InitialWeightSyncContent(
     when (state) {
         InitialWeightSyncUiState.Idle -> {
             Button(onClick = onSync, enabled = canSync) {
-                Text(text = "Sync weight now")
+                Text(text = "Sync now")
             }
         }
 
         InitialWeightSyncUiState.Syncing -> {
             CircularProgressIndicator()
-            Text(text = "Syncing weight...")
+            Text(text = "Syncing health metrics...")
         }
 
         InitialWeightSyncUiState.NoData -> {
-            Text(text = "No Samsung Health weight records found in the last 30 days.")
+            Text(text = "No new Samsung Health records found in the last 30 days.")
             Button(onClick = onSync, enabled = canSync) {
                 Text(text = "Sync again")
             }
@@ -478,7 +478,7 @@ private fun InitialWeightSyncContent(
 
         is InitialWeightSyncUiState.Completed -> {
             Text(
-                text = "Weight sync complete: ${state.entriesImported} imported, " +
+                text = "Sync complete: ${state.entriesImported} imported, " +
                     "${state.entriesSkipped} already present.",
             )
             Button(onClick = onSync, enabled = canSync) {
@@ -507,15 +507,15 @@ private fun InitialWeightSyncContent(
                 state.failure !== WeightSyncFailure.NoSession
             ) {
                 Button(onClick = onSync, enabled = canSync) {
-                    Text(text = "Retry weight sync")
+                    Text(text = "Retry sync")
                 }
             }
         }
 
         InitialWeightSyncUiState.Unavailable -> {
-            Text(text = "Unable to sync weight right now.")
+            Text(text = "Unable to sync health metrics right now.")
             Button(onClick = onSync, enabled = canSync) {
-                Text(text = "Retry weight sync")
+                Text(text = "Retry sync")
             }
         }
     }
@@ -534,25 +534,25 @@ private fun Instant.formatLocalDateTime(): String =
 private fun WeightSyncFailure.userMessage(): String =
     when (this) {
         WeightSyncFailure.AutomaticSyncDisabled ->
-            "Automatic weight sync is not available on the current plan."
+            "Automatic sync is not available on the current plan."
 
         WeightSyncFailure.PermissionRequired ->
-            "Health Connect weight permission is required."
+            "Health Connect metric permissions are required."
 
         WeightSyncFailure.ReadUnavailable ->
-            "Health Connect could not read weight records right now."
+            "Health Connect could not read health records right now."
 
         WeightSyncFailure.Conflict ->
             "A stored health record conflicts with this sync."
 
         WeightSyncFailure.Rejected ->
-            "The weight sync was rejected for this connection."
+            "The sync was rejected for this connection."
 
         WeightSyncFailure.NoSession ->
             "Your session expired. Log out and sign in again."
 
         WeightSyncFailure.Unavailable ->
-            "The server could not complete the weight sync right now."
+            "The server could not complete the sync right now."
     }
 
 @Preview(

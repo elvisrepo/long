@@ -2,7 +2,7 @@
 
 ## Use When
 
-- You need the complete Android lifecycle from application launch through authentication, Health Connect registration, weight synchronization, token refresh, and logout.
+- You need the complete Android lifecycle from application launch through authentication, Health Connect registration, Weight and Steps synchronization, token refresh, and logout.
 - You need to distinguish explicit plan-cooled foreground sync from subscription-enabled WorkManager sync.
 - You need to see which responsibilities belong to Compose, Android domain services, Health Connect, Django, and PostgreSQL.
 
@@ -29,11 +29,11 @@ flowchart TD
 
     subgraph CONNECTION["Health Connect connection"]
         AUTHENTICATED --> CONNECT_ACTION["User chooses Connect Health Connect"]
-        CONNECT_ACTION --> SDK_CHECK["Check Health Connect SDK availability<br/>and existing READ_WEIGHT grant"]
+        CONNECT_ACTION --> SDK_CHECK["Check Health Connect SDK availability<br/>and both READ_WEIGHT + READ_STEPS grants"]
         SDK_CHECK --> SDK_READY{"Available and<br/>permission granted?"}
         SDK_READY -->|Unavailable| CONNECT_RECOVERY["Show unsupported, update-required,<br/>or retryable-unavailable state"]
         SDK_READY -->|Permission needed| PERMISSION["MainActivity launches official<br/>Health Connect permission contract"]
-        PERMISSION --> PERMISSION_RESULT{"User grants<br/>READ_WEIGHT?"}
+        PERMISSION --> PERMISSION_RESULT{"User grants both<br/>metric permissions?"}
         PERMISSION_RESULT -->|No| CONNECT_RECOVERY
         PERMISSION_RESULT -->|Yes| RESOLVE_CONNECTION
         SDK_READY -->|Yes| RESOLVE_CONNECTION["WearableConnectionRepository<br/>GET /api/v1/wearables/connections/"]
@@ -55,16 +55,17 @@ flowchart TD
         BACKGROUND_RESULT -->|No| BACKGROUND_ACTION
     end
 
-    subgraph EXPLICIT_SYNC["Implemented plan-cooled foreground weight sync"]
+    subgraph EXPLICIT_SYNC["Implemented plan-cooled foreground metric sync"]
         READY --> MANUAL_GATE{"Latest successful sync plus<br/>plan cooldown has elapsed?"}
         POLICY_READY -. "Supplies plan cooldown" .-> MANUAL_GATE
-        MANUAL_GATE -->|No| COOLDOWN["Disable Sync weight now<br/>Show next available local time"]
+        MANUAL_GATE -->|No| COOLDOWN["Disable Sync now<br/>Show next available local time"]
         COOLDOWN --> MANUAL_GATE
-        MANUAL_GATE -->|Yes| SYNC_ACTION["User chooses Sync weight now"]
+        MANUAL_GATE -->|Yes| SYNC_ACTION["User chooses Sync now"]
         SYNC_ACTION --> INITIAL_VM["InitialWeightSyncViewModel<br/>prevents overlapping visible syncs"]
-        INITIAL_VM --> COORDINATOR["WeightSyncCoordinator"]
-        COORDINATOR --> INCREMENTAL_PLANNER["IncrementalWeightSyncPlanner<br/>uses 24-hour cursor overlap<br/>or 30-day first-run fallback"]
-        INCREMENTAL_PLANNER --> HC_READ["AndroidHealthConnectAccess<br/>reads every WeightRecord page"]
+        INITIAL_VM --> ALL_METRICS["AllMetricsSyncRunner<br/>runs Weight, then Steps"]
+        ALL_METRICS --> COORDINATOR["Metric-specific coordinators"]
+        COORDINATOR --> INCREMENTAL_PLANNER["Weight + Steps incremental planners<br/>use 24-hour cursor overlap<br/>or 30-day first-run fallback"]
+        INCREMENTAL_PLANNER --> HC_READ["AndroidHealthConnectAccess<br/>reads every WeightRecord + StepsRecord page"]
         SAMSUNG["Samsung Health"] -->|Writes on-device records| HEALTH_CONNECT["Health Connect"]
         HEALTH_CONNECT -->|Returns permitted records| HC_READ
         HC_READ --> FILTER["Keep Samsung-originated samples<br/>Sort and batch at most 100 entries"]
@@ -96,7 +97,7 @@ flowchart TD
         REFRESH_OK -->|Temporary failure| RETRYABLE_API_ERROR["Keep session and return<br/>retryable unavailable outcome"]
     end
 
-    subgraph BACKGROUND["Implemented periodic incremental weight sync"]
+    subgraph BACKGROUND["Implemented periodic incremental metric sync"]
         BACKGROUND_READY --> AUTO_DECISION{"Current policy enables<br/>automatic sync?"}
         POLICY_READY -. "Supplies automatic policy + interval" .-> AUTO_DECISION
         AUTO_DECISION -->|No / Free| CANCEL_STALE["Cancel tagged periodic work<br/>Do not request background permission"]
@@ -136,7 +137,7 @@ flowchart TD
         CLEAR --> FORM
         LOGOUT_OK -->|No| LOGOUT_RETRY["Retain session so revocation<br/>can be retried honestly"]
         LOGOUT_RETRY --> AUTHENTICATED
-        CLEAR --> CANCEL_WORK["Cancel every weight-sync request<br/>through the stable WorkManager tag"]
+        CLEAR --> CANCEL_WORK["Cancel every metric-sync request<br/>through the stable WorkManager tag"]
     end
 
     classDef implemented fill:#dcfce7,stroke:#15803d,color:#14532d;
@@ -146,7 +147,7 @@ flowchart TD
     classDef planned fill:#fef3c7,stroke:#b45309,color:#78350f,stroke-dasharray:5 5;
     classDef recovery fill:#fee2e2,stroke:#dc2626,color:#7f1d1d;
 
-    class START,RESTORE,FORM,LOGIN,DJANGO_LOGIN,STORE,AUTHENTICATED,POLICY_REQUEST,POLICY_READY,CONNECT_ACTION,SDK_CHECK,PERMISSION,RESOLVE_CONNECTION,REGISTER,ENTITLEMENT,READY,BACKGROUND_CHECK,BACKGROUND_READY,BACKGROUND_UNAVAILABLE,BACKGROUND_ACTION,BACKGROUND_PERMISSION,SCHEDULE,SYNC_ACTION,INITIAL_VM,COORDINATOR,INCREMENTAL_PLANNER,HC_READ,FILTER,UPLOAD_ID,UPLOAD,AUTH_CLIENT,DJANGO_AUTH,INGEST,RECEIPT,RESULT,SYNC_UI,MANUAL_COOLDOWN,WEB,REFRESH_LOCK,RETRY_REQUEST,REFRESH_REQUEST,REPLACE_TOKENS,WORKER,WORKER_POLICY,INCREMENTAL_RUNNER,CURSOR,WORK_RESULT,CURSOR_ADVANCE,KEEP_CURSOR,CANCEL_STALE,STOP_WORK,DISCONNECT_ACTION,DISCONNECT_REQUEST,DJANGO_DISCONNECT,CANCEL_CONNECTION_WORK,REMOVE_CONNECTION_CURSOR,DISCONNECTED,LOGOUT_ACTION,REVOKE,CLEAR,CANCEL_WORK implemented;
+    class START,RESTORE,FORM,LOGIN,DJANGO_LOGIN,STORE,AUTHENTICATED,POLICY_REQUEST,POLICY_READY,CONNECT_ACTION,SDK_CHECK,PERMISSION,RESOLVE_CONNECTION,REGISTER,ENTITLEMENT,READY,BACKGROUND_CHECK,BACKGROUND_READY,BACKGROUND_UNAVAILABLE,BACKGROUND_ACTION,BACKGROUND_PERMISSION,SCHEDULE,SYNC_ACTION,INITIAL_VM,ALL_METRICS,COORDINATOR,INCREMENTAL_PLANNER,HC_READ,FILTER,UPLOAD_ID,UPLOAD,AUTH_CLIENT,DJANGO_AUTH,INGEST,RECEIPT,RESULT,SYNC_UI,MANUAL_COOLDOWN,WEB,REFRESH_LOCK,RETRY_REQUEST,REFRESH_REQUEST,REPLACE_TOKENS,WORKER,WORKER_POLICY,INCREMENTAL_RUNNER,CURSOR,WORK_RESULT,CURSOR_ADVANCE,KEEP_CURSOR,CANCEL_STALE,STOP_WORK,DISCONNECT_ACTION,DISCONNECT_REQUEST,DJANGO_DISCONNECT,CANCEL_CONNECTION_WORK,REMOVE_CONNECTION_CURSOR,DISCONNECTED,LOGOUT_ACTION,REVOKE,CLEAR,CANCEL_WORK implemented;
     class SESSION,LOGIN_OK,SDK_READY,PERMISSION_RESULT,CONNECTION_EXISTS,REGISTERED,BACKGROUND_ACCESS,BACKGROUND_RESULT,MANUAL_GATE,AUTO_DECISION,WORKER_ALLOWED,API_RESPONSE,ALREADY_ROTATED,REFRESH_OK,CURSOR_DECISION,DISCONNECT_RESULT,LOGOUT_OK decision;
     class SAMSUNG,HEALTH_CONNECT external;
     class DATABASE storage;

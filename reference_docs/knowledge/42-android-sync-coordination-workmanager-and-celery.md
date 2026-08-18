@@ -4,16 +4,26 @@
 
 Use this document when:
 
-- changing the Android weight-sync pipeline;
+- changing the Android Health Connect metric-sync pipeline;
 - deciding whether logic belongs in a planner, coordinator, ViewModel, or worker;
 - separating initial backfill from incremental background synchronization;
 - deciding when Android WorkManager, Django, Redis, Celery, or Celery Beat should run work.
 
-This document describes the implemented Android flow as of 2026-08-17 and the agreed next architecture. The current Android slice supports weight records only.
+This document describes the implemented Android flow as of 2026-08-17 and the agreed next architecture. The current Android slice synchronizes Samsung-originated Weight and Steps records through one user action and one periodic worker path.
 
 ## 1. Implemented Android sync components
 
-The current slice handles only weight records. Both foreground taps and background work now use the incremental policy; a connection without a cursor still receives the bounded 30-day fallback.
+Both foreground taps and background work use the incremental policy; a connection without a cursor receives the bounded 30-day fallback. Several class names still contain `Weight` because they predate Steps support. Those names are naming debt, not a statement that the live application flow is Weight-only.
+
+### Multi-metric orchestration
+
+Paths:
+
+- `android/app/src/main/java/com/viridiandome/longevity/wearables/sync/AllMetricsSyncRunner.kt`
+- `android/app/src/main/java/com/viridiandome/longevity/wearables/sync/StepsSyncCoordinator.kt`
+- `android/app/src/main/java/com/viridiandome/longevity/wearables/sync/IncrementalStepsSyncPlanner.kt`
+
+`LongevityApplication` composes a Weight coordinator and a Steps coordinator behind `AllMetricsSyncRunner`. It runs them in deterministic order, combines terminal receipts, ignores per-metric no-data outcomes, and stops before later metrics on the first interruption. The outer `IncrementalWeightSyncRunner` owns the shared cursor and advances it only if the complete multi-metric run completes or has no data. This prevents a successful Weight read from advancing past Steps data when the later Steps operation fails.
 
 ### `WeightSyncBatchPlanner`
 
@@ -82,7 +92,7 @@ Path: `android/app/src/main/java/com/viridiandome/longevity/wearables/sync/Initi
 
 The ViewModel is the UI-facing sync controller. It:
 
-- starts the current explicit sync after the user chooses **Sync weight now**;
+- starts the current explicit sync after the user chooses **Sync now**;
 - refuses sync until the current plan and last successful timestamp have resolved;
 - applies `sync_interval_minutes` as the manual cooldown;
 - resolves the newest of Django's `last_synced_at` and the durable device cursor;
@@ -124,7 +134,7 @@ Path: `android/app/src/main/java/com/viridiandome/longevity/LongevityApplication
 - current-subscription sync-policy repository;
 - Health Connect adapter;
 - durable per-connection cursor store;
-- `WeightSyncCoordinator` configured with `IncrementalWeightSyncPlanner`;
+- Weight and Steps coordinators configured with their incremental planners and combined by `AllMetricsSyncRunner`;
 - `SubscriptionAwareWeightSyncRunner` used only by WorkManager.
 
 This keeps dependencies out of Compose recomposition without introducing a dependency-injection framework before the MVP needs one.
@@ -156,7 +166,7 @@ User chooses Connect Health Connect
     ↓
 WearableConnectionViewModel checks Health Connect availability
     ↓
-Checks READ_WEIGHT permission
+Checks both READ_WEIGHT and READ_STEPS permissions
     ↓
 MainActivity launches Android's system permission contract if required
     ↓
@@ -175,10 +185,10 @@ Compose renders Ready
 
 Rendering or signing in does not consume a connection slot. Registration begins only after explicit user intent and Health Connect permission resolution.
 
-### Explicit subscription-aware incremental weight sync
+### Explicit subscription-aware incremental metric sync
 
 ```text
-User chooses Sync weight now
+User chooses Sync now
     ↓
 MainActivity obtains the Ready connection ID
     ↓
@@ -190,9 +200,11 @@ If still cooling down, the tap remains disabled
     ↓
 InitialWeightSyncViewModel.sync(connectionId)
     ↓
-WeightSyncCoordinator
+AllMetricsSyncRunner
     ↓
-IncrementalWeightSyncPlanner
+WeightSyncCoordinator, then StepsSyncCoordinator
+    ↓
+Metric-specific incremental planners
     ↓
 AndroidHealthConnectAccess
     ↓
@@ -309,7 +321,7 @@ Stable WorkManager `2.11.2` and `work-testing` are now configured. The implement
 
 `MainActivity` applies a pure, tested scheduling decision. It schedules only when the local session is authenticated, the caller-owned connection is Ready, background access is granted, and server policy enables automatic sync. A manual-only policy cancels tagged work, closing the normal downgrade path. It does nothing during startup session or policy checking because WorkManager state survives process restarts; treating temporary unresolved state as logout would incorrectly erase valid work. A confirmed successful logout cancels every tagged weight-sync request. Connection-disconnect cancellation remains pending until the Android disconnect action exists.
 
-The worker receives a `SubscriptionAwareWeightSyncRunner`. It fetches the current policy again immediately before device access. Therefore stale queued work that races with a downgrade stops before reading Health Connect. A transient policy failure maps to retry; a manual-only policy maps to permanent failure for that execution.
+The worker receives a `SubscriptionAwareWeightSyncRunner` whose wrapped application runner now synchronizes both supported metrics. It fetches the current policy again immediately before device access. Therefore stale queued work that races with a downgrade stops before reading Health Connect. A transient policy failure maps to retry; a manual-only policy maps to permanent failure for that execution.
 
 Periodic WorkManager execution is inexact. Android may delay work because of Doze, battery optimization, and other constraints. The platform has a 15-minute minimum periodic interval, but a 15-minute request is not a guarantee that work runs exactly every 15 minutes.
 
@@ -327,7 +339,7 @@ On the physical Honor test phone on 2026-08-17, foreground periodic sync complet
 
 Background Health Connect reads also require:
 
-- the ordinary record permission, currently `READ_WEIGHT`;
+- the ordinary record permissions, currently both `READ_WEIGHT` and `READ_STEPS`;
 - `READ_HEALTH_DATA_IN_BACKGROUND`;
 - a feature-availability check;
 - explicit permission granted while the app is in the foreground.

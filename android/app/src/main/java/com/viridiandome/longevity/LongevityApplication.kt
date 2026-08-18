@@ -17,10 +17,13 @@ import com.viridiandome.longevity.wearables.WearableUploadRepository
 import com.viridiandome.longevity.wearables.healthconnect.AndroidHealthConnectAccess
 import com.viridiandome.longevity.wearables.network.HttpWearableConnectionRepository
 import com.viridiandome.longevity.wearables.network.HttpWearableUploadRepository
+import com.viridiandome.longevity.wearables.sync.AllMetricsSyncRunner
+import com.viridiandome.longevity.wearables.sync.IncrementalStepsSyncPlanner
 import com.viridiandome.longevity.wearables.sync.IncrementalWeightSyncPlanner
 import com.viridiandome.longevity.wearables.sync.IncrementalWeightSyncRunner
 import com.viridiandome.longevity.wearables.sync.LongevityWorkerFactory
 import com.viridiandome.longevity.wearables.sync.SharedPreferencesWeightSyncCursorStore
+import com.viridiandome.longevity.wearables.sync.StepsSyncCoordinator
 import com.viridiandome.longevity.wearables.sync.SubscriptionAwareWeightSyncRunner
 import com.viridiandome.longevity.wearables.sync.WeightSyncCoordinator
 import com.viridiandome.longevity.wearables.sync.WeightSyncCursorStore
@@ -104,17 +107,26 @@ class LongevityApplication : Application(), Configuration.Provider {
         SharedPreferencesWeightSyncCursorStore(this)
     }
 
-    /** Domain runner shared by WorkManager and any future manual incremental-sync trigger. */
+    /** All-metric runner shared by WorkManager and explicit incremental sync. */
     val incrementalWeightSyncRunner: WeightSyncRunner by lazy {
-        val coordinator = WeightSyncCoordinator(
+        val weightCoordinator = WeightSyncCoordinator(
             planner = IncrementalWeightSyncPlanner(
                 reader = androidHealthConnectAccess,
                 cursorStore = weightSyncCursorStore,
             ),
             uploadRepository = wearableUploadRepository,
         )
+        val stepsCoordinator = StepsSyncCoordinator(
+            planner = IncrementalStepsSyncPlanner(
+                reader = androidHealthConnectAccess,
+                cursorStore = weightSyncCursorStore,
+            ),
+            uploadRepository = wearableUploadRepository,
+        )
         IncrementalWeightSyncRunner(
-            delegate = coordinator,
+            delegate = AllMetricsSyncRunner(
+                runners = listOf(weightCoordinator, stepsCoordinator),
+            ),
             cursorStore = weightSyncCursorStore,
         )
     }

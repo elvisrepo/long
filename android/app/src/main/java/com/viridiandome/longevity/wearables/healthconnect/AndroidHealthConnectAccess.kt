@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.HealthConnectFeatures
 import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.WeightRecord
 import com.viridiandome.longevity.wearables.BackgroundReadAccess
 import com.viridiandome.longevity.wearables.HealthConnectAccess
@@ -17,7 +18,13 @@ import java.time.Instant
 val WEIGHT_READ_PERMISSION: String =
     HealthPermission.getReadPermission(WeightRecord::class)
 
-val WEIGHT_READ_PERMISSIONS: Set<String> = setOf(WEIGHT_READ_PERMISSION)
+val STEPS_READ_PERMISSION: String =
+    HealthPermission.getReadPermission(StepsRecord::class)
+
+val SUPPORTED_METRIC_READ_PERMISSIONS: Set<String> = setOf(
+    WEIGHT_READ_PERMISSION,
+    STEPS_READ_PERMISSION,
+)
 
 val BACKGROUND_READ_PERMISSION: String =
     HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND
@@ -37,11 +44,7 @@ class AndroidHealthConnectAccess(
             HealthConnectClient.SDK_AVAILABLE -> {
                 val grantedPermissions =
                     client.permissionController.getGrantedPermissions()
-                if (WEIGHT_READ_PERMISSION in grantedPermissions) {
-                    WeightReadAccess.Granted
-                } else {
-                    WeightReadAccess.PermissionRequired
-                }
+                resolveSupportedMetricReadAccess(grantedPermissions)
             }
 
             HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED ->
@@ -86,6 +89,16 @@ class AndroidHealthConnectAccess(
             readPage = client::readRecords,
         )
 }
+
+/** All metrics presented by the current sync UI must be readable together. */
+internal fun resolveSupportedMetricReadAccess(
+    grantedPermissions: Set<String>,
+): WeightReadAccess =
+    if (grantedPermissions.containsAll(SUPPORTED_METRIC_READ_PERMISSIONS)) {
+        WeightReadAccess.Granted
+    } else {
+        WeightReadAccess.PermissionRequired
+    }
 
 /** Maps SDK feature/permission values into an SDK-independent domain result. */
 internal fun resolveBackgroundReadAccess(

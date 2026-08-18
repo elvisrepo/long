@@ -2,12 +2,18 @@ package com.viridiandome.longevity.wearables
 
 import java.time.Instant
 
-/** Product boundary for uploading one retry-stable normalized weight batch. */
+/** Product boundary for uploading retry-stable normalized metric batches. */
 interface WearableUploadRepository {
     suspend fun uploadWeightBatch(
         connectionId: String,
         uploadId: String,
         samples: List<HealthConnectWeightSample>,
+    ): WearableUploadResult
+
+    suspend fun uploadStepsBatch(
+        connectionId: String,
+        uploadId: String,
+        samples: List<HealthConnectStepsSample>,
     ): WearableUploadResult
 }
 

@@ -4,6 +4,7 @@ import com.viridiandome.longevity.auth.AuthTokenStore
 import com.viridiandome.longevity.auth.AuthTokens
 import com.viridiandome.longevity.auth.network.AuthenticatedApiClient
 import com.viridiandome.longevity.auth.network.SessionRefresher
+import com.viridiandome.longevity.wearables.HealthConnectStepsSample
 import com.viridiandome.longevity.wearables.HealthConnectWeightSample
 import com.viridiandome.longevity.wearables.WearableUploadResult
 import kotlinx.coroutines.test.runTest
@@ -72,6 +73,35 @@ class HttpWearableUploadRepositoryTest {
         )
         assertEquals(
             """{"connection_id":"$CONNECTION_ID","upload_id":"$UPLOAD_ID","entries":[{"metric_definition":"body_weight","value":78.4,"recorded_at":"2026-08-05T08:00:00Z","source":"samsung_health","external_source_id":"health_connect:WeightRecord:record-123"}]}""",
+            request.body?.utf8(),
+        )
+    }
+
+    @Test
+    fun new_steps_batch_posts_authenticated_interval_contract() = runTest {
+        server.enqueue(
+            MockResponse(
+                code = 201,
+                body = successfulReceiptJson(),
+            ),
+        )
+        val repository = buildRepository(
+            tokens = AuthTokens(
+                accessToken = "stored-access-token",
+                refreshToken = "stored-refresh-token",
+            ),
+        )
+
+        val result = repository.uploadStepsBatch(
+            connectionId = CONNECTION_ID,
+            uploadId = UPLOAD_ID,
+            samples = listOf(stepsSample()),
+        )
+
+        assertTrue(result is WearableUploadResult.Success)
+        val request = server.takeRequest()
+        assertEquals(
+            """{"connection_id":"$CONNECTION_ID","upload_id":"$UPLOAD_ID","entries":[{"metric_definition":"steps","value":420.0,"period_start":"2026-08-05T07:45:00Z","recorded_at":"2026-08-05T08:00:00Z","source":"samsung_health","external_source_id":"health_connect:StepsRecord:record-steps-123"}]}""",
             request.body?.utf8(),
         )
     }
@@ -213,6 +243,15 @@ class HttpWearableUploadRepositoryTest {
             recordId = "record-123",
             kilograms = 78.4,
             recordedAt = Instant.parse("2026-08-05T08:00:00Z"),
+            sourcePackageName = "com.sec.android.app.shealth",
+        )
+
+    private fun stepsSample(): HealthConnectStepsSample =
+        HealthConnectStepsSample(
+            recordId = "record-steps-123",
+            count = 420,
+            periodStart = Instant.parse("2026-08-05T07:45:00Z"),
+            periodEnd = Instant.parse("2026-08-05T08:00:00Z"),
             sourcePackageName = "com.sec.android.app.shealth",
         )
 
