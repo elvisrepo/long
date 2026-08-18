@@ -1,6 +1,6 @@
 # System Design Roadmap: Local MVP to Production
 
-Current state, bluntly: the project has a solid local MVP foundation, but it is not the final product yet. Manual metrics, Stripe subscription lifecycle, synchronous wearable ingestion, Android mobile authentication, Health Connect weight reads, and subscription-aware device scheduling are in good shape. Additional health metrics, richer analytics, production deployment, and compliance hardening are still ahead.
+Current state, bluntly: the project now has a working local MVP value loop. Manual metrics, Stripe subscription lifecycle, synchronous wearable ingestion, Android mobile authentication, Health Connect Weight and Steps reads, version-aware provider-record upserts, and subscription-aware device scheduling are proven. The next major milestone is a public HTTPS staging deployment; richer analytics, additional health metrics, asynchronous server processing, and compliance hardening remain later work.
 
 ## 1. Local system design — what exists now
 
@@ -30,7 +30,8 @@ Current runtime nuance:
 - PostgreSQL is required for the implemented application.
 - TimescaleDB-specific capabilities are not yet materially used; the database currently behaves mostly like normal PostgreSQL until hypertables, continuous aggregates, retention, or compression policies are introduced.
 - Redis, Celery Worker, and Celery Beat are present locally but are prepared infrastructure. Current auth, manual metrics, Settings, Stripe Checkout, Stripe Portal, and webhook reconciliation flows run synchronously in Django.
-- Celery becomes important for wearable sync, provider retries, backfills, analytics precomputation, maintenance jobs, and account export/delete work.
+- Android WorkManager owns device-side scheduling because only the phone can read Health Connect. Celery cannot fetch on-device records.
+- Celery becomes useful later for expensive server-side processing, repair/retry jobs, large backfills, analytics precomputation, maintenance jobs, and account export/delete work. It is not required for the first bounded synchronous staging deployment.
 
 Implemented slices:
 
@@ -52,6 +53,11 @@ Implemented slices:
 - Kotlin/Compose Android project scaffold
 - Android login, refresh, encrypted JWT storage, session checking, and server-revoking logout
 - Stateful Android authentication UI with JVM, Compose, and physical-device validation
+- Health Connect Weight and Steps permission, read, normalization, batching, and combined sync
+- Subscription-aware manual cooldowns and Pro WorkManager scheduling
+- Health Connect connection registration, reactivation, and disconnect
+- Stable provider-record deduplication plus newer-version updates using Health Connect modification timestamps
+- Live physical-device Weight and Steps synchronization through Django into the React frontend
 
 Related docs:
 
@@ -86,34 +92,41 @@ The strongest completed parts are:
    - cancellation date
    - whether portal management is available
 
-5. Test posture
+5. Wearable value loop
 
-   Backend and frontend suites pass after the billing, Settings, and Pro Insights work.
+   The physical Android client reads Samsung-originated Weight and Steps data
+   through Health Connect, uploads normalized batches, and exposes the resulting
+   metrics through the existing React dashboard. New records import, identical
+   overlap records skip, and newer versions of mutable provider records update.
+
+6. Test posture
+
+   Backend quality gates, Android JVM tests, the physical-device connected suite, Structurizr validation, and live Weight-plus-Steps synchronization have passed at the latest checkpoint. Frontend tests remain part of the deployment gate before staging.
 
 ## 3. Important gaps
 
-The project does not yet have the real final product value loop:
+The project now has the basic value loop:
 
 ```text
-Wearable data → automatic ingestion → normalized metrics → useful trends → user insight
+Wearable data → device sync → normalized metrics → dashboard trends
 ```
 
-Right now, Pro Insights is mostly a placeholder. It proves feature gating and UI placement, but not deep user value.
+The remaining product-value gap is the final step: richer, actionable insight. Pro Insights is mostly a placeholder; it proves feature gating and UI placement, but not deep user value.
 
 Still missing:
 
-- Android registration/read of its backend Health Connect connection
-- Health Connect availability and permission flow
-- Health Connect `WeightRecord` reads and Samsung-origin filtering
-- Android normalization and upload to the implemented ingestion endpoint
-- retryable Android WorkManager scheduling
+- public HTTPS staging and production deployments
+- Android staging/release API base URLs and signed distribution builds
+- reliable observability for API, Stripe webhook, and wearable failures
 - real analytics endpoint
 - trend calculations
-- production deployment
 - monitoring/alerts
 - backup/restore implementation
 - GDPR export/delete
 - password reset / stronger account lifecycle flows
+- additional deliberately mapped Health Connect metrics, with Heart Rate the likely next candidate
+- richer sync history/repair UI
+- server-side asynchronous processing if synchronous ingestion becomes too slow or operationally expensive
 
 ## 4. MVP system design — next target
 
@@ -148,10 +161,13 @@ The wearable backend is implemented through normalized synchronous ingestion: pl
 Immediate next slice:
 
 ```text
-Physical closed-app periodic validation, then user-visible sync status
+Production-readiness pass
+    → public HTTPS staging deployment
+    → Android staging build using the public API
+    → remote Weight + Steps + Stripe validation
 ```
 
-The Android project at `android/` now implements mobile authentication, Keystore-backed JWT storage and rotation, Health Connect weight permission/read, caller-owned connection registration, normalized incremental upload, subscription-aware manual cooldowns, Pro WorkManager scheduling, and connection disconnect. A physical phone has completed the Samsung Health → Health Connect → Android → Django → React weight path. Disconnect is covered on-device at the UI/cursor boundaries and cancels connection-scoped work after Django confirms the soft disconnect.
+The Android project at `android/` implements mobile authentication, Keystore-backed JWT storage and rotation, Health Connect Weight and Steps permission/read, caller-owned connection registration, normalized incremental upload, subscription-aware manual cooldowns, Pro WorkManager scheduling, and connection disconnect. A physical phone has completed the Samsung Health → Health Connect → Android → Django → React path for both metrics. Live verification proved a newly added Weight record imports and an evolving Steps record updates through its newer Health Connect modification timestamp. Disconnect is covered on-device at the UI/cursor boundaries and cancels connection-scoped work after Django confirms the soft disconnect.
 
 Refactor trigger before ingestion grows:
 
@@ -185,9 +201,9 @@ Recommended order:
 
    The client establishes and reuses the caller-owned backend connection.
 
-7. Read and upload Health Connect weight records — completed
+7. Read and upload Health Connect Weight and Steps records — completed
 
-   The physical-device bridge is proven through the synchronous upload endpoint.
+   The physical-device bridge is proven through the synchronous upload endpoint. Weight exercises low-frequency instantaneous records; Steps exercises mutable interval records and version-aware updates.
 
 8. Add subscription-aware manual and periodic sync UI — completed
 
@@ -197,13 +213,25 @@ Recommended order:
 
    Django soft-disconnects first; Android then cancels only that connection's work and clears its cursor.
 
-10. Validate automatic work with the visible app closed — in progress
+10. Characterize automatic work with the visible app closed — completed for the current MVP contract
 
-   Foreground periodic execution is proven. Process-death and normal-Home tests proved the unique WorkManager request survives, but Honor OS delayed execution beyond the 15-minute minimum. In the normal-Home run, no Django state appeared until reopening Longevity triggered the pending job. Review Honor/MagicOS background-launch settings and require a new Django `SyncRun` before reopening the app to mark background ingestion complete. Explicit Android Force stop is out of scope because the platform suppresses all app work until relaunch.
+   Foreground periodic execution is proven. Process-death and normal-Home tests proved the unique WorkManager request survives, but Honor OS may defer execution until Longevity is reopened. Reopening then catches up Health Connect history through the overlap cursor. The UI therefore promises approximate scheduling, not an exact 15-minute deadline. Stronger OEM-specific background guidance and validation remain optional hardening; explicit Android Force stop is out of scope because the platform suppresses app work until relaunch.
 
 11. Add richer sync status UI — partially completed
 
    Android now shows connection state, honest approximate scheduling language, and the latest successful Django sync time. A dedicated history/error view remains later work.
+
+12. Deploy a public HTTPS staging environment — next
+
+   Host the React frontend, Django API, and managed PostgreSQL database; configure a public Stripe test webhook; add health checks, logs, migrations, backups, and secure production settings; then prove Weight and Steps sync without USB or `adb reverse`.
+
+13. Add asynchronous server processing — deferred until justified
+
+   Keep bounded uploads synchronous while they are fast and reliable. Introduce Redis and Celery when measured latency, larger backfills, analytics, repair jobs, exports, or maintenance work needs a durable server-side queue.
+
+14. Add another Health Connect metric — after staging
+
+   Heart Rate is the strongest next candidate because it adds product value and exercises higher-volume instantaneous time-series batching. Sleep remains later because sessions, stages, overlap, and provider edits require more domain design.
 
 Related doc:
 
@@ -223,16 +251,32 @@ Django API container
   ↓
 Managed Postgres / TimescaleDB
 
-Worker container
-  ↓
-Redis / queue
-
 Stripe
   ↓
 Public HTTPS webhook endpoint
   ↓
 Django webhook view
 ```
+
+The first staging deployment can omit Redis, Celery Worker, and Celery Beat.
+The current upload endpoint accepts at most 100 entries and completes the
+idempotent transaction synchronously. Add worker infrastructure when a measured
+server-side workload requires it rather than merely because Compose already
+contains it.
+
+Android environment boundary:
+
+```text
+debug   → http://127.0.0.1:8000/ through adb reverse
+staging → https://api-staging.<domain>/ over the internet
+release → https://api.<domain>/ over the internet
+```
+
+The hosted Android flow uses the same Bearer JWT login, refresh, connection,
+subscription-policy, and upload contracts. Only the configured API base URL
+changes; HTTPS replaces the temporary USB reverse tunnel. A distributable build
+also needs release signing and an installation channel such as Play Internal
+Testing.
 
 Production needs:
 
@@ -247,6 +291,8 @@ Production needs:
 - error monitoring
 - CI running tests before deploy
 - secure CORS/CSRF/session settings
+- Android environment-specific HTTPS API base URLs
+- Android release signing and private/internal distribution for staging
 
 Related docs:
 
@@ -272,7 +318,7 @@ Monitoring + audit + compliance
 
 Future mature capabilities:
 
-- Samsung Health-originated sync through Health Connect and the Android companion app
+- broader Samsung Health-originated sync through Health Connect and the Android companion app
 - Apple Health support later
 - direct cloud integrations where useful
 - optional aggregator integration later
@@ -297,7 +343,9 @@ Related docs:
 Next real system-design step:
 
 ```text
-Validate normal-background periodic ingestion and document OEM battery guidance
+Prepare and deploy a public HTTPS staging environment
 ```
 
-This closes the remaining device-runtime uncertainty before adding more metric types or beginning production distribution. The UI already exposes the latest successful sync and avoids promising exact WorkManager timing. Celery/Redis remains deferred until synchronous ingestion is a measured bottleneck or needs server-independent retries.
+The staging slice should configure production-safe Django settings, managed PostgreSQL, migrations, backups, health checks, structured logs, a public Stripe test webhook, frontend hosting, and an Android staging API base URL. Its exit condition is a physical phone synchronizing Weight and Steps over ordinary Wi-Fi or mobile data into the hosted frontend without USB or `adb reverse`.
+
+Celery/Redis remains deferred until synchronous ingestion is a measured bottleneck or another server-side workflow needs durable asynchronous execution. Additional metrics follow staging; Heart Rate is the likely next mapping, while Sleep requires a separate domain-design pass.
