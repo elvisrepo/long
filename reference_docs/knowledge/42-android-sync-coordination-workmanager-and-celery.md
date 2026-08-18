@@ -100,7 +100,7 @@ The ViewModel is the UI-facing sync controller. It:
 - prevents overlapping sync jobs;
 - calls `WeightSyncRunner`;
 - converts coordinator results into health-safe Compose states: `Idle`, `Syncing`, `NoData`, `Completed`, `Interrupted`, or `Unavailable`;
-- aggregates imported/skipped counters from Django receipts;
+- aggregates imported/updated/skipped counters from Django receipts;
 - cancels and clears its state during logout.
 
 It does not read Health Connect or make HTTP requests itself.
@@ -226,13 +226,13 @@ Django validates and hashes the payload
     ↓
 Django creates SyncRun and deduplicates stable external_source_id values
     ↓
-New records become MetricEntry rows; identical records are skipped
+New records are inserted; identical records are skipped; newer provider versions update the existing MetricEntry
     ↓
-Django completes SyncRun and returns its receipt
+Django completes SyncRun with imported, updated, and skipped counters
     ↓
 Coordinator collects receipts
     ↓
-ViewModel aggregates imported/skipped counts
+ViewModel aggregates imported/updated/skipped counts
     ↓
 Compose renders a safe terminal state
     ↓

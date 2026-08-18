@@ -80,6 +80,7 @@ class SyncRun(models.Model):
     processing_started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
     entries_imported = models.PositiveIntegerField(default=0)
+    entries_updated = models.PositiveIntegerField(default=0)
     entries_skipped = models.PositiveIntegerField(default=0)
     error_code = models.CharField(max_length=100, blank=True, default="")
     error_detail = models.JSONField(default=dict, blank=True)

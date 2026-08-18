@@ -479,6 +479,7 @@ private fun InitialWeightSyncContent(
         is InitialWeightSyncUiState.Completed -> {
             Text(
                 text = "Sync complete: ${state.entriesImported} imported, " +
+                    "${state.entriesUpdated} updated, " +
                     "${state.entriesSkipped} already present.",
             )
             Button(onClick = onSync, enabled = canSync) {

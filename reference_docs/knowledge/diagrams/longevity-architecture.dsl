@@ -22,7 +22,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 androidApiClient = component "Authenticated API Client" "Attaches stored bearer access tokens, coordinates one refresh after a 401, and retries the original product request once." "Kotlin + OkHttp + Coroutines"
                 androidSyncPolicy = component "Subscription Sync Policy" "Reads server-owned automatic-sync and cadence entitlements, validates WorkManager-compatible intervals, exposes UI state, and gates background execution after downgrades." "Kotlin + OkHttp + Coroutines"
                 androidWearables = component "Wearable Connection Repository" "Lists, registers, and disconnects caller-owned Health Connect connections; confirmed disconnect performs connection-scoped scheduler and cursor cleanup." "Kotlin + kotlinx.serialization"
-                androidUploads = component "Wearable Upload Repository" "Posts normalized, retry-stable Weight and Steps batches and maps Django SyncRun receipts and conflict/rejection outcomes without exposing transport DTOs." "Kotlin + OkHttp + kotlinx.serialization"
+                androidUploads = component "Wearable Upload Repository" "Posts normalized, retry-stable Weight and Steps batches with Health Connect modification timestamps and maps imported/updated/skipped SyncRun receipts without exposing transport DTOs." "Kotlin + OkHttp + kotlinx.serialization"
                 androidHealthAccess = component "Health Connect Access" "Checks SDK, requires WeightRecord and StepsRecord read permissions, checks the background-read feature/grant, and maps paginated reads into domain samples." "AndroidX Health Connect"
                 androidWeightSyncPlanner = component "Metric Sync Planners" "Weight and Steps incremental policies read a shared per-connection watermark with a 24-hour overlap and 30-day fallback, keep Samsung provenance, and produce backend-safe batches." "Kotlin + Coroutines"
                 androidWeightSyncCoordinator = component "Metric Sync Coordinators and Runners" "Metric coordinators upload ordered batches with one UUID each; AllMetricsSyncRunner combines Weight then Steps, and the outer incremental runner advances its cursor only after the complete attempt succeeds or has no data." "Kotlin + Coroutines"
@@ -35,7 +35,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 authApi = component "Authentication" "Registration, web/mobile login, CSRF, current-user, logout, and concurrency-safe SimpleJWT refresh rotation." "Django REST Framework + SimpleJWT"
                 subscriptionsApi = component "Subscriptions and Billing" "Plan/price reads, entitlement state, Checkout/Portal session creation, and idempotent signed Stripe webhook reconciliation." "Django REST Framework + Stripe SDK"
                 metricsApi = component "Metrics" "Metric definitions, entitlement-limited custom metrics, manual entries, history reads, and entry maintenance." "Django REST Framework"
-                wearablesApi = component "Wearables" "Plan-limited Health Connect connection lifecycle and synchronous idempotent normalized upload ingestion." "Django REST Framework"
+                wearablesApi = component "Wearables" "Plan-limited Health Connect lifecycle plus synchronous idempotent ingestion with version-aware provider-record upserts." "Django REST Framework"
             }
 
             worker = container "Celery Worker" "Prepared local/future runtime for asynchronous wearable processing, exports, deletion, and other background jobs; no current product flow depends on it." "Celery" {
@@ -745,7 +745,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.android.androidWeightSyncCoordinator -> longevity.android.androidUploads "Uploads ordered normalized batches with retry-stable identities"
             longevity.android.androidUploads -> longevity.android.androidApiClient "Executes the authenticated upload request"
             longevity.android.androidApiClient -> longevity.api "POST /api/v1/wearables/uploads/; refreshes and retries once after an access-token 401"
-            longevity.api -> longevity.db "Commits idempotent SyncRun and MetricEntry state"
+            longevity.api -> longevity.db "Commits idempotent SyncRun state and inserts, skips, or newer-version updates MetricEntry rows"
             user -> longevity.android.androidPresentation "Later completes logout successfully"
             longevity.android.androidPresentation -> longevity.android.androidWeightSyncScheduler "Cancels all tagged metric-sync work; startup session checking never triggers cancellation"
         }
@@ -765,13 +765,13 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             longevity.android.androidWeightSyncCoordinator -> longevity.android.androidUploads "Generates one upload UUID and submits each batch sequentially"
             longevity.android.androidUploads -> longevity.android.androidApiClient "Serializes the normalized batch without handling JWT values"
             longevity.android.androidApiClient -> longevity.api "POST /api/v1/wearables/uploads/ with the stored bearer access token"
-            longevity.api -> longevity.db "Validates caller ownership, locks the connection, enforces upload/payload idempotency, inserts new MetricEntry rows, and completes SyncRun"
+            longevity.api -> longevity.db "Validates caller ownership, locks the connection, enforces upload identity, inserts new records, applies only newer provider versions, and completes SyncRun counters"
             longevity.db -> longevity.api "Commits metric records, connection sync state, and the terminal receipt"
             longevity.api -> longevity.android.androidApiClient "Returns 201 for new work, 200 for an exact retry, or a safe rejection/conflict"
             longevity.android.androidApiClient -> longevity.android.androidUploads "Returns the buffered response without logging health data"
             longevity.android.androidUploads -> longevity.android.androidWeightSyncCoordinator "Returns a typed receipt or explicit conflict/rejection/session/unavailable outcome"
             longevity.android.androidWeightSyncCoordinator -> longevity.android.androidWeightSyncCursor "After Completed or valid NoData, persists the pre-read watermark that starts the next cooldown"
-            longevity.android.androidWeightSyncCoordinator -> longevity.android.androidPresentation "Returns aggregate imported/skipped counts, no-data, or a safe recovery outcome without records or receipt IDs"
+            longevity.android.androidWeightSyncCoordinator -> longevity.android.androidPresentation "Returns aggregate imported/updated/skipped counts, no-data, or a safe recovery outcome without records or receipt IDs"
             user -> longevity.android.androidPresentation "Sees the completed or actionable sync state"
         }
 

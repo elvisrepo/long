@@ -25,6 +25,10 @@ def calculate_wearable_payload_hash(
         definition = cast(MetricDefinition, entry["metric_definition"])
         recorded_at = cast(datetime, entry["recorded_at"]).astimezone(UTC)
         period_start = cast(datetime | None, entry.get("period_start"))
+        source_record_modified_at = cast(
+            datetime | None,
+            entry.get("source_record_modified_at"),
+        )
 
         canonical_entry = {
             "external_source_id": cast(
@@ -44,6 +48,12 @@ def calculate_wearable_payload_hash(
             canonical_entry["period_start"] = period_start.astimezone(
                 UTC
             ).isoformat(timespec="microseconds").replace("+00:00", "Z")
+        if source_record_modified_at is not None:
+            canonical_entry["source_record_modified_at"] = (
+                source_record_modified_at.astimezone(UTC)
+                .isoformat(timespec="microseconds")
+                .replace("+00:00", "Z")
+            )
         canonical_entries.append(canonical_entry)
 
     canonical_payload = {

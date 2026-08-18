@@ -61,6 +61,7 @@ def test_wearable_upload_processes_one_normalized_entry():
     assert sync_run.processing_started_at is not None
     assert sync_run.finished_at is not None
     assert sync_run.entries_imported == 1
+    assert sync_run.entries_updated == 0
     assert sync_run.entries_skipped == 0
 
     metric_entry = MetricEntry.objects.get()
@@ -86,6 +87,7 @@ def test_wearable_upload_processes_one_normalized_entry():
             "Z",
         ),
         "entries_imported": 1,
+        "entries_updated": 0,
         "entries_skipped": 0,
     }
 
@@ -504,6 +506,74 @@ def test_wearable_upload_skips_identical_record_from_new_batch():
     assert duplicate_response.json()["entries_skipped"] == 1
     assert SyncRun.objects.count() == 2
     assert MetricEntry.objects.count() == 1
+
+
+def test_wearable_upload_updates_newer_source_record_version():
+    """The public endpoint returns an honest receipt for a provider update."""
+
+    user = User.objects.create_user(
+        email="upload-newer-source-version@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+    client = APIClient()
+    access_token = RefreshToken.for_user(user).access_token
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+    original_entry = {
+        "metric_definition": "steps",
+        "value": 2307,
+        "period_start": "2026-08-16T22:00:00Z",
+        "recorded_at": "2026-08-17T21:59:59.999Z",
+        "source": "samsung_health",
+        "external_source_id": (
+            "health_connect:StepsRecord:record-api-versioned"
+        ),
+        "source_record_modified_at": "2026-08-17T17:50:00Z",
+    }
+
+    first_response = client.post(
+        "/api/v1/wearables/uploads/",
+        {
+            "connection_id": str(connection.id),
+            "upload_id": str(uuid.uuid4()),
+            "entries": [original_entry],
+        },
+        format="json",
+    )
+    newer_response = client.post(
+        "/api/v1/wearables/uploads/",
+        {
+            "connection_id": str(connection.id),
+            "upload_id": str(uuid.uuid4()),
+            "entries": [
+                {
+                    **original_entry,
+                    "value": 4812,
+                    "source_record_modified_at": "2026-08-17T22:05:00Z",
+                }
+            ],
+        },
+        format="json",
+    )
+
+    assert first_response.status_code == 201
+    assert newer_response.status_code == 201
+    assert newer_response.json()["entries_imported"] == 0
+    assert newer_response.json()["entries_updated"] == 1
+    assert newer_response.json()["entries_skipped"] == 0
+    entry = MetricEntry.objects.get()
+    assert entry.value == 4812
+    assert entry.source_record_modified_at == datetime(
+        2026,
+        8,
+        17,
+        22,
+        5,
+        tzinfo=UTC,
+    )
 
 
 def test_wearable_upload_requires_entries():

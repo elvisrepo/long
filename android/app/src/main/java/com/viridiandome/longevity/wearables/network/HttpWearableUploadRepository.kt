@@ -108,6 +108,7 @@ class HttpWearableUploadRepository(
             finishedAt = finishedAt?.let(Instant::parse),
             entriesImported = entriesImported,
             entriesSkipped = entriesSkipped,
+            entriesUpdated = entriesUpdated,
         )
 
     private companion object {

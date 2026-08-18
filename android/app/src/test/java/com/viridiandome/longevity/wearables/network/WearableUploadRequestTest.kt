@@ -18,6 +18,7 @@ class WearableUploadRequestTest {
             kilograms = 78.4,
             recordedAt = Instant.parse("2026-08-05T08:00:00Z"),
             sourcePackageName = "com.sec.android.app.shealth",
+            sourceRecordModifiedAt = Instant.parse("2026-08-05T08:01:00Z"),
         )
         val request = WearableUploadRequest(
             connectionId = "7df7e4ab-7e6f-4558-b9be-17c824fbf54e",
@@ -39,7 +40,8 @@ class WearableUploadRequestTest {
                   "value": 78.4,
                   "recorded_at": "2026-08-05T08:00:00Z",
                   "source": "samsung_health",
-                  "external_source_id": "health_connect:WeightRecord:record-123"
+                  "external_source_id": "health_connect:WeightRecord:record-123",
+                  "source_record_modified_at": "2026-08-05T08:01:00Z"
                 }
               ]
             }
@@ -57,6 +59,7 @@ class WearableUploadRequestTest {
             periodStart = Instant.parse("2026-08-05T07:45:00Z"),
             periodEnd = Instant.parse("2026-08-05T08:00:00Z"),
             sourcePackageName = "com.sec.android.app.shealth",
+            sourceRecordModifiedAt = Instant.parse("2026-08-05T08:02:00Z"),
         )
         val request = WearableUploadRequest(
             connectionId = "7df7e4ab-7e6f-4558-b9be-17c824fbf54e",
@@ -79,7 +82,8 @@ class WearableUploadRequestTest {
                   "period_start": "2026-08-05T07:45:00Z",
                   "recorded_at": "2026-08-05T08:00:00Z",
                   "source": "samsung_health",
-                  "external_source_id": "health_connect:StepsRecord:record-steps-123"
+                  "external_source_id": "health_connect:StepsRecord:record-steps-123",
+                  "source_record_modified_at": "2026-08-05T08:02:00Z"
                 }
               ]
             }
@@ -96,6 +100,7 @@ class WearableUploadRequestTest {
             kilograms = 78.4,
             recordedAt = Instant.parse("2026-08-05T08:00:00Z"),
             sourcePackageName = "com.sec.android.app.shealth",
+            sourceRecordModifiedAt = Instant.parse("2026-08-05T08:01:00Z"),
         )
         val entry = WearableUploadEntryRequest.from(sample)
         val request = WearableUploadRequest(

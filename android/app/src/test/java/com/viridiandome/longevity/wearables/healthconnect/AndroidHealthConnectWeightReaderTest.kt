@@ -49,6 +49,10 @@ class AndroidHealthConnectWeightReaderTest {
             record.metadata.dataOrigin.packageName,
             samples.single().sourcePackageName,
         )
+        assertEquals(
+            record.metadata.lastModifiedTime,
+            samples.single().sourceRecordModifiedAt,
+        )
     }
 
     @Test

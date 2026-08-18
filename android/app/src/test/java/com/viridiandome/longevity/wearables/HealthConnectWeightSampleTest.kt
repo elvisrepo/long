@@ -16,6 +16,7 @@ class HealthConnectWeightSampleTest {
             kilograms = 78.4,
             recordedAt = recordedAt,
             sourcePackageName = "com.sec.android.app.shealth",
+            sourceRecordModifiedAt = recordedAt,
         )
 
         assertEquals("health-connect-weight-record-123", sample.recordId)
@@ -31,6 +32,7 @@ class HealthConnectWeightSampleTest {
             kilograms = 78.4,
             recordedAt = Instant.parse("2026-08-05T07:30:00Z"),
             sourcePackageName = "private.source.package",
+            sourceRecordModifiedAt = Instant.parse("2026-08-05T07:31:00Z"),
         )
 
         val diagnostic = sample.toString()
@@ -51,6 +53,7 @@ class HealthConnectWeightSampleTest {
                 kilograms = 78.4,
                 recordedAt = Instant.parse("2026-08-04T07:30:00Z"),
                 sourcePackageName = "com.sec.android.app.shealth",
+                sourceRecordModifiedAt = Instant.parse("2026-08-04T07:31:00Z"),
             ),
         )
         val reader = RecordingHealthConnectWeightReader(expected)

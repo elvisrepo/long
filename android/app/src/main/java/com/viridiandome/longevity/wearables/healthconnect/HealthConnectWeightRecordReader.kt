@@ -50,6 +50,7 @@ internal suspend fun readHealthConnectWeightSamples(
                 kilograms = record.weight.inKilograms,
                 recordedAt = record.time,
                 sourcePackageName = record.metadata.dataOrigin.packageName,
+                sourceRecordModifiedAt = record.metadata.lastModifiedTime,
             )
         }
         pageToken = response.pageToken

@@ -84,6 +84,7 @@ def test_sync_run_starts_received_with_empty_processing_result():
     assert sync_run.processing_started_at is None
     assert sync_run.finished_at is None
     assert sync_run.entries_imported == 0
+    assert sync_run.entries_updated == 0
     assert sync_run.entries_skipped == 0
     assert sync_run.payload_hash == ""
     assert sync_run.error_code == ""

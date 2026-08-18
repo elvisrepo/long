@@ -26,7 +26,7 @@ flowchart LR
         HASH["Canonical payload hash<br/>versioned server-computed SHA-256"]
         RETRY{"Existing<br/>(connection, upload_id)?"}
         SAME{"Stored hash<br/>matches?"}
-        INGEST["Synchronous ingestion service<br/>new, retry, upload/record conflict + dedupe live"]
+        INGEST["Synchronous ingestion service<br/>insert, skip, newer-version update,<br/>stale conflict + upload retry"]
 
         RECEIPT --> OWNER
         BATCH --> OWNER
@@ -40,8 +40,8 @@ flowchart LR
 
     subgraph Data["PostgreSQL — implemented tables"]
         CONNECTION[("WearableConnection<br/>provider = health_connect")]
-        SYNC[("SyncRun<br/>unique(connection, upload_id)<br/>status + counters + payload_hash")]
-        ENTRY[("MetricEntry<br/>source = samsung_health<br/>source_connection + external_source_id")]
+        SYNC[("SyncRun<br/>unique(connection, upload_id)<br/>imported + updated + skipped counters")]
+        ENTRY[("MetricEntry<br/>source_connection + external_source_id<br/>source_record_modified_at")]
     end
 
     subgraph Web["Existing web application"]
@@ -102,7 +102,8 @@ Content-Type: application/json
       "value": 78.4,
       "recorded_at": "2026-07-15T08:00:00Z",
       "source": "samsung_health",
-      "external_source_id": "health_connect:WeightRecord:record-123"
+      "external_source_id": "health_connect:WeightRecord:record-123",
+      "source_record_modified_at": "2026-07-15T08:01:00Z"
     }
   ]
 }
@@ -144,6 +145,6 @@ Important boundaries:
 - A different upload containing an identical stored external record receives
   its own successful `SyncRun`, but increments `entries_skipped` instead of
   creating another `MetricEntry`.
-- Changed normalized content under an existing external record ID raises a
-  record-level domain conflict and rolls back the new receipt instead of
-  rewriting the stored health record.
+- Changed normalized content under an existing external ID updates the stored
+  row only when Health Connect's `lastModifiedTime` is newer, incrementing
+  `entries_updated`. Older, equal, missing, or inconsistent versions conflict.

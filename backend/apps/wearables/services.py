@@ -53,6 +53,39 @@ def _matches_normalized_entry(
     )
 
 
+def _is_newer_source_version(
+    existing_entry: MetricEntry,
+    incoming_entry: Mapping[str, Any],
+) -> bool:
+    """Return whether validated input is newer than the stored source record."""
+
+    incoming_modified_at = cast(
+        datetime | None,
+        incoming_entry.get("source_record_modified_at"),
+    )
+    if incoming_modified_at is None:
+        return False
+
+    stored_modified_at = existing_entry.source_record_modified_at
+    return (
+        stored_modified_at is None
+        or incoming_modified_at > stored_modified_at
+    )
+
+
+def _has_same_source_record_kind(
+    existing_entry: MetricEntry,
+    incoming_entry: Mapping[str, Any],
+) -> bool:
+    """Prevent a source version from changing metric type or provider."""
+
+    definition = cast(MetricDefinition, incoming_entry["metric_definition"])
+    return (
+        existing_entry.metric_definition_id == definition.id
+        and existing_entry.source == str(incoming_entry["source"])
+    )
+
+
 @transaction.atomic
 def process_wearable_upload(
     *,
@@ -109,6 +142,7 @@ def process_wearable_upload(
             ] = existing_entry
 
     entries_imported = 0
+    entries_updated = 0
     entries_skipped = 0
     for entry in entries:
         external_source_id = cast(str, entry["external_source_id"])
@@ -122,7 +156,43 @@ def process_wearable_upload(
             # An equivalent normalized record was imported earlier, so count
             # it without inserting it again.
             if _matches_normalized_entry(existing_entry, entry):
+                if _is_newer_source_version(existing_entry, entry):
+                    existing_entry.source_record_modified_at = cast(
+                        datetime,
+                        entry["source_record_modified_at"],
+                    )
+                    existing_entry.save(
+                        update_fields=("source_record_modified_at",),
+                    )
                 entries_skipped += 1
+                continue
+
+            if _has_same_source_record_kind(
+                existing_entry,
+                entry,
+            ) and _is_newer_source_version(existing_entry, entry):
+                existing_entry.value = cast(float, entry["value"])
+                existing_entry.period_start = cast(
+                    datetime | None,
+                    entry.get("period_start"),
+                )
+                existing_entry.recorded_at = cast(
+                    datetime,
+                    entry["recorded_at"],
+                )
+                existing_entry.source_record_modified_at = cast(
+                    datetime,
+                    entry["source_record_modified_at"],
+                )
+                existing_entry.save(
+                    update_fields=(
+                        "value",
+                        "period_start",
+                        "recorded_at",
+                        "source_record_modified_at",
+                    ),
+                )
+                entries_updated += 1
                 continue
 
             # Do not silently rewrite provider history when the stable record
@@ -144,6 +214,10 @@ def process_wearable_upload(
             source=str(entry["source"]),
             source_connection=locked_connection,
             external_source_id=external_source_id,
+            source_record_modified_at=cast(
+                datetime | None,
+                entry.get("source_record_modified_at"),
+            ),
         )
         entries_imported += 1
 
@@ -151,12 +225,14 @@ def process_wearable_upload(
     sync_run.status = SyncRun.Status.SUCCEEDED
     sync_run.finished_at = finished_at
     sync_run.entries_imported = entries_imported
+    sync_run.entries_updated = entries_updated
     sync_run.entries_skipped = entries_skipped
     sync_run.save(
         update_fields=(
             "status",
             "finished_at",
             "entries_imported",
+            "entries_updated",
             "entries_skipped",
         )
     )

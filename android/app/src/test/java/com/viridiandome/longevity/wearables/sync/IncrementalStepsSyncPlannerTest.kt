@@ -75,6 +75,7 @@ class IncrementalStepsSyncPlannerTest {
         periodStart = Instant.parse("2026-08-05T07:45:00Z"),
         periodEnd = Instant.parse("2026-08-05T08:00:00Z"),
         sourcePackageName = sourcePackageName,
+        sourceRecordModifiedAt = Instant.parse("2026-08-05T08:01:00Z"),
     )
 
     private companion object {

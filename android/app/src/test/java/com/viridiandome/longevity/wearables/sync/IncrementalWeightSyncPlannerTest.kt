@@ -79,6 +79,7 @@ class IncrementalWeightSyncPlannerTest {
         kilograms = 78.4,
         recordedAt = Instant.parse("2026-08-06T08:00:00Z"),
         sourcePackageName = sourcePackageName,
+        sourceRecordModifiedAt = Instant.parse("2026-08-06T08:01:00Z"),
     )
 
     private companion object {

@@ -22,4 +22,6 @@ internal data class SyncRunResponse(
     val entriesImported: Int,
     @SerialName("entries_skipped")
     val entriesSkipped: Int,
+    @SerialName("entries_updated")
+    val entriesUpdated: Int = 0,
 )

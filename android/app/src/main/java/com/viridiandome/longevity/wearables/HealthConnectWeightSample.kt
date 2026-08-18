@@ -10,6 +10,8 @@ data class HealthConnectWeightSample(
     val recordedAt: Instant,
     // Health Connect identifies the app that originally wrote this record.
     val sourcePackageName: String,
+    // Provider-owned version used to accept updates without stale overwrites.
+    val sourceRecordModifiedAt: Instant,
 ) {
     /** Prevent accidental health-data disclosure through logs and exceptions. */
     override fun toString(): String = "HealthConnectWeightSample(<redacted>)"

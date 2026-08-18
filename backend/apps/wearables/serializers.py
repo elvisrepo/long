@@ -198,6 +198,10 @@ class WearableUploadEntrySerializer(StrictFieldsSerializer):
         allow_blank=False,
         trim_whitespace=True,
     )
+    source_record_modified_at = serializers.DateTimeField(
+        required=False,
+        allow_null=True,
+    )
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         # The definition owns the accepted domain range for this metric.
@@ -292,6 +296,7 @@ class SyncRunSerializer(serializers.ModelSerializer):
             "processing_started_at",
             "finished_at",
             "entries_imported",
+            "entries_updated",
             "entries_skipped",
         )
         read_only_fields = fields

@@ -76,8 +76,8 @@ CONN_1     = WearableConnection UUID
 | 3 | Verified `checkout.session.completed` arrives | `StripeWebhookEvent(evt_checkout_...)`, `BillingCustomer(U1, cus_test_...)`, and `Subscription(SUB_PRO, plan=pro, price=PRICE_PRO, status=active, provider_subscription_id=sub_test_...)` | `SUB_FREE` becomes `cancelled`; `ATTEMPT_1` becomes `confirmed` | Pro becomes the only current subscription; Free remains as history |
 | 4 | Verified `customer.subscription.updated` arrives | `StripeWebhookEvent(evt_subscription_...)` | `SUB_PRO` receives recognized price/plan data, current-period dates, and normalized cancellation state | Local billing dates and price match Stripe |
 | 5 | User registers Health Connect | `WearableConnection(CONN_1, user=U1, provider=health_connect, status=pending, is_active=true)` | — | Active wearable usage becomes `1 / 1`; registration does not yet claim a successful sync |
-| 6 | First normalized upload — implemented | `SyncRun(connection=CONN_1, upload_id=UPLOAD_1, status=succeeded, payload_hash=...)` and wearable-sourced `MetricEntry` rows | `CONN_1` becomes `connected` and receives `last_synced_at` | The synchronous request returns `201` with terminal imported/skipped counters |
-| 7 | Retry, deduplication, and conflict handling — implemented | A new upload identity may create another `SyncRun`; exact retries create no row | Identical provider records increment skipped counters without another `MetricEntry`; conflicting identities leave original data unchanged | Exact retry returns `200`; new work returns `201`; upload/record conflicts return `409` |
+| 6 | First normalized upload — implemented | `SyncRun(connection=CONN_1, upload_id=UPLOAD_1, status=succeeded, payload_hash=...)` and wearable-sourced `MetricEntry` rows | `CONN_1` becomes `connected` and receives `last_synced_at` | The synchronous request returns `201` with terminal imported/updated/skipped counters |
+| 7 | Retry, deduplication, versioning, and conflict handling — implemented | A new upload identity may create another `SyncRun`; exact retries create no row | Identical provider records increment skipped counters; a newer provider version updates its existing `MetricEntry`; stale or inconsistent identities leave stored data unchanged | Exact retry returns `200`; new work returns `201`; upload or stale/inconsistent record conflicts return `409` |
 
 Important final-state properties:
 
@@ -139,7 +139,7 @@ sequenceDiagram
     Android->>API: POST /api/v1/wearables/uploads/ with IDs + normalized entries + JWT
     API->>DB: Lock CONN_1; store hashed SyncRun and deduplicated MetricEntry rows
     API->>DB: Mark SyncRun succeeded and CONN_1 connected
-    API-->>Android: 201 terminal imported/skipped counters
+    API-->>Android: 201 terminal imported/updated/skipped counters
 ```
 
 ## Metric Definition Include-Inactive Read Flow

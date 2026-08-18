@@ -52,6 +52,7 @@ internal suspend fun readHealthConnectStepsSamples(
                 periodStart = record.startTime,
                 periodEnd = record.endTime,
                 sourcePackageName = record.metadata.dataOrigin.packageName,
+                sourceRecordModifiedAt = record.metadata.lastModifiedTime,
             )
         }
         pageToken = response.pageToken

@@ -28,6 +28,7 @@ data class WearableUploadReceipt(
     val finishedAt: Instant?,
     val entriesImported: Int,
     val entriesSkipped: Int,
+    val entriesUpdated: Int = 0,
 )
 
 /** Upload outcomes keep domain conflicts separate from retryable failures. */

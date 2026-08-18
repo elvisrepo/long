@@ -99,7 +99,7 @@ Implemented:
 - `WeightSyncBatchPlanner` is the shared policy boundary that supplies ordered, backend-sized weight batches. `InitialWeightSyncPlanner` implements it with an injected UTC clock: it requests the previous 30 days, keeps only records whose Health Connect data origin is Samsung Health (`com.sec.android.app.shealth`), preserves chronological order, and splits them into batches of at most 100 entries to match the live backend request limit. No Samsung records produces no upload batches.
 - Android upload request models serialize the live Django contract exactly: caller-owned connection UUID, retry-stable upload UUID, and normalized `body_weight` entries with kilograms, ISO-8601 timestamps, Samsung Health provenance, and `health_connect:WeightRecord:<record-id>` external identities. Their diagnostic strings redact health values and record identifiers.
 - Django seeds `steps` as a system activity metric (`0` through `200000` steps per entry) and the shared upload endpoint persists normalized Steps intervals. `MetricEntry.period_start` stores the interval beginning while `recorded_at` stores its end; instantaneous Weight leaves `period_start` null. Android maps every ascending Health Connect `StepsRecord` page through `AndroidHealthConnectAccess`, filters Samsung provenance, and serializes `steps` entries with `period_start`, interval-end `recorded_at`, and stable `health_connect:StepsRecord:<record-id>` identities.
-- `SyncRunResponse` decodes Django's read-only upload receipt, including imported/skipped counters and nullable processing/finish timestamps so the Android boundary supports both today's synchronous terminal result and the planned asynchronous lifecycle.
+- `SyncRunResponse` decodes Django's read-only upload receipt, including imported/updated/skipped counters and nullable processing/finish timestamps so the Android boundary supports both today's synchronous terminal result and the planned asynchronous lifecycle.
 - `HttpWearableUploadRepository` maps planned samples into the normalized request and posts it through the shared authenticated client. New `201` and exact-retry `200` receipts are success; `409` content conflicts, `400`/`404` rejections, missing sessions, and retryable/malformed failures remain distinct. Its public receipt uses typed `Instant` values and does not expose transport DTOs.
 - `WeightSyncCoordinator` and `StepsSyncCoordinator` each connect their metric-specific planner to the shared upload repository through the existing `WeightSyncRunner`/`WeightSyncResult` boundary. Each creates one UUID per ordered batch, avoids empty requests, and stops on its first failure while preserving earlier committed receipts. `AllMetricsSyncRunner` runs Weight and then Steps, combines their receipts, skips metric-specific no-data results, and stops before later metrics on an interruption. The type names remain Weight-specific legacy names, but the application-level behavior is multi-metric.
 - `IncrementalWeightSyncPlanner` and `WeightSyncCursorStore` now define the background read-window policy at the domain boundary. Cursor lookup is scoped by caller-owned connection ID; an existing watermark receives a 24-hour overlap, a missing watermark safely falls back to 30 days, and stable external record IDs make overlap duplicates harmless at ingestion.
@@ -109,7 +109,7 @@ Implemented:
 - `IncrementalWeightSyncWorker` validates its input connection ID, calls the injected application-scoped all-metric incremental runner, and returns that mapping. `LongevityWorkerFactory` supplies the runner, and `LongevityApplication` implements `Configuration.Provider` so WorkManager uses that factory. The worker and scheduler retain their Weight-specific class names as naming debt; their live behavior now synchronizes Weight and Steps. The manifest removes WorkManager's default AndroidX Startup initializer while retaining Startup for other libraries.
 - `WorkManagerWeightSyncScheduler` now enqueues one connection-scoped unique periodic request using `ExistingPeriodicWorkPolicy.UPDATE`, a connected-network constraint, WorkManager's 15-minute minimum interval, and a stable tag. `MainActivity` schedules only after authentication, a Ready caller-owned connection, and granted background access. It deliberately does nothing during startup session checking, cancels one unique request after connection disconnect, and cancels all tagged weight work only after logout or a manual-only policy is confirmed.
 - Android's Ready state exposes **Disconnect Health Connect**. `HttpWearableConnectionRepository` calls the existing owner-scoped Django `DELETE`; `DisconnectingWearableConnectionRepository` performs local cleanup only after terminal server confirmation. Temporary failure preserves the Ready state and its work/cursor for honest retry; success returns to Idle, cancels only the connection's unique work, and removes only its cursor.
-- `InitialWeightSyncViewModel` runs only after the user chooses **Sync now**, prevents overlapping work, aggregates Weight and Steps receipts into imported/skipped counts, exposes recovery outcomes without health records or receipt IDs, and cancels/clears state on logout. The ViewModel retains its legacy name; the authenticated Compose screen and user-facing status text are metric-neutral.
+- `InitialWeightSyncViewModel` runs only after the user chooses **Sync now**, prevents overlapping work, aggregates Weight and Steps receipts into imported/updated/skipped counts, exposes recovery outcomes without health records or receipt IDs, and cancels/clears state on logout. The ViewModel retains its legacy name; the authenticated Compose screen and user-facing status text are metric-neutral.
 - The manifest declares `android.permission.health.READ_WEIGHT`, `android.permission.health.READ_STEPS`, and `android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND`, the pre-Android-14 Health Connect package query, and the required pre/post-Android-14 permission-rationale intents. The rationale explains authorized Weight/Steps foreground and optional background reads; the app does not write or delete Health Connect data.
 - `MainActivity` launches the ordinary Health Connect permission contract only after Connect. Once a connection is ready, a separate **Allow background sync** action appears only when the feature is supported and the additional grant is missing. Grant/denial updates local capability state without repeating backend registration.
 - The debug build targets local Django at `http://127.0.0.1:8000/` through `adb reverse`; the release base URL is intentionally unset until the production HTTPS endpoint exists.
@@ -149,6 +149,7 @@ received_at
 processing_started_at
 finished_at
 entries_imported
+entries_updated
 entries_skipped
 error_code
 error_detail
@@ -182,17 +183,20 @@ upload ID, and canonical hash returns that original receipt before repeating
 any writes. Reusing that identity with changed content or a legacy unknown
 payload raises `WearableUploadConflictError`.
 
-A new upload containing an external record whose definition, value, timestamp,
-and source exactly match the stored record skips the insert and increments
-`entries_skipped`. A mixed batch with one new and one identical stored record
-reports `entries_imported=1` and `entries_skipped=1`.
+A new upload containing an external record whose normalized health content
+matches the stored record skips the insert and increments `entries_skipped`.
+If the provider timestamp is newer, its version metadata is refreshed even
+when content is unchanged. A mixed batch with one new and one identical stored
+record reports `entries_imported=1` and `entries_skipped=1`.
 
-For the MVP, the same external record ID with different normalized content
-raises `WearableRecordConflictError`. The transaction rolls back the new
-`SyncRun` and preserves the existing metric rather than silently rewriting
-health history. `WearableUploadConflictError` and
-`WearableRecordConflictError` share `WearableIngestionConflictError`; the live
-HTTP layer maps both safely to `409`.
+Changed content under the same external ID is accepted only when
+`source_record_modified_at` is newer than the stored provider version; the
+existing `MetricEntry` is updated and `entries_updated` increments. A legacy
+row with a null source version may be upgraded once by a timestamped record.
+Missing, equal, or older timestamps cannot authorize changed content and raise
+`WearableRecordConflictError`, rolling back the new `SyncRun`. This rule is
+provider-generic and is required because evolving Steps intervals can retain
+their Health Connect ID while their count changes.
 
 Agreed status lifecycle:
 
@@ -238,7 +242,8 @@ Initial normalized payload shape:
       "value": 78.4,
       "recorded_at": "2026-07-15T08:00:00Z",
       "source": "samsung_health",
-      "external_source_id": "health-connect-record-123"
+      "external_source_id": "health-connect-record-123",
+      "source_record_modified_at": "2026-07-15T08:01:00Z"
     },
     {
       "metric_definition": "steps",
@@ -246,7 +251,8 @@ Initial normalized payload shape:
       "period_start": "2026-07-15T07:45:00Z",
       "recorded_at": "2026-07-15T08:00:00Z",
       "source": "samsung_health",
-      "external_source_id": "health_connect:StepsRecord:record-123"
+      "external_source_id": "health_connect:StepsRecord:record-123",
+      "source_record_modified_at": "2026-07-15T08:02:00Z"
     }
   ]
 }
@@ -261,7 +267,7 @@ The backend must verify:
 - Value and timestamp satisfy the metric definition and API bounds.
 - Numeric values are finite; `NaN` and infinities cannot enter persistence or canonical hashing.
 - Source provenance is allowed and cannot be used to spoof another connection.
-- PostgreSQL prevents inserting the same non-null `external_source_id` twice for one source connection. The service skips identical records and, for the MVP, rejects changed content with `409` rather than silently updating history.
+- PostgreSQL prevents inserting the same non-null `external_source_id` twice for one source connection. The service skips identical records, applies changed content only from a newer provider modification timestamp, and rejects stale or unversioned conflicting content with `409`.
 - Batch size and payload size remain bounded.
 
 The live nested-entry validator supports active system `body_weight` and

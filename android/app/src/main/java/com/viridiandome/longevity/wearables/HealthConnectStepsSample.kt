@@ -11,6 +11,8 @@ data class HealthConnectStepsSample(
     val periodEnd: Instant,
     // Health Connect identifies the app that originally wrote this record.
     val sourcePackageName: String,
+    // Provider-owned version used to accept evolving interval records safely.
+    val sourceRecordModifiedAt: Instant,
 ) {
     /** Prevent accidental health-data disclosure through logs and exceptions. */
     override fun toString(): String = "HealthConnectStepsSample(<redacted>)"

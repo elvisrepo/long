@@ -20,6 +20,7 @@ class SyncRunResponseTest {
               "processing_started_at": "2026-08-05T08:00:01.010000Z",
               "finished_at": "2026-08-05T08:00:01.020000Z",
               "entries_imported": 1,
+              "entries_updated": 2,
               "entries_skipped": 0
             }
             """.trimIndent()
@@ -43,6 +44,7 @@ class SyncRunResponseTest {
         )
         assertEquals("2026-08-05T08:00:01.020000Z", response.finishedAt)
         assertEquals(1, response.entriesImported)
+        assertEquals(2, response.entriesUpdated)
         assertEquals(0, response.entriesSkipped)
     }
 

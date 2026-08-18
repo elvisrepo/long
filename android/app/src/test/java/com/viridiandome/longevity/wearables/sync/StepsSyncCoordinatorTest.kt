@@ -21,6 +21,7 @@ class StepsSyncCoordinatorTest {
             periodStart = Instant.parse("2026-08-05T07:45:00Z"),
             periodEnd = Instant.parse("2026-08-05T08:00:00Z"),
             sourcePackageName = "com.sec.android.app.shealth",
+            sourceRecordModifiedAt = Instant.parse("2026-08-05T08:01:00Z"),
         )
         val planner = StepsSyncBatchPlanner { listOf(listOf(sample)) }
         val receipt = successfulStepsReceipt()

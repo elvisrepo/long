@@ -91,6 +91,9 @@ class MetricEntry(models.Model):
         related_name="metric_entries",
     )
     external_source_id = models.CharField(max_length=255, null=True, blank=True)
+    # Provider-owned version timestamp used to accept newer mutable records
+    # without allowing stale retries to overwrite their current content.
+    source_record_modified_at = models.DateTimeField(null=True, blank=True)
     context = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

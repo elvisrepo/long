@@ -227,6 +227,7 @@ class WeightSyncCoordinatorTest {
             kilograms = 78.4,
             recordedAt = Instant.parse("2026-08-04T07:30:00Z"),
             sourcePackageName = "com.sec.android.app.shealth",
+            sourceRecordModifiedAt = Instant.parse("2026-08-04T07:31:00Z"),
         )
 
     private fun fixedClock(): Clock = Clock.fixed(

@@ -58,6 +58,7 @@ class HttpWearableUploadRepositoryTest {
         result as WearableUploadResult.Success
         assertEquals("succeeded", result.receipt.status)
         assertEquals(1, result.receipt.entriesImported)
+        assertEquals(2, result.receipt.entriesUpdated)
         assertEquals(0, result.receipt.entriesSkipped)
 
         val request = server.takeRequest()
@@ -72,7 +73,7 @@ class HttpWearableUploadRepositoryTest {
             request.headers["Content-Type"],
         )
         assertEquals(
-            """{"connection_id":"$CONNECTION_ID","upload_id":"$UPLOAD_ID","entries":[{"metric_definition":"body_weight","value":78.4,"recorded_at":"2026-08-05T08:00:00Z","source":"samsung_health","external_source_id":"health_connect:WeightRecord:record-123"}]}""",
+            """{"connection_id":"$CONNECTION_ID","upload_id":"$UPLOAD_ID","entries":[{"metric_definition":"body_weight","value":78.4,"recorded_at":"2026-08-05T08:00:00Z","source":"samsung_health","external_source_id":"health_connect:WeightRecord:record-123","source_record_modified_at":"2026-08-05T08:01:00Z"}]}""",
             request.body?.utf8(),
         )
     }
@@ -101,7 +102,7 @@ class HttpWearableUploadRepositoryTest {
         assertTrue(result is WearableUploadResult.Success)
         val request = server.takeRequest()
         assertEquals(
-            """{"connection_id":"$CONNECTION_ID","upload_id":"$UPLOAD_ID","entries":[{"metric_definition":"steps","value":420.0,"period_start":"2026-08-05T07:45:00Z","recorded_at":"2026-08-05T08:00:00Z","source":"samsung_health","external_source_id":"health_connect:StepsRecord:record-steps-123"}]}""",
+            """{"connection_id":"$CONNECTION_ID","upload_id":"$UPLOAD_ID","entries":[{"metric_definition":"steps","value":420.0,"period_start":"2026-08-05T07:45:00Z","recorded_at":"2026-08-05T08:00:00Z","source":"samsung_health","external_source_id":"health_connect:StepsRecord:record-steps-123","source_record_modified_at":"2026-08-05T08:02:00Z"}]}""",
             request.body?.utf8(),
         )
     }
@@ -244,6 +245,7 @@ class HttpWearableUploadRepositoryTest {
             kilograms = 78.4,
             recordedAt = Instant.parse("2026-08-05T08:00:00Z"),
             sourcePackageName = "com.sec.android.app.shealth",
+            sourceRecordModifiedAt = Instant.parse("2026-08-05T08:01:00Z"),
         )
 
     private fun stepsSample(): HealthConnectStepsSample =
@@ -253,6 +255,7 @@ class HttpWearableUploadRepositoryTest {
             periodStart = Instant.parse("2026-08-05T07:45:00Z"),
             periodEnd = Instant.parse("2026-08-05T08:00:00Z"),
             sourcePackageName = "com.sec.android.app.shealth",
+            sourceRecordModifiedAt = Instant.parse("2026-08-05T08:02:00Z"),
         )
 
     private fun successfulReceiptJson(): String =
@@ -266,6 +269,7 @@ class HttpWearableUploadRepositoryTest {
           "processing_started_at": "2026-08-05T08:00:01.010000Z",
           "finished_at": "2026-08-05T08:00:01.020000Z",
           "entries_imported": 1,
+          "entries_updated": 2,
           "entries_skipped": 0
         }
         """.trimIndent()

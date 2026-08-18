@@ -26,6 +26,7 @@ sealed interface InitialWeightSyncUiState {
         val batchCount: Int,
         val entriesImported: Int,
         val entriesSkipped: Int,
+        val entriesUpdated: Int = 0,
     ) : InitialWeightSyncUiState
 
     data class Interrupted(
@@ -33,6 +34,7 @@ sealed interface InitialWeightSyncUiState {
         val entriesImported: Int,
         val entriesSkipped: Int,
         val failure: WeightSyncFailure,
+        val entriesUpdated: Int = 0,
     ) : InitialWeightSyncUiState
 
     /** Unexpected application failure; safe to show without exception details. */
@@ -171,6 +173,9 @@ class InitialWeightSyncViewModel(
                     entriesSkipped = completedReceipts.sumOf(
                         WearableUploadReceipt::entriesSkipped,
                     ),
+                    entriesUpdated = completedReceipts.sumOf(
+                        WearableUploadReceipt::entriesUpdated,
+                    ),
                     failure = failure,
                 )
         }
@@ -181,6 +186,7 @@ class InitialWeightSyncViewModel(
             batchCount = size,
             entriesImported = sumOf(WearableUploadReceipt::entriesImported),
             entriesSkipped = sumOf(WearableUploadReceipt::entriesSkipped),
+            entriesUpdated = sumOf(WearableUploadReceipt::entriesUpdated),
         )
 
     private suspend fun resolveAvailability(

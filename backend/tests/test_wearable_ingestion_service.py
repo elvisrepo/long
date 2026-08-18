@@ -470,3 +470,229 @@ def test_process_wearable_upload_rejects_changed_external_record():
     assert SyncRun.objects.get().id == first_sync_run.id
     metric_entry = MetricEntry.objects.get()
     assert metric_entry.value == 78.4
+
+
+def test_process_wearable_upload_updates_newer_external_record_version():
+    """A newer source version replaces mutable provider record content."""
+
+    user = User.objects.create_user(
+        email="wearable-ingestion-newer-version@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+    original_entry_payload = {
+        "metric_definition": "steps",
+        "value": 2307,
+        "period_start": "2026-08-16T22:00:00Z",
+        "recorded_at": "2026-08-17T21:59:59.999Z",
+        "source": "samsung_health",
+        "external_source_id": (
+            "health_connect:StepsRecord:record-versioned-steps"
+        ),
+        "source_record_modified_at": "2026-08-17T17:50:00Z",
+    }
+
+    original_serializer = WearableUploadBatchSerializer(
+        data={
+            "connection_id": str(connection.id),
+            "upload_id": str(uuid.uuid4()),
+            "entries": [original_entry_payload],
+        }
+    )
+    assert original_serializer.is_valid(), original_serializer.errors
+    process_wearable_upload(
+        connection=connection,
+        upload_id=cast(uuid.UUID, original_serializer.validated_data["upload_id"]),
+        entries=cast(
+            list[dict[str, Any]],
+            original_serializer.validated_data["entries"],
+        ),
+    )
+
+    newer_serializer = WearableUploadBatchSerializer(
+        data={
+            "connection_id": str(connection.id),
+            "upload_id": str(uuid.uuid4()),
+            "entries": [
+                {
+                    **original_entry_payload,
+                    "value": 4812,
+                    "source_record_modified_at": "2026-08-17T22:05:00Z",
+                }
+            ],
+        }
+    )
+    assert newer_serializer.is_valid(), newer_serializer.errors
+
+    sync_run, created = process_wearable_upload(
+        connection=connection,
+        upload_id=cast(uuid.UUID, newer_serializer.validated_data["upload_id"]),
+        entries=cast(
+            list[dict[str, Any]],
+            newer_serializer.validated_data["entries"],
+        ),
+    )
+
+    assert created is True
+    assert sync_run.entries_imported == 0
+    assert sync_run.entries_updated == 1
+    assert sync_run.entries_skipped == 0
+    entry = MetricEntry.objects.get()
+    assert entry.value == 4812
+    assert entry.source_record_modified_at.isoformat() == (
+        "2026-08-17T22:05:00+00:00"
+    )
+
+
+def test_process_wearable_upload_rejects_older_external_record_version():
+    """A stale source version cannot overwrite newer stored content."""
+
+    user = User.objects.create_user(
+        email="wearable-ingestion-older-version@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+    current_payload = {
+        "metric_definition": "steps",
+        "value": 4812,
+        "period_start": "2026-08-16T22:00:00Z",
+        "recorded_at": "2026-08-17T21:59:59.999Z",
+        "source": "samsung_health",
+        "external_source_id": (
+            "health_connect:StepsRecord:record-stale-steps"
+        ),
+        "source_record_modified_at": "2026-08-17T22:05:00Z",
+    }
+
+    current_serializer = WearableUploadBatchSerializer(
+        data={
+            "connection_id": str(connection.id),
+            "upload_id": str(uuid.uuid4()),
+            "entries": [current_payload],
+        }
+    )
+    assert current_serializer.is_valid(), current_serializer.errors
+    process_wearable_upload(
+        connection=connection,
+        upload_id=cast(uuid.UUID, current_serializer.validated_data["upload_id"]),
+        entries=cast(
+            list[dict[str, Any]],
+            current_serializer.validated_data["entries"],
+        ),
+    )
+
+    stale_serializer = WearableUploadBatchSerializer(
+        data={
+            "connection_id": str(connection.id),
+            "upload_id": str(uuid.uuid4()),
+            "entries": [
+                {
+                    **current_payload,
+                    "value": 2307,
+                    "source_record_modified_at": "2026-08-17T17:50:00Z",
+                }
+            ],
+        }
+    )
+    assert stale_serializer.is_valid(), stale_serializer.errors
+
+    with pytest.raises(WearableRecordConflictError):
+        process_wearable_upload(
+            connection=connection,
+            upload_id=cast(
+                uuid.UUID,
+                stale_serializer.validated_data["upload_id"],
+            ),
+            entries=cast(
+                list[dict[str, Any]],
+                stale_serializer.validated_data["entries"],
+            ),
+        )
+
+    entry = MetricEntry.objects.get()
+    assert entry.value == 4812
+    assert entry.source_record_modified_at.isoformat() == (
+        "2026-08-17T22:05:00+00:00"
+    )
+    assert SyncRun.objects.count() == 1
+
+
+def test_process_wearable_upload_versions_legacy_external_record():
+    """A timestamped provider record can upgrade a pre-versioning row once."""
+
+    user = User.objects.create_user(
+        email="wearable-ingestion-legacy-version@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+    legacy_payload = {
+        "metric_definition": "steps",
+        "value": 2307,
+        "period_start": "2026-08-16T22:00:00Z",
+        "recorded_at": "2026-08-17T21:59:59.999Z",
+        "source": "samsung_health",
+        "external_source_id": (
+            "health_connect:StepsRecord:record-legacy-version"
+        ),
+    }
+    legacy_serializer = WearableUploadBatchSerializer(
+        data={
+            "connection_id": str(connection.id),
+            "upload_id": str(uuid.uuid4()),
+            "entries": [legacy_payload],
+        }
+    )
+    assert legacy_serializer.is_valid(), legacy_serializer.errors
+    process_wearable_upload(
+        connection=connection,
+        upload_id=cast(uuid.UUID, legacy_serializer.validated_data["upload_id"]),
+        entries=cast(
+            list[dict[str, Any]],
+            legacy_serializer.validated_data["entries"],
+        ),
+    )
+    assert MetricEntry.objects.get().source_record_modified_at is None
+
+    versioned_serializer = WearableUploadBatchSerializer(
+        data={
+            "connection_id": str(connection.id),
+            "upload_id": str(uuid.uuid4()),
+            "entries": [
+                {
+                    **legacy_payload,
+                    "value": 4812,
+                    "source_record_modified_at": "2026-08-17T22:05:00Z",
+                }
+            ],
+        }
+    )
+    assert versioned_serializer.is_valid(), versioned_serializer.errors
+
+    sync_run, created = process_wearable_upload(
+        connection=connection,
+        upload_id=cast(
+            uuid.UUID,
+            versioned_serializer.validated_data["upload_id"],
+        ),
+        entries=cast(
+            list[dict[str, Any]],
+            versioned_serializer.validated_data["entries"],
+        ),
+    )
+
+    assert created is True
+    assert sync_run.entries_updated == 1
+    entry = MetricEntry.objects.get()
+    assert entry.value == 4812
+    assert entry.source_record_modified_at.isoformat() == (
+        "2026-08-17T22:05:00+00:00"
+    )

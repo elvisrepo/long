@@ -18,6 +18,7 @@ class HealthConnectStepsSampleTest {
             periodStart = periodStart,
             periodEnd = periodEnd,
             sourcePackageName = "com.sec.android.app.shealth",
+            sourceRecordModifiedAt = periodEnd,
         )
 
         assertEquals("health-connect-steps-record-123", sample.recordId)
@@ -35,6 +36,7 @@ class HealthConnectStepsSampleTest {
             periodStart = Instant.parse("2026-08-05T07:15:00Z"),
             periodEnd = Instant.parse("2026-08-05T07:30:00Z"),
             sourcePackageName = "private.source.package",
+            sourceRecordModifiedAt = Instant.parse("2026-08-05T07:31:00Z"),
         )
 
         val diagnostic = sample.toString()
@@ -56,6 +58,7 @@ class HealthConnectStepsSampleTest {
                 periodStart = Instant.parse("2026-08-04T07:15:00Z"),
                 periodEnd = Instant.parse("2026-08-04T07:30:00Z"),
                 sourcePackageName = "com.sec.android.app.shealth",
+                sourceRecordModifiedAt = Instant.parse("2026-08-04T07:31:00Z"),
             ),
         )
         val reader = RecordingHealthConnectStepsReader(expected)

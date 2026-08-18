@@ -78,7 +78,7 @@ flowchart TD
         INGEST --> DATABASE[("PostgreSQL<br/>WearableConnection + SyncRun + MetricEntry")]
         DATABASE --> RECEIPT["Return 201 new receipt,<br/>200 exact retry, or safe conflict/rejection"]
         RECEIPT --> RESULT["Coordinator returns Completed,<br/>NoData, or Interrupted"]
-        RESULT --> SYNC_UI["Compose shows safe aggregate<br/>imported/skipped or recovery state"]
+        RESULT --> SYNC_UI["Compose shows safe aggregate<br/>imported/updated/skipped or recovery state"]
         RESULT -. "Completed or valid NoData" .-> MANUAL_COOLDOWN["Persist successful cursor<br/>Start plan cooldown"]
         DATABASE --> WEB["React web app later reads the same<br/>MetricEntry rows through Django"]
     end

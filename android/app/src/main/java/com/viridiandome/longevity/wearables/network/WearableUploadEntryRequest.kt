@@ -18,6 +18,8 @@ internal data class WearableUploadEntryRequest(
     val source: String,
     @SerialName("external_source_id")
     val externalSourceId: String,
+    @SerialName("source_record_modified_at")
+    val sourceRecordModifiedAt: String,
 ) {
     companion object {
         /** Map a sample already selected by the active weight-sync planner. */
@@ -28,6 +30,7 @@ internal data class WearableUploadEntryRequest(
                 recordedAt = sample.recordedAt.toString(),
                 source = SAMSUNG_HEALTH_SOURCE,
                 externalSourceId = "$HEALTH_CONNECT_WEIGHT_PREFIX${sample.recordId}",
+                sourceRecordModifiedAt = sample.sourceRecordModifiedAt.toString(),
             )
 
         /** Map one interval selected by the active Steps sync planner. */
@@ -39,6 +42,7 @@ internal data class WearableUploadEntryRequest(
                 recordedAt = sample.periodEnd.toString(),
                 source = SAMSUNG_HEALTH_SOURCE,
                 externalSourceId = "$HEALTH_CONNECT_STEPS_PREFIX${sample.recordId}",
+                sourceRecordModifiedAt = sample.sourceRecordModifiedAt.toString(),
             )
 
         private const val BODY_WEIGHT_METRIC = "body_weight"
