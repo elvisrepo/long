@@ -11,15 +11,28 @@
 > [!NOTE]
 > Don't write Terraform until ready to deploy to cloud. But **do plan** the resources upfront.
 
-Terraform manages:
-- VPC + subnets + security groups
-- Timescale Cloud service (PostgreSQL + TimescaleDB)
-- ElastiCache (Redis)
-- ECS Fargate (Django + Celery)
-- S3 (backups, static files)
-- Secrets Manager
-- IAM roles
-- CloudWatch log groups
+Terraform should be introduced in two deliberate phases.
+
+Initial staging resources:
+
+- VPC, subnets, security groups, public DNS, and an ACM-backed HTTPS ALB
+- ECS Fargate Django API service
+- one-off ECS migration-task definition using the same Django image
+- Timescale Cloud service and provider-managed automated backups
+- Secrets Manager and least-privilege IAM roles
+- CloudWatch log groups and infrastructure metrics
+- frontend hosting/CDN after choosing Vercel or S3 plus CloudFront
+
+Evolved worker-enabled resources, added only when justified:
+
+- ElastiCache Redis
+- ECS Fargate Celery Worker
+- ECS Fargate Celery Beat
+- S3 for logical backup artifacts, exports, repair outputs, or application media
+
+Do not provision Redis and worker tasks merely because they exist in local
+Compose. The bounded wearable endpoint is currently synchronous and does not
+depend on them.
 
 ### 7.2 CI/CD (GitHub Actions)
 
@@ -57,13 +70,15 @@ jobs:
       - run: pytest --cov --cov-fail-under=80
       - run: pip-audit
 
-  deploy:
+  deploy-staging:
     needs: test
     if: github.ref == 'refs/heads/main'
     steps:
       - # Build Docker image
       - # Push to ECR
-      - # Deploy to ECS
+      - # Run one-off ECS migration task and require a zero exit code
+      - # Deploy/promote the ECS API service
+      - # Run public health and smoke checks
 ```
 
 Practical note from the current project:
@@ -73,11 +88,19 @@ Practical note from the current project:
 - the current backend CI job does not use Postgres or Redis services because the present test suite does not require them to pass
 - this is a current-project simplification, not a permanent architectural assumption
 - if future backend slices start depending on real Postgres or Redis behavior, CI should grow matching services instead of relying only on the runner environment
+- CD is still unimplemented; the first pipeline should target staging before production
+- deployment must stop when the one-off migration task fails
+- service promotion should require the ALB health check and a public smoke test to pass
+- frontend deployment should publish immutable assets before the browser smoke test
+- Android staging builds should use a public HTTPS staging base URL and a private distribution channel such as Play Internal Testing; API base URLs are configuration, not secrets
 
 ### 7.3 Containers
-- Single `Dockerfile` (multi-stage: build → prod)
-- Docker Compose for local dev (§3.2)
-- ECS Fargate for cloud (not Kubernetes — overkill for solo dev)
+- Single backend `Dockerfile` (multi-stage: build → production runtime)
+- Docker Compose for local development
+- ECS Fargate API service for initial staging
+- the same immutable image for a one-off `python manage.py migrate --no-input` task before service promotion
+- Celery Worker and Beat tasks only in the evolved worker-enabled deployment
+- no Kubernetes for the MVP; its operational cost is unjustified for a solo deployment
 
 Logging note:
 - local and deployed containers should prefer stdout/stderr logging
@@ -95,6 +118,11 @@ See §3.6.
 | What | How | Retention |
 |---|---|---|
 | Database | Timescale Cloud automated backups | Provider-managed retention |
-| Database (extra) | `pg_dump` to S3 via Celery task (weekly) | 90 days |
+| Database (extra, later) | Deliberate scheduled `pg_dump` task to versioned S3 | Define before enabling; previous proposal was 90 days |
 | `.env` / Terraform state | Terraform Cloud or S3 + versioning | Indefinite |
 | User uploads (if any) | S3 with versioning | Indefinite |
+
+The Django API process does not own database backups. Record the provisioned
+Timescale Cloud retention and perform a restore drill before calling staging
+production-ready. Do not add the extra logical-export job until there is a
+durable scheduler and a tested restore procedure.

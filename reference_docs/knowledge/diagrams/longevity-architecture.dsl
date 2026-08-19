@@ -7,6 +7,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         samsungHealth = softwareSystem "Samsung Health" "On-device source application that writes Samsung-originated health records into Health Connect."
         healthConnect = softwareSystem "Health Connect" "Android on-device health data platform that exposes user-permitted records to the companion app."
         stripe = softwareSystem "Stripe" "External billing provider for hosted Checkout and Customer Portal sessions, subscription payment collection, and billing webhooks."
+        uptimeMonitor = softwareSystem "Uptime Monitoring" "External availability monitor that checks the public Django health endpoint and alerts operators."
 
         longevity = softwareSystem "Longevity Platform" "Tracks user auth, subscriptions, metrics, analytics entitlements, and wearable ingestion." {
             webapp = container "React Web App" "Implemented browser client for registration, hardened web sessions, dashboard/manual metrics, metric catalog/detail management, and Stripe-backed settings." "React + TypeScript" {
@@ -56,6 +57,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         user -> longevity "Views metrics, manages account, and reviews health data"
         healthConnect -> longevity "Supplies permitted on-device health records indirectly through the Android companion app"
         stripe -> longevity "Sends verified billing webhooks after checkout and subscription events"
+        uptimeMonitor -> longevity "Checks the public API health endpoint"
 
         user -> longevity.webapp "Uses"
         user -> longevity.android "Uses to connect and sync on-device health data"
@@ -171,7 +173,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                     }
                 }
 
-                physicalAndroidPhone = deploymentNode "Physical Android Phone" "Current USB-connected test device. Plan-cooled foreground sync, durable cursors, subscription-aware background consent/scheduling, and execution-time entitlement checks are implemented; closed-app validation remains." {
+                physicalAndroidPhone = deploymentNode "Physical Android Phone" "Current USB-connected test device. Weight and Steps sync, durable cursors, subscription-aware scheduling, and execution-time entitlement checks are implemented. Honor OS may defer periodic work until the app reopens, after which the overlap cursor catches up missed records." {
                     tags "ClientZone"
 
                     localAndroidClient = containerInstance longevity.android
@@ -268,6 +270,187 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
 
             }
 
+            mvpStaging = deploymentEnvironment "MVP Staging" {
+                userDevices = deploymentNode "User Devices" "Where staging users run the browser and internally distributed Android client." {
+                    tags "ClientZone"
+
+                    browserNode = deploymentNode "Browser" "Web browser runtime that executes the staging React client." {
+                        tags "ClientZone"
+                        browserRuntime = infrastructureNode "Web Browser" "Loads and runs the React web application." {
+                            tags "ClientRuntime"
+                        }
+                        browserClient = containerInstance longevity.webapp
+                    }
+
+                    androidNode = deploymentNode "Android Phone" "Physical Android runtime using a staging build configured with the public HTTPS API base URL." {
+                        tags "ClientZone"
+
+                        androidClient = containerInstance longevity.android
+
+                        healthConnectRuntime = infrastructureNode "Health Connect" "Exposes user-permitted Weight and Steps records, stable record IDs, and provider modification timestamps." {
+                            tags "ClientRuntime"
+                        }
+
+                        samsungHealthRuntime = infrastructureNode "Samsung Health" "Writes Samsung-originated health records into Health Connect." {
+                            tags "ClientRuntime"
+                        }
+                    }
+                }
+
+                frontendHosting = deploymentNode "Frontend Hosting / CDN" "Provider-neutral staging origin and CDN; choose Vercel or S3 plus CloudFront when provisioning." {
+                    tags "EdgeZone"
+                    staticHost = infrastructureNode "React Static Host" "Serves versioned React assets over HTTPS." {
+                        tags "EdgeService"
+                    }
+                }
+
+                aws = deploymentNode "AWS" "Initial staging API hosting environment without Celery, Beat, or Redis." {
+                    tags "CloudZone"
+
+                    edge = deploymentNode "Public Edge" {
+                        tags "EdgeZone"
+
+                        publicDns = infrastructureNode "Public DNS" "Resolves the staging API hostname to the load balancer." {
+                            tags "EdgeService"
+                        }
+
+                        alb = infrastructureNode "HTTPS ALB" "Public API entrypoint that terminates TLS with an ACM certificate, routes requests, and checks Django health." {
+                            tags "EdgeService"
+                        }
+                    }
+
+                    compute = deploymentNode "Compute" {
+                        tags "ComputeZone"
+
+                        apiNode = deploymentNode "ECS Fargate API Service" "Runs the Django API image as the long-lived staging service." {
+                            apiInstance = containerInstance longevity.api
+                        }
+
+                        migrationNode = deploymentNode "One-off ECS Migration Task" "Runs the same Django image with python manage.py migrate --no-input before service promotion." {
+                            migrationInstance = containerInstance longevity.api
+                        }
+                    }
+
+                    security = deploymentNode "Security & Config" {
+                        tags "SecurityZone"
+                        secretsNode = infrastructureNode "AWS Secrets Manager" "Stores Django, database, Stripe, and other server-side staging secrets." {
+                            tags "SecurityService"
+                        }
+                    }
+
+                    ops = deploymentNode "Operations" {
+                        tags "OpsZone"
+                        monitoringNode = infrastructureNode "CloudWatch" "Collects API and migration stdout/stderr logs plus infrastructure metrics." {
+                            tags "OpsService"
+                        }
+                    }
+                }
+
+                managedDatabase = deploymentNode "Managed Database" "Provider-managed PostgreSQL boundary retained as Timescale Cloud unless staging cost requires an explicit alternative." {
+                    tags "ManagedZone"
+
+                    timescaleNode = infrastructureNode "Timescale Cloud" "Managed PostgreSQL plus TimescaleDB reached through an encrypted connection." {
+                        tags "ManagedDataService"
+                    }
+
+                    managedBackupsNode = infrastructureNode "Managed Automated Backups" "Provider-operated database backups with retention recorded when the service is provisioned." {
+                        tags "StorageService"
+                    }
+                }
+
+                mvpStaging.frontendHosting.staticHost -> mvpStaging.userDevices.browserNode.browserRuntime "Serves React assets over HTTPS" {
+                    tags "ClientTraffic"
+                }
+
+                mvpStaging.userDevices.browserNode.browserRuntime -> mvpStaging.userDevices.browserNode.browserClient "Runs the downloaded React application" {
+                    tags "ClientTraffic"
+                }
+
+                mvpStaging.userDevices.browserNode.browserClient -> mvpStaging.aws.edge.publicDns "Resolves the staging API hostname" {
+                    tags "ClientTraffic"
+                }
+
+                mvpStaging.userDevices.androidNode.androidClient -> mvpStaging.aws.edge.publicDns "Resolves its configured staging API hostname" {
+                    tags "ClientTraffic"
+                }
+
+                uptimeMonitor -> mvpStaging.aws.edge.publicDns "Resolves the public health-check hostname" {
+                    tags "EdgeTraffic"
+                }
+
+                stripe -> mvpStaging.aws.edge.publicDns "Resolves the signed webhook destination" {
+                    tags "EdgeTraffic"
+                }
+
+                mvpStaging.aws.edge.publicDns -> mvpStaging.aws.edge.alb "Maps the staging API hostname to the TLS endpoint" {
+                    tags "EdgeTraffic"
+                }
+
+                mvpStaging.userDevices.browserNode.browserClient -> mvpStaging.aws.edge.alb "Calls the Django JSON API over HTTPS" {
+                    tags "ClientTraffic"
+                }
+
+                mvpStaging.userDevices.androidNode.androidClient -> mvpStaging.aws.edge.alb "Uses the configured HTTPS base URL for mobile auth, subscription policy, wearable lifecycle, and Weight/Steps uploads" {
+                    tags "ClientTraffic"
+                }
+
+                uptimeMonitor -> mvpStaging.aws.edge.alb "GET /api/v1/health/ over HTTPS" {
+                    tags "OpsTraffic"
+                }
+
+                mvpStaging.aws.edge.alb -> mvpStaging.aws.compute.apiNode.apiInstance "Routes HTTPS requests and performs Django health checks" {
+                    tags "EdgeTraffic"
+                }
+
+                mvpStaging.userDevices.browserNode.browserClient -> stripe "Redirects to hosted Checkout and Customer Portal" {
+                    tags "ClientTraffic"
+                }
+
+                mvpStaging.aws.compute.apiNode.apiInstance -> stripe "Creates Stripe test-mode Checkout and Customer Portal Sessions" {
+                    tags "EdgeTraffic"
+                }
+
+                stripe -> mvpStaging.aws.edge.alb "POSTs signed test-mode events to /api/v1/subscriptions/stripe/webhook/ over HTTPS" {
+                    tags "EdgeTraffic"
+                }
+
+                mvpStaging.userDevices.androidNode.samsungHealthRuntime -> mvpStaging.userDevices.androidNode.healthConnectRuntime "Writes Samsung-originated records on device" {
+                    tags "ClientTraffic"
+                }
+
+                mvpStaging.userDevices.androidNode.androidClient -> mvpStaging.userDevices.androidNode.healthConnectRuntime "Reads permitted Weight and Steps records with stable IDs and provider modification timestamps" {
+                    tags "ClientTraffic"
+                }
+
+                mvpStaging.aws.compute.apiNode.apiInstance -> mvpStaging.managedDatabase.timescaleNode "Reads and writes application data over an encrypted PostgreSQL connection" {
+                    tags "DataTraffic"
+                }
+
+                mvpStaging.aws.compute.migrationNode.migrationInstance -> mvpStaging.managedDatabase.timescaleNode "Applies schema migrations over an encrypted PostgreSQL connection before service promotion" {
+                    tags "DataTraffic"
+                }
+
+                mvpStaging.aws.compute.apiNode.apiInstance -> mvpStaging.aws.security.secretsNode "Reads server-side secrets and configuration" {
+                    tags "SecurityTraffic"
+                }
+
+                mvpStaging.aws.compute.migrationNode.migrationInstance -> mvpStaging.aws.security.secretsNode "Reads the same database and Django configuration as the API service" {
+                    tags "SecurityTraffic"
+                }
+
+                mvpStaging.aws.compute.apiNode.apiInstance -> mvpStaging.aws.ops.monitoringNode "Writes logs and metrics" {
+                    tags "OpsTraffic"
+                }
+
+                mvpStaging.aws.compute.migrationNode.migrationInstance -> mvpStaging.aws.ops.monitoringNode "Writes migration logs and exit status" {
+                    tags "OpsTraffic"
+                }
+
+                mvpStaging.managedDatabase.timescaleNode -> mvpStaging.managedDatabase.managedBackupsNode "Creates provider-managed automated backups" {
+                    tags "StorageTraffic"
+                }
+            }
+
             mvpCloud = deploymentEnvironment "MVP Cloud" {
                 userDevices = deploymentNode "User Devices" "Where end users run the browser and Android clients." {
                     tags "ClientZone"
@@ -295,12 +478,24 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                     }
                 }
 
+                frontendHosting = deploymentNode "Frontend Hosting / CDN" "Production React asset origin and global CDN, implemented with Vercel or S3 plus CloudFront." {
+                    tags "EdgeZone"
+                    staticHost = infrastructureNode "React Static Host" "Serves versioned production React assets over HTTPS." {
+                        tags "EdgeService"
+                    }
+                }
+
             aws = deploymentNode "AWS" "Primary MVP cloud hosting environment." {
                 tags "CloudZone"
 
-                edge = deploymentNode "Edge" {
+                edge = deploymentNode "Public Edge" {
                     tags "EdgeZone"
-                    alb = infrastructureNode "ALB" "Application Load Balancer" {
+
+                    publicDns = infrastructureNode "Public DNS" "Resolves the production API hostname to the load balancer." {
+                        tags "EdgeService"
+                    }
+
+                    alb = infrastructureNode "HTTPS ALB" "Public API entrypoint that terminates TLS with an ACM certificate, routes requests, and checks Django health." {
                         tags "EdgeService"
                     }
                 }
@@ -310,6 +505,10 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
 
                     apiNode = deploymentNode "ECS Fargate Service" {
                         apiInstance = containerInstance longevity.api
+                    }
+
+                    migrationNode = deploymentNode "One-off ECS Migration Task" "Runs the Django image with python manage.py migrate --no-input before service promotion." {
+                        migrationInstance = containerInstance longevity.api
                     }
 
                     workerNode = deploymentNode "ECS Task - Worker" {
@@ -344,7 +543,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
 
                 storage = deploymentNode "Storage" {
                     tags "StorageZone"
-                    backupsNode = infrastructureNode "S3 Bucket" "Stores backups and static assets." {
+                    backupsNode = infrastructureNode "S3 Bucket" "Stores application exports, logical backup artifacts, repair outputs, and static/media assets when required." {
                         tags "StorageService"
                     }
                 }
@@ -355,29 +554,61 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 timescaleNode = infrastructureNode "Timescale Cloud" "Managed PostgreSQL + TimescaleDB" {
                     tags "ManagedDataService"
                 }
+
+                managedBackupsNode = infrastructureNode "Managed Automated Backups" "Provider-operated database backups with provisioned retention and restore procedures." {
+                    tags "StorageService"
+                }
+            }
+
+            mvpCloud.frontendHosting.staticHost -> mvpCloud.userDevices.browserNode.browserRuntime "Serves React assets over HTTPS" {
+                tags "ClientTraffic"
             }
 
             mvpCloud.userDevices.browserNode.browserRuntime -> mvpCloud.userDevices.browserNode.browserClient "Runs the React application" {
                 tags "ClientTraffic"
             }
 
+            mvpCloud.userDevices.browserNode.browserClient -> mvpCloud.aws.edge.publicDns "Resolves the production API hostname" {
+                tags "ClientTraffic"
+            }
+
+            mvpCloud.userDevices.androidNode.androidClient -> mvpCloud.aws.edge.publicDns "Resolves its configured production API hostname" {
+                tags "ClientTraffic"
+            }
+
+            uptimeMonitor -> mvpCloud.aws.edge.publicDns "Resolves the public health-check hostname" {
+                tags "EdgeTraffic"
+            }
+
+            stripe -> mvpCloud.aws.edge.publicDns "Resolves the signed webhook destination" {
+                tags "EdgeTraffic"
+            }
+
+            mvpCloud.aws.edge.publicDns -> mvpCloud.aws.edge.alb "Maps the production API hostname to the TLS endpoint" {
+                tags "EdgeTraffic"
+            }
+
             mvpCloud.userDevices.browserNode.browserClient -> mvpCloud.aws.edge.alb "Calls the API over HTTPS" {
                 tags "ClientTraffic"
             }
 
-            mvpCloud.userDevices.androidNode.androidClient -> mvpCloud.aws.edge.alb "Uses HTTPS" {
+            mvpCloud.userDevices.androidNode.androidClient -> mvpCloud.aws.edge.alb "Uses its configured HTTPS base URL for mobile auth, subscription policy, wearable lifecycle, and Weight/Steps uploads" {
                 tags "ClientTraffic"
+            }
+
+            uptimeMonitor -> mvpCloud.aws.edge.alb "GET /api/v1/health/ over HTTPS" {
+                tags "OpsTraffic"
             }
 
             mvpCloud.userDevices.androidNode.samsungHealthRuntime -> mvpCloud.userDevices.androidNode.healthConnectRuntime "Writes Samsung-originated health records" {
                 tags "ClientTraffic"
             }
 
-            mvpCloud.userDevices.androidNode.androidClient -> mvpCloud.userDevices.androidNode.healthConnectRuntime "Reads user-permitted health records" {
+            mvpCloud.userDevices.androidNode.androidClient -> mvpCloud.userDevices.androidNode.healthConnectRuntime "Reads permitted Weight and Steps records with stable IDs and provider modification timestamps" {
                 tags "ClientTraffic"
             }
 
-            mvpCloud.aws.edge.alb -> mvpCloud.aws.compute.apiNode.apiInstance "Routes HTTPS requests" {
+            mvpCloud.aws.edge.alb -> mvpCloud.aws.compute.apiNode.apiInstance "Routes HTTPS requests and performs Django health checks" {
                 tags "EdgeTraffic"
             }
 
@@ -389,15 +620,19 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 tags "EdgeTraffic"
             }
 
-            stripe -> mvpCloud.aws.edge.alb "POSTs signed billing webhooks over HTTPS" {
+            stripe -> mvpCloud.aws.edge.alb "POSTs signed billing events to /api/v1/subscriptions/stripe/webhook/ over HTTPS" {
                 tags "EdgeTraffic"
             }
 
-            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.managedDatabase.timescaleNode "Reads and writes data" {
+            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.managedDatabase.timescaleNode "Reads and writes application data over an encrypted PostgreSQL connection" {
                 tags "DataTraffic"
             }
 
-            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.aws.appData.redisNode "Uses" {
+            mvpCloud.aws.compute.migrationNode.migrationInstance -> mvpCloud.managedDatabase.timescaleNode "Applies schema migrations over an encrypted PostgreSQL connection before service promotion" {
+                tags "DataTraffic"
+            }
+
+            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.aws.appData.redisNode "Publishes asynchronous work after worker-backed features are enabled" {
                 tags "DataTraffic"
             }
 
@@ -409,7 +644,15 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 tags "OpsTraffic"
             }
 
-            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.aws.storage.backupsNode "Uses for static assets and backups" {
+            mvpCloud.aws.compute.migrationNode.migrationInstance -> mvpCloud.aws.security.secretsNode "Reads the same database and Django configuration as the API service" {
+                tags "SecurityTraffic"
+            }
+
+            mvpCloud.aws.compute.migrationNode.migrationInstance -> mvpCloud.aws.ops.monitoringNode "Writes migration logs and exit status" {
+                tags "OpsTraffic"
+            }
+
+            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.aws.storage.backupsNode "Uses for application exports and static/media artifacts when required" {
                 tags "StorageTraffic"
             }
 
@@ -436,6 +679,10 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             mvpCloud.aws.compute.beatNode.beatInstance -> mvpCloud.aws.ops.monitoringNode "Writes logs and metrics" {
                 tags "OpsTraffic"
             }
+
+            mvpCloud.managedDatabase.timescaleNode -> mvpCloud.managedDatabase.managedBackupsNode "Creates provider-managed automated backups" {
+                tags "StorageTraffic"
+            }
         }
     }
 
@@ -445,6 +692,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             include samsungHealth
             include healthConnect
             include stripe
+            include uptimeMonitor
             include longevity
             autolayout lr
         }
@@ -919,7 +1167,12 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             autolayout lr
         }
 
-        deployment * mvpCloud "mvp-cloud-deployment" "Deployment view for the pragmatic MVP cloud runtime." {
+        deployment * mvpStaging "mvp-staging-deployment" "Immediate public HTTPS staging target: hosted React assets, Django API plus one-off migrations, managed PostgreSQL backups, Stripe test webhooks, monitoring, and remote Android Weight/Steps sync without Celery, Redis, or adb reverse." {
+            include *
+            autolayout tb
+        }
+
+        deployment * mvpCloud "mvp-cloud-deployment" "Evolved worker-enabled MVP cloud target after measured server-side asynchronous workloads justify Celery, Beat, and Redis." {
             include *
             autolayout tb
         }
