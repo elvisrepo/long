@@ -1,0 +1,193 @@
+# Staging Readiness Audit
+
+## Use When
+
+- Load this when preparing the first public AWS staging deployment, deciding what must be fixed before provisioning, or checking whether the backend, frontend, Android build, secrets, and deployment procedure are ready.
+
+## Status
+
+Audit started on 2026-08-20. AWS account access is bootstrapped, but no
+Longevity application resources have been provisioned. The backend inspection
+is complete; frontend hosting/origin, Android staging-build, and detailed AWS
+cost/resource audits remain open.
+
+## 1. Verified foundations
+
+- `config.settings.prod` exists and forces `DEBUG = False`.
+- `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` already come from environment variables.
+- database configuration uses `DATABASE_URL` and persistent connections.
+- application logs go to stdout/stderr through Django console logging.
+- destructive browser-test routes are mounted only when `ENABLE_E2E_TESTING_API` is explicitly enabled.
+- `.env`, the virtual environment, caches, and local SQLite files are excluded from the Docker build context.
+- the current health view is public and side-effect free.
+- browser refresh tokens use an HttpOnly, Secure cookie; Android uses its separate Bearer-token contract.
+- the Docker build installs the committed `uv.lock` dependency graph with `uv sync --frozen`.
+
+These are useful foundations, not proof that the current image is safe to put on
+the internet.
+
+## 2. Backend blockers before public staging
+
+### Blocker A — no production application server
+
+The Docker image and local Compose service start `python manage.py runserver`.
+Django's development server is not the staging runtime. Gunicorn is documented
+as the intended synchronous WSGI server but is not yet a dependency or image
+command.
+
+Required outcome:
+
+- add and lock Gunicorn
+- run Gunicorn against `config.wsgi:application`
+- explicitly select `config.settings.prod`
+- keep local Compose free to override the image command with `runserver`
+- define worker count, timeout, graceful shutdown, and forwarded-access-log behavior deliberately
+
+### Blocker B — production settings are not fail-safe
+
+`prod.py` currently changes only `DEBUG`. Base settings still provide an
+insecure development `SECRET_KEY`, SQLite fallback, local Redis fallback, and
+localhost Stripe return URLs. A missing production secret could therefore
+start the service with an unsafe or incorrect fallback instead of failing.
+
+Required production inputs:
+
+- `SECRET_KEY`
+- `PII_ENCRYPTION_KEY`
+- `EMAIL_LOOKUP_KEY`
+- `JWT_SIGNING_KEY`
+- `DATABASE_URL`
+- `ALLOWED_HOSTS`
+- `CSRF_TRUSTED_ORIGINS`
+- Stripe sandbox secret, webhook secret, Checkout URLs, and Portal return URL
+- explicit log levels
+
+Staging intentionally omits Celery and Redis, so the production API must not
+require `REDIS_URL` until an asynchronous server workload is introduced.
+
+### Blocker C — HTTPS and ALB proxy settings are incomplete
+
+The production settings do not yet define:
+
+- `SECURE_PROXY_SSL_HEADER` for TLS terminated at the ALB
+- `SECURE_SSL_REDIRECT`
+- `SESSION_COOKIE_SECURE`
+- `CSRF_COOKIE_SECURE`
+- a deliberate HSTS rollout
+- clickjacking/content-type/referrer policy review
+
+Start HSTS conservatively in staging. Do not enable long-duration HSTS or
+`includeSubDomains` until every affected hostname is permanently HTTPS-ready.
+
+### Blocker D — health contract and readiness semantics disagree
+
+The implemented route is `GET /health/`, while the canonical deployment docs
+say that the ALB checks `GET /api/v1/health/`. The current handler always returns
+`{"status": "ok"}` and does not prove database readiness.
+
+Required outcome:
+
+- choose and document one canonical public route, preferably `/api/v1/health/`
+- keep a cheap liveness response independent of optional services
+- add a readiness check that proves Django can query PostgreSQL
+- do not make readiness depend on Redis/Celery while staging omits them
+- point the ALB at the readiness contract and the external uptime monitor at the public liveness contract
+
+Changing the route is a public API-contract slice and must update the API,
+deployment, security, testing, and Structurizr references together.
+
+### Blocker E — public Celery ping endpoint
+
+`GET /tasks/ping/` is mounted publicly and calls `ping.delay()`. In the planned
+staging topology this either fails because Redis/Celery are absent or exposes an
+unauthenticated queue-producing endpoint if they are present.
+
+Required outcome: remove it from public production URLs. Keep task verification
+as a local/test-only diagnostic or a protected operational command when Celery
+eventually becomes real application infrastructure.
+
+### Blocker F — browser origin strategy is undecided
+
+The React client calls relative `/api/...` routes and its refresh-cookie flow is
+simplest and safest behind one browser origin. The architecture currently leaves
+frontend hosting open between Vercel and S3/CloudFront while Django has no CORS
+middleware.
+
+Choose before implementation:
+
+1. preferred for the first staging slice: one public browser origin that serves
+   static assets and proxies `/api/*` to the ALB; or
+2. separate frontend/API origins plus explicit credentialed CORS configuration,
+   cookie-domain/SameSite review, and cross-origin tests.
+
+Android is unaffected by browser CORS because OkHttp is a native client, but it
+still requires the public HTTPS API base URL.
+
+### Blocker G — image-context and runtime-artifact cleanup
+
+`backend/celerybeat-schedule` is a tracked local scheduler database and is not
+excluded by `.dockerignore`, so `COPY . .` can place it in the backend image.
+Remove it from version control and ignore all Celery Beat schedule variants.
+The production image should contain source and immutable dependencies, not local
+runtime state.
+
+### Blocker H — migration and startup responsibilities
+
+Local Compose runs migrations automatically before `runserver`. The cloud
+contract correctly requires one explicit migration container to finish before
+the API is replaced. The production image must therefore start only the API;
+deployment orchestration owns `migrate --no-input` as a separate, observable,
+failure-gated step.
+
+## 3. Django deployment-check evidence
+
+The audit ran:
+
+```bash
+uv run python manage.py check --deploy --settings=config.settings.prod
+```
+
+with non-secret audit-only environment values. Django reported:
+
+- missing HSTS configuration
+- missing HTTPS redirect configuration
+- insecure session-cookie setting
+- insecure CSRF-cookie setting
+- a deliberately weak audit-only `SECRET_KEY`
+- `User.email` is not database-unique even though it is `USERNAME_FIELD`
+
+The email warning reflects the encrypted-email design: uniqueness is enforced
+by unique `email_lookup_hash`, and `EmailLookupHashBackend` authenticates through
+that field. It should be documented or deliberately silenced with a project
+system-check decision; making randomized encrypted ciphertext unique would not
+enforce normalized email uniqueness.
+
+The weak-key warning came from the disposable audit value, but it exposed the
+real requirement that production must reject a missing/weak key rather than use
+the base development fallback.
+
+## 4. Remediation order
+
+Use focused TDD slices in this order:
+
+1. production settings validation and HTTPS/proxy security
+2. Gunicorn production command and production-image smoke check
+3. versioned liveness/readiness endpoints and stale-route documentation repair
+4. remove the public Celery ping route and tracked scheduler artifact
+5. decide and test the browser origin strategy
+6. define the staging Secrets Manager inventory and `.env`-free runtime contract
+7. run a local production-like container smoke test, including migration failure behavior
+8. audit frontend hosting/build configuration
+9. audit Android staging application ID, signing, and API base URL
+10. write the costed manual AWS provisioning runbook
+
+Do not provision the ALB, EC2 host, DNS, or managed database before at least
+steps 1–7 pass. Otherwise cloud debugging will mix application-runtime defects
+with infrastructure-learning defects.
+
+## 5. Current gate
+
+The next implementation slice is production settings validation and
+HTTPS/proxy security. It should begin with failing settings tests, then make the
+minimum `prod.py` changes required for a safe startup contract.
+
