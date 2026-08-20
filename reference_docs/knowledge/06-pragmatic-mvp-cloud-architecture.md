@@ -61,6 +61,29 @@ an environment-specific base URL such as
 `https://api-staging.<domain>/`. The same mobile JWT, subscription-policy,
 wearable-connection, and upload contracts continue to apply.
 
+Android and React are separate clients of the public Django API:
+
+```text
+Android staging build
+    → public API hostname over HTTPS
+    → Route53
+    → ALB :443
+    → Django container on EC2
+    → Timescale Cloud
+
+React browser
+    → the same public Django API
+    → reads the metric state written by Android uploads
+```
+
+Android does not call React and does not receive AWS, database, Django, or
+Stripe server credentials. It reads Health Connect locally, authenticates with
+the existing mobile JWT flow, and sends normalized batches through OkHttp.
+Planned application identities are `.debug`, `.staging`, and the unsuffixed
+production ID so local, staging, and release data and permissions remain
+isolated. Staging can begin with a directly installed signed APK and then move
+to Play Internal Testing; distribution does not change the runtime API route.
+
 ### Post-MVP Fargate Target
 
 After operating the Terraform-managed EC2 MVP, migrate the API and operational

@@ -8,6 +8,35 @@
 
 This is a behavioral flow diagram. Structurizr DSL remains the source of truth for C4 architecture views.
 
+## Deployment Boundary
+
+The Django nodes in the behavioral diagram intentionally abstract the network
+route. Android and React are independent clients of the same API; Android never
+connects through React or directly to PostgreSQL.
+
+```text
+Implemented local debug route:
+Android debug build
+    → http://127.0.0.1:8000/
+    → adb reverse over USB
+    → local Django
+
+Planned hosted staging route:
+Android staging build
+    → https://api-staging.<domain>/ over Wi-Fi or mobile data
+    → Route53/public DNS
+    → HTTPS ALB
+    → Django container on EC2
+    → Timescale Cloud
+```
+
+The local and hosted builds use the same mobile login, refresh/logout,
+subscription-policy, wearable-connection, and upload contracts. Only the
+compiled API base URL and application identity differ. Planned identities use
+`.debug`, `.staging`, and the unsuffixed production ID so encrypted sessions,
+Health Connect permissions, and application data remain isolated. The phone
+contains no AWS, database, Django, or Stripe server secrets.
+
 ## Current Flow
 
 ```mermaid

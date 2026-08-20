@@ -64,6 +64,56 @@ no USB tunnel is involved. Use release signing and Play Internal Testing or an
 equivalent private channel for physical staging validation. The API base URL is
 public configuration and must not contain secrets.
 
+#### Android-to-Cloud Request Path
+
+Android and React are independent clients of Django. Android never connects
+through the React frontend and never receives database, AWS, Django, or Stripe
+server credentials.
+
+```text
+Samsung Health
+    → Health Connect on the phone
+    → installed Longevity Android build
+    → public API hostname over HTTPS
+    → Route53/public DNS
+    → ALB port 443 and ACM certificate
+    → Django container on EC2
+    → Timescale Cloud
+
+React browser
+    → the same Django API
+    → reads the resulting MetricEntry state
+```
+
+The EC2 application port is not public; its security group accepts application
+traffic only from the ALB security group. Android trusts the ordinary public
+TLS certificate and uses OkHttp to call mobile login, refresh/logout,
+current-subscription policy, wearable lifecycle, and normalized upload
+endpoints. Browser CORS policy does not govern native OkHttp requests, although
+JWT validation, throttling, ownership checks, plan entitlements, HTTPS, and
+payload validation still apply.
+
+Planned Android build configuration:
+
+```text
+debug    application ID: com.viridiandome.longevity.debug
+         API: http://127.0.0.1:8000/ through adb reverse
+
+staging  application ID: com.viridiandome.longevity.staging
+         API: https://api-staging.<domain>/
+         distribution: signed APK for first smoke test, then Play Internal Testing
+
+release  application ID: com.viridiandome.longevity
+         API: https://api.<domain>/
+         distribution: production Play release
+```
+
+Using a separate staging application ID lets staging and production coexist on
+one phone. Android treats their Keystore entries, encrypted sessions, app data,
+and Health Connect permission grants separately. The API URL is compiled/public
+configuration; changing it requires a new build unless a future trusted remote
+configuration mechanism is deliberately introduced.
+
 ### 8.4 CDN
 - host immutable React assets through Vercel or S3 + CloudFront
 - configure long-lived cache headers for content-hashed assets and short/no-cache behavior for the HTML entry point

@@ -54,6 +54,54 @@ React web app
 
 The Android app is the device bridge. Django cannot directly read Health Connect and Celery cannot wake an offline phone to fetch on-device records.
 
+### 2.1 Local and Hosted Android Connectivity
+
+Android and React are peer clients of Django. The companion app does not call
+the React frontend, connect to PostgreSQL, or contain AWS, database, Django, or
+Stripe server secrets.
+
+```text
+Local debug:
+Android → http://127.0.0.1:8000/ → adb reverse → local Django
+
+Hosted staging:
+Android staging build
+    → https://api-staging.<domain>/
+    → public DNS
+    → HTTPS ALB
+    → Django container on EC2
+    → Timescale Cloud
+
+Production:
+Android release build
+    → https://api.<domain>/
+    → the production ALB, EC2 application, and database
+```
+
+The hosted app uses ordinary Wi-Fi or mobile data and no USB tunnel. Its OkHttp
+repositories keep the same API contracts: mobile login/refresh/logout,
+current-subscription policy, wearable connection lifecycle, and normalized
+Weight/Steps upload. The access JWT remains the request credential; Android
+Keystore-backed storage remains the durable device boundary. The public API URL
+is non-secret build configuration.
+
+Planned Gradle build identities and API environments:
+
+```text
+debug    com.viridiandome.longevity.debug    localhost API
+staging  com.viridiandome.longevity.staging  public staging API
+release  com.viridiandome.longevity          public production API
+```
+
+Separate application IDs allow builds to coexist and isolate Keystore data,
+sessions, app storage, and Health Connect permission grants. The first staging
+APK may be installed directly for a smoke test; Play Internal Testing is the
+preferred repeatable private distribution path before a public Play release.
+
+Native OkHttp is not subject to browser CORS enforcement. It is still subject
+to TLS, JWT validation, throttling, caller ownership, subscription entitlement,
+idempotency, and payload-validation rules enforced by the public Django API.
+
 ## 3. Recommended Implementation Order
 
 | Phase | Work | Exit condition |
@@ -112,7 +160,7 @@ Implemented:
 - `InitialWeightSyncViewModel` runs only after the user chooses **Sync now**, prevents overlapping work, aggregates Weight and Steps receipts into imported/updated/skipped counts, exposes recovery outcomes without health records or receipt IDs, and cancels/clears state on logout. The ViewModel retains its legacy name; the authenticated Compose screen and user-facing status text are metric-neutral.
 - The manifest declares `android.permission.health.READ_WEIGHT`, `android.permission.health.READ_STEPS`, and `android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND`, the pre-Android-14 Health Connect package query, and the required pre/post-Android-14 permission-rationale intents. The rationale explains authorized Weight/Steps foreground and optional background reads; the app does not write or delete Health Connect data.
 - `MainActivity` launches the ordinary Health Connect permission contract only after Connect. Once a connection is ready, a separate **Allow background sync** action appears only when the feature is supported and the additional grant is missing. Grant/denial updates local capability state without repeating backend registration.
-- The debug build targets local Django at `http://127.0.0.1:8000/` through `adb reverse`; the release base URL is intentionally unset until the production HTTPS endpoint exists.
+- The currently implemented build targets local Django at `http://127.0.0.1:8000/` through `adb reverse`. Separate debug/staging/release application IDs and public HTTPS base URLs are planned but not yet implemented; cloud deployment alone will not redirect the installed client.
 - The main manifest permits network access but explicitly rejects cleartext traffic; a debug-only manifest overlay permits local HTTP while release remains HTTPS-only.
 - `adb reverse tcp:8000 tcp:8000` lets the connected phone reach local Django at `http://127.0.0.1:8000`; the mapping is temporary and must be recreated after relevant ADB/device reconnects.
 - Android Studio/Gradle can build the debug APK, and `adb` can install/run the app and instrumented tests on the physical `FCP-N49` phone.

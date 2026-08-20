@@ -79,6 +79,34 @@ Android build flavors, release signing, and Play Internal Testing belong in the 
 distribution docs. The runtime view begins with the installed Android container
 and shows its environment-specific public HTTPS API relationship.
 
+### Android View Mapping
+
+Use `mvp-staging-ec2-deployment` to see the physical hosted route:
+
+```text
+Android staging container instance
+    → Public DNS
+    → HTTPS ALB
+    → Django container instance on EC2
+    → Timescale Cloud
+```
+
+The Android container is a peer client of the React container; it never routes
+through React or accesses the database directly. Samsung Health and Health
+Connect remain on the physical phone.
+
+Use these dynamic views for application-level behavior that intentionally
+abstracts away DNS, ALB, and EC2 placement:
+
+- `mobile-auth-login`
+- `mobile-auth-refresh-retry`
+- `wearable-connection-register`
+- `mobile-manual-weight-sync-coordinator` (legacy key; live behavior is Weight plus Steps)
+- `mobile-periodic-weight-sync` (legacy key; live behavior is Weight plus Steps)
+
+The deployment view answers where network traffic runs. The dynamic views
+answer which Android and Django responsibilities collaborate during each flow.
+
 ### Current Deployment Modeling Rule
 
 Use the deployment view for:

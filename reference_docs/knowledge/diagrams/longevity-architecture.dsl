@@ -282,7 +282,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                         browserClient = containerInstance longevity.webapp
                     }
 
-                    androidNode = deploymentNode "Android Phone" "Physical Android runtime using a staging build configured with the public HTTPS API base URL." {
+                    androidNode = deploymentNode "Android Phone" "Physical Android runtime using the planned com.viridiandome.longevity.staging build configured with the public HTTPS API base URL; its Keystore data and Health Connect grants are isolated from debug and production identities." {
                         tags "ClientZone"
 
                         androidClient = containerInstance longevity.android
