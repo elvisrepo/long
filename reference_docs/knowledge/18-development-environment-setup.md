@@ -223,3 +223,108 @@ Local Stripe Customer Portal setup:
 | **CI** | GitHub Actions secrets (encrypted) |
 | **Production** | AWS Secrets Manager, injected at runtime via IAM roles |
 | **Never** | Hardcoded in code, committed to git, in Docker image layers |
+
+### 3.7 AWS CLI and Agent Toolkit workstation setup
+
+Current local tooling checkpoint (2026-08-20):
+
+- AWS CLI v2 is installed on Fedora (`aws-cli/2.36.27` at the checkpoint).
+- The application Region is `eu-central-1` (Europe/Frankfurt).
+- The root user is protected by a passkey/MFA, has no access keys, and is not used for normal work.
+- The human administrator is the console-enabled IAM user `sevi-admin`. It has no long-lived access keys.
+- The account is on the AWS Free plan with promotional credits. Do not enable AWS Organizations or join an organization without first accepting that this upgrades the account and ends the Free-plan credits.
+- A monthly AWS Budget alert exists. A budget is an alert, not a hard spending cap, and its cost data is not instantaneous.
+
+#### Temporary human CLI session
+
+`longevity-staging` is a local AWS CLI profile name. It currently authenticates
+as `sevi-admin`; the name does **not** create a staging environment and does not
+limit that user's administrator permissions.
+
+```bash
+aws configure set region eu-central-1 --profile longevity-staging
+aws login --profile longevity-staging --region eu-central-1
+aws sts get-caller-identity --profile longevity-staging
+```
+
+Persist the Region once as shown above. Supplying `--region` during login alone
+does not necessarily write a default Region into the profile, and commands that
+omit it can otherwise fail with `NoRegion`.
+
+`aws login` uses a browser sign-in and stores refreshable temporary session data
+under the user's AWS CLI configuration/cache directories. It avoids static IAM
+access keys. Renew an expired session by running the same `aws login` command;
+end it explicitly with:
+
+```bash
+aws logout --profile longevity-staging
+```
+
+Never commit `~/.aws/config`, `~/.aws/login/cache/`, credentials, account IDs,
+role-session output, or copied tokens to this repository.
+
+#### Read-only agent role and profile
+
+The IAM role `LongevityAgentViewOnly` has AWS-managed `ViewOnlyAccess`, trusts
+only the intended administrator principal to call `sts:AssumeRole`, and uses a
+one-hour maximum role session. The corresponding local profile is conceptually:
+
+```ini
+[profile longevity-agent-viewonly]
+role_arn = arn:aws:iam::<account-id>:role/LongevityAgentViewOnly
+source_profile = longevity-staging
+role_session_name = codex-viewonly
+region = eu-central-1
+output = json
+```
+
+Verify that the returned ARN contains `assumed-role/LongevityAgentViewOnly/`
+before using it for agent-assisted AWS inspection:
+
+```bash
+aws sts get-caller-identity --profile longevity-agent-viewonly
+```
+
+The role does not downgrade `sevi-admin` globally. A command that explicitly
+uses `longevity-staging` still has the human administrator's authority. Keep
+agent integrations bound to `longevity-agent-viewonly`, preserve command
+approvals, and create a separate narrowly scoped deployment role before any
+agent or CI system is allowed to change cloud resources.
+
+#### Agent Toolkit for AWS
+
+The Agent Toolkit was installed with AWS CLI 2.35+:
+
+```bash
+aws configure agent-toolkit
+```
+
+The installer currently requires `us-east-1`; that is only the toolkit setup
+control-plane requirement and does not change the application's Frankfurt
+Region. The generated MCP command was replaced because it omitted the explicit
+profile, workload Region, and safety mode. The intended global Codex MCP command
+is:
+
+```bash
+codex mcp add aws-mcp -- \
+  uvx \
+  mcp-proxy-for-aws==1.6.4 \
+  https://aws-mcp.eu-central-1.api.aws/mcp \
+  --profile longevity-agent-viewonly \
+  --region eu-central-1 \
+  --read-only \
+  --metadata AWS_REGION=eu-central-1 INSTALL_SOURCE=aws-cli
+```
+
+Inspect it with `codex mcp get aws-mcp`. In this initial `--read-only` proxy
+mode, the MCP exposes documentation, Region availability, skills, and task
+status tools but hides generic AWS API/script execution. This is safer for
+learning, but it also means the MCP cannot inspect live account resources. If
+live read-only inspection is needed later, remove the proxy's `--read-only`
+switch while retaining the IAM role's `ViewOnlyAccess`; IAM remains the actual
+AWS-enforced permission boundary.
+
+The Toolkit installed AWS-focused global skills under `~/.agents/skills`.
+Unrelated global Google ADK skills were moved to a reversible disabled-skills
+directory, and the unrelated Vercel plugin/MCP was removed, keeping the active
+global capability surface relevant to this project.

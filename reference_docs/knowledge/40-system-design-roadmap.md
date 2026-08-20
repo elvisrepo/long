@@ -1,6 +1,6 @@
 # System Design Roadmap: Local MVP to Production
 
-Current state, bluntly: the project now has a working local MVP value loop. Manual metrics, Stripe subscription lifecycle, synchronous wearable ingestion, Android mobile authentication, Health Connect Weight and Steps reads, version-aware provider-record upserts, and subscription-aware device scheduling are proven. The next major milestone is a public HTTPS staging deployment; richer analytics, additional health metrics, asynchronous server processing, and compliance hardening remain later work.
+Current state, bluntly: the project now has a working local MVP value loop. Manual metrics, Stripe subscription lifecycle, synchronous wearable ingestion, Android mobile authentication, Health Connect Weight and Steps reads, version-aware provider-record upserts, and subscription-aware device scheduling are proven. The AWS account, Frankfurt Region, temporary CLI authentication, cost alert, and read-only agent-access foundation are configured, but no application cloud resources have been provisioned. The next major milestone is a public HTTPS staging deployment; richer analytics, additional health metrics, asynchronous server processing, and compliance hardening remain later work.
 
 ## 1. Local system design — what exists now
 
@@ -58,6 +58,10 @@ Implemented slices:
 - Health Connect connection registration, reactivation, and disconnect
 - Stable provider-record deduplication plus newer-version updates using Health Connect modification timestamps
 - Live physical-device Weight and Steps synchronization through Django into the React frontend
+- AWS account security baseline: root passkey/MFA, no root access keys, and separate everyday IAM administration
+- AWS CLI temporary login profile plus a one-hour `LongevityAgentViewOnly` assumed-role profile
+- Agent Toolkit for AWS configured against `eu-central-1` with an initial read-only MCP boundary
+- Monthly AWS Budget alert and explicit Free-plan credit constraint
 
 Related docs:
 
@@ -115,6 +119,7 @@ The remaining product-value gap is the final step: richer, actionable insight. P
 
 Still missing:
 
+- all actual AWS application resources; the completed AWS work is access/bootstrap only
 - public HTTPS staging and production deployments
 - Android staging/release API base URLs and signed distribution builds
 - reliable observability for API, Stripe webhook, and wearable failures
@@ -223,7 +228,7 @@ Recommended order:
 
 12. Deploy a public HTTPS staging environment — next
 
-   Manually provision the AWS staging resources to learn the platform: hosted React assets, Route53, ACM, ALB, one EC2 Docker host for Django and one-off migrations, Systems Manager, an EC2 IAM role, Secrets Manager, CloudWatch, and managed PostgreSQL. Configure a public Stripe test webhook, then prove Weight and Steps sync without USB or `adb reverse`.
+   Start from the completed AWS access bootstrap, then manually provision the AWS staging resources to learn the platform: hosted React assets, Route53, ACM, ALB, one EC2 Docker host for Django and one-off migrations, Systems Manager, an EC2 IAM role, Secrets Manager, CloudWatch, and managed PostgreSQL. Keep resources in `eu-central-1`, record every command and console decision in a staging runbook, and review projected/actual cost against the promotional-credit budget. Configure a public Stripe test webhook, then prove Weight and Steps sync without USB or `adb reverse`.
 
 13. Add asynchronous server processing — deferred until justified
 
@@ -371,5 +376,12 @@ Prepare and deploy a public HTTPS staging environment
 ```
 
 The staging slice should manually provision the EC2-based AWS topology, configure production-safe Django settings, managed PostgreSQL, one-off Docker migrations, backups, health checks, structured logs, a public Stripe test webhook, frontend hosting, and an Android staging API base URL. Every manual step belongs in a runbook. Its exit condition is a physical phone synchronizing Weight and Steps over ordinary Wi-Fi or mobile data into the hosted frontend without USB or `adb reverse`.
+
+The access bootstrap is complete, but it must not be mistaken for a deployed
+staging environment. The immediate first deployment action is a cost-aware
+staging resource plan/runbook for `eu-central-1`, followed by narrowly scoped
+manual provisioning. The read-only agent role may help inspect decisions and
+availability; it cannot deploy resources. Do not bind deployment automation to
+the administrator profile.
 
 Before production, reproduce that EC2 topology in Terraform. Post-MVP, migrate to Fargate to learn managed container operations and add Celery/Redis only when synchronous ingestion is a measured bottleneck or another server-side workflow needs durable asynchronous execution. Additional metrics follow staging; Heart Rate is the likely next mapping, while Sleep requires a separate domain-design pass.

@@ -11,6 +11,40 @@
 > [!NOTE]
 > Build staging manually once to learn the AWS resources, but document every step. Before accepting production users, reproduce the EC2 topology with Terraform so it can be reviewed and rebuilt.
 
+#### Current AWS foundation
+
+The initial AWS account and workstation access foundation was completed on
+2026-08-20. No Longevity application infrastructure has been provisioned yet.
+
+| Concern | Current decision |
+|---|---|
+| AWS account | Free plan with promotional credits; treat expiry/depletion as a hard planning constraint |
+| Primary Region | `eu-central-1` (Europe/Frankfurt) for staging and production application resources |
+| Root user | Passkey/MFA protected, no access keys, emergency/account-only use |
+| Human administrator | `sevi-admin`, temporary browser-authenticated AWS CLI sessions, no long-lived access keys |
+| Agent inspection | `LongevityAgentViewOnly` assumed role with `ViewOnlyAccess` and one-hour sessions |
+| Agent Toolkit | AWS MCP pinned to the Frankfurt endpoint and the view-only profile |
+| Cost control | Monthly AWS Budget alert plus manual credit/billing review; neither is a hard cap |
+
+Do not enable AWS Organizations merely as an IAM convenience while this account
+must retain its Free-plan promotional credits: the current Free plan terms make
+joining or creating an organization an account upgrade that expires those
+credits. A single-account IAM model is sufficient for the MVP learning phase.
+
+Identity boundaries are deliberately separate:
+
+- `longevity-staging` is only the local administrator profile alias; it is not an environment or permission boundary.
+- `longevity-agent-viewonly` assumes `LongevityAgentViewOnly` and is the profile bound to the AWS MCP.
+- a future GitHub Actions deployment identity must use GitHub OIDC and a narrowly scoped staging-deployment role.
+- production deployment must have a separate role and approval boundary rather than reusing either `sevi-admin` or the staging role.
+
+The AWS MCP is currently configured in proxy `--read-only` mode. This permits
+AWS documentation and regional-availability discovery but intentionally hides
+generic live-resource API calls. If live inventory becomes necessary, retain
+the IAM role's `ViewOnlyAccess` and remove only the proxy restriction. For
+resource creation, use reviewed CLI/console steps during the manual staging
+exercise, then replace them with Terraform and scoped deployment roles.
+
 Infrastructure progression:
 
 1. Manually provision EC2 staging:
