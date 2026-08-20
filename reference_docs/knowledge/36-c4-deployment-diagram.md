@@ -1,7 +1,7 @@
 ## 10. C4 Deployment Diagram
 
 ## Use When
-- Load this when you need the runtime placement views for the immediate public staging target or the evolved worker-enabled MVP cloud target.
+- Load this when you need the runtime placement views for the immediate manual-EC2 staging target or the post-MVP Fargate target.
 
 ## Source
 - Derived from `reference_docs/knowledge/06-pragmatic-mvp-cloud-architecture.md` and the Structurizr DSL source of truth.
@@ -16,15 +16,16 @@ The deployment model is maintained in Structurizr DSL:
 
 The Structurizr workspace intentionally maintains two cloud views.
 
-#### `mvp-staging-deployment`
+#### `mvp-staging-ec2-deployment`
 
 Immediate production-like staging topology:
 
 - browser and internally distributed Android client placement
 - provider-neutral frontend hosting/CDN
 - public DNS and ACM-backed HTTPS ALB
-- Django API on ECS Fargate
-- one-off ECS migration task using the same Django image
+- manually provisioned EC2 application host using Docker Engine and Compose
+- long-lived Django API container on EC2
+- one-off Docker migration container using the same immutable image
 - Timescale Cloud reached through encrypted PostgreSQL connections
 - provider-managed automated database backups
 - Secrets Manager
@@ -43,16 +44,21 @@ deployment target and its exit condition is a physical Android staging build
 synchronizing Weight and Steps through public HTTPS without USB or
 `adb reverse`.
 
-#### `mvp-cloud-deployment`
+Manual provisioning is a learning phase. Every step belongs in a runbook, and
+the same EC2 topology should be reproduced with Terraform before production so
+the server is recoverable rather than a configuration snowflake.
 
-Evolved runtime after measured asynchronous workloads justify queue
-infrastructure. It includes everything above plus:
+#### `post-mvp-fargate-deployment`
+
+Post-MVP runtime after the EC2 and Terraform learning phases. It moves compute
+to Fargate and adds queue infrastructure only after measured asynchronous
+workloads justify it:
 
 - browser and Android client placement
 - frontend hosting/CDN, public DNS, and HTTPS ALB
 - Django API on ECS Fargate
 - one-off migration task
-- Celery worker and beat placement
+- Celery Worker service and exactly one Beat scheduler
 - ElastiCache Redis
 - Timescale Cloud
 - managed database backups
@@ -69,7 +75,7 @@ Why:
 - a C4 deployment diagram is about runtime deployment topology
 - CI/CD belongs in delivery architecture, not runtime deployment structure
 
-Android release signing and Play Internal Testing belong in the delivery and
+Android build flavors, release signing, and Play Internal Testing belong in the delivery and
 distribution docs. The runtime view begins with the installed Android container
 and shows its environment-specific public HTTPS API relationship.
 
@@ -85,6 +91,7 @@ Do not overload it with:
 - request-by-request flow behavior
 - CI/CD delivery steps
 
-The deployment views do show the one-off migration task because it executes the
-application image against production data and is part of safe runtime promotion,
-not because the full CI/CD pipeline belongs in C4.
+The deployment views do show the one-off migration container/task because it
+executes the application image against persistent data and is part of safe
+runtime promotion, not because the full CI/CD pipeline belongs in C4. On EC2 it
+is a temporary Docker Compose run; on Fargate it is a temporary ECS task.

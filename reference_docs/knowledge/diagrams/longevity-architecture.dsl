@@ -270,7 +270,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
 
             }
 
-            mvpStaging = deploymentEnvironment "MVP Staging" {
+            mvpStaging = deploymentEnvironment "MVP Staging - Manual EC2" {
                 userDevices = deploymentNode "User Devices" "Where staging users run the browser and internally distributed Android client." {
                     tags "ClientZone"
 
@@ -304,7 +304,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                     }
                 }
 
-                aws = deploymentNode "AWS" "Initial staging API hosting environment without Celery, Beat, or Redis." {
+                aws = deploymentNode "AWS" "Initial staging environment provisioned manually to learn the AWS resources, then reproduced with Terraform before production. Celery, Beat, and Redis are absent." {
                     tags "CloudZone"
 
                     edge = deploymentNode "Public Edge" {
@@ -319,14 +319,18 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                         }
                     }
 
-                    compute = deploymentNode "Compute" {
+                    compute = deploymentNode "EC2 Application Host" "Single staging EC2 instance running Docker. Its application port accepts traffic only from the ALB security group; operators use AWS Systems Manager rather than exposing SSH." {
                         tags "ComputeZone"
 
-                        apiNode = deploymentNode "ECS Fargate API Service" "Runs the Django API image as the long-lived staging service." {
+                        dockerRuntime = infrastructureNode "Docker Engine + Compose" "Runs the immutable backend image and one-off operational commands on EC2." {
+                            tags "ComputeZone"
+                        }
+
+                        apiNode = deploymentNode "Django API Container" "Runs the Django API image as the long-lived staging process." {
                             apiInstance = containerInstance longevity.api
                         }
 
-                        migrationNode = deploymentNode "One-off ECS Migration Task" "Runs the same Django image with python manage.py migrate --no-input before service promotion." {
+                        migrationNode = deploymentNode "One-off Docker Migration Container" "Runs docker compose run --rm web uv run python manage.py migrate --no-input before the API container is replaced." {
                             migrationInstance = containerInstance longevity.api
                         }
                     }
@@ -398,7 +402,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                     tags "OpsTraffic"
                 }
 
-                mvpStaging.aws.edge.alb -> mvpStaging.aws.compute.apiNode.apiInstance "Routes HTTPS requests and performs Django health checks" {
+                mvpStaging.aws.edge.alb -> mvpStaging.aws.compute.apiNode.apiInstance "Routes HTTPS requests to the EC2-hosted container and performs Django health checks" {
                     tags "EdgeTraffic"
                 }
 
@@ -430,11 +434,11 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                     tags "DataTraffic"
                 }
 
-                mvpStaging.aws.compute.apiNode.apiInstance -> mvpStaging.aws.security.secretsNode "Reads server-side secrets and configuration" {
+                mvpStaging.aws.compute.apiNode.apiInstance -> mvpStaging.aws.security.secretsNode "Reads server-side secrets through the EC2 instance IAM role" {
                     tags "SecurityTraffic"
                 }
 
-                mvpStaging.aws.compute.migrationNode.migrationInstance -> mvpStaging.aws.security.secretsNode "Reads the same database and Django configuration as the API service" {
+                mvpStaging.aws.compute.migrationNode.migrationInstance -> mvpStaging.aws.security.secretsNode "Reads the same configuration through the EC2 instance IAM role" {
                     tags "SecurityTraffic"
                 }
 
@@ -451,7 +455,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 }
             }
 
-            mvpCloud = deploymentEnvironment "MVP Cloud" {
+            mvpCloud = deploymentEnvironment "Post-MVP Fargate" {
                 userDevices = deploymentNode "User Devices" "Where end users run the browser and Android clients." {
                     tags "ClientZone"
 
@@ -485,7 +489,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                     }
                 }
 
-            aws = deploymentNode "AWS" "Primary MVP cloud hosting environment." {
+            aws = deploymentNode "AWS" "Post-MVP container hosting environment introduced after the EC2 MVP and Terraform learning phases." {
                 tags "CloudZone"
 
                 edge = deploymentNode "Public Edge" {
@@ -503,19 +507,19 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 compute = deploymentNode "Compute" {
                     tags "ComputeZone"
 
-                    apiNode = deploymentNode "ECS Fargate Service" {
+                    apiNode = deploymentNode "ECS Fargate API Service" {
                         apiInstance = containerInstance longevity.api
                     }
 
-                    migrationNode = deploymentNode "One-off ECS Migration Task" "Runs the Django image with python manage.py migrate --no-input before service promotion." {
+                    migrationNode = deploymentNode "One-off ECS Fargate Migration Task" "Runs the Django image with uv run python manage.py migrate --no-input before service promotion." {
                         migrationInstance = containerInstance longevity.api
                     }
 
-                    workerNode = deploymentNode "ECS Task - Worker" {
+                    workerNode = deploymentNode "ECS Fargate Worker Service" "Runs long-lived Celery consumers after durable asynchronous server work exists." {
                         workerInstance = containerInstance longevity.worker
                     }
 
-                    beatNode = deploymentNode "ECS Task - Beat" {
+                    beatNode = deploymentNode "ECS Fargate Beat Service" "Runs exactly one Celery Beat scheduler unless a future distributed scheduling design replaces it." {
                         beatInstance = containerInstance longevity.beat
                     }
                 }
@@ -1167,12 +1171,12 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             autolayout lr
         }
 
-        deployment * mvpStaging "mvp-staging-deployment" "Immediate public HTTPS staging target: hosted React assets, Django API plus one-off migrations, managed PostgreSQL backups, Stripe test webhooks, monitoring, and remote Android Weight/Steps sync without Celery, Redis, or adb reverse." {
+        deployment * mvpStaging "mvp-staging-ec2-deployment" "Immediate manually provisioned EC2 staging target: hosted React assets, ALB-routed Django Docker container plus one-off migration container, managed PostgreSQL backups, Stripe test webhooks, monitoring, and remote Android Weight/Steps sync without Celery, Redis, Fargate, or adb reverse." {
             include *
             autolayout tb
         }
 
-        deployment * mvpCloud "mvp-cloud-deployment" "Evolved worker-enabled MVP cloud target after measured server-side asynchronous workloads justify Celery, Beat, and Redis." {
+        deployment * mvpCloud "post-mvp-fargate-deployment" "Post-MVP Fargate target used to learn managed container operations after Terraform-managed EC2; adds durable Celery workers, one Beat scheduler, ElastiCache Redis, and S3 job artifacts only when measured workloads justify them." {
             include *
             autolayout tb
         }

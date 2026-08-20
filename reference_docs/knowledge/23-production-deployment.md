@@ -13,18 +13,20 @@ Initial public staging:
 | Component | Service | Why |
 |---|---|---|
 | **Frontend** | Vercel or S3 + CloudFront | HTTPS static asset origin and CDN; choose one during provisioning |
-| **Backend** | AWS ECS Fargate + ALB | Managed Django container with a direct path to later worker tasks |
+| **Backend** | Manually provisioned AWS EC2 + Docker Compose + ALB | Learn the AWS runtime directly while retaining containers and a clean later Fargate migration path |
 | **Database** | Timescale Cloud (PostgreSQL + TimescaleDB) | Managed database matching the intended time-series direction |
 | **Secrets** | AWS Secrets Manager | Server-side Django, database, and Stripe configuration |
 | **Logs/Metrics** | CloudWatch | Container stdout/stderr and AWS infrastructure metrics |
 | **Database Backups** | Timescale Cloud automated backups | Provider-owned backup and restoration boundary |
 
+The EC2 application port accepts traffic only from the ALB security group, and
+administration should use AWS Systems Manager instead of exposing SSH publicly.
 The initial staging runtime does not require ElastiCache, Celery Worker, or
 Celery Beat. Add those only when a measured server-side workload needs durable
 asynchronous execution. Android WorkManager remains responsible for device-side
 Health Connect scheduling even after Celery exists.
 
-Evolved worker-enabled MVP:
+Post-MVP Fargate target:
 
 | Component | Service | Trigger |
 |---|---|---|
@@ -70,14 +72,18 @@ public configuration and must not contain secrets.
 
 ### 8.5 Database Migrations in Production
 ```bash
-# Run the immutable Django image as a one-off ECS task before service promotion.
-uv run python manage.py migrate --no-input
+# On EC2, run the immutable backend image once before replacing the API container.
+docker compose run --rm web uv run python manage.py migrate --no-input
 ```
 
 The migration task reads the same database and Django settings from Secrets
 Manager, sends logs and exit status to CloudWatch, and must complete successfully
 before the API service is promoted. Do not run competing migrations from every
 API container startup.
+
+After migration to Fargate, use the same immutable image and command as a
+one-off ECS task. The responsibility is unchanged; only the compute mechanism
+moves from a temporary Docker container on EC2 to a temporary Fargate task.
 
 ### 8.6 Rate Limiting & DDoS
 - AWS WAF on ALB (basic DDoS protection)
@@ -104,3 +110,22 @@ The staging deployment is proven only when:
 - a mutable Steps record updates through its newer Health Connect modification timestamp
 - Stripe test Checkout, Portal, and signed webhook reconciliation work through the public endpoint
 - migrations, health checks, logs, automated backups, and at least one restore procedure are verified
+
+### 8.9 Infrastructure and Delivery Progression
+
+1. Provision staging manually to learn Route53, ACM, ALB, target groups, EC2,
+   security groups, IAM, Systems Manager, Secrets Manager, and CloudWatch.
+2. Record every command and configuration decision in a deployment runbook.
+3. Recreate the same EC2 topology with Terraform before accepting production
+   users; staging and production remain isolated environments.
+4. Add a staging deployment pipeline that builds an immutable image, pushes it
+   to ECR, invokes EC2 through Systems Manager, runs the migration container,
+   replaces Django, and verifies public health/smoke checks.
+5. Require explicit approval before a later production deployment pipeline
+   promotes a tested version.
+6. Post-MVP, migrate compute to ECS Fargate and add Redis, Celery Worker, one
+   Beat scheduler, and S3 artifacts only when real asynchronous workloads exist.
+
+Terraform provisions and changes infrastructure. The deployment pipeline moves
+a tested application version onto that infrastructure. Neither replaces the
+other.

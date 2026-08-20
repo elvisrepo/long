@@ -1184,25 +1184,30 @@ jobs:
         image: redis:7-alpine
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-      - run: pip install -r requirements/dev.txt
-      - run: ruff check .
-      - run: pytest --cov --cov-fail-under=80
-      - run: pip-audit
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --group dev
+      - run: uv run ruff check .
+      - run: uv run mypy
+      - run: uv run pytest tests
 
-  deploy:
+  deploy-staging:
     needs: test
     if: github.ref == 'refs/heads/main'
     steps:
       - # Build Docker image
       - # Push to ECR
-      - # Deploy to ECS
+      - # Invoke staging EC2 through Systems Manager
+      - # Run the one-off Docker migration container
+      - # Replace Django and verify public health checks
 ```
 
 ### 7.3 Containers
 - Single `Dockerfile` (multi-stage: build → prod)
 - Docker Compose for local dev (§3.2)
-- ECS Fargate for cloud (not Kubernetes — overkill for solo dev)
+- manually provisioned EC2 plus Docker Compose for staging
+- Terraform-managed EC2 for the production MVP
+- ECS Fargate for post-MVP managed-container learning and worker separation
+- no Kubernetes for the MVP
 
 ### 7.4 Secrets
 See §3.6.
@@ -1215,7 +1220,7 @@ See §3.6.
 | What | How | Retention |
 |---|---|---|
 | Database | Timescale Cloud automated backups | Provider-managed retention |
-| Database (extra) | `pg_dump` to S3 via Celery task (weekly) | 90 days |
+| Database (extra, later) | Deliberate scheduled `pg_dump` task to versioned S3 | Define before enabling |
 | `.env` / Terraform state | Terraform Cloud or S3 + versioning | Indefinite |
 | User uploads (if any) | S3 with versioning | Indefinite |
 
@@ -1227,11 +1232,16 @@ See §3.6.
 
 | Component | Service | Why |
 |---|---|---|
-| **Backend** | AWS ECS Fargate + ALB | Managed containers, clear path to workers + WebSockets |
+| **Backend** | AWS EC2 + Docker Compose + ALB | Manual staging teaches AWS directly; Terraform reproduces the topology for the MVP |
 | **Database** | Timescale Cloud (PostgreSQL + TimescaleDB) | Managed TimescaleDB without unsupported RDS extension assumptions |
-| **Cache** | AWS ElastiCache (Redis) | Managed, automatic failover |
+| **Cache** | None initially; post-MVP ElastiCache Redis | Current bounded synchronous requests do not require a broker |
 | **Static/Media** | S3 + CloudFront CDN | Global delivery, cheap storage |
 | **Frontend** | Vercel or CloudFront + S3 | Free tier, global CDN, auto-deploy from git |
+
+Progression: manually provision isolated EC2 staging and document a runbook;
+reproduce the EC2 topology with Terraform before production; post-MVP, move
+compute to ECS Fargate and add Redis, Celery Worker, exactly one Beat scheduler,
+and S3 job artifacts only when real asynchronous workloads exist.
 
 ### 8.2 Domain & SSL
 - Domain via Route53 or Cloudflare
@@ -1248,9 +1258,12 @@ See §3.6.
 
 ### 8.5 Database Migrations in Production
 ```bash
-# Run as a one-off ECS task before deploy
-python manage.py migrate --no-input
+# Run the immutable backend image once on EC2 before replacing Django.
+docker compose run --rm web uv run python manage.py migrate --no-input
 ```
+
+The post-MVP Fargate equivalent is a one-off ECS task using the same image and
+command.
 
 ### 8.6 Rate Limiting & DDoS
 - AWS WAF on ALB (basic DDoS protection)

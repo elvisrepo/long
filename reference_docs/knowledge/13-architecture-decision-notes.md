@@ -327,3 +327,28 @@ Current implementation progress:
   Every registered user has explicit entitlement state. Missing current subscriptions are integrity errors. Upgrades must cancel the current row and create the replacement atomically so history is preserved.
 - Revisit when:
   Product requirements need plan-version snapshots, scheduled plan changes, organization billing, or multiple entitlement sources.
+
+### ADR-021: Learn AWS on Manual EC2 Staging, Reproduce EC2 with Terraform, Then Move to Fargate Post-MVP
+
+- Status: Accepted
+- Date: 2026-08-19
+- Decision:
+  Provision the first public staging environment manually on one AWS EC2 application host using Docker Engine and Compose behind an ACM-backed ALB. Document every step in a runbook, then reproduce the same isolated EC2 topology with Terraform before accepting production users. Operate the production MVP on Terraform-managed EC2. Move compute to ECS Fargate post-MVP to learn managed containers, and introduce ElastiCache Redis, Celery Worker, exactly one Celery Beat scheduler, and S3 job artifacts only when measured asynchronous workloads justify them.
+- Context:
+  The project owner wants to understand the AWS resources directly before abstracting them behind infrastructure as code or managed container orchestration. The current backend processes bounded wearable uploads synchronously, so Fargate workers and Redis would add cost and operational surface without enabling an immediate product requirement.
+- Runtime boundary:
+  Route53 resolves the staging API hostname to an HTTPS ALB. The ALB terminates TLS, checks `/api/v1/health/`, and targets the EC2-hosted Django container. The EC2 application port accepts traffic only from the ALB security group, and administration uses AWS Systems Manager instead of a public SSH path. Timescale Cloud remains the managed database and backup owner. Secrets Manager, an EC2 instance role, and CloudWatch provide configuration and operations boundaries.
+- Migration boundary:
+  Before replacing Django on EC2, run the same immutable backend image once with `docker compose run --rm web uv run python manage.py migrate --no-input`. The later Fargate equivalent is a one-off ECS task. A migration failure blocks application promotion.
+- Delivery boundary:
+  Terraform provisions infrastructure; it does not deploy application versions. The first deployment pipeline targets staging, builds and pushes an immutable image to ECR, invokes EC2 through Systems Manager, runs migrations, replaces Django, and requires public health/smoke checks. Production promotion initially requires explicit approval.
+- Android boundary:
+  Debug uses localhost through `adb reverse`; the internally distributed staging build uses the public staging HTTPS API; the production release uses the production HTTPS API. Build flavors and Play distribution are delivery concerns rather than separate server runtimes.
+- Alternatives considered:
+  Start immediately on ECS Fargate; run Django, PostgreSQL, Redis, Worker, and Beat together on one EC2 host; or leave production manually configured indefinitely.
+- Why we chose it:
+  Manual staging creates deliberate AWS learning, EC2 keeps the first runtime understandable, Terraform removes unrecoverable configuration drift before production, and the later Fargate move becomes a purposeful second learning phase. Deferring unused queue infrastructure keeps the MVP smaller without closing the path to async processing.
+- Downsides:
+  The project will perform two compute transitions and temporarily maintain a manual runbook before Terraform exists. A single EC2 host is not highly available, and the ALB adds cost despite having one initial target. The approach is acceptable for MVP learning but not the final resilience target.
+- Revisit when:
+  The staging runbook is complete, production provisioning begins, API availability requires multiple instances, or measured backfills, analytics, exports, repair work, or request latency justify Fargate and durable queue infrastructure.

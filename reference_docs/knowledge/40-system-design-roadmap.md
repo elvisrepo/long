@@ -223,7 +223,7 @@ Recommended order:
 
 12. Deploy a public HTTPS staging environment — next
 
-   Host the React frontend, Django API, and managed PostgreSQL database; configure a public Stripe test webhook; add health checks, logs, migrations, backups, and secure production settings; then prove Weight and Steps sync without USB or `adb reverse`.
+   Manually provision the AWS staging resources to learn the platform: hosted React assets, Route53, ACM, ALB, one EC2 Docker host for Django and one-off migrations, Systems Manager, an EC2 IAM role, Secrets Manager, CloudWatch, and managed PostgreSQL. Configure a public Stripe test webhook, then prove Weight and Steps sync without USB or `adb reverse`.
 
 13. Add asynchronous server processing — deferred until justified
 
@@ -247,7 +247,11 @@ User Browser
   ↓
 HTTPS / CDN / Static frontend hosting
   ↓
-Django API container
+Route53 → HTTPS ALB
+  ↓
+EC2 + Docker Compose
+  ├── Django API container
+  └── one-off migration container
   ↓
 Managed Postgres / TimescaleDB
 
@@ -263,6 +267,24 @@ The current upload endpoint accepts at most 100 entries and completes the
 idempotent transaction synchronously. Add worker infrastructure when a measured
 server-side workload requires it rather than merely because Compose already
 contains it.
+
+Deployment progression:
+
+```text
+Manually provision EC2 staging and record a runbook
+    ↓
+Reproduce the EC2 topology with Terraform before production
+    ↓
+Operate the production MVP on Terraform-managed EC2
+    ↓
+Post-MVP, migrate compute to Fargate and add worker infrastructure when justified
+```
+
+EC2 is the MVP compute platform; Terraform is the eventual reproducible source
+of truth for that infrastructure. They are complementary, not competing
+choices. The deployment pipeline is separate again: it builds a tested image,
+pushes it to ECR, invokes the EC2 host through Systems Manager, runs migrations,
+replaces Django, and verifies health checks.
 
 Android environment boundary:
 
@@ -290,6 +312,8 @@ Production needs:
 - API logging
 - error monitoring
 - CI running tests before deploy
+- a staging-first deployment pipeline before production automation
+- a documented manual AWS runbook followed by Terraform-managed EC2 before real production use
 - secure CORS/CSRF/session settings
 - Android environment-specific HTTPS API base URLs
 - Android release signing and private/internal distribution for staging
@@ -346,6 +370,6 @@ Next real system-design step:
 Prepare and deploy a public HTTPS staging environment
 ```
 
-The staging slice should configure production-safe Django settings, managed PostgreSQL, migrations, backups, health checks, structured logs, a public Stripe test webhook, frontend hosting, and an Android staging API base URL. Its exit condition is a physical phone synchronizing Weight and Steps over ordinary Wi-Fi or mobile data into the hosted frontend without USB or `adb reverse`.
+The staging slice should manually provision the EC2-based AWS topology, configure production-safe Django settings, managed PostgreSQL, one-off Docker migrations, backups, health checks, structured logs, a public Stripe test webhook, frontend hosting, and an Android staging API base URL. Every manual step belongs in a runbook. Its exit condition is a physical phone synchronizing Weight and Steps over ordinary Wi-Fi or mobile data into the hosted frontend without USB or `adb reverse`.
 
-Celery/Redis remains deferred until synchronous ingestion is a measured bottleneck or another server-side workflow needs durable asynchronous execution. Additional metrics follow staging; Heart Rate is the likely next mapping, while Sleep requires a separate domain-design pass.
+Before production, reproduce that EC2 topology in Terraform. Post-MVP, migrate to Fargate to learn managed container operations and add Celery/Redis only when synchronous ingestion is a measured bottleneck or another server-side workflow needs durable asynchronous execution. Additional metrics follow staging; Heart Rate is the likely next mapping, while Sleep requires a separate domain-design pass.
