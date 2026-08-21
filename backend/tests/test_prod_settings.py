@@ -182,3 +182,13 @@ def test_prod_settings_trust_alb_forwarded_https_header() -> None:
 
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout) == ["HTTP_X_FORWARDED_PROTO", "https"]
+
+
+def test_prod_settings_redirect_http_to_https() -> None:
+    result = read_prod_setting(
+        valid_prod_environment(),
+        "SECURE_SSL_REDIRECT",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) is True
