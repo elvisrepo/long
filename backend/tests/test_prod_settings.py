@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import sys
@@ -67,6 +68,25 @@ def import_prod_settings(
         IMPORT_PROD_SETTINGS_WITHOUT_DOTENV
         if without_dotenv
         else IMPORT_PROD_SETTINGS
+    )
+    return subprocess.run(
+        [sys.executable, "-c", command],
+        cwd=BACKEND_DIR,
+        env=environment,
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+
+
+def read_prod_setting(
+    environment: dict[str, str],
+    setting_name: str,
+) -> subprocess.CompletedProcess[str]:
+    command = (
+        "import json; "
+        "from config.settings import prod; "
+        f"print(json.dumps(prod.{setting_name}))"
     )
     return subprocess.run(
         [sys.executable, "-c", command],
@@ -152,3 +172,13 @@ def test_prod_settings_reject_unsafe_stripe_return_url(
         f"{variable_name} must use a non-local HTTPS URL in production"
         in result.stderr
     )
+
+
+def test_prod_settings_trust_alb_forwarded_https_header() -> None:
+    result = read_prod_setting(
+        valid_prod_environment(),
+        "SECURE_PROXY_SSL_HEADER",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == ["HTTP_X_FORWARDED_PROTO", "https"]
