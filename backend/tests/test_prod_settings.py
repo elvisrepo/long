@@ -115,3 +115,40 @@ def test_prod_settings_reject_sqlite_database_url() -> None:
 
     assert result.returncode != 0
     assert "DATABASE_URL must use PostgreSQL in production" in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("variable_name", "invalid_url"),
+    (
+        (
+            "STRIPE_CHECKOUT_SUCCESS_URL",
+            "http://localhost:5173/settings?checkout=success",
+        ),
+        (
+            "STRIPE_CHECKOUT_CANCEL_URL",
+            "http://localhost:5173/settings?checkout=cancelled",
+        ),
+        (
+            "STRIPE_CUSTOMER_PORTAL_RETURN_URL",
+            "http://localhost:5173/settings",
+        ),
+        (
+            "STRIPE_CHECKOUT_SUCCESS_URL",
+            "http://staging.example.com/settings?checkout=success",
+        ),
+    ),
+)
+def test_prod_settings_reject_unsafe_stripe_return_url(
+    variable_name: str,
+    invalid_url: str,
+) -> None:
+    environment = valid_prod_environment()
+    environment[variable_name] = invalid_url
+
+    result = import_prod_settings(environment)
+
+    assert result.returncode != 0
+    assert (
+        f"{variable_name} must use a non-local HTTPS URL in production"
+        in result.stderr
+    )

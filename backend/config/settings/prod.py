@@ -3,6 +3,7 @@ Production settings for deployed environments.
 """
 
 import os
+from urllib.parse import urlparse
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -36,3 +37,21 @@ if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":  # noqa: F
     raise ImproperlyConfigured(
         "DATABASE_URL must use PostgreSQL in production"
     )
+
+STRIPE_RETURN_URL_VARIABLES = (
+    "STRIPE_CHECKOUT_SUCCESS_URL",
+    "STRIPE_CHECKOUT_CANCEL_URL",
+    "STRIPE_CUSTOMER_PORTAL_RETURN_URL",
+)
+LOCAL_HOSTNAMES = {"localhost", "127.0.0.1", "::1"}
+
+for variable_name in STRIPE_RETURN_URL_VARIABLES:
+    parsed_url = urlparse(os.environ[variable_name])
+    if (
+        parsed_url.scheme != "https"
+        or not parsed_url.hostname
+        or parsed_url.hostname in LOCAL_HOSTNAMES
+    ):
+        raise ImproperlyConfigured(
+            f"{variable_name} must use a non-local HTTPS URL in production"
+        )
