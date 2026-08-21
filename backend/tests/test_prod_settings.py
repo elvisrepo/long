@@ -3,6 +3,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 IMPORT_PROD_SETTINGS = "import config.settings.prod"
@@ -12,6 +14,22 @@ from unittest.mock import patch
 with patch("dotenv.load_dotenv", return_value=False):
     import config.settings.prod
 """
+REQUIRED_ENVIRONMENT_VARIABLES = (
+    "SECRET_KEY",
+    "PII_ENCRYPTION_KEY",
+    "EMAIL_LOOKUP_KEY",
+    "JWT_SIGNING_KEY",
+    "DATABASE_URL",
+    "ALLOWED_HOSTS",
+    "CSRF_TRUSTED_ORIGINS",
+    "STRIPE_SECRET_KEY",
+    "STRIPE_WEBHOOK_SECRET",
+    "STRIPE_CHECKOUT_SUCCESS_URL",
+    "STRIPE_CHECKOUT_CANCEL_URL",
+    "STRIPE_CUSTOMER_PORTAL_RETURN_URL",
+    "LOG_LEVEL",
+    "DJANGO_LOG_LEVEL",
+)
 
 
 def valid_prod_environment() -> dict[str, str]:
@@ -60,16 +78,6 @@ def import_prod_settings(
     )
 
 
-def test_prod_settings_reject_an_empty_secret_key() -> None:
-    environment = valid_prod_environment()
-    environment["SECRET_KEY"] = ""
-
-    result = import_prod_settings(environment)
-
-    assert result.returncode != 0
-    assert "SECRET_KEY is required in production" in result.stderr
-
-
 def test_prod_settings_reject_a_missing_secret_key() -> None:
     environment = valid_prod_environment()
     environment.pop("SECRET_KEY")
@@ -80,21 +88,14 @@ def test_prod_settings_reject_a_missing_secret_key() -> None:
     assert "SECRET_KEY is required in production" in result.stderr
 
 
-def test_prod_settings_reject_an_empty_pii_encryption_key() -> None:
+@pytest.mark.parametrize("variable_name", REQUIRED_ENVIRONMENT_VARIABLES)
+def test_prod_settings_reject_an_empty_required_variable(
+    variable_name: str,
+) -> None:
     environment = valid_prod_environment()
-    environment["PII_ENCRYPTION_KEY"] = ""
+    environment[variable_name] = ""
 
     result = import_prod_settings(environment)
 
     assert result.returncode != 0
-    assert "PII_ENCRYPTION_KEY is required in production" in result.stderr
-
-
-def test_prod_settings_reject_an_empty_email_lookup_key() -> None:
-    environment = valid_prod_environment()
-    environment["EMAIL_LOOKUP_KEY"] = ""
-
-    result = import_prod_settings(environment)
-
-    assert result.returncode != 0
-    assert "EMAIL_LOOKUP_KEY is required in production" in result.stderr
+    assert f"{variable_name} is required in production" in result.stderr
