@@ -212,3 +212,21 @@ def test_prod_settings_only_send_csrf_cookie_over_https() -> None:
 
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout) is True
+
+
+def test_prod_settings_use_conservative_hsts_policy() -> None:
+    environment = valid_prod_environment()
+
+    seconds = read_prod_setting(environment, "SECURE_HSTS_SECONDS")
+    include_subdomains = read_prod_setting(
+        environment,
+        "SECURE_HSTS_INCLUDE_SUBDOMAINS",
+    )
+    preload = read_prod_setting(environment, "SECURE_HSTS_PRELOAD")
+
+    assert seconds.returncode == 0, seconds.stderr
+    assert include_subdomains.returncode == 0, include_subdomains.stderr
+    assert preload.returncode == 0, preload.stderr
+    assert json.loads(seconds.stdout) == 300
+    assert json.loads(include_subdomains.stdout) is False
+    assert json.loads(preload.stdout) is False
