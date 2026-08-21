@@ -223,6 +223,87 @@ Example:
 
 The fallback to SQLite exists only if `DATABASE_URL` is missing.
 
+### Django Settings Selection
+
+`config.settings.base` is the shared settings layer; it is imported by every
+environment-specific module rather than selected as the normal runtime itself.
+
+| Runtime or command | Selected settings | How it is selected |
+|---|---|---|
+| normal `docker compose up` web process | `config.settings.dev` | `manage.py` default; Compose does not set `DJANGO_SETTINGS_MODULE` |
+| local Celery Worker and Beat | `config.settings.dev` | `config/celery.py` default |
+| direct WSGI or ASGI startup without an override | `config.settings.dev` | defaults in `wsgi.py` and `asgi.py` |
+| `uv run pytest tests` | `config.settings.test` | pytest configuration in `pyproject.toml` |
+| Playwright browser E2E backend | `config.settings.e2e` | explicit `web-e2e` Compose environment variable |
+| future staging/production process | `config.settings.prod` | must be explicitly supplied by the deployment runtime |
+
+All four specialized modules import `base.py`, and `base.py` loads
+`backend/.env`. A specialized module can then replace the shared values. For
+example, `dev.py` forces `DEBUG = True`, while `test.py` replaces local Stripe,
+encryption, lookup, and JWT credentials with deterministic test-only values.
+
+The normal local web container currently resolves to development settings with
+PostgreSQL at `db/longevity`. `prod.py` is not selected by ordinary Compose and
+has only been exercised explicitly during the deployment-readiness audit.
+
+Normal backend pytest and browser E2E are different test systems:
+
+- backend pytest selects `test.py`; locally it derives PostgreSQL from `.env`, while CI without `.env` currently falls back to SQLite
+- Playwright enables `e2e.py`, `web-e2e`, and `db-e2e`; its browser calls Vite on port `5173`, which proxies `/api` to the isolated Django process on port `8001`
+- `e2e.py` overrides application/test secrets but currently does not override Stripe settings, so the mounted local `.env` can expose Stripe sandbox credentials to the E2E process even though current auth E2E tests do not call Stripe
+
+### The `e2e` Compose Profile
+
+E2E means **end to end**: the test drives the real browser UI through the HTTP
+API and database rather than testing one function in isolation.
+
+A Docker Compose profile is an opt-in label for services that should not run in
+the normal stack. `web-e2e` and `db-e2e` declare `profiles: ["e2e"]`, so plain
+`docker compose up` excludes them. Playwright enables them with:
+
+```bash
+docker compose --profile e2e up --build web-e2e
+```
+
+Naming `web-e2e` starts that service and the dependencies it declares,
+including `db-e2e` and the shared Redis container. It does not need to replace
+or write to the normal `web`/`db` application state. Running
+`docker compose --profile e2e up` without naming a service would instead enable
+the profile alongside the normal default services.
+
+### WSGI and ASGI Entry Points
+
+WSGI and ASGI are protocols between a Python application server and Django;
+they are not application servers themselves.
+
+- `config/wsgi.py` creates the synchronous WSGI `application` object. The planned Gunicorn runtime will load it as `config.wsgi:application`. This is sufficient for the current request/response API.
+- `config/asgi.py` creates the asynchronous ASGI `application` object. An ASGI server such as Uvicorn or Daphne would load it for async request handling, WebSockets, or other long-lived connections.
+
+The current Compose web service uses Django `runserver`, so neither file is the
+production server command today. Staging should explicitly select
+`config.settings.prod` before Gunicorn imports the WSGI application. The ASGI
+entry point remains available but is not needed until the product has a real
+async transport requirement.
+
+### `pyproject.toml`, `uv.lock`, and Reproducible Dependencies
+
+`pyproject.toml` declares direct dependency ranges. `uv.lock` records the exact
+resolved direct and transitive versions, distribution URLs, hashes, Python
+markers, and platform choices. `uv sync --frozen` installs that resolution and
+fails instead of silently changing the lockfile.
+
+The 2026-08-20 audit ran `uv lock --check --offline`; it passed with 49 resolved
+packages, proving that `uv.lock` matches `pyproject.toml`. An online outdated
+check found newer releases for several packages, but that is a different
+question: the lock is synchronized and reproducible, not necessarily composed
+of every newest release. Upgrades should be isolated, tested changes rather
+than a bulk pre-deployment refresh.
+
+By default, the current Dockerfile's `uv sync --frozen` also installs the
+development dependency group. The production image should eventually install
+runtime packages only, while a separate development/test target retains pytest,
+mypy, and Ruff.
+
 ### Important Constraint
 
 Once `DATABASE_URL` points to `db`, Django should be run through Docker Compose, not directly on the host with:

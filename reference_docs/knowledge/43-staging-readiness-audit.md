@@ -131,6 +131,11 @@ Remove it from version control and ignore all Celery Beat schedule variants.
 The production image should contain source and immutable dependencies, not local
 runtime state.
 
+The Dockerfile also runs `uv sync --frozen` without excluding the default
+development group. Consequently, the image includes pytest, mypy, and Ruff.
+Create distinct production and development/test image targets, or otherwise
+install only runtime dependencies in the production target.
+
 ### Blocker H — migration and startup responsibilities
 
 Local Compose runs migrations automatically before `runserver`. The cloud
@@ -138,6 +143,14 @@ contract correctly requires one explicit migration container to finish before
 the API is replaced. The production image must therefore start only the API;
 deployment orchestration owns `migrate --no-input` as a separate, observable,
 failure-gated step.
+
+### Blocker I — E2E Stripe configuration is not fully isolated
+
+`config.settings.e2e` imports `base.py`, which loads the bind-mounted local
+`.env`. E2E settings replace application secrets and the database, but they do
+not replace Stripe settings. The current browser E2E suite exercises auth and
+does not call Stripe; nevertheless, its process should receive non-functional
+Stripe values so a future E2E test cannot accidentally create sandbox objects.
 
 ## 3. Django deployment-check evidence
 
@@ -174,15 +187,16 @@ Use focused TDD slices in this order:
 2. Gunicorn production command and production-image smoke check
 3. versioned liveness/readiness endpoints and stale-route documentation repair
 4. remove the public Celery ping route and tracked scheduler artifact
-5. decide and test the browser origin strategy
-6. define the staging Secrets Manager inventory and `.env`-free runtime contract
-7. run a local production-like container smoke test, including migration failure behavior
-8. audit frontend hosting/build configuration
-9. audit Android staging application ID, signing, and API base URL
-10. write the costed manual AWS provisioning runbook
+5. isolate E2E Stripe settings and split production versus development image dependencies
+6. decide and test the browser origin strategy
+7. define the staging Secrets Manager inventory and `.env`-free runtime contract
+8. run a local production-like container smoke test, including migration failure behavior
+9. audit frontend hosting/build configuration
+10. audit Android staging application ID, signing, and API base URL
+11. write the costed manual AWS provisioning runbook
 
 Do not provision the ALB, EC2 host, DNS, or managed database before at least
-steps 1–7 pass. Otherwise cloud debugging will mix application-runtime defects
+steps 1–8 pass. Otherwise cloud debugging will mix application-runtime defects
 with infrastructure-learning defects.
 
 ## 5. Current gate
@@ -190,4 +204,3 @@ with infrastructure-learning defects.
 The next implementation slice is production settings validation and
 HTTPS/proxy security. It should begin with failing settings tests, then make the
 minimum `prod.py` changes required for a safe startup contract.
-
