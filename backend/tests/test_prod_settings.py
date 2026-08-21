@@ -192,3 +192,13 @@ def test_prod_settings_redirect_http_to_https() -> None:
 
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout) is True
+
+
+def test_prod_settings_only_send_session_cookie_over_https() -> None:
+    result = read_prod_setting(
+        valid_prod_environment(),
+        "SESSION_COOKIE_SECURE",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) is True
