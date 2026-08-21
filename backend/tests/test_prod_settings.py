@@ -88,3 +88,13 @@ def test_prod_settings_reject_an_empty_pii_encryption_key() -> None:
 
     assert result.returncode != 0
     assert "PII_ENCRYPTION_KEY is required in production" in result.stderr
+
+
+def test_prod_settings_reject_an_empty_email_lookup_key() -> None:
+    environment = valid_prod_environment()
+    environment["EMAIL_LOOKUP_KEY"] = ""
+
+    result = import_prod_settings(environment)
+
+    assert result.returncode != 0
+    assert "EMAIL_LOOKUP_KEY is required in production" in result.stderr
