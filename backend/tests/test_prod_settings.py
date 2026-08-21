@@ -99,3 +99,9 @@ def test_prod_settings_reject_an_empty_required_variable(
 
     assert result.returncode != 0
     assert f"{variable_name} is required in production" in result.stderr
+
+
+def test_prod_settings_load_with_complete_environment() -> None:
+    result = import_prod_settings(valid_prod_environment())
+
+    assert result.returncode == 0, result.stderr
