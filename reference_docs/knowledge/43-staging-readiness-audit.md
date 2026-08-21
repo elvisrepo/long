@@ -8,8 +8,9 @@
 
 Audit started on 2026-08-20. AWS account access is bootstrapped, but no
 Longevity application resources have been provisioned. The backend inspection
-is complete; frontend hosting/origin, Android staging-build, and detailed AWS
-cost/resource audits remain open.
+is complete. Production settings validation and HTTPS/proxy security were
+implemented on 2026-08-21; frontend hosting/origin, Android staging-build, and
+detailed AWS cost/resource audits remain open.
 
 ## 1. Verified foundations
 
@@ -43,7 +44,7 @@ Required outcome:
 - keep local Compose free to override the image command with `runserver`
 - define worker count, timeout, graceful shutdown, and forwarded-access-log behavior deliberately
 
-### Blocker B — production settings are not fail-safe
+### Blocker B — production settings are not fail-safe — resolved 2026-08-21
 
 `prod.py` currently changes only `DEBUG`. Base settings still provide an
 insecure development `SECRET_KEY`, SQLite fallback, local Redis fallback, and
@@ -65,7 +66,14 @@ Required production inputs:
 Staging intentionally omits Celery and Redis, so the production API must not
 require `REDIS_URL` until an asynchronous server workload is introduced.
 
-### Blocker C — HTTPS and ALB proxy settings are incomplete
+Implemented outcome:
+
+- production startup rejects every missing or blank required input above
+- `DATABASE_URL` must resolve to Django's PostgreSQL backend
+- Stripe browser return URLs must use non-local HTTPS origins
+- a complete valid production environment still loads successfully
+
+### Blocker C — HTTPS and ALB proxy settings are incomplete — resolved 2026-08-21
 
 The production settings do not yet define:
 
@@ -78,6 +86,15 @@ The production settings do not yet define:
 
 Start HSTS conservatively in staging. Do not enable long-duration HSTS or
 `includeSubDomains` until every affected hostname is permanently HTTPS-ready.
+
+Implemented outcome:
+
+- trust `X-Forwarded-Proto: https` from the ALB deployment boundary
+- redirect genuinely insecure requests to HTTPS
+- mark session and CSRF cookies Secure
+- start HSTS at 300 seconds with subdomains and preload disabled
+- retain Django's secure defaults for frame denial, MIME-sniffing prevention,
+  and same-origin referrer policy
 
 ### Blocker D — health contract and readiness semantics disagree
 
@@ -179,11 +196,16 @@ The weak-key warning came from the disposable audit value, but it exposed the
 real requirement that production must reject a missing/weak key rather than use
 the base development fallback.
 
+After the 2026-08-21 remediation, `check --deploy` reports only the deliberate
+staging HSTS subdomain/preload warnings and the documented encrypted-email
+`auth.W004` warning. The missing HTTPS redirect and insecure-cookie warnings are
+resolved.
+
 ## 4. Remediation order
 
 Use focused TDD slices in this order:
 
-1. production settings validation and HTTPS/proxy security
+1. production settings validation and HTTPS/proxy security — completed 2026-08-21
 2. Gunicorn production command and production-image smoke check
 3. versioned liveness/readiness endpoints and stale-route documentation repair
 4. remove the public Celery ping route and tracked scheduler artifact
@@ -201,6 +223,6 @@ with infrastructure-learning defects.
 
 ## 5. Current gate
 
-The next implementation slice is production settings validation and
-HTTPS/proxy security. It should begin with failing settings tests, then make the
-minimum `prod.py` changes required for a safe startup contract.
+The next implementation slice is the Gunicorn production command and
+production-image smoke check. Keep local Compose free to override the image
+command with `runserver`.
