@@ -5,6 +5,13 @@ from pathlib import Path
 
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
+IMPORT_PROD_SETTINGS = "import config.settings.prod"
+IMPORT_PROD_SETTINGS_WITHOUT_DOTENV = """
+from unittest.mock import patch
+
+with patch("dotenv.load_dotenv", return_value=False):
+    import config.settings.prod
+"""
 
 
 def valid_prod_environment() -> dict[str, str]:
@@ -33,18 +40,31 @@ def valid_prod_environment() -> dict[str, str]:
     }
 
 
-def test_prod_settings_reject_an_empty_secret_key() -> None:
-    environment = valid_prod_environment()
-    environment["SECRET_KEY"] = ""
-
-    result = subprocess.run(
-        [sys.executable, "-c", "import config.settings.prod"],
+def import_prod_settings(
+    environment: dict[str, str],
+    *,
+    without_dotenv: bool = False,
+) -> subprocess.CompletedProcess[str]:
+    command = (
+        IMPORT_PROD_SETTINGS_WITHOUT_DOTENV
+        if without_dotenv
+        else IMPORT_PROD_SETTINGS
+    )
+    return subprocess.run(
+        [sys.executable, "-c", command],
         cwd=BACKEND_DIR,
         env=environment,
         capture_output=True,
         check=False,
         text=True,
     )
+
+
+def test_prod_settings_reject_an_empty_secret_key() -> None:
+    environment = valid_prod_environment()
+    environment["SECRET_KEY"] = ""
+
+    result = import_prod_settings(environment)
 
     assert result.returncode != 0
     assert "SECRET_KEY is required in production" in result.stderr
@@ -53,21 +73,18 @@ def test_prod_settings_reject_an_empty_secret_key() -> None:
 def test_prod_settings_reject_a_missing_secret_key() -> None:
     environment = valid_prod_environment()
     environment.pop("SECRET_KEY")
-    import_without_dotenv = """
-from unittest.mock import patch
 
-with patch("dotenv.load_dotenv", return_value=False):
-    import config.settings.prod
-"""
-
-    result = subprocess.run(
-        [sys.executable, "-c", import_without_dotenv],
-        cwd=BACKEND_DIR,
-        env=environment,
-        capture_output=True,
-        check=False,
-        text=True,
-    )
+    result = import_prod_settings(environment, without_dotenv=True)
 
     assert result.returncode != 0
     assert "SECRET_KEY is required in production" in result.stderr
+
+
+def test_prod_settings_reject_an_empty_pii_encryption_key() -> None:
+    environment = valid_prod_environment()
+    environment["PII_ENCRYPTION_KEY"] = ""
+
+    result = import_prod_settings(environment)
+
+    assert result.returncode != 0
+    assert "PII_ENCRYPTION_KEY is required in production" in result.stderr
