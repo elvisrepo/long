@@ -31,3 +31,8 @@ REQUIRED_ENVIRONMENT_VARIABLES = (
 for variable_name in REQUIRED_ENVIRONMENT_VARIABLES:
     if not os.environ.get(variable_name, "").strip():
         raise ImproperlyConfigured(f"{variable_name} is required in production")
+
+if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":  # noqa: F405
+    raise ImproperlyConfigured(
+        "DATABASE_URL must use PostgreSQL in production"
+    )

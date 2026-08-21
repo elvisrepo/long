@@ -105,3 +105,13 @@ def test_prod_settings_load_with_complete_environment() -> None:
     result = import_prod_settings(valid_prod_environment())
 
     assert result.returncode == 0, result.stderr
+
+
+def test_prod_settings_reject_sqlite_database_url() -> None:
+    environment = valid_prod_environment()
+    environment["DATABASE_URL"] = "sqlite:////tmp/longevity.db"
+
+    result = import_prod_settings(environment)
+
+    assert result.returncode != 0
+    assert "DATABASE_URL must use PostgreSQL in production" in result.stderr
