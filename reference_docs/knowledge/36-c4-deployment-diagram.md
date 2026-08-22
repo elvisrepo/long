@@ -107,6 +107,22 @@ abstracts away DNS, ALB, and EC2 placement:
 The deployment view answers where network traffic runs. The dynamic views
 answer which Android and Django responsibilities collaborate during each flow.
 
+### Reading the Public Edge
+
+In this view, `Public DNS → HTTPS ALB` is discovery followed by transport, not
+two request-processing hops. DNS publishes the API hostname's ALB alias. The
+client then connects to the ALB on port 443, verifies its ACM certificate, and
+uses the negotiated TLS session for encrypted HTTPS traffic. The ALB terminates
+that client TLS session and forwards the request to the EC2-hosted Django target.
+The target port is private and accepts traffic only from the ALB security group.
+
+The current browser-to-public-DNS edge depicts the separate API-origin
+candidate. It is not an accepted browser-origin decision. The live React client
+uses relative `/api/...` paths, and the staging audit prefers a single browser
+origin that proxies those paths to the ALB. Android, Stripe, and monitoring need
+the public API hostname regardless. Resolve this choice before provisioning and
+then update the Structurizr browser edges to the selected topology.
+
 ### Current Deployment Modeling Rule
 
 Use the deployment view for:

@@ -20,6 +20,18 @@
 | A09 Logging Failures | `django-auditlog` on all models, structured logging, CloudWatch |
 | A10 SSRF | No user-supplied URLs in server-side requests, outbound calls restricted to allowlisted provider / aggregator hosts when cloud integrations are added |
 
+Production debug boundary:
+
+- `DEBUG=False` prevents public Django exception pages from exposing stack
+  traces, source locations, request details, database clues, and configuration
+  context.
+- Disabling debug does not disable observability. Production errors belong in
+  redacted console logs collected by CloudWatch, with user-facing responses kept
+  generic.
+- Production settings must fail closed when required configuration is missing;
+  they must not inherit local SQLite, localhost URL, or development-secret
+  fallbacks from shared settings.
+
 Current E2E security boundary:
 - `/api/testing/reset/` is a destructive test-only endpoint.
 - It is mounted only when `ENABLE_E2E_TESTING_API=True`, which is set by `config.settings.e2e`.

@@ -137,6 +137,13 @@ Choose before implementation:
 2. separate frontend/API origins plus explicit credentialed CORS configuration,
    cookie-domain/SameSite review, and cross-origin tests.
 
+The current Structurizr staging view depicts the browser resolving and calling
+the separate API hostname directly. That edge is a candidate, not a completed
+decision, and currently conflicts with React's relative `/api/...` calls. A
+single-origin implementation may retain `api-staging.<domain>` for Android,
+Stripe, and monitoring while the frontend host proxies browser `/api/*` traffic
+to the same ALB. Update the DSL browser edges after this choice is made.
+
 Android is unaffected by browser CORS because OkHttp is a native client, but it
 still requires the public HTTPS API base URL.
 

@@ -44,6 +44,40 @@ One-off Docker migration container on EC2
     → CloudWatch
 ```
 
+### DNS, TLS, ACM, and ALB Boundary
+
+Public DNS and TLS solve different problems. Route53 publishes an alias such as
+`api-staging.<domain>` that tells internet clients how to reach the ALB; DNS does
+not encrypt or route the HTTP request. The ALB's port-443 listener is the public
+TLS endpoint. It presents the hostname-matching ACM certificate, authenticates
+the server to the client, and negotiates encryption that protects passwords,
+tokens, health data, API responses, and Stripe webhooks in transit.
+
+The ALB terminates the client TLS connection, decrypts the request, checks the
+target's health, and forwards the request to Django on EC2. For this MVP the
+ALB-to-EC2 application hop is HTTP inside the AWS network boundary. The EC2
+security group must therefore accept the application port only from the ALB
+security group. Django trusts `X-Forwarded-Proto: https` only within that
+boundary so `request.is_secure()`, HTTPS redirects, and Secure cookies behave
+correctly. ACM keeps the certificate and private key on the AWS-managed edge
+and handles eligible certificate renewal instead of placing TLS keys on EC2.
+
+### Browser Origin Decision Remains Open
+
+The Android client, Stripe, and external monitoring require a public API
+hostname such as `api-staging.<domain>`. The browser path is not yet decided:
+
+1. a separate frontend and API origin requires credentialed CORS plus deliberate
+   cookie, CSRF, and SameSite configuration; or
+2. the preferred initial browser path serves React and proxies relative
+   `/api/*` requests behind one frontend origin.
+
+A viable one-origin arrangement can still retain the API hostname for native
+and server clients: `staging.<domain>` serves assets and proxies `/api/*` to the
+ALB, while `api-staging.<domain>` reaches the same ALB for Android, Stripe, and
+monitoring. Do not treat this as accepted until Blocker F in the staging audit
+is resolved and the Structurizr browser edges are updated.
+
 The first staging deployment deliberately omits Celery, Celery Beat, and Redis.
 Wearable uploads are authenticated, idempotent, limited to 100 normalized
 entries, and processed synchronously. This keeps the initial production-like
@@ -116,5 +150,6 @@ and durable runtime artifacts such as exports or logical backups belong in S3.
 - On EC2, schema migrations run once through the same backend image with `docker compose run --rm web uv run python manage.py migrate --no-input` before the API container is replaced.
 - On post-MVP Fargate, the equivalent operation is a one-off ECS task using the same immutable image.
 - The public ALB terminates TLS, routes API and Stripe webhook traffic, and checks `/api/v1/health/`.
+- Public DNS locates the ALB; the ACM-backed ALB listener, not DNS, is the TLS endpoint.
 - Frontend asset hosting is provider-neutral until provisioning chooses Vercel or S3 plus CloudFront.
 - Manual staging provisioning is a learning phase, not the production source of truth; Terraform should reproduce the EC2 topology before production promotion.

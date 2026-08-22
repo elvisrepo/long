@@ -42,6 +42,14 @@ Post-MVP Fargate target:
 - HTTP redirects to HTTPS; the Android release manifest continues to reject cleartext traffic
 - Stripe test/live webhook destinations use the corresponding public HTTPS endpoint
 
+Route53 publishes the hostname-to-ALB alias; it does not perform TLS. The ALB's
+port-443 listener presents the ACM certificate, negotiates and terminates the
+client TLS connection, then forwards the decrypted request to the EC2 target.
+The EC2 application security group must accept traffic only from the ALB
+security group because Django trusts the ALB's `X-Forwarded-Proto: https`
+header. Under the MVP boundary, the ALB-to-EC2 hop is HTTP inside that restricted
+network path; moving to HTTPS targets would be a separate hardening decision.
+
 ### 8.3 Production Environment
 - `DEBUG=False`, `ALLOWED_HOSTS` set, `SECURE_*` Django settings
 - Secrets from AWS Secrets Manager (not env vars baked in image)
@@ -49,6 +57,17 @@ Post-MVP Fargate target:
 - explicit frontend origin, CORS, CSRF trusted origins, and secure cookie configuration
 - console/structured logging without secrets, JWTs, health values, or Stripe payload leakage
 - environment-specific Stripe test versus live credentials and webhook secrets
+
+`DEBUG=False` is independent of logging. It suppresses developer exception
+pages and debug-only behavior for public requests; redacted diagnostics still
+flow through the configured log levels to CloudWatch.
+
+Browser origin is a provisioning gate. The React client currently uses relative
+`/api/...` URLs, so the preferred initial design is one browser origin whose CDN
+or hosting layer proxies `/api/*` to the ALB. A separate API origin is valid only
+with explicit credentialed CORS, cookie-domain/SameSite review, CSRF trusted
+origins, and cross-origin tests. Android, Stripe webhooks, and monitoring still
+use the dedicated public API hostname directly.
 
 Android environment boundary:
 

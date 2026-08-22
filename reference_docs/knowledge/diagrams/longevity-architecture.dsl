@@ -297,7 +297,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                     }
                 }
 
-                frontendHosting = deploymentNode "Frontend Hosting / CDN" "Provider-neutral staging origin and CDN; choose Vercel or S3 plus CloudFront when provisioning." {
+                frontendHosting = deploymentNode "Frontend Hosting / CDN" "Provider-neutral staging origin and CDN; choose Vercel or S3 plus CloudFront when provisioning, and proxy /api/* to the ALB if the preferred single browser origin is selected." {
                     tags "EdgeZone"
                     staticHost = infrastructureNode "React Static Host" "Serves versioned React assets over HTTPS." {
                         tags "EdgeService"
@@ -310,11 +310,11 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                     edge = deploymentNode "Public Edge" {
                         tags "EdgeZone"
 
-                        publicDns = infrastructureNode "Public DNS" "Resolves the staging API hostname to the load balancer." {
+                        publicDns = infrastructureNode "Public DNS" "Publishes the staging API hostname as an alias to the load balancer; DNS locates the endpoint but does not terminate TLS." {
                             tags "EdgeService"
                         }
 
-                        alb = infrastructureNode "HTTPS ALB" "Public API entrypoint that terminates TLS with an ACM certificate, routes requests, and checks Django health." {
+                        alb = infrastructureNode "HTTPS ALB" "Public API entrypoint that presents the ACM certificate, terminates client TLS, forwards requests to the private EC2 target, and checks Django health." {
                             tags "EdgeService"
                         }
                     }
@@ -370,7 +370,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                     tags "ClientTraffic"
                 }
 
-                mvpStaging.userDevices.browserNode.browserClient -> mvpStaging.aws.edge.publicDns "Resolves the staging API hostname" {
+                mvpStaging.userDevices.browserNode.browserClient -> mvpStaging.aws.edge.publicDns "Resolves the staging API hostname in the separate-origin candidate" {
                     tags "ClientTraffic"
                 }
 
@@ -386,11 +386,11 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                     tags "EdgeTraffic"
                 }
 
-                mvpStaging.aws.edge.publicDns -> mvpStaging.aws.edge.alb "Maps the staging API hostname to the TLS endpoint" {
+                mvpStaging.aws.edge.publicDns -> mvpStaging.aws.edge.alb "Publishes the staging API hostname as an alias to the ALB TLS endpoint" {
                     tags "EdgeTraffic"
                 }
 
-                mvpStaging.userDevices.browserNode.browserClient -> mvpStaging.aws.edge.alb "Calls the Django JSON API over HTTPS" {
+                mvpStaging.userDevices.browserNode.browserClient -> mvpStaging.aws.edge.alb "Calls the Django JSON API over HTTPS in the separate-origin candidate" {
                     tags "ClientTraffic"
                 }
 
@@ -402,7 +402,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                     tags "OpsTraffic"
                 }
 
-                mvpStaging.aws.edge.alb -> mvpStaging.aws.compute.apiNode.apiInstance "Routes HTTPS requests to the EC2-hosted container and performs Django health checks" {
+                mvpStaging.aws.edge.alb -> mvpStaging.aws.compute.apiNode.apiInstance "After terminating client TLS, forwards requests to the private EC2-hosted container and performs Django health checks" {
                     tags "EdgeTraffic"
                 }
 
