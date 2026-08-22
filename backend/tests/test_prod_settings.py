@@ -1,3 +1,5 @@
+"""Production-setting contract tests at the real module-import boundary."""
+
 import json
 import os
 import subprocess
@@ -8,13 +10,21 @@ import pytest
 
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
+
+# Each import runs in a fresh interpreter because Django settings modules are
+# process-global and must not leak state between environment scenarios.
 IMPORT_PROD_SETTINGS = "import config.settings.prod"
+
+# Suppress the developer .env only when proving that a variable is truly absent.
 IMPORT_PROD_SETTINGS_WITHOUT_DOTENV = """
 from unittest.mock import patch
 
 with patch("dotenv.load_dotenv", return_value=False):
     import config.settings.prod
 """
+
+# This independent list is the expected public deployment contract. Keeping it
+# outside prod.py ensures a removed production requirement makes a test fail.
 REQUIRED_ENVIRONMENT_VARIABLES = (
     "SECRET_KEY",
     "PII_ENCRYPTION_KEY",
@@ -34,6 +44,8 @@ REQUIRED_ENVIRONMENT_VARIABLES = (
 
 
 def valid_prod_environment() -> dict[str, str]:
+    """Return deterministic, non-secret values for a valid production import."""
+
     return {
         **os.environ,
         "SECRET_KEY": "test-production-secret-key",
@@ -64,6 +76,8 @@ def import_prod_settings(
     *,
     without_dotenv: bool = False,
 ) -> subprocess.CompletedProcess[str]:
+    """Import production settings in an isolated child process."""
+
     command = (
         IMPORT_PROD_SETTINGS_WITHOUT_DOTENV
         if without_dotenv
@@ -83,6 +97,8 @@ def read_prod_setting(
     environment: dict[str, str],
     setting_name: str,
 ) -> subprocess.CompletedProcess[str]:
+    """Serialize one effective production setting from an isolated process."""
+
     command = (
         "import json; "
         "from config.settings import prod; "
@@ -230,3 +246,16 @@ def test_prod_settings_use_conservative_hsts_policy() -> None:
     assert json.loads(seconds.stdout) == 300
     assert json.loads(include_subdomains.stdout) is False
     assert json.loads(preload.stdout) is False
+
+
+def test_prod_settings_configure_application_and_django_log_levels() -> None:
+    environment = valid_prod_environment()
+    environment["LOG_LEVEL"] = "WARNING"
+    environment["DJANGO_LOG_LEVEL"] = "ERROR"
+
+    result = read_prod_setting(environment, "LOGGING")
+
+    assert result.returncode == 0, result.stderr
+    logging = json.loads(result.stdout)
+    assert logging["root"]["level"] == "WARNING"
+    assert logging["loggers"]["django"]["level"] == "ERROR"

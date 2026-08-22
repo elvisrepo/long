@@ -1,22 +1,27 @@
-"""
-Base Django settings shared across environments.
+"""Shared Django settings with local-development-friendly defaults.
+
+Production imports this module, then validates and overrides every fallback
+that would be unsafe for a public deployment.
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 import dj_database_url
 from dotenv import load_dotenv
 
-from datetime import timedelta
 
-
-BASE_DIR = Path(__file__).resolve().parent.parent.parent  #points to backend
+BASE_DIR = Path(__file__).resolve().parent.parent.parent  # Points to backend.
 ENV_FILE = BASE_DIR / ".env"
 DEFAULT_DATABASE_URL = f"sqlite:///{(BASE_DIR / 'db.sqlite3').as_posix()}"
 
+# Load developer configuration before reading environment-backed settings.
+# Existing process variables win because python-dotenv does not override them.
 load_dotenv(ENV_FILE)
 
+# These permissive defaults keep local and test settings importable. prod.py
+# checks the post-dotenv environment directly and rejects missing real values.
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-insecure-secret-key")
 PII_ENCRYPTION_KEY = os.environ.get("PII_ENCRYPTION_KEY", "").strip()
 EMAIL_LOOKUP_KEY = os.environ.get("EMAIL_LOOKUP_KEY", "").strip()
@@ -80,6 +85,9 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
+# SQLite and loopback Redis make standalone development possible. Production
+# requires PostgreSQL and intentionally does not require Redis until server-side
+# asynchronous work is introduced.
 DATABASES = {
     "default": dj_database_url.config(
         default=DEFAULT_DATABASE_URL,
@@ -89,6 +97,8 @@ DATABASES = {
 REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")
 CELERY_BROKER_URL = REDIS_URL
 
+# Localhost return URLs support the Vite development server. Production requires
+# explicit non-local HTTPS values for every browser return path.
 STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "").strip()
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "").strip()
 STRIPE_CHECKOUT_SUCCESS_URL = os.environ.get(
@@ -143,6 +153,8 @@ REST_FRAMEWORK = {
       ),
   }
 
+# Base settings may reuse Django's secret for JWT signing. Production requires a
+# dedicated JWT_SIGNING_KEY so rotating one purpose does not affect the other.
 SIMPLE_JWT = {
       "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
       "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
@@ -152,6 +164,9 @@ SIMPLE_JWT = {
   }
 
 
+# Console-only logging keeps containers stateless and lets the runtime collect
+# stdout/stderr without application-managed log files. LOG_LEVEL controls the
+# root/application threshold; DJANGO_LOG_LEVEL controls framework noise.
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 DJANGO_LOG_LEVEL = os.environ.get("DJANGO_LOG_LEVEL", "INFO").upper()
 
@@ -177,7 +192,7 @@ LOGGING = {
       "loggers": {
           "django": {
               "handlers": ["console"],
-              "level": LOG_LEVEL,
+              "level": DJANGO_LOG_LEVEL,
               "propagate": False,
           },
           "apps.users": {
