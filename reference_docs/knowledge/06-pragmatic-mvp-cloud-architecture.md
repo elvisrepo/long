@@ -10,23 +10,22 @@
 The Structurizr DSL is the source of truth for the current and future cloud deployment stages:
 
 - `mvp-staging-ec2-deployment`: immediate manually provisioned public HTTPS target
+- `mvp-staging-aws-infrastructure`: detailed proposed two-AZ AWS placement and network boundaries
 - `post-mvp-fargate-deployment`: later worker-enabled managed-container target
 - source: `reference_docs/knowledge/diagrams/longevity-architecture.dsl`
 
 ### Immediate MVP Staging
 
 ```text
-Frontend Hosting / CDN
-    ↓ serves React assets over HTTPS
-Browser
-    ↓ calls public API over HTTPS
-Public DNS → HTTPS ALB → EC2 Application Host
-                              └── Docker
-                                  └── Django API container
-                                          ↓ encrypted PostgreSQL connection
-                                    Timescale Cloud
-                                          ↓
-                                 Managed automated backups
+Browser → staging.<domain> Frontend Hosting / CDN
+                         ├── serves React assets over HTTPS
+                         └── reverse-proxies uncached /api/*
+                                      ↓ HTTPS
+Route53 → ACM-backed ALB across public subnets in AZ-a and AZ-b
+                    ├── private EC2 App Host A → Django container A
+                    └── private EC2 App Host B → Django container B
+                                      ↓ encrypted PostgreSQL
+                                Timescale Cloud → managed backups
 
 Android staging build
     ↓ public HTTPS API base URL
@@ -62,26 +61,33 @@ boundary so `request.is_secure()`, HTTPS redirects, and Secure cookies behave
 correctly. ACM keeps the certificate and private key on the AWS-managed edge
 and handles eligible certificate renewal instead of placing TLS keys on EC2.
 
-### Browser Origin Decision Remains Open
+### Recommended Browser Origin
 
 The Android client, Stripe, and external monitoring require a public API
-hostname such as `api-staging.<domain>`. The browser path is not yet decided:
+hostname such as `api-staging.<domain>`. For the browser, use one origin:
 
-1. a separate frontend and API origin requires credentialed CORS plus deliberate
-   cookie, CSRF, and SameSite configuration; or
-2. the preferred initial browser path serves React and proxies relative
-   `/api/*` requests behind one frontend origin.
+`staging.<domain>` serves React and reverse-proxies relative `/api/*` requests
+to the ALB. This matches local development, where Vite serves the browser origin
+and proxies `/api/*` to Django. It avoids credentialed cross-origin browser
+configuration for the current refresh-cookie flow.
 
-A viable one-origin arrangement can still retain the API hostname for native
-and server clients: `staging.<domain>` serves assets and proxies `/api/*` to the
-ALB, while `api-staging.<domain>` reaches the same ALB for Android, Stripe, and
-monitoring. Do not treat this as accepted until Blocker F in the staging audit
-is resolved and the Structurizr browser edges are updated.
+The dedicated `api-staging.<domain>` still reaches the same ALB for Android,
+Stripe, and monitoring. The DSL now models this strategy. Provisioning remains
+blocked until the frontend provider and its uncached `/api/*` forwarding,
+cookies, CSRF behavior, and browser tests are configured and verified.
 
 The first staging deployment deliberately omits Celery, Celery Beat, and Redis.
 Wearable uploads are authenticated, idempotent, limited to 100 normalized
 entries, and processed synchronously. This keeps the initial production-like
 topology small while preserving the existing database contracts.
+
+The proposed learning topology uses two private EC2 application hosts, one in
+each of two Availability Zones, behind one ALB target group. This makes ALB
+health routing and single-target failure observable. It costs more than the
+original single-host decision: compute and EBS are duplicated, and a zonal NAT
+Gateway in each public subnet adds fixed and data-processing charges. Run a
+cost estimate before provisioning; one host remains an acceptable lower-cost
+fallback, but it is a single point of failure and cannot demonstrate failover.
 
 The first EC2 staging environment is provisioned manually so the developer
 learns Route53, ACM, ALB target groups and health checks, EC2, security groups,
@@ -106,7 +112,9 @@ Android staging build
     → Timescale Cloud
 
 React browser
-    → the same public Django API
+    → relative /api/* on staging.<domain>
+    → frontend/CDN reverse proxy
+    → the same public Django API ALB
     → reads the metric state written by Android uploads
 ```
 
@@ -151,5 +159,7 @@ and durable runtime artifacts such as exports or logical backups belong in S3.
 - On post-MVP Fargate, the equivalent operation is a one-off ECS task using the same immutable image.
 - The public ALB terminates TLS, routes API and Stripe webhook traffic, and checks `/api/v1/health/`.
 - Public DNS locates the ALB; the ACM-backed ALB listener, not DNS, is the TLS endpoint.
+- The proposed ALB spans two public subnets; its two Django targets occupy private application subnets in different Availability Zones.
+- EC2 has no public SSH ingress; IAM-authorized Systems Manager sessions use the agents' outbound management channels.
 - Frontend asset hosting is provider-neutral until provisioning chooses Vercel or S3 plus CloudFront.
 - Manual staging provisioning is a learning phase, not the production source of truth; Terraform should reproduce the EC2 topology before production promotion.

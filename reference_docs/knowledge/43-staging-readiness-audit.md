@@ -123,26 +123,23 @@ Required outcome: remove it from public production URLs. Keep task verification
 as a local/test-only diagnostic or a protected operational command when Celery
 eventually becomes real application infrastructure.
 
-### Blocker F — browser origin strategy is undecided
+### Blocker F — same-origin strategy selected; proxy implementation remains
 
 The React client calls relative `/api/...` routes and its refresh-cookie flow is
 simplest and safest behind one browser origin. The architecture currently leaves
 frontend hosting open between Vercel and S3/CloudFront while Django has no CORS
 middleware.
 
-Choose before implementation:
+The selected staging architecture uses one public browser origin that serves
+static assets and reverse-proxies uncached `/api/*` requests to the ALB. The DSL
+now models this path. `api-staging.<domain>` remains available for Android,
+Stripe, and monitoring.
 
-1. preferred for the first staging slice: one public browser origin that serves
-   static assets and proxies `/api/*` to the ALB; or
-2. separate frontend/API origins plus explicit credentialed CORS configuration,
-   cookie-domain/SameSite review, and cross-origin tests.
-
-The current Structurizr staging view depicts the browser resolving and calling
-the separate API hostname directly. That edge is a candidate, not a completed
-decision, and currently conflicts with React's relative `/api/...` calls. A
-single-origin implementation may retain `api-staging.<domain>` for Android,
-Stripe, and monitoring while the frontend host proxies browser `/api/*` traffic
-to the same ALB. Update the DSL browser edges after this choice is made.
+This blocker is not resolved merely by changing the diagram. Choose the frontend
+provider, configure the `/api/*` behavior without API caching, verify forwarded
+host/protocol metadata, and test refresh cookies and CSRF through the deployed
+origin. A future separate-origin design would instead require credentialed CORS,
+cookie-domain/SameSite review, and cross-origin tests.
 
 Android is unaffected by browser CORS because OkHttp is a native client, but it
 still requires the public HTTPS API base URL.

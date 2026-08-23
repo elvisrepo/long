@@ -13,7 +13,7 @@ Initial public staging:
 | Component | Service | Why |
 |---|---|---|
 | **Frontend** | Vercel or S3 + CloudFront | HTTPS static asset origin and CDN; choose one during provisioning |
-| **Backend** | Manually provisioned AWS EC2 + Docker Compose + ALB | Learn the AWS runtime directly while retaining containers and a clean later Fargate migration path |
+| **Backend** | ACM-backed ALB + proposed two private EC2 Docker Compose hosts across two AZs | Learn TLS termination, health routing, and target failure while retaining a clean later Fargate migration path; cost-gate the second host and zonal NATs |
 | **Database** | Timescale Cloud (PostgreSQL + TimescaleDB) | Managed database matching the intended time-series direction |
 | **Secrets** | AWS Secrets Manager | Server-side Django, database, and Stripe configuration |
 | **Logs/Metrics** | CloudWatch | Container stdout/stderr and AWS infrastructure metrics |
@@ -21,6 +21,10 @@ Initial public staging:
 
 The EC2 application port accepts traffic only from the ALB security group, and
 administration should use AWS Systems Manager instead of exposing SSH publicly.
+The ALB spans public subnets in two Availability Zones; EC2 targets occupy
+private application subnets and have no inbound port 22. A lower-cost one-target
+start is compatible with the same target group, but staging then remains a
+single point of failure.
 The initial staging runtime does not require ElastiCache, Celery Worker, or
 Celery Beat. Add those only when a measured server-side workload needs durable
 asynchronous execution. Android WorkManager remains responsible for device-side
@@ -62,9 +66,9 @@ network path; moving to HTTPS targets would be a separate hardening decision.
 pages and debug-only behavior for public requests; redacted diagnostics still
 flow through the configured log levels to CloudWatch.
 
-Browser origin is a provisioning gate. The React client currently uses relative
-`/api/...` URLs, so the preferred initial design is one browser origin whose CDN
-or hosting layer proxies `/api/*` to the ALB. A separate API origin is valid only
+The selected staging browser architecture uses one browser origin because React
+currently uses relative `/api/...` URLs. Its CDN or hosting layer proxies
+uncached `/api/*` to the ALB. A separate API origin is valid only
 with explicit credentialed CORS, cookie-domain/SameSite review, CSRF trusted
 origins, and cross-origin tests. Android, Stripe webhooks, and monitoring still
 use the dedicated public API hostname directly.

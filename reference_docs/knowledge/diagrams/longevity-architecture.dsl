@@ -271,6 +271,13 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             }
 
             mvpStaging = deploymentEnvironment "MVP Staging - Manual EC2" {
+                operatorAccess = deploymentNode "Operator Workstation" "Trusted administrator workstation; the human operator authenticates to AWS with IAM rather than connecting to EC2 over public SSH." {
+                    tags "ClientZone"
+                    awsAccessClient = infrastructureNode "AWS Console / CLI Session Manager Client" "Starts authorized Systems Manager sessions and operational commands." {
+                        tags "ClientRuntime"
+                    }
+                }
+
                 userDevices = deploymentNode "User Devices" "Where staging users run the browser and internally distributed Android client." {
                     tags "ClientZone"
 
@@ -282,177 +289,195 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                         browserClient = containerInstance longevity.webapp
                     }
 
-                    androidNode = deploymentNode "Android Phone" "Physical Android runtime using the planned com.viridiandome.longevity.staging build configured with the public HTTPS API base URL; its Keystore data and Health Connect grants are isolated from debug and production identities." {
+                    androidNode = deploymentNode "Android Phone" "Physical Android runtime using the staging build and the dedicated public HTTPS API hostname." {
                         tags "ClientZone"
-
                         androidClient = containerInstance longevity.android
-
                         healthConnectRuntime = infrastructureNode "Health Connect" "Exposes user-permitted Weight and Steps records, stable record IDs, and provider modification timestamps." {
                             tags "ClientRuntime"
                         }
-
                         samsungHealthRuntime = infrastructureNode "Samsung Health" "Writes Samsung-originated health records into Health Connect." {
                             tags "ClientRuntime"
                         }
                     }
                 }
 
-                frontendHosting = deploymentNode "Frontend Hosting / CDN" "Provider-neutral staging origin and CDN; choose Vercel or S3 plus CloudFront when provisioning, and proxy /api/* to the ALB if the preferred single browser origin is selected." {
+                frontendHosting = deploymentNode "Frontend Hosting / CDN" "Provider-neutral staging browser origin. It serves React and reverse-proxies /api/* to the dedicated API hostname so browser API calls remain same-origin." {
                     tags "EdgeZone"
-                    staticHost = infrastructureNode "React Static Host" "Serves versioned React assets over HTTPS." {
+                    staticHost = infrastructureNode "React Static Host + /api Proxy" "Serves versioned React assets over HTTPS and forwards uncached /api/* requests to the ALB origin." {
                         tags "EdgeService"
                     }
                 }
 
-                aws = deploymentNode "AWS" "Initial staging environment provisioned manually to learn the AWS resources, then reproduced with Terraform before production. Celery, Beat, and Redis are absent." {
+                aws = deploymentNode "AWS Account" "Manually provisioned learning environment, later reproduced with Terraform. Celery, Beat, and Redis remain absent." {
                     tags "CloudZone"
 
-                    edge = deploymentNode "Public Edge" {
-                        tags "EdgeZone"
-
-                        publicDns = infrastructureNode "Public DNS" "Publishes the staging API hostname as an alias to the load balancer; DNS locates the endpoint but does not terminate TLS." {
-                            tags "EdgeService"
-                        }
-
-                        alb = infrastructureNode "HTTPS ALB" "Public API entrypoint that presents the ACM certificate, terminates client TLS, forwards requests to the private EC2 target, and checks Django health." {
-                            tags "EdgeService"
-                        }
+                    publicDns = infrastructureNode "Route 53 Public DNS" "Publishes api-staging.<domain> as an alias to the regional ALB; DNS locates the endpoint but does not terminate TLS." {
+                        tags "EdgeService"
                     }
 
-                    compute = deploymentNode "EC2 Application Host" "Single staging EC2 instance running Docker. Its application port accepts traffic only from the ALB security group; operators use AWS Systems Manager rather than exposing SSH." {
-                        tags "ComputeZone"
+                    region = deploymentNode "eu-central-1 (Frankfurt)" "One AWS Region containing the staging network and regional services." {
+                        tags "CloudZone"
 
-                        dockerRuntime = infrastructureNode "Docker Engine + Compose" "Runs the immutable backend image and one-off operational commands on EC2." {
-                            tags "ComputeZone"
-                        }
-
-                        apiNode = deploymentNode "Django API Container" "Runs the Django API image as the long-lived staging process." {
-                            apiInstance = containerInstance longevity.api
-                        }
-
-                        migrationNode = deploymentNode "One-off Docker Migration Container" "Runs docker compose run --rm web uv run python manage.py migrate --no-input before the API container is replaced." {
-                            migrationInstance = containerInstance longevity.api
-                        }
-                    }
-
-                    security = deploymentNode "Security & Config" {
-                        tags "SecurityZone"
-                        secretsNode = infrastructureNode "AWS Secrets Manager" "Stores Django, database, Stripe, and other server-side staging secrets." {
+                        acmCertificate = infrastructureNode "ACM TLS Certificate" "Proves control of api-staging.<domain> and supplies the certificate used by the ALB HTTPS listener." {
                             tags "SecurityService"
                         }
-                    }
 
-                    ops = deploymentNode "Operations" {
-                        tags "OpsZone"
-                        monitoringNode = infrastructureNode "CloudWatch" "Collects API and migration stdout/stderr logs plus infrastructure metrics." {
-                            tags "OpsService"
+                        vpc = deploymentNode "Staging VPC 10.20.0.0/16" "Isolated regional network. The public ALB reaches private EC2 targets by private IP; security groups constrain each hop." {
+                            tags "NetworkZone"
+
+                            internetGateway = infrastructureNode "Internet Gateway" "Connects public-subnet routes to the internet." {
+                                tags "NetworkService"
+                            }
+
+                            publicTier = deploymentNode "Public Subnets" "Two public subnets are required for the internet-facing ALB and provide zonal outbound gateways." {
+                                tags "EdgeZone"
+
+                                publicSubnetA = deploymentNode "Public Subnet A 10.20.0.0/24 (AZ-a)" {
+                                    tags "EdgeZone"
+                                    natGatewayA = infrastructureNode "NAT Gateway A" "Provides outbound-only internet access for Private App Subnet A." {
+                                        tags "NetworkService"
+                                    }
+                                }
+
+                                publicSubnetB = deploymentNode "Public Subnet B 10.20.1.0/24 (AZ-b)" {
+                                    tags "EdgeZone"
+                                    natGatewayB = infrastructureNode "NAT Gateway B" "Provides outbound-only internet access for Private App Subnet B." {
+                                        tags "NetworkService"
+                                    }
+                                }
+
+                                alb = deploymentNode "Internet-facing Application Load Balancer" "AWS-managed reverse proxy spanning both public subnets." {
+                                    tags "EdgeZone"
+                                    httpsListener = infrastructureNode "HTTPS :443 Listener" "Accepts TCP, performs the TLS handshake with the ACM certificate, decrypts HTTP requests, and adds trusted forwarding metadata." {
+                                        tags "EdgeService"
+                                    }
+                                    targetGroup = infrastructureNode "Django Target Group" "Health-checks both EC2 targets and forwards application HTTP only to healthy targets." {
+                                        tags "EdgeService"
+                                    }
+                                }
+                            }
+
+                            privateTier = deploymentNode "Private Application Subnets" "EC2 has no public ingress or public SSH endpoint. Each host is reachable from the ALB security group and managed through Systems Manager." {
+                                tags "ComputeZone"
+
+                                privateSubnetA = deploymentNode "Private App Subnet A 10.20.10.0/24 (AZ-a)" {
+                                    tags "ComputeZone"
+                                    computeA = deploymentNode "EC2 App Host A" "First Docker host and the designated one-off migration runner." {
+                                        tags "ComputeZone"
+                                        dockerRuntimeA = infrastructureNode "Docker Engine + Compose" "Runs the immutable backend image." {
+                                            tags "ComputeZone"
+                                        }
+                                        ssmAgentA = infrastructureNode "SSM Agent A" "Maintains an authenticated outbound management channel; no inbound TCP 22 is required." {
+                                            tags "SecurityService"
+                                        }
+                                        apiNodeA = deploymentNode "Django API Container A" {
+                                            apiInstanceA = containerInstance longevity.api
+                                        }
+                                        migrationNode = deploymentNode "One-off Migration Container" "Runs migrations once before both API containers are replaced." {
+                                            migrationInstance = containerInstance longevity.api
+                                        }
+                                    }
+                                }
+
+                                privateSubnetB = deploymentNode "Private App Subnet B 10.20.11.0/24 (AZ-b)" {
+                                    tags "ComputeZone"
+                                    computeB = deploymentNode "EC2 App Host B" "Second Docker host used to learn ALB health routing and tolerate one app-host or AZ failure." {
+                                        tags "ComputeZone"
+                                        dockerRuntimeB = infrastructureNode "Docker Engine + Compose" "Runs the same immutable backend image." {
+                                            tags "ComputeZone"
+                                        }
+                                        ssmAgentB = infrastructureNode "SSM Agent B" "Maintains an authenticated outbound management channel; no inbound TCP 22 is required." {
+                                            tags "SecurityService"
+                                        }
+                                        apiNodeB = deploymentNode "Django API Container B" {
+                                            apiInstanceB = containerInstance longevity.api
+                                        }
+                                    }
+                                }
+                            }
+
+                            networkControls = deploymentNode "Security Groups" "Stateful least-privilege network boundaries; these are rules, not traffic-processing proxies." {
+                                tags "SecurityZone"
+                                albSecurityGroup = infrastructureNode "ALB Security Group" "Allows public TCP 443; no public application-container port." {
+                                    tags "SecurityService"
+                                }
+                                appSecurityGroup = infrastructureNode "App Security Group" "Allows the Gunicorn HTTP port only from the ALB security group; no inbound TCP 22." {
+                                    tags "SecurityService"
+                                }
+                            }
+                        }
+
+                        security = deploymentNode "Security & Management" {
+                            tags "SecurityZone"
+                            secretsNode = infrastructureNode "AWS Secrets Manager" "Stores Django, database, Stripe, and other server-side staging secrets." {
+                                tags "SecurityService"
+                            }
+                            systemsManager = infrastructureNode "AWS Systems Manager Session Manager" "Authorizes audited operator sessions through IAM and the SSM agents without public SSH." {
+                                tags "SecurityService"
+                            }
+                        }
+
+                        ops = deploymentNode "Operations" {
+                            tags "OpsZone"
+                            monitoringNode = infrastructureNode "CloudWatch" "Collects API and migration logs plus EC2, ALB, and target-health metrics." {
+                                tags "OpsService"
+                            }
                         }
                     }
                 }
 
                 managedDatabase = deploymentNode "Managed Database" "Provider-managed PostgreSQL boundary retained as Timescale Cloud unless staging cost requires an explicit alternative." {
                     tags "ManagedZone"
-
                     timescaleNode = infrastructureNode "Timescale Cloud" "Managed PostgreSQL plus TimescaleDB reached through an encrypted connection." {
                         tags "ManagedDataService"
                     }
-
                     managedBackupsNode = infrastructureNode "Managed Automated Backups" "Provider-operated database backups with retention recorded when the service is provisioned." {
                         tags "StorageService"
                     }
                 }
 
-                mvpStaging.frontendHosting.staticHost -> mvpStaging.userDevices.browserNode.browserRuntime "Serves React assets over HTTPS" {
-                    tags "ClientTraffic"
-                }
-
-                mvpStaging.userDevices.browserNode.browserRuntime -> mvpStaging.userDevices.browserNode.browserClient "Runs the downloaded React application" {
-                    tags "ClientTraffic"
-                }
-
-                mvpStaging.userDevices.browserNode.browserClient -> mvpStaging.aws.edge.publicDns "Resolves the staging API hostname in the separate-origin candidate" {
-                    tags "ClientTraffic"
-                }
-
-                mvpStaging.userDevices.androidNode.androidClient -> mvpStaging.aws.edge.publicDns "Resolves its configured staging API hostname" {
-                    tags "ClientTraffic"
-                }
-
-                uptimeMonitor -> mvpStaging.aws.edge.publicDns "Resolves the public health-check hostname" {
-                    tags "EdgeTraffic"
-                }
-
-                stripe -> mvpStaging.aws.edge.publicDns "Resolves the signed webhook destination" {
-                    tags "EdgeTraffic"
-                }
-
-                mvpStaging.aws.edge.publicDns -> mvpStaging.aws.edge.alb "Publishes the staging API hostname as an alias to the ALB TLS endpoint" {
-                    tags "EdgeTraffic"
-                }
-
-                mvpStaging.userDevices.browserNode.browserClient -> mvpStaging.aws.edge.alb "Calls the Django JSON API over HTTPS in the separate-origin candidate" {
-                    tags "ClientTraffic"
-                }
-
-                mvpStaging.userDevices.androidNode.androidClient -> mvpStaging.aws.edge.alb "Uses the configured HTTPS base URL for mobile auth, subscription policy, wearable lifecycle, and Weight/Steps uploads" {
-                    tags "ClientTraffic"
-                }
-
-                uptimeMonitor -> mvpStaging.aws.edge.alb "GET /api/v1/health/ over HTTPS" {
-                    tags "OpsTraffic"
-                }
-
-                mvpStaging.aws.edge.alb -> mvpStaging.aws.compute.apiNode.apiInstance "After terminating client TLS, forwards requests to the private EC2-hosted container and performs Django health checks" {
-                    tags "EdgeTraffic"
-                }
-
-                mvpStaging.userDevices.browserNode.browserClient -> stripe "Redirects to hosted Checkout and Customer Portal" {
-                    tags "ClientTraffic"
-                }
-
-                mvpStaging.aws.compute.apiNode.apiInstance -> stripe "Creates Stripe test-mode Checkout and Customer Portal Sessions" {
-                    tags "EdgeTraffic"
-                }
-
-                stripe -> mvpStaging.aws.edge.alb "POSTs signed test-mode events to /api/v1/subscriptions/stripe/webhook/ over HTTPS" {
-                    tags "EdgeTraffic"
-                }
-
-                mvpStaging.userDevices.androidNode.samsungHealthRuntime -> mvpStaging.userDevices.androidNode.healthConnectRuntime "Writes Samsung-originated records on device" {
-                    tags "ClientTraffic"
-                }
-
-                mvpStaging.userDevices.androidNode.androidClient -> mvpStaging.userDevices.androidNode.healthConnectRuntime "Reads permitted Weight and Steps records with stable IDs and provider modification timestamps" {
-                    tags "ClientTraffic"
-                }
-
-                mvpStaging.aws.compute.apiNode.apiInstance -> mvpStaging.managedDatabase.timescaleNode "Reads and writes application data over an encrypted PostgreSQL connection" {
-                    tags "DataTraffic"
-                }
-
-                mvpStaging.aws.compute.migrationNode.migrationInstance -> mvpStaging.managedDatabase.timescaleNode "Applies schema migrations over an encrypted PostgreSQL connection before service promotion" {
-                    tags "DataTraffic"
-                }
-
-                mvpStaging.aws.compute.apiNode.apiInstance -> mvpStaging.aws.security.secretsNode "Reads server-side secrets through the EC2 instance IAM role" {
-                    tags "SecurityTraffic"
-                }
-
-                mvpStaging.aws.compute.migrationNode.migrationInstance -> mvpStaging.aws.security.secretsNode "Reads the same configuration through the EC2 instance IAM role" {
-                    tags "SecurityTraffic"
-                }
-
-                mvpStaging.aws.compute.apiNode.apiInstance -> mvpStaging.aws.ops.monitoringNode "Writes logs and metrics" {
-                    tags "OpsTraffic"
-                }
-
-                mvpStaging.aws.compute.migrationNode.migrationInstance -> mvpStaging.aws.ops.monitoringNode "Writes migration logs and exit status" {
-                    tags "OpsTraffic"
-                }
-
-                mvpStaging.managedDatabase.timescaleNode -> mvpStaging.managedDatabase.managedBackupsNode "Creates provider-managed automated backups" {
-                    tags "StorageTraffic"
-                }
+                mvpStaging.frontendHosting.staticHost -> mvpStaging.userDevices.browserNode.browserRuntime "Serves React assets over HTTPS" "" "ClientTraffic"
+                mvpStaging.userDevices.browserNode.browserRuntime -> mvpStaging.userDevices.browserNode.browserClient "Runs the downloaded React application" "" "ClientTraffic"
+                mvpStaging.userDevices.browserNode.browserClient -> mvpStaging.frontendHosting.staticHost "Calls relative /api/* on the same HTTPS browser origin" "" "ClientTraffic"
+                mvpStaging.frontendHosting.staticHost -> mvpStaging.aws.publicDns "Resolves api-staging.<domain> as its uncached /api/* origin" "" "EdgeTraffic"
+                mvpStaging.userDevices.androidNode.androidClient -> mvpStaging.aws.publicDns "Resolves its configured staging API hostname" "" "ClientTraffic"
+                uptimeMonitor -> mvpStaging.aws.publicDns "Resolves the public health-check hostname" "" "OpsTraffic"
+                stripe -> mvpStaging.aws.publicDns "Resolves the signed webhook destination" "" "EdgeTraffic"
+                mvpStaging.aws.publicDns -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "Aliases api-staging.<domain> to the ALB TLS endpoint" "" "EdgeTraffic"
+                mvpStaging.aws.region.acmCertificate -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "Supplies and renews the public TLS certificate" "" "SecurityTraffic"
+                mvpStaging.aws.region.vpc.networkControls.albSecurityGroup -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "Governs public inbound TCP 443" "" "SecurityTraffic"
+                mvpStaging.aws.region.vpc.networkControls.albSecurityGroup -> mvpStaging.aws.region.vpc.networkControls.appSecurityGroup "Is the only allowed application-port source" "" "SecurityTraffic"
+                mvpStaging.aws.region.vpc.networkControls.appSecurityGroup -> mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA "Governs target A ingress; no TCP 22" "" "SecurityTraffic"
+                mvpStaging.aws.region.vpc.networkControls.appSecurityGroup -> mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.apiInstanceB "Governs target B ingress; no TCP 22" "" "SecurityTraffic"
+                mvpStaging.frontendHosting.staticHost -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "Forwards uncached /api/* over HTTPS" "" "EdgeTraffic"
+                mvpStaging.userDevices.androidNode.androidClient -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "Calls the dedicated API hostname over HTTPS" "" "ClientTraffic"
+                uptimeMonitor -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "GET /api/v1/health/ over HTTPS (planned readiness contract)" "" "OpsTraffic"
+                stripe -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "POSTs signed test-mode webhooks over HTTPS" "" "EdgeTraffic"
+                mvpStaging.aws.region.vpc.publicTier.alb.httpsListener -> mvpStaging.aws.region.vpc.publicTier.alb.targetGroup "Terminates TLS and forwards application HTTP inside the VPC" "" "EdgeTraffic"
+                mvpStaging.aws.region.vpc.publicTier.alb.targetGroup -> mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA "Routes to healthy target A over private IP" "" "EdgeTraffic"
+                mvpStaging.aws.region.vpc.publicTier.alb.targetGroup -> mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.apiInstanceB "Routes to healthy target B over private IP" "" "EdgeTraffic"
+                mvpStaging.userDevices.browserNode.browserClient -> stripe "Redirects to hosted Checkout and Customer Portal" "" "ClientTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA -> stripe "Creates Stripe test-mode Checkout and Portal Sessions" "" "EdgeTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.apiInstanceB -> stripe "Creates Stripe test-mode Checkout and Portal Sessions" "" "EdgeTraffic"
+                mvpStaging.userDevices.androidNode.samsungHealthRuntime -> mvpStaging.userDevices.androidNode.healthConnectRuntime "Writes Samsung-originated records on device" "" "ClientTraffic"
+                mvpStaging.userDevices.androidNode.androidClient -> mvpStaging.userDevices.androidNode.healthConnectRuntime "Reads permitted Weight and Steps records" "" "ClientTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA -> mvpStaging.managedDatabase.timescaleNode "Reads and writes over encrypted PostgreSQL" "" "DataTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.apiInstanceB -> mvpStaging.managedDatabase.timescaleNode "Reads and writes over encrypted PostgreSQL" "" "DataTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.migrationNode.migrationInstance -> mvpStaging.managedDatabase.timescaleNode "Applies schema migrations before service promotion" "" "DataTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA -> mvpStaging.aws.region.security.secretsNode "Reads secrets through the EC2 IAM role" "" "SecurityTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.apiInstanceB -> mvpStaging.aws.region.security.secretsNode "Reads secrets through the EC2 IAM role" "" "SecurityTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.migrationNode.migrationInstance -> mvpStaging.aws.region.security.secretsNode "Reads migration configuration" "" "SecurityTraffic"
+                mvpStaging.operatorAccess.awsAccessClient -> mvpStaging.aws.region.security.systemsManager "Starts IAM-authorized operator sessions" "" "OpsTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.ssmAgentA -> mvpStaging.aws.region.security.systemsManager "Maintains outbound management channel" "" "SecurityTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.ssmAgentB -> mvpStaging.aws.region.security.systemsManager "Maintains outbound management channel" "" "SecurityTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA -> mvpStaging.aws.region.ops.monitoringNode "Writes logs and metrics" "" "OpsTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.apiInstanceB -> mvpStaging.aws.region.ops.monitoringNode "Writes logs and metrics" "" "OpsTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.migrationNode.migrationInstance -> mvpStaging.aws.region.ops.monitoringNode "Writes migration logs and exit status" "" "OpsTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA -> mvpStaging.aws.region.vpc.publicTier.publicSubnetA.natGatewayA "Uses zonal outbound route for external services" "" "NetworkTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.apiInstanceB -> mvpStaging.aws.region.vpc.publicTier.publicSubnetB.natGatewayB "Uses zonal outbound route for external services" "" "NetworkTraffic"
+                mvpStaging.aws.region.vpc.publicTier.publicSubnetA.natGatewayA -> mvpStaging.aws.region.vpc.internetGateway "Reaches approved internet services" "" "NetworkTraffic"
+                mvpStaging.aws.region.vpc.publicTier.publicSubnetB.natGatewayB -> mvpStaging.aws.region.vpc.internetGateway "Reaches approved internet services" "" "NetworkTraffic"
+                mvpStaging.managedDatabase.timescaleNode -> mvpStaging.managedDatabase.managedBackupsNode "Creates provider-managed automated backups" "" "StorageTraffic"
             }
 
             mvpCloud = deploymentEnvironment "Post-MVP Fargate" {
@@ -1171,7 +1196,20 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             autolayout lr
         }
 
-        deployment * mvpStaging "mvp-staging-ec2-deployment" "Immediate manually provisioned EC2 staging target: hosted React assets, ALB-routed Django Docker container plus one-off migration container, managed PostgreSQL backups, Stripe test webhooks, monitoring, and remote Android Weight/Steps sync without Celery, Redis, Fargate, or adb reverse." {
+        deployment * mvpStaging "mvp-staging-ec2-deployment" "Proposed manually provisioned staging target: same-origin browser /api proxy, two-AZ ALB routing to two private EC2 Docker hosts, one-off migrations, managed PostgreSQL backups, Stripe test webhooks, uptime monitoring, and remote Android sync without Celery, Redis, or Fargate." {
+            include *
+            exclude mvpStaging.aws.region.vpc.internetGateway
+            exclude mvpStaging.aws.region.vpc.publicTier.publicSubnetA.natGatewayA
+            exclude mvpStaging.aws.region.vpc.publicTier.publicSubnetB.natGatewayB
+            exclude mvpStaging.aws.region.vpc.networkControls
+            exclude mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.dockerRuntimeA
+            exclude mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.ssmAgentA
+            exclude mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.dockerRuntimeB
+            exclude mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.ssmAgentB
+            autolayout tb
+        }
+
+        deployment * mvpStaging "mvp-staging-aws-infrastructure" "Detailed learning view of the proposed eu-central-1 staging network: one VPC, two public ALB/NAT subnets, two private EC2 application subnets, security boundaries, Systems Manager, observability, and external dependencies. Provisioning remains cost-gated." {
             include *
             autolayout tb
         }
@@ -1229,6 +1267,12 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                   stroke #6f8aa6
               }
 
+              element "NetworkZone" {
+                  background #edf7f5
+                  color #173b36
+                  stroke #5c9b90
+              }
+
               element "EdgeZone" {
                   background #eaf3fb
                   color #13324b
@@ -1283,6 +1327,12 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                   stroke #4f83c2
               }
 
+              element "NetworkService" {
+                  background #dff3ed
+                  color #173b36
+                  stroke #4f9789
+              }
+
               element "DataService" {
                   background #dff3f8
                   color #123846
@@ -1334,6 +1384,12 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
 
               relationship "EdgeTraffic" {
                   color #3f74b5
+                  thickness 3
+                  routing Orthogonal
+              }
+
+              relationship "NetworkTraffic" {
+                  color #3f8f7c
                   thickness 3
                   routing Orthogonal
               }

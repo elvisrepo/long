@@ -49,14 +49,15 @@ Infrastructure progression:
 
 1. Manually provision EC2 staging:
 
-- VPC, subnets, security groups, public DNS, and an ACM-backed HTTPS ALB
-- one EC2 application host using Docker Engine and Compose
+- one VPC with two public ALB/NAT subnets and two private application subnets across two Availability Zones
+- public DNS and an ACM-backed HTTPS ALB with a health-checked target group
+- proposed learning target: two EC2 application hosts using Docker Engine and Compose, one per private subnet; cost-gate this before provisioning and fall back to one initial target if needed
 - long-lived Django API container plus a one-off migration container from the same image
 - Timescale Cloud service and provider-managed automated backups
 - Secrets Manager, an EC2 instance role, and least-privilege IAM permissions
 - AWS Systems Manager access instead of a publicly exposed SSH administration path
 - CloudWatch log groups and infrastructure metrics
-- frontend hosting/CDN after choosing Vercel or S3 plus CloudFront
+- frontend hosting/CDN after choosing Vercel or S3 plus CloudFront; serve React and reverse-proxy uncached `/api/*` requests behind one browser origin
 
 2. Encode the same EC2 topology in Terraform before production:
 

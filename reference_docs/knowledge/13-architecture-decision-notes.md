@@ -352,3 +352,14 @@ Current implementation progress:
   The project will perform two compute transitions and temporarily maintain a manual runbook before Terraform exists. A single EC2 host is not highly available, and the ALB adds cost despite having one initial target. The approach is acceptable for MVP learning but not the final resilience target.
 - Revisit when:
   The staging runbook is complete, production provisioning begins, API availability requires multiple instances, or measured backfills, analytics, exports, repair work, or request latency justify Fargate and durable queue infrastructure.
+
+#### Proposed 2026-08-22 learning refinement (cost approval pending)
+
+The detailed staging C4 view proposes two private EC2 application hosts in two
+Availability Zones behind the ALB instead of immediately provisioning the
+accepted one-host baseline. This deliberately teaches target registration,
+health-based routing, draining, and loss of one host or zone. It also duplicates
+EC2/EBS cost and introduces two zonal NAT Gateways in the fully resilient form.
+Run an AWS cost estimate before treating this refinement as accepted. If the
+budget does not justify it, deploy one target first and add the second later;
+the ALB and target group support that progression without changing the API.

@@ -14,7 +14,7 @@ The deployment model is maintained in Structurizr DSL:
 
 ### Deployment Views
 
-The Structurizr workspace intentionally maintains two cloud views.
+The Structurizr workspace intentionally maintains three cloud views.
 
 #### `mvp-staging-ec2-deployment`
 
@@ -23,8 +23,8 @@ Immediate production-like staging topology:
 - browser and internally distributed Android client placement
 - provider-neutral frontend hosting/CDN
 - public DNS and ACM-backed HTTPS ALB
-- manually provisioned EC2 application host using Docker Engine and Compose
-- long-lived Django API container on EC2
+- proposed two-AZ placement with two private EC2 application hosts using Docker Engine and Compose
+- two long-lived Django API containers in one health-checked ALB target group
 - one-off Docker migration container using the same immutable image
 - Timescale Cloud reached through encrypted PostgreSQL connections
 - provider-managed automated database backups
@@ -47,6 +47,22 @@ synchronizing Weight and Steps through public HTTPS without USB or
 Manual provisioning is a learning phase. Every step belongs in a runbook, and
 the same EC2 topology should be reproduced with Terraform before production so
 the server is recoverable rather than a configuration snowflake.
+
+#### `mvp-staging-aws-infrastructure`
+
+Detailed, cost-gated staging learning view. It makes these boundaries explicit:
+
+- AWS account and `eu-central-1` Region
+- one `10.20.0.0/16` VPC
+- two public subnets in different Availability Zones for the internet-facing ALB and zonal NAT Gateways
+- two private application subnets, each with one EC2/Django target
+- Internet Gateway, ALB HTTPS listener, ACM certificate, target group, and security groups
+- Route 53 public DNS, Systems Manager, Secrets Manager, and CloudWatch
+- external frontend/CDN, Timescale Cloud, Stripe, and uptime monitoring
+
+This is a proposed provisioning layout, not evidence that the resources already
+exist. Two targets teach health routing and tolerate one app-host or AZ failure;
+the second EC2/EBS allocation and two NAT Gateways require a cost estimate first.
 
 #### `post-mvp-fargate-deployment`
 
@@ -116,12 +132,11 @@ uses the negotiated TLS session for encrypted HTTPS traffic. The ALB terminates
 that client TLS session and forwards the request to the EC2-hosted Django target.
 The target port is private and accepts traffic only from the ALB security group.
 
-The current browser-to-public-DNS edge depicts the separate API-origin
-candidate. It is not an accepted browser-origin decision. The live React client
-uses relative `/api/...` paths, and the staging audit prefers a single browser
-origin that proxies those paths to the ALB. Android, Stripe, and monitoring need
-the public API hostname regardless. Resolve this choice before provisioning and
-then update the Structurizr browser edges to the selected topology.
+The staging browser edge now depicts the recommended same-origin strategy. The
+frontend host serves React and reverse-proxies uncached relative `/api/*`
+requests to the ALB. Android, Stripe, and monitoring call the dedicated public
+API hostname directly. The frontend provider and forwarding/cookie behavior
+still require implementation and tests before provisioning is complete.
 
 ### Current Deployment Modeling Rule
 
