@@ -219,26 +219,64 @@ resolved.
 
 ## 4. Remediation order
 
-Use focused TDD slices in this order:
+Use focused TDD slices in this order. The S3/CloudFront same-origin decision and
+one-initial-EC2 topology are approved; the remaining work is implementation and
+verification.
 
-1. production settings validation and HTTPS/proxy security — completed 2026-08-21
-2. Gunicorn production command and production-image smoke check
-3. versioned liveness/readiness endpoints and stale-route documentation repair
-4. remove the public Celery ping route and tracked scheduler artifact
-5. isolate E2E Stripe settings and split production versus development image dependencies
-6. decide and test the browser origin strategy
-7. define the staging Secrets Manager inventory and `.env`-free runtime contract
-8. run a local production-like container smoke test, including migration failure behavior
-9. audit frontend hosting/build configuration
-10. audit Android staging application ID, signing, and API base URL
-11. write the costed manual AWS provisioning runbook
+1. Production settings validation and HTTPS/proxy security — completed
+   2026-08-21.
+2. Implement the Gunicorn production runtime:
+   - add and lock Gunicorn with `uv`
+   - run `config.wsgi:application` with `config.settings.prod`
+   - define workers, timeout, graceful shutdown, and access logging
+   - keep local Compose overriding the image command with `runserver`
+   - add a production-image smoke test
+3. Implement versioned health contracts and repair stale references:
+   - `GET /api/v1/health/live/` is process liveness and does not query the database
+   - `GET /api/v1/health/ready/` proves Django can query PostgreSQL
+   - point the ALB target group at readiness
+   - point external uptime monitoring at liveness
+   - update API, security, testing, deployment, and Structurizr documentation in the same route-contract slice
+4. Remove unused public Celery behavior and runtime artifacts:
+   - remove `/tasks/ping/` from public URLs
+   - stop tracking `backend/celerybeat-schedule`
+   - ignore all Celery Beat schedule variants in Git and Docker build contexts
+5. Harden the production image:
+   - separate production runtime dependencies from development/test tools
+   - exclude local runtime artifacts and source bind mounts from the production image
+   - make API startup run only the application server
+   - keep migrations as a separate observable, failure-gated container command
+6. Isolate E2E configuration:
+   - provide deliberately non-functional Stripe values
+   - prove E2E processes cannot create Stripe sandbox objects accidentally
+7. Define the staging Secrets Manager inventory and `.env`-free runtime contract.
+8. Run a local production-like deployment smoke test:
+   - run the migration container first
+   - start Gunicorn with production settings only after migration success
+   - verify readiness and representative API smoke tests
+   - prove migration failure prevents API promotion
+9. Implement and test the approved frontend delivery contract:
+   - build Vite assets and upload immutable output to private S3
+   - configure CloudFront Origin Access Control
+   - configure static caching, SPA fallback, and uncached `/api/*` forwarding
+   - test deep links, refresh cookies, CSRF, forwarded metadata, and unmasked API errors
+10. Audit the Android staging build:
+    - staging application ID and signing
+    - `https://api-staging.<domain>/` base URL
+    - no `adb reverse`
+    - internal distribution method
+11. Cost and write the manual AWS provisioning runbook, including Route 53,
+    CloudFront, private S3, both ACM certificates, ALB, one EC2 target, one NAT
+    Gateway, EBS, CloudWatch, Secrets Manager, and Timescale Cloud.
+12. Provision staging only after the preceding application and runbook gates pass.
 
-Do not provision the ALB, EC2 host, DNS, or managed database before at least
-steps 1–8 pass. Otherwise cloud debugging will mix application-runtime defects
-with infrastructure-learning defects.
+Do not provision the ALB, EC2 host, DNS, S3/CloudFront distribution, or managed
+database before steps 1–8 pass. Otherwise cloud debugging will mix application
+runtime defects with infrastructure-learning defects.
 
 ## 5. Current gate
 
 The next implementation slice is the Gunicorn production command and
-production-image smoke check. Keep local Compose free to override the image
-command with `runserver`.
+production-image smoke check in step 2. Keep local Compose free to override the
+image command with `runserver`. The following slice is the versioned liveness
+and readiness contract; do not provision AWS first.
