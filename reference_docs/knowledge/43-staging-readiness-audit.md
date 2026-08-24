@@ -49,6 +49,10 @@ WSGI application server. The approved topology already has CloudFront and the
 ALB as managed proxies. Add and verify Gunicorn; do not add Nginx without a
 separate, concrete proxy requirement.
 
+The Structurizr staging views now show the intended `ALB → Gunicorn → Django`
+runtime, but that model change does not resolve this blocker. The dependency,
+image command, configuration, and focused process/health tests remain required.
+
 ### Blocker B — production settings are not fail-safe — resolved 2026-08-21
 
 `prod.py` currently changes only `DEBUG`. Base settings still provide an

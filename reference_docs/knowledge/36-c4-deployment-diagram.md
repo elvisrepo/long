@@ -12,6 +12,20 @@ The deployment model is maintained in Structurizr DSL:
 
 - [longevity-architecture.dsl](/home/sevi/longevity/reference_docs/knowledge/diagrams/longevity-architecture.dsl)
 
+Validate it with Structurizr's current consolidated image:
+
+```bash
+cd reference_docs/knowledge/diagrams
+docker run --rm \
+  -v "$PWD:/usr/local/structurizr:ro" \
+  structurizr/structurizr \
+  validate -workspace /usr/local/structurizr/longevity-architecture.dsl
+```
+
+Do not use `structurizr/cli:latest`. That deprecated image currently prints a
+migration warning and exits successfully without parsing the workspace, which
+can create false confidence around invalid DSL.
+
 ### Deployment Views
 
 The Structurizr workspace intentionally maintains four cloud views.
@@ -27,6 +41,7 @@ The approved first public staging topology:
 - CloudFront ACM certificate in `us-east-1` and ALB ACM certificate in `eu-central-1`
 - internet-facing ALB across two public subnets
 - one private EC2/Django target and one one-off migration container initially
+- Gunicorn as the production WSGI process between the ALB target group and Django
 - one NAT Gateway for the initial private application subnet
 - Systems Manager administration without public SSH
 - Timescale Cloud, managed backups, Secrets Manager, CloudWatch, Stripe, and uptime monitoring
@@ -34,6 +49,26 @@ The approved first public staging topology:
 This is the provisioning source of truth. It is deliberately not highly
 available at the application tier; use `mvp-staging-aws-infrastructure` to study
 the retained two-target expansion that can be added later.
+
+#### `approved-initial-staging-compact`
+
+Small-screen request-path view derived from the same approved deployment
+environment. It intentionally retains only:
+
+- React and Android client instances
+- CloudFront endpoint plus static and `/api/*` behaviors
+- private S3 frontend origin
+- ALB HTTPS listener and target group
+- Gunicorn and Django on the single EC2 target
+- Timescale Cloud
+
+It omits DNS, certificates, SPA rewrite internals, Origin Access Control,
+subnets, NAT, security groups, migrations, Systems Manager, Secrets Manager,
+CloudWatch, backups, on-device health internals, uptime monitoring, and Stripe.
+Those remain available in `approved-initial-staging`; the compact view is not a
+different architecture. Container-level direct client-to-Django relationships
+are also excluded so they do not visually bypass the physical CloudFront/ALB
+request path.
 
 #### `mvp-staging-ec2-deployment`
 

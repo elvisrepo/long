@@ -65,10 +65,10 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
           longevity.android -> healthConnect "Checks SDK availability and Weight/Steps permissions and reads paginated WeightRecord and StepsRecord data after sync actions"
         user -> stripe "Completes hosted Checkout and manages billing/cancellation in the Customer Portal"
 
-          longevity.webapp -> longevity.api "Calls JSON API over HTTPS"
+          webCallsApi = longevity.webapp -> longevity.api "Calls JSON API over HTTPS"
           longevity.webapp -> stripe "Redirects user to hosted Stripe Checkout and Customer Portal URLs"
           stripe -> longevity.webapp "Redirects the browser to server-configured Settings return URLs"
-          longevity.android -> longevity.api "Calls JSON API over HTTPS"
+          androidCallsApi = longevity.android -> longevity.api "Calls JSON API over HTTPS"
 
           longevity.api -> longevity.db "Reads and writes data"
           longevity.api -> stripe "Creates Checkout Sessions with server-owned Stripe Price IDs and on-demand Customer Portal Sessions; verifies signed webhook events"
@@ -371,6 +371,9 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                                             tags "SecurityService"
                                         }
                                         apiNodeA = deploymentNode "Django API Container A" {
+                                            gunicornServerA = infrastructureNode "Gunicorn WSGI Server A" "Production application server that accepts restricted ALB HTTP traffic and invokes Django through config.wsgi:application." {
+                                                tags "ComputeZone"
+                                            }
                                             apiInstanceA = containerInstance longevity.api
                                         }
                                         migrationNode = deploymentNode "One-off Migration Container" "Runs migrations once before both API containers are replaced." {
@@ -390,6 +393,9 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                                             tags "SecurityService"
                                         }
                                         apiNodeB = deploymentNode "Django API Container B" {
+                                            gunicornServerB = infrastructureNode "Gunicorn WSGI Server B" "Production application server that accepts restricted ALB HTTP traffic and invokes Django through config.wsgi:application." {
+                                                tags "ComputeZone"
+                                            }
                                             apiInstanceB = containerInstance longevity.api
                                         }
                                     }
@@ -447,15 +453,17 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 mvpStaging.aws.region.acmCertificate -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "Supplies and renews the public TLS certificate" "" "SecurityTraffic"
                 mvpStaging.aws.region.vpc.networkControls.albSecurityGroup -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "Governs public inbound TCP 443" "" "SecurityTraffic"
                 mvpStaging.aws.region.vpc.networkControls.albSecurityGroup -> mvpStaging.aws.region.vpc.networkControls.appSecurityGroup "Is the only allowed application-port source" "" "SecurityTraffic"
-                mvpStaging.aws.region.vpc.networkControls.appSecurityGroup -> mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA "Governs target A ingress; no TCP 22" "" "SecurityTraffic"
-                mvpStaging.aws.region.vpc.networkControls.appSecurityGroup -> mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.apiInstanceB "Governs target B ingress; no TCP 22" "" "SecurityTraffic"
+                mvpStaging.aws.region.vpc.networkControls.appSecurityGroup -> mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.gunicornServerA "Governs target A ingress; no TCP 22" "" "SecurityTraffic"
+                mvpStaging.aws.region.vpc.networkControls.appSecurityGroup -> mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.gunicornServerB "Governs target B ingress; no TCP 22" "" "SecurityTraffic"
                 mvpStaging.frontendHosting.staticHost -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "Forwards uncached /api/* over HTTPS" "" "EdgeTraffic"
                 mvpStaging.userDevices.androidNode.androidClient -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "Calls the dedicated API hostname over HTTPS" "" "ClientTraffic"
                 uptimeMonitor -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "GET /api/v1/health/ over HTTPS (planned readiness contract)" "" "OpsTraffic"
                 stripe -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "POSTs signed test-mode webhooks over HTTPS" "" "EdgeTraffic"
                 mvpStaging.aws.region.vpc.publicTier.alb.httpsListener -> mvpStaging.aws.region.vpc.publicTier.alb.targetGroup "Terminates TLS and forwards application HTTP inside the VPC" "" "EdgeTraffic"
-                mvpStaging.aws.region.vpc.publicTier.alb.targetGroup -> mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA "Routes to healthy target A over private IP" "" "EdgeTraffic"
-                mvpStaging.aws.region.vpc.publicTier.alb.targetGroup -> mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.apiInstanceB "Routes to healthy target B over private IP" "" "EdgeTraffic"
+                mvpStaging.aws.region.vpc.publicTier.alb.targetGroup -> mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.gunicornServerA "Routes to healthy target A over private IP" "" "EdgeTraffic"
+                mvpStaging.aws.region.vpc.publicTier.alb.targetGroup -> mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.gunicornServerB "Routes to healthy target B over private IP" "" "EdgeTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.gunicornServerA -> mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA "Invokes Django through WSGI" "WSGI" "EdgeTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.gunicornServerB -> mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.apiInstanceB "Invokes Django through WSGI" "WSGI" "EdgeTraffic"
                 mvpStaging.userDevices.browserNode.browserClient -> stripe "Redirects to hosted Checkout and Customer Portal" "" "ClientTraffic"
                 mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA -> stripe "Creates Stripe test-mode Checkout and Portal Sessions" "" "EdgeTraffic"
                 mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.apiInstanceB -> stripe "Creates Stripe test-mode Checkout and Portal Sessions" "" "EdgeTraffic"
@@ -604,6 +612,9 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                                             tags "SecurityService"
                                         }
                                         apiNodeA = deploymentNode "Django API Container A" "Runs the long-lived staging API process." {
+                                            gunicornServerA = infrastructureNode "Gunicorn WSGI Server" "Production application server that accepts restricted ALB HTTP traffic and invokes Django through config.wsgi:application." {
+                                                tags "ComputeZone"
+                                            }
                                             apiInstanceA = containerInstance longevity.api
                                         }
                                         migrationNode = deploymentNode "One-off Migration Container" "Runs migrations once before replacing the API container." {
@@ -661,9 +672,8 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 approvedInitialStaging.aws.globalEdge.cloudFront.distributionEndpoint -> approvedInitialStaging.aws.globalEdge.cloudFront.staticBehavior "Selects the default behavior for application routes and assets" "" "EdgeTraffic"
                 approvedInitialStaging.aws.globalEdge.cloudFront.distributionEndpoint -> approvedInitialStaging.aws.globalEdge.cloudFront.apiBehavior "Selects the /api/* behavior for API requests" "" "EdgeTraffic"
                 approvedInitialStaging.aws.globalEdge.cloudFront.spaRewrite -> approvedInitialStaging.aws.globalEdge.cloudFront.staticBehavior "Rewrites SPA routes to /index.html" "" "EdgeTraffic"
-                approvedInitialStaging.aws.globalEdge.cloudFront.staticBehavior -> approvedInitialStaging.aws.region.frontendOrigin.originAccessControl "Signs private S3 origin requests" "" "SecurityTraffic"
+                approvedInitialStaging.aws.globalEdge.cloudFront.staticBehavior -> approvedInitialStaging.aws.region.frontendOrigin.s3Bucket "Fetches React build artifacts using signed origin requests" "HTTPS" "StorageTraffic"
                 approvedInitialStaging.aws.region.frontendOrigin.originAccessControl -> approvedInitialStaging.aws.region.frontendOrigin.s3Bucket "Authorizes read access only from this distribution" "" "SecurityTraffic"
-                approvedInitialStaging.aws.region.frontendOrigin.s3Bucket -> approvedInitialStaging.aws.globalEdge.cloudFront.staticBehavior "Returns React build artifacts" "" "StorageTraffic"
                 approvedInitialStaging.aws.globalEdge.cloudFront.apiBehavior -> approvedInitialStaging.aws.dns.apiDns "Resolves its HTTPS API origin" "" "EdgeTraffic"
                 approvedInitialStaging.userDevices.androidNode.androidClient -> approvedInitialStaging.aws.dns.apiDns "Resolves its configured API hostname" "" "ClientTraffic"
                 stripe -> approvedInitialStaging.aws.dns.apiDns "Resolves the signed webhook destination" "" "EdgeTraffic"
@@ -677,8 +687,9 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 approvedInitialStaging.aws.region.vpc.networkControls.albSecurityGroup -> approvedInitialStaging.aws.region.vpc.publicTier.alb.httpsListener "Governs public inbound TCP 443" "" "SecurityTraffic"
                 approvedInitialStaging.aws.region.vpc.networkControls.albSecurityGroup -> approvedInitialStaging.aws.region.vpc.networkControls.appSecurityGroup "Is the only allowed application-port source" "" "SecurityTraffic"
                 approvedInitialStaging.aws.region.vpc.publicTier.alb.httpsListener -> approvedInitialStaging.aws.region.vpc.publicTier.alb.targetGroup "Terminates TLS and forwards application HTTP inside the VPC" "" "EdgeTraffic"
-                approvedInitialStaging.aws.region.vpc.publicTier.alb.targetGroup -> approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA "Routes to the initial healthy target over private IP" "" "EdgeTraffic"
-                approvedInitialStaging.aws.region.vpc.networkControls.appSecurityGroup -> approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA "Governs target ingress; no TCP 22" "" "SecurityTraffic"
+                approvedInitialStaging.aws.region.vpc.publicTier.alb.targetGroup -> approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.gunicornServerA "Routes to the initial healthy target over private IP" "HTTP" "EdgeTraffic"
+                approvedInitialStaging.aws.region.vpc.networkControls.appSecurityGroup -> approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.gunicornServerA "Governs target ingress; no TCP 22" "" "SecurityTraffic"
+                approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.gunicornServerA -> approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA "Invokes Django through WSGI" "WSGI" "EdgeTraffic"
                 approvedInitialStaging.userDevices.browserNode.browserClient -> stripe "Redirects to hosted Checkout and Customer Portal" "" "ClientTraffic"
                 approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA -> stripe "Creates Stripe test-mode Checkout and Portal Sessions" "" "EdgeTraffic"
                 approvedInitialStaging.userDevices.androidNode.samsungHealthRuntime -> approvedInitialStaging.userDevices.androidNode.healthConnectRuntime "Writes Samsung-originated records on device" "" "ClientTraffic"
@@ -752,6 +763,9 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                     tags "ComputeZone"
 
                     apiNode = deploymentNode "ECS Fargate API Service" {
+                        gunicornServer = infrastructureNode "Gunicorn WSGI Server" "Production application server that invokes Django through config.wsgi:application." {
+                            tags "ComputeZone"
+                        }
                         apiInstance = containerInstance longevity.api
                     }
 
@@ -856,7 +870,11 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 tags "ClientTraffic"
             }
 
-            mvpCloud.aws.edge.alb -> mvpCloud.aws.compute.apiNode.apiInstance "Routes HTTPS requests and performs Django health checks" {
+            mvpCloud.aws.edge.alb -> mvpCloud.aws.compute.apiNode.gunicornServer "Routes requests and performs API health checks" {
+                tags "EdgeTraffic"
+            }
+
+            mvpCloud.aws.compute.apiNode.gunicornServer -> mvpCloud.aws.compute.apiNode.apiInstance "Invokes Django through WSGI" "WSGI" {
                 tags "EdgeTraffic"
             }
 
@@ -1433,8 +1451,25 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             autolayout tb
         }
 
-        deployment * approvedInitialStaging "approved-initial-staging" "Approved first public staging topology: one browser origin through CloudFront, private S3 static origin, uncached /api/* behavior to the ALB, one private EC2/Django target, direct API access for Android and Stripe, Timescale Cloud, Systems Manager, and monitoring. A second EC2 target is deferred." {
+        deployment * approvedInitialStaging "approved-initial-staging" "Approved first public staging topology: one browser origin through CloudFront, private S3 static origin, uncached /api/* behavior to the ALB, one private EC2 Gunicorn/Django target, direct API access for Android and Stripe, Timescale Cloud, Systems Manager, and monitoring. A second EC2 target is deferred." {
             include *
+            autolayout tb
+        }
+
+        deployment * approvedInitialStaging "approved-initial-staging-compact" "Small-screen request-path view of approved initial staging. It keeps only the browser and Android clients, CloudFront path selection, private S3, ALB routing, Gunicorn/Django on the single EC2 target, and Timescale Cloud." {
+            include approvedInitialStaging.userDevices.browserNode.browserClient
+            include approvedInitialStaging.userDevices.androidNode.androidClient
+            include approvedInitialStaging.aws.globalEdge.cloudFront.distributionEndpoint
+            include approvedInitialStaging.aws.globalEdge.cloudFront.staticBehavior
+            include approvedInitialStaging.aws.globalEdge.cloudFront.apiBehavior
+            include approvedInitialStaging.aws.region.frontendOrigin.s3Bucket
+            include approvedInitialStaging.aws.region.vpc.publicTier.alb.httpsListener
+            include approvedInitialStaging.aws.region.vpc.publicTier.alb.targetGroup
+            include approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.gunicornServerA
+            include approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA
+            include approvedInitialStaging.managedDatabase.timescaleNode
+            exclude webCallsApi
+            exclude androidCallsApi
             autolayout tb
         }
 

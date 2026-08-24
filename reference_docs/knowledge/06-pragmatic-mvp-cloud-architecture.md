@@ -10,6 +10,7 @@
 The Structurizr DSL is the source of truth for the current and future cloud deployment stages:
 
 - `approved-initial-staging`: approved first public staging target with S3, CloudFront, and one EC2 application target
+- `approved-initial-staging-compact`: reduced small-screen request path for the approved target
 - `mvp-staging-ec2-deployment`: retained proposed two-target staging view
 - `mvp-staging-aws-infrastructure`: detailed proposed two-AZ AWS placement and network boundaries
 - `post-mvp-fargate-deployment`: later worker-enabled managed-container target
@@ -25,7 +26,7 @@ Browser → staging.<domain> CloudFront
                          └── proxies uncached /api/*
                                       ↓ HTTPS
 Route53 → ACM-backed ALB across public subnets in AZ-a and AZ-b
-                    └── private EC2 App Host A → Django container A
+                    └── private EC2 App Host A → Gunicorn → Django container A
                                       ↓ encrypted PostgreSQL
                                 Timescale Cloud → managed backups
 
