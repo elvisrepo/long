@@ -43,6 +43,9 @@ Public health-endpoint boundary:
   deliberately logged by the handler.
 - Readiness excludes Redis and Celery because unavailable optional services
   must not remove an otherwise usable API target from the initial staging ALB.
+- The former unauthenticated `/tasks/ping/` endpoint has been removed. Public
+  callers can no longer create arbitrary broker traffic through a diagnostic
+  route; future task diagnostics must use a protected operational boundary.
 
 Current E2E security boundary:
 - `/api/testing/reset/` is a destructive test-only endpoint.

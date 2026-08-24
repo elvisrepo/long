@@ -73,3 +73,17 @@ def test_production_image_smoke_builds_and_checks_wsgi_app() -> None:
     assert "--check-config" in smoke_script
     assert "DJANGO_SETTINGS_MODULE=config.settings.prod" in smoke_script
     assert "config.wsgi:application" in smoke_script
+
+
+def test_docker_context_excludes_all_celery_beat_schedule_variants() -> None:
+    ignored_paths = (BACKEND_DIR / ".dockerignore").read_text().splitlines()
+
+    assert "celerybeat-schedule*" in ignored_paths
+
+
+def test_production_image_smoke_rejects_celery_beat_schedule_artifacts() -> None:
+    smoke_script = (
+        BACKEND_DIR / "scripts/smoke_prod_image.sh"
+    ).read_text()
+
+    assert 'find /app -name "celerybeat-schedule*"' in smoke_script

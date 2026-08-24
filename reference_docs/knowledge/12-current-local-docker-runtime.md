@@ -368,6 +368,16 @@ Prepared infrastructure that is present but not yet central to product behavior:
 - Celery Beat
 - TimescaleDB-specific features
 
+There is currently no application Celery task and no public task-enqueueing
+endpoint. The earlier `common.tasks.ping` diagnostic and `/tasks/ping/` route
+were removed because initial staging omits Redis/Celery and a public diagnostic
+must not create broker traffic.
+
+Celery Beat may create `backend/celerybeat-schedule*` files while local Compose
+runs. These are disposable local scheduler state: Git ignores every variant,
+the backend Docker context excludes them, and the existing local file can remain
+on disk without entering commits or images.
+
 Current implemented flows run synchronously inside Django request/response or webhook handling:
 - authentication
 - metric definition reads/writes

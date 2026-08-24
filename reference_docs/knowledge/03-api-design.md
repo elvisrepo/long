@@ -22,6 +22,11 @@ The removed legacy `/health/` route returns `404`. Readiness deliberately does
 not depend on Redis or Celery because they are absent from the approved initial
 staging runtime.
 
+The former unauthenticated `GET /tasks/ping/` diagnostic is also removed and
+returns `404`. Public HTTP routes must not enqueue infrastructure-test tasks;
+future operational Celery diagnostics belong in protected commands or internal
+deployment checks.
+
 #### Auth (public — no JWT required)
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|

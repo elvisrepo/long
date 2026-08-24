@@ -42,6 +42,4 @@ playground/
 .firecrawl/
 
 # Backend runtime artifacts
-backend/celerybeat-schedule
-backend/celerybeat-schedule-shm
-backend/celerybeat-schedule-wal
+backend/celerybeat-schedule*

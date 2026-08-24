@@ -128,15 +128,15 @@ Implemented outcome:
 Changing the route is a public API-contract slice and must update the API,
 deployment, security, testing, and Structurizr references together.
 
-### Blocker E — public Celery ping endpoint
+### Blocker E — public Celery ping endpoint — resolved 2026-08-24
 
-`GET /tasks/ping/` is mounted publicly and calls `ping.delay()`. In the planned
-staging topology this either fails because Redis/Celery are absent or exposes an
-unauthenticated queue-producing endpoint if they are present.
+`GET /tasks/ping/` now returns `404`; its URL, view, and unused
+`common.tasks.ping` implementation have been removed. Celery configuration can
+still be tested without exposing an HTTP action that writes to the broker.
 
-Required outcome: remove it from public production URLs. Keep task verification
-as a local/test-only diagnostic or a protected operational command when Celery
-eventually becomes real application infrastructure.
+Implemented outcome: future task verification must use a local/test-only
+diagnostic or protected operational command when Celery becomes real
+application infrastructure.
 
 ### Blocker F — S3/CloudFront same-origin strategy approved; implementation remains
 
@@ -162,13 +162,12 @@ cookie-domain/SameSite review, and cross-origin tests.
 Android is unaffected by browser CORS because OkHttp is a native client, but it
 still requires the public HTTPS API base URL.
 
-### Blocker G — image-context and runtime-artifact cleanup
+### Blocker G — image-context and runtime-artifact cleanup — runtime artifact resolved 2026-08-24
 
-`backend/celerybeat-schedule` is a tracked local scheduler database and is not
-excluded by `.dockerignore`, so `COPY . .` can place it in the backend image.
-Remove it from version control and ignore all Celery Beat schedule variants.
-The production image should contain source and immutable dependencies, not local
-runtime state.
+`backend/celerybeat-schedule` is no longer tracked but remains available as
+ignored local scheduler state. Git and the backend Docker context now exclude
+all `celerybeat-schedule*` variants, preventing `COPY . .` from placing them in
+the image.
 
 The Dockerfile also runs `uv sync --frozen` without excluding the default
 development group. Consequently, the image includes pytest, mypy, and Ruff.
@@ -244,7 +243,8 @@ verification.
    - point the ALB target group at readiness
    - point external uptime monitoring at liveness
    - update API, security, testing, deployment, and Structurizr documentation in the same route-contract slice
-4. Remove unused public Celery behavior and runtime artifacts:
+4. Remove unused public Celery behavior and runtime artifacts — completed
+   2026-08-24:
    - remove `/tasks/ping/` from public URLs
    - stop tracking `backend/celerybeat-schedule`
    - ignore all Celery Beat schedule variants in Git and Docker build contexts
@@ -283,7 +283,7 @@ runtime defects with infrastructure-learning defects.
 
 ## 5. Current gate
 
-The next implementation slice is removing unused public Celery behavior and
-runtime artifacts in step 4; do not provision AWS first. Keep the production-
-image and health contract checks in CI while the later image-hardening slice
-removes development tools and runtime artifacts from that image.
+The next implementation slice is production-image hardening in step 5; do not
+provision AWS first. Keep the production-image, health-contract, removed-route,
+and runtime-artifact checks in CI while the image-hardening slice removes
+development tools from the deployable image.

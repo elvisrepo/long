@@ -9,3 +9,4 @@
   *.pyd
   .git
   .env
+celerybeat-schedule*
