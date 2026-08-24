@@ -32,6 +32,18 @@ Production debug boundary:
   they must not inherit local SQLite, localhost URL, or development-secret
   fallbacks from shared settings.
 
+Public health-endpoint boundary:
+- `GET /api/v1/health/live/` and `GET /api/v1/health/ready/` require no JWT so
+  infrastructure and external monitoring can call them.
+- Liveness returns only fixed process status and never queries the database.
+- Readiness executes only the constant parameter-free `SELECT 1` probe through
+  Django's configured default connection; it does not accept user input.
+- Database failures return only `503 {"status": "unavailable"}`. Connection
+  errors, credentials, hostnames, and exception text are never serialized or
+  deliberately logged by the handler.
+- Readiness excludes Redis and Celery because unavailable optional services
+  must not remove an otherwise usable API target from the initial staging ALB.
+
 Current E2E security boundary:
 - `/api/testing/reset/` is a destructive test-only endpoint.
 - It is mounted only when `ENABLE_E2E_TESTING_API=True`, which is set by `config.settings.e2e`.

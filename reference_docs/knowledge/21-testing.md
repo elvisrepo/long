@@ -30,6 +30,15 @@ Current backend production-runtime checkpoint:
 - this smoke check does not connect to a database or replace the later
   migration-plus-readiness deployment smoke test
 
+Current health-contract checkpoint:
+- focused endpoint tests prove liveness returns `200` without requesting a
+  database cursor
+- a PostgreSQL-backed integration test proves readiness returns `200` after a
+  real query
+- a simulated database failure proves readiness returns a fixed redacted `503`
+  without leaking exception text
+- route coverage proves the obsolete `/health/` contract returns `404`
+
 Current frontend testing checkpoint:
 - the frontend now has a basic Vitest test harness
 - the current setup uses:

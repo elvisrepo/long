@@ -12,6 +12,16 @@
 
 **Auth:** The current backend auth implementation is split by client transport. Mobile auth uses explicit JWT token submission. Web auth uses JWT access tokens plus cookie-based refresh/logout with CSRF. Rate limiting should still be applied at the auth layer (5 login attempts/min, 3 password resets/hour).
 
+#### Operations (public — no JWT required)
+| Method | Endpoint | Description | Notes |
+|---|---|---|---|
+| GET | `/api/v1/health/live/` | Process liveness | Returns `200 {"status": "ok"}` without querying PostgreSQL or optional services; external uptime-monitor contract |
+| GET | `/api/v1/health/ready/` | Application readiness | Executes `SELECT 1` through Django's default database; returns `200 {"status": "ok"}` or redacted `503 {"status": "unavailable"}`; ALB target-health contract |
+
+The removed legacy `/health/` route returns `404`. Readiness deliberately does
+not depend on Redis or Celery because they are absent from the approved initial
+staging runtime.
+
 #### Auth (public — no JWT required)
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|

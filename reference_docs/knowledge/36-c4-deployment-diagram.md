@@ -84,7 +84,8 @@ Retained proposed two-target staging topology:
 - provider-managed automated database backups
 - Secrets Manager
 - CloudWatch
-- external `/api/v1/health/` monitoring
+- external `/api/v1/health/live/` monitoring and ALB
+  `/api/v1/health/ready/` target probes
 - Stripe test-mode hosted pages and signed public webhooks
 
 It deliberately omits:

@@ -35,7 +35,10 @@
 - Free tier: 5K events/month (more than enough for MVP)
 
 ### 9.3 Uptime Monitoring
-- **UptimeRobot** (free) — pings `/api/v1/health/` every 5 min, alerts on failure
+- **UptimeRobot** (free) — pings `/api/v1/health/live/` every 5 min and alerts
+  when the public edge-to-Django process path fails
+- **ALB target group** — probes `/api/v1/health/ready/` and stops routing user
+  traffic to a target that cannot query PostgreSQL
 
 ### 9.4 Analytics
 - **Plausible** (privacy-friendly, no cookies) for frontend page views

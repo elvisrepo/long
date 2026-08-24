@@ -213,8 +213,12 @@ moves from a temporary Docker container on EC2 to a temporary Fargate task.
 
 ### 8.7 Health, Monitoring, and Backups
 
-- ALB checks `GET /api/v1/health/` on the Django service.
-- An external uptime monitor checks the same public HTTPS endpoint.
+- ALB checks `GET /api/v1/health/ready/`; a target is routable only while
+  Django can execute the PostgreSQL probe.
+- An external uptime monitor checks `GET /api/v1/health/live/` over public
+  HTTPS. This distinguishes process/edge availability from database readiness.
+- Neither check depends on Redis or Celery in the approved initial staging
+  runtime.
 - CloudWatch collects API and migration logs plus AWS metrics.
 - Add Sentry before production exposure for unhandled Django exceptions; redact health and authentication data.
 - Timescale Cloud owns automated database backups. Record the real retention when provisioning.

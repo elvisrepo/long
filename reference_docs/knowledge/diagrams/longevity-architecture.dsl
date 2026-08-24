@@ -457,11 +457,11 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 mvpStaging.aws.region.vpc.networkControls.appSecurityGroup -> mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.gunicornServerB "Governs target B ingress; no TCP 22" "" "SecurityTraffic"
                 mvpStaging.frontendHosting.staticHost -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "Forwards uncached /api/* over HTTPS" "" "EdgeTraffic"
                 mvpStaging.userDevices.androidNode.androidClient -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "Calls the dedicated API hostname over HTTPS" "" "ClientTraffic"
-                uptimeMonitor -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "GET /api/v1/health/ over HTTPS (planned readiness contract)" "" "OpsTraffic"
+                uptimeMonitor -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "GET /api/v1/health/live/ over HTTPS" "" "OpsTraffic"
                 stripe -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "POSTs signed test-mode webhooks over HTTPS" "" "EdgeTraffic"
                 mvpStaging.aws.region.vpc.publicTier.alb.httpsListener -> mvpStaging.aws.region.vpc.publicTier.alb.targetGroup "Terminates TLS and forwards application HTTP inside the VPC" "" "EdgeTraffic"
-                mvpStaging.aws.region.vpc.publicTier.alb.targetGroup -> mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.gunicornServerA "Routes to healthy target A over private IP" "" "EdgeTraffic"
-                mvpStaging.aws.region.vpc.publicTier.alb.targetGroup -> mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.gunicornServerB "Routes to healthy target B over private IP" "" "EdgeTraffic"
+                mvpStaging.aws.region.vpc.publicTier.alb.targetGroup -> mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.gunicornServerA "Probes /api/v1/health/ready/ and routes to healthy target A over private IP" "" "EdgeTraffic"
+                mvpStaging.aws.region.vpc.publicTier.alb.targetGroup -> mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.gunicornServerB "Probes /api/v1/health/ready/ and routes to healthy target B over private IP" "" "EdgeTraffic"
                 mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.gunicornServerA -> mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA "Invokes Django through WSGI" "WSGI" "EdgeTraffic"
                 mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.gunicornServerB -> mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.apiInstanceB "Invokes Django through WSGI" "WSGI" "EdgeTraffic"
                 mvpStaging.userDevices.browserNode.browserClient -> stripe "Redirects to hosted Checkout and Customer Portal" "" "ClientTraffic"
@@ -683,11 +683,11 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 approvedInitialStaging.aws.globalEdge.cloudFront.apiBehavior -> approvedInitialStaging.aws.region.vpc.publicTier.alb.httpsListener "Forwards uncached /api/* over HTTPS" "" "EdgeTraffic"
                 approvedInitialStaging.userDevices.androidNode.androidClient -> approvedInitialStaging.aws.region.vpc.publicTier.alb.httpsListener "Calls the API directly over HTTPS" "" "ClientTraffic"
                 stripe -> approvedInitialStaging.aws.region.vpc.publicTier.alb.httpsListener "POSTs signed test-mode webhooks over HTTPS" "" "EdgeTraffic"
-                uptimeMonitor -> approvedInitialStaging.aws.region.vpc.publicTier.alb.httpsListener "Checks the public liveness endpoint over HTTPS" "" "OpsTraffic"
+                uptimeMonitor -> approvedInitialStaging.aws.region.vpc.publicTier.alb.httpsListener "GET /api/v1/health/live/ over HTTPS" "" "OpsTraffic"
                 approvedInitialStaging.aws.region.vpc.networkControls.albSecurityGroup -> approvedInitialStaging.aws.region.vpc.publicTier.alb.httpsListener "Governs public inbound TCP 443" "" "SecurityTraffic"
                 approvedInitialStaging.aws.region.vpc.networkControls.albSecurityGroup -> approvedInitialStaging.aws.region.vpc.networkControls.appSecurityGroup "Is the only allowed application-port source" "" "SecurityTraffic"
                 approvedInitialStaging.aws.region.vpc.publicTier.alb.httpsListener -> approvedInitialStaging.aws.region.vpc.publicTier.alb.targetGroup "Terminates TLS and forwards application HTTP inside the VPC" "" "EdgeTraffic"
-                approvedInitialStaging.aws.region.vpc.publicTier.alb.targetGroup -> approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.gunicornServerA "Routes to the initial healthy target over private IP" "HTTP" "EdgeTraffic"
+                approvedInitialStaging.aws.region.vpc.publicTier.alb.targetGroup -> approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.gunicornServerA "Probes /api/v1/health/ready/ and routes to the initial healthy target over private IP" "HTTP" "EdgeTraffic"
                 approvedInitialStaging.aws.region.vpc.networkControls.appSecurityGroup -> approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.gunicornServerA "Governs target ingress; no TCP 22" "" "SecurityTraffic"
                 approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.gunicornServerA -> approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA "Invokes Django through WSGI" "WSGI" "EdgeTraffic"
                 approvedInitialStaging.userDevices.browserNode.browserClient -> stripe "Redirects to hosted Checkout and Customer Portal" "" "ClientTraffic"
@@ -858,7 +858,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 tags "ClientTraffic"
             }
 
-            uptimeMonitor -> mvpCloud.aws.edge.alb "GET /api/v1/health/ over HTTPS" {
+            uptimeMonitor -> mvpCloud.aws.edge.alb "GET /api/v1/health/live/ over HTTPS" {
                 tags "OpsTraffic"
             }
 
@@ -870,7 +870,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 tags "ClientTraffic"
             }
 
-            mvpCloud.aws.edge.alb -> mvpCloud.aws.compute.apiNode.gunicornServer "Routes requests and performs API health checks" {
+            mvpCloud.aws.edge.alb -> mvpCloud.aws.compute.apiNode.gunicornServer "Routes requests and probes /api/v1/health/ready/" {
                 tags "EdgeTraffic"
             }
 

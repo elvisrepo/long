@@ -18,11 +18,16 @@ from django.contrib import admin
 from django.conf import settings
 from django.urls import include, path
 
-from common.views import health_view, ping_task_view
+from common.views import (
+    liveness_view,
+    ping_task_view,
+    readiness_view,
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path("health/", health_view, name="health"),
+    path("api/v1/health/live/", liveness_view, name="health-live"),
+    path("api/v1/health/ready/", readiness_view, name="health-ready"),
     path("tasks/ping/", ping_task_view, name="tasks-ping"),
     path("api/auth/", include("apps.users.urls")),
     path("api/v1/metrics/", include("apps.metrics.urls")),

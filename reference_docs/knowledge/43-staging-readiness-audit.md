@@ -107,17 +107,21 @@ Implemented outcome:
 - retain Django's secure defaults for frame denial, MIME-sniffing prevention,
   and same-origin referrer policy
 
-### Blocker D — health contract and readiness semantics disagree
+### Blocker D — health contract and readiness semantics disagree — resolved 2026-08-24
 
-The implemented route is `GET /health/`, while the canonical deployment docs
-say that the ALB checks `GET /api/v1/health/`. The current handler always returns
-`{"status": "ok"}` and does not prove database readiness.
+The legacy `GET /health/` route has been removed. The implemented versioned
+contracts are now:
 
-Required outcome:
+- `GET /api/v1/health/live/` returns fixed process status without querying the
+  database;
+- `GET /api/v1/health/ready/` executes `SELECT 1` through Django's default
+  connection and returns a redacted `503` when the database is unavailable.
 
-- choose and document one canonical public route, preferably `/api/v1/health/`
-- keep a cheap liveness response independent of optional services
-- add a readiness check that proves Django can query PostgreSQL
+Implemented outcome:
+
+- use the two canonical versioned public routes documented above
+- keep liveness independent of the database and optional services
+- make readiness prove Django can query PostgreSQL
 - do not make readiness depend on Redis/Celery while staging omits them
 - point the ALB at the readiness contract and the external uptime monitor at the public liveness contract
 
@@ -233,7 +237,8 @@ verification.
    - define workers, timeout, graceful shutdown, and access logging
    - keep local Compose overriding the image command with `runserver`
    - add a production-image smoke test
-3. Implement versioned health contracts and repair stale references:
+3. Implement versioned health contracts and repair stale references — completed
+   2026-08-24:
    - `GET /api/v1/health/live/` is process liveness and does not query the database
    - `GET /api/v1/health/ready/` proves Django can query PostgreSQL
    - point the ALB target group at readiness
@@ -278,7 +283,7 @@ runtime defects with infrastructure-learning defects.
 
 ## 5. Current gate
 
-The next implementation slice is the versioned liveness and readiness contract
-in step 3; do not provision AWS first. Keep the production-image smoke check in
-CI while the later image-hardening slice removes development tools and runtime
-artifacts from that image.
+The next implementation slice is removing unused public Celery behavior and
+runtime artifacts in step 4; do not provision AWS first. Keep the production-
+image and health contract checks in CI while the later image-hardening slice
+removes development tools and runtime artifacts from that image.

@@ -201,7 +201,10 @@ and durable runtime artifacts such as exports or logical backups belong in S3.
 - Optional logical exports may be written to S3 later by a deliberate scheduled task.
 - On EC2, schema migrations run once through the same backend image with `docker compose run --rm web uv run python manage.py migrate --no-input` before the API container is replaced.
 - On post-MVP Fargate, the equivalent operation is a one-off ECS task using the same immutable image.
-- The public ALB terminates TLS, routes API and Stripe webhook traffic, and checks `/api/v1/health/`.
+- The public ALB terminates TLS, routes API and Stripe webhook traffic, and uses
+  `GET /api/v1/health/ready/` to route only to targets that can query
+  PostgreSQL. External uptime monitoring uses the database-independent
+  `GET /api/v1/health/live/` contract.
 - Public DNS locates the ALB; the ACM-backed ALB listener, not DNS, is the TLS endpoint.
 - The approved ALB spans two public subnets and initially routes to one private Django target; a second target is deferred.
 - EC2 has no public SSH ingress; IAM-authorized Systems Manager sessions use the agents' outbound management channels.
