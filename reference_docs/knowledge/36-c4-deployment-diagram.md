@@ -14,11 +14,30 @@ The deployment model is maintained in Structurizr DSL:
 
 ### Deployment Views
 
-The Structurizr workspace intentionally maintains three cloud views.
+The Structurizr workspace intentionally maintains four cloud views.
+
+#### `approved-initial-staging`
+
+The approved first public staging topology:
+
+- one browser origin at `staging.<domain>` through CloudFront
+- private S3 React origin protected by CloudFront Origin Access Control
+- cached static/SPA behavior and uncached `/api/*` behavior
+- `api-staging.<domain>` routed to the ALB for CloudFront, Android, Stripe, and monitoring
+- CloudFront ACM certificate in `us-east-1` and ALB ACM certificate in `eu-central-1`
+- internet-facing ALB across two public subnets
+- one private EC2/Django target and one one-off migration container initially
+- one NAT Gateway for the initial private application subnet
+- Systems Manager administration without public SSH
+- Timescale Cloud, managed backups, Secrets Manager, CloudWatch, Stripe, and uptime monitoring
+
+This is the provisioning source of truth. It is deliberately not highly
+available at the application tier; use `mvp-staging-aws-infrastructure` to study
+the retained two-target expansion that can be added later.
 
 #### `mvp-staging-ec2-deployment`
 
-Immediate production-like staging topology:
+Retained proposed two-target staging topology:
 
 - browser and internally distributed Android client placement
 - provider-neutral frontend hosting/CDN
@@ -125,18 +144,25 @@ answer which Android and Django responsibilities collaborate during each flow.
 
 ### Reading the Public Edge
 
-In this view, `Public DNS → HTTPS ALB` is discovery followed by transport, not
-two request-processing hops. DNS publishes the API hostname's ALB alias. The
-client then connects to the ALB on port 443, verifies its ACM certificate, and
-uses the negotiated TLS session for encrypted HTTPS traffic. The ALB terminates
-that client TLS session and forwards the request to the EC2-hosted Django target.
-The target port is private and accepts traffic only from the ALB security group.
+DNS discovery and request transport are separate. Route 53 answers where a
+hostname points; it does not receive or proxy the HTTP request. For the approved
+browser path, Route 53 resolves `staging.<domain>` to CloudFront, then the browser
+opens TCP/TLS to a nearby CloudFront edge location and sends the request. For
+direct API clients, Route 53 resolves `api-staging.<domain>` to the ALB, then the
+client opens TCP/TLS to the ALB.
 
-The staging browser edge now depicts the recommended same-origin strategy. The
-frontend host serves React and reverse-proxies uncached relative `/api/*`
-requests to the ALB. Android, Stripe, and monitoring call the dedicated public
-API hostname directly. The frontend provider and forwarding/cookie behavior
-still require implementation and tests before provisioning is complete.
+`AWS Global Edge` contains the logical CloudFront distribution endpoint, its
+static and `/api/*` behaviors, SPA rewrite, and viewer-certificate boundary.
+CloudFront is not the frontend origin: private S3 in `eu-central-1` is the static
+origin, and the regional ALB is the API origin. The `us-east-1` ACM resource is
+the required control-plane home for the CloudFront viewer certificate, which is
+presented through the global edge network.
+
+CloudFront sends default/static paths to private S3 and uncached `/api/*` paths
+to the ALB. Android, Stripe, and monitoring call the dedicated API hostname
+directly. The ALB terminates its TLS connection and forwards restricted HTTP to
+Gunicorn/Django on the private EC2 target. Nginx is deliberately absent because
+CloudFront and the ALB already satisfy the approved proxy responsibilities.
 
 ### Current Deployment Modeling Rule
 

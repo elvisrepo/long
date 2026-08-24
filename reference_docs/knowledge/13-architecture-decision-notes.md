@@ -353,13 +353,34 @@ Current implementation progress:
 - Revisit when:
   The staging runbook is complete, production provisioning begins, API availability requires multiple instances, or measured backfills, analytics, exports, repair work, or request latency justify Fargate and durable queue infrastructure.
 
-#### Proposed 2026-08-22 learning refinement (cost approval pending)
+#### Deferred 2026-08-22 learning refinement
 
 The detailed staging C4 view proposes two private EC2 application hosts in two
 Availability Zones behind the ALB instead of immediately provisioning the
 accepted one-host baseline. This deliberately teaches target registration,
 health-based routing, draining, and loss of one host or zone. It also duplicates
 EC2/EBS cost and introduces two zonal NAT Gateways in the fully resilient form.
-Run an AWS cost estimate before treating this refinement as accepted. If the
-budget does not justify it, deploy one target first and add the second later;
-the ALB and target group support that progression without changing the API.
+The 2026-08-23 decision below approves one target first and defers this
+refinement. The ALB and target group support adding the second target later
+without changing the API.
+
+### ADR-022: Use S3 and CloudFront with One Initial EC2 Target for Staging
+
+- Status: Accepted
+- Date: 2026-08-23
+- Decision:
+  Host the compiled React SPA in a private S3 bucket and serve it through CloudFront at `staging.<domain>`. Configure the default behavior for static assets and SPA routes, and an uncached `/api/*` behavior that forwards to the HTTPS ALB origin. Register one private EC2/Django target initially and add a second target in another Availability Zone later.
+- Browser boundary:
+  React keeps relative `/api/*` URLs, so assets and API requests share one browser origin. CloudFront uses Origin Access Control for private S3 reads. SPA route rewriting applies only to the static behavior and must not turn API errors into `index.html` responses.
+- Direct API boundary:
+  `api-staging.<domain>` remains a public Route 53 alias to the ALB for Android, Stripe webhooks, uptime monitoring, and CloudFront's API origin.
+- TLS boundary:
+  CloudFront uses a `staging.<domain>` ACM viewer certificate in `us-east-1`. The ALB uses a separate `api-staging.<domain>` ACM certificate in `eu-central-1`. CloudFront-to-ALB traffic is HTTPS; ALB-to-EC2 application traffic is restricted HTTP inside the VPC.
+- Proxy and server boundary:
+  Route 53 performs DNS discovery and does not forward HTTP. CloudFront is the global browser-facing CDN and reverse proxy; its default behavior selects private S3 and its `/api/*` behavior selects the ALB. The ALB is the regional API reverse proxy and health router. Gunicorn runs Django on EC2. Do not add Nginx initially because it would duplicate managed proxy responsibilities without a current buffering, local-file, or protocol requirement.
+- Availability boundary:
+  The ALB spans two public subnets, but one initial EC2 target remains a staging single point of failure. Adding the second target later requires another private application subnet/host and, if zonal egress resilience is required, another NAT Gateway; it does not require API or DNS redesign.
+- Why:
+  This matches the current static Vite build and relative API calls, keeps cookies and CSRF behind one browser origin, and extends the deliberate AWS learning path to S3, CloudFront, cache behaviors, Origin Access Control, and dual certificate regions.
+- Downsides:
+  Initial staging is not highly available. CloudFront adds configuration for cache policies, forwarded request data, SPA routing, and invalidation/versioned asset deployment. The S3 bucket, CloudFront distribution, and logs also require least-privilege IAM and monitoring.

@@ -12,8 +12,8 @@ Initial public staging:
 
 | Component | Service | Why |
 |---|---|---|
-| **Frontend** | Vercel or S3 + CloudFront | HTTPS static asset origin and CDN; choose one during provisioning |
-| **Backend** | ACM-backed ALB + proposed two private EC2 Docker Compose hosts across two AZs | Learn TLS termination, health routing, and target failure while retaining a clean later Fargate migration path; cost-gate the second host and zonal NATs |
+| **Frontend** | Private S3 bucket + CloudFront | Approved same-origin static SPA and `/api/*` proxy; learn the AWS CDN and origin-security boundary |
+| **Backend** | ACM-backed ALB + one private EC2 Docker Compose host initially | Start cheaply with one target and add a second-AZ target later without changing DNS or API contracts |
 | **Database** | Timescale Cloud (PostgreSQL + TimescaleDB) | Managed database matching the intended time-series direction |
 | **Secrets** | AWS Secrets Manager | Server-side Django, database, and Stripe configuration |
 | **Logs/Metrics** | CloudWatch | Container stdout/stderr and AWS infrastructure metrics |
@@ -21,10 +21,10 @@ Initial public staging:
 
 The EC2 application port accepts traffic only from the ALB security group, and
 administration should use AWS Systems Manager instead of exposing SSH publicly.
-The ALB spans public subnets in two Availability Zones; EC2 targets occupy
-private application subnets and have no inbound port 22. A lower-cost one-target
-start is compatible with the same target group, but staging then remains a
-single point of failure.
+The ALB spans public subnets in two Availability Zones; the approved first EC2
+target occupies a private application subnet and has no inbound port 22. This
+one-target staging environment remains a single point of failure until the
+second-AZ target is added.
 The initial staging runtime does not require ElastiCache, Celery Worker, or
 Celery Beat. Add those only when a measured server-side workload needs durable
 asynchronous execution. Android WorkManager remains responsible for device-side
@@ -67,8 +67,8 @@ pages and debug-only behavior for public requests; redacted diagnostics still
 flow through the configured log levels to CloudWatch.
 
 The selected staging browser architecture uses one browser origin because React
-currently uses relative `/api/...` URLs. Its CDN or hosting layer proxies
-uncached `/api/*` to the ALB. A separate API origin is valid only
+currently uses relative `/api/...` URLs. CloudFront serves private-S3 assets and
+proxies uncached `/api/*` to the ALB. A separate API origin is valid only
 with explicit credentialed CORS, cookie-domain/SameSite review, CSRF trusted
 origins, and cross-origin tests. Android, Stripe webhooks, and monitoring still
 use the dedicated public API hostname directly.
@@ -138,10 +138,24 @@ configuration; changing it requires a new build unless a future trusted remote
 configuration mechanism is deliberately introduced.
 
 ### 8.4 CDN
-- host immutable React assets through Vercel or S3 + CloudFront
+- host immutable React assets in a private S3 bucket and expose them only through CloudFront Origin Access Control
 - configure long-lived cache headers for content-hashed assets and short/no-cache behavior for the HTML entry point
+- configure `/api/*` as a separate uncached ALB origin behavior that forwards required methods, cookies, authorization, CSRF headers, query strings, and bodies
+- scope SPA route rewriting to the static behavior so `/api/*` errors remain API responses
 - Django static/admin assets may use S3 + CloudFront if the production image does not serve them directly
 - do not describe the Django API as the owner of managed database backups
+
+Route 53 only resolves `staging.<domain>` to CloudFront; it does not receive or
+forward the browser's HTTP request. After DNS resolution, the browser connects
+to a nearby CloudFront edge location. The distribution then selects private S3
+for the default/static behavior or the ALB for `/api/*`.
+
+Nginx is not part of the approved initial topology. CloudFront already owns
+global static delivery and path-based origin selection, while the ALB owns API
+TLS termination, health checks, and target routing. Gunicorn runs Django on the
+private EC2 host. Add Nginx only for a concrete requirement such as local file
+serving, specialized buffering, Unix-socket proxying, or behavior unavailable
+from CloudFront and the ALB.
 
 ### 8.5 Database Migrations in Production
 ```bash

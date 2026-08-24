@@ -44,6 +44,11 @@ Required outcome:
 - keep local Compose free to override the image command with `runserver`
 - define worker count, timeout, graceful shutdown, and forwarded-access-log behavior deliberately
 
+Nginx is not the fix for this blocker: it is a reverse proxy, not a production
+WSGI application server. The approved topology already has CloudFront and the
+ALB as managed proxies. Add and verify Gunicorn; do not add Nginx without a
+separate, concrete proxy requirement.
+
 ### Blocker B — production settings are not fail-safe — resolved 2026-08-21
 
 `prod.py` currently changes only `DEBUG`. Base settings still provide an
@@ -123,22 +128,25 @@ Required outcome: remove it from public production URLs. Keep task verification
 as a local/test-only diagnostic or a protected operational command when Celery
 eventually becomes real application infrastructure.
 
-### Blocker F — same-origin strategy selected; proxy implementation remains
+### Blocker F — S3/CloudFront same-origin strategy approved; implementation remains
 
 The React client calls relative `/api/...` routes and its refresh-cookie flow is
-simplest and safest behind one browser origin. The architecture currently leaves
-frontend hosting open between Vercel and S3/CloudFront while Django has no CORS
-middleware.
+simplest and safest behind one browser origin. S3 plus CloudFront is now the
+approved frontend, and Django intentionally has no credentialed cross-origin
+browser configuration for this same-origin design.
 
-The selected staging architecture uses one public browser origin that serves
-static assets and reverse-proxies uncached `/api/*` requests to the ALB. The DSL
-now models this path. `api-staging.<domain>` remains available for Android,
-Stripe, and monitoring.
+The approved staging architecture uses CloudFront as one public browser origin,
+serves React from a private S3 bucket through Origin Access Control, and proxies
+uncached `/api/*` requests to the ALB. The `approved-initial-staging` DSL view
+models this path. `api-staging.<domain>` remains available for Android, Stripe,
+monitoring, and the CloudFront API origin.
 
-This blocker is not resolved merely by changing the diagram. Choose the frontend
-provider, configure the `/api/*` behavior without API caching, verify forwarded
+This blocker is not resolved merely by choosing the provider and changing the
+diagram. Configure the `/api/*` behavior without API caching, verify forwarded
 host/protocol metadata, and test refresh cookies and CSRF through the deployed
-origin. A future separate-origin design would instead require credentialed CORS,
+origin. Configure private S3 access, SPA fallback only for static routes, and
+the separate CloudFront (`us-east-1`) and ALB (`eu-central-1`) certificates. A
+future separate-origin design would instead require credentialed CORS,
 cookie-domain/SameSite review, and cross-origin tests.
 
 Android is unaffected by browser CORS because OkHttp is a native client, but it

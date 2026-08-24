@@ -285,6 +285,12 @@ production server command today. Staging should explicitly select
 entry point remains available but is not needed until the product has a real
 async transport requirement.
 
+Nginx is neither a WSGI server nor part of the current local or approved initial
+staging runtime. If introduced, it would sit in front of Gunicorn as another
+reverse proxy. CloudFront and the ALB already own the required initial static,
+TLS, routing, and health-check responsibilities, so staging should run
+`ALB → Gunicorn → Django` without an additional Nginx hop.
+
 ### `pyproject.toml`, `uv.lock`, and Reproducible Dependencies
 
 `pyproject.toml` declares direct dependency ranges. `uv.lock` records the exact
