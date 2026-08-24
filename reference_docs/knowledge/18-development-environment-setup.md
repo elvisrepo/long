@@ -141,6 +141,11 @@ Current local auth/runtime additions:
   - frontend: Vite dev server on `http://127.0.0.1:5173`
   - backend: Django running with `config.settings.e2e`, exposed on host port `8001`
   - database: Docker Postgres service `db-e2e`, database `longevity_e2e`, exposed on host port `5433`
+- The `web-e2e` process receives fixed inert Stripe values before Django starts,
+  `config.settings.e2e` replaces the inherited Stripe settings again, and
+  `STRIPE_OUTBOUND_API_ENABLED=False` prevents Checkout or Customer Portal SDK
+  clients from being constructed. Valid developer sandbox keys in `.env` are
+  therefore neither used nor retained as the E2E Stripe configuration.
 - Vite's E2E proxy target is set with `VITE_API_PROXY_TARGET=http://127.0.0.1:8001`.
 - Playwright calls `POST /api/testing/reset/` before the auth smoke test so browser tests do not write into the normal local development database.
 

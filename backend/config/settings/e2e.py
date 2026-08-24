@@ -30,6 +30,20 @@ JWT_SIGNING_KEY = os.environ.get(
     "e2e-jwt-signing-key-at-least-32-bytes-long",
 )
 
+# Never inherit developer Stripe credentials loaded by base.py. These values
+# are deliberately inert and fixed: browser E2E must not become a Stripe
+# sandbox integration suite merely because a local .env contains valid keys.
+STRIPE_OUTBOUND_API_ENABLED = False
+STRIPE_SECRET_KEY = "e2e-stripe-api-disabled"
+STRIPE_WEBHOOK_SECRET = "e2e-webhook-disabled"
+STRIPE_CHECKOUT_SUCCESS_URL = (
+    "http://127.0.0.1:5173/settings?checkout=success"
+)
+STRIPE_CHECKOUT_CANCEL_URL = (
+    "http://127.0.0.1:5173/settings?checkout=cancelled"
+)
+STRIPE_CUSTOMER_PORTAL_RETURN_URL = "http://127.0.0.1:5173/settings"
+
 DATABASES = {
     "default": dj_database_url.parse(
         # Keep browser E2E writes out of the normal dev database.

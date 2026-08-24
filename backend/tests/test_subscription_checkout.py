@@ -3,6 +3,7 @@ from unittest.mock import patch
 import pytest
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.test import override_settings
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -203,6 +204,46 @@ def test_create_checkout_session_uses_checkout_attempt_as_idempotency_key():
             "idempotency_key": str(attempt.id),
         },
     )
+
+
+@override_settings(STRIPE_OUTBOUND_API_ENABLED=False)
+def test_create_checkout_session_fails_before_client_or_attempt_write(
+) -> None:
+    from apps.subscriptions.services import create_checkout_session
+
+    user = get_user_model().objects.create_user(
+        email="e2e-disabled-checkout@example.com",
+        password="strong-password-123",
+    )
+    free_plan = SubscriptionPlan.objects.get(code="free")
+    Subscription.objects.create(
+        user=user,
+        plan=free_plan,
+        status=Subscription.Status.ACTIVE,
+    )
+    paid_plan = SubscriptionPlan.objects.create(
+        code="e2e-disabled-checkout",
+        name="Pro",
+        active_custom_metric_limit=10,
+        wearable_connection_limit=2,
+        sync_interval_minutes=15,
+    )
+    price = SubscriptionPrice.objects.create(
+        plan=paid_plan,
+        provider=SubscriptionPrice.Provider.STRIPE,
+        provider_price_id="price_e2e_disabled",
+        currency="usd",
+        unit_amount=1000,
+        billing_interval=SubscriptionPrice.BillingInterval.MONTH,
+        is_active=True,
+    )
+
+    with patch("apps.subscriptions.services.StripeClient") as stripe_client:
+        with pytest.raises(RuntimeError, match="outbound API is disabled"):
+            create_checkout_session(user=user, price=price)
+
+    stripe_client.assert_not_called()
+    assert not CheckoutAttempt.objects.filter(user=user, price=price).exists()
 
 
 def test_create_checkout_session_stores_expected_subscription():

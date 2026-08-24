@@ -14,13 +14,25 @@
 | Backend API tests | Mocked; no network | Validate authentication, permissions, API contracts, idempotency, and database effects. |
 | Webhook handler tests | Locally signed fixtures or mocked signature verification | Validate event routing, signature failures, replay protection, ordering, and idempotent processing. |
 | Opt-in Stripe integration tests | Stripe sandbox with sandbox secret keys | Verify a small number of real Checkout, Customer, Price, and webhook interactions. These tests are not part of the default test suite. |
-| Browser E2E tests | Prefer mocked Stripe boundary; use sandbox only for a small functional checkout smoke test | Validate the user journey without turning Stripe into a dependency for every E2E run. |
+| Browser E2E tests | Mocked Stripe boundary; outbound Stripe SDK clients disabled | Validate the user journey without turning Stripe into a dependency for every E2E run. |
 | Load and performance tests | Mocked Stripe boundary with configurable latency and failures | Measure our application under load without sending load traffic to Stripe. |
 
 The standard automated test settings use deliberately fake values such as
 `sk_test_fake` and `whsec_fake`. This prevents an ordinary `pytest` run from
 using a developer's valid sandbox credentials. A separate, explicitly enabled
 integration suite may read sandbox credentials from environment variables.
+
+The browser E2E runtime uses defense in depth:
+
+- Compose injects fixed inert Stripe process variables before `base.py` can
+  load a developer `.env`;
+- `config.settings.e2e` unconditionally replaces all Stripe settings; and
+- `STRIPE_OUTBOUND_API_ENABLED=False` makes Checkout and Customer Portal fail
+  before constructing `StripeClient` or writing a Checkout attempt.
+
+A real Stripe Checkout smoke test, if introduced, must be a separate opt-in
+integration suite with an explicitly enabled runtime. It must not weaken the
+default Playwright boundary.
 
 ## Sandbox Rules
 

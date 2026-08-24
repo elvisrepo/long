@@ -1,22 +1,21 @@
+"""Contracts for the runtime configuration used by browser-driven E2E tests.
+
+The runtime includes the dedicated Django settings module and database, the
+test-only reset API, trusted frontend origins, and outbound-provider safety
+boundaries.
+"""
+
 import importlib
+from pathlib import Path
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.test import override_settings
 from rest_framework.test import APIRequestFactory
 
-"""
-testing the environment/configuration that the running E2E backend will use
 
-“Runtime” here means: the actual running configuration/environment the app uses when it starts. For E2E,
-  that includes:
+BACKEND_DIR = Path(__file__).resolve().parents[1]
 
-  - Django settings module: config.settings.e2e
-  - Database target: db-e2e/longevity_e2e
-  - Test-only flag: ENABLE_E2E_TESTING_API=True
-  - Test-only reset endpoint behavior
-  - CSRF trusted frontend origin
-"""
 
 def test_e2e_settings_use_dedicated_database_and_enable_testing_api():
     e2e_settings = importlib.import_module("config.settings.e2e")
@@ -26,6 +25,64 @@ def test_e2e_settings_use_dedicated_database_and_enable_testing_api():
     assert e2e_settings.DATABASES["default"]["NAME"] == "longevity_e2e"
     assert e2e_settings.DATABASES["default"]["HOST"] == "db-e2e"
     assert "http://127.0.0.1:5173" in e2e_settings.CSRF_TRUSTED_ORIGINS
+
+
+def test_e2e_settings_replace_inherited_stripe_configuration() -> None:
+    e2e_settings = importlib.import_module("config.settings.e2e")
+
+    expected_values = {
+        "STRIPE_SECRET_KEY": "e2e-stripe-api-disabled",
+        "STRIPE_WEBHOOK_SECRET": "e2e-webhook-disabled",
+        "STRIPE_CHECKOUT_SUCCESS_URL": (
+            "http://127.0.0.1:5173/settings?checkout=success"
+        ),
+        "STRIPE_CHECKOUT_CANCEL_URL": (
+            "http://127.0.0.1:5173/settings?checkout=cancelled"
+        ),
+        "STRIPE_CUSTOMER_PORTAL_RETURN_URL": (
+            "http://127.0.0.1:5173/settings"
+        ),
+    }
+    mismatched_names = [
+        name
+        for name, expected_value in expected_values.items()
+        if getattr(e2e_settings, name) != expected_value
+    ]
+
+    # Report names only: an inherited developer credential must never be
+    # rendered into pytest output when this safety contract fails.
+    assert not mismatched_names, (
+        f"Unsafe E2E Stripe settings: {mismatched_names}"
+    )
+
+
+def test_e2e_settings_disable_outbound_stripe_api_calls() -> None:
+    e2e_settings = importlib.import_module("config.settings.e2e")
+
+    assert e2e_settings.STRIPE_OUTBOUND_API_ENABLED is False
+
+
+def test_e2e_compose_process_receives_only_inert_stripe_values() -> None:
+    compose = (BACKEND_DIR / "docker-compose.yml").read_text()
+    web_e2e_service = compose.split("    web-e2e:", maxsplit=1)[1].split(
+        "    celery:", maxsplit=1
+    )[0]
+
+    expected_environment = (
+        "STRIPE_SECRET_KEY: e2e-stripe-api-disabled",
+        "STRIPE_WEBHOOK_SECRET: e2e-webhook-disabled",
+        "STRIPE_CHECKOUT_SUCCESS_URL: "
+        "http://127.0.0.1:5173/settings?checkout=success",
+        "STRIPE_CHECKOUT_CANCEL_URL: "
+        "http://127.0.0.1:5173/settings?checkout=cancelled",
+        "STRIPE_CUSTOMER_PORTAL_RETURN_URL: "
+        "http://127.0.0.1:5173/settings",
+    )
+
+    assert all(
+        expected_value in web_e2e_service
+        for expected_value in expected_environment
+    )
 
 
 @pytest.mark.django_db(transaction=True)

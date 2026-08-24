@@ -184,13 +184,14 @@ failure-gated step. The image default is Gunicorn-only, while its explicit
 `python manage.py migrate --no-input` command remains available. Step 8 still
 must prove migration failure blocks promotion in a production-like flow.
 
-### Blocker I — E2E Stripe configuration is not fully isolated
+### Blocker I — E2E Stripe configuration isolation — resolved 2026-08-24
 
-`config.settings.e2e` imports `base.py`, which loads the bind-mounted local
-`.env`. E2E settings replace application secrets and the database, but they do
-not replace Stripe settings. The current browser E2E suite exercises auth and
-does not call Stripe; nevertheless, its process should receive non-functional
-Stripe values so a future E2E test cannot accidentally create sandbox objects.
+The `web-e2e` Compose process receives fixed inert Stripe values before
+`base.py` loads the bind-mounted local `.env`, and `config.settings.e2e`
+unconditionally replaces those Django settings again. Its explicit
+`STRIPE_OUTBOUND_API_ENABLED=False` guard prevents Checkout and Customer Portal
+services from constructing `StripeClient`; Checkout fails before recording an
+attempt. Focused tests protect all three boundaries.
 
 ## 3. Django deployment-check evidence
 
@@ -255,7 +256,7 @@ verification.
    - exclude local runtime artifacts and source bind mounts from the production image
    - make API startup run only the application server
    - keep migrations as a separate observable, failure-gated container command
-6. Isolate E2E configuration:
+6. Isolate E2E configuration — completed 2026-08-24:
    - provide deliberately non-functional Stripe values
    - prove E2E processes cannot create Stripe sandbox objects accidentally
 7. Define the staging Secrets Manager inventory and `.env`-free runtime contract.
@@ -285,6 +286,6 @@ runtime defects with infrastructure-learning defects.
 
 ## 5. Current gate
 
-The next implementation slice is E2E configuration isolation in step 6; do not
+The next implementation slice is the staging secret/runtime contract in step 7; do not
 provision AWS first. Keep the production-image, health-contract, removed-route,
-and runtime-artifact checks in CI.
+runtime-artifact, and E2E Stripe-isolation checks in CI.

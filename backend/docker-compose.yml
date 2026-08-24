@@ -35,6 +35,13 @@ services:
         # Separate database URL so Playwright never writes into normal dev data.
         E2E_DATABASE_URL: postgresql://postgres:postgres@db-e2e:5432/longevity_e2e
         REDIS_URL: redis://redis:6379/1
+        # Process-level overrides prevent base.py from loading real developer
+        # Stripe credentials from the bind-mounted .env file.
+        STRIPE_SECRET_KEY: e2e-stripe-api-disabled
+        STRIPE_WEBHOOK_SECRET: e2e-webhook-disabled
+        STRIPE_CHECKOUT_SUCCESS_URL: http://127.0.0.1:5173/settings?checkout=success
+        STRIPE_CHECKOUT_CANCEL_URL: http://127.0.0.1:5173/settings?checkout=cancelled
+        STRIPE_CUSTOMER_PORTAL_RETURN_URL: http://127.0.0.1:5173/settings
       volumes:
         - .:/app
       ports:

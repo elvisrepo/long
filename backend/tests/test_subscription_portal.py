@@ -1,5 +1,6 @@
 import pytest
 from django.contrib.auth import get_user_model
+from django.test import override_settings
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.conf import settings
@@ -153,6 +154,30 @@ def test_create_customer_portal_session_uses_customer_and_return_url():
               "return_url": settings.STRIPE_CUSTOMER_PORTAL_RETURN_URL,
           }
       )
+
+
+@override_settings(STRIPE_OUTBOUND_API_ENABLED=False)
+def test_create_customer_portal_session_fails_before_stripe_call() -> None:
+    from apps.subscriptions.services import create_customer_portal_session
+
+    user = get_user_model().objects.create_user(
+        email="e2e-disabled-portal@example.com",
+        password="strong-password-123",
+    )
+    billing_customer = BillingCustomer.objects.create(
+        user=user,
+        provider=BillingCustomer.Provider.STRIPE,
+        provider_customer_id="cus_e2e_disabled",
+    )
+
+    with patch("apps.subscriptions.services.StripeClient") as stripe_client:
+        with pytest.raises(RuntimeError, match="outbound API is disabled"):
+            create_customer_portal_session(
+                billing_customer=billing_customer,
+            )
+
+    stripe_client.assert_not_called()
+
 
 def test_subscription_portal_returns_generic_error_when_stripe_fails():
       client, user = authenticate_client_for("portal-failure@example.com")

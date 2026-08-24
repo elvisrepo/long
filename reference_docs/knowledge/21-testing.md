@@ -249,6 +249,11 @@ Current browser-level E2E checkpoint:
 - the frontend dev server proxies `/api/*` requests to Django on the E2E backend during E2E
 - the current Playwright auth flow does not mock frontend network requests or backend auth behavior
 - the current Playwright auth flow writes to `db-e2e/longevity_e2e`, not the live local development database
+- the `web-e2e` process and `config.settings.e2e` both replace developer Stripe
+  values with fixed inert values; `STRIPE_OUTBOUND_API_ENABLED=False` also
+  blocks Checkout and Customer Portal clients before any outbound call
+- the subscription browser flow mocks the Checkout endpoint and hosted Stripe
+  page; a real Stripe sandbox smoke belongs in a separate opt-in suite
 - Playwright calls `POST /api/testing/reset/` before the auth smoke test, so deterministic emails can be reused
 - the E2E reset endpoint flushes mutable E2E state and then reseeds required system rows, including default metric definitions used by the dashboard
 - the E2E reset endpoint is mounted only by `config.settings.e2e` through `ENABLE_E2E_TESTING_API=True`
@@ -454,7 +459,7 @@ Current frontend metrics testing checkpoint:
 Latest local verification checkpoint:
 - `npm run test` passed after adding active custom metric usage and limit-message coverage.
 - `npm run build` passed with the active custom metric usage indicator.
-- `npm run test:e2e` passed with 6 Playwright tests against the isolated Docker-backed E2E runtime.
+- `npm run test:e2e` passed with 7 Playwright tests against the isolated Docker-backed E2E runtime.
 - On 2026-07-16, `docker compose exec web uv run pytest -q` passed with `195` backend tests, `uv run ruff check` passed, and repository-wide `uv run mypy` passed across `79` source files.
 - On 2026-07-27, the `MetricEntry.source_connection` foreign-key, external-record uniqueness, isolated wearable entry/batch validation, and strict receipt-input slices passed all `223` backend tests, repository-wide Ruff, the configured `uv run mypy` gate across `81` source files, migration-drift detection, and `git diff --check`.
 - On 2026-07-28, duplicate external IDs within one wearable batch are rejected; all `224` backend tests, repository-wide Ruff, the configured `uv run mypy` gate across `81` source files, migration-drift detection, and `git diff --check` passed.

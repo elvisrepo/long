@@ -99,6 +99,7 @@ CELERY_BROKER_URL = REDIS_URL
 
 # Localhost return URLs support the Vite development server. Production requires
 # explicit non-local HTTPS values for every browser return path.
+STRIPE_OUTBOUND_API_ENABLED = True
 STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "").strip()
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "").strip()
 STRIPE_CHECKOUT_SUCCESS_URL = os.environ.get(

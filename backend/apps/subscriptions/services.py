@@ -37,6 +37,15 @@ class StaleSubscriptionTransitionError(Exception):
     """Raised when the subscription observed by the caller is no longer current."""
 
 
+def _stripe_client() -> StripeClient:
+    """Return Stripe's SDK client only when this runtime permits outbound calls."""
+
+    if settings.STRIPE_OUTBOUND_API_ENABLED is False:
+        raise RuntimeError("Stripe outbound API is disabled for this runtime.")
+
+    return StripeClient(settings.STRIPE_SECRET_KEY)
+
+
 def get_current_subscription_plan(
     user: AbstractBaseUser,
 ) -> SubscriptionPlan:
@@ -111,6 +120,7 @@ def create_checkout_session(
     user: AbstractBaseUser,
     price: SubscriptionPrice,
 ) -> str:
+    client = _stripe_client()
     current_subscription = Subscription.objects.get(
         user=user,
         status__in=CURRENT_SUBSCRIPTION_STATUSES,
@@ -120,7 +130,6 @@ def create_checkout_session(
         price=price,
         expected_subscription=current_subscription,
     )
-    client = StripeClient(settings.STRIPE_SECRET_KEY)
     billing_customer = BillingCustomer.objects.filter(
         user=user,
         provider=BillingCustomer.Provider.STRIPE,
@@ -192,7 +201,7 @@ def create_customer_portal_session(
     *,
     billing_customer: BillingCustomer,
 ) -> str:
-    client = StripeClient(settings.STRIPE_SECRET_KEY)
+    client = _stripe_client()
     session = client.v1.billing_portal.sessions.create(
         {
             "customer": billing_customer.provider_customer_id,
