@@ -162,25 +162,27 @@ cookie-domain/SameSite review, and cross-origin tests.
 Android is unaffected by browser CORS because OkHttp is a native client, but it
 still requires the public HTTPS API base URL.
 
-### Blocker G — image-context and runtime-artifact cleanup — runtime artifact resolved 2026-08-24
+### Blocker G — image-context and runtime-artifact cleanup — resolved 2026-08-24
 
 `backend/celerybeat-schedule` is no longer tracked but remains available as
 ignored local scheduler state. Git and the backend Docker context now exclude
 all `celerybeat-schedule*` variants, preventing `COPY . .` from placing them in
 the image.
 
-The Dockerfile also runs `uv sync --frozen` without excluding the default
-development group. Consequently, the image includes pytest, mypy, and Ruff.
-Create distinct production and development/test image targets, or otherwise
-install only runtime dependencies in the production target.
+The multi-stage Dockerfile now keeps `uv`, pytest, mypy, Ruff, full source, and
+bind-mount behavior in the development/build boundary. The final Python-slim
+stage copies only runtime dependencies and application source, excludes
+`tests/`, and runs Gunicorn as the unprivileged `django` user.
 
-### Blocker H — migration and startup responsibilities
+### Blocker H — migration and startup responsibilities — image boundary resolved 2026-08-24
 
 Local Compose runs migrations automatically before `runserver`. The cloud
 contract correctly requires one explicit migration container to finish before
 the API is replaced. The production image must therefore start only the API;
 deployment orchestration owns `migrate --no-input` as a separate, observable,
-failure-gated step.
+failure-gated step. The image default is Gunicorn-only, while its explicit
+`python manage.py migrate --no-input` command remains available. Step 8 still
+must prove migration failure blocks promotion in a production-like flow.
 
 ### Blocker I — E2E Stripe configuration is not fully isolated
 
@@ -248,7 +250,7 @@ verification.
    - remove `/tasks/ping/` from public URLs
    - stop tracking `backend/celerybeat-schedule`
    - ignore all Celery Beat schedule variants in Git and Docker build contexts
-5. Harden the production image:
+5. Harden the production image — completed 2026-08-24:
    - separate production runtime dependencies from development/test tools
    - exclude local runtime artifacts and source bind mounts from the production image
    - make API startup run only the application server
@@ -283,7 +285,6 @@ runtime defects with infrastructure-learning defects.
 
 ## 5. Current gate
 
-The next implementation slice is production-image hardening in step 5; do not
+The next implementation slice is E2E configuration isolation in step 6; do not
 provision AWS first. Keep the production-image, health-contract, removed-route,
-and runtime-artifact checks in CI while the image-hardening slice removes
-development tools from the deployable image.
+and runtime-artifact checks in CI.

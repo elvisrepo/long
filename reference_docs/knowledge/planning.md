@@ -1259,7 +1259,7 @@ and S3 job artifacts only when real asynchronous workloads exist.
 ### 8.5 Database Migrations in Production
 ```bash
 # Run the immutable backend image once on EC2 before replacing Django.
-docker compose run --rm web uv run python manage.py migrate --no-input
+python manage.py migrate --no-input
 ```
 
 The post-MVP Fargate equivalent is a one-off ECS task using the same image and

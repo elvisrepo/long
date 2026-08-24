@@ -25,8 +25,10 @@ Current backend production-runtime checkpoint:
 - those tests also protect the local/E2E Compose override that continues to use
   Django's development server
 - backend CI builds the real image and runs
-  `scripts/smoke_prod_image.sh`, which asks Gunicorn to import and validate the
-  production WSGI application with deterministic non-secret environment values
+  `scripts/smoke_prod_image.sh`, which proves the final stage is non-root,
+  excludes `uv`, pytest, Ruff, mypy, `tests/`, and local runtime artifacts, makes
+  the explicit Django migration command available, and asks Gunicorn to import
+  the production WSGI application with deterministic non-secret values
 - this smoke check does not connect to a database or replace the later
   migration-plus-readiness deployment smoke test
 

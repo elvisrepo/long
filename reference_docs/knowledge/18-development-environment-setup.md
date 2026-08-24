@@ -153,6 +153,7 @@ CSRF_TRUSTED_ORIGINS=http://127.0.0.1:5173,http://localhost:5173
 
 Local container reminder:
 - when `backend/docker-compose.yml` loads values through `env_file`, changing `.env` may require recreating the web container, not just restarting it, so the updated environment is actually applied.
+- `docker compose config` renders the fully resolved Compose model and may print values loaded from `.env` or `env_file`. Do not paste or retain its unredacted output in logs, tickets, or chat. Prefer scoped metadata commands such as `docker compose config --services` or `docker compose config --images`; if full output is unavoidable, redact it before sharing.
 
 Local subscription repair:
 - New registrations atomically create an active Free subscription, but older local users created before subscriptions existed may be missing a current subscription row.
@@ -223,6 +224,10 @@ Local Stripe Customer Portal setup:
 | **CI** | GitHub Actions secrets (encrypted) |
 | **Production** | AWS Secrets Manager, injected at runtime via IAM roles |
 | **Never** | Hardcoded in code, committed to git, in Docker image layers |
+
+Treat credentials printed into any captured command output as disclosed and
+rotate them. Removing the source file or later deleting the terminal text does
+not invalidate a credential that another system may already have retained.
 
 ### 3.7 AWS CLI and Agent Toolkit workstation setup
 

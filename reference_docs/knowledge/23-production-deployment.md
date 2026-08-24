@@ -194,13 +194,15 @@ does not proxy or process the HTTP request.
 ### 8.5 Database Migrations in Production
 ```bash
 # On EC2, run the immutable backend image once before replacing the API container.
-docker compose run --rm web uv run python manage.py migrate --no-input
+python manage.py migrate --no-input
 ```
 
 The migration task reads the same database and Django settings from Secrets
 Manager, sends logs and exit status to CloudWatch, and must complete successfully
 before the API service is promoted. Do not run competing migrations from every
-API container startup.
+API container startup. Deployment tooling supplies the image, environment, and
+one-off container mechanism; the command shown is the command inside that
+container. The final image intentionally excludes `uv`.
 
 After migration to Fargate, use the same immutable image and command as a
 one-off ECS task. The responsibility is unchanged; only the compute mechanism

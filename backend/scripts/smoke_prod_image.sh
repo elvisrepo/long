@@ -23,6 +23,25 @@ if [[ -n "${celery_schedule_artifacts}" ]]; then
   exit 1
 fi
 
+# Audit the final stage itself: it must run without root privileges and contain
+# neither test source nor development/build executables.
+docker run --rm "${image_tag}" sh -c '
+  test "$(id -u)" -ne 0
+  test ! -e /app/tests
+  for dev_command in uv pytest ruff mypy; do
+    if command -v "${dev_command}" >/dev/null 2>&1; then
+      echo "Unexpected development command: ${dev_command}" >&2
+      exit 1
+    fi
+  done
+'
+
+# Prove the same immutable image contains Django's migration command. `--help`
+# performs no schema or database mutation; deployment invokes the real command
+# explicitly before promoting the long-running Gunicorn container.
+docker run --rm "${image_tag}" \
+  python manage.py migrate --help >/dev/null
+
 # Start a disposable container with the complete production-settings contract.
 # Every value below is deterministic and intentionally non-secret. The database
 # URL must be PostgreSQL-shaped for prod.py, but no database connection is made:

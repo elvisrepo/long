@@ -147,7 +147,8 @@ Practical note from the current project:
 - Single backend `Dockerfile` (multi-stage: build → production runtime)
 - Docker Compose for local development
 - Docker Engine and Compose on manually provisioned EC2 for initial staging
-- the same immutable image for `docker compose run --rm web uv run python manage.py migrate --no-input` before the Django container is replaced
+- the same immutable image for `python manage.py migrate --no-input` before the
+  Django container is replaced; `uv` remains in build/development stages only
 - Terraform-managed EC2 for the production MVP
 - ECS Fargate API, migration, Celery Worker, and Beat tasks only in the post-MVP learning/evolution phase
 - no Kubernetes for the MVP; its operational cost is unjustified for a solo deployment

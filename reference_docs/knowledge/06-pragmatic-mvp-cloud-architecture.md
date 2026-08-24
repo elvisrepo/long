@@ -199,7 +199,10 @@ and durable runtime artifacts such as exports or logical backups belong in S3.
 - No Samsung cloud webhook or provider-hosted link flow is assumed.
 - Managed database backups belong to Timescale Cloud, not to the Django API process.
 - Optional logical exports may be written to S3 later by a deliberate scheduled task.
-- On EC2, schema migrations run once through the same backend image with `docker compose run --rm web uv run python manage.py migrate --no-input` before the API container is replaced.
+- On EC2, schema migrations run once through the same backend image with
+  `python manage.py migrate --no-input` before the API container is replaced;
+  the production stage intentionally contains Python but not the `uv` build
+  tool.
 - On post-MVP Fargate, the equivalent operation is a one-off ECS task using the same immutable image.
 - The public ALB terminates TLS, routes API and Stripe webhook traffic, and uses
   `GET /api/v1/health/ready/` to route only to targets that can query

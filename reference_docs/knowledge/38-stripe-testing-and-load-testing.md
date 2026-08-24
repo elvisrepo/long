@@ -394,6 +394,10 @@ or sensitive response bodies while collecting those measurements.
 - `.env.example` contains names and non-secret defaults only.
 - Publishable keys may be exposed to browser code; secret keys and webhook
   signing secrets must never be exposed to the frontend.
+- Do not capture or share unredacted `docker compose config` output: Compose may
+  interpolate the Stripe values loaded through `.env` or `env_file`. Prefer
+  scoped commands such as `docker compose config --services` when only
+  structural metadata is needed.
 - Rotate any secret immediately after accidental disclosure.
 
 ## Official Sources

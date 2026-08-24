@@ -769,7 +769,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                         apiInstance = containerInstance longevity.api
                     }
 
-                    migrationNode = deploymentNode "One-off ECS Fargate Migration Task" "Runs the Django image with uv run python manage.py migrate --no-input before service promotion." {
+                    migrationNode = deploymentNode "One-off ECS Fargate Migration Task" "Runs the Django image with python manage.py migrate --no-input before service promotion." {
                         migrationInstance = containerInstance longevity.api
                     }
 

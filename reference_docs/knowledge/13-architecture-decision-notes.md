@@ -339,7 +339,7 @@ Current implementation progress:
 - Runtime boundary:
   Route53 resolves the staging API hostname to an HTTPS ALB. The ALB terminates TLS, probes `/api/v1/health/ready/`, and targets the EC2-hosted Django container; external monitoring calls `/api/v1/health/live/`. The EC2 application port accepts traffic only from the ALB security group, and administration uses AWS Systems Manager instead of a public SSH path. Timescale Cloud remains the managed database and backup owner. Secrets Manager, an EC2 instance role, and CloudWatch provide configuration and operations boundaries.
 - Migration boundary:
-  Before replacing Django on EC2, run the same immutable backend image once with `docker compose run --rm web uv run python manage.py migrate --no-input`. The later Fargate equivalent is a one-off ECS task. A migration failure blocks application promotion.
+  Before replacing Django on EC2, run the same immutable backend image once with `python manage.py migrate --no-input`. The production image excludes the `uv` build tool. The later Fargate equivalent is a one-off ECS task. A migration failure blocks application promotion.
 - Delivery boundary:
   Terraform provisions infrastructure; it does not deploy application versions. The first deployment pipeline targets staging, builds and pushes an immutable image to ECR, invokes EC2 through Systems Manager, runs migrations, replaces Django, and requires public health/smoke checks. Production promotion initially requires explicit approval.
 - Android boundary:

@@ -158,19 +158,21 @@ Why we do this:
 `backend/Dockerfile` builds the image used by the application services.
 
 What it does:
-1. Starts from a base image that already includes `uv`
-2. Sets `/app` as the working directory
-3. Sets Python-related environment flags for cleaner container behavior
-4. Configures `uv` to create the project environment at `/opt/venv`
-5. Copies dependency files (`pyproject.toml`, `uv.lock`)
-6. Installs Python dependencies with `uv sync --frozen`
-7. Adds `/opt/venv/bin` to `PATH`
-8. Copies the backend project into the image
-9. Defaults to Gunicorn serving `config.wsgi:application` with
+1. Creates a shared dependency stage from the Python 3.14 `uv` image and copies
+   `pyproject.toml` plus `uv.lock`
+2. Creates a `development` target with the full dev group and complete backend
+   build context for local Compose
+3. Creates a `production-dependencies` target with
+   `uv sync --frozen --no-dev --no-editable`
+4. Creates the final `production` target from plain Python 3.14 slim, copying
+   only `/opt/venv`, `manage.py`, `apps/`, `common/`, and `config/`
+5. Creates and switches to an unprivileged `django` system user
+6. Defaults to Gunicorn serving `config.wsgi:application` with
    `config.settings.prod`, two workers, explicit timeouts, and access/error
    logs on stdout/stderr
 
 In Compose:
+- every Python service explicitly builds `target: development`
 - `web` and `web-e2e` override the production image default to run migrations
   and then Django's development `runserver`
 - `celery` runs `celery -A config worker -l info`
@@ -180,19 +182,21 @@ The image default deliberately does not run migrations. A deployed release
 must run migrations as a separate failure-gated command before starting or
 replacing the long-lived Gunicorn container.
 
-The key build-time line is:
+The development-stage build-time line is:
 
 ```dockerfile
 COPY . .
 ```
 
-That means:
+That means for the development target:
 - copy the Docker build context into the image working directory `/app`
 - because Compose builds with `context: .` from inside `backend/`, the `.` here means the backend folder contents
 
 Important distinction:
-- **build time**: `COPY . .` copies project files into the image
+- **development build time**: `COPY . .` copies project files into the image
 - **run time for development**: `.:/app` bind-mounts your host files over `/app`
+- **production build time**: selective `COPY` instructions include runtime
+  source only; there is no bind mount, test source, local state, or dev tooling
 
 So yes, the files get copied into the image during build, but for local development the bind mount effectively takes precedence while the container is running. That is why we say the project code is not relied on as a permanent copy inside the running dev container.
 
@@ -336,10 +340,10 @@ question: the lock is synchronized and reproducible, not necessarily composed
 of every newest release. Upgrades should be isolated, tested changes rather
 than a bulk pre-deployment refresh.
 
-By default, the current Dockerfile's `uv sync --frozen` also installs the
-development dependency group. The production image should eventually install
-runtime packages only, while a separate development/test target retains pytest,
-mypy, and Ruff.
+The development target installs the dev group so pytest, mypy, Ruff, and `uv`
+remain available locally. The final production target contains only locked
+runtime dependencies and application source; it intentionally excludes those
+commands and `tests/`.
 
 ### Important Constraint
 
