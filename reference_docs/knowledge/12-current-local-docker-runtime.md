@@ -165,13 +165,20 @@ What it does:
 5. Copies dependency files (`pyproject.toml`, `uv.lock`)
 6. Installs Python dependencies with `uv sync --frozen`
 7. Adds `/opt/venv/bin` to `PATH`
-6. Copies the backend project into the image
-8. Defines the default command to run Django
+8. Copies the backend project into the image
+9. Defaults to Gunicorn serving `config.wsgi:application` with
+   `config.settings.prod`, two workers, explicit timeouts, and access/error
+   logs on stdout/stderr
 
 In Compose:
-- `web` overrides the default command to run migrations and then `runserver`
+- `web` and `web-e2e` override the production image default to run migrations
+  and then Django's development `runserver`
 - `celery` runs `celery -A config worker -l info`
 - `celery-beat` runs `celery -A config beat -l info`
+
+The image default deliberately does not run migrations. A deployed release
+must run migrations as a separate failure-gated command before starting or
+replacing the long-lived Gunicorn container.
 
 The key build-time line is:
 
@@ -235,16 +242,17 @@ environment-specific module rather than selected as the normal runtime itself.
 | direct WSGI or ASGI startup without an override | `config.settings.dev` | defaults in `wsgi.py` and `asgi.py` |
 | `uv run pytest tests` | `config.settings.test` | pytest configuration in `pyproject.toml` |
 | Playwright browser E2E backend | `config.settings.e2e` | explicit `web-e2e` Compose environment variable |
-| future staging/production process | `config.settings.prod` | must be explicitly supplied by the deployment runtime |
+| image-default staging/production Gunicorn process | `config.settings.prod` | Gunicorn receives `DJANGO_SETTINGS_MODULE=config.settings.prod` in the Dockerfile command |
 
 All four specialized modules import `base.py`, and `base.py` loads
 `backend/.env`. A specialized module can then replace the shared values. For
 example, `dev.py` forces `DEBUG = True`, while `test.py` replaces local Stripe,
 encryption, lookup, and JWT credentials with deterministic test-only values.
 
-The normal local web container currently resolves to development settings with
-PostgreSQL at `db/longevity`. `prod.py` is not selected by ordinary Compose and
-has only been exercised explicitly during the deployment-readiness audit.
+The normal local web container resolves to development settings with PostgreSQL
+at `db/longevity`. `prod.py` is not selected by ordinary Compose; the image
+default selects it explicitly, and the production-image smoke test verifies
+that Gunicorn can import the WSGI application under those settings.
 
 Normal backend pytest and browser E2E are different test systems:
 
@@ -276,14 +284,37 @@ the profile alongside the normal default services.
 WSGI and ASGI are protocols between a Python application server and Django;
 they are not application servers themselves.
 
-- `config/wsgi.py` creates the synchronous WSGI `application` object. The planned Gunicorn runtime will load it as `config.wsgi:application`. This is sufficient for the current request/response API.
+- `config/wsgi.py` creates the synchronous WSGI `application` object. Gunicorn
+  loads it as `config.wsgi:application`. This is sufficient for the current
+  request/response API.
 - `config/asgi.py` creates the asynchronous ASGI `application` object. An ASGI server such as Uvicorn or Daphne would load it for async request handling, WebSockets, or other long-lived connections.
 
-The current Compose web service uses Django `runserver`, so neither file is the
-production server command today. Staging should explicitly select
-`config.settings.prod` before Gunicorn imports the WSGI application. The ASGI
-entry point remains available but is not needed until the product has a real
-async transport requirement.
+A server can mean the host machine or a program that listens on a network
+socket and responds to requests. Gunicorn is the latter: it is the production
+WSGI server application listening on container port `8000`. Django is the web
+framework and application that performs URL routing, authentication,
+validation, database work, and response construction; it does not replace the
+production network/process server.
+
+The Gunicorn master process creates and manages the listening runtime and its
+worker processes. The configured two default synchronous workers are separate
+operating-system processes, not threads. Each worker accepts a request through
+the shared listening socket, invokes Django's WSGI callable, and returns the
+HTTP response. Consequently, two long-running synchronous requests can occupy
+both workers at once, while additional work normally waits for a worker. The
+master supervises startup, shutdown, timeouts, crashes, and worker replacement;
+it does not execute ordinary Django request handlers itself.
+
+The image-default production flow is:
+
+```text
+ALB → Gunicorn port 8000 → synchronous worker → Django WSGI application
+```
+
+Local Compose overrides the image command with Django `runserver`, which wraps
+Django in a convenient auto-reloading development server. It is not the
+hardened staging process manager. The ASGI entry point remains available but is
+not needed until the product has a real async transport requirement.
 
 Nginx is neither a WSGI server nor part of the current local or approved initial
 staging runtime. If introduced, it would sit in front of Gunicorn as another

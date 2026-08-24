@@ -18,6 +18,18 @@
 
 **Coverage target**: 80%+ via `pytest-cov`, enforced in CI.
 
+Current backend production-runtime checkpoint:
+- focused pytest contracts verify that the Docker image defaults to Gunicorn,
+  selects `config.settings.prod`, and defines explicit worker, timeout,
+  graceful-shutdown, and stdout/stderr logging behavior
+- those tests also protect the local/E2E Compose override that continues to use
+  Django's development server
+- backend CI builds the real image and runs
+  `scripts/smoke_prod_image.sh`, which asks Gunicorn to import and validate the
+  production WSGI application with deterministic non-secret environment values
+- this smoke check does not connect to a database or replace the later
+  migration-plus-readiness deployment smoke test
+
 Current frontend testing checkpoint:
 - the frontend now has a basic Vitest test harness
 - the current setup uses:

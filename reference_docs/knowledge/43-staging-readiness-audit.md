@@ -29,14 +29,15 @@ the internet.
 
 ## 2. Backend blockers before public staging
 
-### Blocker A — no production application server
+### Blocker A — no production application server — resolved 2026-08-24
 
-The Docker image and local Compose service start `python manage.py runserver`.
-Django's development server is not the staging runtime. Gunicorn is documented
-as the intended synchronous WSGI server but is not yet a dependency or image
-command.
+Gunicorn is locked as a runtime dependency, and the Docker image now defaults
+to serving `config.wsgi:application` with `config.settings.prod`. The command
+defines two workers, 30-second request and graceful-shutdown timeouts, and
+stdout/stderr access and error logs. Local and E2E Compose services deliberately
+override that default with Django's development server.
 
-Required outcome:
+Implemented outcome:
 
 - add and lock Gunicorn
 - run Gunicorn against `config.wsgi:application`
@@ -49,9 +50,10 @@ WSGI application server. The approved topology already has CloudFront and the
 ALB as managed proxies. Add and verify Gunicorn; do not add Nginx without a
 separate, concrete proxy requirement.
 
-The Structurizr staging views now show the intended `ALB → Gunicorn → Django`
-runtime, but that model change does not resolve this blocker. The dependency,
-image command, configuration, and focused process/health tests remain required.
+The focused runtime contract tests protect the image/Compose split, and CI now
+builds the image and uses Gunicorn's configuration check to import the real
+production WSGI application. The Structurizr staging views and executable
+runtime therefore agree on `ALB → Gunicorn → Django`.
 
 ### Blocker B — production settings are not fail-safe — resolved 2026-08-21
 
@@ -225,7 +227,7 @@ verification.
 
 1. Production settings validation and HTTPS/proxy security — completed
    2026-08-21.
-2. Implement the Gunicorn production runtime:
+2. Implement the Gunicorn production runtime — completed 2026-08-24:
    - add and lock Gunicorn with `uv`
    - run `config.wsgi:application` with `config.settings.prod`
    - define workers, timeout, graceful shutdown, and access logging
@@ -276,7 +278,7 @@ runtime defects with infrastructure-learning defects.
 
 ## 5. Current gate
 
-The next implementation slice is the Gunicorn production command and
-production-image smoke check in step 2. Keep local Compose free to override the
-image command with `runserver`. The following slice is the versioned liveness
-and readiness contract; do not provision AWS first.
+The next implementation slice is the versioned liveness and readiness contract
+in step 3; do not provision AWS first. Keep the production-image smoke check in
+CI while the later image-hardening slice removes development tools and runtime
+artifacts from that image.

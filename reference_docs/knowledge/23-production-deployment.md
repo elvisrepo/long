@@ -157,6 +157,40 @@ private EC2 host. Add Nginx only for a concrete requirement such as local file
 serving, specialized buffering, Unix-socket proxying, or behavior unavailable
 from CloudFront and the ALB.
 
+#### Mapping the Traditional Web-Server Pipeline
+
+The common `web server → WSGI server → Python application` diagram assumes a
+single Nginx- or Apache-like reverse proxy. The approved staging topology splits
+that traditional web-server role between two managed AWS services:
+
+- CloudFront is the public edge/CDN and first reverse proxy for browser traffic
+  at `staging.<domain>`. It terminates the browser TLS connection, serves cached
+  static content, and selects an origin from the request path.
+- The ALB is the API-facing reverse proxy and load balancer. It terminates the
+  origin/API TLS connection, checks target health, selects a healthy EC2 target,
+  and forwards the request to Gunicorn over the restricted application path.
+- Gunicorn is the WSGI application server. Its workers invoke Django; it is not
+  a replacement for Django's routing, authentication, business logic, or data
+  access.
+
+Browser API request:
+
+```text
+Browser → CloudFront `/api/*` behavior → ALB → Gunicorn → Django
+```
+
+Browser React/static request:
+
+```text
+Browser → CloudFront default/static behavior → private S3 bucket
+```
+
+The static path never reaches the ALB, Gunicorn, or Django. Native Android,
+Stripe webhooks, and API uptime monitoring use the dedicated API hostname and
+therefore enter at the ALB rather than through the browser's CloudFront
+distribution. Route 53 precedes these connections only as DNS resolution; it
+does not proxy or process the HTTP request.
+
 ### 8.5 Database Migrations in Production
 ```bash
 # On EC2, run the immutable backend image once before replacing the API container.
