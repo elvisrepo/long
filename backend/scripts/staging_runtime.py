@@ -7,8 +7,18 @@ from config.settings.production_environment import (
 )
 
 
+class StagingRuntimeConfigurationError(ValueError):
+    """Report invalid staging configuration without exposing secret values."""
+
+
 def parse_runtime_secret(secret_json: str) -> dict[str, str]:
     """Return the production runtime keys from a complete JSON secret."""
 
-    payload: dict[str, str] = json.loads(secret_json)
+    try:
+        payload: dict[str, str] = json.loads(secret_json)
+    except json.JSONDecodeError:
+        raise StagingRuntimeConfigurationError(
+            "staging runtime secret must be valid JSON"
+        ) from None
+
     return {key: payload[key] for key in REQUIRED_RUNTIME_KEYS}

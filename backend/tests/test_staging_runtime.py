@@ -14,10 +14,16 @@ Scenario list:
 
 import json
 
+import pytest
+
 from config.settings.production_environment import (
     REQUIRED_ENVIRONMENT_VARIABLES,
 )
-from scripts.staging_runtime import REQUIRED_RUNTIME_KEYS, parse_runtime_secret
+from scripts.staging_runtime import (
+    REQUIRED_RUNTIME_KEYS,
+    StagingRuntimeConfigurationError,
+    parse_runtime_secret,
+)
 
 
 EXPECTED_RUNTIME_KEYS = {
@@ -49,3 +55,15 @@ def test_complete_staging_secret_defines_production_runtime_inventory() -> None:
 
 def test_staging_parser_uses_canonical_production_inventory() -> None:
     assert REQUIRED_RUNTIME_KEYS is REQUIRED_ENVIRONMENT_VARIABLES
+
+
+def test_malformed_secret_json_is_rejected_without_disclosing_it() -> None:
+    malformed_secret = '{"SECRET_KEY": "must-not-appear",'
+
+    with pytest.raises(
+        StagingRuntimeConfigurationError,
+        match="staging runtime secret must be valid JSON",
+    ) as error:
+        parse_runtime_secret(malformed_secret)
+
+    assert "must-not-appear" not in str(error.value)
