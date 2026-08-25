@@ -89,3 +89,18 @@ def test_secret_with_blank_required_value_is_rejected() -> None:
         match="staging runtime secret has blank required value: DATABASE_URL",
     ):
         parse_runtime_secret(json.dumps(payload))
+
+
+def test_secret_with_non_string_required_value_is_rejected() -> None:
+    payload: dict[str, object] = {
+        key: f"inert-{key.lower()}" for key in EXPECTED_RUNTIME_KEYS
+    }
+    payload["DATABASE_URL"] = None
+
+    with pytest.raises(
+        StagingRuntimeConfigurationError,
+        match=(
+            "staging runtime secret has non-string required value: DATABASE_URL"
+        ),
+    ):
+        parse_runtime_secret(json.dumps(payload))
