@@ -104,3 +104,11 @@ def test_secret_with_non_string_required_value_is_rejected() -> None:
         ),
     ):
         parse_runtime_secret(json.dumps(payload))
+
+
+def test_secret_json_must_be_an_object() -> None:
+    with pytest.raises(
+        StagingRuntimeConfigurationError,
+        match="staging runtime secret must be a JSON object",
+    ):
+        parse_runtime_secret("[]")

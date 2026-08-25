@@ -15,11 +15,16 @@ def parse_runtime_secret(secret_json: str) -> dict[str, str]:
     """Return the production runtime keys from a complete JSON secret."""
 
     try:
-        payload: dict[str, object] = json.loads(secret_json)
+        payload: object = json.loads(secret_json)
     except json.JSONDecodeError:
         raise StagingRuntimeConfigurationError(
             "staging runtime secret must be valid JSON"
         ) from None
+
+    if not isinstance(payload, dict):
+        raise StagingRuntimeConfigurationError(
+            "staging runtime secret must be a JSON object"
+        )
 
     runtime_environment: dict[str, str] = {}
     for key in REQUIRED_RUNTIME_KEYS:
