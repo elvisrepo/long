@@ -51,3 +51,28 @@ def test_migration_runs_before_api_promotion(
         [*compose, "run", "--rm", "migration"],
         [*compose, "up", "--detach", "--wait", "api"],
     ]
+
+
+def test_migration_failure_prevents_api_promotion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    commands: list[list[str]] = []
+
+    def fake_run(
+        command: list[str],
+        *,
+        check: bool,
+    ) -> subprocess.CompletedProcess[str]:
+        commands.append(command)
+        raise subprocess.CalledProcessError(returncode=1, cmd=command)
+
+    monkeypatch.setattr("scripts.production_deployment.subprocess.run", fake_run)
+
+    with pytest.raises(subprocess.CalledProcessError):
+        deploy_backend(
+            compose_file="docker-compose.production-smoke.yml",
+            project_name="longevity-production-smoke",
+        )
+
+    assert len(commands) == 1
+    assert commands[0][-3:] == ["run", "--rm", "migration"]
