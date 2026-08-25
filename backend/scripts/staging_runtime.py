@@ -21,4 +21,10 @@ def parse_runtime_secret(secret_json: str) -> dict[str, str]:
             "staging runtime secret must be valid JSON"
         ) from None
 
+    for key in REQUIRED_RUNTIME_KEYS:
+        if key not in payload:
+            raise StagingRuntimeConfigurationError(
+                f"staging runtime secret is missing required key: {key}"
+            )
+
     return {key: payload[key] for key in REQUIRED_RUNTIME_KEYS}

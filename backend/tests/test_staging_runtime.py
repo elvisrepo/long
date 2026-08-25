@@ -67,3 +67,14 @@ def test_malformed_secret_json_is_rejected_without_disclosing_it() -> None:
         parse_runtime_secret(malformed_secret)
 
     assert "must-not-appear" not in str(error.value)
+
+
+def test_secret_missing_required_key_is_rejected() -> None:
+    payload = {key: f"inert-{key.lower()}" for key in EXPECTED_RUNTIME_KEYS}
+    del payload["DATABASE_URL"]
+
+    with pytest.raises(
+        StagingRuntimeConfigurationError,
+        match="staging runtime secret is missing required key: DATABASE_URL",
+    ):
+        parse_runtime_secret(json.dumps(payload))
