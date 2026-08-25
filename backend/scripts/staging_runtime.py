@@ -26,5 +26,10 @@ def parse_runtime_secret(secret_json: str) -> dict[str, str]:
             raise StagingRuntimeConfigurationError(
                 f"staging runtime secret is missing required key: {key}"
             )
+        value = payload[key]
+        if isinstance(value, str) and not value.strip():
+            raise StagingRuntimeConfigurationError(
+                f"staging runtime secret has blank required value: {key}"
+            )
 
     return {key: payload[key] for key in REQUIRED_RUNTIME_KEYS}

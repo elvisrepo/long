@@ -78,3 +78,14 @@ def test_secret_missing_required_key_is_rejected() -> None:
         match="staging runtime secret is missing required key: DATABASE_URL",
     ):
         parse_runtime_secret(json.dumps(payload))
+
+
+def test_secret_with_blank_required_value_is_rejected() -> None:
+    payload = {key: f"inert-{key.lower()}" for key in EXPECTED_RUNTIME_KEYS}
+    payload["DATABASE_URL"] = "   "
+
+    with pytest.raises(
+        StagingRuntimeConfigurationError,
+        match="staging runtime secret has blank required value: DATABASE_URL",
+    ):
+        parse_runtime_secret(json.dumps(payload))
