@@ -24,6 +24,7 @@ from scripts.staging_runtime import (
     REQUIRED_RUNTIME_KEYS,
     StagingRuntimeConfigurationError,
     load_runtime_environment,
+    main,
     parse_runtime_secret,
     run_deployment_command,
     retrieve_secret_string,
@@ -320,3 +321,58 @@ def test_deployment_command_receives_snapshot_without_values_in_arguments(
     assert {
         key: child_environment[key] for key in EXPECTED_RUNTIME_KEYS
     } == runtime_environment
+
+
+def test_cli_loads_one_snapshot_and_runs_one_deployment_command(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_environment = {
+        key: f"sensitive-{key.lower()}" for key in EXPECTED_RUNTIME_KEYS
+    }
+    loads: list[tuple[str, str]] = []
+    deployments: list[tuple[list[str], dict[str, str]]] = []
+
+    def fake_load_runtime_environment(
+        secret_id: str,
+        *,
+        region: str,
+    ) -> dict[str, str]:
+        loads.append((secret_id, region))
+        return runtime_environment
+
+    def fake_run_deployment_command(
+        command: list[str],
+        environment: dict[str, str],
+    ) -> None:
+        deployments.append((command, environment))
+
+    monkeypatch.setattr(
+        "scripts.staging_runtime.load_runtime_environment",
+        fake_load_runtime_environment,
+    )
+    monkeypatch.setattr(
+        "scripts.staging_runtime.run_deployment_command",
+        fake_run_deployment_command,
+    )
+
+    exit_code = main([
+        "--secret-id",
+        "longevity/staging/backend-runtime",
+        "--region",
+        "eu-central-1",
+        "--",
+        "docker",
+        "compose",
+        "up",
+        "--detach",
+        "api",
+    ])
+
+    assert exit_code == 0
+    assert loads == [
+        ("longevity/staging/backend-runtime", "eu-central-1")
+    ]
+    assert deployments == [(
+        ["docker", "compose", "up", "--detach", "api"],
+        runtime_environment,
+    )]

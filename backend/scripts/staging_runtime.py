@@ -1,5 +1,6 @@
 """Build the allowlisted environment for the staging backend runtime."""
 
+import argparse
 import json
 import os
 import subprocess
@@ -127,3 +128,30 @@ def run_deployment_command(
     child_environment = ec2_instance_role_environment()
     child_environment.update(runtime_environment)
     subprocess.run(list(command), check=True, env=child_environment)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Load one runtime snapshot and execute one deployment command."""
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--secret-id", required=True)
+    parser.add_argument("--region", required=True)
+    parser.add_argument("command", nargs=argparse.REMAINDER)
+    arguments = parser.parse_args(list(argv) if argv is not None else None)
+
+    command: list[str] = arguments.command
+    if command[:1] == ["--"]:
+        command = command[1:]
+    if not command:
+        parser.error("a deployment command is required after --")
+
+    runtime_environment = load_runtime_environment(
+        arguments.secret_id,
+        region=arguments.region,
+    )
+    run_deployment_command(command, runtime_environment)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
