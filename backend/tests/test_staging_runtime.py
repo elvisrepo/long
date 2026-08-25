@@ -426,3 +426,52 @@ def test_cli_reports_configuration_failure_without_traceback(
     assert captured.err == "error: unable to retrieve staging runtime secret\n"
     assert "Traceback" not in captured.err
     assert deployment_was_called is False
+
+
+def test_cli_preserves_deployment_failure_status_without_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    runtime_environment = {
+        key: f"sensitive-{key.lower()}" for key in EXPECTED_RUNTIME_KEYS
+    }
+
+    def fake_load_runtime_environment(
+        secret_id: str,
+        *,
+        region: str,
+    ) -> dict[str, str]:
+        return runtime_environment
+
+    def fake_run_deployment_command(
+        command: list[str],
+        environment: dict[str, str],
+    ) -> None:
+        raise subprocess.CalledProcessError(returncode=17, cmd=command)
+
+    monkeypatch.setattr(
+        "scripts.staging_runtime.load_runtime_environment",
+        fake_load_runtime_environment,
+    )
+    monkeypatch.setattr(
+        "scripts.staging_runtime.run_deployment_command",
+        fake_run_deployment_command,
+    )
+
+    exit_code = main([
+        "--secret-id",
+        "longevity/staging/backend-runtime",
+        "--region",
+        "eu-central-1",
+        "--",
+        "docker",
+        "compose",
+        "up",
+    ])
+
+    captured = capsys.readouterr()
+    assert exit_code == 17
+    assert captured.out == ""
+    assert captured.err == "error: deployment command failed with exit code 17\n"
+    assert "Traceback" not in captured.err
+    assert all(value not in captured.err for value in runtime_environment.values())

@@ -155,7 +155,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"error: {error}", file=sys.stderr)
         return 1
 
-    run_deployment_command(command, runtime_environment)
+    try:
+        run_deployment_command(command, runtime_environment)
+    except subprocess.CalledProcessError as error:
+        exit_code = error.returncode if 1 <= error.returncode <= 255 else 1
+        print(
+            f"error: deployment command failed with exit code {exit_code}",
+            file=sys.stderr,
+        )
+        return exit_code
+    except OSError:
+        print("error: unable to start deployment command", file=sys.stderr)
+        return 1
+
     return 0
 
 
