@@ -112,3 +112,13 @@ def test_secret_json_must_be_an_object() -> None:
         match="staging runtime secret must be a JSON object",
     ):
         parse_runtime_secret("[]")
+
+
+def test_unexpected_secret_keys_are_not_forwarded() -> None:
+    payload = {key: f"inert-{key.lower()}" for key in EXPECTED_RUNTIME_KEYS}
+    payload["AWS_SECRET_ACCESS_KEY"] = "must-not-be-forwarded"
+
+    runtime_environment = parse_runtime_secret(json.dumps(payload))
+
+    assert set(runtime_environment) == EXPECTED_RUNTIME_KEYS
+    assert "AWS_SECRET_ACCESS_KEY" not in runtime_environment
