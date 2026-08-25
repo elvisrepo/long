@@ -56,7 +56,9 @@ network path; moving to HTTPS targets would be a separate hardening decision.
 
 ### 8.3 Production Environment
 - `DEBUG=False`, `ALLOWED_HOSTS` set, `SECURE_*` Django settings
-- Secrets from AWS Secrets Manager (not env vars baked in image)
+- one environment-specific AWS Secrets Manager JSON value, retrieved once by
+  the EC2 host and passed through process environment rather than baked into
+  the image or stored in a persistent `.env`
 - Gunicorn for the current synchronous Django runtime; add ASGI/Uvicorn only when a real Channels or async transport requirement exists
 - explicit frontend origin, CORS, CSRF trusted origins, and secure cookie configuration
 - console/structured logging without secrets, JWTs, health values, or Stripe payload leakage
@@ -65,6 +67,34 @@ network path; moving to HTTPS targets would be a separate hardening decision.
 `DEBUG=False` is independent of logging. It suppresses developer exception
 pages and debug-only behavior for public requests; redacted diagnostics still
 flow through the configured log levels to CloudWatch.
+
+The staging runtime secret ID is `longevity/staging/backend-runtime`. Its
+canonical keys are defined once in
+`backend/config/settings/production_environment.py` and consumed by both
+`config.settings.prod` and `scripts.staging_runtime`. The host invocation is:
+
+```bash
+cd backend
+uv run --no-sync python -m scripts.staging_runtime \
+  --secret-id longevity/staging/backend-runtime \
+  --region eu-central-1 \
+  -- docker compose ...
+```
+
+The loader disables non-EC2 AWS credential sources, retrieves `AWSCURRENT`
+exactly once, validates the entire 14-key JSON object, omits unexpected keys,
+and supplies one in-memory snapshot to the deployment command. Configuration
+or AWS retrieval failures stop before Docker is invoked. Step 8 must define the
+actual Compose migration/API sequence and prove that the same inherited
+snapshot reaches both containers, migration failure blocks API promotion, and
+readiness succeeds before replacement.
+
+The human Systems Manager caller and machine runtime identity are separate. A
+human operator starts the session; the EC2 instance-profile role retrieves the
+secret using least-privilege access to its exact ARN. Do not copy a workstation
+AWS profile or access keys onto EC2. Environment injection is not secrecy from
+root or Docker administrators, so restrict those privileges and never capture
+unredacted `docker compose config` output.
 
 The selected staging browser architecture uses one browser origin because React
 currently uses relative `/api/...` URLs. CloudFront serves private-S3 assets and

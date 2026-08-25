@@ -45,6 +45,24 @@ the IAM role's `ViewOnlyAccess` and remove only the proxy restriction. For
 resource creation, use reviewed CLI/console steps during the manual staging
 exercise, then replace them with Terraform and scoped deployment roles.
 
+Staging runtime identity and secret contract:
+- the human `sevi-admin` identity starts an audited Systems Manager session; it
+  is not the Django runtime identity
+- the EC2 host receives a separate instance-profile role with
+  `AmazonSSMManagedInstanceCore` and `secretsmanager:GetSecretValue` restricted
+  to `longevity/staging/backend-runtime`; add `kms:Decrypt` only when a
+  customer-managed KMS key encrypts that secret
+- the host-side loader explicitly ignores workstation profiles, shared AWS
+  credential/config files, static/session credentials, web identity, and
+  container credential endpoints; the EC2 metadata role is its credential path
+- the loader retrieves one `AWSCURRENT` JSON value and passes the validated
+  allowlisted snapshot to one deployment command without a persistent `.env`
+- the secret values still exist in process/container memory and are visible to
+  privileged host or Docker operators; restrict Systems Manager, sudo, and
+  Docker access and never print the secret or unredacted Compose configuration
+- `longevity/staging/backend-runtime` is a defined future resource, not evidence
+  that Secrets Manager or EC2 has already been provisioned
+
 Infrastructure progression:
 
 1. Manually provision EC2 staging:
@@ -175,7 +193,7 @@ See §3.6.
 |---|---|---|
 | Database | Timescale Cloud automated backups | Provider-managed retention |
 | Database (extra, later) | Deliberate scheduled `pg_dump` task to versioned S3 | Define before enabling; previous proposal was 90 days |
-| `.env` / Terraform state | Terraform Cloud or S3 + versioning | Indefinite |
+| Terraform state / local-development `.env` | Terraform Cloud or S3 + versioning for state; ignored workstation storage for local `.env` | Indefinite for state; local `.env` is not a production backup artifact |
 | User uploads (if any) | S3 with versioning | Indefinite |
 
 The Django API process does not own database backups. Record the provisioned

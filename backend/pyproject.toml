@@ -33,7 +33,7 @@
 
     [tool.mypy]
     python_version = "3.14"
-    files = ["apps", "common", "config"]
+    files = ["apps", "common", "config", "scripts"]
     check_untyped_defs = true
     disallow_incomplete_defs = true
     disallow_untyped_defs = false

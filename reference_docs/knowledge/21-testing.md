@@ -32,6 +32,24 @@ Current backend production-runtime checkpoint:
 - this smoke check does not connect to a database or replace the later
   migration-plus-readiness deployment smoke test
 
+Current staging-runtime configuration checkpoint:
+- `tests/test_staging_runtime.py` protects the canonical 14-key production
+  inventory shared by Django and the host-side deployment loader
+- focused tests reject malformed or non-object JSON, missing keys, blank
+  values, and non-string values, while unexpected keys are omitted
+- AWS CLI calls are stubbed; tests prove one `AWSCURRENT` retrieval, EC2
+  instance-role-only credential discovery, and redacted retrieval failures
+- the loader fetches exactly one secret snapshot per deployment attempt and
+  passes values only through the child process environment, never by appending
+  them to command arguments or writing an `.env`
+- CLI tests prove one load feeds one deployment command and that expected
+  configuration or child-process failures return controlled nonzero statuses
+  without Python tracebacks or secret values
+- backend CI discovers this file through `pytest tests`; the mypy target list
+  includes `scripts`, so the host-side deployment module is type-checked too
+- no focused test contacts AWS or starts Docker; the real migration-first
+  Docker boundary belongs to the Step 8 production-like smoke test
+
 Current health-contract checkpoint:
 - focused endpoint tests prove liveness returns `200` without requesting a
   database cursor

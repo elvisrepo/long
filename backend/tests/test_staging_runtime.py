@@ -1,5 +1,9 @@
 """Contract tests for staging runtime configuration injection.
 
+AWS and Docker boundaries are replaced with test doubles in this module. The
+real migration-first Docker flow is intentionally deferred to the Step 8 smoke
+test; these tests protect the configuration loaded before Docker is invoked.
+
 Scenario list:
 
 - accept one complete JSON secret containing the production runtime inventory
@@ -9,7 +13,8 @@ Scenario list:
 - reject non-string values before invoking Docker
 - omit unexpected keys from the container environment
 - avoid disclosing secret values in normal and error output
-- pass one configuration snapshot to migration and API containers
+- load one configuration snapshot for the deployment command
+- Step 8: pass that same snapshot to migration and API containers
 """
 
 import json
@@ -31,6 +36,9 @@ from scripts.staging_runtime import (
 )
 
 
+# Keep this oracle explicit and independent. Production consumers share the
+# canonical tuple; this set makes an intentional key addition/removal require a
+# corresponding contract-test decision instead of silently accepting drift.
 EXPECTED_RUNTIME_KEYS = {
     "SECRET_KEY",
     "PII_ENCRYPTION_KEY",
@@ -121,6 +129,8 @@ def test_secret_json_must_be_an_object() -> None:
 
 def test_unexpected_secret_keys_are_not_forwarded() -> None:
     payload = {key: f"inert-{key.lower()}" for key in EXPECTED_RUNTIME_KEYS}
+    # Use a credential-shaped field to prove arbitrary secret JSON cannot widen
+    # the child/container environment beyond the canonical allowlist.
     payload["AWS_SECRET_ACCESS_KEY"] = "must-not-be-forwarded"
 
     runtime_environment = parse_runtime_secret(json.dumps(payload))
@@ -136,6 +146,8 @@ def test_retrieves_one_current_secret_without_a_workstation_profile(
     secret_value = '{"SECRET_KEY":"must-not-be-printed"}'
     commands: list[list[str]] = []
 
+    # This double proves command shape and capture behavior without contacting
+    # AWS or requiring a developer credential profile.
     def fake_run(
         command: list[str],
         *,
@@ -269,6 +281,8 @@ def test_loads_one_secret_snapshot_per_deployment_attempt(
     payload = {key: f"inert-{key.lower()}" for key in EXPECTED_RUNTIME_KEYS}
     retrievals: list[tuple[str, str]] = []
 
+    # Recording calls protects the one-fetch rule needed to prevent rotation
+    # from giving migration and API different secret versions.
     def fake_retrieve_secret_string(secret_id: str, *, region: str) -> str:
         retrievals.append((secret_id, region))
         return json.dumps(payload)
@@ -298,6 +312,8 @@ def test_deployment_command_receives_snapshot_without_values_in_arguments(
     command = ["docker", "compose", "up", "--detach", "api"]
     invocations: list[tuple[list[str], dict[str, str]]] = []
 
+    # Capture argv and env separately: values belong only in the latter and are
+    # never passed to a real Docker process in this unit test.
     def fake_run(
         invoked_command: list[str],
         *,

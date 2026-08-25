@@ -9,8 +9,10 @@
 Audit started on 2026-08-20. AWS account access is bootstrapped, but no
 Longevity application resources have been provisioned. The backend inspection
 is complete. Production settings validation and HTTPS/proxy security were
-implemented on 2026-08-21; frontend hosting/origin, Android staging-build, and
-detailed AWS cost/resource audits remain open.
+implemented on 2026-08-21, and the `.env`-free staging secret/runtime contract
+was implemented on 2026-08-25. The production-like deployment smoke, frontend
+hosting/origin, Android staging build, and detailed AWS cost/resource audits
+remain open.
 
 ## 1. Verified foundations
 
@@ -193,6 +195,27 @@ unconditionally replaces those Django settings again. Its explicit
 services from constructing `StripeClient`; Checkout fails before recording an
 attempt. Focused tests protect all three boundaries.
 
+### Blocker J — staging secret/runtime contract — resolved 2026-08-25
+
+The canonical 14-key production environment inventory now lives in
+`config.settings.production_environment` and is shared by Django production
+validation and the host-side staging loader, preventing the two contracts from
+drifting.
+
+`scripts.staging_runtime` retrieves one `AWSCURRENT` SecretString through the
+EC2 instance role, with workstation/static/web-identity/container credential
+sources disabled. It validates JSON shape, required-key presence, nonblank
+string values, and the allowlist before running one child deployment command.
+It injects the validated snapshot through process environment without creating
+a persistent `.env` or putting values in command arguments. Expected retrieval,
+configuration, and child-process failures are redacted and return controlled
+nonzero statuses.
+
+The planned secret ID is `longevity/staging/backend-runtime`; no AWS resource
+has been created by this slice. The human Systems Manager caller remains
+separate from the future EC2 instance-profile role. Step 8 must still implement
+and prove the real Compose migration/API promotion sequence.
+
 ## 3. Django deployment-check evidence
 
 The audit ran:
@@ -259,7 +282,13 @@ verification.
 6. Isolate E2E configuration — completed 2026-08-24:
    - provide deliberately non-functional Stripe values
    - prove E2E processes cannot create Stripe sandbox objects accidentally
-7. Define the staging Secrets Manager inventory and `.env`-free runtime contract.
+7. Define the staging Secrets Manager inventory and `.env`-free runtime
+   contract — completed 2026-08-25:
+   - share one canonical 14-key inventory between Django and deployment tooling
+   - retrieve one `AWSCURRENT` value through EC2 instance-role credentials only
+   - reject malformed, incomplete, blank, or wrongly typed configuration
+   - omit unexpected keys and keep values out of command-line arguments
+   - provide redacted, controlled CLI failures without a persistent `.env`
 8. Run a local production-like deployment smoke test:
    - run the migration container first
    - start Gunicorn with production settings only after migration success
@@ -286,6 +315,10 @@ runtime defects with infrastructure-learning defects.
 
 ## 5. Current gate
 
-The next implementation slice is the staging secret/runtime contract in step 7; do not
-provision AWS first. Keep the production-image, health-contract, removed-route,
-runtime-artifact, and E2E Stripe-isolation checks in CI.
+The next implementation slice is the local production-like deployment smoke in
+step 8; do not provision AWS first. It must use the Step 7 loader to provide one
+snapshot to the migration and API containers, start or replace the API only
+after migration success, verify readiness and representative API behavior, and
+prove migration failure blocks promotion. Keep the production-image,
+health-contract, removed-route, runtime-artifact, E2E Stripe-isolation, and
+staging-runtime contract checks in CI.
