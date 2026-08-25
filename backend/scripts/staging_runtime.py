@@ -1,6 +1,7 @@
 """Build the allowlisted environment for the staging backend runtime."""
 
 import json
+import subprocess
 
 from config.settings.production_environment import (
     REQUIRED_ENVIRONMENT_VARIABLES as REQUIRED_RUNTIME_KEYS,
@@ -9,6 +10,32 @@ from config.settings.production_environment import (
 
 class StagingRuntimeConfigurationError(ValueError):
     """Report invalid staging configuration without exposing secret values."""
+
+
+def retrieve_secret_string(secret_id: str, *, region: str) -> str:
+    """Retrieve one current Secrets Manager value through the EC2 identity."""
+
+    result = subprocess.run(
+        [
+            "aws",
+            "secretsmanager",
+            "get-secret-value",
+            "--secret-id",
+            secret_id,
+            "--version-stage",
+            "AWSCURRENT",
+            "--query",
+            "SecretString",
+            "--output",
+            "text",
+            "--region",
+            region,
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.rstrip("\r\n")
 
 
 def parse_runtime_secret(secret_json: str) -> dict[str, str]:

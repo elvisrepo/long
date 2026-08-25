@@ -13,6 +13,7 @@ Scenario list:
 """
 
 import json
+import subprocess
 
 import pytest
 
@@ -23,6 +24,7 @@ from scripts.staging_runtime import (
     REQUIRED_RUNTIME_KEYS,
     StagingRuntimeConfigurationError,
     parse_runtime_secret,
+    retrieve_secret_string,
 )
 
 
@@ -122,3 +124,55 @@ def test_unexpected_secret_keys_are_not_forwarded() -> None:
 
     assert set(runtime_environment) == EXPECTED_RUNTIME_KEYS
     assert "AWS_SECRET_ACCESS_KEY" not in runtime_environment
+
+
+def test_retrieves_one_current_secret_without_a_workstation_profile(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    secret_value = '{"SECRET_KEY":"must-not-be-printed"}'
+    commands: list[list[str]] = []
+
+    def fake_run(
+        command: list[str],
+        *,
+        check: bool,
+        capture_output: bool,
+        text: bool,
+    ) -> subprocess.CompletedProcess[str]:
+        commands.append(command)
+        assert check is True
+        assert capture_output is True
+        assert text is True
+        return subprocess.CompletedProcess(
+            command,
+            returncode=0,
+            stdout=f"{secret_value}\n",
+            stderr="",
+        )
+
+    monkeypatch.setattr("scripts.staging_runtime.subprocess.run", fake_run)
+
+    result = retrieve_secret_string(
+        "longevity/staging/backend-runtime",
+        region="eu-central-1",
+    )
+
+    assert result == secret_value
+    assert commands == [[
+        "aws",
+        "secretsmanager",
+        "get-secret-value",
+        "--secret-id",
+        "longevity/staging/backend-runtime",
+        "--version-stage",
+        "AWSCURRENT",
+        "--query",
+        "SecretString",
+        "--output",
+        "text",
+        "--region",
+        "eu-central-1",
+    ]]
+    assert "--profile" not in commands[0]
+    assert secret_value not in capsys.readouterr().out
