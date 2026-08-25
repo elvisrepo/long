@@ -45,27 +45,33 @@ def ec2_instance_role_environment() -> dict[str, str]:
 def retrieve_secret_string(secret_id: str, *, region: str) -> str:
     """Retrieve one current Secrets Manager value through the EC2 identity."""
 
-    result = subprocess.run(
-        [
-            "aws",
-            "secretsmanager",
-            "get-secret-value",
-            "--secret-id",
-            secret_id,
-            "--version-stage",
-            "AWSCURRENT",
-            "--query",
-            "SecretString",
-            "--output",
-            "text",
-            "--region",
-            region,
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-        env=ec2_instance_role_environment(),
-    )
+    try:
+        result = subprocess.run(
+            [
+                "aws",
+                "secretsmanager",
+                "get-secret-value",
+                "--secret-id",
+                secret_id,
+                "--version-stage",
+                "AWSCURRENT",
+                "--query",
+                "SecretString",
+                "--output",
+                "text",
+                "--region",
+                region,
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            env=ec2_instance_role_environment(),
+        )
+    except (OSError, subprocess.CalledProcessError):
+        raise StagingRuntimeConfigurationError(
+            "unable to retrieve staging runtime secret"
+        ) from None
+
     return result.stdout.rstrip("\r\n")
 
 

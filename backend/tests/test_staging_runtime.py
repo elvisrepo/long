@@ -224,3 +224,37 @@ def test_secret_retrieval_uses_only_ec2_instance_role_credentials(
     assert aws_environment["AWS_CONFIG_FILE"] == "/dev/null"
     assert aws_environment["AWS_SHARED_CREDENTIALS_FILE"] == "/dev/null"
     assert aws_environment["AWS_EC2_METADATA_DISABLED"] == "false"
+
+
+def test_secret_retrieval_failure_is_redacted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sensitive_output = "must-not-appear"
+
+    def fake_run(
+        command: list[str],
+        *,
+        check: bool,
+        capture_output: bool,
+        text: bool,
+        env: dict[str, str],
+    ) -> subprocess.CompletedProcess[str]:
+        raise subprocess.CalledProcessError(
+            returncode=1,
+            cmd=command,
+            output=sensitive_output,
+            stderr=sensitive_output,
+        )
+
+    monkeypatch.setattr("scripts.staging_runtime.subprocess.run", fake_run)
+
+    with pytest.raises(
+        StagingRuntimeConfigurationError,
+        match="unable to retrieve staging runtime secret",
+    ) as error:
+        retrieve_secret_string(
+            "longevity/staging/backend-runtime",
+            region="eu-central-1",
+        )
+
+    assert sensitive_output not in str(error.value)
