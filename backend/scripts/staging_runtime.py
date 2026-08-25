@@ -108,3 +108,10 @@ def parse_runtime_secret(secret_json: str) -> dict[str, str]:
         runtime_environment[key] = value
 
     return runtime_environment
+
+
+def load_runtime_environment(secret_id: str, *, region: str) -> dict[str, str]:
+    """Retrieve and validate one staging configuration snapshot."""
+
+    secret_json = retrieve_secret_string(secret_id, region=region)
+    return parse_runtime_secret(secret_json)

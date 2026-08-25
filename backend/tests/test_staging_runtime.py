@@ -23,6 +23,7 @@ from config.settings.production_environment import (
 from scripts.staging_runtime import (
     REQUIRED_RUNTIME_KEYS,
     StagingRuntimeConfigurationError,
+    load_runtime_environment,
     parse_runtime_secret,
     retrieve_secret_string,
 )
@@ -258,3 +259,29 @@ def test_secret_retrieval_failure_is_redacted(
         )
 
     assert sensitive_output not in str(error.value)
+
+
+def test_loads_one_secret_snapshot_per_deployment_attempt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = {key: f"inert-{key.lower()}" for key in EXPECTED_RUNTIME_KEYS}
+    retrievals: list[tuple[str, str]] = []
+
+    def fake_retrieve_secret_string(secret_id: str, *, region: str) -> str:
+        retrievals.append((secret_id, region))
+        return json.dumps(payload)
+
+    monkeypatch.setattr(
+        "scripts.staging_runtime.retrieve_secret_string",
+        fake_retrieve_secret_string,
+    )
+
+    runtime_environment = load_runtime_environment(
+        "longevity/staging/backend-runtime",
+        region="eu-central-1",
+    )
+
+    assert retrievals == [
+        ("longevity/staging/backend-runtime", "eu-central-1")
+    ]
+    assert runtime_environment == payload
