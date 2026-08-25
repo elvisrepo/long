@@ -1,6 +1,7 @@
 """Build the allowlisted environment for the staging backend runtime."""
 
 import json
+import os
 import subprocess
 
 from config.settings.production_environment import (
@@ -8,8 +9,37 @@ from config.settings.production_environment import (
 )
 
 
+AWS_CREDENTIAL_ENVIRONMENT_VARIABLES = (
+    "AWS_PROFILE",
+    "AWS_DEFAULT_PROFILE",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "AWS_SESSION_TOKEN",
+    "AWS_SECURITY_TOKEN",
+    "AWS_WEB_IDENTITY_TOKEN_FILE",
+    "AWS_ROLE_ARN",
+    "AWS_ROLE_SESSION_NAME",
+    "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI",
+    "AWS_CONTAINER_CREDENTIALS_FULL_URI",
+    "AWS_CONTAINER_AUTHORIZATION_TOKEN",
+    "AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE",
+)
+
+
 class StagingRuntimeConfigurationError(ValueError):
     """Report invalid staging configuration without exposing secret values."""
+
+
+def ec2_instance_role_environment() -> dict[str, str]:
+    """Return a subprocess environment limited to EC2 role credentials."""
+
+    environment = os.environ.copy()
+    for variable_name in AWS_CREDENTIAL_ENVIRONMENT_VARIABLES:
+        environment.pop(variable_name, None)
+    environment["AWS_CONFIG_FILE"] = "/dev/null"
+    environment["AWS_SHARED_CREDENTIALS_FILE"] = "/dev/null"
+    environment["AWS_EC2_METADATA_DISABLED"] = "false"
+    return environment
 
 
 def retrieve_secret_string(secret_id: str, *, region: str) -> str:
@@ -34,6 +64,7 @@ def retrieve_secret_string(secret_id: str, *, region: str) -> str:
         check=True,
         capture_output=True,
         text=True,
+        env=ec2_instance_role_environment(),
     )
     return result.stdout.rstrip("\r\n")
 

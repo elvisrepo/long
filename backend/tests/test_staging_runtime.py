@@ -139,6 +139,7 @@ def test_retrieves_one_current_secret_without_a_workstation_profile(
         check: bool,
         capture_output: bool,
         text: bool,
+        env: dict[str, str] | None = None,
     ) -> subprocess.CompletedProcess[str]:
         commands.append(command)
         assert check is True
@@ -176,3 +177,50 @@ def test_retrieves_one_current_secret_without_a_workstation_profile(
     ]]
     assert "--profile" not in commands[0]
     assert secret_value not in capsys.readouterr().out
+
+
+def test_secret_retrieval_uses_only_ec2_instance_role_credentials(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inherited_credentials = {
+        "AWS_PROFILE": "longevity-staging",
+        "AWS_ACCESS_KEY_ID": "must-not-be-inherited",
+        "AWS_SECRET_ACCESS_KEY": "must-not-be-inherited",
+        "AWS_SESSION_TOKEN": "must-not-be-inherited",
+        "AWS_WEB_IDENTITY_TOKEN_FILE": "/tmp/must-not-be-inherited",
+        "AWS_CONTAINER_CREDENTIALS_FULL_URI": "http://must-not-be-inherited",
+    }
+    for key, value in inherited_credentials.items():
+        monkeypatch.setenv(key, value)
+
+    subprocess_environments: list[dict[str, str]] = []
+
+    def fake_run(
+        command: list[str],
+        *,
+        check: bool,
+        capture_output: bool,
+        text: bool,
+        env: dict[str, str],
+    ) -> subprocess.CompletedProcess[str]:
+        subprocess_environments.append(env)
+        return subprocess.CompletedProcess(
+            command,
+            returncode=0,
+            stdout="{}\n",
+            stderr="",
+        )
+
+    monkeypatch.setattr("scripts.staging_runtime.subprocess.run", fake_run)
+
+    retrieve_secret_string(
+        "longevity/staging/backend-runtime",
+        region="eu-central-1",
+    )
+
+    assert len(subprocess_environments) == 1
+    aws_environment = subprocess_environments[0]
+    assert inherited_credentials.keys().isdisjoint(aws_environment)
+    assert aws_environment["AWS_CONFIG_FILE"] == "/dev/null"
+    assert aws_environment["AWS_SHARED_CREDENTIALS_FILE"] == "/dev/null"
+    assert aws_environment["AWS_EC2_METADATA_DISABLED"] == "false"
