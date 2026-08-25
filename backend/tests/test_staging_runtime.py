@@ -376,3 +376,53 @@ def test_cli_loads_one_snapshot_and_runs_one_deployment_command(
         ["docker", "compose", "up", "--detach", "api"],
         runtime_environment,
     )]
+
+
+def test_cli_reports_configuration_failure_without_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    deployment_was_called = False
+
+    def fake_load_runtime_environment(
+        secret_id: str,
+        *,
+        region: str,
+    ) -> dict[str, str]:
+        raise StagingRuntimeConfigurationError(
+            "unable to retrieve staging runtime secret"
+        )
+
+    def fake_run_deployment_command(
+        command: list[str],
+        environment: dict[str, str],
+    ) -> None:
+        nonlocal deployment_was_called
+        deployment_was_called = True
+
+    monkeypatch.setattr(
+        "scripts.staging_runtime.load_runtime_environment",
+        fake_load_runtime_environment,
+    )
+    monkeypatch.setattr(
+        "scripts.staging_runtime.run_deployment_command",
+        fake_run_deployment_command,
+    )
+
+    exit_code = main([
+        "--secret-id",
+        "longevity/staging/backend-runtime",
+        "--region",
+        "eu-central-1",
+        "--",
+        "docker",
+        "compose",
+        "up",
+    ])
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert captured.out == ""
+    assert captured.err == "error: unable to retrieve staging runtime secret\n"
+    assert "Traceback" not in captured.err
+    assert deployment_was_called is False

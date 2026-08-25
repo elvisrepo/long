@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import subprocess
+import sys
 from collections.abc import Mapping, Sequence
 
 from config.settings.production_environment import (
@@ -145,10 +146,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not command:
         parser.error("a deployment command is required after --")
 
-    runtime_environment = load_runtime_environment(
-        arguments.secret_id,
-        region=arguments.region,
-    )
+    try:
+        runtime_environment = load_runtime_environment(
+            arguments.secret_id,
+            region=arguments.region,
+        )
+    except StagingRuntimeConfigurationError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
+
     run_deployment_command(command, runtime_environment)
     return 0
 
