@@ -3,6 +3,7 @@
 import json
 import os
 import subprocess
+from collections.abc import Mapping, Sequence
 
 from config.settings.production_environment import (
     REQUIRED_ENVIRONMENT_VARIABLES as REQUIRED_RUNTIME_KEYS,
@@ -115,3 +116,14 @@ def load_runtime_environment(secret_id: str, *, region: str) -> dict[str, str]:
 
     secret_json = retrieve_secret_string(secret_id, region=region)
     return parse_runtime_secret(secret_json)
+
+
+def run_deployment_command(
+    command: Sequence[str],
+    runtime_environment: Mapping[str, str],
+) -> None:
+    """Run one deployment command with runtime values only in its environment."""
+
+    child_environment = ec2_instance_role_environment()
+    child_environment.update(runtime_environment)
+    subprocess.run(list(command), check=True, env=child_environment)

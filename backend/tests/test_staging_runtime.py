@@ -25,6 +25,7 @@ from scripts.staging_runtime import (
     StagingRuntimeConfigurationError,
     load_runtime_environment,
     parse_runtime_secret,
+    run_deployment_command,
     retrieve_secret_string,
 )
 
@@ -285,3 +286,37 @@ def test_loads_one_secret_snapshot_per_deployment_attempt(
         ("longevity/staging/backend-runtime", "eu-central-1")
     ]
     assert runtime_environment == payload
+
+
+def test_deployment_command_receives_snapshot_without_values_in_arguments(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_environment = {
+        key: f"sensitive-{key.lower()}" for key in EXPECTED_RUNTIME_KEYS
+    }
+    command = ["docker", "compose", "up", "--detach", "api"]
+    invocations: list[tuple[list[str], dict[str, str]]] = []
+
+    def fake_run(
+        invoked_command: list[str],
+        *,
+        check: bool,
+        env: dict[str, str],
+    ) -> subprocess.CompletedProcess[str]:
+        assert check is True
+        invocations.append((invoked_command, env))
+        return subprocess.CompletedProcess(invoked_command, returncode=0)
+
+    monkeypatch.setattr("scripts.staging_runtime.subprocess.run", fake_run)
+
+    run_deployment_command(command, runtime_environment)
+
+    assert len(invocations) == 1
+    invoked_command, child_environment = invocations[0]
+    assert invoked_command == command
+    assert all(
+        value not in invoked_command for value in runtime_environment.values()
+    )
+    assert {
+        key: child_environment[key] for key in EXPECTED_RUNTIME_KEYS
+    } == runtime_environment
