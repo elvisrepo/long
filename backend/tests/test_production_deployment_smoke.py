@@ -97,3 +97,21 @@ def test_smoke_cli_runs_the_complete_lifecycle(
 
     assert main() == 0
     assert lifecycle_calls == 1
+
+
+def test_smoke_cli_reports_subprocess_failure_without_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def fake_run_smoke() -> None:
+        raise subprocess.CalledProcessError(returncode=17, cmd=["docker"])
+
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.run_smoke",
+        fake_run_smoke,
+    )
+
+    assert main() == 17
+    assert capsys.readouterr().err == (
+        "error: production smoke failed with exit code 17\n"
+    )

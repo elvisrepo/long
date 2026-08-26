@@ -5,6 +5,7 @@ validation and in-memory injection boundary used by staging deployments.
 """
 
 import json
+import subprocess
 import sys
 from collections.abc import Mapping
 
@@ -88,7 +89,16 @@ def run_smoke() -> None:
 def main() -> int:
     """Run one complete production-like smoke lifecycle."""
 
-    run_smoke()
+    try:
+        run_smoke()
+    except subprocess.CalledProcessError as error:
+        exit_code = error.returncode if 1 <= error.returncode <= 255 else 1
+        print(
+            f"error: production smoke failed with exit code {exit_code}",
+            file=sys.stderr,
+        )
+        return exit_code
+
     return 0
 
 
