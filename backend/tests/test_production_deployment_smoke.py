@@ -298,3 +298,20 @@ def test_backend_ci_runs_the_complete_production_deployment_smoke() -> None:
         "        run: uv run python -m scripts.smoke_production_deployment\n"
         in workflow
     )
+
+
+def test_backend_ci_runs_database_tests_against_postgresql() -> None:
+    workflow = BACKEND_CI_WORKFLOW.read_text()
+
+    assert "      postgres:\n        image: postgres:16\n" in workflow
+    assert (
+        "          POSTGRES_DB: longevity_ci\n"
+        "          POSTGRES_USER: postgres\n"
+        "          POSTGRES_PASSWORD: postgres\n"
+        in workflow
+    )
+    assert "pg_isready -U postgres -d longevity_ci" in workflow
+    assert (
+        "DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/longevity_ci"
+        in workflow
+    )
