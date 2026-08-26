@@ -1,0 +1,52 @@
+"""Compose the local production-like deployment smoke command.
+
+The smoke uses inert local values, but sends them through the same Step 7
+validation and in-memory injection boundary used by staging deployments.
+"""
+
+import json
+import sys
+
+from scripts.staging_runtime import parse_runtime_secret, run_deployment_command
+
+
+COMPOSE_FILE = "docker-compose.production-smoke.yml"
+PROJECT_NAME = "longevity-production-smoke"
+
+# These values are deliberately non-production and exist only for the
+# disposable local smoke stack. Keeping the full snapshot here makes contract
+# drift visible when Step 7 adds or removes a required production key.
+INERT_RUNTIME_SECRET = {
+    "SECRET_KEY": "production-smoke-secret-key-not-for-real-environments",
+    "PII_ENCRYPTION_KEY": "8xSPkbwoMvV7Y4NNyG8_N0-LLf9a8q0lVq2dNfXl4zQ=",
+    "EMAIL_LOOKUP_KEY": "production-smoke-email-lookup-key",
+    "JWT_SIGNING_KEY": "production-smoke-jwt-signing-key-not-for-real-environments",
+    "DATABASE_URL": (
+        "postgresql://postgres:postgres-smoke@database:5432/longevity_smoke"
+    ),
+    "ALLOWED_HOSTS": "127.0.0.1,localhost",
+    "CSRF_TRUSTED_ORIGINS": "https://staging.example.com",
+    "STRIPE_SECRET_KEY": "sk_test_production_smoke",
+    "STRIPE_WEBHOOK_SECRET": "whsec_production_smoke",
+    "STRIPE_CHECKOUT_SUCCESS_URL": "https://staging.example.com/billing/success",
+    "STRIPE_CHECKOUT_CANCEL_URL": "https://staging.example.com/billing/cancel",
+    "STRIPE_CUSTOMER_PORTAL_RETURN_URL": "https://staging.example.com/billing",
+    "LOG_LEVEL": "INFO",
+    "DJANGO_LOG_LEVEL": "INFO",
+}
+
+
+def deploy_smoke_stack() -> None:
+    """Validate one inert snapshot and inject it into Step 8 orchestration."""
+
+    runtime_environment = parse_runtime_secret(json.dumps(INERT_RUNTIME_SECRET))
+    command = [
+        sys.executable,
+        "-m",
+        "scripts.production_deployment",
+        "--compose-file",
+        COMPOSE_FILE,
+        "--project-name",
+        PROJECT_NAME,
+    ]
+    run_deployment_command(command, runtime_environment)
