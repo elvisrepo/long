@@ -7,7 +7,7 @@ import pytest
 from config.settings.production_environment import (
     REQUIRED_ENVIRONMENT_VARIABLES,
 )
-from scripts.smoke_production_deployment import deploy_smoke_stack, run_smoke
+from scripts.smoke_production_deployment import deploy_smoke_stack, main, run_smoke
 
 
 def test_smoke_deployment_uses_step7_environment_injection(
@@ -79,3 +79,21 @@ def test_smoke_cleanup_is_attempted_when_deployment_fails(
         "--volumes",
         "--remove-orphans",
     ]
+
+
+def test_smoke_cli_runs_the_complete_lifecycle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    lifecycle_calls = 0
+
+    def fake_run_smoke() -> None:
+        nonlocal lifecycle_calls
+        lifecycle_calls += 1
+
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.run_smoke",
+        fake_run_smoke,
+    )
+
+    assert main() == 0
+    assert lifecycle_calls == 1

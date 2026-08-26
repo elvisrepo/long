@@ -83,3 +83,14 @@ def run_smoke() -> None:
         deploy_smoke_stack(runtime_environment)
     finally:
         cleanup_smoke_stack(runtime_environment)
+
+
+def main() -> int:
+    """Run one complete production-like smoke lifecycle."""
+
+    run_smoke()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
