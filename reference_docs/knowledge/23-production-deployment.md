@@ -84,10 +84,15 @@ uv run --no-sync python -m scripts.staging_runtime \
 The loader disables non-EC2 AWS credential sources, retrieves `AWSCURRENT`
 exactly once, validates the entire 14-key JSON object, omits unexpected keys,
 and supplies one in-memory snapshot to the deployment command. Configuration
-or AWS retrieval failures stop before Docker is invoked. Step 8 must define the
-actual Compose migration/API sequence and prove that the same inherited
-snapshot reaches both containers, migration failure blocks API promotion, and
-readiness succeeds before replacement.
+or AWS retrieval failures stop before Docker is invoked.
+
+The production-like deployment contract was completed and verified on
+2026-08-26. `scripts.production_deployment` freezes the inherited process
+environment once, runs the one-off migration container, and starts/waits for
+the API only after migration success. `scripts.smoke_production_deployment`
+supplies a complete inert snapshot through the Step 7 boundary, verifies public
+liveness and database readiness through loopback port `18000`, and attempts
+Compose cleanup in `finally`. The same executable smoke runs in backend CI.
 
 The human Systems Manager caller and machine runtime identity are separate. A
 human operator starts the session; the EC2 instance-profile role retrieves the
@@ -234,6 +239,18 @@ API container startup. Deployment tooling supplies the image, environment, and
 one-off container mechanism; the command shown is the command inside that
 container. The final image intentionally excludes `uv`.
 
+Deployment availability policy:
+- if migration fails, stop before API replacement and leave the existing API
+  container running
+- after migration succeeds, replacing the single API container may cause a
+  brief maintenance interruption
+- blue/green, rolling, and other zero-downtime promotion mechanisms are not
+  planned requirements for staging or later production
+- automated continuous deployment remains possible, but it does not imply
+  continuous availability during the replacement window
+- keep migrations backward-compatible where practical and retain an explicit
+  manual rollback procedure for a new API version that fails after replacement
+
 After migration to Fargate, use the same immutable image and command as a
 one-off ECS task. The responsibility is unchanged; only the compute mechanism
 moves from a temporary Docker container on EC2 to a temporary Fargate task.
@@ -277,7 +294,8 @@ The staging deployment is proven only when:
    users; staging and production remain isolated environments.
 4. Add a staging deployment pipeline that builds an immutable image, pushes it
    to ECR, invokes EC2 through Systems Manager, runs the migration container,
-   replaces Django, and verifies public health/smoke checks.
+   replaces Django during the accepted maintenance window, and verifies public
+   health/smoke checks.
 5. Require explicit approval before a later production deployment pipeline
    promotes a tested version.
 6. Post-MVP, migrate compute to ECS Fargate and add Redis, Celery Worker, one

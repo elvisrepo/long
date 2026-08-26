@@ -110,54 +110,61 @@ Current implemented state:
   - `uv sync --group dev`
   - `uv run ruff check .`
   - `uv run mypy`
-  - `uv run pytest tests`
+  - `uv run pytest tests` against a healthy PostgreSQL 16 service
+  - `scripts/smoke_prod_image.sh`
+  - `uv run python -m scripts.smoke_production_deployment` with a ten-minute
+    timeout
+- PostgreSQL is required in CI because concurrency coverage depends on real
+  row locks; the 2026-08-26 gate passed all `340` backend tests and the complete
+  migration/API smoke
 - this is CI only, not CD
 - no deployment pipeline is implemented yet
 
 ```yaml
-# .github/workflows/ci.yml (simplified)
-name: CI
-on: [push, pull_request]
+# .github/workflows/backend-ci.yml (simplified)
+name: Backend CI
+on: [push, pull_request, workflow_dispatch]
 jobs:
-  test:
+  backend:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: timescale/timescaledb:latest-pg16
-      redis:
-        image: redis:7-alpine
+        image: postgres:16
+        env:
+          POSTGRES_DB: longevity_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/longevity_ci
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v3
       - run: uv sync --group dev
       - run: uv run ruff check .
       - run: uv run mypy
       - run: uv run pytest tests
-
-  deploy-staging:
-    needs: test
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - # Build Docker image
-      - # Push to ECR
-      - # Use AWS Systems Manager to make staging EC2 pull that image
-      - # Run the one-off Docker migration container and require a zero exit code
-      - # Replace the Django API container
-      - # Run public health and smoke checks
+      - run: ./scripts/smoke_prod_image.sh
+      - run: uv run python -m scripts.smoke_production_deployment
 ```
 
 Practical note from the current project:
 - local Docker tests use the containerized stack
-- GitHub Actions currently runs backend tests directly on the runner with the test settings fallback database
+- GitHub Actions runs Python on the runner and connects Django tests to its
+  PostgreSQL 16 service through an explicit `DATABASE_URL`
 - raw SQL tests should avoid depending on database-specific storage details when CI and local environments differ
-- the current backend CI job does not use Postgres or Redis services because the present test suite does not require them to pass
-- this is a current-project simplification, not a permanent architectural assumption
-- if future backend slices start depending on real Postgres or Redis behavior, CI should grow matching services instead of relying only on the runner environment
+- CI intentionally has no Redis service because the current server request path
+  does not require Redis/Celery; add one only with a real integration contract
+- PostgreSQL-specific concurrency tests must not fall back to SQLite because
+  SQLite does not implement the row-lock semantics being asserted
 - CD is still unimplemented; the first pipeline should target staging before production
 - the EC2 staging pipeline should authenticate to AWS through GitHub OIDC rather than long-lived AWS keys
 - Terraform provisions infrastructure; the deployment pipeline ships a tested application version onto that infrastructure
 - deployment must stop when the one-off migration container fails
 - service promotion should require the ALB health check and a public smoke test to pass
+- the approved deployment policy permits a short maintenance interruption while
+  the single API container is replaced; blue/green, rolling, and other
+  zero-downtime promotion mechanisms are not planned requirements
 - frontend deployment should publish immutable assets before the browser smoke test
 - Android staging builds should use a public HTTPS staging base URL and a private distribution channel such as Play Internal Testing; API base URLs are configuration, not secrets
 
@@ -167,6 +174,9 @@ Practical note from the current project:
 - Docker Engine and Compose on manually provisioned EC2 for initial staging
 - the same immutable image for `python manage.py migrate --no-input` before the
   Django container is replaced; `uv` remains in build/development stages only
+- `docker-compose.production-smoke.yml` and
+  `scripts.smoke_production_deployment` exercise that migration-first contract
+  with an inert snapshot and disposable database in local and GitHub CI
 - Terraform-managed EC2 for the production MVP
 - ECS Fargate API, migration, Celery Worker, and Beat tasks only in the post-MVP learning/evolution phase
 - no Kubernetes for the MVP; its operational cost is unjustified for a solo deployment

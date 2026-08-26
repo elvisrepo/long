@@ -10,7 +10,8 @@ Audit started on 2026-08-20. AWS account access is bootstrapped, but no
 Longevity application resources have been provisioned. The backend inspection
 is complete. Production settings validation and HTTPS/proxy security were
 implemented on 2026-08-21, and the `.env`-free staging secret/runtime contract
-was implemented on 2026-08-25. The production-like deployment smoke, frontend
+was implemented on 2026-08-25. The production-like migration/API deployment
+smoke was completed locally and in GitHub CI on 2026-08-26. Frontend
 hosting/origin, Android staging build, and detailed AWS cost/resource audits
 remain open.
 
@@ -176,15 +177,29 @@ bind-mount behavior in the development/build boundary. The final Python-slim
 stage copies only runtime dependencies and application source, excludes
 `tests/`, and runs Gunicorn as the unprivileged `django` user.
 
-### Blocker H — migration and startup responsibilities — image boundary resolved 2026-08-24
+### Blocker H — migration and startup responsibilities — resolved 2026-08-26
 
 Local Compose runs migrations automatically before `runserver`. The cloud
 contract correctly requires one explicit migration container to finish before
 the API is replaced. The production image must therefore start only the API;
 deployment orchestration owns `migrate --no-input` as a separate, observable,
 failure-gated step. The image default is Gunicorn-only, while its explicit
-`python manage.py migrate --no-input` command remains available. Step 8 still
-must prove migration failure blocks promotion in a production-like flow.
+`python manage.py migrate --no-input` command remains available.
+
+`scripts.production_deployment` now freezes one inherited Step 7 environment
+snapshot, runs the migration container first, blocks API promotion on migration
+failure, and then starts/waits for the Gunicorn API through Docker Compose.
+`scripts.smoke_production_deployment` exercises the flow with inert local
+configuration, verifies liveness and database readiness through the published
+loopback port, and attempts cleanup on every post-validation outcome. The real
+local run applied every migration, reached healthy API state, passed both host
+probes, and left no smoke containers, network, or disposable storage.
+
+The approved availability policy accepts a brief maintenance interruption when
+the single API container is replaced. Migration failure leaves the old API
+running, but blue/green, rolling, and other zero-downtime promotion mechanisms
+are not planned staging or production requirements. Automated deployment does
+not imply continuous availability during this replacement window.
 
 ### Blocker I — E2E Stripe configuration isolation — resolved 2026-08-24
 
@@ -213,8 +228,9 @@ nonzero statuses.
 
 The planned secret ID is `longevity/staging/backend-runtime`; no AWS resource
 has been created by this slice. The human Systems Manager caller remains
-separate from the future EC2 instance-profile role. Step 8 must still implement
-and prove the real Compose migration/API promotion sequence.
+separate from the future EC2 instance-profile role. The completed Step 8 smoke
+consumes this loader contract without creating an AWS resource or persistent
+`.env`.
 
 ## 3. Django deployment-check evidence
 
@@ -289,11 +305,16 @@ verification.
    - reject malformed, incomplete, blank, or wrongly typed configuration
    - omit unexpected keys and keep values out of command-line arguments
    - provide redacted, controlled CLI failures without a persistent `.env`
-8. Run a local production-like deployment smoke test:
+8. Run a local production-like deployment smoke test — completed 2026-08-26:
    - run the migration container first
    - start Gunicorn with production settings only after migration success
    - verify readiness and representative API smoke tests
    - prove migration failure prevents API promotion
+   - run the same executable smoke in backend CI with bounded cleanup and a
+     ten-minute timeout
+   - run the complete backend suite against PostgreSQL 16 so concurrency tests
+     exercise production row-lock semantics; `340` tests and the pushed GitHub
+     Actions workflow passed
 9. Implement and test the approved frontend delivery contract:
    - build Vite assets and upload immutable output to private S3
    - configure CloudFront Origin Access Control
@@ -315,10 +336,11 @@ runtime defects with infrastructure-learning defects.
 
 ## 5. Current gate
 
-The next implementation slice is the local production-like deployment smoke in
-step 8; do not provision AWS first. It must use the Step 7 loader to provide one
-snapshot to the migration and API containers, start or replace the API only
-after migration success, verify readiness and representative API behavior, and
-prove migration failure blocks promotion. Keep the production-image,
-health-contract, removed-route, runtime-artifact, E2E Stripe-isolation, and
-staging-runtime contract checks in CI.
+Steps 1–8 are complete. The next implementation slice is step 9: implement and
+test the private-S3/CloudFront same-origin frontend delivery contract, including
+uncached `/api/*` forwarding and browser cookie/CSRF behavior. Do not provision
+AWS application resources yet; the Android staging-build audit and the detailed
+costed manual provisioning runbook remain required before step 12. Keep the
+PostgreSQL-backed backend suite, production-image smoke, migration/API deployment
+smoke, health contract, removed-route, runtime-artifact, E2E Stripe-isolation,
+and staging-runtime contract checks green in CI.

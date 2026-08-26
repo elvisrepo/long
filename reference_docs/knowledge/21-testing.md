@@ -29,8 +29,9 @@ Current backend production-runtime checkpoint:
   excludes `uv`, pytest, Ruff, mypy, `tests/`, and local runtime artifacts, makes
   the explicit Django migration command available, and asks Gunicorn to import
   the production WSGI application with deterministic non-secret values
-- this smoke check does not connect to a database or replace the later
-  migration-plus-readiness deployment smoke test
+- that image-only check deliberately does not connect to a database; the
+  separate production-like deployment smoke described below owns migration,
+  startup, and health-gated orchestration
 
 Current staging-runtime configuration checkpoint:
 - `tests/test_staging_runtime.py` protects the canonical 14-key production
@@ -47,8 +48,29 @@ Current staging-runtime configuration checkpoint:
   without Python tracebacks or secret values
 - backend CI discovers this file through `pytest tests`; the mypy target list
   includes `scripts`, so the host-side deployment module is type-checked too
-- no focused test contacts AWS or starts Docker; the real migration-first
-  Docker boundary belongs to the Step 8 production-like smoke test
+- no focused loader test contacts AWS or starts Docker; the production-like
+  smoke supplies inert local values through the same validation/injection
+  boundary
+
+Current production-like deployment checkpoint, completed 2026-08-26:
+- `tests/test_production_deployment.py` proves migration runs before API
+  promotion, migration failure blocks promotion, migration and API receive the
+  same frozen environment object, and Compose waits for API health
+- `tests/test_production_deployment_smoke.py` protects the executable lifecycle,
+  external liveness/readiness requests, redacted failures, and cleanup attempts
+- `docker-compose.production-smoke.yml` uses one production image for the
+  temporary migration container and long-running Gunicorn API, plus a
+  disposable PostgreSQL/Timescale database
+- the real local smoke applied every migration, started a healthy production
+  API, passed host-side liveness and readiness checks through loopback port
+  `18000`, and removed all containers, networks, and disposable storage
+- backend CI runs the same executable smoke with a ten-minute timeout after the
+  image-only smoke; the pushed GitHub Actions run passed
+- CI also provisions PostgreSQL 16 for the full pytest suite because the token,
+  metric-limit, and subscription-transition concurrency tests require real
+  row-lock behavior that SQLite cannot provide
+- the complete PostgreSQL-backed backend suite passed `340` tests locally on
+  2026-08-26 before the corresponding GitHub Actions run passed
 
 Current health-contract checkpoint:
 - focused endpoint tests prove liveness returns `200` without requesting a
@@ -509,9 +531,11 @@ Current CI quality gate for the backend:
 - the workflow currently runs:
   - `ruff`
   - `mypy`
-  - `pytest`
+  - the complete `pytest` suite against a healthy PostgreSQL 16 service
+  - the production-image smoke
+  - the production-like migration/API deployment smoke
 - the workflow is triggered on backend-related pushes and pull requests
-- the current backend CI workflow is green
+- the current backend CI workflow is green as of 2026-08-26
 
 MyPy gate repair completed on 2026-07-14:
 - The full CI command exposed `16` errors that smaller focused checks had not shown. Run the same repository-wide `uv run mypy` command used by CI before calling the type gate green.
@@ -639,12 +663,18 @@ For this project, test-only crypto settings should live in `config/settings/test
 
 That means automated tests should rely on explicit test settings overrides instead of assuming local development settings or local shell environment state.
 
-Deferred test database note:
+Current test database policy:
 - `config/settings/test.py` currently inherits `DATABASES` from `base.py`.
-- With the current local `.env`, normal pytest runs use `DATABASE_URL=postgres://postgres:postgres@db:5432/longevity`.
-- When pytest runs inside Docker Compose, `db` resolves and Django creates a separate test database from that Postgres connection.
-- When pytest runs on the host, `db` may not resolve unless `DATABASE_URL` is overridden to a host-reachable database or SQLite.
-- We are intentionally not changing this in the E2E isolation slice; revisit later with an explicit `TEST_DATABASE_URL` or dedicated test DB policy.
+- GitHub Actions explicitly sets a host-reachable PostgreSQL 16 `DATABASE_URL`;
+  Django creates and destroys its separate test database through that service.
+- Concurrency tests that assert `select_for_update()` blocking must run against
+  PostgreSQL. SQLite lock errors or timing behavior are not evidence for those
+  production concurrency contracts.
+- Host pytest without an explicit `DATABASE_URL` may still use the local SQLite
+  fallback for fast non-concurrency work. A full CI-equivalent local run must
+  supply a host-reachable PostgreSQL URL.
+- Docker Compose and E2E settings retain their separately isolated database
+  contracts; neither reuses the CI database.
 
 ### Why These Were Integration Tests
 
