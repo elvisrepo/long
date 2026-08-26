@@ -47,6 +47,16 @@ def test_migration_and_api_share_canonical_runtime_environment() -> None:
         assert required_interpolation in compose
 
 
+def test_migration_and_api_wait_for_disposable_database() -> None:
+    compose = PRODUCTION_COMPOSE_FILE.read_text()
+
+    assert "image: timescale/timescaledb:latest-pg16" in compose
+    assert "pg_isready -U postgres -d longevity_smoke" in compose
+    assert "tmpfs:" in compose
+    assert "- /var/lib/postgresql/data" in compose
+    assert compose.count("condition: service_healthy") == 2
+
+
 def test_migration_runs_before_api_promotion(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

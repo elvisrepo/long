@@ -22,11 +22,31 @@ x-backend-environment: &backend-environment
   DJANGO_LOG_LEVEL: "${DJANGO_LOG_LEVEL:?DJANGO_LOG_LEVEL is required}"
 
 services:
+  database:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_DB: longevity_smoke
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres-smoke
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d longevity_smoke"]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+
   migration:
     <<: *backend-image
     environment: *backend-environment
     command: ["python", "manage.py", "migrate", "--no-input"]
+    depends_on:
+      database:
+        condition: service_healthy
 
   api:
     <<: *backend-image
     environment: *backend-environment
+    depends_on:
+      database:
+        condition: service_healthy
