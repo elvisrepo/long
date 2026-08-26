@@ -5,10 +5,28 @@ x-backend-image: &backend-image
     dockerfile: Dockerfile
     target: production
 
+x-backend-environment: &backend-environment
+  SECRET_KEY: "${SECRET_KEY:?SECRET_KEY is required}"
+  PII_ENCRYPTION_KEY: "${PII_ENCRYPTION_KEY:?PII_ENCRYPTION_KEY is required}"
+  EMAIL_LOOKUP_KEY: "${EMAIL_LOOKUP_KEY:?EMAIL_LOOKUP_KEY is required}"
+  JWT_SIGNING_KEY: "${JWT_SIGNING_KEY:?JWT_SIGNING_KEY is required}"
+  DATABASE_URL: "${DATABASE_URL:?DATABASE_URL is required}"
+  ALLOWED_HOSTS: "${ALLOWED_HOSTS:?ALLOWED_HOSTS is required}"
+  CSRF_TRUSTED_ORIGINS: "${CSRF_TRUSTED_ORIGINS:?CSRF_TRUSTED_ORIGINS is required}"
+  STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY:?STRIPE_SECRET_KEY is required}"
+  STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET:?STRIPE_WEBHOOK_SECRET is required}"
+  STRIPE_CHECKOUT_SUCCESS_URL: "${STRIPE_CHECKOUT_SUCCESS_URL:?STRIPE_CHECKOUT_SUCCESS_URL is required}"
+  STRIPE_CHECKOUT_CANCEL_URL: "${STRIPE_CHECKOUT_CANCEL_URL:?STRIPE_CHECKOUT_CANCEL_URL is required}"
+  STRIPE_CUSTOMER_PORTAL_RETURN_URL: "${STRIPE_CUSTOMER_PORTAL_RETURN_URL:?STRIPE_CUSTOMER_PORTAL_RETURN_URL is required}"
+  LOG_LEVEL: "${LOG_LEVEL:?LOG_LEVEL is required}"
+  DJANGO_LOG_LEVEL: "${DJANGO_LOG_LEVEL:?DJANGO_LOG_LEVEL is required}"
+
 services:
   migration:
     <<: *backend-image
+    environment: *backend-environment
     command: ["python", "manage.py", "migrate", "--no-input"]
 
   api:
     <<: *backend-image
+    environment: *backend-environment

@@ -14,6 +14,9 @@ from pathlib import Path
 
 import pytest
 
+from config.settings.production_environment import (
+    REQUIRED_ENVIRONMENT_VARIABLES,
+)
 from scripts.production_deployment import deploy_backend
 
 
@@ -31,6 +34,17 @@ def test_migration_and_api_share_production_image() -> None:
         'command: ["python", "manage.py", "migrate", "--no-input"]'
         in compose
     )
+
+
+def test_migration_and_api_share_canonical_runtime_environment() -> None:
+    compose = PRODUCTION_COMPOSE_FILE.read_text()
+
+    assert "x-backend-environment: &backend-environment" in compose
+    assert compose.count("environment: *backend-environment") == 2
+    assert "env_file:" not in compose
+    for key in REQUIRED_ENVIRONMENT_VARIABLES:
+        required_interpolation = f'  {key}: "${{{key}:?{key} is required}}"'
+        assert required_interpolation in compose
 
 
 def test_migration_runs_before_api_promotion(
