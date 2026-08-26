@@ -182,3 +182,32 @@ def test_cli_runs_production_deployment_once(
         "docker-compose.production-smoke.yml",
         "longevity-production-smoke",
     )]
+
+
+def test_cli_preserves_compose_failure_without_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def fake_deploy_backend(*, compose_file: str, project_name: str) -> None:
+        raise subprocess.CalledProcessError(
+            returncode=23,
+            cmd=["docker", "compose"],
+        )
+
+    monkeypatch.setattr(
+        "scripts.production_deployment.deploy_backend",
+        fake_deploy_backend,
+    )
+
+    exit_code = main([
+        "--compose-file",
+        "docker-compose.production-smoke.yml",
+        "--project-name",
+        "longevity-production-smoke",
+    ])
+
+    captured = capsys.readouterr()
+    assert exit_code == 23
+    assert captured.out == ""
+    assert captured.err == "error: production deployment failed with exit code 23\n"
+    assert "Traceback" not in captured.err

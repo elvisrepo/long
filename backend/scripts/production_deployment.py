@@ -7,6 +7,7 @@ process's environment. Both Docker Compose calls inherit that same snapshot.
 import argparse
 import os
 import subprocess
+import sys
 from collections.abc import Sequence
 
 
@@ -47,10 +48,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--project-name", required=True)
     arguments = parser.parse_args(list(argv) if argv is not None else None)
 
-    deploy_backend(
-        compose_file=arguments.compose_file,
-        project_name=arguments.project_name,
-    )
+    try:
+        deploy_backend(
+            compose_file=arguments.compose_file,
+            project_name=arguments.project_name,
+        )
+    except subprocess.CalledProcessError as error:
+        exit_code = error.returncode if 1 <= error.returncode <= 255 else 1
+        print(
+            f"error: production deployment failed with exit code {exit_code}",
+            file=sys.stderr,
+        )
+        return exit_code
+
     return 0
 
 
