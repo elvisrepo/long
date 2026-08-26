@@ -537,6 +537,34 @@ Current CI quality gate for the backend:
 - the workflow is triggered on backend-related pushes and pull requests
 - the current backend CI workflow is green as of 2026-08-26
 
+Current CI quality gate for the frontend, established 2026-08-26:
+- `.github/workflows/frontend-ci.yml` runs for frontend-related pushes and pull
+  requests
+- the workflow uses Node.js 24 and executes the same deterministic gates used
+  locally:
+  - `npm ci` installs exactly the versions recorded in `package-lock.json`
+  - `npm audit --audit-level=high` rejects high and critical dependency
+    advisories
+  - `npm test` runs the Vitest suite
+  - `npm run lint` runs ESLint as a read-only check; it does not rewrite files
+  - `npm run format:check` asks Prettier to verify formatting without rewriting
+  - `npm run build` type-checks and builds the production Vite assets
+- Prettier 3.8 with its default rules is the canonical frontend formatter;
+  `npm run format` deterministically rewrites supported files, while
+  `npm run format:check` is the non-mutating CI equivalent
+- the initial formatting baseline rewrote `78` accumulated files because the
+  formatter had existed as an optional script but had not been enforced in CI;
+  those changes were mechanical formatting, not hand-authored behavior changes
+- `.prettierignore` entries must not contain leading whitespace; `dist`,
+  `node_modules`, and generated `src/routeTree.gen.ts` are excluded
+- TanStack Router owns `src/routeTree.gen.ts`; builds may regenerate it, so
+  authored-source formatting must not modify or reject that generated output
+- `src/test/frontend-ci-contract.test.ts` protects the workflow commands and
+  the generated-route formatting exclusion
+- the completed local gate passed `177` Vitest tests, ESLint, Prettier, the
+  production build, a clean lockfile install, and an npm audit with zero known
+  vulnerabilities
+
 MyPy gate repair completed on 2026-07-14:
 - The full CI command exposed `16` errors that smaller focused checks had not shown. Run the same repository-wide `uv run mypy` command used by CI before calling the type gate green.
 - Stripe Checkout parameters now use Stripe's `SessionCreateParams` instead of `dict[str, Any]`. Because hosted Checkout still types `session.url` as optional, the service explicitly marks the local attempt failed and raises when Stripe returns no redirect URL; a regression test covers this behavior.
