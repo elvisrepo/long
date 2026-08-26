@@ -1,12 +1,12 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery } from "@tanstack/react-query";
 import {
   getSubscriptionPlans,
   type SubscriptionPlanCatalogItem,
-} from './subscriptions-api'
+} from "./subscriptions-api";
 
 export function useSubscriptionPlansQuery() {
   return useQuery<SubscriptionPlanCatalogItem[]>({
-    queryKey: ['subscription-plans'],
+    queryKey: ["subscription-plans"],
     queryFn: getSubscriptionPlans,
-  })
+  });
 }

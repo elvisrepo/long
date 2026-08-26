@@ -6,25 +6,25 @@ interface LoginFormValues {
 }
 
 interface LoginFormProps {
-    onSubmit: (values: LoginFormValues) => void | Promise<void>
-    disabled?: boolean
-  }
+  onSubmit: (values: LoginFormValues) => void | Promise<void>;
+  disabled?: boolean;
+}
 
-export function LoginForm({ onSubmit, disabled = false  }: LoginFormProps) {
+export function LoginForm({ onSubmit, disabled = false }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [errorMessage, setErrorMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState("");
 
   function handleSubmit(event: { preventDefault: () => void }) {
     event.preventDefault();
     const trimmedEmail = email.trim();
 
     if (!trimmedEmail || !password) {
-        setErrorMessage('Email and password are required.')
+      setErrorMessage("Email and password are required.");
       return;
     }
 
-     setErrorMessage('')
+    setErrorMessage("");
 
     onSubmit({
       email: trimmedEmail,
@@ -33,14 +33,14 @@ export function LoginForm({ onSubmit, disabled = false  }: LoginFormProps) {
   }
 
   function handleEmailChange(value: string) {
-      setEmail(value)
-      setErrorMessage('')
-    }
+    setEmail(value);
+    setErrorMessage("");
+  }
 
-    function handlePasswordChange(value: string) {
-      setPassword(value)
-      setErrorMessage('')
-    }
+  function handlePasswordChange(value: string) {
+    setPassword(value);
+    setErrorMessage("");
+  }
 
   return (
     <form onSubmit={handleSubmit}>
@@ -65,7 +65,8 @@ export function LoginForm({ onSubmit, disabled = false  }: LoginFormProps) {
       {errorMessage ? <p>{errorMessage}</p> : null}
 
       <button type="submit" disabled={disabled}>
-        Login</button>
+        Login
+      </button>
     </form>
   );
 }

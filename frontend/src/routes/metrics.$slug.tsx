@@ -1,135 +1,137 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
-import { type FormEvent, useState } from 'react'
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { type FormEvent, useState } from "react";
 
-import { requireAuthBeforeLoad } from '../features/auth/require-auth-before-load'
+import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load";
 import {
   formatMetricEntrySource,
   formatMetricValue,
-} from '../features/metrics/metric-entry-formatters'
-import { MetricTrendChart } from '../features/metrics/metric-trend-chart'
-import { useDeleteMetricEntryMutation } from '../features/metrics/use-delete-metric-entry-mutation'
-import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-definitions-query'
+} from "../features/metrics/metric-entry-formatters";
+import { MetricTrendChart } from "../features/metrics/metric-trend-chart";
+import { useDeleteMetricEntryMutation } from "../features/metrics/use-delete-metric-entry-mutation";
+import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
 import {
   type GetMetricEntriesFilters,
   type MetricEntry,
-} from '../features/metrics/metric-entries-api'
-import { useMetricEntriesQuery } from '../features/metrics/use-metric-entries-query'
-import { useUpdateMetricEntryMutation } from '../features/metrics/use-update-metric-entry-mutation'
+} from "../features/metrics/metric-entries-api";
+import { useMetricEntriesQuery } from "../features/metrics/use-metric-entries-query";
+import { useUpdateMetricEntryMutation } from "../features/metrics/use-update-metric-entry-mutation";
 
-export const Route = createFileRoute('/metrics/$slug')({
+export const Route = createFileRoute("/metrics/$slug")({
   beforeLoad: requireAuthBeforeLoad,
   component: MetricDetailRoute,
-})
+});
 
 const metricEntryRanges = [
-  { label: '7d', days: 7 },
-  { label: '30d', days: 30 },
-  { label: '90d', days: 90 },
-  { label: 'All', days: null },
-] as const
+  { label: "7d", days: 7 },
+  { label: "30d", days: 30 },
+  { label: "90d", days: 90 },
+  { label: "All", days: null },
+] as const;
 
-const METRIC_DETAIL_ENTRY_LIMIT = 50
+const METRIC_DETAIL_ENTRY_LIMIT = 50;
 
-type MetricEntryRange = (typeof metricEntryRanges)[number]
+type MetricEntryRange = (typeof metricEntryRanges)[number];
 
 function MetricDetailRoute() {
-  const { slug } = Route.useParams()
+  const { slug } = Route.useParams();
   const [selectedRange, setSelectedRange] = useState<MetricEntryRange>(
     metricEntryRanges[3],
-  )
+  );
   const [selectedRangeFrom, setSelectedRangeFrom] = useState<
     string | undefined
-  >(undefined)
-  const [editingEntryId, setEditingEntryId] = useState<number | null>(null)
-  const [entryActionError, setEntryActionError] = useState<string | null>(null)
+  >(undefined);
+  const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
+  const [entryActionError, setEntryActionError] = useState<string | null>(null);
   const metricEntryFilters: GetMetricEntriesFilters = selectedRangeFrom
     ? {
         metric: slug,
         from: selectedRangeFrom,
         limit: METRIC_DETAIL_ENTRY_LIMIT,
       }
-    : { metric: slug, limit: METRIC_DETAIL_ENTRY_LIMIT }
+    : { metric: slug, limit: METRIC_DETAIL_ENTRY_LIMIT };
   const {
     data: metricDefinitions = [],
     isLoading: definitionsAreLoading,
     isError: definitionsFailed,
-  } = useMetricDefinitionsQuery()
+  } = useMetricDefinitionsQuery();
   const {
     data: metricEntries = [],
     isLoading: entriesAreLoading,
     isError: entriesFailed,
-  } = useMetricEntriesQuery(metricEntryFilters)
-  const updateMetricEntryMutation = useUpdateMetricEntryMutation()
-  const deleteMetricEntryMutation = useDeleteMetricEntryMutation()
+  } = useMetricEntriesQuery(metricEntryFilters);
+  const updateMetricEntryMutation = useUpdateMetricEntryMutation();
+  const deleteMetricEntryMutation = useDeleteMetricEntryMutation();
 
   if (definitionsAreLoading) {
-    return <p>Loading metric...</p>
+    return <p>Loading metric...</p>;
   }
 
   if (definitionsFailed) {
-    return <p>Metric failed to load</p>
+    return <p>Metric failed to load</p>;
   }
 
   const metricDefinition = metricDefinitions.find(
     (definition) => definition.slug === slug,
-  )
+  );
 
   if (!metricDefinition) {
-    return <p>Metric not found</p>
+    return <p>Metric not found</p>;
   }
 
-  const latestEntry = metricEntries[0]
+  const latestEntry = metricEntries[0];
   const formattedLatestValue = latestEntry
     ? formatMetricValue(latestEntry.value, metricDefinition.slug)
-    : undefined
-  const valueRange = `${metricDefinition.min_value}-${metricDefinition.max_value} ${metricDefinition.unit}`
-  const oldestEntry = metricEntries.at(-1)
+    : undefined;
+  const valueRange = `${metricDefinition.min_value}-${metricDefinition.max_value} ${metricDefinition.unit}`;
+  const oldestEntry = metricEntries.at(-1);
   const trendDelta =
-    latestEntry && oldestEntry ? latestEntry.value - oldestEntry.value : undefined
+    latestEntry && oldestEntry
+      ? latestEntry.value - oldestEntry.value
+      : undefined;
   const formattedTrendDelta =
     trendDelta === undefined
-      ? '—'
-      : `${trendDelta > 0 ? '+' : ''}${formatMetricValue(trendDelta, metricDefinition.slug)} ${metricDefinition.unit}`
+      ? "—"
+      : `${trendDelta > 0 ? "+" : ""}${formatMetricValue(trendDelta, metricDefinition.slug)} ${metricDefinition.unit}`;
 
   function handleRangeSelect(range: MetricEntryRange) {
     if (selectedRange.label === range.label) {
-      return
+      return;
     }
 
-    setSelectedRange(range)
+    setSelectedRange(range);
     setSelectedRangeFrom(
       range.days === null ? undefined : getRangeStartIso(range.days),
-    )
+    );
   }
 
   async function handleDeleteEntry(entryId: number) {
-    setEntryActionError(null)
+    setEntryActionError(null);
 
     try {
-      await deleteMetricEntryMutation.mutateAsync(entryId)
+      await deleteMetricEntryMutation.mutateAsync(entryId);
     } catch (error) {
-      setEntryActionError(getErrorMessage(error))
+      setEntryActionError(getErrorMessage(error));
     }
   }
 
   async function handleUpdateEntry(
     entry: MetricEntry,
     input: {
-      value: number
-      recordedAt: string
-      context: Record<string, unknown>
+      value: number;
+      recordedAt: string;
+      context: Record<string, unknown>;
     },
   ) {
-    setEntryActionError(null)
+    setEntryActionError(null);
 
     try {
       await updateMetricEntryMutation.mutateAsync({
         id: entry.id,
         input,
-      })
-      setEditingEntryId(null)
+      });
+      setEditingEntryId(null);
     } catch (error) {
-      setEntryActionError(getErrorMessage(error))
+      setEntryActionError(getErrorMessage(error));
     }
   }
 
@@ -150,10 +152,10 @@ function MetricDetailRoute() {
         <article className="metric-detail-stat metric-detail-stat-primary">
           <p className="meta-label">Latest value</p>
           <p
-            aria-label={`${formattedLatestValue ?? 'No value'} ${metricDefinition.unit}`}
+            aria-label={`${formattedLatestValue ?? "No value"} ${metricDefinition.unit}`}
             className="metric-detail-value"
           >
-            <span>{formattedLatestValue ?? '—'}</span>
+            <span>{formattedLatestValue ?? "—"}</span>
             <small>{metricDefinition.unit}</small>
           </p>
         </article>
@@ -192,7 +194,7 @@ function MetricDetailRoute() {
             <p className="trend-value">
               {oldestEntry
                 ? `${formatMetricValue(oldestEntry.value, metricDefinition.slug)} ${metricDefinition.unit}`
-                : '—'}
+                : "—"}
             </p>
           </article>
 
@@ -201,7 +203,7 @@ function MetricDetailRoute() {
             <p className="trend-value">
               {latestEntry
                 ? `${formatMetricValue(latestEntry.value, metricDefinition.slug)} ${metricDefinition.unit}`
-                : '—'}
+                : "—"}
             </p>
           </article>
 
@@ -243,8 +245,7 @@ function MetricDetailRoute() {
           <div className="empty-state">
             <h3>No entries recorded yet</h3>
             <p>
-              Log your first value from the{' '}
-              <Link to="/">Dashboard</Link>.
+              Log your first value from the <Link to="/">Dashboard</Link>.
             </p>
           </div>
         ) : (
@@ -261,8 +262,8 @@ function MetricDetailRoute() {
                 onCancelEdit={() => setEditingEntryId(null)}
                 onDelete={() => handleDeleteEntry(entry.id)}
                 onEdit={() => {
-                  setEntryActionError(null)
-                  setEditingEntryId(entry.id)
+                  setEntryActionError(null);
+                  setEditingEntryId(entry.id);
                 }}
                 onUpdate={(input) => handleUpdateEntry(entry, input)}
                 unit={metricDefinition.unit}
@@ -272,25 +273,25 @@ function MetricDetailRoute() {
         )}
       </section>
     </section>
-  )
+  );
 }
 
 interface MetricEntryHistoryRowProps {
-  entry: MetricEntry
-  isDeleting: boolean
-  isEditing: boolean
-  isUpdating: boolean
-  metricName: string
-  metricSlug: string
-  onCancelEdit: () => void
-  onDelete: () => void
-  onEdit: () => void
+  entry: MetricEntry;
+  isDeleting: boolean;
+  isEditing: boolean;
+  isUpdating: boolean;
+  metricName: string;
+  metricSlug: string;
+  onCancelEdit: () => void;
+  onDelete: () => void;
+  onEdit: () => void;
   onUpdate: (input: {
-    value: number
-    recordedAt: string
-    context: Record<string, unknown>
-  }) => void
-  unit: string
+    value: number;
+    recordedAt: string;
+    context: Record<string, unknown>;
+  }) => void;
+  unit: string;
 }
 
 function MetricEntryHistoryRow({
@@ -306,21 +307,21 @@ function MetricEntryHistoryRow({
   onUpdate,
   unit,
 }: MetricEntryHistoryRowProps) {
-  const [value, setValue] = useState(String(entry.value))
-  const [notes, setNotes] = useState(getEntryNotes(entry))
-  const [validationError, setValidationError] = useState<string | null>(null)
+  const [value, setValue] = useState(String(entry.value));
+  const [notes, setNotes] = useState(getEntryNotes(entry));
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+    event.preventDefault();
 
-    const parsedValue = parseMetricEntryValue(value)
+    const parsedValue = parseMetricEntryValue(value);
 
     if (parsedValue === undefined) {
-      setValidationError('Enter a numeric value before saving.')
-      return
+      setValidationError("Enter a numeric value before saving.");
+      return;
     }
 
-    setValidationError(null)
+    setValidationError(null);
     onUpdate({
       value: parsedValue,
       recordedAt: entry.recorded_at,
@@ -328,7 +329,7 @@ function MetricEntryHistoryRow({
         ...entry.context,
         notes,
       },
-    })
+    });
   }
 
   if (isEditing) {
@@ -354,7 +355,7 @@ function MetricEntryHistoryRow({
 
           <div className="entry-actions">
             <button disabled={isUpdating} type="submit">
-              {isUpdating ? 'Saving...' : `Save ${metricName} entry`}
+              {isUpdating ? "Saving..." : `Save ${metricName} entry`}
             </button>
             <button type="button" onClick={onCancelEdit}>
               Cancel
@@ -366,7 +367,7 @@ function MetricEntryHistoryRow({
           ) : null}
         </form>
       </article>
-    )
+    );
   }
 
   return (
@@ -383,49 +384,49 @@ function MetricEntryHistoryRow({
         <p className="entry-value">
           {formatMetricValue(entry.value, metricSlug)} {unit}
         </p>
-        {entry.source === 'manual' ? (
+        {entry.source === "manual" ? (
           <div className="entry-actions">
             <button type="button" onClick={onEdit}>
               Edit {metricName} entry
             </button>
             <button disabled={isDeleting} type="button" onClick={onDelete}>
-              {isDeleting ? 'Deleting...' : `Delete ${metricName} entry`}
+              {isDeleting ? "Deleting..." : `Delete ${metricName} entry`}
             </button>
           </div>
         ) : null}
       </div>
     </article>
-  )
+  );
 }
 
 function getEntryNotes(entry: MetricEntry) {
-  return typeof entry.context.notes === 'string' ? entry.context.notes : ''
+  return typeof entry.context.notes === "string" ? entry.context.notes : "";
 }
 
 function parseMetricEntryValue(value: string) {
-  if (value.trim() === '') {
-    return undefined
+  if (value.trim() === "") {
+    return undefined;
   }
 
-  const parsedValue = Number(value)
+  const parsedValue = Number(value);
 
-  return Number.isFinite(parsedValue) ? parsedValue : undefined
+  return Number.isFinite(parsedValue) ? parsedValue : undefined;
 }
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : 'Metric entry action failed'
+  return error instanceof Error ? error.message : "Metric entry action failed";
 }
 
 function formatMetricEntryRecordedAt(recordedAt: string) {
-  return new Intl.DateTimeFormat('en-US', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: 'UTC',
-  }).format(new Date(recordedAt))
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "UTC",
+  }).format(new Date(recordedAt));
 }
 
 function getRangeStartIso(days: number) {
-  const rangeStart = new Date()
-  rangeStart.setUTCDate(rangeStart.getUTCDate() - days)
-  return rangeStart.toISOString()
+  const rangeStart = new Date();
+  rangeStart.setUTCDate(rangeStart.getUTCDate() - days);
+  return rangeStart.toISOString();
 }

@@ -1,39 +1,39 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 
-import { registerWeb } from '../features/auth/register-api'
+import { registerWeb } from "../features/auth/register-api";
 
 interface RegisterValues {
-  email: string
-  password: string
+  email: string;
+  password: string;
 }
 
-export const Route = createFileRoute('/register')({
+export const Route = createFileRoute("/register")({
   component: RegisterRoute,
-})
+});
 
 function RegisterRoute() {
-  const navigate = useNavigate()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [errorMessage, setErrorMessage] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleRegister(values: RegisterValues) {
     try {
-      setErrorMessage('')
-      setIsSubmitting(true)
-      await registerWeb(values)
-      await navigate({ to: '/login' })
+      setErrorMessage("");
+      setIsSubmitting(true);
+      await registerWeb(values);
+      await navigate({ to: "/login" });
     } catch (error) {
       if (error instanceof Error) {
-        setErrorMessage(error.message)
-        return
+        setErrorMessage(error.message);
+        return;
       }
 
-      setErrorMessage('Registration failed')
+      setErrorMessage("Registration failed");
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
   }
 
@@ -43,8 +43,8 @@ function RegisterRoute() {
       {errorMessage ? <p>{errorMessage}</p> : null}
       <form
         onSubmit={(event) => {
-          event.preventDefault()
-          void handleRegister({ email, password })
+          event.preventDefault();
+          void handleRegister({ email, password });
         }}
       >
         <label htmlFor="email">Email</label>
@@ -70,5 +70,5 @@ function RegisterRoute() {
         </button>
       </form>
     </section>
-  )
+  );
 }

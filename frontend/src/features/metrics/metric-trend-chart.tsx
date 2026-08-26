@@ -9,11 +9,11 @@ import {
   PointElement,
   Tooltip,
   type ChartConfiguration,
-} from 'chart.js'
-import { useEffect, useMemo, useRef } from 'react'
+} from "chart.js";
+import { useEffect, useMemo, useRef } from "react";
 
-import { formatMetricValue } from './metric-entry-formatters'
-import type { MetricEntry } from './metric-entries-api'
+import { formatMetricValue } from "./metric-entry-formatters";
+import type { MetricEntry } from "./metric-entries-api";
 
 // Chart.js is modular: every controller, scale, element, and plugin used by
 // this component must be registered before creating a chart instance.
@@ -26,13 +26,13 @@ ChartJS.register(
   Tooltip,
   Legend,
   Filler,
-)
+);
 
 interface MetricTrendChartProps {
-  entries: MetricEntry[]
-  metricName: string
-  metricSlug: string
-  unit: string
+  entries: MetricEntry[];
+  metricName: string;
+  metricSlug: string;
+  unit: string;
 }
 
 export function MetricTrendChart({
@@ -41,60 +41,60 @@ export function MetricTrendChart({
   metricSlug,
   unit,
 }: MetricTrendChartProps) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   // The chart is a daily trend, not a raw event plot. Entry History still shows
   // every manual or synced record, but the chart uses the latest value per day.
-  const chartEntries = useMemo(() => getLatestEntriesByDay(entries), [entries])
+  const chartEntries = useMemo(() => getLatestEntriesByDay(entries), [entries]);
   const values = useMemo(
     () => chartEntries.map((entry) => entry.value),
     [chartEntries],
-  )
+  );
   const chartSummary =
     values.length > 0
       ? `${formatMetricValue(Math.min(...values), metricSlug)} to ${formatMetricValue(Math.max(...values), metricSlug)} ${unit}`
-      : undefined
+      : undefined;
 
   useEffect(() => {
     if (chartEntries.length === 0 || !canvasRef.current) {
-      return
+      return;
     }
 
-    let context: CanvasRenderingContext2D | null = null
+    let context: CanvasRenderingContext2D | null = null;
 
     try {
-      context = canvasRef.current.getContext('2d')
+      context = canvasRef.current.getContext("2d");
     } catch {
       // jsdom does not provide a real canvas context; the accessible fallback
       // still lets tests verify the chart contract without browser graphics.
-      return
+      return;
     }
 
     if (!context) {
-      return
+      return;
     }
 
     // React dev rendering and route reloads can reuse the same canvas. Chart.js
     // refuses to create a second chart on a canvas until the old one is gone.
-    ChartJS.getChart(canvasRef.current)?.destroy()
+    ChartJS.getChart(canvasRef.current)?.destroy();
 
-    const chartConfig: ChartConfiguration<'line'> = {
-      type: 'line',
+    const chartConfig: ChartConfiguration<"line"> = {
+      type: "line",
       data: {
         labels: chartEntries.map((entry) =>
-          new Intl.DateTimeFormat('en', {
-            month: 'short',
-            day: 'numeric',
+          new Intl.DateTimeFormat("en", {
+            month: "short",
+            day: "numeric",
           }).format(new Date(entry.recorded_at)),
         ),
         datasets: [
           {
             label: metricName,
             data: values,
-            borderColor: '#00e5a0',
-            backgroundColor: 'rgba(0, 229, 160, 0.16)',
+            borderColor: "#00e5a0",
+            backgroundColor: "rgba(0, 229, 160, 0.16)",
             borderWidth: 3,
-            pointBackgroundColor: '#00e5a0',
-            pointBorderColor: '#07100d',
+            pointBackgroundColor: "#00e5a0",
+            pointBorderColor: "#07100d",
             pointBorderWidth: 2,
             pointRadius: 4,
             tension: 0.35,
@@ -109,43 +109,43 @@ export function MetricTrendChart({
           tooltip: {
             callbacks: {
               label: (tooltipItem) => {
-                const value = tooltipItem.parsed.y
+                const value = tooltipItem.parsed.y;
 
                 return value === null
-                  ? 'No value'
-                  : `${formatMetricValue(value, metricSlug)} ${unit}`
+                  ? "No value"
+                  : `${formatMetricValue(value, metricSlug)} ${unit}`;
               },
             },
           },
         },
         scales: {
           x: {
-            border: { color: 'rgba(133, 151, 176, 0.35)' },
-            grid: { color: 'rgba(133, 151, 176, 0.12)' },
-            ticks: { color: '#8597b0' },
+            border: { color: "rgba(133, 151, 176, 0.35)" },
+            grid: { color: "rgba(133, 151, 176, 0.12)" },
+            ticks: { color: "#8597b0" },
           },
           y: {
-            border: { color: 'rgba(133, 151, 176, 0.35)' },
-            grid: { color: 'rgba(133, 151, 176, 0.14)' },
+            border: { color: "rgba(133, 151, 176, 0.35)" },
+            grid: { color: "rgba(133, 151, 176, 0.14)" },
             ticks: {
-              color: '#8597b0',
+              color: "#8597b0",
               callback: (value) =>
-                `${typeof value === 'number' ? formatMetricValue(value, metricSlug) : value} ${unit}`,
+                `${typeof value === "number" ? formatMetricValue(value, metricSlug) : value} ${unit}`,
             },
           },
         },
       },
-    }
+    };
 
-    const chart = new ChartJS(context, chartConfig)
+    const chart = new ChartJS(context, chartConfig);
 
     return () => {
-      chart.destroy()
-    }
-  }, [chartEntries, metricName, metricSlug, unit, values])
+      chart.destroy();
+    };
+  }, [chartEntries, metricName, metricSlug, unit, values]);
 
   if (chartEntries.length === 0) {
-    return <p className="trend-empty">No chart data yet.</p>
+    return <p className="trend-empty">No chart data yet.</p>;
   }
 
   return (
@@ -160,22 +160,22 @@ export function MetricTrendChart({
       </div>
       <canvas ref={canvasRef} />
     </div>
-  )
+  );
 }
 
 function getLatestEntriesByDay(entries: MetricEntry[]) {
-  const latestEntriesByDate = new Map<string, MetricEntry>()
+  const latestEntriesByDate = new Map<string, MetricEntry>();
 
   for (const entry of entries) {
-    const dateKey = getLocalDateKey(entry.recorded_at)
-    const existingEntry = latestEntriesByDate.get(dateKey)
+    const dateKey = getLocalDateKey(entry.recorded_at);
+    const existingEntry = latestEntriesByDate.get(dateKey);
 
     if (
       !existingEntry ||
       new Date(entry.recorded_at).getTime() >
         new Date(existingEntry.recorded_at).getTime()
     ) {
-      latestEntriesByDate.set(dateKey, entry)
+      latestEntriesByDate.set(dateKey, entry);
     }
   }
 
@@ -183,16 +183,16 @@ function getLatestEntriesByDay(entries: MetricEntry[]) {
     (left, right) =>
       new Date(left.recorded_at).getTime() -
       new Date(right.recorded_at).getTime(),
-  )
+  );
 }
 
 function getLocalDateKey(isoDateTime: string) {
-  const date = new Date(isoDateTime)
+  const date = new Date(isoDateTime);
 
   // Use the user's local day for grouping, matching what they see on screen.
   return [
     date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, '0'),
-    String(date.getDate()).padStart(2, '0'),
-  ].join('-')
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
 }

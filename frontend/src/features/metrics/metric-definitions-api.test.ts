@@ -229,103 +229,99 @@ describe("createMetricDefinition", () => {
   });
 });
 
-
 describe("updateMetricDefinition", () => {
-   beforeEach(() => {
-      vi.stubGlobal("fetch", vi.fn());
-      setAccessToken("access-token");
-    });
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+    setAccessToken("access-token");
+  });
 
-    afterEach(() => {
-      vi.unstubAllGlobals();
-      clearAccessToken();
-    });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    clearAccessToken();
+  });
 
-    test("patches a custom metric definition with the access token", async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            id: "metric-id",
-            name: "Mood Score",
-            slug: "mood",
-            unit: "points",
-            category: "custom",
-            min_value: 0,
-            max_value: 100,
-            is_default: false,
-            is_active: true,
-          }),
-          { status: 200 },
-        ),
-      );
-
-      const result = await updateMetricDefinition("metric-id", {
-        name: "Mood Score",
-        unit: "points",
-        minValue: 0,
-        maxValue: 100,
-      });
-
-      expect(fetch).toHaveBeenCalledWith(
-        "/api/v1/metrics/definitions/metric-id/",
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: "Bearer access-token",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: "Mood Score",
-            unit: "points",
-            min_value: 0,
-            max_value: 100,
-          }),
-        },
-      );
-      expect(result).toEqual({
-        id: "metric-id",
-        name: "Mood Score",
-        slug: "mood",
-        unit: "points",
-        category: "custom",
-        min_value: 0,
-        max_value: 100,
-        is_default: false,
-        is_active: true,
-      });
-    
-
-
-    })
-
-    test("requires an access token", async () => {
-      clearAccessToken();
-
-      await expect(
-        updateMetricDefinition("metric-id", {
+  test("patches a custom metric definition with the access token", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: "metric-id",
           name: "Mood Score",
+          slug: "mood",
+          unit: "points",
+          category: "custom",
+          min_value: 0,
+          max_value: 100,
+          is_default: false,
+          is_active: true,
         }),
-      ).rejects.toThrow("Authentication required");
+        { status: 200 },
+      ),
+    );
 
-      expect(fetch).not.toHaveBeenCalled();
+    const result = await updateMetricDefinition("metric-id", {
+      name: "Mood Score",
+      unit: "points",
+      minValue: 0,
+      maxValue: 100,
     });
 
-    test("preserves backend validation errors", async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            max_value: ["Max value must be greater than min value."],
-          }),
-          { status: 400 },
-        ),
-      );
-
-      await expect(
-        updateMetricDefinition("metric-id", {
-          minValue: 100,
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/v1/metrics/definitions/metric-id/",
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: "Bearer access-token",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "Mood Score",
+          unit: "points",
+          min_value: 0,
+          max_value: 100,
         }),
-      ).rejects.toThrow("Max value must be greater than min value.");
+      },
+    );
+    expect(result).toEqual({
+      id: "metric-id",
+      name: "Mood Score",
+      slug: "mood",
+      unit: "points",
+      category: "custom",
+      min_value: 0,
+      max_value: 100,
+      is_default: false,
+      is_active: true,
     });
+  });
+
+  test("requires an access token", async () => {
+    clearAccessToken();
+
+    await expect(
+      updateMetricDefinition("metric-id", {
+        name: "Mood Score",
+      }),
+    ).rejects.toThrow("Authentication required");
+
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  test("preserves backend validation errors", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          max_value: ["Max value must be greater than min value."],
+        }),
+        { status: 400 },
+      ),
+    );
+
+    await expect(
+      updateMetricDefinition("metric-id", {
+        minValue: 100,
+      }),
+    ).rejects.toThrow("Max value must be greater than min value.");
+  });
 
   test("patches a custom metric definition as inactive", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
@@ -362,5 +358,5 @@ describe("updateMetricDefinition", () => {
         }),
       },
     );
-  });  
-})
+  });
+});

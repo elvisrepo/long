@@ -1,3 +1,3 @@
 export function redirectToPortal(url: string): void {
-  window.location.assign(url)
+  window.location.assign(url);
 }

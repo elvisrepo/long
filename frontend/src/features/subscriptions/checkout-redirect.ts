@@ -1,3 +1,3 @@
 export function redirectToCheckout(url: string): void {
-  window.location.assign(url)
+  window.location.assign(url);
 }

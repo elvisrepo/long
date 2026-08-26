@@ -100,7 +100,7 @@ function DashboardRoute() {
                 <h2>{definition.name}</h2>
               </Link>
               <p className="metric-meta">{definition.slug}</p>
-          </div>
+            </div>
 
             <MetricDefinitionValue
               entry={latestEntriesByMetric.get(definition.slug)}
@@ -221,9 +221,7 @@ function MetricDefinitionValue({
 }: MetricDefinitionValueProps) {
   return (
     <div className="metric-current-value">
-      <span>
-        {entry ? formatMetricValue(entry.value, metricSlug) : "—"}
-      </span>
+      <span>{entry ? formatMetricValue(entry.value, metricSlug) : "—"}</span>
       <small>{unit}</small>
     </div>
   );

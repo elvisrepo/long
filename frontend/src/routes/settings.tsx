@@ -1,116 +1,116 @@
-import { useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   createFileRoute,
   useNavigate,
   useRouterState,
-} from '@tanstack/react-router'
-import { logoutWeb } from '../features/auth/auth-logout-api'
-import { requireAuthBeforeLoad } from '../features/auth/require-auth-before-load'
-import { useMeQuery } from '../features/auth/use-me-query'
-import { redirectToCheckout } from '../features/subscriptions/checkout-redirect'
-import { redirectToPortal } from '../features/subscriptions/portal-redirect'
-import type { SubscriptionPlan } from '../features/subscriptions/subscriptions-api'
-import { useCreateSubscriptionCheckoutMutation } from '../features/subscriptions/use-create-subscription-checkout-mutation'
-import { useCreateSubscriptionPortalMutation } from '../features/subscriptions/use-create-subscription-portal-mutation'
-import { useCurrentSubscriptionQuery } from '../features/subscriptions/use-current-subscription-query'
-import { useSubscriptionPlansQuery } from '../features/subscriptions/use-subscription-plans-query'
+} from "@tanstack/react-router";
+import { logoutWeb } from "../features/auth/auth-logout-api";
+import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load";
+import { useMeQuery } from "../features/auth/use-me-query";
+import { redirectToCheckout } from "../features/subscriptions/checkout-redirect";
+import { redirectToPortal } from "../features/subscriptions/portal-redirect";
+import type { SubscriptionPlan } from "../features/subscriptions/subscriptions-api";
+import { useCreateSubscriptionCheckoutMutation } from "../features/subscriptions/use-create-subscription-checkout-mutation";
+import { useCreateSubscriptionPortalMutation } from "../features/subscriptions/use-create-subscription-portal-mutation";
+import { useCurrentSubscriptionQuery } from "../features/subscriptions/use-current-subscription-query";
+import { useSubscriptionPlansQuery } from "../features/subscriptions/use-subscription-plans-query";
 
 interface SettingsSearch {
-  checkout?: 'success' | 'cancelled'
+  checkout?: "success" | "cancelled";
 }
 
 function formatSyncPolicy(plan: SubscriptionPlan): string {
-  const mode = plan.automatic_sync_enabled ? 'Automatic' : 'Manual'
-  return `${mode} sync every ${plan.sync_interval_minutes} minutes`
+  const mode = plan.automatic_sync_enabled ? "Automatic" : "Manual";
+  return `${mode} sync every ${plan.sync_interval_minutes} minutes`;
 }
 
-export const Route = createFileRoute('/settings')({
+export const Route = createFileRoute("/settings")({
   beforeLoad: requireAuthBeforeLoad,
   validateSearch: (search: Record<string, unknown>): SettingsSearch => {
-    if (search.checkout === 'success' || search.checkout === 'cancelled') {
+    if (search.checkout === "success" || search.checkout === "cancelled") {
       return {
         checkout: search.checkout,
-      }
+      };
     }
 
-    return {}
+    return {};
   },
   component: SettingsRoute,
-})
+});
 
 function SettingsRoute() {
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const checkoutStatus = useRouterState({
     select: (state) => state.location.search.checkout,
-  })
-  const meQuery = useMeQuery()
-  const currentSubscriptionQuery = useCurrentSubscriptionQuery()
-  const subscriptionPlansQuery = useSubscriptionPlansQuery()
-  const checkoutMutation = useCreateSubscriptionCheckoutMutation()
-  const portalMutation = useCreateSubscriptionPortalMutation()
-  const [errorMessage, setErrorMessage] = useState('')
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  });
+  const meQuery = useMeQuery();
+  const currentSubscriptionQuery = useCurrentSubscriptionQuery();
+  const subscriptionPlansQuery = useSubscriptionPlansQuery();
+  const checkoutMutation = useCreateSubscriptionCheckoutMutation();
+  const portalMutation = useCreateSubscriptionPortalMutation();
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const paidPlans =
     subscriptionPlansQuery.data?.filter(
       (plan) => !plan.is_default && plan.prices.length > 0,
-    ) ?? []
+    ) ?? [];
   const usesStripePortal =
-    currentSubscriptionQuery.data?.billing_portal_available === true
+    currentSubscriptionQuery.data?.billing_portal_available === true;
 
   async function handleLogout() {
     try {
-      setErrorMessage('')
-      setIsLoggingOut(true)
-      await logoutWeb()
-      queryClient.removeQueries({ queryKey: ['me'] })
-      await navigate({ to: '/login' })
+      setErrorMessage("");
+      setIsLoggingOut(true);
+      await logoutWeb();
+      queryClient.removeQueries({ queryKey: ["me"] });
+      await navigate({ to: "/login" });
     } catch (error) {
       if (error instanceof Error) {
-        setErrorMessage(error.message)
-        return
+        setErrorMessage(error.message);
+        return;
       }
 
-      setErrorMessage('Logout failed')
+      setErrorMessage("Logout failed");
     } finally {
-      setIsLoggingOut(false)
+      setIsLoggingOut(false);
     }
   }
 
   async function handleCheckout(priceId: string) {
     try {
-      setErrorMessage('')
-      const checkout = await checkoutMutation.mutateAsync({ priceId })
-      redirectToCheckout(checkout.url)
+      setErrorMessage("");
+      const checkout = await checkoutMutation.mutateAsync({ priceId });
+      redirectToCheckout(checkout.url);
     } catch (error) {
       if (error instanceof Error) {
-        setErrorMessage(error.message)
-        return
+        setErrorMessage(error.message);
+        return;
       }
 
-      setErrorMessage('Checkout failed to start')
+      setErrorMessage("Checkout failed to start");
     }
   }
 
   async function handlePortal() {
     try {
-      setErrorMessage('')
-      const portal = await portalMutation.mutateAsync()
-      redirectToPortal(portal.url)
+      setErrorMessage("");
+      const portal = await portalMutation.mutateAsync();
+      redirectToPortal(portal.url);
     } catch (error) {
       if (error instanceof Error) {
-        setErrorMessage(error.message)
-        return
+        setErrorMessage(error.message);
+        return;
       }
 
-      setErrorMessage('Customer Portal failed to open')
+      setErrorMessage("Customer Portal failed to open");
     }
   }
 
   if (!meQuery.data) {
-    return <p>Loading...</p>
+    return <p>Loading...</p>;
   }
 
   return (
@@ -123,12 +123,12 @@ function SettingsRoute() {
         </div>
       </header>
 
-      {checkoutStatus === 'success' ? (
+      {checkoutStatus === "success" ? (
         <p className="settings-alert" role="status">
           Checkout completed. Your plan will update after payment confirmation.
         </p>
       ) : null}
-      {checkoutStatus === 'cancelled' ? (
+      {checkoutStatus === "cancelled" ? (
         <p className="settings-alert" role="status">
           Checkout cancelled. Your plan was not changed.
         </p>
@@ -145,7 +145,9 @@ function SettingsRoute() {
           </div>
           {currentSubscriptionQuery.data ? (
             <span className="status-pill">
-              {currentSubscriptionQuery.data.cancel_at ? 'Cancelling' : 'Active'}
+              {currentSubscriptionQuery.data.cancel_at
+                ? "Cancelling"
+                : "Active"}
             </span>
           ) : null}
         </div>
@@ -166,7 +168,7 @@ function SettingsRoute() {
                     {
                       currentSubscriptionQuery.data.plan
                         .active_custom_metric_limit
-                    }{' '}
+                    }{" "}
                     custom metrics
                   </strong>
                 </div>
@@ -183,7 +185,7 @@ function SettingsRoute() {
                       {formatSubscriptionPrice(
                         currentSubscriptionQuery.data.price.unit_amount,
                         currentSubscriptionQuery.data.price.currency,
-                      )}{' '}
+                      )}{" "}
                       / {currentSubscriptionQuery.data.price.billing_interval}
                     </strong>
                   </div>
@@ -203,14 +205,14 @@ function SettingsRoute() {
             <div className="subscription-billing-panel">
               {currentSubscriptionQuery.data.cancel_at ? (
                 <p>
-                  Cancels{' '}
+                  Cancels{" "}
                   {formatSubscriptionDate(
                     currentSubscriptionQuery.data.cancel_at,
                   )}
                 </p>
               ) : currentSubscriptionQuery.data.current_period_end ? (
                 <p>
-                  Renews{' '}
+                  Renews{" "}
                   {formatSubscriptionDate(
                     currentSubscriptionQuery.data.current_period_end,
                   )}
@@ -251,32 +253,37 @@ function SettingsRoute() {
             Use Manage subscription to change billing details.
           </p>
         ) : null}
-        {usesStripePortal ? null : paidPlans.map((plan) => (
-          <article className="subscription-plan-card" key={plan.code}>
-            <div>
-              <h3>{plan.name}</h3>
-              <p>{plan.active_custom_metric_limit} custom metrics</p>
-              <p>{formatSyncPolicy(plan)}</p>
-            </div>
-            <ul className="subscription-price-list">
-              {plan.prices.map((price) => (
-                <li key={price.id}>
-                  <span>
-                    {formatSubscriptionPrice(price.unit_amount, price.currency)}{' '}
-                    / {price.billing_interval}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={checkoutMutation.isPending}
-                    onClick={() => void handleCheckout(price.id)}
-                  >
-                    Upgrade to {plan.name} {price.billing_interval}ly
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </article>
-        ))}
+        {usesStripePortal
+          ? null
+          : paidPlans.map((plan) => (
+              <article className="subscription-plan-card" key={plan.code}>
+                <div>
+                  <h3>{plan.name}</h3>
+                  <p>{plan.active_custom_metric_limit} custom metrics</p>
+                  <p>{formatSyncPolicy(plan)}</p>
+                </div>
+                <ul className="subscription-price-list">
+                  {plan.prices.map((price) => (
+                    <li key={price.id}>
+                      <span>
+                        {formatSubscriptionPrice(
+                          price.unit_amount,
+                          price.currency,
+                        )}{" "}
+                        / {price.billing_interval}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={checkoutMutation.isPending}
+                        onClick={() => void handleCheckout(price.id)}
+                      >
+                        Upgrade to {plan.name} {price.billing_interval}ly
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            ))}
       </section>
 
       {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
@@ -289,33 +296,33 @@ function SettingsRoute() {
         Logout
       </button>
     </section>
-  )
+  );
 }
 
 function formatSubscriptionPrice(unitAmount: number, currency: string) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
     currency,
-  }).format(unitAmount / 100)
+  }).format(unitAmount / 100);
 }
 
 function formatBillingInterval(interval: string) {
-  if (interval === 'month') {
-    return 'Monthly'
+  if (interval === "month") {
+    return "Monthly";
   }
 
-  if (interval === 'year') {
-    return 'Yearly'
+  if (interval === "year") {
+    return "Yearly";
   }
 
-  return interval
+  return interval;
 }
 
 function formatSubscriptionDate(value: string) {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(value))
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(value));
 }

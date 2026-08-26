@@ -1,9 +1,9 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation } from "@tanstack/react-query";
 import {
   createSubscriptionCheckout,
   type CreateSubscriptionCheckoutInput,
   type SubscriptionCheckout,
-} from './subscriptions-api'
+} from "./subscriptions-api";
 
 export function useCreateSubscriptionCheckoutMutation() {
   return useMutation<
@@ -12,5 +12,5 @@ export function useCreateSubscriptionCheckoutMutation() {
     CreateSubscriptionCheckoutInput
   >({
     mutationFn: (input) => createSubscriptionCheckout(input),
-  })
+  });
 }

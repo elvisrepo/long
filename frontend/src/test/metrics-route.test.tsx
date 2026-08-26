@@ -1,60 +1,66 @@
-import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getMe } from '../features/auth/auth-me-api'
+import { getMe } from "../features/auth/auth-me-api";
 import {
   createMetricDefinition,
   type MetricDefinition,
-} from '../features/metrics/metric-definitions-api'
-import { useDeactivateMetricDefinitionMutation } from '../features/metrics/use-deactivate-metric-definition-mutation'
-import { useMetricDefinitionsQuery } from '../features/metrics/use-metric-definitions-query'
-import { useMetricUsageQuery } from '../features/metrics/use-metric-usage-query'
-import { useReactivateMetricDefinitionMutation } from '../features/metrics/use-reactivate-metric-definition-mutation'
-import { useUpdateMetricDefinitionMutation } from '../features/metrics/use-update-metric-definition-mutation'
-import { renderRoute } from './render-route'
+} from "../features/metrics/metric-definitions-api";
+import { useDeactivateMetricDefinitionMutation } from "../features/metrics/use-deactivate-metric-definition-mutation";
+import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
+import { useMetricUsageQuery } from "../features/metrics/use-metric-usage-query";
+import { useReactivateMetricDefinitionMutation } from "../features/metrics/use-reactivate-metric-definition-mutation";
+import { useUpdateMetricDefinitionMutation } from "../features/metrics/use-update-metric-definition-mutation";
+import { renderRoute } from "./render-route";
 
-vi.mock('../features/auth/auth-me-api', () => ({
+vi.mock("../features/auth/auth-me-api", () => ({
   getMe: vi.fn(),
-}))
+}));
 
-vi.mock('../features/metrics/use-metric-definitions-query', () => ({
+vi.mock("../features/metrics/use-metric-definitions-query", () => ({
   useMetricDefinitionsQuery: vi.fn(),
-}))
+}));
 
-vi.mock('../features/metrics/use-metric-usage-query', () => ({
+vi.mock("../features/metrics/use-metric-usage-query", () => ({
   useMetricUsageQuery: vi.fn(),
-}))
+}));
 
-vi.mock('../features/metrics/metric-definitions-api', () => ({
+vi.mock("../features/metrics/metric-definitions-api", () => ({
   createMetricDefinition: vi.fn(),
-}))
+}));
 
-vi.mock('../features/metrics/use-update-metric-definition-mutation', () => ({
+vi.mock("../features/metrics/use-update-metric-definition-mutation", () => ({
   useUpdateMetricDefinitionMutation: vi.fn(),
-}))
+}));
 
-vi.mock('../features/metrics/use-deactivate-metric-definition-mutation', () => ({
-  useDeactivateMetricDefinitionMutation: vi.fn(),
-}))
+vi.mock(
+  "../features/metrics/use-deactivate-metric-definition-mutation",
+  () => ({
+    useDeactivateMetricDefinitionMutation: vi.fn(),
+  }),
+);
 
-vi.mock('../features/metrics/use-reactivate-metric-definition-mutation', () => ({
-  useReactivateMetricDefinitionMutation: vi.fn(),
-}))
+vi.mock(
+  "../features/metrics/use-reactivate-metric-definition-mutation",
+  () => ({
+    useReactivateMetricDefinitionMutation: vi.fn(),
+  }),
+);
 
-const createMetricDefinitionMock = vi.mocked(createMetricDefinition)
-const updateMetricDefinitionMutateAsyncMock = vi.fn()
-const deactivateMetricDefinitionMutateAsyncMock = vi.fn()
-const reactivateMetricDefinitionMutateAsyncMock = vi.fn()
+const createMetricDefinitionMock = vi.mocked(createMetricDefinition);
+const updateMetricDefinitionMutateAsyncMock = vi.fn();
+const deactivateMetricDefinitionMutateAsyncMock = vi.fn();
+const reactivateMetricDefinitionMutateAsyncMock = vi.fn();
 
 function mockLoadedMetricDefinitions(
   metricDefinitions: MetricDefinition[] = [
     {
-      id: 'metric-id',
-      name: 'Resting Heart Rate',
-      slug: 'resting_hr',
-      unit: 'bpm',
-      category: 'cardiovascular',
+      id: "metric-id",
+      name: "Resting Heart Rate",
+      slug: "resting_hr",
+      unit: "bpm",
+      category: "cardiovascular",
       min_value: 20,
       max_value: 220,
       is_default: true,
@@ -66,69 +72,69 @@ function mockLoadedMetricDefinitions(
     data: metricDefinitions,
     isLoading: false,
     isError: false,
-  } as ReturnType<typeof useMetricDefinitionsQuery>)
+  } as ReturnType<typeof useMetricDefinitionsQuery>);
 }
 
 function mockUpdateMetricDefinitionMutation() {
-  updateMetricDefinitionMutateAsyncMock.mockResolvedValue(undefined)
+  updateMetricDefinitionMutateAsyncMock.mockResolvedValue(undefined);
 
   vi.mocked(useUpdateMetricDefinitionMutation).mockReturnValue({
     mutateAsync: updateMetricDefinitionMutateAsyncMock,
     isPending: false,
     isError: false,
     error: null,
-  } as unknown as ReturnType<typeof useUpdateMetricDefinitionMutation>)
+  } as unknown as ReturnType<typeof useUpdateMetricDefinitionMutation>);
 }
 
 function mockDeactivateMetricDefinitionMutation() {
-  deactivateMetricDefinitionMutateAsyncMock.mockResolvedValue(undefined)
+  deactivateMetricDefinitionMutateAsyncMock.mockResolvedValue(undefined);
 
   vi.mocked(useDeactivateMetricDefinitionMutation).mockReturnValue({
     mutateAsync: deactivateMetricDefinitionMutateAsyncMock,
     isPending: false,
     isError: false,
     error: null,
-  } as unknown as ReturnType<typeof useDeactivateMetricDefinitionMutation>)
+  } as unknown as ReturnType<typeof useDeactivateMetricDefinitionMutation>);
 }
 
 function mockReactivateMetricDefinitionMutation() {
-  reactivateMetricDefinitionMutateAsyncMock.mockResolvedValue(undefined)
+  reactivateMetricDefinitionMutateAsyncMock.mockResolvedValue(undefined);
 
   vi.mocked(useReactivateMetricDefinitionMutation).mockReturnValue({
     mutateAsync: reactivateMetricDefinitionMutateAsyncMock,
     isPending: false,
     isError: false,
     error: null,
-  } as unknown as ReturnType<typeof useReactivateMetricDefinitionMutation>)
+  } as unknown as ReturnType<typeof useReactivateMetricDefinitionMutation>);
 }
 
 function mockSuccessfulCustomMetricCreate() {
   createMetricDefinitionMock.mockResolvedValue({
-    id: 'custom-metric-id',
-    name: 'Mood',
-    slug: 'mood',
-    unit: 'score',
-    category: 'custom',
+    id: "custom-metric-id",
+    name: "Mood",
+    slug: "mood",
+    unit: "score",
+    category: "custom",
     min_value: 1,
     max_value: 10,
     is_default: false,
     is_active: true,
-  })
+  });
 }
 
 async function fillCustomMetricForm(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText(/name/i), 'Mood')
-  await user.type(screen.getByLabelText(/slug/i), 'mood')
-  await user.type(screen.getByLabelText(/unit/i), 'score')
-  await user.type(screen.getByLabelText(/min value/i), '1')
-  await user.type(screen.getByLabelText(/max value/i), '10')
+  await user.type(screen.getByLabelText(/name/i), "Mood");
+  await user.type(screen.getByLabelText(/slug/i), "mood");
+  await user.type(screen.getByLabelText(/unit/i), "score");
+  await user.type(screen.getByLabelText(/min value/i), "1");
+  await user.type(screen.getByLabelText(/max value/i), "10");
 }
 
-describe('metrics route', () => {
+describe("metrics route", () => {
   beforeEach(() => {
-    mockUpdateMetricDefinitionMutation()
-    mockDeactivateMetricDefinitionMutation()
-    mockReactivateMetricDefinitionMutation()
+    mockUpdateMetricDefinitionMutation();
+    mockDeactivateMetricDefinitionMutation();
+    mockReactivateMetricDefinitionMutation();
     vi.mocked(useMetricUsageQuery).mockReturnValue({
       data: {
         active_custom_metrics: {
@@ -138,47 +144,47 @@ describe('metrics route', () => {
       },
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useMetricUsageQuery>)
-  })
+    } as ReturnType<typeof useMetricUsageQuery>);
+  });
 
   afterEach(() => {
-    vi.resetAllMocks()
-  })
+    vi.resetAllMocks();
+  });
 
-  it('renders available metrics for an authenticated user', async () => {
+  it("renders available metrics for an authenticated user", async () => {
     vi.mocked(getMe).mockResolvedValue({
-      email: 'user@example.com',
-    })
-    mockLoadedMetricDefinitions()
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
 
-    renderRoute('/metrics')
+    renderRoute("/metrics");
 
     expect(
-      await screen.findByRole('heading', { name: /metrics/i }),
-    ).toBeInTheDocument()
+      await screen.findByRole("heading", { name: /metrics/i }),
+    ).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { name: /resting heart rate/i }),
-    ).toBeInTheDocument()
-    expect(screen.getByText(/cardiovascular · bpm/i)).toBeInTheDocument()
-  })
+      screen.getByRole("heading", { name: /resting heart rate/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/cardiovascular · bpm/i)).toBeInTheDocument();
+  });
 
-  it('shows active custom metric usage returned by the backend', async () => {
+  it("shows active custom metric usage returned by the backend", async () => {
     vi.mocked(getMe).mockResolvedValue({
-      email: 'user@example.com',
-    })
+      email: "user@example.com",
+    });
     mockLoadedMetricDefinitions([
       {
-        id: 'custom-metric-id',
-        name: 'Mood',
-        slug: 'mood',
-        unit: 'score',
-        category: 'custom',
+        id: "custom-metric-id",
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        category: "custom",
         min_value: 1,
         max_value: 10,
         is_default: false,
         is_active: true,
       },
-    ])
+    ]);
 
     vi.mocked(useMetricUsageQuery).mockReturnValue({
       data: {
@@ -189,19 +195,19 @@ describe('metrics route', () => {
       },
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useMetricUsageQuery>)
+    } as ReturnType<typeof useMetricUsageQuery>);
 
-    renderRoute('/metrics')
+    renderRoute("/metrics");
 
     expect(
       await screen.findByText(/2 \/ 5 active custom metrics used/i),
-    ).toBeInTheDocument()
-  })
+    ).toBeInTheDocument();
+  });
 
-  it('marks custom metric usage as limit reached when all slots are used', async () => {
+  it("marks custom metric usage as limit reached when all slots are used", async () => {
     vi.mocked(getMe).mockResolvedValue({
-      email: 'user@example.com',
-    })
+      email: "user@example.com",
+    });
     vi.mocked(useMetricUsageQuery).mockReturnValue({
       data: {
         active_custom_metrics: {
@@ -211,534 +217,535 @@ describe('metrics route', () => {
       },
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useMetricUsageQuery>)
+    } as ReturnType<typeof useMetricUsageQuery>);
     mockLoadedMetricDefinitions(
       Array.from({ length: 3 }, (_, index) => ({
         id: `custom-metric-${index}`,
         name: `Custom Metric ${index}`,
         slug: `custom_metric_${index}`,
-        unit: 'score',
-        category: 'custom',
+        unit: "score",
+        category: "custom",
         min_value: 1,
         max_value: 10,
         is_default: false,
         is_active: true,
       })),
-    )
+    );
 
-    renderRoute('/metrics')
+    renderRoute("/metrics");
 
-    const usage = await screen.findByRole('status', {
+    const usage = await screen.findByRole("status", {
       name: /3 \/ 3 active custom metrics used/i,
-    })
+    });
 
-    expect(usage).toHaveClass('custom-metric-usage-limit')
-  })
+    expect(usage).toHaveClass("custom-metric-usage-limit");
+  });
 
-  it('redirects to /login when the user is not authenticated', async () => {
+  it("redirects to /login when the user is not authenticated", async () => {
     vi.mocked(getMe).mockRejectedValue(
-      new Error('Authentication credentials were not provided.'),
-    )
-    mockLoadedMetricDefinitions()
+      new Error("Authentication credentials were not provided."),
+    );
+    mockLoadedMetricDefinitions();
 
-    renderRoute('/metrics')
+    renderRoute("/metrics");
 
     expect(
-      await screen.findByRole('heading', { name: /login/i }),
-    ).toBeInTheDocument()
-  })
+      await screen.findByRole("heading", { name: /login/i }),
+    ).toBeInTheDocument();
+  });
 
-  it('creates a custom metric definition from the metrics page', async () => {
-    const user = userEvent.setup()
+  it("creates a custom metric definition from the metrics page", async () => {
+    const user = userEvent.setup();
 
     vi.mocked(getMe).mockResolvedValue({
-      email: 'user@example.com',
-    })
-    mockLoadedMetricDefinitions()
-    mockSuccessfulCustomMetricCreate()
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+    mockSuccessfulCustomMetricCreate();
 
-    renderRoute('/metrics')
+    renderRoute("/metrics");
 
-    await screen.findByRole('heading', { name: /metrics/i })
+    await screen.findByRole("heading", { name: /metrics/i });
 
-    await fillCustomMetricForm(user)
+    await fillCustomMetricForm(user);
     await user.click(
-      screen.getByRole('button', { name: /create custom metric/i }),
-    )
+      screen.getByRole("button", { name: /create custom metric/i }),
+    );
 
     expect(createMetricDefinitionMock).toHaveBeenCalledWith({
-      name: 'Mood',
-      slug: 'mood',
-      unit: 'score',
+      name: "Mood",
+      slug: "mood",
+      unit: "score",
       minValue: 1,
       maxValue: 10,
-    })
-  })
+    });
+  });
 
-  it('clears the custom metric form after a successful create', async () => {
-    const user = userEvent.setup()
+  it("clears the custom metric form after a successful create", async () => {
+    const user = userEvent.setup();
 
     vi.mocked(getMe).mockResolvedValue({
-      email: 'user@example.com',
-    })
-    mockLoadedMetricDefinitions()
-    mockSuccessfulCustomMetricCreate()
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+    mockSuccessfulCustomMetricCreate();
 
-    renderRoute('/metrics')
+    renderRoute("/metrics");
 
-    await screen.findByRole('heading', { name: /metrics/i })
+    await screen.findByRole("heading", { name: /metrics/i });
 
-    const nameInput = screen.getByLabelText(/name/i)
-    const slugInput = screen.getByLabelText(/slug/i)
-    const unitInput = screen.getByLabelText(/unit/i)
-    const minValueInput = screen.getByLabelText(/min value/i)
-    const maxValueInput = screen.getByLabelText(/max value/i)
+    const nameInput = screen.getByLabelText(/name/i);
+    const slugInput = screen.getByLabelText(/slug/i);
+    const unitInput = screen.getByLabelText(/unit/i);
+    const minValueInput = screen.getByLabelText(/min value/i);
+    const maxValueInput = screen.getByLabelText(/max value/i);
 
-    await fillCustomMetricForm(user)
+    await fillCustomMetricForm(user);
     await user.click(
-      screen.getByRole('button', { name: /create custom metric/i }),
-    )
+      screen.getByRole("button", { name: /create custom metric/i }),
+    );
 
     await waitFor(() => {
-      expect(nameInput).toHaveValue('')
-    })
-    expect(slugInput).toHaveValue('')
-    expect(unitInput).toHaveValue('')
-    expect(minValueInput).toHaveValue(null)
-    expect(maxValueInput).toHaveValue(null)
-  })
+      expect(nameInput).toHaveValue("");
+    });
+    expect(slugInput).toHaveValue("");
+    expect(unitInput).toHaveValue("");
+    expect(minValueInput).toHaveValue(null);
+    expect(maxValueInput).toHaveValue(null);
+  });
 
-  it('shows an error when custom metric creation fails', async () => {
-    const user = userEvent.setup()
+  it("shows an error when custom metric creation fails", async () => {
+    const user = userEvent.setup();
 
     vi.mocked(getMe).mockResolvedValue({
-      email: 'user@example.com',
-    })
-    mockLoadedMetricDefinitions()
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
     createMetricDefinitionMock.mockRejectedValue(
-      new Error('metric definition with this slug already exists.'),
-    )
+      new Error("metric definition with this slug already exists."),
+    );
 
-    renderRoute('/metrics')
+    renderRoute("/metrics");
 
-    await screen.findByRole('heading', { name: /metrics/i })
+    await screen.findByRole("heading", { name: /metrics/i });
 
-    await fillCustomMetricForm(user)
+    await fillCustomMetricForm(user);
     await user.click(
-      screen.getByRole('button', { name: /create custom metric/i }),
-    )
+      screen.getByRole("button", { name: /create custom metric/i }),
+    );
 
     expect(
-      await screen.findByText(/metric definition with this slug already exists/i),
-    ).toBeInTheDocument()
-  })
+      await screen.findByText(
+        /metric definition with this slug already exists/i,
+      ),
+    ).toBeInTheDocument();
+  });
 
-  it('shows the active custom metric limit error when custom metric creation is blocked', async () => {
-    const user = userEvent.setup()
+  it("shows the active custom metric limit error when custom metric creation is blocked", async () => {
+    const user = userEvent.setup();
 
     vi.mocked(getMe).mockResolvedValue({
-      email: 'user@example.com',
-    })
-    mockLoadedMetricDefinitions()
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
     createMetricDefinitionMock.mockRejectedValue(
-      new Error('Active custom metric limit reached.'),
-    )
+      new Error("Active custom metric limit reached."),
+    );
 
-    renderRoute('/metrics')
+    renderRoute("/metrics");
 
-    await screen.findByRole('heading', { name: /metrics/i })
+    await screen.findByRole("heading", { name: /metrics/i });
 
-    await fillCustomMetricForm(user)
+    await fillCustomMetricForm(user);
     await user.click(
-      screen.getByRole('button', { name: /create custom metric/i }),
-    )
+      screen.getByRole("button", { name: /create custom metric/i }),
+    );
 
     expect(
       await screen.findByText(/active custom metric limit reached/i),
-    ).toBeInTheDocument()
-    expect(screen.getByLabelText(/name/i)).toHaveValue('Mood')
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/name/i)).toHaveValue("Mood");
     expect(
-      screen.getByRole('button', { name: /create custom metric/i }),
-    ).toBeEnabled()
-  })
+      screen.getByRole("button", { name: /create custom metric/i }),
+    ).toBeEnabled();
+  });
 
- it('links each metric row to its metric detail page', async () => {
+  it("links each metric row to its metric detail page", async () => {
     vi.mocked(getMe).mockResolvedValue({
-      email: 'user@example.com',
-    })
-    mockLoadedMetricDefinitions()
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
 
-    renderRoute('/metrics')
+    renderRoute("/metrics");
 
-    const metricLink = await screen.findByRole('link', {
+    const metricLink = await screen.findByRole("link", {
       name: /resting heart rate/i,
-    })
+    });
 
-    expect(metricLink).toHaveAttribute('href', '/metrics/resting_hr')
-  })
+    expect(metricLink).toHaveAttribute("href", "/metrics/resting_hr");
+  });
 
-  it('navigates to the metric detail page when a metric row is clicked', async () => {
-    const user = userEvent.setup()
+  it("navigates to the metric detail page when a metric row is clicked", async () => {
+    const user = userEvent.setup();
 
     vi.mocked(getMe).mockResolvedValue({
-      email: 'user@example.com',
-    })
-    mockLoadedMetricDefinitions()
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
 
-    renderRoute('/metrics')
+    renderRoute("/metrics");
 
     await user.click(
-      await screen.findByRole('link', { name: /resting heart rate/i }),
-    )
+      await screen.findByRole("link", { name: /resting heart rate/i }),
+    );
 
     expect(
-      await screen.findByRole('heading', { name: /resting heart rate/i }),
-    ).toBeInTheDocument()
-    expect(screen.getByText(/resting_hr · bpm/i)).toBeInTheDocument()
-  })
+      await screen.findByRole("heading", { name: /resting heart rate/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/resting_hr · bpm/i)).toBeInTheDocument();
+  });
 
-  it('updates a custom metric from the metrics catalog', async () => {
-    const user = userEvent.setup()
+  it("updates a custom metric from the metrics catalog", async () => {
+    const user = userEvent.setup();
 
     vi.mocked(getMe).mockResolvedValue({
-      email: 'user@example.com',
-    })
+      email: "user@example.com",
+    });
     mockLoadedMetricDefinitions([
       {
-        id: 'custom-metric-id',
-        name: 'Mood',
-        slug: 'mood',
-        unit: 'score',
-        category: 'custom',
+        id: "custom-metric-id",
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        category: "custom",
         min_value: 1,
         max_value: 10,
         is_default: false,
         is_active: true,
       },
-    ])
+    ]);
 
-    renderRoute('/metrics')
+    renderRoute("/metrics");
 
-    await screen.findByRole('heading', {
+    await screen.findByRole("heading", {
       level: 1,
       name: /metrics/i,
-    })
+    });
 
-    await user.click(screen.getByRole('button', { name: /edit mood/i }))
-    await user.clear(screen.getByLabelText(/mood name/i))
-    await user.type(screen.getByLabelText(/mood name/i), 'Mood Score')
-    await user.clear(screen.getByLabelText(/mood unit/i))
-    await user.type(screen.getByLabelText(/mood unit/i), 'points')
-    await user.clear(screen.getByLabelText(/mood min value/i))
-    await user.type(screen.getByLabelText(/mood min value/i), '0')
-    await user.clear(screen.getByLabelText(/mood max value/i))
-    await user.type(screen.getByLabelText(/mood max value/i), '100')
+    await user.click(screen.getByRole("button", { name: /edit mood/i }));
+    await user.clear(screen.getByLabelText(/mood name/i));
+    await user.type(screen.getByLabelText(/mood name/i), "Mood Score");
+    await user.clear(screen.getByLabelText(/mood unit/i));
+    await user.type(screen.getByLabelText(/mood unit/i), "points");
+    await user.clear(screen.getByLabelText(/mood min value/i));
+    await user.type(screen.getByLabelText(/mood min value/i), "0");
+    await user.clear(screen.getByLabelText(/mood max value/i));
+    await user.type(screen.getByLabelText(/mood max value/i), "100");
 
-    await user.click(screen.getByRole('button', { name: /save mood/i }))
+    await user.click(screen.getByRole("button", { name: /save mood/i }));
 
     expect(updateMetricDefinitionMutateAsyncMock).toHaveBeenCalledWith({
-      id: 'custom-metric-id',
+      id: "custom-metric-id",
       input: {
-        name: 'Mood Score',
-        unit: 'points',
+        name: "Mood Score",
+        unit: "points",
         minValue: 0,
         maxValue: 100,
       },
-    })
-  })
+    });
+  });
 
-  it('does not show edit actions for default metrics', async () => {
+  it("does not show edit actions for default metrics", async () => {
     vi.mocked(getMe).mockResolvedValue({
-      email: 'user@example.com',
-    })
-    mockLoadedMetricDefinitions()
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
 
-    renderRoute('/metrics')
+    renderRoute("/metrics");
 
-    await screen.findByRole('heading', {
+    await screen.findByRole("heading", {
       level: 1,
       name: /metrics/i,
-    })
+    });
 
     expect(
-      screen.queryByRole('button', { name: /edit resting heart rate/i }),
-    ).not.toBeInTheDocument()
-  })
+      screen.queryByRole("button", { name: /edit resting heart rate/i }),
+    ).not.toBeInTheDocument();
+  });
 
-  it('deactivates a custom metric from the metrics catalog', async () => {
-    const user = userEvent.setup()
+  it("deactivates a custom metric from the metrics catalog", async () => {
+    const user = userEvent.setup();
 
     vi.mocked(getMe).mockResolvedValue({
-      email: 'user@example.com',
-    })
+      email: "user@example.com",
+    });
     mockLoadedMetricDefinitions([
       {
-        id: 'default-metric-id',
-        name: 'Resting Heart Rate',
-        slug: 'resting_hr',
-        unit: 'bpm',
-        category: 'cardiovascular',
+        id: "default-metric-id",
+        name: "Resting Heart Rate",
+        slug: "resting_hr",
+        unit: "bpm",
+        category: "cardiovascular",
         min_value: 20,
         max_value: 220,
         is_default: true,
         is_active: true,
       },
       {
-        id: 'custom-metric-id',
-        name: 'Mood',
-        slug: 'mood',
-        unit: 'score',
-        category: 'custom',
+        id: "custom-metric-id",
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        category: "custom",
         min_value: 1,
         max_value: 10,
         is_default: false,
         is_active: true,
       },
-    ])
+    ]);
 
-    renderRoute('/metrics')
+    renderRoute("/metrics");
 
-    await screen.findByRole('heading', {
+    await screen.findByRole("heading", {
       level: 1,
       name: /metrics/i,
-    })
+    });
 
-    await user.click(screen.getByRole('button', { name: /deactivate mood/i }))
+    await user.click(screen.getByRole("button", { name: /deactivate mood/i }));
 
     expect(deactivateMetricDefinitionMutateAsyncMock).toHaveBeenCalledWith(
-      'custom-metric-id',
-    )
+      "custom-metric-id",
+    );
     expect(
-      screen.queryByRole('button', {
+      screen.queryByRole("button", {
         name: /deactivate resting heart rate/i,
       }),
-    ).not.toBeInTheDocument()
-  })
+    ).not.toBeInTheDocument();
+  });
 
-  it('shows an error when custom metric deactivation fails', async () => {
-    const user = userEvent.setup()
+  it("shows an error when custom metric deactivation fails", async () => {
+    const user = userEvent.setup();
 
     vi.mocked(getMe).mockResolvedValue({
-      email: 'user@example.com',
-    })
+      email: "user@example.com",
+    });
     mockLoadedMetricDefinitions([
       {
-        id: 'custom-metric-id',
-        name: 'Mood',
-        slug: 'mood',
-        unit: 'score',
-        category: 'custom',
+        id: "custom-metric-id",
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        category: "custom",
         min_value: 1,
         max_value: 10,
         is_default: false,
         is_active: true,
       },
-    ])
+    ]);
     deactivateMetricDefinitionMutateAsyncMock.mockRejectedValueOnce(
-      new Error('Metric definition request failed'),
-    )
+      new Error("Metric definition request failed"),
+    );
 
-    renderRoute('/metrics')
+    renderRoute("/metrics");
 
-    await screen.findByRole('heading', {
+    await screen.findByRole("heading", {
       level: 1,
       name: /metrics/i,
-    })
+    });
 
-    await user.click(screen.getByRole('button', { name: /deactivate mood/i }))
+    await user.click(screen.getByRole("button", { name: /deactivate mood/i }));
 
     expect(
       await screen.findByText(/metric definition request failed/i),
-    ).toBeInTheDocument()
+    ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /edit mood/i }),
-    ).toBeInTheDocument()
+      screen.getByRole("button", { name: /edit mood/i }),
+    ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /deactivate mood/i }),
-    ).toBeInTheDocument()
-  })
+      screen.getByRole("button", { name: /deactivate mood/i }),
+    ).toBeInTheDocument();
+  });
 
- it('loads active metric definitions by default', async () => {
+  it("loads active metric definitions by default", async () => {
     vi.mocked(getMe).mockResolvedValue({
-      email: 'user@example.com',
-    })
-    mockLoadedMetricDefinitions()
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
 
-    renderRoute('/metrics')
+    renderRoute("/metrics");
 
-    await screen.findByRole('heading', {
+    await screen.findByRole("heading", {
       level: 1,
       name: /metrics/i,
-    })
+    });
 
     expect(useMetricDefinitionsQuery).toHaveBeenCalledWith({
       includeInactive: false,
-    })
-  })
+    });
+  });
 
-  it('loads inactive custom metrics when requested', async () => {
-    const user = userEvent.setup()
+  it("loads inactive custom metrics when requested", async () => {
+    const user = userEvent.setup();
 
     vi.mocked(getMe).mockResolvedValue({
-      email: 'user@example.com',
-    })
-    mockLoadedMetricDefinitions()
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
 
-    renderRoute('/metrics')
+    renderRoute("/metrics");
 
-    await screen.findByRole('heading', {
+    await screen.findByRole("heading", {
       level: 1,
       name: /metrics/i,
-    })
+    });
 
     await user.click(
-      screen.getByRole('button', { name: /show deactivated custom metrics/i }),
-    )
+      screen.getByRole("button", { name: /show deactivated custom metrics/i }),
+    );
 
     expect(useMetricDefinitionsQuery).toHaveBeenLastCalledWith({
       includeInactive: true,
-    })
-  })
+    });
+  });
 
-  it('shows inactive custom metrics in a separate archived section', async () => {
-    const user = userEvent.setup()
+  it("shows inactive custom metrics in a separate archived section", async () => {
+    const user = userEvent.setup();
 
     vi.mocked(getMe).mockResolvedValue({
-      email: 'user@example.com',
-    })
+      email: "user@example.com",
+    });
     mockLoadedMetricDefinitions([
       {
-        id: 'active-metric-id',
-        name: 'Sleep Score',
-        slug: 'sleep_score',
-        unit: 'number',
-        category: 'custom',
+        id: "active-metric-id",
+        name: "Sleep Score",
+        slug: "sleep_score",
+        unit: "number",
+        category: "custom",
         min_value: 1,
         max_value: 10,
         is_default: false,
         is_active: true,
       },
       {
-        id: 'inactive-metric-id',
-        name: 'Mood',
-        slug: 'mood',
-        unit: 'score',
-        category: 'custom',
+        id: "inactive-metric-id",
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        category: "custom",
         min_value: 1,
         max_value: 10,
         is_default: false,
         is_active: false,
       },
-    ])
+    ]);
 
-    renderRoute('/metrics')
+    renderRoute("/metrics");
 
-    await screen.findByRole('heading', {
+    await screen.findByRole("heading", {
       level: 1,
       name: /metrics/i,
-    })
+    });
 
     await user.click(
-      screen.getByRole('button', { name: /show deactivated custom metrics/i }),
-    )
+      screen.getByRole("button", { name: /show deactivated custom metrics/i }),
+    );
 
-    const activeMetrics = screen.getByLabelText(/available metrics/i)
-    expect(activeMetrics).toHaveTextContent(/sleep score/i)
-    expect(activeMetrics).not.toHaveTextContent(/mood/i)
+    const activeMetrics = screen.getByLabelText(/available metrics/i);
+    expect(activeMetrics).toHaveTextContent(/sleep score/i);
+    expect(activeMetrics).not.toHaveTextContent(/mood/i);
 
-    const archivedMetrics = screen.getByRole('region', {
+    const archivedMetrics = screen.getByRole("region", {
       name: /archived custom metrics/i,
-    })
-    expect(archivedMetrics).toHaveTextContent(/mood/i)
+    });
+    expect(archivedMetrics).toHaveTextContent(/mood/i);
     expect(
       within(archivedMetrics).getByText(/^archived$/i, {
-        selector: '.archived-status-pill',
+        selector: ".archived-status-pill",
       }),
-    ).toBeInTheDocument()
+    ).toBeInTheDocument();
     expect(
-      within(archivedMetrics).queryByRole('link', { name: /mood/i }),
-    ).not.toBeInTheDocument()
-  }) 
+      within(archivedMetrics).queryByRole("link", { name: /mood/i }),
+    ).not.toBeInTheDocument();
+  });
 
-  it('reactivates an archived custom metric from the metrics catalog', async () => {
-    const user = userEvent.setup()
+  it("reactivates an archived custom metric from the metrics catalog", async () => {
+    const user = userEvent.setup();
 
     vi.mocked(getMe).mockResolvedValue({
-      email: 'user@example.com',
-    })
+      email: "user@example.com",
+    });
     mockLoadedMetricDefinitions([
       {
-        id: 'inactive-metric-id',
-        name: 'Mood',
-        slug: 'mood',
-        unit: 'score',
-        category: 'custom',
+        id: "inactive-metric-id",
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        category: "custom",
         min_value: 1,
         max_value: 10,
         is_default: false,
         is_active: false,
       },
-    ])
+    ]);
 
-    renderRoute('/metrics')
+    renderRoute("/metrics");
 
-    await screen.findByRole('heading', {
+    await screen.findByRole("heading", {
       level: 1,
       name: /metrics/i,
-    })
+    });
 
     await user.click(
-      screen.getByRole('button', { name: /show deactivated custom metrics/i }),
-    )
-    await user.click(screen.getByRole('button', { name: /reactivate mood/i }))
+      screen.getByRole("button", { name: /show deactivated custom metrics/i }),
+    );
+    await user.click(screen.getByRole("button", { name: /reactivate mood/i }));
 
     expect(reactivateMetricDefinitionMutateAsyncMock).toHaveBeenCalledWith(
-      'inactive-metric-id',
-    )
-  })
+      "inactive-metric-id",
+    );
+  });
 
-  it('shows an error when archived custom metric reactivation fails', async () => {
-    const user = userEvent.setup()
+  it("shows an error when archived custom metric reactivation fails", async () => {
+    const user = userEvent.setup();
 
     vi.mocked(getMe).mockResolvedValue({
-      email: 'user@example.com',
-    })
+      email: "user@example.com",
+    });
     mockLoadedMetricDefinitions([
       {
-        id: 'inactive-metric-id',
-        name: 'Mood',
-        slug: 'mood',
-        unit: 'score',
-        category: 'custom',
+        id: "inactive-metric-id",
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        category: "custom",
         min_value: 1,
         max_value: 10,
         is_default: false,
         is_active: false,
       },
-    ])
+    ]);
     reactivateMetricDefinitionMutateAsyncMock.mockRejectedValueOnce(
-      new Error('Metric definition request failed'),
-    )
+      new Error("Metric definition request failed"),
+    );
 
-    renderRoute('/metrics')
+    renderRoute("/metrics");
 
-    await screen.findByRole('heading', {
+    await screen.findByRole("heading", {
       level: 1,
       name: /metrics/i,
-    })
+    });
 
     await user.click(
-      screen.getByRole('button', { name: /show deactivated custom metrics/i }),
-    )
-    await user.click(screen.getByRole('button', { name: /reactivate mood/i }))
+      screen.getByRole("button", { name: /show deactivated custom metrics/i }),
+    );
+    await user.click(screen.getByRole("button", { name: /reactivate mood/i }));
 
     expect(
       await screen.findByText(/metric definition request failed/i),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /mood/i })).toBeInTheDocument()
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /mood/i })).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /reactivate mood/i }),
-    ).toBeInTheDocument()
-  })
-
-})
+      screen.getByRole("button", { name: /reactivate mood/i }),
+    ).toBeInTheDocument();
+  });
+});

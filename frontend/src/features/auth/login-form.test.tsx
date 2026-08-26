@@ -33,54 +33,56 @@ describe("LoginForm", () => {
     expect(handleSubmit).not.toHaveBeenCalled();
   });
 
-  it('shows a validation message when submitted empty', async () => {
-      const user = userEvent.setup()
-      const handleSubmit = vi.fn()
+  it("shows a validation message when submitted empty", async () => {
+    const user = userEvent.setup();
+    const handleSubmit = vi.fn();
 
-      render(<LoginForm onSubmit={handleSubmit} />)
+    render(<LoginForm onSubmit={handleSubmit} />);
 
-      await user.click(screen.getByRole('button', { name: /login/i }))
-
-      expect(await screen.findByText(/email and password are required/i)).toBeInTheDocument()
-    })
-
-    it('clears the validation message after a valid submit', async () => {
-      const user = userEvent.setup()
-      const handleSubmit = vi.fn()
-
-      render(<LoginForm onSubmit={handleSubmit} />)
-
-      await user.click(screen.getByRole('button', { name: /login/i }))
-
-      expect(
-        await screen.findByText(/email and password are required/i),
-      ).toBeInTheDocument()
-
-      await user.type(screen.getByLabelText(/email/i), 'user@example.com')
-      await user.type(screen.getByLabelText(/password/i), 'secret123')
-      await user.click(screen.getByRole('button', { name: /login/i }))
-
-      expect(
-        screen.queryByText(/email and password are required/i),
-      ).not.toBeInTheDocument()
-    })
-
-    it('clears the validation message when the user starts typing', async () => {
-    const user = userEvent.setup()
-    const handleSubmit = vi.fn()
-
-    render(<LoginForm onSubmit={handleSubmit} />)
-
-    await user.click(screen.getByRole('button', { name: /login/i }))
+    await user.click(screen.getByRole("button", { name: /login/i }));
 
     expect(
       await screen.findByText(/email and password are required/i),
-    ).toBeInTheDocument()
+    ).toBeInTheDocument();
+  });
 
-    await user.type(screen.getByLabelText(/email/i), 'user@example.com')
+  it("clears the validation message after a valid submit", async () => {
+    const user = userEvent.setup();
+    const handleSubmit = vi.fn();
+
+    render(<LoginForm onSubmit={handleSubmit} />);
+
+    await user.click(screen.getByRole("button", { name: /login/i }));
+
+    expect(
+      await screen.findByText(/email and password are required/i),
+    ).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/email/i), "user@example.com");
+    await user.type(screen.getByLabelText(/password/i), "secret123");
+    await user.click(screen.getByRole("button", { name: /login/i }));
 
     expect(
       screen.queryByText(/email and password are required/i),
-    ).not.toBeInTheDocument()
-  })
+    ).not.toBeInTheDocument();
+  });
+
+  it("clears the validation message when the user starts typing", async () => {
+    const user = userEvent.setup();
+    const handleSubmit = vi.fn();
+
+    render(<LoginForm onSubmit={handleSubmit} />);
+
+    await user.click(screen.getByRole("button", { name: /login/i }));
+
+    expect(
+      await screen.findByText(/email and password are required/i),
+    ).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/email/i), "user@example.com");
+
+    expect(
+      screen.queryByText(/email and password are required/i),
+    ).not.toBeInTheDocument();
+  });
 });

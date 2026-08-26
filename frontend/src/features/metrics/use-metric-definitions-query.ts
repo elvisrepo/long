@@ -4,13 +4,13 @@ import {
   getMetricDefinitions,
   type GetMetricDefinitionsOptions,
   type MetricDefinition,
-} from './metric-definitions-api'
+} from "./metric-definitions-api";
 
 export function useMetricDefinitionsQuery(
   options: GetMetricDefinitionsOptions = {},
 ) {
   return useQuery<MetricDefinition[]>({
-    queryKey: ['metric-definitions', options],
+    queryKey: ["metric-definitions", options],
     queryFn: () => getMetricDefinitions(options),
-  })
+  });
 }

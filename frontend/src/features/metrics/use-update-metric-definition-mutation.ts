@@ -1,18 +1,18 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
   type MetricDefinition,
   type UpdateMetricDefinitionInput,
   updateMetricDefinition,
-} from './metric-definitions-api'
+} from "./metric-definitions-api";
 
 interface UpdateMetricDefinitionMutationInput {
-  id: string
-  input: UpdateMetricDefinitionInput
+  id: string;
+  input: UpdateMetricDefinitionInput;
 }
 
 export function useUpdateMetricDefinitionMutation() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation<
     MetricDefinition,
@@ -21,7 +21,7 @@ export function useUpdateMetricDefinitionMutation() {
   >({
     mutationFn: ({ id, input }) => updateMetricDefinition(id, input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['metric-definitions'] })
+      queryClient.invalidateQueries({ queryKey: ["metric-definitions"] });
     },
-  })
+  });
 }

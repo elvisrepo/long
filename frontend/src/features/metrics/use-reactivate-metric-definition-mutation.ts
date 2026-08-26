@@ -1,22 +1,22 @@
- import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-  import {
-    type MetricDefinition,
-    updateMetricDefinition,
-  } from './metric-definitions-api'
+import {
+  type MetricDefinition,
+  updateMetricDefinition,
+} from "./metric-definitions-api";
 
-  export function useReactivateMetricDefinitionMutation() {
-    const queryClient = useQueryClient()
+export function useReactivateMetricDefinitionMutation() {
+  const queryClient = useQueryClient();
 
-    return useMutation<MetricDefinition, Error, string>({
-      mutationFn: (id) =>
-        updateMetricDefinition(id, {
-          isActive: true,
-        }),
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['metric-definitions'] })
-        queryClient.invalidateQueries({ queryKey: ['metric-entries'] })
-        queryClient.invalidateQueries({ queryKey: ['metric-usage'] })
-      },
-    })
-  }
+  return useMutation<MetricDefinition, Error, string>({
+    mutationFn: (id) =>
+      updateMetricDefinition(id, {
+        isActive: true,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["metric-definitions"] });
+      queryClient.invalidateQueries({ queryKey: ["metric-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["metric-usage"] });
+    },
+  });
+}
