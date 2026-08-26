@@ -1,0 +1,14 @@
+x-backend-image: &backend-image
+  image: longevity-backend:production-smoke
+  build:
+    context: .
+    dockerfile: Dockerfile
+    target: production
+
+services:
+  migration:
+    <<: *backend-image
+    command: ["python", "manage.py", "migrate", "--no-input"]
+
+  api:
+    <<: *backend-image

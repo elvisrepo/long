@@ -10,10 +10,27 @@ Scenario list:
 """
 
 import subprocess
+from pathlib import Path
 
 import pytest
 
 from scripts.production_deployment import deploy_backend
+
+
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+PRODUCTION_COMPOSE_FILE = BACKEND_DIR / "docker-compose.production-smoke.yml"
+
+
+def test_migration_and_api_share_production_image() -> None:
+    compose = PRODUCTION_COMPOSE_FILE.read_text()
+
+    assert "x-backend-image: &backend-image" in compose
+    assert "target: production" in compose
+    assert compose.count("<<: *backend-image") == 2
+    assert (
+        'command: ["python", "manage.py", "migrate", "--no-input"]'
+        in compose
+    )
 
 
 def test_migration_runs_before_api_promotion(
