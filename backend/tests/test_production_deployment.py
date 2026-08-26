@@ -57,6 +57,15 @@ def test_migration_and_api_wait_for_disposable_database() -> None:
     assert compose.count("condition: service_healthy") == 2
 
 
+def test_api_health_check_uses_readiness_with_proxy_metadata() -> None:
+    compose = PRODUCTION_COMPOSE_FILE.read_text()
+
+    assert '"127.0.0.1:18000:8000"' in compose
+    assert "/api/v1/health/ready/" in compose
+    assert '"X-Forwarded-Proto": "https"' in compose
+    assert "start_period:" in compose
+
+
 def test_migration_runs_before_api_promotion(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

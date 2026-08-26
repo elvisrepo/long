@@ -47,6 +47,24 @@ services:
   api:
     <<: *backend-image
     environment: *backend-environment
+    ports:
+      - "127.0.0.1:18000:8000"
     depends_on:
       database:
         condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import urllib.request
+          request = urllib.request.Request(
+              "http://127.0.0.1:8000/api/v1/health/ready/",
+              headers={"X-Forwarded-Proto": "https"},
+          )
+          urllib.request.urlopen(request, timeout=3).close()
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 5s
