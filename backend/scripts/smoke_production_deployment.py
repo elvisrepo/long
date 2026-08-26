@@ -6,6 +6,7 @@ validation and in-memory injection boundary used by staging deployments.
 
 import json
 import sys
+from collections.abc import Mapping
 
 from scripts.staging_runtime import parse_runtime_secret, run_deployment_command
 
@@ -36,10 +37,13 @@ INERT_RUNTIME_SECRET = {
 }
 
 
-def deploy_smoke_stack() -> None:
+def deploy_smoke_stack(
+    runtime_environment: Mapping[str, str] | None = None,
+) -> None:
     """Validate one inert snapshot and inject it into Step 8 orchestration."""
 
-    runtime_environment = parse_runtime_secret(json.dumps(INERT_RUNTIME_SECRET))
+    if runtime_environment is None:
+        runtime_environment = parse_runtime_secret(json.dumps(INERT_RUNTIME_SECRET))
     command = [
         sys.executable,
         "-m",
@@ -50,3 +54,32 @@ def deploy_smoke_stack() -> None:
         PROJECT_NAME,
     ]
     run_deployment_command(command, runtime_environment)
+
+
+def cleanup_smoke_stack(runtime_environment: Mapping[str, str]) -> None:
+    """Remove every resource owned by the disposable smoke project."""
+
+    command = [
+        "docker",
+        "compose",
+        "--project-name",
+        PROJECT_NAME,
+        "--env-file",
+        "/dev/null",
+        "--file",
+        COMPOSE_FILE,
+        "down",
+        "--volumes",
+        "--remove-orphans",
+    ]
+    run_deployment_command(command, runtime_environment)
+
+
+def run_smoke() -> None:
+    """Deploy the disposable stack and always attempt to clean it up."""
+
+    runtime_environment = parse_runtime_secret(json.dumps(INERT_RUNTIME_SECRET))
+    try:
+        deploy_smoke_stack(runtime_environment)
+    finally:
+        cleanup_smoke_stack(runtime_environment)

@@ -1,11 +1,13 @@
 """Contract tests for the executable production-like deployment smoke."""
 
+import subprocess
+
 import pytest
 
 from config.settings.production_environment import (
     REQUIRED_ENVIRONMENT_VARIABLES,
 )
-from scripts.smoke_production_deployment import deploy_smoke_stack
+from scripts.smoke_production_deployment import deploy_smoke_stack, run_smoke
 
 
 def test_smoke_deployment_uses_step7_environment_injection(
@@ -38,3 +40,42 @@ def test_smoke_deployment_uses_step7_environment_injection(
     ]
     assert set(runtime_environment) == set(REQUIRED_ENVIRONMENT_VARIABLES)
     assert all(value not in command for value in runtime_environment.values())
+
+
+def test_smoke_cleanup_is_attempted_when_deployment_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    invocations: list[tuple[list[str], dict[str, str]]] = []
+
+    def fake_run_deployment_command(
+        command: list[str],
+        runtime_environment: dict[str, str],
+    ) -> None:
+        invocations.append((command, runtime_environment))
+        if len(invocations) == 1:
+            raise subprocess.CalledProcessError(returncode=17, cmd=command)
+
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.run_deployment_command",
+        fake_run_deployment_command,
+    )
+
+    with pytest.raises(subprocess.CalledProcessError) as error:
+        run_smoke()
+
+    assert error.value.returncode == 17
+    assert len(invocations) == 2
+    cleanup_command, _ = invocations[1]
+    assert cleanup_command == [
+        "docker",
+        "compose",
+        "--project-name",
+        "longevity-production-smoke",
+        "--env-file",
+        "/dev/null",
+        "--file",
+        "docker-compose.production-smoke.yml",
+        "down",
+        "--volumes",
+        "--remove-orphans",
+    ]
