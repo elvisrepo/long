@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "static_behaviors": {
+    "immutable_assets": {
+      "path_pattern": "assets/*",
+      "allowed_methods": ["GET", "HEAD", "OPTIONS"],
+      "cached_methods": ["GET", "HEAD", "OPTIONS"],
+      "compress": true,
+      "cache_policy": {
+        "type": "aws_managed",
+        "name": "CachingOptimized",
+        "id": "658327ea-f89d-4fab-a63d-7e88639e58f6"
+      },
+      "upload_cache_control": "public,max-age=31536000,immutable"
+    },
+    "application_shell": {
+      "path_pattern": "default",
+      "allowed_methods": ["GET", "HEAD", "OPTIONS"],
+      "cached_methods": ["GET", "HEAD", "OPTIONS"],
+      "compress": true,
+      "cache_policy": {
+        "type": "custom",
+        "minimum_ttl_seconds": 0,
+        "default_ttl_seconds": 0,
+        "maximum_ttl_seconds": 0,
+        "headers": "none",
+        "cookies": "none",
+        "query_strings": "none"
+      },
+      "upload_cache_control": "no-cache,no-store,must-revalidate"
+    }
+  }
+}
