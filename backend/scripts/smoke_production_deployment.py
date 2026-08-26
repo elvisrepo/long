@@ -122,6 +122,7 @@ def run_smoke() -> None:
     try:
         deploy_smoke_stack(runtime_environment)
         verify_smoke_liveness()
+        verify_smoke_readiness()
     finally:
         cleanup_smoke_stack(runtime_environment)
 

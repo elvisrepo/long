@@ -172,7 +172,7 @@ def test_smoke_liveness_probe_uses_the_public_proxy_contract(
     response.read.assert_called_once_with()
 
 
-def test_smoke_lifecycle_verifies_liveness_before_cleanup(
+def test_smoke_lifecycle_verifies_health_before_cleanup(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     lifecycle_events: list[str] = []
@@ -182,6 +182,9 @@ def test_smoke_lifecycle_verifies_liveness_before_cleanup(
 
     def fake_verify_smoke_liveness() -> None:
         lifecycle_events.append("verify-liveness")
+
+    def fake_verify_smoke_readiness() -> None:
+        lifecycle_events.append("verify-readiness")
 
     def fake_cleanup_smoke_stack(runtime_environment: object) -> None:
         lifecycle_events.append("cleanup")
@@ -195,13 +198,22 @@ def test_smoke_lifecycle_verifies_liveness_before_cleanup(
         fake_verify_smoke_liveness,
     )
     monkeypatch.setattr(
+        "scripts.smoke_production_deployment.verify_smoke_readiness",
+        fake_verify_smoke_readiness,
+    )
+    monkeypatch.setattr(
         "scripts.smoke_production_deployment.cleanup_smoke_stack",
         fake_cleanup_smoke_stack,
     )
 
     run_smoke()
 
-    assert lifecycle_events == ["deploy", "verify-liveness", "cleanup"]
+    assert lifecycle_events == [
+        "deploy",
+        "verify-liveness",
+        "verify-readiness",
+        "cleanup",
+    ]
 
 
 def test_smoke_readiness_probe_uses_the_public_proxy_contract(
