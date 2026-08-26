@@ -98,6 +98,12 @@ def main() -> int:
             file=sys.stderr,
         )
         return exit_code
+    except OSError:
+        print(
+            "error: unable to start production smoke command",
+            file=sys.stderr,
+        )
+        return 1
 
     return 0
 

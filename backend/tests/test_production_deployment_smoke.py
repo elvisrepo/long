@@ -115,3 +115,21 @@ def test_smoke_cli_reports_subprocess_failure_without_traceback(
     assert capsys.readouterr().err == (
         "error: production smoke failed with exit code 17\n"
     )
+
+
+def test_smoke_cli_reports_command_start_failure_without_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def fake_run_smoke() -> None:
+        raise OSError("docker executable is unavailable")
+
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.run_smoke",
+        fake_run_smoke,
+    )
+
+    assert main() == 1
+    assert capsys.readouterr().err == (
+        "error: unable to start production smoke command\n"
+    )
