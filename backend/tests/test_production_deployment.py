@@ -17,7 +17,7 @@ import pytest
 from config.settings.production_environment import (
     REQUIRED_ENVIRONMENT_VARIABLES,
 )
-from scripts.production_deployment import deploy_backend
+from scripts.production_deployment import deploy_backend, main
 
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -155,3 +155,30 @@ def test_migration_and_api_receive_same_environment_snapshot(
     assert len(environments) == 2
     assert environments[0] is environments[1]
     assert environments[0]["SECRET_KEY"] == "one-snapshot"
+
+
+def test_cli_runs_production_deployment_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    deployments: list[tuple[str, str]] = []
+
+    def fake_deploy_backend(*, compose_file: str, project_name: str) -> None:
+        deployments.append((compose_file, project_name))
+
+    monkeypatch.setattr(
+        "scripts.production_deployment.deploy_backend",
+        fake_deploy_backend,
+    )
+
+    exit_code = main([
+        "--compose-file",
+        "docker-compose.production-smoke.yml",
+        "--project-name",
+        "longevity-production-smoke",
+    ])
+
+    assert exit_code == 0
+    assert deployments == [(
+        "docker-compose.production-smoke.yml",
+        "longevity-production-smoke",
+    )]

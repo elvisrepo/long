@@ -4,8 +4,10 @@ The parent Step 7 loader supplies the validated runtime snapshot through this
 process's environment. Both Docker Compose calls inherit that same snapshot.
 """
 
+import argparse
 import os
 import subprocess
+from collections.abc import Sequence
 
 
 def deploy_backend(*, compose_file: str, project_name: str) -> None:
@@ -35,3 +37,22 @@ def deploy_backend(*, compose_file: str, project_name: str) -> None:
         check=True,
         env=deployment_environment,
     )
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Run the configured migration-first deployment sequence."""
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--compose-file", required=True)
+    parser.add_argument("--project-name", required=True)
+    arguments = parser.parse_args(list(argv) if argv is not None else None)
+
+    deploy_backend(
+        compose_file=arguments.compose_file,
+        project_name=arguments.project_name,
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
