@@ -53,7 +53,10 @@ def _verify_smoke_health(*, path: str, failure_message: str) -> None:
     )
     with request.urlopen(health_request, timeout=5.0) as response:
         status = response.status
-        payload = json.loads(response.read())
+        try:
+            payload = json.loads(response.read())
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            raise SmokeVerificationError(failure_message) from None
 
     if status != 200 or payload != {"status": "ok"}:
         raise SmokeVerificationError(failure_message)

@@ -191,6 +191,25 @@ def test_smoke_liveness_probe_uses_the_public_proxy_contract(
     response.read.assert_called_once_with()
 
 
+def test_smoke_probe_rejects_malformed_json_without_exposing_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = MagicMock()
+    response.__enter__.return_value = response
+    response.status = 200
+    response.read.return_value = b"not-json secret-response-content"
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.request.urlopen",
+        lambda request, *, timeout: response,
+    )
+
+    with pytest.raises(SmokeVerificationError) as error:
+        verify_smoke_liveness()
+
+    assert str(error.value) == "production smoke liveness check failed"
+    assert "secret-response-content" not in str(error.value)
+
+
 def test_smoke_lifecycle_verifies_health_before_cleanup(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
