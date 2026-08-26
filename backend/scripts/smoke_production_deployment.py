@@ -8,12 +8,14 @@ import json
 import subprocess
 import sys
 from collections.abc import Mapping
+from urllib import request
 
 from scripts.staging_runtime import parse_runtime_secret, run_deployment_command
 
 
 COMPOSE_FILE = "docker-compose.production-smoke.yml"
 PROJECT_NAME = "longevity-production-smoke"
+SMOKE_API_ORIGIN = "http://127.0.0.1:18000"
 
 # These values are deliberately non-production and exist only for the
 # disposable local smoke stack. Keeping the full snapshot here makes contract
@@ -36,6 +38,25 @@ INERT_RUNTIME_SECRET = {
     "LOG_LEVEL": "INFO",
     "DJANGO_LOG_LEVEL": "INFO",
 }
+
+
+class SmokeVerificationError(RuntimeError):
+    """Report an unexpected smoke response without exposing its content."""
+
+
+def verify_smoke_liveness() -> None:
+    """Verify Gunicorn serves the public liveness contract through loopback."""
+
+    health_request = request.Request(
+        f"{SMOKE_API_ORIGIN}/api/v1/health/live/",
+        headers={"X-Forwarded-Proto": "https"},
+    )
+    with request.urlopen(health_request, timeout=5.0) as response:
+        status = response.status
+        payload = json.loads(response.read())
+
+    if status != 200 or payload != {"status": "ok"}:
+        raise SmokeVerificationError("production smoke liveness check failed")
 
 
 def deploy_smoke_stack(

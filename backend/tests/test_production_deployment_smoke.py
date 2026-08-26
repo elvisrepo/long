@@ -1,13 +1,19 @@
 """Contract tests for the executable production-like deployment smoke."""
 
 import subprocess
+from unittest.mock import MagicMock
 
 import pytest
 
 from config.settings.production_environment import (
     REQUIRED_ENVIRONMENT_VARIABLES,
 )
-from scripts.smoke_production_deployment import deploy_smoke_stack, main, run_smoke
+from scripts.smoke_production_deployment import (
+    deploy_smoke_stack,
+    main,
+    run_smoke,
+    verify_smoke_liveness,
+)
 
 
 def test_smoke_deployment_uses_step7_environment_injection(
@@ -133,3 +139,33 @@ def test_smoke_cli_reports_command_start_failure_without_traceback(
     assert capsys.readouterr().err == (
         "error: unable to start production smoke command\n"
     )
+
+
+def test_smoke_liveness_probe_uses_the_public_proxy_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = MagicMock()
+    response.__enter__.return_value = response
+    response.status = 200
+    response.read.return_value = b'{"status": "ok"}'
+    requests: list[tuple[object, float]] = []
+
+    def fake_urlopen(request: object, *, timeout: float) -> MagicMock:
+        requests.append((request, timeout))
+        return response
+
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.request.urlopen",
+        fake_urlopen,
+    )
+
+    verify_smoke_liveness()
+
+    assert len(requests) == 1
+    health_request, timeout = requests[0]
+    assert health_request.full_url == (
+        "http://127.0.0.1:18000/api/v1/health/live/"
+    )
+    assert health_request.get_header("X-forwarded-proto") == "https"
+    assert timeout == 5.0
+    response.read.assert_called_once_with()
