@@ -132,6 +132,12 @@ def main() -> int:
 
     try:
         run_smoke()
+    except SmokeVerificationError:
+        print(
+            "error: production smoke health verification failed",
+            file=sys.stderr,
+        )
+        return 1
     except subprocess.CalledProcessError as error:
         exit_code = error.returncode if 1 <= error.returncode <= 255 else 1
         print(
