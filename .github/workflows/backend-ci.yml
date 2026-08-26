@@ -45,3 +45,7 @@ jobs:
 
       - name: Smoke test production image
         run: ./scripts/smoke_prod_image.sh
+
+      - name: Production-like deployment smoke
+        timeout-minutes: 10
+        run: uv run python -m scripts.smoke_production_deployment

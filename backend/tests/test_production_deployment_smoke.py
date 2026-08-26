@@ -1,6 +1,7 @@
 """Contract tests for the executable production-like deployment smoke."""
 
 import subprocess
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -16,6 +17,10 @@ from scripts.smoke_production_deployment import (
     verify_smoke_liveness,
     verify_smoke_readiness,
 )
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+BACKEND_CI_WORKFLOW = REPOSITORY_ROOT / ".github/workflows/backend-ci.yml"
 
 
 def test_smoke_deployment_uses_step7_environment_injection(
@@ -282,3 +287,14 @@ def test_smoke_readiness_probe_uses_the_public_proxy_contract(
     assert health_request.get_header("X-forwarded-proto") == "https"
     assert timeout == 5.0
     response.read.assert_called_once_with()
+
+
+def test_backend_ci_runs_the_complete_production_deployment_smoke() -> None:
+    workflow = BACKEND_CI_WORKFLOW.read_text()
+
+    assert (
+        "      - name: Production-like deployment smoke\n"
+        "        timeout-minutes: 10\n"
+        "        run: uv run python -m scripts.smoke_production_deployment\n"
+        in workflow
+    )
