@@ -44,11 +44,11 @@ class SmokeVerificationError(RuntimeError):
     """Report an unexpected smoke response without exposing its content."""
 
 
-def verify_smoke_liveness() -> None:
-    """Verify Gunicorn serves the public liveness contract through loopback."""
+def _verify_smoke_health(*, path: str, failure_message: str) -> None:
+    """Verify one public health response without exposing unexpected content."""
 
     health_request = request.Request(
-        f"{SMOKE_API_ORIGIN}/api/v1/health/live/",
+        f"{SMOKE_API_ORIGIN}{path}",
         headers={"X-Forwarded-Proto": "https"},
     )
     with request.urlopen(health_request, timeout=5.0) as response:
@@ -56,7 +56,25 @@ def verify_smoke_liveness() -> None:
         payload = json.loads(response.read())
 
     if status != 200 or payload != {"status": "ok"}:
-        raise SmokeVerificationError("production smoke liveness check failed")
+        raise SmokeVerificationError(failure_message)
+
+
+def verify_smoke_liveness() -> None:
+    """Verify Gunicorn serves the public liveness contract through loopback."""
+
+    _verify_smoke_health(
+        path="/api/v1/health/live/",
+        failure_message="production smoke liveness check failed",
+    )
+
+
+def verify_smoke_readiness() -> None:
+    """Verify the public API can query its disposable PostgreSQL database."""
+
+    _verify_smoke_health(
+        path="/api/v1/health/ready/",
+        failure_message="production smoke readiness check failed",
+    )
 
 
 def deploy_smoke_stack(

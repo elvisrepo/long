@@ -13,6 +13,7 @@ from scripts.smoke_production_deployment import (
     main,
     run_smoke,
     verify_smoke_liveness,
+    verify_smoke_readiness,
 )
 
 
@@ -201,3 +202,33 @@ def test_smoke_lifecycle_verifies_liveness_before_cleanup(
     run_smoke()
 
     assert lifecycle_events == ["deploy", "verify-liveness", "cleanup"]
+
+
+def test_smoke_readiness_probe_uses_the_public_proxy_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = MagicMock()
+    response.__enter__.return_value = response
+    response.status = 200
+    response.read.return_value = b'{"status": "ok"}'
+    requests: list[tuple[object, float]] = []
+
+    def fake_urlopen(request: object, *, timeout: float) -> MagicMock:
+        requests.append((request, timeout))
+        return response
+
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.request.urlopen",
+        fake_urlopen,
+    )
+
+    verify_smoke_readiness()
+
+    assert len(requests) == 1
+    health_request, timeout = requests[0]
+    assert health_request.full_url == (
+        "http://127.0.0.1:18000/api/v1/health/ready/"
+    )
+    assert health_request.get_header("X-forwarded-proto") == "https"
+    assert timeout == 5.0
+    response.read.assert_called_once_with()
