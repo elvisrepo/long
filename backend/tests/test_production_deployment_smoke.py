@@ -169,3 +169,35 @@ def test_smoke_liveness_probe_uses_the_public_proxy_contract(
     assert health_request.get_header("X-forwarded-proto") == "https"
     assert timeout == 5.0
     response.read.assert_called_once_with()
+
+
+def test_smoke_lifecycle_verifies_liveness_before_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    lifecycle_events: list[str] = []
+
+    def fake_deploy_smoke_stack(runtime_environment: object) -> None:
+        lifecycle_events.append("deploy")
+
+    def fake_verify_smoke_liveness() -> None:
+        lifecycle_events.append("verify-liveness")
+
+    def fake_cleanup_smoke_stack(runtime_environment: object) -> None:
+        lifecycle_events.append("cleanup")
+
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.deploy_smoke_stack",
+        fake_deploy_smoke_stack,
+    )
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.verify_smoke_liveness",
+        fake_verify_smoke_liveness,
+    )
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.cleanup_smoke_stack",
+        fake_cleanup_smoke_stack,
+    )
+
+    run_smoke()
+
+    assert lifecycle_events == ["deploy", "verify-liveness", "cleanup"]

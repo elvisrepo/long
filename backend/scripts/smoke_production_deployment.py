@@ -103,6 +103,7 @@ def run_smoke() -> None:
     runtime_environment = parse_runtime_secret(json.dumps(INERT_RUNTIME_SECRET))
     try:
         deploy_smoke_stack(runtime_environment)
+        verify_smoke_liveness()
     finally:
         cleanup_smoke_stack(runtime_environment)
 
