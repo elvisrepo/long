@@ -16,6 +16,105 @@ function loadContract(): Record<string, unknown> {
 }
 
 describe("CloudFront static delivery contract", () => {
+  it("uses a private S3 REST origin with every public-access block", () => {
+    const contract = loadContract();
+
+    expect(contract).toMatchObject({
+      static_origin: {
+        service: "s3",
+        endpoint_type: "regional_rest",
+        website_hosting: false,
+        bucket: {
+          access: "private",
+          block_public_access: {
+            block_public_acls: true,
+            ignore_public_acls: true,
+            block_public_policy: true,
+            restrict_public_buckets: true,
+          },
+        },
+      },
+    });
+  });
+
+  it("hardens stored frontend objects and preserves overwritten versions", () => {
+    const contract = loadContract();
+
+    expect(contract).toMatchObject({
+      static_origin: {
+        bucket: {
+          object_ownership: "BucketOwnerEnforced",
+          encryption: {
+            type: "SSE-S3",
+            algorithm: "AES256",
+          },
+          transport: "https_only",
+          versioning: "enabled",
+        },
+      },
+    });
+  });
+
+  it("allows CloudFront through Origin Access Control only", () => {
+    const contract = loadContract();
+
+    expect(contract).toMatchObject({
+      static_origin: {
+        cloudfront_access: {
+          mechanism: "origin_access_control",
+          legacy_origin_access_identity: false,
+          origin_type: "s3",
+          signing_behavior: "always",
+          signing_protocol: "sigv4",
+        },
+      },
+    });
+  });
+
+  it("scopes the bucket policy to one CloudFront distribution", () => {
+    const contract = loadContract();
+
+    expect(contract).toMatchObject({
+      static_origin: {
+        bucket: {
+          bucket_policy: {
+            public_principal_allowed: false,
+            deny_insecure_transport: true,
+            cloudfront_read: {
+              principal_service: "cloudfront.amazonaws.com",
+              actions: ["s3:GetObject"],
+              resource_scope: "objects_only",
+              source_distribution_arn_required: true,
+              source_account_required: true,
+            },
+          },
+        },
+      },
+    });
+  });
+
+  it("requires encrypted access and audit visibility", () => {
+    const contract = loadContract();
+
+    expect(contract).toMatchObject({
+      static_origin: {
+        observability: {
+          server_access_logging: {
+            enabled: true,
+            destination_encryption: "SSE-S3",
+          },
+          cloudtrail_data_events: {
+            enabled: true,
+            destination_encryption: "SSE-KMS",
+          },
+          cloudwatch_request_metrics: {
+            enabled: true,
+          },
+        },
+      },
+    });
+  });
+
   it("retains superseded hashed assets during deployment", () => {
     const contract = loadContract();
 
@@ -23,7 +122,7 @@ describe("CloudFront static delivery contract", () => {
       upload: {
         delete_removed_objects: false,
         application_shell_position: "last",
-        superseded_asset_retention_days: 30,
+        superseded_asset_retention: "indefinite_until_manifest_aware_cleanup",
       },
     });
   });

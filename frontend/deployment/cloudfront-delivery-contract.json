@@ -3,7 +3,59 @@
   "upload": {
     "delete_removed_objects": false,
     "application_shell_position": "last",
-    "superseded_asset_retention_days": 30
+    "superseded_asset_retention": "indefinite_until_manifest_aware_cleanup"
+  },
+  "static_origin": {
+    "service": "s3",
+    "endpoint_type": "regional_rest",
+    "website_hosting": false,
+    "cloudfront_access": {
+      "mechanism": "origin_access_control",
+      "legacy_origin_access_identity": false,
+      "origin_type": "s3",
+      "signing_behavior": "always",
+      "signing_protocol": "sigv4"
+    },
+    "observability": {
+      "server_access_logging": {
+        "enabled": true,
+        "destination_encryption": "SSE-S3"
+      },
+      "cloudtrail_data_events": {
+        "enabled": true,
+        "destination_encryption": "SSE-KMS"
+      },
+      "cloudwatch_request_metrics": {
+        "enabled": true
+      }
+    },
+    "bucket": {
+      "access": "private",
+      "object_ownership": "BucketOwnerEnforced",
+      "encryption": {
+        "type": "SSE-S3",
+        "algorithm": "AES256"
+      },
+      "transport": "https_only",
+      "versioning": "enabled",
+      "bucket_policy": {
+        "public_principal_allowed": false,
+        "deny_insecure_transport": true,
+        "cloudfront_read": {
+          "principal_service": "cloudfront.amazonaws.com",
+          "actions": ["s3:GetObject"],
+          "resource_scope": "objects_only",
+          "source_distribution_arn_required": true,
+          "source_account_required": true
+        }
+      },
+      "block_public_access": {
+        "block_public_acls": true,
+        "ignore_public_acls": true,
+        "block_public_policy": true,
+        "restrict_public_buckets": true
+      }
+    }
   },
   "static_behaviors": {
     "immutable_assets": {
