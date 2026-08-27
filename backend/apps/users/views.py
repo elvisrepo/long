@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -39,7 +40,7 @@ def build_refresh_cookie_response(
           key=REFRESH_TOKEN_COOKIE_NAME,
           value=refresh_token,
           httponly=True,
-          secure=True,
+          secure=settings.REFRESH_TOKEN_COOKIE_SECURE,
           samesite="Lax",
       )
       return response

@@ -40,6 +40,10 @@ CSRF_TRUSTED_ORIGINS = [
       if origin.strip()
   ]
 
+# Local and browser-E2E origins use HTTP. Public settings must override this so
+# the HttpOnly refresh cookie is transported only over HTTPS.
+REFRESH_TOKEN_COOKIE_SECURE = False
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",

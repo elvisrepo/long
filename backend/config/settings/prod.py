@@ -17,6 +17,7 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+REFRESH_TOKEN_COOKIE_SECURE = True
 
 # Keep the first staging HSTS window recoverable. Increase it, include
 # subdomains, and consider preload only after every affected host is HTTPS-only.

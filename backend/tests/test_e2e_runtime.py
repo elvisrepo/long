@@ -25,6 +25,7 @@ def test_e2e_settings_use_dedicated_database_and_enable_testing_api():
     assert e2e_settings.DATABASES["default"]["NAME"] == "longevity_e2e"
     assert e2e_settings.DATABASES["default"]["HOST"] == "db-e2e"
     assert "http://127.0.0.1:5173" in e2e_settings.CSRF_TRUSTED_ORIGINS
+    assert e2e_settings.REFRESH_TOKEN_COOKIE_SECURE is False
 
 
 def test_e2e_settings_replace_inherited_stripe_configuration() -> None:

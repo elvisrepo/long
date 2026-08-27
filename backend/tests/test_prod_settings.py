@@ -230,6 +230,16 @@ def test_prod_settings_only_send_csrf_cookie_over_https() -> None:
     assert json.loads(result.stdout) is True
 
 
+def test_prod_settings_only_send_refresh_cookie_over_https() -> None:
+    result = read_prod_setting(
+        valid_prod_environment(),
+        "REFRESH_TOKEN_COOKIE_SECURE",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) is True
+
+
 def test_prod_settings_use_conservative_hsts_policy() -> None:
     environment = valid_prod_environment()
 

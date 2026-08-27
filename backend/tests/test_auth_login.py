@@ -1,5 +1,6 @@
 import pytest
 from django.contrib.auth import get_user_model
+from django.test import override_settings
 from rest_framework.test import APIClient
 
 
@@ -68,6 +69,7 @@ def test_login_requires_email_and_password():
       }
 
 
+@override_settings(REFRESH_TOKEN_COOKIE_SECURE=False)
 def test_web_login_returns_access_only_and_sets_refresh_cookie():
       client = APIClient()
       User = get_user_model()
@@ -89,3 +91,4 @@ def test_web_login_returns_access_only_and_sets_refresh_cookie():
       assert response.status_code == 200
       assert set(response.json().keys()) == {"access"}
       assert "refresh_token" in response.cookies
+      assert not response.cookies["refresh_token"]["secure"]

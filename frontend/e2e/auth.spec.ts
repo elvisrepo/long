@@ -53,6 +53,73 @@ test("user can register, log in, visit settings, and log out", async ({
   await expect(page.getByRole("heading", { name: /login/i })).toBeVisible();
 });
 
+test("reload restores the same-origin session and rotates the refresh cookie", async ({
+  context,
+  page,
+}) => {
+  const email = "session-restore-e2e-user@example.com";
+  const password = "Secret123!Strong";
+
+  await page.goto("/register");
+  await page.getByLabel(/email/i).fill(email);
+  await page.getByLabel(/password/i).fill(password);
+  await page.getByRole("button", { name: /register/i }).click();
+
+  await expect(page.getByRole("heading", { name: /login/i })).toBeVisible();
+
+  await page.getByLabel(/email/i).fill(email);
+  await page.getByLabel(/password/i).fill(password);
+  await page.getByRole("button", { name: /login/i }).click();
+
+  await expect(page.getByRole("heading", { name: /dashboard/i })).toBeVisible();
+
+  const refreshCookieBefore = (
+    await context.cookies("http://127.0.0.1:5173")
+  ).find((cookie) => cookie.name === "refresh_token");
+
+  expect(refreshCookieBefore).toBeDefined();
+  expect(refreshCookieBefore?.httpOnly).toBe(true);
+
+  const refreshRequestPromise = page.waitForRequest(
+    (request) =>
+      request.url() === "http://127.0.0.1:5173/api/auth/web/refresh/" &&
+      request.method() === "POST",
+  );
+  const refreshResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url() === "http://127.0.0.1:5173/api/auth/web/refresh/",
+  );
+
+  await page.reload();
+
+  const refreshRequest = await refreshRequestPromise;
+  const refreshResponse = await refreshResponsePromise;
+  const requestHeaders = await refreshRequest.allHeaders();
+
+  expect(requestHeaders["x-csrftoken"]).toBeTruthy();
+  expect(requestHeaders.cookie).toContain("csrftoken=");
+  expect(requestHeaders.cookie).toContain("refresh_token=");
+  expect(refreshResponse.status()).toBe(200);
+
+  const setCookieHeaders = (await refreshResponse.headersArray()).filter(
+    (header) => header.name.toLowerCase() === "set-cookie",
+  );
+
+  expect(
+    setCookieHeaders.some((header) =>
+      header.value.startsWith("refresh_token="),
+    ),
+  ).toBe(true);
+
+  const refreshCookieAfter = (
+    await context.cookies("http://127.0.0.1:5173")
+  ).find((cookie) => cookie.name === "refresh_token");
+
+  expect(refreshCookieAfter).toBeDefined();
+  expect(refreshCookieAfter?.value).not.toBe(refreshCookieBefore?.value);
+  await expect(page.getByRole("heading", { name: /dashboard/i })).toBeVisible();
+});
+
 test("user can see subscription plans and start mocked checkout", async ({
   page,
 }) => {

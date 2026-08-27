@@ -315,11 +315,16 @@ verification.
    - run the complete backend suite against PostgreSQL 16 so concurrency tests
      exercise production row-lock semantics; `340` tests and the pushed GitHub
      Actions workflow passed
-9. Implement and test the approved frontend delivery contract:
+9. Implement and test the approved frontend delivery contract — completed
+   2026-08-27:
    - build Vite assets and upload immutable output to private S3
    - configure CloudFront Origin Access Control
    - configure static caching, SPA fallback, and uncached `/api/*` forwarding
    - test deep links, refresh cookies, CSRF, forwarded metadata, and unmasked API errors
+   - upload hashed assets first and `index.html` last without immediately
+     deleting superseded assets
+   - prove same-origin browser reload restoration, CSRF forwarding, and
+     refresh-cookie rotation through the real Vite-to-Django E2E proxy
 10. Audit the Android staging build:
     - staging application ID and signing
     - `https://api-staging.<domain>/` base URL
@@ -336,11 +341,11 @@ runtime defects with infrastructure-learning defects.
 
 ## 5. Current gate
 
-Steps 1–8 are complete. The next implementation slice is step 9: implement and
-test the private-S3/CloudFront same-origin frontend delivery contract, including
-uncached `/api/*` forwarding and browser cookie/CSRF behavior. Do not provision
-AWS application resources yet; the Android staging-build audit and the detailed
-costed manual provisioning runbook remain required before step 12. Keep the
+Steps 1–9 are complete. The next implementation slice is step 10: audit the
+Android staging build, application ID, release signing boundary, public staging
+API URL, and internal distribution path. Do not provision AWS application
+resources yet; the Android audit and detailed costed manual provisioning
+runbook remain required before step 12. Keep the
 PostgreSQL-backed backend suite, production-image smoke, migration/API deployment
 smoke, health contract, removed-route, runtime-artifact, E2E Stripe-isolation,
 and staging-runtime contract checks green in CI.

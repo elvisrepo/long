@@ -282,6 +282,12 @@ Current browser-level E2E checkpoint:
   - visit `/settings`
   - logout
   - redirect back to `/login`
+  - reload an authenticated dashboard and restore the session through the real
+    Vite `/api/*` proxy
+  - verify the refresh request carries `csrftoken`, `refresh_token`, and
+    `X-CSRFToken`
+  - verify Django's rotated refresh token returns through `Set-Cookie` and the
+    browser remains authenticated
 - Playwright auth negative-path coverage now exists for:
   - failed login staying on `/login` and showing the backend invalid-credentials error
   - duplicate registration staying on `/register` and showing the backend duplicate-email error
@@ -303,6 +309,11 @@ What the auth E2E slice exposed that mocked tests did not:
   - the failure only appeared when a real browser registration request triggered encrypted email persistence in the running Django app
 - missing Django `CSRF_TRUSTED_ORIGINS` configuration for the Vite frontend origin
   - the failure only appeared when the real browser issued `POST /api/auth/web/logout/` from `http://127.0.0.1:5173`
+- a refresh cookie with hardcoded `Secure=True` could not be stored by the
+  HTTP-only `127.0.0.1` E2E origin
+  - `REFRESH_TOKEN_COOKIE_SECURE` is now false in shared local/E2E settings and
+    explicitly true in production settings, so browser E2E can exercise cookie
+    transport without weakening public HTTPS deployments
 - missing local runtime/process assumptions
   - E2E also exposed port drift and backend availability issues that mocked unit and route tests cannot see
 - reset-state behavior for seed data
@@ -499,7 +510,7 @@ Current frontend metrics testing checkpoint:
 Latest local verification checkpoint:
 - `npm run test` passed after adding active custom metric usage and limit-message coverage.
 - `npm run build` passed with the active custom metric usage indicator.
-- `npm run test:e2e` passed with 7 Playwright tests against the isolated Docker-backed E2E runtime.
+- `npm run test:e2e` passed with 8 Playwright tests against the isolated Docker-backed E2E runtime, including same-origin reload restoration and refresh-cookie rotation.
 - On 2026-07-16, `docker compose exec web uv run pytest -q` passed with `195` backend tests, `uv run ruff check` passed, and repository-wide `uv run mypy` passed across `79` source files.
 - On 2026-07-27, the `MetricEntry.source_connection` foreign-key, external-record uniqueness, isolated wearable entry/batch validation, and strict receipt-input slices passed all `223` backend tests, repository-wide Ruff, the configured `uv run mypy` gate across `81` source files, migration-drift detection, and `git diff --check`.
 - On 2026-07-28, duplicate external IDs within one wearable batch are rejected; all `224` backend tests, repository-wide Ruff, the configured `uv run mypy` gate across `81` source files, migration-drift detection, and `git diff --check` passed.

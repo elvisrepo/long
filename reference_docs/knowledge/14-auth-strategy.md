@@ -36,7 +36,10 @@
 
 - **Access token**: short-lived JWT, target 15 minutes, sent in the `Authorization: Bearer <token>` header.
 - **Refresh token**: longer-lived JWT, target 7 days, used only to mint new access tokens.
-- **Web client**: store the refresh token in an `HttpOnly`, `Secure` cookie; keep the access token short-lived and send it in the authorization header.
+- **Web client**: store the refresh token in an `HttpOnly` cookie; require its
+  `Secure` attribute on every public HTTPS deployment, while HTTP-only local and
+  browser-E2E settings explicitly omit `Secure`; keep the access token
+  short-lived and send it in the authorization header.
 - **Android client**: store tokens in secure platform storage, not plain local storage equivalents.
 - **Implemented Android storage**: `AndroidKeystoreAuthTokenStore` encrypts access and refresh tokens separately with AES-256-GCM, keeps the non-exportable AES key in Android Keystore, and stores only IV+ciphertext payloads in private `SharedPreferences`.
 - The token preference file is excluded from cloud backup and device transfer because a restored ciphertext file would not have its original device-bound Keystore key.
@@ -150,6 +153,9 @@ For the login endpoint:
 - request body: `email`, `password`
 - success response: `200` with `access`
 - backend also sets the `refresh_token` cookie
+- the cookie is always `HttpOnly` and `SameSite=Lax`; public production settings
+  require `Secure`, while local/E2E HTTP settings omit it so a real loopback
+  browser can exercise refresh and logout
 - invalid credentials response: `400` with `{"detail": "Invalid credentials."}`
 - missing required fields response: `400` with field errors from the serializer
 
@@ -207,9 +213,13 @@ Important distinction:
 - frontend JavaScript does **not** read the `refresh_token` cookie
 - the refresh token stays in the `HttpOnly` cookie and is sent automatically by the browser
 
-Current limitation:
-- this bootstrap helper is now implemented and tested
-- it is not yet wired into app startup, so full-page reload auth restoration is not complete yet
+Current implementation:
+- `AuthBootstrapGate` runs this helper before rendering the application router
+- full-page reload restoration is covered by Playwright through the real Vite
+  `/api/*` proxy and isolated Django E2E runtime
+- the browser test proves same-origin CSRF bootstrap, both cookie values on the
+  refresh request, `X-CSRFToken`, refresh-token rotation through `Set-Cookie`,
+  and continued authenticated rendering after reload
 
 ### Current Protected `me` Endpoint Behavior
 
@@ -296,9 +306,12 @@ Important boundary:
 - this reduces JavaScript access to the long-lived token and lowers XSS exposure for refresh-token theft
 
 Current project state:
-- tokens are currently returned in the JSON response body
-- cookie transport has not been implemented yet
-- this is acceptable for the current backend auth slice, but web-token storage policy still needs an explicit decision before frontend integration hardens
+- web login returns only the access token in JSON and transports the refresh
+  token only through the `HttpOnly` cookie
+- web refresh rotates that cookie and returns only the replacement access token
+  in JSON
+- mobile login/refresh continue to return both tokens in JSON because Android
+  stores them in its encrypted platform boundary rather than browser cookies
 
 ### Chosen Hardened Token Policy
 
@@ -342,7 +355,8 @@ For the web client, the intended contract is:
 
 Cookie-related expectations:
 - use `HttpOnly`
-- use `Secure`
+- use `Secure` in staging and production; omit it only for explicitly local,
+  HTTP-only development and browser-E2E settings
 - choose `SameSite` deliberately based on the final frontend deployment topology
 - clear the refresh cookie on logout
 
