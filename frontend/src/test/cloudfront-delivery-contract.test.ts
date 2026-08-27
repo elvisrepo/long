@@ -16,6 +16,18 @@ function loadContract(): Record<string, unknown> {
 }
 
 describe("CloudFront static delivery contract", () => {
+  it("retains superseded hashed assets during deployment", () => {
+    const contract = loadContract();
+
+    expect(contract).toMatchObject({
+      upload: {
+        delete_removed_objects: false,
+        application_shell_position: "last",
+        superseded_asset_retention_days: 30,
+      },
+    });
+  });
+
   it("caches content-hashed Vite assets as immutable objects", () => {
     const contract = loadContract();
 

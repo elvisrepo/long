@@ -1,5 +1,10 @@
 {
   "schema_version": 1,
+  "upload": {
+    "delete_removed_objects": false,
+    "application_shell_position": "last",
+    "superseded_asset_retention_days": 30
+  },
   "static_behaviors": {
     "immutable_assets": {
       "path_pattern": "assets/*",
