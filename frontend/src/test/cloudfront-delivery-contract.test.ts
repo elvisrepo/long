@@ -173,4 +173,28 @@ describe("CloudFront static delivery contract", () => {
       },
     });
   });
+
+  it("scopes SPA fallback to the static application-shell behavior", () => {
+    const contract = loadContract();
+
+    expect(contract).toMatchObject({
+      distribution_custom_error_fallback: false,
+      static_behaviors: {
+        application_shell: {
+          spa_fallback: {
+            mechanism: "cloudfront_function",
+            source: "deployment/spa-rewrite.js",
+            runtime: "cloudfront-js-2.0",
+            event_type: "viewer-request",
+            association: "application_shell_behavior_only",
+            rewrite_target: "/index.html",
+            rewrite_methods: ["GET", "HEAD"],
+            rewrite_path_kind: "extensionless",
+            excluded_prefixes: ["/api", "/assets"],
+            preserve_query_string: true,
+          },
+        },
+      },
+    });
+  });
 });

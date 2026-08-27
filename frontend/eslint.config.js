@@ -34,4 +34,16 @@ export default defineConfig([
       globals: globals.node,
     },
   },
+  {
+    files: ["deployment/spa-rewrite.js"],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 2020,
+      sourceType: "script",
+    },
+    rules: {
+      // CloudFront invokes this global entrypoint; the file does not call it itself.
+      "no-unused-vars": ["error", { varsIgnorePattern: "^handler$" }],
+    },
+  },
 ]);
