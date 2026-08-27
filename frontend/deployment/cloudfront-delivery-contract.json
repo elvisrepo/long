@@ -58,6 +58,52 @@
       }
     }
   },
+  "api_origin": {
+    "service": "application_load_balancer",
+    "protocol_policy": "https_only",
+    "https_port": 443,
+    "minimum_tls_protocol": "TLSv1.2"
+  },
+  "api_behaviors": {
+    "django_api": {
+      "path_pattern": "api/*",
+      "origin": "api_origin",
+      "viewer_protocol_policy": "redirect_to_https",
+      "allowed_methods": [
+        "GET",
+        "HEAD",
+        "OPTIONS",
+        "PUT",
+        "PATCH",
+        "POST",
+        "DELETE"
+      ],
+      "cached_methods": ["GET", "HEAD"],
+      "request_body_forwarding": "automatic",
+      "edge_function_associations": [],
+      "spa_fallback": false,
+      "origin_error_responses": "pass_through",
+      "cache_policy": {
+        "type": "aws_managed",
+        "name": "CachingDisabled",
+        "id": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+      },
+      "origin_request_policy": {
+        "type": "custom",
+        "headers": {
+          "behavior": "all_viewer",
+          "authorization": "included"
+        },
+        "cookies": {
+          "behavior": "allowlist",
+          "names": ["csrftoken", "refresh_token"]
+        },
+        "query_strings": {
+          "behavior": "all"
+        }
+      }
+    }
+  },
   "static_behaviors": {
     "immutable_assets": {
       "path_pattern": "assets/*",

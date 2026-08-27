@@ -15,7 +15,7 @@ function loadContract(): Record<string, unknown> {
   >;
 }
 
-describe("CloudFront static delivery contract", () => {
+describe("CloudFront delivery contract", () => {
   it("uses a private S3 REST origin with every public-access block", () => {
     const contract = loadContract();
 
@@ -193,6 +193,93 @@ describe("CloudFront static delivery contract", () => {
             excluded_prefixes: ["/api", "/assets"],
             preserve_query_string: true,
           },
+        },
+      },
+    });
+  });
+
+  it("routes API requests to an HTTPS ALB without caching", () => {
+    const contract = loadContract();
+
+    expect(contract).toMatchObject({
+      api_origin: {
+        service: "application_load_balancer",
+        protocol_policy: "https_only",
+        https_port: 443,
+        minimum_tls_protocol: "TLSv1.2",
+      },
+      api_behaviors: {
+        django_api: {
+          path_pattern: "api/*",
+          origin: "api_origin",
+          viewer_protocol_policy: "redirect_to_https",
+          cache_policy: {
+            type: "aws_managed",
+            name: "CachingDisabled",
+            id: "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",
+          },
+        },
+      },
+    });
+  });
+
+  it("forwards every supported API method and its request body", () => {
+    const contract = loadContract();
+
+    expect(contract).toMatchObject({
+      api_behaviors: {
+        django_api: {
+          allowed_methods: [
+            "GET",
+            "HEAD",
+            "OPTIONS",
+            "PUT",
+            "PATCH",
+            "POST",
+            "DELETE",
+          ],
+          cached_methods: ["GET", "HEAD"],
+          request_body_forwarding: "automatic",
+        },
+      },
+    });
+  });
+
+  it("forwards API authentication, CSRF state, and query strings", () => {
+    const contract = loadContract();
+
+    expect(contract).toMatchObject({
+      api_behaviors: {
+        django_api: {
+          origin_request_policy: {
+            type: "custom",
+            headers: {
+              behavior: "all_viewer",
+              authorization: "included",
+            },
+            cookies: {
+              behavior: "allowlist",
+              names: ["csrftoken", "refresh_token"],
+            },
+            query_strings: {
+              behavior: "all",
+            },
+          },
+        },
+      },
+    });
+  });
+
+  it("passes API errors through without an SPA fallback", () => {
+    const contract = loadContract();
+
+    expect(contract).toMatchObject({
+      distribution_custom_error_fallback: false,
+      api_behaviors: {
+        django_api: {
+          edge_function_associations: [],
+          spa_fallback: false,
+          origin_error_responses: "pass_through",
         },
       },
     });
