@@ -185,6 +185,64 @@ forward the browser's HTTP request. After DNS resolution, the browser connects
 to a nearby CloudFront edge location. The distribution then selects private S3
 for the default/static behavior or the ALB for `/api/*`.
 
+#### Browser Route and API Route Ownership
+
+The browser uses one public origin, but a request can cross three distinct
+routing decisions: CloudFront selects the origin, TanStack Router owns React
+page paths, and Django owns API paths.
+
+| Request path | Owner | CloudFront origin | Result |
+|---|---|---|---|
+| `/metrics/resting_hr` | React TanStack Router (`/metrics/$slug`) | Private S3 | CloudFront rewrites the extensionless static route to `/index.html`; React renders the metric page |
+| `/assets/{content-hash}.js` | Vite build output | Private S3 | Return the exact immutable asset; never rewrite a missing asset to `index.html` |
+| `/api/v1/metrics/entries/` | Django URL configuration | ALB | Forward the method, body, authentication, and required request metadata without API caching |
+
+Django intentionally has no `/metrics/$slug` page route. A request for
+`/metrics/resting_hr` sent directly to Django would return `404`; CloudFront
+must keep that request on the static behavior. Conversely, `/api/*` must never
+receive the SPA fallback because doing so would replace a real API error with
+HTML. CloudFront selects the cache behavior before the viewer-request SPA
+function runs, and the function is associated only with the static application
+shell behavior.
+
+Production navigation and subsequent data access are separate requests:
+
+```text
+GET /metrics/resting_hr
+    → CloudFront static behavior
+    → /index.html from private S3
+    → React reads the original browser location
+    → TanStack Router renders /metrics/$slug
+
+GET or POST /api/v1/metrics/...
+    → CloudFront uncached /api/* behavior
+    → ALB
+    → Gunicorn
+    → Django
+    → PostgreSQL / TimescaleDB
+```
+
+#### Static Asset Lifecycle Versus Application Data
+
+A normal read or write API request never modifies frontend objects in S3.
+Content-hashed JavaScript and CSS are immutable for the lifetime of that exact
+filename and may be cached for one year. `index.html` is the small, non-immutable
+application shell and is served with `no-cache,no-store,must-revalidate` so a
+new navigation discovers the current asset filenames.
+
+On a frontend deployment, Vite emits new filenames only for bundles whose
+content changed. Deployment uploads the new hashed assets first and uploads
+`index.html` last. It does not immediately delete old hashed assets because a
+browser or edge cache may still hold an older `index.html` that references them.
+The current staging contract retains superseded assets until a future
+manifest-aware cleanup mechanism can prove that deletion is safe; a simple
+age-only S3 lifecycle rule is not safe when deployments can be more than the
+retention age apart.
+
+Therefore a metric-entry save changes PostgreSQL and then refreshes TanStack
+Query's browser cache. It does not change CloudFront's cached JavaScript/CSS or
+any S3 object. Static files change only during a frontend deployment.
+
 Nginx is not part of the approved initial topology. CloudFront already owns
 global static delivery and path-based origin selection, while the ALB owns API
 TLS termination, health checks, and target routing. Gunicorn runs Django on the

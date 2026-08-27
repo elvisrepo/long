@@ -18,8 +18,10 @@ sequenceDiagram
     participant R as Redis
     participant C as Celery Worker
 
+    Note over U,C: Long-term target with Redis and Celery, not the initial staging runtime
+
     Note over U,C: Manual Metric Logging
-    U->>API: POST /metrics/entries/ (JWT)
+    U->>API: POST /api/v1/metrics/entries/ (JWT)
     API->>API: Validate input, check permissions
     API->>DB: INSERT metric_entry
     API->>R: Invalidate dashboard cache
@@ -28,7 +30,7 @@ sequenceDiagram
     Note over U,C: Samsung Sync (Client Pull + Upload)
     U->>A: Open companion app, grant permissions
     H-->>A: Samsung-originated health records on device
-    A->>API: POST /wearables/uploads/ (JWT + upload_id)
+    A->>API: POST /api/v1/wearables/uploads/ (JWT + upload_id)
     API->>API: Validate connection + idempotency
     API->>C: Enqueue normalization job
     C->>C: Deduplicate, normalize units + timestamps
@@ -36,11 +38,11 @@ sequenceDiagram
     C->>DB: Update sync cursor + connection status
     C->>R: Invalidate user cache
     API-->>A: 202 Accepted
-    A->>API: GET /wearables/connections/{id}/status/ (JWT)
+    A->>API: GET /api/v1/wearables/connections/{id}/status/ (JWT)
     API-->>A: Last sync timestamp + status
 
     Note over U,C: Dashboard Load
-    U->>API: GET /metrics/analytics/ (JWT)
+    U->>API: GET /api/v1/metrics/analytics/ (JWT)
     API->>R: Check cache
     alt Cache hit
         R-->>API: Cached analytics
@@ -50,6 +52,63 @@ sequenceDiagram
     end
     API-->>U: Analytics JSON
 ```
+
+## Production Web Metric-Entry Write Flow
+
+Use this flow when tracing a manual metric entry from the public React route to
+the durable PostgreSQL row. The browser page route and Django API route are
+separate contracts:
+
+- `/metrics/$slug` belongs to TanStack Router in the React application; for
+  example, `/metrics/resting_hr` displays the resting-heart-rate page.
+- `/api/v1/metrics/entries/` belongs to Django and reads or writes metric-entry
+  JSON. Django intentionally has no `/metrics/$slug` page route.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Edge as CloudFront
+    participant Static as Private S3
+    participant Web as React + TanStack Query
+    participant ALB
+    participant API as Gunicorn + Django
+    participant DB as PostgreSQL / TimescaleDB
+
+    User->>Edge: GET /metrics/resting_hr
+    Edge->>Edge: Static behavior rewrites extensionless route to /index.html
+    Edge->>Static: GET /index.html
+    Static-->>Edge: No-cache application shell
+    Edge-->>User: index.html
+    User->>Edge: GET /assets/{content-hash}.js and .css
+    Edge->>Static: Fetch missing immutable assets
+    Static-->>Edge: Content-hashed assets
+    Edge-->>User: Cached React assets
+    User->>Web: React runs and TanStack Router renders /metrics/resting_hr
+
+    User->>Web: Enter value and select Save
+    Web->>Edge: POST /api/v1/metrics/entries/ with bearer token and JSON body
+    Edge->>ALB: Uncached /api/* behavior forwards request
+    ALB->>API: Forward to a healthy Django target
+    API->>API: Authenticate user and validate fields and ownership
+    API->>DB: INSERT MetricEntry owned by request.user
+    DB-->>API: Committed row
+    API-->>ALB: 201 Created + serialized MetricEntry
+    ALB-->>Edge: API response
+    Edge-->>Web: API response is not cached
+    Web->>Web: Invalidate ["metric-entries"] query
+    Web->>Edge: GET /api/v1/metrics/entries/?metric=resting_hr
+    Edge->>ALB: Forward uncached API read
+    ALB->>API: Forward request
+    API->>DB: SELECT entries owned by request.user
+    DB-->>API: Updated entry list
+    API-->>Web: 200 JSON through ALB and CloudFront
+    Web-->>User: Render the saved value
+```
+
+The write changes PostgreSQL and the browser's query state; it does not modify
+`index.html`, JavaScript, CSS, or any S3 object. If authentication or validation
+fails, Django returns an error and does not create the row. If the insert fails,
+the client does not receive `201` and the success invalidation does not run.
 
 ## Free to Pro to Health Connect Data-State Timeline
 
