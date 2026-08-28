@@ -3,6 +3,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
 
     model {
         user = person "Longevity User" "Uses the platform to view metrics, manage account data, and review synced health information."
+        deploymentOperator = person "Longevity Operator" "Runs the controlled staging deployment and reviews migration and readiness outcomes."
 
         samsungHealth = softwareSystem "Samsung Health" "On-device source application that writes Samsung-originated health records into Health Connect."
         healthConnect = softwareSystem "Health Connect" "Android on-device health data platform that exposes user-permitted records to the companion app."
@@ -10,6 +11,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         uptimeMonitor = softwareSystem "Uptime Monitoring" "External availability monitor that checks the public Django health endpoint and alerts operators."
         letsEncrypt = softwareSystem "Let's Encrypt" "Public certificate authority used only for the current presentation-staging Nginx origin certificate through automated ACME DNS validation."
         publicDns = softwareSystem "Public DNS" "The client's recursive DNS resolver plus Route 53 authoritative records used to resolve staging.<domain> to CloudFront. DNS discovers the destination; it does not carry the HTTP request."
+        awsSecretsManager = softwareSystem "AWS Secrets Manager" "Stores the canonical staging runtime JSON retrieved once through the EC2 instance role."
 
         longevity = softwareSystem "Longevity Platform" "Tracks user auth, subscriptions, metrics, analytics entitlements, and wearable ingestion." {
             webapp = container "React Web App" "Implemented browser client for registration, hardened web sessions, dashboard/manual metrics, metric catalog/detail management, and Stripe-backed settings." "React + TypeScript" {
@@ -42,8 +44,21 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 tags "StagingOnly"
             }
 
+            stagingFrontendStore = container "Staging Frontend Artifact Store" "Logical C4 representation of the private S3 bucket containing index.html and immutable Vite assets. CloudFront reads it through Origin Access Control on static cache misses." "Amazon S3" {
+                tags "StagingOnly"
+            }
+
+            stagingDeploymentController = container "Staging Deployment Controller" "Host-side runtime-loader and deployment scripts that freeze one validated configuration snapshot, run migration first, replace the API only after migration success, and wait for readiness." "Python + Docker Compose" {
+                tags "StagingOnly"
+            }
+
+            stagingMigrationTask = container "Staging Migration Task" "One-off container from the immutable backend image that applies Django migrations before API replacement." "Docker + Django management command" {
+                tags "StagingOnly"
+            }
+
             api = container "Django API" "Gunicorn-hosted synchronous HTTP API for auth, subscriptions/Stripe, metrics, and wearable connection/upload workflows." "Gunicorn + Django + Django REST Framework" {
                 gunicornRuntime = component "Gunicorn WSGI Runtime" "Accepts private HTTP from the trusted reverse proxy and invokes Django through config.wsgi:application. It does not terminate TLS in the staging topology." "Gunicorn + WSGI"
+                healthApi = component "Health Endpoints" "Exposes database-independent liveness and PostgreSQL-backed readiness without leaking internal errors." "Django"
                 authApi = component "Authentication" "Registration, web/mobile login, CSRF, current-user, logout, and concurrency-safe SimpleJWT refresh rotation." "Django REST Framework + SimpleJWT"
                 subscriptionsApi = component "Subscriptions and Billing" "Plan/price reads, entitlement state, Checkout/Portal session creation, and idempotent signed Stripe webhook reconciliation." "Django REST Framework + Stripe SDK"
                 metricsApi = component "Metrics" "Metric definitions, entitlement-limited custom metrics, manual entries, history reads, and entry maintenance." "Django REST Framework"
@@ -70,6 +85,8 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         stripe -> longevity "Sends verified billing webhooks after checkout and subscription events"
         uptimeMonitor -> longevity "Checks the public API health endpoint"
         publicDns -> longevity "Resolves public Longevity hostnames"
+        awsSecretsManager -> longevity "Supplies controlled runtime configuration"
+        deploymentOperator -> longevity "Deploys tested staging releases"
 
         user -> longevity.webapp "Uses"
         user -> longevity.android "Uses to connect and sync on-device health data"
@@ -83,9 +100,22 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
           androidCallsApi = longevity.android -> longevity.api "Calls JSON API over HTTPS"
           longevity.android -> publicDns "Resolves the configured staging hostname before connecting"
           longevity.android -> longevity.stagingEdgeGateway "Calls the staging JSON API over viewer TLS"
+          longevity.webapp -> publicDns "Resolves the staging browser hostname before connecting"
+          longevity.webapp -> longevity.stagingEdgeGateway "Loads staging routes and calls relative API paths over viewer TLS"
           longevity.stagingEdgeGateway -> longevity.stagingOriginProxy "Forwards uncached /api/* requests over separate origin TLS"
+          longevity.stagingEdgeGateway -> longevity.stagingFrontendStore "Reads index.html and immutable frontend assets through Origin Access Control"
           longevity.stagingOriginProxy -> longevity.api.gunicornRuntime "Proxies requests over private HTTP"
           longevity.api.gunicornRuntime -> longevity.api.metricsApi "Invokes Django metric routing and request handling through WSGI"
+          longevity.api.gunicornRuntime -> longevity.api.subscriptionsApi "Invokes Django subscription and Stripe-webhook handling through WSGI"
+          longevity.api.gunicornRuntime -> longevity.api.healthApi "Invokes Django liveness or readiness handling through WSGI"
+          longevity.api.healthApi -> longevity.db "Executes the constant PostgreSQL readiness probe"
+          stripe -> publicDns "Resolves the staging webhook hostname before connecting"
+          stripe -> longevity.stagingEdgeGateway "POSTs signed staging webhook events over viewer TLS"
+          deploymentOperator -> longevity.stagingDeploymentController "Starts a controlled staging deployment"
+          longevity.stagingDeploymentController -> awsSecretsManager "Retrieves one AWSCURRENT runtime JSON snapshot"
+          longevity.stagingDeploymentController -> longevity.stagingMigrationTask "Runs and waits for the one-off migration container"
+          longevity.stagingMigrationTask -> longevity.db "Applies schema migrations using the validated snapshot"
+          longevity.stagingDeploymentController -> longevity.api.gunicornRuntime "Replaces and waits for the API only after migration success"
 
           longevity.api -> longevity.db "Reads and writes data"
           longevity.api -> stripe "Creates Checkout Sessions with server-owned Stripe Price IDs and on-demand Customer Portal Sessions; verifies signed webhook events"
@@ -1383,6 +1413,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
 
         container longevity "c4-container" "Container view of the current runtime building blocks." {
             include *
+            exclude "element.tag==StagingOnly"
             autolayout lr
         }
 
@@ -1422,6 +1453,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             include longevity.stagingOriginProxy
             include stripe
             include longevity.api.gunicornRuntime
+            include longevity.api.healthApi
             include longevity.api.authApi
             include longevity.api.subscriptionsApi
             include longevity.api.metricsApi
@@ -1442,6 +1474,70 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             9: longevity.api.gunicornRuntime -> longevity.stagingOriginProxy "[HTTP] Returns the JSON response over private HTTP"
             10: longevity.stagingOriginProxy -> longevity.stagingEdgeGateway "[HTTPS / TLS connection 2] Encrypts the origin response over the existing CloudFront-Nginx TLS connection"
             11: longevity.stagingEdgeGateway -> longevity.android "[HTTPS / TLS connection 1] Encrypts and returns the JSON response over the existing Android-CloudFront TLS connection"
+            autolayout lr
+        }
+
+        dynamic longevity "staging-browser-page-load" "Numbered C4 dynamic view of a browser deep-link page load from private S3 through current presentation staging. Origin reads occur on a CloudFront cache miss; a cache hit skips the S3 interactions." {
+            1: user -> longevity.webapp "Enters https://staging.<domain>/metrics/resting_hr in the browser"
+            2: longevity.webapp -> publicDns "[DNS] Resolves staging.<domain> to CloudFront"
+            3: longevity.webapp -> longevity.stagingEdgeGateway "[Viewer HTTPS] Requests GET /metrics/resting_hr"
+            4: longevity.stagingEdgeGateway -> longevity.stagingFrontendStore "[Signed HTTPS on cache miss] Applies the SPA rewrite and fetches /index.html through Origin Access Control"
+            5: longevity.stagingFrontendStore -> longevity.stagingEdgeGateway "Returns non-immutable index.html referencing the current content-hashed assets"
+            6: longevity.stagingEdgeGateway -> longevity.webapp "Returns index.html over the viewer TLS connection"
+            7: longevity.webapp -> longevity.stagingEdgeGateway "Requests the referenced /assets/<content-hash>.js and CSS files"
+            8: longevity.stagingEdgeGateway -> longevity.stagingFrontendStore "[Signed HTTPS on cache miss] Fetches the exact immutable asset objects"
+            9: longevity.stagingFrontendStore -> longevity.stagingEdgeGateway "Returns immutable JavaScript and CSS assets"
+            10: longevity.stagingEdgeGateway -> longevity.webapp "Returns cached or origin-fetched assets over viewer TLS"
+            11: longevity.webapp -> user "Runs React and TanStack Router in the browser and renders /metrics/resting_hr; API data is fetched through a separate /api/* flow"
+            autolayout lr
+        }
+
+        dynamic longevity.api "staging-browser-metric-write" "Numbered C4 dynamic view of one authenticated React metric write and JSON response through current presentation staging." {
+            1: user -> longevity.webapp "Submits a metric value from the React page"
+            2: longevity.webapp -> longevity.stagingEdgeGateway "[Viewer HTTPS] POSTs /api/v1/metrics/entries/ with CSRF data, bearer access token, and JSON"
+            3: longevity.stagingEdgeGateway -> longevity.stagingOriginProxy "[Origin HTTPS] Selects uncached /api/* and forwards the complete request with the secret origin header"
+            4: longevity.stagingOriginProxy -> longevity.api.gunicornRuntime "[Private HTTP] Proxies the decrypted request over the Docker network"
+            5: longevity.api.gunicornRuntime -> longevity.api.metricsApi "[WSGI] Invokes Django authentication, authorization, validation, and metric-entry handling"
+            6: longevity.api.metricsApi -> longevity.db "[PostgreSQL protocol] Commits the caller-owned MetricEntry"
+            7: longevity.db -> longevity.api.metricsApi "Returns the committed entry"
+            8: longevity.api.metricsApi -> longevity.api.gunicornRuntime "Builds the 201 JSON response"
+            9: longevity.api.gunicornRuntime -> longevity.stagingOriginProxy "Returns JSON over private HTTP"
+            10: longevity.stagingOriginProxy -> longevity.stagingEdgeGateway "Encrypts the response over the existing origin TLS connection"
+            11: longevity.stagingEdgeGateway -> longevity.webapp "Encrypts the response over the existing viewer TLS connection"
+            12: longevity.webapp -> user "Invalidates relevant TanStack Query caches and renders the saved metric state"
+            autolayout lr
+        }
+
+        dynamic longevity.api "staging-stripe-webhook" "Numbered C4 dynamic view of one signed Stripe test-mode webhook reaching Django through current presentation staging and receiving its acknowledgment." {
+            1: stripe -> publicDns "[DNS] Resolves the configured staging webhook hostname to CloudFront"
+            2: stripe -> longevity.stagingEdgeGateway "[Viewer HTTPS] POSTs the signed event to /api/v1/subscriptions/stripe/webhook/"
+            3: longevity.stagingEdgeGateway -> longevity.stagingOriginProxy "[Origin HTTPS] Selects uncached /api/* and forwards the untouched body, signature header, and secret origin header"
+            4: longevity.stagingOriginProxy -> longevity.api.gunicornRuntime "[Private HTTP] Proxies the webhook request"
+            5: longevity.api.gunicornRuntime -> longevity.api.subscriptionsApi "[WSGI] Invokes Django; the subscription boundary verifies the Stripe signature before trusting the payload"
+            6: longevity.api.subscriptionsApi -> longevity.db "Inside a transaction, records the unique provider event and reconciles subscription state idempotently"
+            7: longevity.db -> longevity.api.subscriptionsApi "Commits the new state or identifies an already processed event"
+            8: longevity.api.subscriptionsApi -> longevity.api.gunicornRuntime "Builds the safe 200 acknowledgment"
+            9: longevity.api.gunicornRuntime -> longevity.stagingOriginProxy "Returns the acknowledgment over private HTTP"
+            10: longevity.stagingOriginProxy -> longevity.stagingEdgeGateway "Encrypts the acknowledgment over the existing origin TLS connection"
+            11: longevity.stagingEdgeGateway -> stripe "Encrypts and returns the acknowledgment over the existing viewer TLS connection"
+            autolayout lr
+        }
+
+        dynamic longevity.api "staging-api-deployment" "Numbered C4 dynamic view of the successful migration-first staging API deployment. A secret retrieval, validation, or migration failure stops before API replacement, leaving the old API running." {
+            1: deploymentOperator -> longevity.stagingDeploymentController "Starts deployment of one tested immutable backend image through the controlled host-side command"
+            2: longevity.stagingDeploymentController -> awsSecretsManager "Retrieves one AWSCURRENT staging runtime JSON through the EC2 instance role"
+            3: awsSecretsManager -> longevity.stagingDeploymentController "Returns the secret; the loader validates the complete allowlisted contract and freezes one process-environment snapshot"
+            4: longevity.stagingDeploymentController -> longevity.stagingMigrationTask "Starts the one-off migration container with the immutable image and frozen snapshot"
+            5: longevity.stagingMigrationTask -> longevity.db "Runs python manage.py migrate --no-input against PostgreSQL"
+            6: longevity.db -> longevity.stagingMigrationTask "Commits the schema migration; any failure stops the flow before replacement"
+            7: longevity.stagingMigrationTask -> longevity.stagingDeploymentController "Exits successfully and reports its observable status"
+            8: longevity.stagingDeploymentController -> longevity.api.gunicornRuntime "Replaces the single API container and starts Gunicorn with the same frozen snapshot"
+            9: longevity.api.gunicornRuntime -> longevity.api.healthApi "Invokes GET /api/v1/health/ready/ during the bounded readiness wait"
+            10: longevity.api.healthApi -> longevity.db "Executes the constant SELECT 1 PostgreSQL probe"
+            11: longevity.db -> longevity.api.healthApi "Returns database availability"
+            12: longevity.api.healthApi -> longevity.api.gunicornRuntime "Returns ready only after Django can query PostgreSQL"
+            13: longevity.api.gunicornRuntime -> longevity.stagingDeploymentController "Reports the API healthy; replacement may have caused the accepted brief maintenance interruption"
+            14: longevity.stagingDeploymentController -> deploymentOperator "Reports successful deployment without printing the runtime secret"
             autolayout lr
         }
 

@@ -76,6 +76,76 @@ for their physical AWS placement. Response steps reuse the two established
 bidirectional TLS connections rather than performing a new TLS handshake at
 each arrow.
 
+### Additional Numbered Staging Dynamic Views
+
+The same logical staging gateways support four additional ordered C4 views:
+
+| View key | Steps | Purpose |
+|---|---:|---|
+| `staging-browser-page-load` | 11 | Browser deep link, SPA rewrite, private-S3 `index.html`, hashed assets, and React route rendering |
+| `staging-browser-metric-write` | 12 | Authenticated React metric-entry POST through both TLS boundaries and back as JSON |
+| `staging-stripe-webhook` | 11 | Signed Stripe event through CloudFront/Nginx, signature verification, idempotent reconciliation, and acknowledgment |
+| `staging-api-deployment` | 14 | One runtime snapshot, migration-first gate, API replacement, PostgreSQL readiness, and operator result |
+
+#### Browser page load
+
+```text
+1     User enters /metrics/resting_hr
+2     Browser resolves staging.<domain>
+3     Browser requests the route from CloudFront
+4-5   CloudFront fetches /index.html from private S3 on a cache miss
+6     CloudFront returns index.html
+7-10  Browser obtains the referenced immutable JS/CSS assets
+11    React and TanStack Router render the requested page
+```
+
+S3 interactions represent an origin cache miss. When CloudFront already has a
+fresh object, it returns that cached object and skips the corresponding S3
+steps. API data is a separate request represented by the metric-write/read
+flows; loading `index.html` does not itself read PostgreSQL.
+
+#### Browser metric write
+
+```text
+1      User submits a metric value
+2      React POSTs /api/v1/metrics/entries/ to CloudFront
+3      CloudFront forwards through origin TLS to Nginx
+4      Nginx forwards private HTTP to Gunicorn
+5      Gunicorn invokes Django Metrics through WSGI
+6-7    Django commits and receives the MetricEntry from PostgreSQL
+8-11   The JSON response returns through Gunicorn, Nginx, and CloudFront
+12     TanStack Query invalidates caches and React renders saved state
+```
+
+#### Stripe webhook
+
+```text
+1      Stripe resolves the configured staging webhook hostname
+2      Stripe POSTs the signed event to CloudFront
+3      CloudFront forwards the untouched body and signature header
+4      Nginx proxies private HTTP to Gunicorn
+5      Django verifies the Stripe signature before trusting the payload
+6-7    PostgreSQL records the unique event and reconciles state atomically
+8-11   A safe acknowledgment returns to Stripe through both TLS sessions
+```
+
+#### Migration-first API deployment
+
+```text
+1      Operator starts the controlled deployment
+2-3    Loader retrieves, validates, and freezes one Secrets Manager snapshot
+4      Deployment starts the one-off migration container
+5-7    Migration commits successfully and reports success
+8      Only now does deployment replace/start the Gunicorn API container
+9-12   Readiness proves Django can execute SELECT 1 in PostgreSQL
+13-14  Healthy status returns to deployment tooling and then the operator
+```
+
+If secret retrieval, contract validation, or migration fails, the sequence
+stops before step 8 and the old API remains running. After successful migration,
+single-container replacement can cause the explicitly accepted brief staging
+maintenance interruption.
+
 ### OSI-Layer Companion for the Same Flow
 
 ![Graphical OSI-layer flow for an Android staging metric request](diagrams/staging-android-osi-flow.svg)
@@ -267,6 +337,10 @@ abstracts away DNS, ALB, and EC2 placement:
 
 - `staging-android-metrics-request` (does include the current staging gateways
   specifically to explain DNS, TLS termination, and response order)
+- `staging-browser-page-load`
+- `staging-browser-metric-write`
+- `staging-stripe-webhook`
+- `staging-api-deployment`
 - `mobile-auth-login`
 - `mobile-auth-refresh-retry`
 - `wearable-connection-register`
