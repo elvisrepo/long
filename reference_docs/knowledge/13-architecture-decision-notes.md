@@ -330,7 +330,7 @@ Current implementation progress:
 
 ### ADR-021: Learn AWS on Manual EC2 Staging, Reproduce EC2 with Terraform, Then Move to Fargate Post-MVP
 
-- Status: Accepted
+- Status: Superseded by ADR-023 on 2026-08-28
 - Date: 2026-08-19
 - Decision:
   Provision the first public staging environment manually on one AWS EC2 application host using Docker Engine and Compose behind an ACM-backed ALB. Document every step in a runbook, then reproduce the same isolated EC2 topology with Terraform before accepting production users. Operate the production MVP on Terraform-managed EC2. Move compute to ECS Fargate post-MVP to learn managed containers, and introduce ElastiCache Redis, Celery Worker, exactly one Celery Beat scheduler, and S3 job artifacts only when measured asynchronous workloads justify them.
@@ -366,7 +366,7 @@ without changing the API.
 
 ### ADR-022: Use S3 and CloudFront with One Initial EC2 Target for Staging
 
-- Status: Accepted
+- Status: Superseded by ADR-023 on 2026-08-28
 - Date: 2026-08-23
 - Decision:
   Host the compiled React SPA in a private S3 bucket and serve it through CloudFront at `staging.<domain>`. Configure the default behavior for static assets and SPA routes, and an uncached `/api/*` behavior that forwards to the HTTPS ALB origin. Register one private EC2/Django target initially and add a second target in another Availability Zone later.
@@ -384,3 +384,61 @@ without changing the API.
   This matches the current static Vite build and relative API calls, keeps cookies and CSRF behind one browser origin, and extends the deliberate AWS learning path to S3, CloudFront, cache behaviors, Origin Access Control, and dual certificate regions.
 - Downsides:
   Initial staging is not highly available. CloudFront adds configuration for cache policies, forwarded request data, SPA routing, and invalidation/versioned asset deployment. The S3 bucket, CloudFront distribution, and logs also require least-privilege IAM and monitoring.
+
+### ADR-023: Separate Cost-Bounded Presentation Staging from Resilient Production
+
+- Status: Accepted
+- Date: 2026-08-28
+- Supersedes:
+  ADR-021 and ADR-022 for forward-looking deployment topology. Their text is
+  retained as a dated record of the earlier ALB, NAT Gateway, and Timescale
+  Cloud staging proposal.
+- Decision:
+  Run presentation staging behind CloudFront using private S3 for the React SPA
+  and one public `t4g.small` EC2 host for Nginx, Gunicorn/Django, and a
+  PostgreSQL/TimescaleDB container. Use encrypted EBS for database persistence
+  and scheduled, monitored `pg_dump` backups to private encrypted versioned S3.
+  Do not provision an ALB, NAT Gateway, Timescale Cloud, RDS, Redis, or Celery
+  for this low-volume staging environment.
+- Staging network and TLS boundary:
+  CloudFront is the only public application entry. Its `/api/*` behavior reaches
+  an EC2 Elastic IP through an origin hostname. The instance security group
+  allows TCP 443 only from the AWS-managed CloudFront origin-facing prefix list,
+  and Nginx validates a secret CloudFront origin header. Nginx terminates origin
+  TLS with an automatically renewed Let's Encrypt certificate obtained through
+  Route 53 DNS-01. Ports 22, 8000, and 5432 are not public; administration uses
+  Systems Manager.
+- Staging runtime boundary:
+  Nginx proxies to Gunicorn; Gunicorn runs Django. The Secrets Manager loader
+  passes one validated environment snapshot to the one-off migration and API
+  containers. Migration failure leaves the old API running. After migration,
+  replacement may cause a brief accepted maintenance interruption.
+- Production recommendation:
+  Real production users require a separately designed Terraform-managed
+  topology: CloudFront/WAF, an ALB across two Availability Zones, two private
+  Fargate API tasks, a one-off Fargate migration task, RDS PostgreSQL Multi-AZ
+  with point-in-time recovery, and one NAT Gateway per AZ. Nginx is unnecessary
+  there because CloudFront and ALB own the relevant proxy responsibilities.
+- Database consequence:
+  Current application behavior needs PostgreSQL but does not materially depend
+  on TimescaleDB-specific capabilities. Presentation staging may keep the
+  extension self-hosted. Recommended production starts on RDS PostgreSQL even
+  though it lacks TimescaleDB; revisit the managed database only when concrete
+  hypertable, compression, retention, or continuous-aggregate requirements
+  justify it.
+- Why:
+  The presentation environment expects about 100 requests per day and does not
+  justify the fixed monthly cost of an ALB, NAT Gateway, and Timescale Cloud.
+  Conversely, copying a colocated application/database EC2 host into production
+  would create an unacceptable shared failure and recovery boundary. Separate
+  targets keep staging affordable without pretending it is production-grade.
+- Consequences:
+  Staging is intentionally a single point of failure and requires hands-on
+  patching, certificate renewal monitoring, database backup monitoring, and
+  restore drills. The later production build is a topology change rather than a
+  direct promotion of the staging infrastructure. Application images, settings,
+  migration behavior, API contracts, and CI gates remain portable between them.
+- Revisit when:
+  Staging availability becomes a real requirement, traffic or storage outgrows
+  the host, Timescale-specific queries become material, or production
+  provisioning begins.

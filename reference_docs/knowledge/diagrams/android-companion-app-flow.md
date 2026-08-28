@@ -23,11 +23,12 @@ Android debug build
 
 Planned hosted staging route:
 Android staging build
-    → https://api-staging.<domain>/ over Wi-Fi or mobile data
+    → https://staging.<domain>/api/... over Wi-Fi or mobile data
     → Route53/public DNS
-    → HTTPS ALB
-    → Django container on EC2
-    → Timescale Cloud
+    → CloudFront
+    → Nginx HTTPS origin on EC2
+    → Gunicorn/Django container
+    → PostgreSQL/TimescaleDB container on encrypted EBS
 ```
 
 The local and hosted builds use the same mobile login, refresh/logout,

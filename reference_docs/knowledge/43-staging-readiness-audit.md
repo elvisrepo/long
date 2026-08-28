@@ -15,6 +15,14 @@ smoke was completed locally and in GitHub CI on 2026-08-26. Frontend
 hosting/origin, Android staging build, and detailed AWS cost/resource audits
 remain open.
 
+The deployment topology changed on 2026-08-28. Current presentation staging is
+`CloudFront -> Nginx on one public EC2 host -> Gunicorn/Django -> self-hosted
+PostgreSQL/TimescaleDB`, with encrypted EBS and scheduled `pg_dump` backups to
+private S3. The earlier ALB, NAT Gateway, and Timescale Cloud wording below is
+historical audit evidence where explicitly labelled; it is not a provisioning
+instruction. Recommended production is the separate resilient
+CloudFront/WAF -> ALB -> two Fargate tasks -> RDS PostgreSQL Multi-AZ topology.
+
 ## 1. Verified foundations
 
 - `config.settings.prod` exists and forces `DEBUG = False`.
@@ -48,15 +56,16 @@ Implemented outcome:
 - keep local Compose free to override the image command with `runserver`
 - define worker count, timeout, graceful shutdown, and forwarded-access-log behavior deliberately
 
-Nginx is not the fix for this blocker: it is a reverse proxy, not a production
-WSGI application server. The approved topology already has CloudFront and the
-ALB as managed proxies. Add and verify Gunicorn; do not add Nginx without a
-separate, concrete proxy requirement.
+Nginx was not the fix for this blocker: it is a reverse proxy, not a production
+WSGI application server. Gunicorn was still required. Nginx was subsequently
+selected in ADR-023 to replace the costly staging ALB's origin TLS and proxy
+roles; it does not replace Gunicorn.
 
 The focused runtime contract tests protect the image/Compose split, and CI now
 builds the image and uses Gunicorn's configuration check to import the real
 production WSGI application. The Structurizr staging views and executable
-runtime therefore agree on `ALB → Gunicorn → Django`.
+runtime therefore agree on the application-server boundary. The current
+staging request path is `Nginx -> Gunicorn -> Django`.
 
 ### Blocker B — production settings are not fail-safe — resolved 2026-08-21
 
@@ -87,11 +96,11 @@ Implemented outcome:
 - Stripe browser return URLs must use non-local HTTPS origins
 - a complete valid production environment still loads successfully
 
-### Blocker C — HTTPS and ALB proxy settings are incomplete — resolved 2026-08-21
+### Blocker C — HTTPS and trusted-proxy settings are incomplete — resolved 2026-08-21
 
 The production settings do not yet define:
 
-- `SECURE_PROXY_SSL_HEADER` for TLS terminated at the ALB
+- `SECURE_PROXY_SSL_HEADER` for TLS terminated at the trusted reverse proxy
 - `SECURE_SSL_REDIRECT`
 - `SESSION_COOKIE_SECURE`
 - `CSRF_COOKIE_SECURE`
@@ -103,7 +112,7 @@ Start HSTS conservatively in staging. Do not enable long-duration HSTS or
 
 Implemented outcome:
 
-- trust `X-Forwarded-Proto: https` from the ALB deployment boundary
+- trust `X-Forwarded-Proto: https` from the controlled Nginx/ALB deployment boundary
 - redirect genuinely insecure requests to HTTPS
 - mark session and CSRF cookies Secure
 - start HSTS at 300 seconds with subdomains and preload disabled
@@ -126,7 +135,7 @@ Implemented outcome:
 - keep liveness independent of the database and optional services
 - make readiness prove Django can query PostgreSQL
 - do not make readiness depend on Redis/Celery while staging omits them
-- point the ALB at the readiness contract and the external uptime monitor at the public liveness contract
+- use readiness as the deployment/database gate (and future production ALB target check), while external uptime monitoring uses liveness
 
 Changing the route is a public API-contract slice and must update the API,
 deployment, security, testing, and Structurizr references together.
@@ -148,17 +157,18 @@ simplest and safest behind one browser origin. S3 plus CloudFront is now the
 approved frontend, and Django intentionally has no credentialed cross-origin
 browser configuration for this same-origin design.
 
-The approved staging architecture uses CloudFront as one public browser origin,
-serves React from a private S3 bucket through Origin Access Control, and proxies
-uncached `/api/*` requests to the ALB. The `approved-initial-staging` DSL view
-models this path. `api-staging.<domain>` remains available for Android, Stripe,
-monitoring, and the CloudFront API origin.
+The approved staging architecture uses CloudFront as the only public
+application entry, serves React from private S3 through Origin Access Control,
+and proxies uncached `/api/*` requests to Nginx on the EC2 origin. The
+`current-presentation-staging` DSL view models this path. Android, Stripe, and
+monitoring use the same CloudFront hostname and API behavior.
 
 This blocker is not resolved merely by choosing the provider and changing the
 diagram. Configure the `/api/*` behavior without API caching, verify forwarded
 host/protocol metadata, and test refresh cookies and CSRF through the deployed
-origin. Configure private S3 access, SPA fallback only for static routes, and
-the separate CloudFront (`us-east-1`) and ALB (`eu-central-1`) certificates. A
+origin. Configure private S3 access, SPA fallback only for static routes, the
+CloudFront ACM viewer certificate in `us-east-1`, and the automatically renewed
+Let's Encrypt DNS-01 origin certificate on Nginx. A
 future separate-origin design would instead require credentialed CORS,
 cookie-domain/SameSite review, and cross-origin tests.
 
@@ -282,7 +292,7 @@ verification.
    2026-08-24:
    - `GET /api/v1/health/live/` is process liveness and does not query the database
    - `GET /api/v1/health/ready/` proves Django can query PostgreSQL
-   - point the ALB target group at readiness
+   - use readiness for deployment gating and the recommended production ALB target group
    - point external uptime monitoring at liveness
    - update API, security, testing, deployment, and Structurizr documentation in the same route-contract slice
 4. Remove unused public Celery behavior and runtime artifacts — completed
@@ -327,17 +337,21 @@ verification.
      refresh-cookie rotation through the real Vite-to-Django E2E proxy
 10. Audit the Android staging build:
     - staging application ID and signing
-    - `https://api-staging.<domain>/` base URL
+    - `https://staging.<domain>/api/...` base URL through CloudFront
     - no `adb reverse`
     - internal distribution method
 11. Cost and write the manual AWS provisioning runbook, including Route 53,
-    CloudFront, private S3, both ACM certificates, ALB, one EC2 target, one NAT
-    Gateway, EBS, CloudWatch, Secrets Manager, and Timescale Cloud.
+    CloudFront, private S3/OAC, one ACM viewer certificate, EC2/EIP, the
+    CloudFront-only origin security group, Nginx, Let's Encrypt DNS-01 renewal,
+    ECR, encrypted EBS, PostgreSQL/TimescaleDB, monitored `pg_dump` backups to
+    private encrypted versioned S3, CloudWatch, Systems Manager, and Secrets
+    Manager. Explicitly exclude ALB, NAT Gateway, Timescale Cloud, and RDS from
+    presentation staging.
 12. Provision staging only after the preceding application and runbook gates pass.
 
-Do not provision the ALB, EC2 host, DNS, S3/CloudFront distribution, or managed
-database before steps 1–8 pass. Otherwise cloud debugging will mix application
-runtime defects with infrastructure-learning defects.
+Do not provision EC2, DNS, S3/CloudFront, or the self-hosted database before the
+application and runbook gates pass. Otherwise cloud debugging will mix
+application runtime defects with infrastructure-learning defects.
 
 ## 5. Current gate
 

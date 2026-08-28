@@ -312,7 +312,7 @@ it does not execute ordinary Django request handlers itself.
 The image-default production flow is:
 
 ```text
-ALB → Gunicorn port 8000 → synchronous worker → Django WSGI application
+trusted reverse proxy → Gunicorn port 8000 → synchronous worker → Django WSGI application
 ```
 
 Local Compose overrides the image command with Django `runserver`, which wraps
@@ -320,11 +320,12 @@ Django in a convenient auto-reloading development server. It is not the
 hardened staging process manager. The ASGI entry point remains available but is
 not needed until the product has a real async transport requirement.
 
-Nginx is neither a WSGI server nor part of the current local or approved initial
-staging runtime. If introduced, it would sit in front of Gunicorn as another
-reverse proxy. CloudFront and the ALB already own the required initial static,
-TLS, routing, and health-check responsibilities, so staging should run
-`ALB → Gunicorn → Django` without an additional Nginx hop.
+Nginx is not a WSGI server and is not part of local development. Current
+presentation staging places it in front of Gunicorn to terminate origin TLS and
+reverse-proxy CloudFront API traffic. Gunicorn remains the process server that
+invokes Django. The resulting staging path is
+`CloudFront → Nginx → Gunicorn → Django`; recommended production replaces the
+Nginx origin with an ALB and private Fargate tasks.
 
 ### `pyproject.toml`, `uv.lock`, and Reproducible Dependencies
 

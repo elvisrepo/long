@@ -9,9 +9,9 @@
 | Layer | Choice | Why |
 |---|---|---|
 | **Backend** | Python / Django + DRF | Know it well, batteries-included, great ORM |
-| **Database** | Timescale Cloud (PostgreSQL + TimescaleDB) | Keeps TimescaleDB features without relying on unsupported RDS extensions |
-| **Cache / Broker** | Redis | Cache + Celery broker + Channels pub/sub in one |
-| **Task Queue** | Celery + Celery Beat | Mature, Django-native, handles scheduled + async tasks |
+| **Database** | PostgreSQL 16; TimescaleDB extension in presentation staging; RDS PostgreSQL Multi-AZ recommended for production | Keep the implemented PostgreSQL contract; self-host TimescaleDB cheaply for staging, but prefer managed recovery boundaries for real production users |
+| **Cache / Broker** | Redis (deferred) | Add only when measured asynchronous or cache workloads justify it |
+| **Task Queue** | Celery + Celery Beat (deferred) | Mature Django option for future server-side jobs; not part of current staging or baseline production |
 | **WebSockets** | Django Channels | Stays in Django ecosystem, ASGI support |
 | **Web Frontend** | React + Vite + TypeScript | Fast SPA development, strong ecosystem, good fit for a separate Django backend |
 | **Web Routing** | TanStack Router | Type-safe route/layout foundation with strong integration patterns for modern React apps |
@@ -27,6 +27,6 @@
 | **Containerization** | Docker + Docker Compose | Local dev parity, easy cloud deployment |
 | **CI/CD** | GitHub Actions | Free for public repos, simple YAML config |
 | **IaC** | Terraform | Cloud-agnostic, version-controlled infrastructure |
-| **Cloud** | AWS (ECS Fargate, ElastiCache, S3) + Timescale Cloud | Pragmatic split: AWS for app hosting, managed Timescale for time-series DB |
+| **Cloud** | Current staging: AWS CloudFront, S3, one EC2/Nginx host, EBS, Secrets Manager, Systems Manager, CloudWatch; recommended production: ALB, ECS Fargate, RDS Multi-AZ | Keep presentation staging cost-bounded while documenting a separate resilient production target |
 | **Monitoring** | CloudWatch (MVP) → Prometheus + Grafana (later) | Start simple, upgrade when needed |
 | **Error Tracking** | Sentry | Free tier, Django integration, best-in-class |

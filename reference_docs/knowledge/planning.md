@@ -2,6 +2,14 @@
 
 ---
 
+> [!IMPORTANT]
+> Deployment decisions dated 2026-08-28 supersede older topology proposals in
+> this plan. Presentation staging uses CloudFront/private S3 plus one public
+> EC2 host running Nginx, Gunicorn/Django, and PostgreSQL/TimescaleDB on encrypted
+> EBS. Recommended production uses CloudFront/WAF, ALB, two private Fargate API
+> tasks, and RDS PostgreSQL Multi-AZ. The canonical details are in sections 6,
+> 22, and 23 of `reference_docs/knowledge/` and ADR-023.
+
 ## 1. Planning & Requirements
 
 ### 1.1 Problem Definition & Audience
@@ -325,7 +333,7 @@ graph TB
 - In the Samsung-sync MVP, data is uploaded from an Android companion app; the backend does not call a Samsung cloud API directly.
 - When R2/R3 work begins, document the Android emulator/device setup separately instead of overloading this diagram.
 
-#### Pragmatic MVP Cloud Architecture (Target)
+#### Pragmatic MVP Cloud Architecture (Current Presentation Staging)
 ```mermaid
 graph TB
     subgraph "Internet"
@@ -339,20 +347,12 @@ graph TB
     end
 
     subgraph "App Hosting - AWS"
-        subgraph "Edge"
-            GW["ALB"]
-        end
-
-        subgraph "Compute"
-            APP["Django App<br/>(ECS Fargate Service)"]
-            WORKER["Celery Worker<br/>(ECS Task)"]
-            BEAT["Celery Beat<br/>(ECS Task)"]
-        end
-
-        subgraph "App Data"
-            ELASTICACHE[("ElastiCache Redis")]
-            S3["S3 Bucket<br/>(Backups, Static)"]
-        end
+        CF["CloudFront<br/>(Only Public App Entry)"]
+        S3["Private S3<br/>(React Build)"]
+        NGINX["Nginx on EC2<br/>(Origin TLS + Proxy)"]
+        APP["Gunicorn + Django<br/>(Container)"]
+        TSDB[("PostgreSQL + TimescaleDB<br/>(Container on Encrypted EBS)")]
+        BACKUP["Scheduled pg_dump<br/>to Private S3"]
 
         subgraph "Security & Config"
             SECRETS["Secrets Manager"]
@@ -364,32 +364,28 @@ graph TB
         end
     end
 
-    subgraph "Managed Database"
-        TSDB[("Timescale Cloud<br/>(Managed PostgreSQL + TimescaleDB)")]
-    end
-
     subgraph "CI/CD"
         GHA["GitHub Actions"]
         ECR["ECR<br/>(Container Registry)"]
     end
 
-    WEB --> GW --> APP
+    WEB --> CF
+    CF --> S3
+    CF --> NGINX --> APP
     SH --> HC --> ANDROID
-    ANDROID --> GW
+    ANDROID --> CF
     APP --> TSDB
-    APP --> ELASTICACHE
     APP --> SECRETS
-    WORKER --> TSDB
-    WORKER --> ELASTICACHE
-    BEAT --> ELASTICACHE
     GHA --> ECR --> APP
     APP --> CW
+    TSDB --> BACKUP
 ```
 
 **MVP notes**
 - Samsung sync is client-initiated: Samsung Health data is read on device, then uploaded by the Android companion app.
 - No Samsung cloud webhook or provider-hosted link flow is assumed in MVP.
-- Celery handles ingestion normalization, deduplication, retries, and repair tasks after uploads hit Django.
+- Bounded ingestion remains synchronous; Redis and Celery are omitted until a
+  measured server-side workload needs them.
 
 #### Full Requirements Architecture (Target — All Features)
 
@@ -407,7 +403,7 @@ graph TB
     end
 
     subgraph "Edge"
-        NGINX["ALB<br/>(TLS, CORS, Rate Limiting)"]
+        NGINX["CloudFront + WAF + ALB<br/>(TLS, Edge Filtering, Health Routing)"]
     end
 
     subgraph "Application Layer"
@@ -418,7 +414,7 @@ graph TB
     end
 
     subgraph "Data Layer"
-        PG[("Timescale Cloud<br/>(PostgreSQL + TimescaleDB)")]
+        PG[("RDS PostgreSQL Multi-AZ<br/>(Backups + PITR)")]
         REDIS[("Redis<br/>(Cache + Broker + Pub/Sub)")]
         S3["S3<br/>(Exports, Backups, Static)"]
     end
@@ -716,9 +712,9 @@ erDiagram
 | Layer | Choice | Why |
 |---|---|---|
 | **Backend** | Python / Django + DRF | Know it well, batteries-included, great ORM |
-| **Database** | Timescale Cloud (PostgreSQL + TimescaleDB) | Keeps TimescaleDB features without relying on unsupported RDS extensions |
-| **Cache / Broker** | Redis | Cache + Celery broker + Channels pub/sub in one |
-| **Task Queue** | Celery + Celery Beat | Mature, Django-native, handles scheduled + async tasks |
+| **Database** | PostgreSQL 16; self-hosted TimescaleDB in staging; RDS PostgreSQL Multi-AZ for recommended production | Preserve PostgreSQL portability while matching each environment's cost and recovery needs |
+| **Cache / Broker** | Redis (deferred) | Add when a measured cache or asynchronous workload requires it |
+| **Task Queue** | Celery + Celery Beat (deferred) | Future server-side jobs; not baseline staging or production infrastructure |
 | **WebSockets** | Django Channels | Stays in Django ecosystem, ASGI support |
 | **Web Frontend** | React (Vite) | Fast, huge ecosystem, Recharts for data viz |
 | **Mobile** | Kotlin Android app | Required for Samsung-sync MVP because Samsung data is read on device |
@@ -728,7 +724,7 @@ erDiagram
 | **Containerization** | Docker + Docker Compose | Local dev parity, easy cloud deployment |
 | **CI/CD** | GitHub Actions | Free for public repos, simple YAML config |
 | **IaC** | Terraform | Cloud-agnostic, version-controlled infrastructure |
-| **Cloud** | AWS (ECS Fargate, ElastiCache, S3) + Timescale Cloud | Pragmatic split: AWS for app hosting, managed Timescale for time-series DB |
+| **Cloud** | Staging: CloudFront/S3 + EC2/Nginx/EBS; production: CloudFront/WAF + ALB/Fargate + RDS Multi-AZ | Separate low-cost presentation staging from resilient production |
 | **Monitoring** | CloudWatch (MVP) → Prometheus + Grafana (later) | Start simple, upgrade when needed |
 | **Error Tracking** | Sentry | Free tier, Django integration, best-in-class |
 
@@ -1158,12 +1154,13 @@ When testing Samsung-sync behavior:
 > [!NOTE]
 > Don't write Terraform until ready to deploy to cloud. But **do plan** the resources upfront.
 
-Terraform manages:
-- VPC + subnets + security groups
-- Timescale Cloud service (PostgreSQL + TimescaleDB)
-- ElastiCache (Redis)
-- ECS Fargate (Django + Celery)
-- S3 (backups, static files)
+Terraform manages the recommended production topology:
+- VPC, two-AZ public/private subnets, security groups, and zonal NAT Gateways
+- CloudFront, WAF, ALB, and private S3 frontend origin
+- two ECS Fargate Django API tasks and one-off migration tasks
+- RDS PostgreSQL Multi-AZ with backups and point-in-time recovery
+- optional ElastiCache/Celery resources only after a measured requirement
+- S3 for static files and durable artifacts
 - Secrets Manager
 - IAM roles
 - CloudWatch log groups
@@ -1204,9 +1201,9 @@ jobs:
 ### 7.3 Containers
 - Single `Dockerfile` (multi-stage: build → prod)
 - Docker Compose for local dev (§3.2)
-- manually provisioned EC2 plus Docker Compose for staging
-- Terraform-managed EC2 for the production MVP
-- ECS Fargate for post-MVP managed-container learning and worker separation
+- manually provisioned EC2 plus Docker Compose for presentation staging
+- Terraform-managed ALB/Fargate/RDS topology for recommended production
+- optional Fargate worker separation only when server-side async work exists
 - no Kubernetes for the MVP
 
 ### 7.4 Secrets
@@ -1215,12 +1212,14 @@ See §3.6.
 ### 7.5 Backups
 
 > [!IMPORTANT]
-> **Yes, backups from day 1 in production.** Use managed database backups plus periodic logical exports. The exact retention can vary by provider plan, so document the real numbers when provisioning.
+> **Yes, backups from day 1.** Staging needs monitored logical backups and a
+> restore drill. Production needs RDS backups, point-in-time recovery, and a
+> restore exercise.
 
 | What | How | Retention |
 |---|---|---|
-| Database | Timescale Cloud automated backups | Provider-managed retention |
-| Database (extra, later) | Deliberate scheduled `pg_dump` task to versioned S3 | Define before enabling |
+| Staging database | Scheduled `pg_dump` to private encrypted versioned S3 | Define in runbook and monitor |
+| Production database | RDS automated backups and point-in-time recovery | Define before real users |
 | `.env` / Terraform state | Terraform Cloud or S3 + versioning | Indefinite |
 | User uploads (if any) | S3 with versioning | Indefinite |
 
@@ -1232,20 +1231,24 @@ See §3.6.
 
 | Component | Service | Why |
 |---|---|---|
-| **Backend** | AWS EC2 + Docker Compose + ALB | Manual staging teaches AWS directly; Terraform reproduces the topology for the MVP |
-| **Database** | Timescale Cloud (PostgreSQL + TimescaleDB) | Managed TimescaleDB without unsupported RDS extension assumptions |
+| **Staging Backend** | CloudFront → Nginx on one public EC2 Docker host → Gunicorn/Django | Cost-bounded presentation environment with no ALB or NAT Gateway |
+| **Staging Database** | PostgreSQL/TimescaleDB container on encrypted EBS | Low fixed cost; scheduled `pg_dump` to private S3 |
+| **Production Backend** | CloudFront/WAF → ALB → two private Fargate API tasks | Multi-AZ routing and compute failure isolation |
+| **Production Database** | RDS PostgreSQL Multi-AZ | Managed failover, backups, and PITR |
 | **Cache** | None initially; post-MVP ElastiCache Redis | Current bounded synchronous requests do not require a broker |
 | **Static/Media** | S3 + CloudFront CDN | Global delivery, cheap storage |
-| **Frontend** | Vercel or CloudFront + S3 | Free tier, global CDN, auto-deploy from git |
+| **Frontend** | Private S3 + CloudFront/OAC | One controlled browser origin and global static delivery |
 
-Progression: manually provision isolated EC2 staging and document a runbook;
-reproduce the EC2 topology with Terraform before production; post-MVP, move
-compute to ECS Fargate and add Redis, Celery Worker, exactly one Beat scheduler,
-and S3 job artifacts only when real asynchronous workloads exist.
+Progression: manually provision presentation staging and document a runbook;
+before real users, provision the separate resilient production topology with
+Terraform; add Redis, Celery Worker, and one Beat scheduler only when real
+asynchronous workloads exist.
 
 ### 8.2 Domain & SSL
 - Domain via Route53 or Cloudflare
-- SSL auto-provisioned by ALB (ACM certificate)
+- staging viewer TLS through ACM on CloudFront and origin TLS through automated
+  Let's Encrypt DNS-01 on Nginx
+- production origin/API TLS through ACM on the ALB
 
 ### 8.3 Production Environment
 - `DEBUG=False`, `ALLOWED_HOSTS` set, `SECURE_*` Django settings
@@ -1258,15 +1261,15 @@ and S3 job artifacts only when real asynchronous workloads exist.
 
 ### 8.5 Database Migrations in Production
 ```bash
-# Run the immutable backend image once on EC2 before replacing Django.
+# Run the immutable backend image once before replacing/promoting Django.
 python manage.py migrate --no-input
 ```
 
-The post-MVP Fargate equivalent is a one-off ECS task using the same image and
-command.
+The recommended production equivalent is a one-off Fargate task using the same
+image and command.
 
 ### 8.6 Rate Limiting & DDoS
-- AWS WAF on ALB (basic DDoS protection)
+- AWS WAF at the production edge, plus Django/DRF throttling
 - Django-level rate limiting (`django-ratelimit`) for auth endpoints
 - CloudFront for static asset protection
 
@@ -1284,7 +1287,7 @@ command.
 - Free tier: 5K events/month (more than enough for MVP)
 
 ### 9.3 Uptime Monitoring
-- **UptimeRobot** (free) — pings `/api/v1/health/live/` every 5 min, alerts on failure; the ALB separately probes `/api/v1/health/ready/`
+- **UptimeRobot** (free) — pings `/api/v1/health/live/` every 5 min and alerts on failure; staging deployment and the production ALB separately probe `/api/v1/health/ready/`
 
 ### 9.4 Analytics
 - **Plausible** (privacy-friendly, no cookies) for frontend page views

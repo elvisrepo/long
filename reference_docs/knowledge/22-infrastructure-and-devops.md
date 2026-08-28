@@ -9,7 +9,10 @@
 ### 7.1 IaC (Terraform)
 
 > [!NOTE]
-> Build staging manually once to learn the AWS resources, but document every step. Before accepting production users, reproduce the EC2 topology with Terraform so it can be reviewed and rebuilt.
+> Build the cost-bounded presentation staging environment manually once and
+> document every step. Before accepting real production users, provision the
+> separate resilient production topology with Terraform; do not clone the
+> single-host staging failure domain into production.
 
 #### Current AWS foundation
 
@@ -65,30 +68,33 @@ Staging runtime identity and secret contract:
 
 Infrastructure progression:
 
-1. Manually provision EC2 staging:
+1. Manually provision presentation staging:
 
-- one VPC with two public ALB/NAT subnets and two private application subnets across two Availability Zones
-- public DNS and an ACM-backed HTTPS ALB with a health-checked target group
-- approved initial target: one private EC2 application host using Docker Engine and Compose; register a second target in the other Availability Zone later
-- long-lived Django API container plus a one-off migration container from the same image
-- Timescale Cloud service and provider-managed automated backups
+- CloudFront as the only public application entry, with private S3/OAC for the React build and uncached `/api/*` forwarding
+- one public `t4g.small` EC2 Docker host with an Elastic IP; no ALB or NAT Gateway
+- EC2 ingress on TCP 443 only from the CloudFront origin-facing prefix list; no public SSH, Gunicorn, or PostgreSQL port
+- Nginx origin TLS and reverse proxy, with a secret CloudFront origin header
+- automated Let's Encrypt certificate issuance/renewal through Route 53 DNS-01
+- long-lived Django API container plus a one-off migration container from the same immutable image
+- PostgreSQL/TimescaleDB container with data on encrypted persistent EBS
+- scheduled, monitored `pg_dump` backups to a private encrypted versioned S3 bucket and a tested restore procedure
 - Secrets Manager, an EC2 instance role, and least-privilege IAM permissions
 - AWS Systems Manager access instead of a publicly exposed SSH administration path
 - CloudWatch log groups and infrastructure metrics
 - private S3 frontend bucket with Block Public Access and CloudFront Origin Access Control
-- CloudFront at `staging.<domain>` with a cached static/SPA behavior and an uncached `/api/*` behavior that forwards to the ALB
-- separate ACM certificates for the CloudFront viewer endpoint in `us-east-1` and the ALB API endpoint in `eu-central-1`
-- Gunicorn as the production WSGI server behind the ALB; do not add Nginx unless a measured server-local static/media, buffering, Unix-socket, or specialized proxy requirement appears
+- ACM viewer certificate for CloudFront in `us-east-1`; Let's Encrypt certificate on Nginx for the origin hostname
+- Gunicorn as the production WSGI server behind Nginx
 
-2. Encode the same EC2 topology in Terraform before production:
+2. Encode the recommended production topology in Terraform before real users:
 
 - preserve separate staging and production domains, databases, secrets, and Stripe modes
-- make production reproducible rather than copying a manually configured server
+- use CloudFront/WAF, an ALB across two AZs, two private Fargate API tasks, and RDS PostgreSQL Multi-AZ with point-in-time recovery
+- provide resilient private-task egress with one NAT Gateway per AZ
+- make production reproducible and avoid copying the staging host's colocated database failure domain
 - keep application release automation separate from infrastructure provisioning
 
-3. Introduce post-MVP Fargate resources after the EC2 learning phase:
+3. Introduce asynchronous resources only after a measured requirement:
 
-- ECS Fargate Django API service and one-off migration task
 - ElastiCache Redis
 - ECS Fargate Celery Worker
 - exactly one ECS Fargate Celery Beat scheduler unless a future distributed scheduler replaces it
@@ -161,7 +167,7 @@ Practical note from the current project:
 - the EC2 staging pipeline should authenticate to AWS through GitHub OIDC rather than long-lived AWS keys
 - Terraform provisions infrastructure; the deployment pipeline ships a tested application version onto that infrastructure
 - deployment must stop when the one-off migration container fails
-- service promotion should require the ALB health check and a public smoke test to pass
+- staging promotion should require the public liveness check and database readiness check to pass; production additionally requires the ALB health check
 - the approved deployment policy permits a short maintenance interruption while
   the single API container is replaced; blue/green, rolling, and other
   zero-downtime promotion mechanisms are not planned requirements
@@ -177,8 +183,8 @@ Practical note from the current project:
 - `docker-compose.production-smoke.yml` and
   `scripts.smoke_production_deployment` exercise that migration-first contract
   with an inert snapshot and disposable database in local and GitHub CI
-- Terraform-managed EC2 for the production MVP
-- ECS Fargate API, migration, Celery Worker, and Beat tasks only in the post-MVP learning/evolution phase
+- Terraform-managed ALB, two Fargate API tasks, one-off migration task, and RDS Multi-AZ for real production users
+- Celery Worker and Beat tasks only when measured server workloads justify them
 - no Kubernetes for the MVP; its operational cost is unjustified for a solo deployment
 
 Celery Worker, Celery Beat, migrations, and artifact-producing jobs are ordinary
@@ -197,16 +203,19 @@ See §3.6.
 ### 7.5 Backups
 
 > [!IMPORTANT]
-> **Yes, backups from day 1 in production.** Use managed database backups plus periodic logical exports. The exact retention can vary by provider plan, so document the real numbers when provisioning.
+> **Yes, backups from day 1.** Presentation staging needs a monitored logical
+> backup and restore drill because its database is self-hosted. Production uses
+> managed RDS backups and point-in-time recovery, also with restore exercises.
 
 | What | How | Retention |
 |---|---|---|
-| Database | Timescale Cloud automated backups | Provider-managed retention |
-| Database (extra, later) | Deliberate scheduled `pg_dump` task to versioned S3 | Define before enabling; previous proposal was 90 days |
+| Staging database | Scheduled `pg_dump` to private encrypted versioned S3 | Define in the runbook; monitor every run and test restoration |
+| Production database | RDS automated backups and point-in-time recovery | Define and verify before accepting real users |
 | Terraform state / local-development `.env` | Terraform Cloud or S3 + versioning for state; ignored workstation storage for local `.env` | Indefinite for state; local `.env` is not a production backup artifact |
 | User uploads (if any) | S3 with versioning | Indefinite |
 
-The Django API process does not own database backups. Record the provisioned
-Timescale Cloud retention and perform a restore drill before calling staging
-production-ready. Do not add the extra logical-export job until there is a
-durable scheduler and a tested restore procedure.
+The Django API process does not own backups. A separate host-scheduled container
+creates staging dumps and reports success/failure. Record retention, protect the
+bucket from public access, and perform a restore drill before calling staging
+recoverable. Production backup retention and restoration belong to the RDS
+operational boundary.

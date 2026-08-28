@@ -42,7 +42,8 @@ Public health-endpoint boundary:
   errors, credentials, hostnames, and exception text are never serialized or
   deliberately logged by the handler.
 - Readiness excludes Redis and Celery because unavailable optional services
-  must not remove an otherwise usable API target from the initial staging ALB.
+  must not fail the staging deployment database gate or remove an otherwise
+  usable task from the recommended production ALB target group.
 - The former unauthenticated `/tasks/ping/` endpoint has been removed. Public
   callers can no longer create arbitrary broker traffic through a diagnostic
   route; future task diagnostics must use a protected operational boundary.

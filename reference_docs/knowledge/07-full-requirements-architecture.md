@@ -20,7 +20,7 @@ graph TB
     end
 
     subgraph "Edge"
-        NGINX["ALB<br/>(TLS, CORS, Rate Limiting)"]
+        NGINX["CloudFront + WAF + ALB<br/>(TLS, Edge Filtering, Health Routing)"]
     end
 
     subgraph "Application Layer"
@@ -31,7 +31,7 @@ graph TB
     end
 
     subgraph "Data Layer"
-        PG[("Timescale Cloud<br/>(PostgreSQL + TimescaleDB)")]
+        PG[("RDS PostgreSQL Multi-AZ<br/>(Backups + PITR)")]
         REDIS[("Redis<br/>(Cache + Broker + Pub/Sub)")]
         S3["S3<br/>(Exports, Backups, Static)"]
     end
@@ -79,3 +79,9 @@ graph TB
 - **Background work** (wearable uploads, cloud-provider backfills, analytics computation, Stripe webhooks, GDPR exports) → Celery Workers ← Redis broker
 - **Scheduled jobs** (nightly aggregates, token refresh) → Celery Beat → Redis → Workers
 - **Cloud-provider integrations** → Celery Workers connect to the wearable aggregator + Stripe when the provider supports server-side APIs
+
+This full production target follows ADR-023: application tasks run privately
+across Availability Zones and RDS owns the primary database recovery boundary.
+RDS PostgreSQL does not provide TimescaleDB. Reconsider a managed
+Timescale-compatible provider only if implemented hypertables, compression,
+retention, or continuous aggregates make the extension materially necessary.

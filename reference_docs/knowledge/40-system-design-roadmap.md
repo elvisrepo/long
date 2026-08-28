@@ -228,7 +228,7 @@ Recommended order:
 
 12. Deploy a public HTTPS staging environment — next
 
-   Start from the completed AWS access bootstrap, then manually provision the AWS staging resources to learn the platform: hosted React assets, Route53, ACM, ALB, one EC2 Docker host for Django and one-off migrations, Systems Manager, an EC2 IAM role, Secrets Manager, CloudWatch, and managed PostgreSQL. Keep resources in `eu-central-1`, record every command and console decision in a staging runbook, and review projected/actual cost against the promotional-credit budget. Configure a public Stripe test webhook, then prove Weight and Steps sync without USB or `adb reverse`.
+   Start from the completed AWS access bootstrap, then manually provision the cost-bounded presentation staging resources: CloudFront, private S3/OAC, Route 53, one public `t4g.small` EC2 Docker host with an Elastic IP, Nginx with automated Let's Encrypt DNS-01 renewal, Gunicorn/Django and one-off migration containers, self-hosted PostgreSQL/TimescaleDB on encrypted EBS, monitored `pg_dump` backups to private S3, Systems Manager, an instance role, Secrets Manager, ECR, and CloudWatch. Do not add ALB, NAT Gateway, Timescale Cloud, RDS, Redis, or Celery to staging. Record every decision and review projected/actual cost. Configure a public Stripe test webhook, then prove Weight and Steps sync without USB or `adb reverse`.
 
 13. Add asynchronous server processing — deferred until justified
 
@@ -245,20 +245,21 @@ Related doc:
 
 ## 5. Online deployment design
 
-For the first online deployment, the pragmatic target should be:
+For the first online presentation deployment, the pragmatic target is:
 
 ```text
 User Browser
   ↓
-HTTPS / CDN / Static frontend hosting
-  ↓
-Route53 → HTTPS ALB
-  ↓
-EC2 + Docker Compose
-  ├── Django API container
-  └── one-off migration container
-  ↓
-Managed Postgres / TimescaleDB
+CloudFront
+  ├── private S3 React build
+  └── uncached /api/* → Nginx HTTPS origin
+                           ↓
+                    EC2 + Docker Compose
+                      ├── Django API container
+                      ├── one-off migration container
+                      └── PostgreSQL/TimescaleDB container
+                               ↓ encrypted EBS
+                    scheduled pg_dump → private S3 backups
 
 Stripe
   ↓
@@ -276,26 +277,26 @@ contains it.
 Deployment progression:
 
 ```text
-Manually provision EC2 staging and record a runbook
+Manually provision the single-host presentation staging topology and record a runbook
     ↓
-Reproduce the EC2 topology with Terraform before production
+Provision the separate production topology with Terraform
     ↓
-Operate the production MVP on Terraform-managed EC2
+CloudFront/WAF → ALB → two Fargate API tasks → RDS PostgreSQL Multi-AZ
     ↓
-Post-MVP, migrate compute to Fargate and add worker infrastructure when justified
+Add worker infrastructure only when justified
 ```
 
-EC2 is the MVP compute platform; Terraform is the eventual reproducible source
-of truth for that infrastructure. They are complementary, not competing
-choices. The deployment pipeline is separate again: it builds a tested image,
-pushes it to ECR, invokes the EC2 host through Systems Manager, runs migrations,
-replaces Django, and verifies health checks.
+EC2 is the presentation-staging compute platform. It is intentionally not the
+production resilience target. Terraform is the source of truth for the later
+ALB/Fargate/RDS production infrastructure. The staging deployment pipeline is a
+separate concern: it builds a tested image, pushes it to ECR, invokes EC2 through
+Systems Manager, runs migrations, replaces Django, and verifies health checks.
 
 Android environment boundary:
 
 ```text
 debug   → http://127.0.0.1:8000/ through adb reverse
-staging → https://api-staging.<domain>/ over the internet
+staging → https://staging.<domain>/api/... over the internet
 release → https://api.<domain>/ over the internet
 ```
 
@@ -312,13 +313,13 @@ Production needs:
 - production environment variables
 - Stripe live/test mode separation
 - database migrations in the deploy flow
-- managed Postgres backups
+- staging `pg_dump` backups and a restore drill; production RDS automated backups and PITR
 - health checks
 - API logging
 - error monitoring
 - CI running tests before deploy
 - a staging-first deployment pipeline before production automation
-- a documented manual AWS runbook followed by Terraform-managed EC2 before real production use
+- a documented manual staging runbook followed by Terraform-managed ALB/Fargate/RDS before real production use
 - secure CORS/CSRF/session settings
 - Android environment-specific HTTPS API base URLs
 - Android release signing and private/internal distribution for staging
@@ -375,7 +376,14 @@ Next real system-design step:
 Prepare and deploy a public HTTPS staging environment
 ```
 
-The staging slice should manually provision the EC2-based AWS topology, configure production-safe Django settings, managed PostgreSQL, one-off Docker migrations, backups, health checks, structured logs, a public Stripe test webhook, frontend hosting, and an Android staging API base URL. Every manual step belongs in a runbook. Its exit condition is a physical phone synchronizing Weight and Steps over ordinary Wi-Fi or mobile data into the hosted frontend without USB or `adb reverse`.
+The staging slice should manually provision CloudFront/private S3 and one
+public EC2 host running Nginx, Gunicorn/Django, and PostgreSQL/TimescaleDB on
+encrypted EBS. It must include one-off Docker migrations, scheduled logical
+backups, a restore drill, health checks, structured logs, a public Stripe test
+webhook, and an Android staging API base URL. Every manual step belongs in a
+runbook. Its exit condition is a physical phone synchronizing Weight and Steps
+over ordinary Wi-Fi or mobile data into the hosted frontend without USB or
+`adb reverse`.
 
 The access bootstrap is complete, but it must not be mistaken for a deployed
 staging environment. The immediate first deployment action is a cost-aware
@@ -384,4 +392,9 @@ manual provisioning. The read-only agent role may help inspect decisions and
 availability; it cannot deploy resources. Do not bind deployment automation to
 the administrator profile.
 
-Before production, reproduce that EC2 topology in Terraform. Post-MVP, migrate to Fargate to learn managed container operations and add Celery/Redis only when synchronous ingestion is a measured bottleneck or another server-side workflow needs durable asynchronous execution. Additional metrics follow staging; Heart Rate is the likely next mapping, while Sleep requires a separate domain-design pass.
+Before real production users, build the separate CloudFront/WAF, ALB, two-task
+Fargate, and RDS PostgreSQL Multi-AZ topology in Terraform. Add Celery/Redis only
+when synchronous ingestion is a measured bottleneck or another server-side
+workflow needs durable asynchronous execution. Additional metrics follow
+staging; Heart Rate is the likely next mapping, while Sleep requires a separate
+domain-design pass.

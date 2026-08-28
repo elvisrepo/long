@@ -66,16 +66,19 @@ Android → http://127.0.0.1:8000/ → adb reverse → local Django
 
 Hosted staging:
 Android staging build
-    → https://api-staging.<domain>/
-    → public DNS
-    → HTTPS ALB
-    → Django container on EC2
-    → Timescale Cloud
+    → https://staging.<domain>/api/...
+    → CloudFront
+    → Nginx HTTPS origin on EC2
+    → Gunicorn/Django container
+    → PostgreSQL/TimescaleDB container on encrypted EBS
 
 Production:
 Android release build
     → https://api.<domain>/
-    → the production ALB, EC2 application, and database
+    → CloudFront/WAF
+    → ALB
+    → private Fargate API task
+    → RDS PostgreSQL Multi-AZ
 ```
 
 The hosted app uses ordinary Wi-Fi or mobile data and no USB tunnel. Its OkHttp

@@ -1,77 +1,90 @@
-## 8. Production Deployment
+## 8. Deployment
 
 ## Use When
-- Load this when you need production hosting decisions, domain and SSL setup, runtime environment rules, CDN strategy, migration procedure, or rate limiting and DDoS protection.
+
+- Load this for staging and production hosting decisions, DNS/TLS boundaries,
+  runtime configuration, frontend delivery, migrations, backups, or promotion.
 
 ## Source
-- Derived from `reference_docs/knowledge/planning.md` section 8.
 
-### 8.1 Hosting
+- The canonical C4 deployment source is
+  `reference_docs/knowledge/diagrams/longevity-architecture.dsl`.
 
-Initial public staging:
+### 8.1 Environment Topologies
 
-| Component | Service | Why |
+Current presentation staging:
+
+| Component | Choice | Boundary |
 |---|---|---|
-| **Frontend** | Private S3 bucket + CloudFront | Approved same-origin static SPA and `/api/*` proxy; learn the AWS CDN and origin-security boundary |
-| **Backend** | ACM-backed ALB + one private EC2 Docker Compose host initially | Start cheaply with one target and add a second-AZ target later without changing DNS or API contracts |
-| **Database** | Timescale Cloud (PostgreSQL + TimescaleDB) | Managed database matching the intended time-series direction |
-| **Secrets** | AWS Secrets Manager | Server-side Django, database, and Stripe configuration |
-| **Logs/Metrics** | CloudWatch | Container stdout/stderr and AWS infrastructure metrics |
-| **Database Backups** | Timescale Cloud automated backups | Provider-owned backup and restoration boundary |
+| Frontend and browser edge | CloudFront + private S3/OAC | One public browser origin; cached static files and uncached `/api/*` |
+| API origin | Nginx on one public `t4g.small` EC2 host | Origin TLS, secret-origin-header validation, reverse proxy to Gunicorn |
+| Application | Gunicorn/Django container | Long-running API; no development server |
+| Database | PostgreSQL 16 with TimescaleDB extension on the EC2 host | Persistent encrypted EBS volume; not highly available |
+| Migrations | One-off container from the backend image | Must succeed before API replacement |
+| Secrets | AWS Secrets Manager | One validated `.env`-free runtime snapshot |
+| Operations | Systems Manager + CloudWatch | No public SSH; container logs and host alarms |
+| Backups | Scheduled `pg_dump` to private encrypted versioned S3 | Monitored logical backup plus restore drill |
 
-The EC2 application port accepts traffic only from the ALB security group, and
-administration should use AWS Systems Manager instead of exposing SSH publicly.
-The ALB spans public subnets in two Availability Zones; the approved first EC2
-target occupies a private application subnet and has no inbound port 22. This
-one-target staging environment remains a single point of failure until the
-second-AZ target is added.
-The initial staging runtime does not require ElastiCache, Celery Worker, or
-Celery Beat. Add those only when a measured server-side workload needs durable
-asynchronous execution. Android WorkManager remains responsible for device-side
-Health Connect scheduling even after Celery exists.
+The staging host is a single failure domain. Failure of EC2 can affect Nginx,
+Django, and PostgreSQL together. This is accepted for a low-traffic presentation
+environment and is not the recommended topology for real production users.
 
-Post-MVP Fargate target:
+Recommended production:
 
-| Component | Service | Trigger |
+| Component | Choice | Boundary |
 |---|---|---|
-| **Broker** | AWS ElastiCache Redis | Async jobs are introduced |
-| **Workers** | ECS Fargate Celery Worker | Backfills, analytics, repair, exports, deletion, or slow ingestion |
-| **Scheduler** | ECS Fargate Celery Beat | Tested periodic server-side work exists |
-| **Artifacts** | Versioned S3 | Logical backups, exports, repair outputs, or media exist |
+| Edge | CloudFront + AWS WAF + private S3 | Public frontend and API entry |
+| API routing | Public ALB across two AZs | TLS termination and healthy-target routing |
+| Application | Two private ECS Fargate API tasks across AZs | Independent replacement and host failure domains |
+| Database | RDS PostgreSQL Multi-AZ | Managed failover, backups, and point-in-time recovery |
+| Migrations | One-off Fargate task | Same immutable backend image and configuration contract |
+| Egress | One NAT Gateway per AZ | Resilient private-task outbound access |
+| Configuration/operations | Secrets Manager + CloudWatch | Separate production identities and secrets |
 
-### 8.2 Domain & SSL
-- API domain via Route53 or Cloudflare
-- separate staging and production API hostnames, for example `api-staging.<domain>` and `api.<domain>`
-- TLS certificate provisioned through ACM and terminated at the ALB
-- HTTP redirects to HTTPS; the Android release manifest continues to reject cleartext traffic
-- Stripe test/live webhook destinations use the corresponding public HTTPS endpoint
+Production does not need Nginx because CloudFront and ALB own its relevant edge
+and reverse-proxy responsibilities. Redis, Celery Worker, and Celery Beat are
+not baseline requirements; add them only for measured asynchronous workloads.
 
-Route53 publishes the hostname-to-ALB alias; it does not perform TLS. The ALB's
-port-443 listener presents the ACM certificate, negotiates and terminates the
-client TLS connection, then forwards the decrypted request to the EC2 target.
-The EC2 application security group must accept traffic only from the ALB
-security group because Django trusts the ALB's `X-Forwarded-Proto: https`
-header. Under the MVP boundary, the ALB-to-EC2 hop is HTTP inside that restricted
-network path; moving to HTTPS targets would be a separate hardening decision.
+The previous ALB + one EC2 + Timescale Cloud staging proposal and the earlier
+two-EC2/Fargate evolution are preserved as **legacy / superseded** C4 views.
+They are historical context, not provisioning instructions.
 
-### 8.3 Production Environment
-- `DEBUG=False`, `ALLOWED_HOSTS` set, `SECURE_*` Django settings
-- one environment-specific AWS Secrets Manager JSON value, retrieved once by
-  the EC2 host and passed through process environment rather than baked into
-  the image or stored in a persistent `.env`
-- Gunicorn for the current synchronous Django runtime; add ASGI/Uvicorn only when a real Channels or async transport requirement exists
-- explicit frontend origin, CORS, CSRF trusted origins, and secure cookie configuration
-- console/structured logging without secrets, JWTs, health values, or Stripe payload leakage
-- environment-specific Stripe test versus live credentials and webhook secrets
+### 8.2 DNS, TLS, and Origin Security
 
-`DEBUG=False` is independent of logging. It suppresses developer exception
-pages and debug-only behavior for public requests; redacted diagnostics still
-flow through the configured log levels to CloudWatch.
+Route 53 resolves hostnames; it never forwards an HTTP request. In current
+staging, clients connect to CloudFront, which is the only public application
+entry and presents an ACM viewer certificate created in `us-east-1`.
 
-The staging runtime secret ID is `longevity/staging/backend-runtime`. Its
-canonical keys are defined once in
-`backend/config/settings/production_environment.py` and consumed by both
-`config.settings.prod` and `scripts.staging_runtime`. The host invocation is:
+CloudFront's API behavior connects by HTTPS to an origin hostname such as
+`origin-staging.<domain>`, which resolves to the EC2 Elastic IP. Nginx presents
+an automatically renewed Let's Encrypt certificate obtained through Route 53
+DNS-01 validation. Use a systemd timer for renewal and alert before expiry.
+
+Origin access requires both:
+
+- an EC2 security-group rule allowing TCP 443 only from the AWS-managed
+  CloudFront origin-facing prefix list; and
+- a secret custom CloudFront origin header that Nginx validates before proxying.
+
+Do not expose ports 22, 8000, or 5432 publicly. Operators use Systems Manager.
+Nginx sets the trusted proxy metadata, including `X-Forwarded-Proto: https`, for
+Django. HTTP redirects to HTTPS, and Android release builds reject cleartext.
+
+In recommended production, ACM terminates origin/API TLS at the ALB. The ALB
+accepts only CloudFront-origin traffic under the equivalent origin restriction,
+and its target security group is the only source allowed to reach Fargate.
+
+### 8.3 Runtime Configuration
+
+- `DEBUG=False`, explicit `ALLOWED_HOSTS`, and production `SECURE_*` settings
+- Gunicorn for the synchronous WSGI application
+- environment-specific CSRF, cookie, Stripe test/live, and logging values
+- stdout/stderr logs without secrets, tokens, health values, or Stripe payloads
+- no persistent production `.env` file
+
+The staging secret ID is `longevity/staging/backend-runtime`. Canonical keys
+live in `backend/config/settings/production_environment.py` and are consumed by
+both Django settings and `scripts.staging_runtime`.
 
 ```bash
 cd backend
@@ -81,284 +94,137 @@ uv run --no-sync python -m scripts.staging_runtime \
   -- docker compose ...
 ```
 
-The loader disables non-EC2 AWS credential sources, retrieves `AWSCURRENT`
-exactly once, validates the entire 14-key JSON object, omits unexpected keys,
-and supplies one in-memory snapshot to the deployment command. Configuration
-or AWS retrieval failures stop before Docker is invoked.
+The loader disables workstation credential sources, retrieves `AWSCURRENT`
+once through the EC2 instance role, validates the complete JSON contract, and
+passes one allowlisted in-memory snapshot to the deployment command. Retrieval
+or validation failure stops before Docker is invoked. A human starts a Systems
+Manager session; the machine instance role, not the human profile, reads the
+runtime secret.
 
-The production-like deployment contract was completed and verified on
-2026-08-26. `scripts.production_deployment` freezes the inherited process
-environment once, runs the one-off migration container, and starts/waits for
-the API only after migration success. `scripts.smoke_production_deployment`
-supplies a complete inert snapshot through the Step 7 boundary, verifies public
-liveness and database readiness through loopback port `18000`, and attempts
-Compose cleanup in `finally`. The same executable smoke runs in backend CI.
+`scripts.production_deployment` freezes that inherited snapshot, runs the
+migration container, and starts/waits for the API only after migration success.
+`scripts.smoke_production_deployment` verifies the same contract locally and in
+CI. Privileged host or Docker operators can still inspect process environments,
+so restrict those privileges and never print unredacted Compose configuration.
 
-The human Systems Manager caller and machine runtime identity are separate. A
-human operator starts the session; the EC2 instance-profile role retrieves the
-secret using least-privilege access to its exact ARN. Do not copy a workstation
-AWS profile or access keys onto EC2. Environment injection is not secrecy from
-root or Docker administrators, so restrict those privileges and never capture
-unredacted `docker compose config` output.
+### 8.4 Frontend and Request Routing
 
-The selected staging browser architecture uses one browser origin because React
-currently uses relative `/api/...` URLs. CloudFront serves private-S3 assets and
-proxies uncached `/api/*` to the ALB. A separate API origin is valid only
-with explicit credentialed CORS, cookie-domain/SameSite review, CSRF trusted
-origins, and cross-origin tests. Android, Stripe webhooks, and monitoring still
-use the dedicated public API hostname directly.
+CloudFront provides one browser origin because React uses relative `/api/...`
+URLs. Its behaviors are:
 
-Android environment boundary:
+| Request | Owner | Origin/result |
+|---|---|---|
+| `/metrics/resting_hr` | TanStack Router | Static behavior rewrites to S3 `/index.html`; React renders the route |
+| `/assets/{hash}.js` | Vite build output | Exact private-S3 object; immutable and long-cached |
+| `/api/v1/metrics/entries/` | Django | Uncached API behavior forwards method, body, auth, cookies, CSRF data, and query string to Nginx |
 
-```text
-debug   → http://127.0.0.1:8000/ through adb reverse
-staging → https://api-staging.<domain>/ over the internet
-release → https://api.<domain>/ over the internet
-```
-
-The staging/release client uses the same mobile JWT, subscription-policy,
-wearable-connection, and normalized upload endpoints. Only the base URL changes;
-no USB tunnel is involved. Use release signing and Play Internal Testing or an
-equivalent private channel for physical staging validation. The API base URL is
-public configuration and must not contain secrets.
-
-#### Android-to-Cloud Request Path
-
-Android and React are independent clients of Django. Android never connects
-through the React frontend and never receives database, AWS, Django, or Stripe
-server credentials.
-
-```text
-Samsung Health
-    → Health Connect on the phone
-    → installed Longevity Android build
-    → public API hostname over HTTPS
-    → Route53/public DNS
-    → ALB port 443 and ACM certificate
-    → Django container on EC2
-    → Timescale Cloud
-
-React browser
-    → the same Django API
-    → reads the resulting MetricEntry state
-```
-
-The EC2 application port is not public; its security group accepts application
-traffic only from the ALB security group. Android trusts the ordinary public
-TLS certificate and uses OkHttp to call mobile login, refresh/logout,
-current-subscription policy, wearable lifecycle, and normalized upload
-endpoints. Browser CORS policy does not govern native OkHttp requests, although
-JWT validation, throttling, ownership checks, plan entitlements, HTTPS, and
-payload validation still apply.
-
-Planned Android build configuration:
-
-```text
-debug    application ID: com.viridiandome.longevity.debug
-         API: http://127.0.0.1:8000/ through adb reverse
-
-staging  application ID: com.viridiandome.longevity.staging
-         API: https://api-staging.<domain>/
-         distribution: signed APK for first smoke test, then Play Internal Testing
-
-release  application ID: com.viridiandome.longevity
-         API: https://api.<domain>/
-         distribution: production Play release
-```
-
-Using a separate staging application ID lets staging and production coexist on
-one phone. Android treats their Keystore entries, encrypted sessions, app data,
-and Health Connect permission grants separately. The API URL is compiled/public
-configuration; changing it requires a new build unless a future trusted remote
-configuration mechanism is deliberately introduced.
-
-### 8.4 CDN
-- host immutable React assets in a private S3 bucket and expose them only through CloudFront Origin Access Control
-- configure long-lived cache headers for content-hashed assets and short/no-cache behavior for the HTML entry point
-- configure `/api/*` as a separate uncached ALB origin behavior that forwards required methods, cookies, authorization, CSRF headers, query strings, and bodies
-- scope SPA route rewriting to the static behavior so `/api/*` errors remain API responses
-- Django static/admin assets may use S3 + CloudFront if the production image does not serve them directly
-- do not describe the Django API as the owner of managed database backups
-
-Route 53 only resolves `staging.<domain>` to CloudFront; it does not receive or
-forward the browser's HTTP request. After DNS resolution, the browser connects
-to a nearby CloudFront edge location. The distribution then selects private S3
-for the default/static behavior or the ALB for `/api/*`.
-
-#### Browser Route and API Route Ownership
-
-The browser uses one public origin, but a request can cross three distinct
-routing decisions: CloudFront selects the origin, TanStack Router owns React
-page paths, and Django owns API paths.
-
-| Request path | Owner | CloudFront origin | Result |
-|---|---|---|---|
-| `/metrics/resting_hr` | React TanStack Router (`/metrics/$slug`) | Private S3 | CloudFront rewrites the extensionless static route to `/index.html`; React renders the metric page |
-| `/assets/{content-hash}.js` | Vite build output | Private S3 | Return the exact immutable asset; never rewrite a missing asset to `index.html` |
-| `/api/v1/metrics/entries/` | Django URL configuration | ALB | Forward the method, body, authentication, and required request metadata without API caching |
-
-Django intentionally has no `/metrics/$slug` page route. A request for
-`/metrics/resting_hr` sent directly to Django would return `404`; CloudFront
-must keep that request on the static behavior. Conversely, `/api/*` must never
-receive the SPA fallback because doing so would replace a real API error with
-HTML. CloudFront selects the cache behavior before the viewer-request SPA
-function runs, and the function is associated only with the static application
-shell behavior.
-
-Production navigation and subsequent data access are separate requests:
+SPA fallback applies only to extensionless static routes. A missing hashed asset
+must remain a static `404`, and `/api/*` failures must remain API responses.
 
 ```text
 GET /metrics/resting_hr
-    → CloudFront static behavior
-    → /index.html from private S3
-    → React reads the original browser location
-    → TanStack Router renders /metrics/$slug
+    -> CloudFront static behavior
+    -> private S3 /index.html
+    -> TanStack Router renders /metrics/$slug
 
 GET or POST /api/v1/metrics/...
-    → CloudFront uncached /api/* behavior
-    → ALB
-    → Gunicorn
-    → Django
-    → PostgreSQL / TimescaleDB
+    -> CloudFront uncached API behavior
+    -> Nginx
+    -> Gunicorn
+    -> Django
+    -> PostgreSQL
 ```
 
-#### Static Asset Lifecycle Versus Application Data
+Content-hashed JS/CSS is immutable. `index.html` is the non-immutable application
+shell and uses `no-cache, no-store, must-revalidate`. A frontend deployment
+uploads new hashed assets first and `index.html` last. It must not immediately
+delete old hashed assets, because cached older HTML may still reference them.
+A metric write changes PostgreSQL and browser query state; it never changes S3
+frontend objects or cached application bundles.
 
-A normal read or write API request never modifies frontend objects in S3.
-Content-hashed JavaScript and CSS are immutable for the lifetime of that exact
-filename and may be cached for one year. `index.html` is the small, non-immutable
-application shell and is served with `no-cache,no-store,must-revalidate` so a
-new navigation discovers the current asset filenames.
-
-On a frontend deployment, Vite emits new filenames only for bundles whose
-content changed. Deployment uploads the new hashed assets first and uploads
-`index.html` last. It does not immediately delete old hashed assets because a
-browser or edge cache may still hold an older `index.html` that references them.
-The current staging contract retains superseded assets until a future
-manifest-aware cleanup mechanism can prove that deletion is safe; a simple
-age-only S3 lifecycle rule is not safe when deployments can be more than the
-retention age apart.
-
-Therefore a metric-entry save changes PostgreSQL and then refreshes TanStack
-Query's browser cache. It does not change CloudFront's cached JavaScript/CSS or
-any S3 object. Static files change only during a frontend deployment.
-
-Nginx is not part of the approved initial topology. CloudFront already owns
-global static delivery and path-based origin selection, while the ALB owns API
-TLS termination, health checks, and target routing. Gunicorn runs Django on the
-private EC2 host. Add Nginx only for a concrete requirement such as local file
-serving, specialized buffering, Unix-socket proxying, or behavior unavailable
-from CloudFront and the ALB.
-
-#### Mapping the Traditional Web-Server Pipeline
-
-The common `web server → WSGI server → Python application` diagram assumes a
-single Nginx- or Apache-like reverse proxy. The approved staging topology splits
-that traditional web-server role between two managed AWS services:
-
-- CloudFront is the public edge/CDN and first reverse proxy for browser traffic
-  at `staging.<domain>`. It terminates the browser TLS connection, serves cached
-  static content, and selects an origin from the request path.
-- The ALB is the API-facing reverse proxy and load balancer. It terminates the
-  origin/API TLS connection, checks target health, selects a healthy EC2 target,
-  and forwards the request to Gunicorn over the restricted application path.
-- Gunicorn is the WSGI application server. Its workers invoke Django; it is not
-  a replacement for Django's routing, authentication, business logic, or data
-  access.
-
-Browser API request:
+Android is an independent API client:
 
 ```text
-Browser → CloudFront `/api/*` behavior → ALB → Gunicorn → Django
+debug   -> http://127.0.0.1:8000/ through adb reverse
+staging -> https://staging.<domain>/api/... over the internet
+release -> https://<production-domain>/api/... over the internet
 ```
 
-Browser React/static request:
+The staging application ID remains `com.viridiandome.longevity.staging`, with a
+signed APK first and Play Internal Testing afterward. The base URL is public
+build configuration, not a secret. Native OkHttp is not governed by browser
+CORS, but all authentication, throttling, authorization, entitlement, HTTPS,
+and payload validation still apply.
 
-```text
-Browser → CloudFront default/static behavior → private S3 bucket
-```
+### 8.5 Database and Migrations
 
-The static path never reaches the ALB, Gunicorn, or Django. Native Android,
-Stripe webhooks, and API uptime monitoring use the dedicated API hostname and
-therefore enter at the ALB rather than through the browser's CloudFront
-distribution. Route 53 precedes these connections only as DNS resolution; it
-does not proxy or process the HTTP request.
+Current staging runs PostgreSQL/TimescaleDB on encrypted EBS attached to the EC2
+host. Database files must live on the mounted persistent volume, never only in
+the container layer. PostgreSQL is not publicly reachable.
 
-### 8.5 Database Migrations in Production
 ```bash
-# On EC2, run the immutable backend image once before replacing the API container.
+# Command inside the one-off container built from the immutable backend image.
 python manage.py migrate --no-input
 ```
 
-The migration task reads the same database and Django settings from Secrets
-Manager, sends logs and exit status to CloudWatch, and must complete successfully
-before the API service is promoted. Do not run competing migrations from every
-API container startup. Deployment tooling supplies the image, environment, and
-one-off container mechanism; the command shown is the command inside that
-container. The final image intentionally excludes `uv`.
+The migration and API containers receive the same frozen configuration snapshot.
+If migration fails, deployment stops and the old API remains running. After a
+successful migration, replacement of the single API container may create a
+brief maintenance interruption. Blue/green and zero-downtime promotion are not
+requirements, although automated continuous deployment is still possible.
 
-Deployment availability policy:
-- if migration fails, stop before API replacement and leave the existing API
-  container running
-- after migration succeeds, replacing the single API container may cause a
-  brief maintenance interruption
-- blue/green, rolling, and other zero-downtime promotion mechanisms are not
-  planned requirements for staging or later production
-- automated continuous deployment remains possible, but it does not imply
-  continuous availability during the replacement window
-- keep migrations backward-compatible where practical and retain an explicit
-  manual rollback procedure for a new API version that fails after replacement
+Keep migrations backward-compatible where practical and retain a documented
+manual rollback procedure. In recommended production, the command is unchanged
+but runs as a one-off Fargate task against RDS before service promotion.
 
-After migration to Fargate, use the same immutable image and command as a
-one-off ECS task. The responsibility is unchanged; only the compute mechanism
-moves from a temporary Docker container on EC2 to a temporary Fargate task.
+### 8.6 Health, Security, Monitoring, and Backups
 
-### 8.6 Rate Limiting & DDoS
-- AWS WAF on ALB (basic DDoS protection)
-- Django/DRF throttling for auth, token refresh, Stripe session creation, and wearable uploads
-- CloudFront for static asset protection
+- `GET /api/v1/health/live/` proves the public process/edge path without a
+  database dependency and is used by external uptime monitoring.
+- `GET /api/v1/health/ready/` proves Django can query PostgreSQL and gates
+  deployment completion. Recommended production also uses it for ALB health.
+- Apply DRF throttling to authentication, refresh, Stripe session creation, and
+  wearable uploads.
+- Use CloudFront/WAF where appropriate for edge filtering; network controls do
+  not replace Django authorization and throttling.
+- CloudWatch collects API, migration, Nginx, backup, host, disk, and certificate
+  signals. Alert on disk pressure, failed backup, origin failure, and impending
+  certificate expiry.
+- Add Sentry before real production exposure, with health and authentication
+  data redacted.
+- In staging, schedule `pg_dump` to a private encrypted versioned S3 bucket and
+  monitor job success. Test a restore before claiming recoverability.
+- In recommended production, RDS owns automated backups and point-in-time
+  recovery; still document and exercise restoration.
 
-### 8.7 Health, Monitoring, and Backups
+### 8.7 Staging Exit Condition
 
-- ALB checks `GET /api/v1/health/ready/`; a target is routable only while
-  Django can execute the PostgreSQL probe.
-- An external uptime monitor checks `GET /api/v1/health/live/` over public
-  HTTPS. This distinguishes process/edge availability from database readiness.
-- Neither check depends on Redis or Celery in the approved initial staging
-  runtime.
-- CloudWatch collects API and migration logs plus AWS metrics.
-- Add Sentry before production exposure for unhandled Django exceptions; redact health and authentication data.
-- Timescale Cloud owns automated database backups. Record the real retention when provisioning.
-- Perform and document a restore drill before promoting staging to production.
-- Add optional logical `pg_dump` exports to versioned S3 only after a tested scheduler exists.
+Staging is proven only when:
 
-### 8.8 Staging Exit Condition
+- browser deep links load React through CloudFront and API calls traverse Nginx
+- a physical staging Android build works without `adb reverse`
+- Weight and Steps sync over ordinary Wi-Fi or mobile data, including a newer
+  mutable Steps version
+- Stripe test Checkout, Portal, and signed webhook reconciliation work publicly
+- migration failure blocks promotion and a successful deployment passes both
+  health contracts
+- logs and alarms are useful without leaking secrets or health data
+- a scheduled database backup completes and a documented restore succeeds
 
-The staging deployment is proven only when:
+### 8.8 Infrastructure and Delivery Progression
 
-- the browser loads React from the public frontend host and calls Django over HTTPS
-- the physical Android staging build logs in through the public API without `adb reverse`
-- Samsung-originated Weight and Steps synchronize over ordinary Wi-Fi or mobile data
-- a mutable Steps record updates through its newer Health Connect modification timestamp
-- Stripe test Checkout, Portal, and signed webhook reconciliation work through the public endpoint
-- migrations, health checks, logs, automated backups, and at least one restore procedure are verified
+1. Cost and document the current presentation staging topology.
+2. Provision it manually to learn Route 53, CloudFront/OAC, S3, EC2/EIP, Nginx,
+   Let's Encrypt DNS-01, EBS, IAM, Systems Manager, Secrets Manager, CloudWatch,
+   ECR, and backup/restore operations.
+3. Add staging CD through GitHub OIDC: publish immutable images/assets, invoke
+   the host through Systems Manager, run migration, replace the API during the
+   accepted maintenance window, and verify public smoke checks.
+4. Before accepting real production users, implement the recommended ALB + two
+   Fargate tasks + RDS Multi-AZ topology in Terraform with isolated identities,
+   secrets, data, and Stripe mode.
+5. Require explicit approval for production promotion. Add Redis/Celery only
+   when a measured server-side workload needs durable asynchronous execution.
 
-### 8.9 Infrastructure and Delivery Progression
-
-1. Provision staging manually to learn Route53, ACM, ALB, target groups, EC2,
-   security groups, IAM, Systems Manager, Secrets Manager, and CloudWatch.
-2. Record every command and configuration decision in a deployment runbook.
-3. Recreate the same EC2 topology with Terraform before accepting production
-   users; staging and production remain isolated environments.
-4. Add a staging deployment pipeline that builds an immutable image, pushes it
-   to ECR, invokes EC2 through Systems Manager, runs the migration container,
-   replaces Django during the accepted maintenance window, and verifies public
-   health/smoke checks.
-5. Require explicit approval before a later production deployment pipeline
-   promotes a tested version.
-6. Post-MVP, migrate compute to ECS Fargate and add Redis, Celery Worker, one
-   Beat scheduler, and S3 artifacts only when real asynchronous workloads exist.
-
-Terraform provisions and changes infrastructure. The deployment pipeline moves
-a tested application version onto that infrastructure. Neither replaces the
-other.
+Terraform changes infrastructure; the deployment pipeline moves a tested
+application version onto it. Neither replaces the other.
