@@ -49,6 +49,33 @@ name and the view description so exported diagrams remain distinguishable.
 Legacy views are retained for architectural history and comparison. They do not
 authorize provisioning and must not be mistaken for the current staging target.
 
+### Numbered Android Metric Request View
+
+Use dynamic view `staging-android-metrics-request` for the ordered request and
+response flow. Structurizr numbers these interactions from 1 through 11:
+
+```text
+1    Android -> Public DNS
+2    Android -> CloudFront             viewer TLS terminates
+3    CloudFront -> Nginx               separate origin TLS terminates
+4    Nginx -> Gunicorn                 private HTTP
+5    Gunicorn -> Django Metrics        WSGI invocation
+6    Django Metrics -> PostgreSQL      read or write
+7    PostgreSQL -> Django Metrics      rows or commit result
+8    Django Metrics -> Gunicorn        JSON response construction
+9    Gunicorn -> Nginx                 private HTTP response
+10   Nginx -> CloudFront               encrypted origin response
+11   CloudFront -> Android             encrypted viewer response
+```
+
+The view is scoped to the Django API so it can combine external systems,
+staging gateway containers, the Gunicorn and Metrics components, and the
+database. CloudFront and Nginx are explicitly tagged `StagingOnly` logical C4
+containers for this ordered view; the deployment views remain authoritative
+for their physical AWS placement. Response steps reuse the two established
+bidirectional TLS connections rather than performing a new TLS handshake at
+each arrow.
+
 #### `current-presentation-staging`
 
 This is the current manually provisioned presentation-staging target:
@@ -166,6 +193,8 @@ Connect remain on the physical phone.
 Use these dynamic views for application-level behavior that intentionally
 abstracts away DNS, ALB, and EC2 placement:
 
+- `staging-android-metrics-request` (does include the current staging gateways
+  specifically to explain DNS, TLS termination, and response order)
 - `mobile-auth-login`
 - `mobile-auth-refresh-retry`
 - `wearable-connection-register`

@@ -9,6 +9,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         stripe = softwareSystem "Stripe" "External billing provider for hosted Checkout and Customer Portal sessions, subscription payment collection, and billing webhooks."
         uptimeMonitor = softwareSystem "Uptime Monitoring" "External availability monitor that checks the public Django health endpoint and alerts operators."
         letsEncrypt = softwareSystem "Let's Encrypt" "Public certificate authority used only for the current presentation-staging Nginx origin certificate through automated ACME DNS validation."
+        publicDns = softwareSystem "Public DNS" "The client's recursive DNS resolver plus Route 53 authoritative records used to resolve staging.<domain> to CloudFront. DNS discovers the destination; it does not carry the HTTP request."
 
         longevity = softwareSystem "Longevity Platform" "Tracks user auth, subscriptions, metrics, analytics entitlements, and wearable ingestion." {
             webapp = container "React Web App" "Implemented browser client for registration, hardened web sessions, dashboard/manual metrics, metric catalog/detail management, and Stripe-backed settings." "React + TypeScript" {
@@ -33,7 +34,16 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 androidWeightSyncWorker = component "Incremental Metric Sync Worker" "CoroutineWorker that validates a connection ID, rechecks automatic-sync entitlement before device access, invokes the all-metric incremental runner, and maps outcomes to success, retry, or failure. Kotlin type names retain legacy Weight wording." "AndroidX WorkManager + Kotlin Coroutines"
             }
 
-            api = container "Django API" "Synchronous HTTP API for auth, subscriptions/Stripe, metrics, and wearable connection/upload workflows." "Django + Django REST Framework" {
+            stagingEdgeGateway = container "Staging Edge Gateway" "Logical C4 representation of the current staging CloudFront distribution. It terminates viewer TLS, selects static versus /api/* behavior, and opens a separate TLS connection to the API origin. Concrete placement remains in the staging deployment views." "AWS CloudFront" {
+                tags "StagingOnly"
+            }
+
+            stagingOriginProxy = container "Staging Origin Proxy" "Logical C4 representation of the current staging Nginx container. It terminates CloudFront origin TLS, validates the secret origin header, and proxies API traffic to Gunicorn over the private Docker network. Concrete placement remains in the staging deployment views." "Nginx" {
+                tags "StagingOnly"
+            }
+
+            api = container "Django API" "Gunicorn-hosted synchronous HTTP API for auth, subscriptions/Stripe, metrics, and wearable connection/upload workflows." "Gunicorn + Django + Django REST Framework" {
+                gunicornRuntime = component "Gunicorn WSGI Runtime" "Accepts private HTTP from the trusted reverse proxy and invokes Django through config.wsgi:application. It does not terminate TLS in the staging topology." "Gunicorn + WSGI"
                 authApi = component "Authentication" "Registration, web/mobile login, CSRF, current-user, logout, and concurrency-safe SimpleJWT refresh rotation." "Django REST Framework + SimpleJWT"
                 subscriptionsApi = component "Subscriptions and Billing" "Plan/price reads, entitlement state, Checkout/Portal session creation, and idempotent signed Stripe webhook reconciliation." "Django REST Framework + Stripe SDK"
                 metricsApi = component "Metrics" "Metric definitions, entitlement-limited custom metrics, manual entries, history reads, and entry maintenance." "Django REST Framework"
@@ -59,6 +69,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         healthConnect -> longevity "Supplies permitted on-device health records indirectly through the Android companion app"
         stripe -> longevity "Sends verified billing webhooks after checkout and subscription events"
         uptimeMonitor -> longevity "Checks the public API health endpoint"
+        publicDns -> longevity "Resolves public Longevity hostnames"
 
         user -> longevity.webapp "Uses"
         user -> longevity.android "Uses to connect and sync on-device health data"
@@ -70,6 +81,11 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
           longevity.webapp -> stripe "Redirects user to hosted Stripe Checkout and Customer Portal URLs"
           stripe -> longevity.webapp "Redirects the browser to server-configured Settings return URLs"
           androidCallsApi = longevity.android -> longevity.api "Calls JSON API over HTTPS"
+          longevity.android -> publicDns "Resolves the configured staging hostname before connecting"
+          longevity.android -> longevity.stagingEdgeGateway "Calls the staging JSON API over viewer TLS"
+          longevity.stagingEdgeGateway -> longevity.stagingOriginProxy "Forwards uncached /api/* requests over separate origin TLS"
+          longevity.stagingOriginProxy -> longevity.api.gunicornRuntime "Proxies requests over private HTTP"
+          longevity.api.gunicornRuntime -> longevity.api.metricsApi "Invokes Django metric routing and request handling through WSGI"
 
           longevity.api -> longevity.db "Reads and writes data"
           longevity.api -> stripe "Creates Checkout Sessions with server-owned Stripe Price IDs and on-demand Customer Portal Sessions; verifies signed webhook events"
@@ -1403,12 +1419,29 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         component longevity.api "c4-api-components" "Implemented Django domain boundaries and their principal dependencies." {
             include longevity.webapp
             include longevity.android
+            include longevity.stagingOriginProxy
             include stripe
+            include longevity.api.gunicornRuntime
             include longevity.api.authApi
             include longevity.api.subscriptionsApi
             include longevity.api.metricsApi
             include longevity.api.wearablesApi
             include longevity.db
+            autolayout lr
+        }
+
+        dynamic longevity.api "staging-android-metrics-request" "Numbered C4 dynamic view of one Android metric API request and JSON response through current presentation staging. TLS connections are bidirectional and normally reused; response steps use the same established connections." {
+            1: longevity.android -> publicDns "[DNS] Resolves staging.<domain>; DNS returns CloudFront addresses and does not receive the HTTP request"
+            2: longevity.android -> longevity.stagingEdgeGateway "[HTTPS / TLS connection 1] Opens viewer TLS and sends GET /api/v1/metrics/... or POST /api/v1/metrics/...; viewer TLS terminates at CloudFront"
+            3: longevity.stagingEdgeGateway -> longevity.stagingOriginProxy "[HTTPS / TLS connection 2] Selects uncached /api/*, opens separate origin TLS, and forwards the request with the secret origin header; origin TLS terminates at Nginx"
+            4: longevity.stagingOriginProxy -> longevity.api.gunicornRuntime "[HTTP] Forwards the decrypted request on the private Docker network; no TLS is required on this host-local hop"
+            5: longevity.api.gunicornRuntime -> longevity.api.metricsApi "[WSGI] Invokes Django; Django authenticates, authorizes, validates, and routes the metric request"
+            6: longevity.api.metricsApi -> longevity.db "[PostgreSQL protocol] Reads metric state or commits the validated metric write"
+            7: longevity.db -> longevity.api.metricsApi "[PostgreSQL protocol] Returns rows or confirms the committed write"
+            8: longevity.api.metricsApi -> longevity.api.gunicornRuntime "[WSGI] Builds the JSON HTTP response"
+            9: longevity.api.gunicornRuntime -> longevity.stagingOriginProxy "[HTTP] Returns the JSON response over private HTTP"
+            10: longevity.stagingOriginProxy -> longevity.stagingEdgeGateway "[HTTPS / TLS connection 2] Encrypts the origin response over the existing CloudFront-Nginx TLS connection"
+            11: longevity.stagingEdgeGateway -> longevity.android "[HTTPS / TLS connection 1] Encrypts and returns the JSON response over the existing Android-CloudFront TLS connection"
             autolayout lr
         }
 
