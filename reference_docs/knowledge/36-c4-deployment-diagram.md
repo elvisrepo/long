@@ -76,6 +76,78 @@ for their physical AWS placement. Response steps reuse the two established
 bidirectional TLS connections rather than performing a new TLS handshake at
 each arrow.
 
+### OSI-Layer Companion for the Same Flow
+
+![Graphical OSI-layer flow for an Android staging metric request](diagrams/staging-android-osi-flow.svg)
+
+The OSI model explains the network work inside the C4 interactions. It is a
+conceptual teaching model: the real implementation uses the TCP/IP stack, and
+TLS is commonly placed at OSI layer 6 even though it runs above TCP and below
+HTTP rather than fitting perfectly into one OSI layer.
+
+| OSI layer | What it means in this staging request |
+|---|---|
+| **7 — Application** | DNS resolves hostnames; OkHttp sends HTTP JSON; CloudFront selects `/api/*`; Nginx proxies HTTP; Gunicorn invokes Django through WSGI; Django uses the PostgreSQL protocol |
+| **6 — Presentation** | TLS encrypts/decrypts the viewer connection at Android/CloudFront and the separate origin connection at CloudFront/Nginx; JSON has UTF-8/application-level representation |
+| **5 — Session** | Existing TLS/TCP connections can carry multiple requests and responses; a response does not perform a second handshake merely because direction reverses |
+| **4 — Transport** | TCP 443 carries both HTTPS connections; private TCP 8000 carries Nginx-to-Gunicorn HTTP; TCP 5432 carries Django-to-PostgreSQL traffic; DNS normally starts with UDP 53 and can use TCP |
+| **3 — Network** | IP routes packets between the phone, CloudFront edge, EC2 Elastic IP, and private Docker addresses |
+| **2 — Data link** | Wi-Fi/cellular access, Ethernet inside provider/AWS networks, and the EC2 Docker bridge carry frames over each local link |
+| **1 — Physical** | Radio, electrical, and optical signals carry bits across the phone network, internet, and AWS infrastructure |
+
+#### Request: encapsulate, transmit, terminate, and re-encapsulate
+
+```text
+Android
+  L7  constructs HTTP GET/POST /api/v1/metrics/... with JSON/JWT
+  L6  encrypts the HTTP message with viewer TLS
+  L4  splits the encrypted bytes into TCP segments for port 443
+  L3  places the segments into IP packets addressed to CloudFront
+  L2  frames packets for the phone's current local network link
+  L1  transmits bits
+       |
+       v
+CloudFront
+  L1-L4 receive and reconstruct the viewer connection
+  L6    decrypts viewer TLS: TLS connection 1 terminates here
+  L7    reads the HTTP path and selects the uncached /api/* behavior
+  L7    constructs the origin HTTP request and adds the secret header
+  L6    encrypts it with a different origin TLS session
+  L4-L1 transmit it toward EC2 port 443
+       |
+       v
+Nginx on EC2
+  L1-L4 receive and reconstruct the origin connection
+  L6    decrypts origin TLS: TLS connection 2 terminates here
+  L7    validates the origin header and HTTP request
+  L7/L4 proxies HTTP over private TCP 8000; no TLS on this host-local hop
+       |
+       v
+Gunicorn -> Django -> PostgreSQL
+  Gunicorn invokes Django through WSGI above the network stack
+  Django authenticates, authorizes, validates, and runs metric logic at L7
+  Django uses the PostgreSQL application protocol over private TCP 5432
+```
+
+CloudFront's origin lookup also performs DNS resolution for
+`origin-staging.<domain>` before it can establish the second TCP/TLS connection.
+That is separate from the phone's initial resolution of `staging.<domain>`.
+
+#### Response: the same connections in reverse
+
+```text
+PostgreSQL -> Django       PostgreSQL result over the database connection
+Django -> Gunicorn        JSON HTTP response through WSGI
+Gunicorn -> Nginx         plain HTTP over private TCP 8000
+Nginx -> CloudFront       encrypted using existing TLS connection 2
+CloudFront -> Android     encrypted using existing TLS connection 1
+```
+
+At each TLS endpoint, the receiving side decrypts incoming application bytes
+and encrypts outgoing application bytes. “TLS terminates” does not mean that a
+response creates or terminates another TLS connection; it describes which two
+endpoints own each bidirectional encrypted session.
+
 #### `current-presentation-staging`
 
 This is the current manually provisioned presentation-staging target:

@@ -1,0 +1,154 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1080" viewBox="0 0 1600 1080" role="img" aria-labelledby="title description">
+  <title id="title">Android staging metric request mapped to OSI layers</title>
+  <desc id="description">A numbered request and response path from Android through DNS, CloudFront, Nginx, Gunicorn, Django, and PostgreSQL. The diagram shows viewer TLS terminating at CloudFront, origin TLS terminating at Nginx, private HTTP to Gunicorn, WSGI to Django, and the PostgreSQL protocol to the database.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#08111f"/>
+      <stop offset="1" stop-color="#111b31"/>
+    </linearGradient>
+    <linearGradient id="tls" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2dd4bf"/>
+      <stop offset="1" stop-color="#38bdf8"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#020617" flood-opacity="0.5"/>
+    </filter>
+    <marker id="arrowCyan" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#38bdf8"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#34d399"/>
+    </marker>
+    <marker id="arrowAmber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#fbbf24"/>
+    </marker>
+    <style>
+      .title { fill: #f8fafc; font: 700 31px Inter, system-ui, sans-serif; }
+      .subtitle { fill: #94a3b8; font: 16px Inter, system-ui, sans-serif; }
+      .column-title { fill: #f8fafc; font: 700 21px Inter, system-ui, sans-serif; }
+      .column-subtitle { fill: #94a3b8; font: 13px Inter, system-ui, sans-serif; }
+      .layer-name { fill: #e2e8f0; font: 700 14px Inter, system-ui, sans-serif; }
+      .layer-detail { fill: #cbd5e1; font: 13px Inter, system-ui, sans-serif; }
+      .step { fill: #08111f; font: 800 13px Inter, system-ui, sans-serif; text-anchor: middle; dominant-baseline: central; }
+      .arrow-label { fill: #e2e8f0; font: 700 13px Inter, system-ui, sans-serif; text-anchor: middle; }
+      .arrow-note { fill: #94a3b8; font: 12px Inter, system-ui, sans-serif; text-anchor: middle; }
+      .small { fill: #94a3b8; font: 12px Inter, system-ui, sans-serif; }
+      .legend-title { fill: #f8fafc; font: 700 15px Inter, system-ui, sans-serif; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1080" fill="url(#background)"/>
+  <text x="56" y="58" class="title">Android metric request — OSI layers and TLS boundaries</text>
+  <text x="56" y="88" class="subtitle">Current presentation staging • solid arrows are the request • dashed arrows are the JSON response</text>
+
+  <!-- DNS discovery -->
+  <g filter="url(#shadow)">
+    <rect x="56" y="118" width="1488" height="78" rx="16" fill="#111c32" stroke="#334155"/>
+  </g>
+  <circle cx="84" cy="146" r="15" fill="#fbbf24"/><text x="84" y="146" class="step">1</text>
+  <text x="112" y="144" class="legend-title">Application layer DNS discovery</text>
+  <text x="112" y="169" class="layer-detail">Android asks its resolver for staging.&lt;domain&gt; → Route 53 answers with CloudFront. DNS returns an address; it never carries the HTTP request.</text>
+  <path d="M 505 180 C 640 205 790 205 920 180" fill="none" stroke="#fbbf24" stroke-width="2.5" marker-end="url(#arrowAmber)"/>
+  <text x="713" y="190" class="arrow-note">UDP or TCP 53 over IP</text>
+
+  <!-- Android OSI stack -->
+  <g filter="url(#shadow)"><rect x="56" y="228" width="310" height="586" rx="18" fill="#101a2e" stroke="#334155"/></g>
+  <text x="80" y="264" class="column-title">Android device</text>
+  <text x="80" y="287" class="column-subtitle">Request moves down • response moves up</text>
+  <g transform="translate(80 310)">
+    <rect width="262" height="58" rx="9" fill="#172554" stroke="#3b82f6"/><text x="14" y="23" class="layer-name">L7 Application</text><text x="14" y="44" class="layer-detail">OkHttp HTTP JSON + JWT</text>
+    <rect y="66" width="262" height="58" rx="9" fill="#134e4a" stroke="#2dd4bf"/><text x="14" y="89" class="layer-name">L6 Presentation</text><text x="14" y="110" class="layer-detail">Viewer TLS encrypts and decrypts</text>
+    <rect y="132" width="262" height="58" rx="9" fill="#183047" stroke="#38bdf8"/><text x="14" y="155" class="layer-name">L5 Session</text><text x="14" y="176" class="layer-detail">Reusable bidirectional TLS session</text>
+    <rect y="198" width="262" height="58" rx="9" fill="#3f2d18" stroke="#f59e0b"/><text x="14" y="221" class="layer-name">L4 Transport</text><text x="14" y="242" class="layer-detail">TCP connection to port 443</text>
+    <rect y="264" width="262" height="58" rx="9" fill="#312e81" stroke="#818cf8"/><text x="14" y="287" class="layer-name">L3 Network</text><text x="14" y="308" class="layer-detail">IP packets to CloudFront edge</text>
+    <rect y="330" width="262" height="58" rx="9" fill="#3b2145" stroke="#c084fc"/><text x="14" y="353" class="layer-name">L2 Data link</text><text x="14" y="374" class="layer-detail">Wi-Fi or cellular local link</text>
+    <rect y="396" width="262" height="58" rx="9" fill="#3b1d2a" stroke="#fb7185"/><text x="14" y="419" class="layer-name">L1 Physical</text><text x="14" y="440" class="layer-detail">Radio and network signals</text>
+  </g>
+  <path d="M 350 332 L 350 746" fill="none" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrowCyan)"/>
+  <text x="327" y="535" class="small" transform="rotate(-90 327 535)">request down</text>
+
+  <!-- CloudFront OSI stack -->
+  <g filter="url(#shadow)"><rect x="420" y="228" width="350" height="586" rx="18" fill="#101a2e" stroke="#0ea5e9"/></g>
+  <text x="444" y="264" class="column-title">CloudFront edge</text>
+  <text x="444" y="287" class="column-subtitle">Terminates viewer TLS • creates a separate origin connection</text>
+  <g transform="translate(444 310)">
+    <rect width="302" height="58" rx="9" fill="#172554" stroke="#3b82f6"/><text x="14" y="23" class="layer-name">L7 Application</text><text x="14" y="44" class="layer-detail">Reads path • selects uncached /api/*</text>
+    <rect y="66" width="302" height="58" rx="9" fill="#134e4a" stroke="#2dd4bf"/><text x="14" y="89" class="layer-name">L6 Presentation</text><text x="14" y="110" class="layer-detail">Decrypt TLS 1 • encrypt TLS 2</text>
+    <rect y="132" width="302" height="58" rx="9" fill="#183047" stroke="#38bdf8"/><text x="14" y="155" class="layer-name">L5 Session</text><text x="14" y="176" class="layer-detail">Owns two independent sessions</text>
+    <rect y="198" width="302" height="58" rx="9" fill="#3f2d18" stroke="#f59e0b"/><text x="14" y="221" class="layer-name">L4 Transport</text><text x="14" y="242" class="layer-detail">TCP 443 viewer + TCP 443 origin</text>
+    <rect y="264" width="302" height="58" rx="9" fill="#312e81" stroke="#818cf8"/><text x="14" y="287" class="layer-name">L3 Network</text><text x="14" y="308" class="layer-detail">IP routing to EC2 Elastic IP</text>
+    <rect y="330" width="302" height="58" rx="9" fill="#3b2145" stroke="#c084fc"/><text x="14" y="353" class="layer-name">L2 Data link</text><text x="14" y="374" class="layer-detail">AWS edge and origin links</text>
+    <rect y="396" width="302" height="58" rx="9" fill="#3b1d2a" stroke="#fb7185"/><text x="14" y="419" class="layer-name">L1 Physical</text><text x="14" y="440" class="layer-detail">AWS and internet infrastructure</text>
+  </g>
+  <path d="M 758 746 L 758 332" fill="none" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrowCyan)"/>
+  <text x="737" y="535" class="small" transform="rotate(-90 737 535)">receive up</text>
+
+  <!-- Nginx OSI stack -->
+  <g filter="url(#shadow)"><rect x="824" y="228" width="350" height="586" rx="18" fill="#101a2e" stroke="#34d399"/></g>
+  <text x="848" y="264" class="column-title">Nginx on EC2</text>
+  <text x="848" y="287" class="column-subtitle">Terminates origin TLS • forwards private HTTP</text>
+  <g transform="translate(848 310)">
+    <rect width="302" height="58" rx="9" fill="#172554" stroke="#3b82f6"/><text x="14" y="23" class="layer-name">L7 Application</text><text x="14" y="44" class="layer-detail">Validates header • HTTP proxy</text>
+    <rect y="66" width="302" height="58" rx="9" fill="#134e4a" stroke="#2dd4bf"/><text x="14" y="89" class="layer-name">L6 Presentation</text><text x="14" y="110" class="layer-detail">Origin TLS decrypts and encrypts</text>
+    <rect y="132" width="302" height="58" rx="9" fill="#183047" stroke="#38bdf8"/><text x="14" y="155" class="layer-name">L5 Session</text><text x="14" y="176" class="layer-detail">Reusable CloudFront TLS session</text>
+    <rect y="198" width="302" height="58" rx="9" fill="#3f2d18" stroke="#f59e0b"/><text x="14" y="221" class="layer-name">L4 Transport</text><text x="14" y="242" class="layer-detail">TCP 443 in • private TCP 8000 out</text>
+    <rect y="264" width="302" height="58" rx="9" fill="#312e81" stroke="#818cf8"/><text x="14" y="287" class="layer-name">L3 Network</text><text x="14" y="308" class="layer-detail">EC2 and Docker private addresses</text>
+    <rect y="330" width="302" height="58" rx="9" fill="#3b2145" stroke="#c084fc"/><text x="14" y="353" class="layer-name">L2 Data link</text><text x="14" y="374" class="layer-detail">EC2 interface + Docker bridge</text>
+    <rect y="396" width="302" height="58" rx="9" fill="#3b1d2a" stroke="#fb7185"/><text x="14" y="419" class="layer-name">L1 Physical</text><text x="14" y="440" class="layer-detail">AWS host network hardware</text>
+  </g>
+  <path d="M 1162 746 L 1162 332" fill="none" stroke="#34d399" stroke-width="2" marker-end="url(#arrowGreen)"/>
+  <text x="1141" y="535" class="small" transform="rotate(-90 1141 535)">receive up</text>
+
+  <!-- Application and database -->
+  <g filter="url(#shadow)"><rect x="1228" y="228" width="316" height="586" rx="18" fill="#101a2e" stroke="#fbbf24"/></g>
+  <text x="1252" y="264" class="column-title">Application and data</text>
+  <text x="1252" y="287" class="column-subtitle">Host-local runtime beyond TLS termination</text>
+  <rect x="1252" y="320" width="268" height="88" rx="12" fill="#172554" stroke="#60a5fa"/>
+  <text x="1270" y="350" class="layer-name">L7 HTTP — Gunicorn</text><text x="1270" y="376" class="layer-detail">Receives private HTTP on TCP 8000</text><text x="1270" y="397" class="layer-detail">Invokes config.wsgi:application</text>
+  <rect x="1252" y="432" width="268" height="104" rx="12" fill="#3b2145" stroke="#c084fc"/>
+  <text x="1270" y="462" class="layer-name">Application runtime — Django</text><text x="1270" y="488" class="layer-detail">Auth • authorization • validation</text><text x="1270" y="511" class="layer-detail">Metric read or write logic</text>
+  <rect x="1252" y="564" width="268" height="104" rx="12" fill="#3f2d18" stroke="#fbbf24"/>
+  <text x="1270" y="594" class="layer-name">L7 PostgreSQL protocol</text><text x="1270" y="620" class="layer-detail">Private TCP 5432 on Docker network</text><text x="1270" y="643" class="layer-detail">Rows returned or write committed</text>
+  <rect x="1252" y="696" width="268" height="88" rx="12" fill="#312e81" stroke="#818cf8"/>
+  <text x="1270" y="727" class="layer-name">Persistent database state</text><text x="1270" y="753" class="layer-detail">PostgreSQL on encrypted EBS</text>
+
+  <!-- Request arrows -->
+  <path d="M 366 410 L 420 410" fill="none" stroke="url(#tls)" stroke-width="4" marker-end="url(#arrowCyan)"/>
+  <circle cx="393" cy="385" r="15" fill="#38bdf8"/><text x="393" y="385" class="step">2</text>
+  <text x="393" y="438" class="arrow-label">TLS 1</text>
+
+  <path d="M 770 410 L 824 410" fill="none" stroke="url(#tls)" stroke-width="4" marker-end="url(#arrowCyan)"/>
+  <circle cx="797" cy="385" r="15" fill="#2dd4bf"/><text x="797" y="385" class="step">3</text>
+  <text x="797" y="438" class="arrow-label">TLS 2</text>
+
+  <path d="M 1174 356 L 1228 356" fill="none" stroke="#34d399" stroke-width="4" marker-end="url(#arrowGreen)"/>
+  <circle cx="1201" cy="331" r="15" fill="#34d399"/><text x="1201" y="331" class="step">4</text>
+  <text x="1201" y="384" class="arrow-label">HTTP</text>
+
+  <path d="M 1386 408 L 1386 432" fill="none" stroke="#fbbf24" stroke-width="3" marker-end="url(#arrowAmber)"/>
+  <circle cx="1412" cy="420" r="15" fill="#fbbf24"/><text x="1412" y="420" class="step">5</text>
+  <path d="M 1386 536 L 1386 564" fill="none" stroke="#fbbf24" stroke-width="3" marker-end="url(#arrowAmber)"/>
+  <circle cx="1412" cy="550" r="15" fill="#fbbf24"/><text x="1412" y="550" class="step">6</text>
+
+  <!-- Response arrows -->
+  <path d="M 1356 564 L 1356 536" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-dasharray="8 6" marker-end="url(#arrowCyan)"/>
+  <circle cx="1330" cy="550" r="15" fill="#94a3b8"/><text x="1330" y="550" class="step">7</text>
+  <path d="M 1356 432 L 1356 408" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-dasharray="8 6" marker-end="url(#arrowCyan)"/>
+  <circle cx="1330" cy="420" r="15" fill="#94a3b8"/><text x="1330" y="420" class="step">8</text>
+
+  <path d="M 1228 474 C 1204 474 1198 454 1174 454" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-dasharray="8 6" marker-end="url(#arrowCyan)"/>
+  <circle cx="1201" cy="486" r="15" fill="#94a3b8"/><text x="1201" y="486" class="step">9</text>
+  <path d="M 824 480 L 770 480" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-dasharray="8 6" marker-end="url(#arrowCyan)"/>
+  <circle cx="797" cy="505" r="15" fill="#94a3b8"/><text x="797" y="505" class="step">10</text>
+  <path d="M 420 480 L 366 480" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-dasharray="8 6" marker-end="url(#arrowCyan)"/>
+  <circle cx="393" cy="505" r="15" fill="#94a3b8"/><text x="393" y="505" class="step">11</text>
+
+  <!-- Bottom legend -->
+  <g filter="url(#shadow)"><rect x="56" y="850" width="1488" height="174" rx="18" fill="#101a2e" stroke="#334155"/></g>
+  <text x="80" y="886" class="legend-title">How to read the boundaries</text>
+  <line x1="80" y1="918" x2="148" y2="918" stroke="url(#tls)" stroke-width="4" marker-end="url(#arrowCyan)"/><text x="168" y="923" class="layer-detail">Request direction</text>
+  <line x1="330" y1="918" x2="398" y2="918" stroke="#94a3b8" stroke-width="2.5" stroke-dasharray="8 6" marker-end="url(#arrowCyan)"/><text x="418" y="923" class="layer-detail">Response direction using the same established connections</text>
+  <rect x="906" y="900" width="22" height="22" rx="5" fill="#134e4a" stroke="#2dd4bf"/><text x="940" y="918" class="layer-detail">TLS encrypts and decrypts at both endpoints</text>
+  <text x="80" y="967" class="layer-detail">TLS 1: Android ⇄ CloudFront. TLS 2: CloudFront ⇄ Nginx. These are separate bidirectional sessions.</text>
+  <text x="80" y="995" class="layer-detail">No TLS is required from Nginx to Gunicorn because that hop stays on the private EC2 Docker network. Gunicorn and WSGI are application-runtime boundaries rather than additional TLS endpoints.</text>
+</svg>
