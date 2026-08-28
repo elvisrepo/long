@@ -1,7 +1,9 @@
 ## 10. C4 Deployment Diagram
 
 ## Use When
-- Load this when you need the runtime placement views for the immediate manual-EC2 staging target or the post-MVP Fargate target.
+- Load this when you need the current low-cost presentation-staging placement,
+  the recommended resilient production placement, or a clearly marked historical
+  deployment view for comparison.
 
 ## Source
 - Derived from `reference_docs/knowledge/06-pragmatic-mvp-cloud-architecture.md` and the Structurizr DSL source of truth.
@@ -26,140 +28,135 @@ Do not use `structurizr/cli:latest`. That deprecated image currently prints a
 migration warning and exits successfully without parsing the workspace, which
 can create false confidence around invalid DSL.
 
-### Deployment Views
+### Deployment View Status
 
-The Structurizr workspace intentionally maintains four cloud views.
+The workspace keeps current, recommended, and historical cloud models as
+separate deployment environments. The label is part of both the environment
+name and the view description so exported diagrams remain distinguishable.
 
-#### `approved-initial-staging`
+| View key | Status | Meaning |
+|---|---|---|
+| `current-presentation-staging` | **CURRENT** | Full provisioning source of truth for the agreed low-cost presentation environment |
+| `current-presentation-staging-compact` | **CURRENT / COMPACT** | Small request-and-data-path view of the same current staging environment |
+| `recommended-production` | **RECOMMENDED PRODUCTION** | Resilient production architecture recommendation; not the current staging bill of materials |
+| `recommended-production-compact` | **RECOMMENDED PRODUCTION / COMPACT** | Small request-and-data-path view of the same production recommendation |
+| `approved-initial-staging` | **LEGACY / SUPERSEDED** | Former ALB, NAT Gateway, one-private-EC2, and Timescale Cloud staging decision |
+| `approved-initial-staging-compact` | **LEGACY / SUPERSEDED** | Compact form of the former approved staging decision |
+| `mvp-staging-ec2-deployment` | **LEGACY / SUPERSEDED** | Former two-private-EC2 and ALB staging proposal |
+| `mvp-staging-aws-infrastructure` | **LEGACY / SUPERSEDED** | Detailed network form of the former two-target proposal |
+| `post-mvp-fargate-deployment` | **LEGACY / SUPERSEDED** | Former broad Fargate, Redis, Celery, and Timescale Cloud target |
 
-The approved first public staging topology:
+Legacy views are retained for architectural history and comparison. They do not
+authorize provisioning and must not be mistaken for the current staging target.
 
-- one browser origin at `staging.<domain>` through CloudFront
-- private S3 React origin protected by CloudFront Origin Access Control
-- cached static/SPA behavior and uncached `/api/*` behavior
-- `api-staging.<domain>` routed to the ALB for CloudFront, Android, Stripe, and monitoring
-- CloudFront ACM certificate in `us-east-1` and ALB ACM certificate in `eu-central-1`
-- internet-facing ALB across two public subnets
-- one private EC2/Django target and one one-off migration container initially
-- Gunicorn as the production WSGI process between the ALB target group and Django
-- one NAT Gateway for the initial private application subnet
-- Systems Manager administration without public SSH
-- Timescale Cloud, managed backups, Secrets Manager, CloudWatch, Stripe, and uptime monitoring
+#### `current-presentation-staging`
 
-This is the provisioning source of truth. It is deliberately not highly
-available at the application tier; use `mvp-staging-aws-infrastructure` to study
-the retained two-target expansion that can be added later.
+This is the current manually provisioned presentation-staging target:
 
-#### `approved-initial-staging-compact`
+- `staging.<domain>` aliases to one CloudFront distribution
+- private S3 stores the Vite/React build behind Origin Access Control
+- the default behavior caches static assets and handles SPA routes
+- uncached `/api/*` requests go to `origin-staging.<domain>`
+- an Elastic IP maps that origin hostname to one public `t4g.small` EC2 host
+- the EC2 security group accepts TCP 443 only from CloudFront's managed
+  origin-facing prefix list; TCP 22, 8000, and 5432 remain closed
+- CloudFront adds a secret origin header that Nginx must validate
+- Nginx terminates the CloudFront-to-origin TLS connection using an automated
+  Let's Encrypt DNS-01 certificate
+- Nginx proxies through the private Docker network to Gunicorn, which invokes
+  Django through WSGI
+- the same EC2 host runs a PostgreSQL/TimescaleDB 16 container; Timescale-specific
+  capabilities remain unused
+- encrypted gp3 EBS persists PostgreSQL data and certificate state
+- a scheduled backup container runs `pg_dump` and uploads encrypted logical
+  backups to a separate private S3 bucket
+- the staging runtime loader retrieves one Secrets Manager JSON snapshot and
+  injects the same validated snapshot into the migration and API containers
+- Systems Manager provides administration without public SSH
+- CloudWatch receives application, migration, backup, infrastructure, and
+  certificate-expiry signals
+- migrations run in a one-off container before API replacement
+- ALB, NAT Gateway, Timescale Cloud, Redis, Celery Worker, and Celery Beat are
+  intentionally absent
 
-Small-screen request-path view derived from the same approved deployment
-environment. It intentionally retains only:
+The host is a deliberate single point of failure and API replacement can cause
+brief downtime. Those are accepted presentation-environment tradeoffs, not
+production availability claims.
 
-- React and Android client instances
-- CloudFront endpoint plus static and `/api/*` behaviors
-- private S3 frontend origin
-- ALB HTTPS listener and target group
-- Gunicorn and Django on the single EC2 target
-- Timescale Cloud
+#### `current-presentation-staging-compact`
 
-It omits DNS, certificates, SPA rewrite internals, Origin Access Control,
-subnets, NAT, security groups, migrations, Systems Manager, Secrets Manager,
-CloudWatch, backups, on-device health internals, uptime monitoring, and Stripe.
-Those remain available in `approved-initial-staging`; the compact view is not a
-different architecture. Container-level direct client-to-Django relationships
-are also excluded so they do not visually bypass the physical CloudFront/ALB
-request path.
+This view retains only the important request and persistence path:
 
-#### `mvp-staging-ec2-deployment`
+```text
+Browser or Android
+    -> CloudFront
+       -> private S3 for React
+       -> Nginx for /api/*
+          -> Gunicorn / Django
+             -> PostgreSQL / TimescaleDB on encrypted EBS
+```
 
-Retained proposed two-target staging topology:
+It omits DNS, certificates, security groups, migrations, runtime loading,
+Systems Manager, CloudWatch, backup execution, Stripe, and uptime monitoring.
+Those remain in the full current view.
 
-- browser and internally distributed Android client placement
-- provider-neutral frontend hosting/CDN
-- public DNS and ACM-backed HTTPS ALB
-- proposed two-AZ placement with two private EC2 application hosts using Docker Engine and Compose
-- two long-lived Django API containers in one health-checked ALB target group
-- one-off Docker migration container using the same immutable image
-- Timescale Cloud reached through encrypted PostgreSQL connections
-- provider-managed automated database backups
-- Secrets Manager
-- CloudWatch
-- external `/api/v1/health/live/` monitoring and ALB
-  `/api/v1/health/ready/` target probes
-- Stripe test-mode hosted pages and signed public webhooks
+#### `recommended-production`
 
-It deliberately omits:
+This is the recommended architecture after real production availability and
+recovery requirements justify the cost:
 
-- Celery Worker
-- Celery Beat
-- ElastiCache Redis
+- CloudFront, AWS WAF, private S3, and the same-origin browser `/api/*` contract
+- ACM viewer certificate in `us-east-1`
+- regional ACM-backed HTTPS ALB in `eu-central-1`
+- two private ECS Fargate Gunicorn/Django tasks across two Availability Zones
+- ALB readiness checks and IP target routing
+- one-off Fargate migration task using the same immutable image
+- private Amazon RDS PostgreSQL Multi-AZ with synchronous standby, automatic
+  failover, encrypted backups, and point-in-time recovery
+- separate ALB, API-task, and database security groups
+- zonal NAT Gateways for private-task outbound access
+- Secrets Manager task injection and CloudWatch deployment rollback signals
+- no Nginx because the ALB owns production TLS termination and proxying
+- no Redis, Celery Worker, or Celery Beat until measured workloads require them
 
-The current bounded wearable endpoint remains synchronous. This is the next
-deployment target and its exit condition is a physical Android staging build
-synchronizing Weight and Steps through public HTTPS without USB or
-`adb reverse`.
+#### `recommended-production-compact`
 
-Manual provisioning is a learning phase. Every step belongs in a runbook, and
-the same EC2 topology should be reproduced with Terraform before production so
-the server is recoverable rather than a configuration snowflake.
+```text
+Browser
+    -> CloudFront / WAF
+       -> private S3
+       -> HTTPS ALB
+          -> healthy Fargate task A or B
+             -> RDS PostgreSQL Multi-AZ
+```
 
-#### `mvp-staging-aws-infrastructure`
+Android, Stripe webhooks, and uptime monitoring use `api.<domain>` and reach the
+same ALB directly.
 
-Detailed, cost-gated staging learning view. It makes these boundaries explicit:
+#### Retained legacy views
 
-- AWS account and `eu-central-1` Region
-- one `10.20.0.0/16` VPC
-- two public subnets in different Availability Zones for the internet-facing ALB and zonal NAT Gateways
-- two private application subnets, each with one EC2/Django target
-- Internet Gateway, ALB HTTPS listener, ACM certificate, target group, and security groups
-- Route 53 public DNS, Systems Manager, Secrets Manager, and CloudWatch
-- external frontend/CDN, Timescale Cloud, Stripe, and uptime monitoring
+The five legacy keys preserve the previously discussed ALB/NAT/Timescale Cloud
+staging options and the older Fargate/Redis/Celery target. Their element names
+and relationships remain available for comparison. Each deployment environment
+and view description is explicitly prefixed `[LEGACY / SUPERSEDED]`.
 
-This is a proposed provisioning layout, not evidence that the resources already
-exist. Two targets teach health routing and tolerate one app-host or AZ failure;
-the second EC2/EBS allocation and two NAT Gateways require a cost estimate first.
-
-#### `post-mvp-fargate-deployment`
-
-Post-MVP runtime after the EC2 and Terraform learning phases. It moves compute
-to Fargate and adds queue infrastructure only after measured asynchronous
-workloads justify it:
-
-- browser and Android client placement
-- frontend hosting/CDN, public DNS, and HTTPS ALB
-- Django API on ECS Fargate
-- one-off migration task
-- Celery Worker service and exactly one Beat scheduler
-- ElastiCache Redis
-- Timescale Cloud
-- managed database backups
-- Secrets Manager
-- CloudWatch
-- S3 for application exports, logical backup artifacts, repair outputs, or media
-
-Both runtime views intentionally do not include:
-- GitHub Actions
-- ECR
-- broader CI/CD pipeline mechanics
-
-Why:
-- a C4 deployment diagram is about runtime deployment topology
-- CI/CD belongs in delivery architecture, not runtime deployment structure
-
-Android build flavors, release signing, and Play Internal Testing belong in the delivery and
-distribution docs. The runtime view begins with the installed Android container
-and shows its environment-specific public HTTPS API relationship.
+All runtime views intentionally omit GitHub Actions, ECR, and broader CI/CD
+mechanics. C4 deployment views describe runtime placement; delivery automation
+belongs in delivery architecture. The one-off migration container/task remains
+because it executes the application image against persistent state as part of
+safe promotion.
 
 ### Android View Mapping
 
-Use `mvp-staging-ec2-deployment` to see the physical hosted route:
+Use `current-presentation-staging` to see the physical hosted route:
 
 ```text
 Android staging container instance
-    → Public DNS
-    → HTTPS ALB
-    → Django container instance on EC2
-    → Timescale Cloud
+    → staging.<domain>
+    → CloudFront /api/* behavior
+    → HTTPS Nginx on EC2
+    → Gunicorn / Django container
+    → PostgreSQL / TimescaleDB container on the same EC2 host
 ```
 
 The Android container is a peer client of the React container; it never routes
@@ -181,24 +178,24 @@ answer which Android and Django responsibilities collaborate during each flow.
 ### Reading the Public Edge
 
 DNS discovery and request transport are separate. Route 53 answers where a
-hostname points; it does not receive or proxy the HTTP request. For the approved
-browser path, Route 53 resolves `staging.<domain>` to CloudFront, then the browser
-opens TCP/TLS to a nearby CloudFront edge location and sends the request. For
-direct API clients, Route 53 resolves `api-staging.<domain>` to the ALB, then the
-client opens TCP/TLS to the ALB.
+hostname points; it does not receive or proxy the HTTP request. In current
+presentation staging, Route 53 resolves `staging.<domain>` to CloudFront. Browser,
+Android, Stripe webhook, and uptime-monitoring traffic enters through that
+CloudFront endpoint. `origin-staging.<domain>` exists for CloudFront's custom
+origin lookup, not as an unrestricted public API endpoint.
 
 `AWS Global Edge` contains the logical CloudFront distribution endpoint, its
 static and `/api/*` behaviors, SPA rewrite, and viewer-certificate boundary.
 CloudFront is not the frontend origin: private S3 in `eu-central-1` is the static
-origin, and the regional ALB is the API origin. The `us-east-1` ACM resource is
-the required control-plane home for the CloudFront viewer certificate, which is
-presented through the global edge network.
+origin. Nginx on the EC2 host is the current API origin. The `us-east-1` ACM
+resource supplies the CloudFront viewer certificate; Let's Encrypt supplies the
+separate Nginx origin certificate through automated Route 53 DNS-01 validation.
 
 CloudFront sends default/static paths to private S3 and uncached `/api/*` paths
-to the ALB. Android, Stripe, and monitoring call the dedicated API hostname
-directly. The ALB terminates its TLS connection and forwards restricted HTTP to
-Gunicorn/Django on the private EC2 target. Nginx is deliberately absent because
-CloudFront and the ALB already satisfy the approved proxy responsibilities.
+to Nginx over HTTPS. Nginx validates the secret origin header and proxies to
+Gunicorn/Django over the private Docker network. In recommended production, the
+API origin changes from Nginx to the ALB and Android/Stripe/monitoring use the
+dedicated `api.<domain>` ALB hostname.
 
 ### Current Deployment Modeling Rule
 

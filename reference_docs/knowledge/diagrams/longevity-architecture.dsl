@@ -8,6 +8,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         healthConnect = softwareSystem "Health Connect" "Android on-device health data platform that exposes user-permitted records to the companion app."
         stripe = softwareSystem "Stripe" "External billing provider for hosted Checkout and Customer Portal sessions, subscription payment collection, and billing webhooks."
         uptimeMonitor = softwareSystem "Uptime Monitoring" "External availability monitor that checks the public Django health endpoint and alerts operators."
+        letsEncrypt = softwareSystem "Let's Encrypt" "Public certificate authority used only for the current presentation-staging Nginx origin certificate through automated ACME DNS validation."
 
         longevity = softwareSystem "Longevity Platform" "Tracks user auth, subscriptions, metrics, analytics entitlements, and wearable ingestion." {
             webapp = container "React Web App" "Implemented browser client for registration, hardened web sessions, dashboard/manual metrics, metric catalog/detail management, and Stripe-backed settings." "React + TypeScript" {
@@ -270,7 +271,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
 
             }
 
-            mvpStaging = deploymentEnvironment "MVP Staging - Manual EC2" {
+            mvpStaging = deploymentEnvironment "[LEGACY / SUPERSEDED] MVP Staging - Two EC2 Targets" {
                 operatorAccess = deploymentNode "Operator Workstation" "Trusted administrator workstation; the human operator authenticates to AWS with IAM rather than connecting to EC2 over public SSH." {
                     tags "ClientZone"
                     awsAccessClient = infrastructureNode "AWS Console / CLI Session Manager Client" "Starts authorized Systems Manager sessions and operational commands." {
@@ -488,7 +489,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 mvpStaging.managedDatabase.timescaleNode -> mvpStaging.managedDatabase.managedBackupsNode "Creates provider-managed automated backups" "" "StorageTraffic"
             }
 
-            approvedInitialStaging = deploymentEnvironment "APPROVED Initial Staging - S3 CloudFront + One EC2" {
+            approvedInitialStaging = deploymentEnvironment "[LEGACY / SUPERSEDED] Initial Staging - ALB + One EC2 + Timescale Cloud" {
                 operatorAccess = deploymentNode "Operator Workstation" "Trusted administrator workstation. The operator authenticates with IAM and uses Systems Manager instead of public SSH." {
                     tags "ClientZone"
                     awsAccessClient = infrastructureNode "AWS Console / CLI Session Manager Client" "Starts authorized Systems Manager sessions and operational commands." {
@@ -710,7 +711,200 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 approvedInitialStaging.managedDatabase.timescaleNode -> approvedInitialStaging.managedDatabase.managedBackupsNode "Creates provider-managed automated backups" "" "StorageTraffic"
             }
 
-            mvpCloud = deploymentEnvironment "Post-MVP Fargate" {
+            presentationStaging = deploymentEnvironment "[CURRENT] Presentation Staging - CloudFront + Nginx + One EC2" {
+                operatorAccess = deploymentNode "Operator Workstation" "Trusted administrator workstation using AWS IAM and Systems Manager; public SSH remains disabled." {
+                    tags "ClientZone"
+                    awsAccessClient = infrastructureNode "AWS CLI / Session Manager Client" "Starts authorized Systems Manager sessions and deployment commands." {
+                        tags "ClientRuntime"
+                    }
+                }
+
+                userDevices = deploymentNode "User Devices" "Presentation users run the browser or internally distributed Android client against one CloudFront hostname." {
+                    tags "ClientZone"
+                    browserNode = deploymentNode "Browser" "Uses staging.<domain> for both React assets and relative /api/* requests." {
+                        tags "ClientZone"
+                        browserClient = containerInstance longevity.webapp
+                    }
+                    androidNode = deploymentNode "Android Phone" "Uses https://staging.<domain>/ as the public API base so CloudFront remains the only application entry point." {
+                        tags "ClientZone"
+                        androidClient = containerInstance longevity.android
+                    }
+                }
+
+                aws = deploymentNode "AWS Account" "Current low-cost presentation staging architecture. ALB, NAT Gateway, Timescale Cloud, Redis, Celery Worker, and Celery Beat are intentionally absent." {
+                    tags "CloudZone"
+
+                    dns = deploymentNode "Route 53 Public DNS" {
+                        tags "EdgeZone"
+                        viewerDns = infrastructureNode "staging.<domain> Alias" "Points the public application hostname to CloudFront." {
+                            tags "EdgeService"
+                        }
+                        originDns = infrastructureNode "origin-staging.<domain> A Record" "Points CloudFront's HTTPS API origin to the EC2 Elastic IP; the security group still rejects non-CloudFront traffic." {
+                            tags "EdgeService"
+                        }
+                        acmeValidation = infrastructureNode "_acme-challenge DNS Record" "Short-lived TXT record managed by Certbot for automated Let's Encrypt DNS-01 validation." {
+                            tags "SecurityService"
+                        }
+                    }
+
+                    globalEdge = deploymentNode "AWS Global Edge" "CloudFront is the only public application entry point." {
+                        tags "EdgeZone"
+                        viewerCertificate = infrastructureNode "ACM Viewer Certificate (us-east-1)" "AWS-managed non-exportable certificate for staging.<domain>." {
+                            tags "SecurityService"
+                        }
+                        cloudFront = deploymentNode "CloudFront Distribution" "Selects the private S3 static origin or the Nginx API origin by request path." {
+                            tags "EdgeZone"
+                            endpoint = infrastructureNode "HTTPS Distribution Endpoint" "Terminates browser, Android, Stripe webhook, and monitoring TLS for staging.<domain>." {
+                                tags "EdgeService"
+                            }
+                            staticBehavior = infrastructureNode "Default Static / SPA Behavior" "Caches content-hashed assets and serves index.html without masking API failures." {
+                                tags "EdgeService"
+                            }
+                            apiBehavior = infrastructureNode "/api/* Behavior" "Disables caching and forwards methods, bodies, cookies, authorization, CSRF headers, and query strings to Nginx over HTTPS." {
+                                tags "EdgeService"
+                            }
+                            originHeader = infrastructureNode "Secret Origin Header" "Adds a secret value that Nginx requires in addition to the CloudFront origin-facing network restriction." {
+                                tags "SecurityService"
+                            }
+                        }
+                    }
+
+                    region = deploymentNode "eu-central-1 (Frankfurt)" "Regional storage, compute, security, and operations resources." {
+                        tags "CloudZone"
+
+                        frontendOrigin = deploymentNode "Private Frontend Origin" {
+                            tags "StorageZone"
+                            s3Bucket = infrastructureNode "Private S3 Frontend Bucket" "Stores Vite output with Block Public Access enabled; hashed assets are uploaded before index.html." {
+                                tags "StorageService"
+                            }
+                            originAccessControl = infrastructureNode "CloudFront Origin Access Control" "Allows only the approved CloudFront distribution to read frontend objects." {
+                                tags "SecurityService"
+                            }
+                        }
+
+                        backupStorage = deploymentNode "Database Backup Storage" {
+                            tags "StorageZone"
+                            backupBucket = infrastructureNode "Private Encrypted S3 Backup Bucket" "Stores scheduled PostgreSQL logical backups with retention and restore-test procedures." {
+                                tags "StorageService"
+                            }
+                        }
+
+                        vpc = deploymentNode "Default VPC 172.31.0.0/16" "Uses one existing public subnet for the presentation host; no private application subnet or NAT Gateway is provisioned." {
+                            tags "NetworkZone"
+                            internetGateway = infrastructureNode "Internet Gateway" "Provides EC2 outbound internet access through its public address." {
+                                tags "NetworkService"
+                            }
+                            originSecurityGroup = infrastructureNode "EC2 Origin Security Group" "Allows inbound TCP 443 only from the CloudFront managed origin-facing prefix list; allows no TCP 22, 8000, or 5432." {
+                                tags "SecurityService"
+                            }
+                            publicSubnet = deploymentNode "Existing Public Subnet (one AZ)" "Single-AZ presentation placement; the host remains a deliberate single point of failure." {
+                                tags "ComputeZone"
+                                elasticIp = infrastructureNode "Elastic IPv4 Address" "Stable address for origin-staging.<domain> and outbound connections." {
+                                    tags "NetworkService"
+                                }
+                                ec2 = deploymentNode "EC2 t4g.small Presentation Host" "One ARM64 Docker host running the proxy, API, migration, database, and backup workloads." {
+                                    tags "ComputeZone"
+                                    dockerRuntime = infrastructureNode "Docker Engine + Compose" "Runs immutable application containers and the stateful database container." {
+                                        tags "ComputeZone"
+                                    }
+                                    ssmAgent = infrastructureNode "SSM Agent" "Maintains the outbound Systems Manager channel; no public SSH endpoint exists." {
+                                        tags "SecurityService"
+                                    }
+                                    runtimeLoader = infrastructureNode "Staging Runtime Loader" "Retrieves and validates one Secrets Manager JSON snapshot, then injects the same snapshot into migration and API containers without a .env file." {
+                                        tags "SecurityService"
+                                    }
+                                    certbot = infrastructureNode "Certbot + systemd Renewal Timer" "Uses Route 53 DNS-01 validation, stores the private key locally, and reloads Nginx only after successful renewal." {
+                                        tags "SecurityService"
+                                    }
+                                    nginxNode = deploymentNode "Nginx TLS Reverse Proxy Container" "Terminates the trusted CloudFront-to-origin TLS connection, validates the secret origin header, and proxies only to Gunicorn on the private Docker network." {
+                                        tags "EdgeZone"
+                                        nginx = infrastructureNode "Nginx :443" "Public host port 443; no direct client access is allowed by the security group." {
+                                            tags "EdgeService"
+                                        }
+                                    }
+                                    apiNode = deploymentNode "Long-lived Django API Container" {
+                                        tags "ComputeZone"
+                                        gunicorn = infrastructureNode "Gunicorn WSGI Server :8000" "Listens only on the private Docker network and invokes config.wsgi:application." {
+                                            tags "ComputeZone"
+                                        }
+                                        apiInstance = containerInstance longevity.api
+                                    }
+                                    migrationNode = deploymentNode "One-off Migration Container" "Uses the same immutable backend image and configuration snapshot; API replacement begins only after migration success." {
+                                        tags "ComputeZone"
+                                        migrationInstance = containerInstance longevity.api
+                                    }
+                                    databaseNode = deploymentNode "PostgreSQL / TimescaleDB Container" "Self-hosted PostgreSQL using the same TimescaleDB-flavoured PostgreSQL 16 image as local development; Timescale-specific features remain unused." {
+                                        tags "DataZone"
+                                        dbInstance = containerInstance longevity.db
+                                    }
+                                    backupNode = deploymentNode "Scheduled Database Backup Container" "Runs pg_dump and uploads encrypted logical backups to private S3." {
+                                        tags "StorageZone"
+                                        backupRunner = infrastructureNode "pg_dump Backup Runner" "Produces restorable logical backups without exposing PostgreSQL publicly." {
+                                            tags "StorageService"
+                                        }
+                                    }
+                                    ebsVolume = infrastructureNode "Encrypted gp3 EBS Volume" "Persists PostgreSQL data and certificate state independently of disposable containers." {
+                                        tags "StorageService"
+                                    }
+                                }
+                            }
+                        }
+
+                        security = deploymentNode "Security & Management" {
+                            tags "SecurityZone"
+                            secretsNode = infrastructureNode "AWS Secrets Manager" "Stores the canonical staging backend runtime JSON and origin-header secret." {
+                                tags "SecurityService"
+                            }
+                            systemsManager = infrastructureNode "AWS Systems Manager" "Provides IAM-authorized administration and deployment without SSH." {
+                                tags "SecurityService"
+                            }
+                        }
+
+                        ops = deploymentNode "Operations" {
+                            tags "OpsZone"
+                            cloudWatch = infrastructureNode "CloudWatch" "Collects container logs, EC2 metrics, backup outcomes, and certificate-expiry alarms." {
+                                tags "OpsService"
+                            }
+                        }
+                    }
+                }
+
+                presentationStaging.aws.dns.viewerDns -> presentationStaging.aws.globalEdge.cloudFront.endpoint "Aliases staging.<domain> to CloudFront" "DNS" "EdgeTraffic"
+                presentationStaging.userDevices.browserNode.browserClient -> presentationStaging.aws.globalEdge.cloudFront.endpoint "Loads React and calls relative /api/* over HTTPS" "HTTPS" "ClientTraffic"
+                presentationStaging.userDevices.androidNode.androidClient -> presentationStaging.aws.globalEdge.cloudFront.endpoint "Calls the staging API through CloudFront" "HTTPS" "ClientTraffic"
+                stripe -> presentationStaging.aws.globalEdge.cloudFront.endpoint "POSTs signed test-mode webhooks through /api/*" "HTTPS" "EdgeTraffic"
+                uptimeMonitor -> presentationStaging.aws.globalEdge.cloudFront.endpoint "Checks /api/v1/health/live/" "HTTPS" "OpsTraffic"
+                presentationStaging.aws.globalEdge.viewerCertificate -> presentationStaging.aws.globalEdge.cloudFront.endpoint "Supplies and automatically renews viewer TLS" "TLS" "SecurityTraffic"
+                presentationStaging.aws.globalEdge.cloudFront.endpoint -> presentationStaging.aws.globalEdge.cloudFront.staticBehavior "Selects static and SPA requests" "HTTPS" "EdgeTraffic"
+                presentationStaging.aws.globalEdge.cloudFront.endpoint -> presentationStaging.aws.globalEdge.cloudFront.apiBehavior "Selects uncached /api/* requests" "HTTPS" "EdgeTraffic"
+                presentationStaging.aws.globalEdge.cloudFront.staticBehavior -> presentationStaging.aws.region.frontendOrigin.s3Bucket "Fetches React build artifacts" "Signed HTTPS" "StorageTraffic"
+                presentationStaging.aws.region.frontendOrigin.originAccessControl -> presentationStaging.aws.region.frontendOrigin.s3Bucket "Restricts reads to this CloudFront distribution" "OAC" "SecurityTraffic"
+                presentationStaging.aws.globalEdge.cloudFront.apiBehavior -> presentationStaging.aws.dns.originDns "Resolves origin-staging.<domain>" "DNS" "EdgeTraffic"
+                presentationStaging.aws.dns.originDns -> presentationStaging.aws.region.vpc.publicSubnet.elasticIp "Maps the origin hostname to the stable EC2 address" "DNS" "EdgeTraffic"
+                presentationStaging.aws.globalEdge.cloudFront.apiBehavior -> presentationStaging.aws.region.vpc.publicSubnet.ec2.nginxNode.nginx "Forwards uncached API traffic" "HTTPS" "EdgeTraffic"
+                presentationStaging.aws.globalEdge.cloudFront.originHeader -> presentationStaging.aws.region.vpc.publicSubnet.ec2.nginxNode.nginx "Adds the required secret origin header" "HTTPS header" "SecurityTraffic"
+                presentationStaging.aws.region.vpc.originSecurityGroup -> presentationStaging.aws.region.vpc.publicSubnet.ec2.nginxNode.nginx "Allows TCP 443 only from CloudFront origin-facing addresses" "Security group" "SecurityTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.nginxNode.nginx -> presentationStaging.aws.region.vpc.publicSubnet.ec2.apiNode.gunicorn "Proxies API requests on the private Docker network" "HTTP" "EdgeTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.apiNode.gunicorn -> presentationStaging.aws.region.vpc.publicSubnet.ec2.apiNode.apiInstance "Invokes Django through WSGI" "WSGI" "EdgeTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.databaseNode.dbInstance -> presentationStaging.aws.region.vpc.publicSubnet.ec2.ebsVolume "Persists database files" "Encrypted block storage" "StorageTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.backupNode.backupRunner -> presentationStaging.aws.region.vpc.publicSubnet.ec2.databaseNode.dbInstance "Creates a logical backup" "pg_dump" "DataTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.backupNode.backupRunner -> presentationStaging.aws.region.backupStorage.backupBucket "Uploads encrypted backup artifacts" "HTTPS" "StorageTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.runtimeLoader -> presentationStaging.aws.region.security.secretsNode "Retrieves one AWSCURRENT runtime JSON snapshot through the EC2 role" "HTTPS" "SecurityTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.runtimeLoader -> presentationStaging.aws.region.vpc.publicSubnet.ec2.migrationNode.migrationInstance "Injects the validated snapshot" "Process environment" "SecurityTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.runtimeLoader -> presentationStaging.aws.region.vpc.publicSubnet.ec2.apiNode.apiInstance "Injects the same validated snapshot" "Process environment" "SecurityTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.certbot -> presentationStaging.aws.dns.acmeValidation "Creates and removes the scoped DNS-01 TXT record" "Route 53 API" "SecurityTraffic"
+                letsEncrypt -> presentationStaging.aws.region.vpc.publicSubnet.ec2.certbot "Issues and renews the public origin certificate after DNS validation" "ACME" "SecurityTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.certbot -> presentationStaging.aws.region.vpc.publicSubnet.ec2.nginxNode.nginx "Deploys renewed certificate files and reloads Nginx" "TLS certificate" "SecurityTraffic"
+                presentationStaging.operatorAccess.awsAccessClient -> presentationStaging.aws.region.security.systemsManager "Starts audited operator sessions" "SSM" "OpsTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.ssmAgent -> presentationStaging.aws.region.security.systemsManager "Maintains the outbound management channel" "HTTPS" "SecurityTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.apiNode.apiInstance -> stripe "Creates Checkout and Customer Portal Sessions" "HTTPS" "EdgeTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.apiNode.apiInstance -> presentationStaging.aws.region.ops.cloudWatch "Writes application logs and metrics" "HTTPS" "OpsTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.migrationNode.migrationInstance -> presentationStaging.aws.region.ops.cloudWatch "Writes migration logs and exit status" "HTTPS" "OpsTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.backupNode.backupRunner -> presentationStaging.aws.region.ops.cloudWatch "Publishes backup success or failure" "HTTPS" "OpsTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.elasticIp -> presentationStaging.aws.region.vpc.internetGateway "Provides host outbound internet connectivity without NAT Gateway" "IPv4" "NetworkTraffic"
+            }
+
+            mvpCloud = deploymentEnvironment "[LEGACY / SUPERSEDED] Post-MVP Fargate + Redis + Timescale Cloud" {
                 userDevices = deploymentNode "User Devices" "Where end users run the browser and Android clients." {
                     tags "ClientZone"
 
@@ -950,6 +1144,214 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 tags "StorageTraffic"
             }
         }
+
+            recommendedProduction = deploymentEnvironment "[RECOMMENDED] Production - CloudFront + ALB + Two Fargate Tasks + RDS Multi-AZ" {
+                userDevices = deploymentNode "User Devices" "Production users run the browser or Android client." {
+                    tags "ClientZone"
+                    browserNode = deploymentNode "Browser" "Uses production.<domain> as the single React and /api/* browser origin." {
+                        tags "ClientZone"
+                        browserClient = containerInstance longevity.webapp
+                    }
+                    androidNode = deploymentNode "Android Phone" "Uses the dedicated api.<domain> HTTPS API hostname." {
+                        tags "ClientZone"
+                        androidClient = containerInstance longevity.android
+                    }
+                }
+
+                aws = deploymentNode "AWS Account" "Recommended production architecture: managed edge, two replaceable API tasks, and a managed Multi-AZ relational database." {
+                    tags "CloudZone"
+
+                    dns = deploymentNode "Route 53 Public DNS" {
+                        tags "EdgeZone"
+                        viewerDns = infrastructureNode "production.<domain> Alias" "Points the browser origin to CloudFront." {
+                            tags "EdgeService"
+                        }
+                        apiDns = infrastructureNode "api.<domain> Alias" "Points Android, Stripe webhooks, uptime monitoring, and CloudFront's API origin to the ALB." {
+                            tags "EdgeService"
+                        }
+                    }
+
+                    globalEdge = deploymentNode "AWS Global Edge" {
+                        tags "EdgeZone"
+                        viewerCertificate = infrastructureNode "ACM Viewer Certificate (us-east-1)" "AWS-managed viewer certificate for production.<domain>." {
+                            tags "SecurityService"
+                        }
+                        webAcl = infrastructureNode "AWS WAF Web ACL" "Applies managed and application-specific edge protections before requests reach the distribution behaviors." {
+                            tags "SecurityService"
+                        }
+                        cloudFront = deploymentNode "CloudFront Distribution" "Production public browser edge with private static origin and uncached API origin." {
+                            tags "EdgeZone"
+                            endpoint = infrastructureNode "HTTPS Distribution Endpoint" "Terminates viewer TLS and selects a path behavior." {
+                                tags "EdgeService"
+                            }
+                            staticBehavior = infrastructureNode "Default Static / SPA Behavior" "Caches hashed assets and safely resolves React routes to index.html." {
+                                tags "EdgeService"
+                            }
+                            apiBehavior = infrastructureNode "/api/* Behavior" "Disables caching and forwards the complete authenticated request to the ALB over HTTPS." {
+                                tags "EdgeService"
+                            }
+                        }
+                    }
+
+                    region = deploymentNode "eu-central-1 (Frankfurt)" "Recommended regional production resources spanning two Availability Zones." {
+                        tags "CloudZone"
+
+                        frontendOrigin = deploymentNode "Private Frontend Origin" {
+                            tags "StorageZone"
+                            s3Bucket = infrastructureNode "Private S3 Frontend Bucket" "Stores immutable React build artifacts with Block Public Access enabled." {
+                                tags "StorageService"
+                            }
+                            originAccessControl = infrastructureNode "CloudFront Origin Access Control" "Restricts frontend reads to the production distribution." {
+                                tags "SecurityService"
+                            }
+                        }
+
+                        albCertificate = infrastructureNode "ACM ALB Certificate (eu-central-1)" "AWS-managed regional certificate for api.<domain>." {
+                            tags "SecurityService"
+                        }
+
+                        vpc = deploymentNode "Production VPC" "Separates public load-balancing, private application, and private database tiers across two Availability Zones." {
+                            tags "NetworkZone"
+                            internetGateway = infrastructureNode "Internet Gateway" "Connects the public ALB and NAT subnet routes to the internet." {
+                                tags "NetworkService"
+                            }
+
+                            publicTier = deploymentNode "Public Edge / NAT Subnets (AZ-a and AZ-b)" {
+                                tags "EdgeZone"
+                                publicSubnetA = deploymentNode "Public Subnet A" {
+                                    tags "EdgeZone"
+                                    natGatewayA = infrastructureNode "NAT Gateway A" "Provides zonal outbound connectivity for private application tasks in AZ-a." {
+                                        tags "NetworkService"
+                                    }
+                                }
+                                publicSubnetB = deploymentNode "Public Subnet B" {
+                                    tags "EdgeZone"
+                                    natGatewayB = infrastructureNode "NAT Gateway B" "Provides zonal outbound connectivity for private application tasks in AZ-b." {
+                                        tags "NetworkService"
+                                    }
+                                }
+                                alb = deploymentNode "Internet-facing Application Load Balancer" "AWS-managed multi-AZ API entry point." {
+                                    tags "EdgeZone"
+                                    httpsListener = infrastructureNode "HTTPS :443 Listener" "Terminates API TLS and adds trusted forwarding metadata." {
+                                        tags "EdgeService"
+                                    }
+                                    targetGroup = infrastructureNode "Fargate IP Target Group" "Checks /api/v1/health/ready/ and routes only to healthy task IPs." {
+                                        tags "EdgeService"
+                                    }
+                                }
+                            }
+
+                            privateAppTier = deploymentNode "Private Application Subnets" "Two stateless API tasks provide app-host and Availability Zone failure tolerance." {
+                                tags "ComputeZone"
+                                privateAppSubnetA = deploymentNode "Private App Subnet A" {
+                                    tags "ComputeZone"
+                                    apiTaskA = deploymentNode "ECS Fargate API Task A" "Replaceable ARM64 task in AZ-a." {
+                                        tags "ComputeZone"
+                                        gunicornA = infrastructureNode "Gunicorn WSGI Server A" "Invokes Django directly; Nginx is unnecessary behind the ALB." {
+                                            tags "ComputeZone"
+                                        }
+                                        apiInstanceA = containerInstance longevity.api
+                                    }
+                                    migrationTask = deploymentNode "One-off ECS Migration Task" "Runs the same immutable backend image and migrations before service promotion." {
+                                        tags "ComputeZone"
+                                        migrationInstance = containerInstance longevity.api
+                                    }
+                                }
+                                privateAppSubnetB = deploymentNode "Private App Subnet B" {
+                                    tags "ComputeZone"
+                                    apiTaskB = deploymentNode "ECS Fargate API Task B" "Replaceable ARM64 task in AZ-b." {
+                                        tags "ComputeZone"
+                                        gunicornB = infrastructureNode "Gunicorn WSGI Server B" "Invokes the same Django image in the second Availability Zone." {
+                                            tags "ComputeZone"
+                                        }
+                                        apiInstanceB = containerInstance longevity.api
+                                    }
+                                }
+                            }
+
+                            privateDataTier = deploymentNode "Private Database Subnets" "Database endpoints have no public route." {
+                                tags "DataZone"
+                                rdsCluster = deploymentNode "Amazon RDS PostgreSQL Multi-AZ" "Managed PostgreSQL with synchronous standby, automatic failover, encryption, backups, and point-in-time recovery." {
+                                    tags "ManagedZone"
+                                    dbInstance = containerInstance longevity.db
+                                    standby = infrastructureNode "Synchronous Standby + Automatic Failover" "Maintains a standby in the second Availability Zone and promotes it after primary failure." {
+                                        tags "ManagedDataService"
+                                    }
+                                    managedBackups = infrastructureNode "Automated Backups + Point-in-Time Recovery" "Provider-managed encrypted retention with restore drills." {
+                                        tags "StorageService"
+                                    }
+                                }
+                            }
+
+                            networkControls = deploymentNode "Security Groups" "Stateful least-privilege boundaries for each tier." {
+                                tags "SecurityZone"
+                                albSecurityGroup = infrastructureNode "ALB Security Group" "Allows public TCP 443." {
+                                    tags "SecurityService"
+                                }
+                                apiSecurityGroup = infrastructureNode "Fargate API Security Group" "Allows the Gunicorn application port only from the ALB security group." {
+                                    tags "SecurityService"
+                                }
+                                dbSecurityGroup = infrastructureNode "RDS Security Group" "Allows PostgreSQL only from the Fargate API security group." {
+                                    tags "SecurityService"
+                                }
+                            }
+                        }
+
+                        security = deploymentNode "Security & Configuration" {
+                            tags "SecurityZone"
+                            secretsNode = infrastructureNode "AWS Secrets Manager" "Injects scoped production configuration through the ECS task execution role." {
+                                tags "SecurityService"
+                            }
+                        }
+
+                        ops = deploymentNode "Operations" {
+                            tags "OpsZone"
+                            cloudWatch = infrastructureNode "CloudWatch Logs, Metrics, Alarms, and Deployment Rollback Signals" "Observes edge, target health, task, migration, and database behavior." {
+                                tags "OpsService"
+                            }
+                        }
+                    }
+                }
+
+                recommendedProduction.aws.dns.viewerDns -> recommendedProduction.aws.globalEdge.cloudFront.endpoint "Aliases production.<domain> to CloudFront" "DNS" "EdgeTraffic"
+                recommendedProduction.userDevices.browserNode.browserClient -> recommendedProduction.aws.globalEdge.cloudFront.endpoint "Loads React and calls relative /api/*" "HTTPS" "ClientTraffic"
+                recommendedProduction.aws.globalEdge.viewerCertificate -> recommendedProduction.aws.globalEdge.cloudFront.endpoint "Supplies and renews viewer TLS" "TLS" "SecurityTraffic"
+                recommendedProduction.aws.globalEdge.webAcl -> recommendedProduction.aws.globalEdge.cloudFront.endpoint "Filters malicious or disallowed requests" "WAF" "SecurityTraffic"
+                recommendedProduction.aws.globalEdge.cloudFront.endpoint -> recommendedProduction.aws.globalEdge.cloudFront.staticBehavior "Selects static and SPA requests" "HTTPS" "EdgeTraffic"
+                recommendedProduction.aws.globalEdge.cloudFront.endpoint -> recommendedProduction.aws.globalEdge.cloudFront.apiBehavior "Selects uncached /api/* requests" "HTTPS" "EdgeTraffic"
+                recommendedProduction.aws.globalEdge.cloudFront.staticBehavior -> recommendedProduction.aws.region.frontendOrigin.s3Bucket "Fetches immutable React artifacts" "Signed HTTPS" "StorageTraffic"
+                recommendedProduction.aws.region.frontendOrigin.originAccessControl -> recommendedProduction.aws.region.frontendOrigin.s3Bucket "Restricts reads to CloudFront" "OAC" "SecurityTraffic"
+                recommendedProduction.aws.globalEdge.cloudFront.apiBehavior -> recommendedProduction.aws.dns.apiDns "Resolves the regional API origin" "DNS" "EdgeTraffic"
+                recommendedProduction.userDevices.androidNode.androidClient -> recommendedProduction.aws.dns.apiDns "Resolves the production mobile API hostname" "DNS" "ClientTraffic"
+                stripe -> recommendedProduction.aws.dns.apiDns "Resolves the signed webhook destination" "DNS" "EdgeTraffic"
+                uptimeMonitor -> recommendedProduction.aws.dns.apiDns "Resolves the liveness endpoint" "DNS" "OpsTraffic"
+                recommendedProduction.aws.dns.apiDns -> recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener "Aliases api.<domain> to the ALB" "DNS" "EdgeTraffic"
+                recommendedProduction.aws.region.albCertificate -> recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener "Supplies and automatically renews ALB TLS" "TLS" "SecurityTraffic"
+                recommendedProduction.aws.globalEdge.cloudFront.apiBehavior -> recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener "Forwards uncached browser API requests" "HTTPS" "EdgeTraffic"
+                recommendedProduction.userDevices.androidNode.androidClient -> recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener "Calls the API directly" "HTTPS" "ClientTraffic"
+                stripe -> recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener "POSTs signed production webhooks" "HTTPS" "EdgeTraffic"
+                uptimeMonitor -> recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener "Checks /api/v1/health/live/" "HTTPS" "OpsTraffic"
+                recommendedProduction.aws.region.vpc.networkControls.albSecurityGroup -> recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener "Governs public TCP 443 ingress" "Security group" "SecurityTraffic"
+                recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener -> recommendedProduction.aws.region.vpc.publicTier.alb.targetGroup "Terminates TLS and selects a healthy task" "HTTP" "EdgeTraffic"
+                recommendedProduction.aws.region.vpc.networkControls.albSecurityGroup -> recommendedProduction.aws.region.vpc.networkControls.apiSecurityGroup "Is the only allowed application-port source" "Security group reference" "SecurityTraffic"
+                recommendedProduction.aws.region.vpc.publicTier.alb.targetGroup -> recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.gunicornA "Routes to healthy task A" "HTTP" "EdgeTraffic"
+                recommendedProduction.aws.region.vpc.publicTier.alb.targetGroup -> recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.gunicornB "Routes to healthy task B" "HTTP" "EdgeTraffic"
+                recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.gunicornA -> recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.apiInstanceA "Invokes Django through WSGI" "WSGI" "EdgeTraffic"
+                recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.gunicornB -> recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.apiInstanceB "Invokes Django through WSGI" "WSGI" "EdgeTraffic"
+                recommendedProduction.aws.region.vpc.networkControls.apiSecurityGroup -> recommendedProduction.aws.region.vpc.networkControls.dbSecurityGroup "Is the only allowed PostgreSQL source" "Security group reference" "SecurityTraffic"
+                recommendedProduction.aws.region.vpc.privateDataTier.rdsCluster.dbInstance -> recommendedProduction.aws.region.vpc.privateDataTier.rdsCluster.standby "Replicates synchronously across Availability Zones" "PostgreSQL replication" "DataTraffic"
+                recommendedProduction.aws.region.vpc.privateDataTier.rdsCluster.dbInstance -> recommendedProduction.aws.region.vpc.privateDataTier.rdsCluster.managedBackups "Creates encrypted backups and recovery points" "Managed backup" "StorageTraffic"
+                recommendedProduction.aws.region.security.secretsNode -> recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.apiInstanceA "Injects production secrets through the task execution role" "ECS secret injection" "SecurityTraffic"
+                recommendedProduction.aws.region.security.secretsNode -> recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.apiInstanceB "Injects the same production configuration" "ECS secret injection" "SecurityTraffic"
+                recommendedProduction.aws.region.security.secretsNode -> recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.migrationTask.migrationInstance "Injects migration configuration" "ECS secret injection" "SecurityTraffic"
+                recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.apiInstanceA -> stripe "Creates Checkout and Customer Portal Sessions" "HTTPS via NAT A" "EdgeTraffic"
+                recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.apiInstanceB -> stripe "Creates Checkout and Customer Portal Sessions" "HTTPS via NAT B" "EdgeTraffic"
+                recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.apiInstanceA -> recommendedProduction.aws.region.ops.cloudWatch "Writes logs and metrics" "awslogs" "OpsTraffic"
+                recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.apiInstanceB -> recommendedProduction.aws.region.ops.cloudWatch "Writes logs and metrics" "awslogs" "OpsTraffic"
+                recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.migrationTask.migrationInstance -> recommendedProduction.aws.region.ops.cloudWatch "Writes migration logs and exit status" "awslogs" "OpsTraffic"
+                recommendedProduction.aws.region.vpc.publicTier.publicSubnetA.natGatewayA -> recommendedProduction.aws.region.vpc.internetGateway "Provides AZ-a private-task egress" "IPv4" "NetworkTraffic"
+                recommendedProduction.aws.region.vpc.publicTier.publicSubnetB.natGatewayB -> recommendedProduction.aws.region.vpc.internetGateway "Provides AZ-b private-task egress" "IPv4" "NetworkTraffic"
+            }
     }
 
     views {
@@ -1433,7 +1835,31 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             autolayout lr
         }
 
-        deployment * mvpStaging "mvp-staging-ec2-deployment" "Proposed manually provisioned staging target: same-origin browser /api proxy, two-AZ ALB routing to two private EC2 Docker hosts, one-off migrations, managed PostgreSQL backups, Stripe test webhooks, uptime monitoring, and remote Android sync without Celery, Redis, or Fargate." {
+        deployment * presentationStaging "current-presentation-staging" "[CURRENT] Agreed low-cost presentation staging: one CloudFront entry point, private S3 React origin, uncached /api/* to Let's Encrypt-backed Nginx on one public EC2 host, Gunicorn/Django, self-hosted PostgreSQL/TimescaleDB on encrypted EBS, S3 logical backups, Secrets Manager, Systems Manager, and CloudWatch. ALB, NAT Gateway, Timescale Cloud, Redis, Celery Worker, and Celery Beat are absent." {
+            include *
+            exclude webCallsApi
+            exclude androidCallsApi
+            autolayout tb
+        }
+
+        deployment * presentationStaging "current-presentation-staging-compact" "[CURRENT / COMPACT] Request and data path for the agreed presentation environment: browser or Android to CloudFront, private S3 for React, /api/* to Nginx, Gunicorn/Django, and the self-hosted PostgreSQL/TimescaleDB container." {
+            include presentationStaging.userDevices.browserNode.browserClient
+            include presentationStaging.userDevices.androidNode.androidClient
+            include presentationStaging.aws.globalEdge.cloudFront.endpoint
+            include presentationStaging.aws.globalEdge.cloudFront.staticBehavior
+            include presentationStaging.aws.globalEdge.cloudFront.apiBehavior
+            include presentationStaging.aws.region.frontendOrigin.s3Bucket
+            include presentationStaging.aws.region.vpc.publicSubnet.ec2.nginxNode.nginx
+            include presentationStaging.aws.region.vpc.publicSubnet.ec2.apiNode.gunicorn
+            include presentationStaging.aws.region.vpc.publicSubnet.ec2.apiNode.apiInstance
+            include presentationStaging.aws.region.vpc.publicSubnet.ec2.databaseNode.dbInstance
+            include presentationStaging.aws.region.vpc.publicSubnet.ec2.ebsVolume
+            exclude webCallsApi
+            exclude androidCallsApi
+            autolayout tb
+        }
+
+        deployment * mvpStaging "mvp-staging-ec2-deployment" "[LEGACY / SUPERSEDED] Former proposed manually provisioned staging target: same-origin browser /api proxy, two-AZ ALB routing to two private EC2 Docker hosts, one-off migrations, Timescale Cloud, Stripe test webhooks, and remote Android sync. Retained only for architecture history and comparison." {
             include *
             exclude mvpStaging.aws.region.vpc.internetGateway
             exclude mvpStaging.aws.region.vpc.publicTier.publicSubnetA.natGatewayA
@@ -1446,17 +1872,17 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             autolayout tb
         }
 
-        deployment * mvpStaging "mvp-staging-aws-infrastructure" "Detailed learning view of the proposed eu-central-1 staging network: one VPC, two public ALB/NAT subnets, two private EC2 application subnets, security boundaries, Systems Manager, observability, and external dependencies. Provisioning remains cost-gated." {
+        deployment * mvpStaging "mvp-staging-aws-infrastructure" "[LEGACY / SUPERSEDED] Former detailed learning view with two public ALB/NAT subnets and two private EC2 application subnets. Retained only for architecture history and comparison; do not provision it for current staging." {
             include *
             autolayout tb
         }
 
-        deployment * approvedInitialStaging "approved-initial-staging" "Approved first public staging topology: one browser origin through CloudFront, private S3 static origin, uncached /api/* behavior to the ALB, one private EC2 Gunicorn/Django target, direct API access for Android and Stripe, Timescale Cloud, Systems Manager, and monitoring. A second EC2 target is deferred." {
+        deployment * approvedInitialStaging "approved-initial-staging" "[LEGACY / SUPERSEDED] Former approved first staging topology with CloudFront, private S3, ALB, NAT Gateway, one private EC2 target, and Timescale Cloud. Retained only for architecture history and comparison." {
             include *
             autolayout tb
         }
 
-        deployment * approvedInitialStaging "approved-initial-staging-compact" "Small-screen request-path view of approved initial staging. It keeps only the browser and Android clients, CloudFront path selection, private S3, ALB routing, Gunicorn/Django on the single EC2 target, and Timescale Cloud." {
+        deployment * approvedInitialStaging "approved-initial-staging-compact" "[LEGACY / SUPERSEDED / COMPACT] Former small-screen request path through CloudFront, ALB, one private EC2 target, and Timescale Cloud. Retained only for comparison." {
             include approvedInitialStaging.userDevices.browserNode.browserClient
             include approvedInitialStaging.userDevices.androidNode.androidClient
             include approvedInitialStaging.aws.globalEdge.cloudFront.distributionEndpoint
@@ -1473,8 +1899,36 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             autolayout tb
         }
 
-        deployment * mvpCloud "post-mvp-fargate-deployment" "Post-MVP Fargate target used to learn managed container operations after Terraform-managed EC2; adds durable Celery workers, one Beat scheduler, ElastiCache Redis, and S3 job artifacts only when measured workloads justify them." {
+        deployment * mvpCloud "post-mvp-fargate-deployment" "[LEGACY / SUPERSEDED] Former broad post-MVP Fargate target with Celery Worker, Beat, Redis, and Timescale Cloud. It is not the current production recommendation and is retained only for architecture history." {
             include *
+            autolayout tb
+        }
+
+        deployment * recommendedProduction "recommended-production" "[RECOMMENDED PRODUCTION] CloudFront and WAF, private S3, HTTPS ALB, two replaceable Gunicorn/Django Fargate tasks across two Availability Zones, one-off migration task, private RDS PostgreSQL Multi-AZ with automatic failover and point-in-time recovery, Secrets Manager, CloudWatch, and zonal NAT egress. Nginx and self-hosted PostgreSQL remain staging-only tradeoffs." {
+            include *
+            exclude webCallsApi
+            exclude androidCallsApi
+            autolayout tb
+        }
+
+        deployment * recommendedProduction "recommended-production-compact" "[RECOMMENDED PRODUCTION / COMPACT] Resilient request and data path: CloudFront/WAF to private S3 or ALB, ALB to two healthy Fargate API tasks, and both tasks to RDS PostgreSQL Multi-AZ." {
+            include recommendedProduction.userDevices.browserNode.browserClient
+            include recommendedProduction.userDevices.androidNode.androidClient
+            include recommendedProduction.aws.globalEdge.webAcl
+            include recommendedProduction.aws.globalEdge.cloudFront.endpoint
+            include recommendedProduction.aws.globalEdge.cloudFront.staticBehavior
+            include recommendedProduction.aws.globalEdge.cloudFront.apiBehavior
+            include recommendedProduction.aws.region.frontendOrigin.s3Bucket
+            include recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener
+            include recommendedProduction.aws.region.vpc.publicTier.alb.targetGroup
+            include recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.gunicornA
+            include recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.apiInstanceA
+            include recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.gunicornB
+            include recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.apiInstanceB
+            include recommendedProduction.aws.region.vpc.privateDataTier.rdsCluster.dbInstance
+            include recommendedProduction.aws.region.vpc.privateDataTier.rdsCluster.standby
+            exclude webCallsApi
+            exclude androidCallsApi
             autolayout tb
         }
 
