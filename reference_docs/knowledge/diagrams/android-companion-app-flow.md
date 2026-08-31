@@ -23,7 +23,7 @@ Android debug build
 
 Planned hosted staging route:
 Android staging build
-    → https://staging.<domain>/api/... over Wi-Fi or mobile data
+    → API origin https://staging.<domain>/ plus /api/... endpoint path over Wi-Fi or mobile data
     → Route53/public DNS
     → CloudFront
     → Nginx HTTPS origin on EC2

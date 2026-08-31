@@ -115,6 +115,23 @@ JAVA_HOME=/opt/android-studio/jbr ./gradlew connectedDebugAndroidTest
 - The debug build permits local cleartext HTTP while the main/release manifest remains HTTPS-only.
 - After connecting the authorized phone, run `adb reverse tcp:8000 tcp:8000` so `http://127.0.0.1:8000` on the phone reaches local Django. This mapping is temporary and may need to be recreated after reconnecting the phone or restarting ADB.
 - The debug build sets `BuildConfig.API_BASE_URL` to `http://127.0.0.1:8000/`; this is useful only with the `adb reverse` mapping above. The release URL remains deliberately unset until an HTTPS production API exists.
+- The non-debuggable staging build uses application ID
+  `com.viridiandome.longevity.staging`, rejects cleartext traffic, and requires an
+  HTTPS origin root ending in `/`. Supply it as a Gradle property or environment
+  variable; do not include `/api/...` because repositories append endpoint paths:
+
+```bash
+cd /home/sevi/longevity/android
+JAVA_HOME=/opt/android-studio/jbr ./gradlew testStagingUnitTest \
+  -Plongevity.stagingApiBaseUrl=https://staging.example.com/
+JAVA_HOME=/opt/android-studio/jbr ./gradlew assembleStaging \
+  -Plongevity.stagingApiBaseUrl=https://staging.example.com/
+```
+
+  `https://staging.example.com/` is test input only, not a provisioned Longevity
+  hostname. `LONGEVITY_STAGING_API_BASE_URL` provides the equivalent CI input.
+  The staging APK currently uses local debug signing solely for the first
+  direct-device smoke; Play Internal Testing requires a dedicated upload key.
 - `HttpAuthRepository` implements and mock-server-tests the mobile-login HTTP contract. `AndroidKeystoreAuthTokenStore` provides the production AES-GCM/Android-Keystore storage boundary and is verified on the physical phone.
 - `LongevityApplication` creates the shared HTTP/auth dependencies. `MainActivity` obtains `LoginViewModel` through `LoginViewModelFactory`, collects its state with lifecycle awareness, and delegates Sign in to the real repository.
 

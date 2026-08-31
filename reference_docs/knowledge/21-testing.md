@@ -614,6 +614,13 @@ Immediate next wearable slice:
 Current Android testing checkpoint — 2026-08-17:
 
 - The Gradle debug build succeeds against `compileSdk 37.1`, `targetSdk 36`, and `minSdk 28`.
+- On 2026-08-31, the staging build contract added focused JVM tests proving the
+  isolated `com.viridiandome.longevity.staging` application ID, non-debuggable
+  behavior, and injected API origin. Gradle validation rejects a missing origin,
+  cleartext HTTP, and non-root URLs before APK assembly. A valid placeholder
+  HTTPS origin assembled successfully for artifact inspection; the manifest
+  disables cleartext traffic and the APK uses the Android debug certificate only
+  for the first direct-device smoke. The combined debug and staging JVM suites pass.
 - Local JVM tests cover login form state, login and mobile-refresh request/response/error serialization, safe diagnostic strings, ViewModel success/failure/session-checking/session-restoration/logout state, and the HTTP repository contract. Refresh-contract tests prove the request contains exactly `refresh`, the response requires `access`, rotated `refresh` is optional, and neither token appears in diagnostic strings.
 - MockWebServer and repository tests prove the repository sends `POST /api/auth/mobile/login/` with the exact Django JSON body and stores both tokens before returning success. Startup-restoration coverage proves a readable stored pair restores locally without networking or token replacement. Explicit refresh coverage proves `/api/auth/mobile/refresh/` replaces access, retains or rotates refresh correctly, skips networking without stored tokens, clears tokens after `401`, and preserves tokens across transient network failure. Logout coverage proves the client posts the stored refresh token to `/api/auth/mobile/logout/`, clears locally after successful revocation, and retains tokens after a server failure so revocation can be retried.
 - `AuthenticatedApiClientTest` proves product requests use the stored access token as a Bearer credential, a `401` refreshes and retries exactly once with the replacement access token, missing/rejected sessions do not send an unauthenticated retry, and a token already replaced by another request is reused without a second rotation.

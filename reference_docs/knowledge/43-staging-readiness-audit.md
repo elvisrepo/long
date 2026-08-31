@@ -11,9 +11,10 @@ Longevity application resources have been provisioned. The backend inspection
 is complete. Production settings validation and HTTPS/proxy security were
 implemented on 2026-08-21, and the `.env`-free staging secret/runtime contract
 was implemented on 2026-08-25. The production-like migration/API deployment
-smoke was completed locally and in GitHub CI on 2026-08-26. Frontend
-hosting/origin, Android staging build, and detailed AWS cost/resource audits
-remain open.
+smoke was completed locally and in GitHub CI on 2026-08-26. The frontend
+delivery contract was completed on 2026-08-27, and the isolated Android staging
+build contract was completed on 2026-08-31. Detailed AWS cost/resource analysis
+and the manual provisioning runbook remain open.
 
 The deployment topology changed on 2026-08-28. Current presentation staging is
 `CloudFront -> Nginx on one public EC2 host -> Gunicorn/Django -> self-hosted
@@ -335,11 +336,17 @@ verification.
      deleting superseded assets
    - prove same-origin browser reload restoration, CSRF forwarding, and
      refresh-cookie rotation through the real Vite-to-Django E2E proxy
-10. Audit the Android staging build:
-    - staging application ID and signing
-    - `https://staging.<domain>/api/...` base URL through CloudFront
-    - no `adb reverse`
-    - internal distribution method
+10. Audit the Android staging build — completed 2026-08-31:
+    - add the isolated `com.viridiandome.longevity.staging` application ID
+    - inherit non-debuggable release behavior and keep cleartext traffic disabled
+    - require an injected `https://staging.<domain>/` origin root; Android
+      repositories append their existing `/api/...` endpoint paths
+    - reject missing, HTTP, credential-bearing, path-bearing, query-bearing, and
+      fragment-bearing staging origins before assembling the APK
+    - permit local debug signing only for the first direct-device smoke; require
+      a dedicated Play upload-signing boundary for Internal Testing
+    - reserve the no-`adb reverse` physical-device test for the provisioned
+      CloudFront hostname because no public staging origin exists yet
 11. Cost and write the manual AWS provisioning runbook, including Route 53,
     CloudFront, private S3/OAC, one ACM viewer certificate, EC2/EIP, the
     CloudFront-only origin security group, Nginx, Let's Encrypt DNS-01 renewal,
@@ -355,11 +362,12 @@ application runtime defects with infrastructure-learning defects.
 
 ## 5. Current gate
 
-Steps 1–9 are complete. The next implementation slice is step 10: audit the
-Android staging build, application ID, release signing boundary, public staging
-API URL, and internal distribution path. Do not provision AWS application
-resources yet; the Android audit and detailed costed manual provisioning
-runbook remain required before step 12. Keep the
+Steps 1–10 are complete. The next implementation slice is step 11: cost and
+write the manual AWS provisioning runbook for the agreed presentation-staging
+topology. Do not provision AWS application resources until that runbook is
+reviewed. The real hostname, no-tunnel Android smoke, and Play Internal Testing
+upload key are deployment-time gates rather than reasons to invent placeholder
+cloud resources during the build audit. Keep the
 PostgreSQL-backed backend suite, production-image smoke, migration/API deployment
 smoke, health contract, removed-route, runtime-artifact, E2E Stripe-isolation,
 and staging-runtime contract checks green in CI.

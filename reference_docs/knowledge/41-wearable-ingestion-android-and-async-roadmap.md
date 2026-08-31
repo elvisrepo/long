@@ -66,7 +66,7 @@ Android → http://127.0.0.1:8000/ → adb reverse → local Django
 
 Hosted staging:
 Android staging build
-    → https://staging.<domain>/api/...
+    → API origin https://staging.<domain>/ plus /api/... endpoint path
     → CloudFront
     → Nginx HTTPS origin on EC2
     → Gunicorn/Django container
@@ -88,18 +88,22 @@ Weight/Steps upload. The access JWT remains the request credential; Android
 Keystore-backed storage remains the durable device boundary. The public API URL
 is non-secret build configuration.
 
-Planned Gradle build identities and API environments:
+Current Gradle build identities and API environments:
 
 ```text
-debug    com.viridiandome.longevity.debug    localhost API
+debug    com.viridiandome.longevity          localhost API
 staging  com.viridiandome.longevity.staging  public staging API
 release  com.viridiandome.longevity          public production API
 ```
 
-Separate application IDs allow builds to coexist and isolate Keystore data,
-sessions, app storage, and Health Connect permission grants. The first staging
-APK may be installed directly for a smoke test; Play Internal Testing is the
-preferred repeatable private distribution path before a public Play release.
+The staging suffix lets staging coexist with either debug or release and
+isolates its Keystore data, sessions, app storage, and Health Connect permission
+grants. Debug and release intentionally still share the production application
+ID and therefore cannot coexist; changing debug now would discard the current
+local device boundary and is not required for staging isolation. The first
+staging APK may be installed directly for a smoke test with local debug signing;
+Play Internal Testing requires a dedicated upload key and is the preferred
+repeatable private distribution path before a public Play release.
 
 Native OkHttp is not subject to browser CORS enforcement. It is still subject
 to TLS, JWT validation, throttling, caller ownership, subscription entitlement,

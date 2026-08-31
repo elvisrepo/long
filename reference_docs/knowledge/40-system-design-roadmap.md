@@ -296,7 +296,7 @@ Android environment boundary:
 
 ```text
 debug   → http://127.0.0.1:8000/ through adb reverse
-staging → https://staging.<domain>/api/... over the internet
+staging → API origin https://staging.<domain>/ plus /api/... endpoint path
 release → https://api.<domain>/ over the internet
 ```
 

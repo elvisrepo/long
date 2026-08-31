@@ -145,16 +145,19 @@ frontend objects or cached application bundles.
 Android is an independent API client:
 
 ```text
-debug   -> http://127.0.0.1:8000/ through adb reverse
-staging -> https://staging.<domain>/api/... over the internet
-release -> https://<production-domain>/api/... over the internet
+debug API origin   -> http://127.0.0.1:8000/ through adb reverse
+staging API origin -> https://staging.<domain>/ over the internet
+release API origin -> https://<production-domain>/ over the internet
 ```
 
-The staging application ID remains `com.viridiandome.longevity.staging`, with a
-signed APK first and Play Internal Testing afterward. The base URL is public
-build configuration, not a secret. Native OkHttp is not governed by browser
-CORS, but all authentication, throttling, authorization, entitlement, HTTPS,
-and payload validation still apply.
+Repositories append endpoint paths such as `/api/auth/mobile/login/` to that
+origin root. The staging application ID is
+`com.viridiandome.longevity.staging`. A locally debug-signed, non-debuggable APK
+is allowed for the first direct-device smoke; repeatable Play Internal Testing
+requires a dedicated upload key. The API origin is public build configuration,
+not a secret. Native OkHttp is not governed by browser CORS, but all
+authentication, throttling, authorization, entitlement, HTTPS, and payload
+validation still apply.
 
 ### 8.5 Database and Migrations
 
