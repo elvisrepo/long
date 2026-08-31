@@ -30,6 +30,7 @@ do not replace or modify that target; they show verified implementation progress
 | Version | Date | Verified deployment state |
 |---|---|---|
 | V001 | 2026-08-31 | Hostinger registration delegates `syncvitals.space` to a Route 53 public hosted zone; ACM issued the unattached `staging.syncvitals.space` viewer certificate in `us-east-1`; the Frankfurt default VPC exists but contains no Longevity resources |
+| V002 | 2026-08-31 | V001 plus the private account-regional frontend S3 bucket in `eu-central-1`; public access and ACLs are blocked, SSE-S3 is enabled, and S3 website hosting is absent; CloudFront/OAC and frontend objects do not exist in this checkpoint |
 
 ## Validation
 
@@ -40,7 +41,7 @@ image currently used by the project:
 docker run --rm \
   -v "$PWD:/usr/local/structurizr:ro" \
   structurizr/structurizr \
-  validate -workspace /usr/local/structurizr/v001-route53-acm-issued.dsl
+  validate -workspace /usr/local/structurizr/v002-private-frontend-s3.dsl
 ```
 
 The next version should be created only after the next manually provisioned AWS
