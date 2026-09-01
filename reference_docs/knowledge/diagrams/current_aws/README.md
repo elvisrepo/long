@@ -31,6 +31,7 @@ do not replace or modify that target; they show verified implementation progress
 |---|---|---|
 | V001 | 2026-08-31 | Hostinger registration delegates `syncvitals.space` to a Route 53 public hosted zone; ACM issued the unattached `staging.syncvitals.space` viewer certificate in `us-east-1`; the Frankfurt default VPC exists but contains no Longevity resources |
 | V002 | 2026-08-31 | V001 plus the private account-regional frontend S3 bucket in `eu-central-1`; public access and ACLs are blocked, SSE-S3 is enabled, and S3 website hosting is absent; CloudFront/OAC and frontend objects do not exist in this checkpoint |
+| V003 | 2026-09-01 | V002 plus deployed CloudFront distribution `E1BWDS134TAX2K`, its SigV4 always-sign OAC, the attached ACM viewer certificate, and a distribution-scoped S3 `GetObject` policy; Route 53 still has no staging A/AAAA alias and CloudFront has no default root object |
 
 ## Validation
 
@@ -41,7 +42,7 @@ image currently used by the project:
 docker run --rm \
   -v "$PWD:/usr/local/structurizr:ro" \
   structurizr/structurizr \
-  validate -workspace /usr/local/structurizr/v002-private-frontend-s3.dsl
+  validate -workspace /usr/local/structurizr/v003-cloudfront-oac-deployed.dsl
 ```
 
 The next version should be created only after the next manually provisioned AWS
