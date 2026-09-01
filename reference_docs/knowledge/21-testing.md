@@ -576,6 +576,19 @@ Current CI quality gate for the frontend, established 2026-08-26:
   production build, a clean lockfile install, and an npm audit with zero known
   vulnerabilities
 
+Current frontend-delivery contract checkpoint, corrected 2026-09-01:
+- `frontend/deployment/cloudfront-delivery-contract.json` is the intended
+  delivery contract; `frontend/src/test/cloudfront-delivery-contract.test.ts`
+  protects it as design-time configuration data
+- presentation staging routes uncached `/api/*` requests to HTTPS Nginx on the
+  single public EC2 host, not to the superseded Application Load Balancer
+- the private-S3 OAC grant requires the exact CloudFront distribution
+  `AWS:SourceArn`; it does not invent an additional `AWS:SourceAccount`
+  requirement absent from AWS's documented OAC bucket-policy pattern
+- contract tests do not prove deployed AWS state; verify CloudFront, OAC, S3
+  bucket policy, DNS, encryption, versioning, logging, and metrics through
+  read-only AWS inspection before calling each provisioning checkpoint complete
+
 MyPy gate repair completed on 2026-07-14:
 - The full CI command exposed `16` errors that smaller focused checks had not shown. Run the same repository-wide `uv run mypy` command used by CI before calling the type gate green.
 - Stripe Checkout parameters now use Stripe's `SessionCreateParams` instead of `dict[str, Any]`. Because hosted Checkout still types `session.url` as optional, the service explicitly marks the local attempt failed and raises when Stripe returns no redirect URL; a regression test covers this behavior.

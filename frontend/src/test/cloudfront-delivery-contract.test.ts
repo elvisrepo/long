@@ -71,7 +71,7 @@ describe("CloudFront delivery contract", () => {
     });
   });
 
-  it("scopes the bucket policy to one CloudFront distribution", () => {
+  it("scopes the OAC bucket policy with the documented distribution ARN condition", () => {
     const contract = loadContract();
 
     expect(contract).toMatchObject({
@@ -85,7 +85,7 @@ describe("CloudFront delivery contract", () => {
               actions: ["s3:GetObject"],
               resource_scope: "objects_only",
               source_distribution_arn_required: true,
-              source_account_required: true,
+              source_account_required: false,
             },
           },
         },
@@ -198,15 +198,19 @@ describe("CloudFront delivery contract", () => {
     });
   });
 
-  it("routes API requests to an HTTPS ALB without caching", () => {
+  it("routes API requests to HTTPS Nginx on the presentation EC2 host without caching", () => {
     const contract = loadContract();
 
     expect(contract).toMatchObject({
       api_origin: {
-        service: "application_load_balancer",
+        service: "nginx_on_ec2",
+        host_role: "single_public_ec2_presentation_staging",
+        origin_hostname: "origin-staging.syncvitals.space",
         protocol_policy: "https_only",
         https_port: 443,
         minimum_tls_protocol: "TLSv1.2",
+        network_ingress: "cloudfront_origin_facing_prefix_list",
+        secret_origin_header_required: true,
       },
       api_behaviors: {
         django_api: {
