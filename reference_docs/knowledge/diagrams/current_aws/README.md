@@ -34,6 +34,14 @@ do not replace or modify that target; they show verified implementation progress
 | V003 | 2026-09-01 | V002 plus deployed CloudFront distribution `E1BWDS134TAX2K`, its SigV4 always-sign OAC, the attached ACM viewer certificate, and a distribution-scoped S3 `GetObject` policy; Route 53 still has no staging A/AAAA alias and CloudFront has no default root object |
 | V004 | 2026-09-01 | V003 plus public A/AAAA aliases for `staging.syncvitals.space`, `index.html` as the default root, the LIVE SPA rewrite function, no-cache application-shell delivery, optimized `/assets/*` delivery, S3 versioning and HTTPS-only enforcement, and the first uploaded 18-file Vite build; no EC2/Nginx/Django/PostgreSQL API origin exists yet |
 
+## Companion Request Flows
+
+- [`v004-public-frontend-request-flows.md`](./v004-public-frontend-request-flows.md)
+  explains the DNS records, CloudFront origin and alias terms, frontend SPA
+  rewrite, current failing API path, and future Nginx API path. Mermaid is used
+  for behavioral ordering; the matching Structurizr DSL remains the structural
+  C4 source of truth.
+
 ## Validation
 
 From this directory, validate an individual snapshot with the Structurizr CLI
