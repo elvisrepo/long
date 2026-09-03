@@ -76,7 +76,8 @@ Infrastructure progression:
 - Nginx origin TLS and reverse proxy, with a secret CloudFront origin header
 - automated Let's Encrypt certificate issuance/renewal through Route 53 DNS-01
 - long-lived Django API container plus a one-off migration container from the same immutable image
-- PostgreSQL/TimescaleDB container with data on encrypted persistent EBS
+- plain PostgreSQL 16 container with data on encrypted persistent EBS;
+  TimescaleDB is deferred until measured need justifies a tested migration
 - scheduled, monitored `pg_dump` backups to a private encrypted versioned S3 bucket and a tested restore procedure
 - Secrets Manager, an EC2 instance role, and least-privilege IAM permissions
 - AWS Systems Manager access instead of a publicly exposed SSH administration path

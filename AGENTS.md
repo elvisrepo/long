@@ -77,3 +77,4 @@ Load only the parts you need. You can load multiple files when useful. Be specif
 ## Playbooks at `reference_docs/playbooks/`
 
 - `reference_docs/playbooks/TTD.process.md` when implementing or fixing behavior with Test-Driven Development. Follow test list → one concrete failing test → make it pass → refactor → repeat.
+- `reference_docs/playbooks/presentation-staging-manual-provisioning.md` when manually creating, checking, or resuming the low-cost AWS presentation-staging environment one gated resource at a time.

@@ -28,6 +28,9 @@ INERT_RUNTIME_SECRET = {
     "DATABASE_URL": (
         "postgresql://postgres:postgres-smoke@database:5432/longevity_smoke"
     ),
+    # This is the same raw password encoded in DATABASE_URL. The real staging
+    # Compose file passes it only to PostgreSQL, not to Django containers.
+    "POSTGRES_PASSWORD": "postgres-smoke",
     "ALLOWED_HOSTS": "127.0.0.1,localhost",
     "CSRF_TRUSTED_ORIGINS": "https://staging.example.com",
     "STRIPE_SECRET_KEY": "sk_test_production_smoke",

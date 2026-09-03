@@ -54,11 +54,23 @@ EXPECTED_RUNTIME_KEYS = {
     "STRIPE_CUSTOMER_PORTAL_RETURN_URL",
     "LOG_LEVEL",
     "DJANGO_LOG_LEVEL",
+    "POSTGRES_PASSWORD",
 }
 
 
-def test_complete_staging_secret_defines_production_runtime_inventory() -> None:
+def complete_secret_payload() -> dict[str, str]:
+    """Return one internally consistent inert staging secret."""
+
     payload = {key: f"inert-{key.lower()}" for key in EXPECTED_RUNTIME_KEYS}
+    payload["POSTGRES_PASSWORD"] = "inert-database-password"
+    payload["DATABASE_URL"] = (
+        "postgresql://longevity:inert-database-password@database:5432/longevity"
+    )
+    return payload
+
+
+def test_complete_staging_secret_defines_production_runtime_inventory() -> None:
+    payload = complete_secret_payload()
 
     runtime_environment = parse_runtime_secret(json.dumps(payload))
 
@@ -66,8 +78,11 @@ def test_complete_staging_secret_defines_production_runtime_inventory() -> None:
     assert runtime_environment == payload
 
 
-def test_staging_parser_uses_canonical_production_inventory() -> None:
-    assert REQUIRED_RUNTIME_KEYS is REQUIRED_ENVIRONMENT_VARIABLES
+def test_staging_parser_extends_canonical_production_inventory_once() -> None:
+    assert REQUIRED_RUNTIME_KEYS == (
+        *REQUIRED_ENVIRONMENT_VARIABLES,
+        "POSTGRES_PASSWORD",
+    )
 
 
 def test_malformed_secret_json_is_rejected_without_disclosing_it() -> None:
@@ -83,7 +98,7 @@ def test_malformed_secret_json_is_rejected_without_disclosing_it() -> None:
 
 
 def test_secret_missing_required_key_is_rejected() -> None:
-    payload = {key: f"inert-{key.lower()}" for key in EXPECTED_RUNTIME_KEYS}
+    payload = complete_secret_payload()
     del payload["DATABASE_URL"]
 
     with pytest.raises(
@@ -94,7 +109,7 @@ def test_secret_missing_required_key_is_rejected() -> None:
 
 
 def test_secret_with_blank_required_value_is_rejected() -> None:
-    payload = {key: f"inert-{key.lower()}" for key in EXPECTED_RUNTIME_KEYS}
+    payload = complete_secret_payload()
     payload["DATABASE_URL"] = "   "
 
     with pytest.raises(
@@ -105,9 +120,7 @@ def test_secret_with_blank_required_value_is_rejected() -> None:
 
 
 def test_secret_with_non_string_required_value_is_rejected() -> None:
-    payload: dict[str, object] = {
-        key: f"inert-{key.lower()}" for key in EXPECTED_RUNTIME_KEYS
-    }
+    payload: dict[str, object] = complete_secret_payload()
     payload["DATABASE_URL"] = None
 
     with pytest.raises(
@@ -119,6 +132,21 @@ def test_secret_with_non_string_required_value_is_rejected() -> None:
         parse_runtime_secret(json.dumps(payload))
 
 
+def test_database_url_password_must_match_postgresql_bootstrap_password() -> None:
+    payload = complete_secret_payload()
+    payload["POSTGRES_PASSWORD"] = "must-not-appear-bootstrap-password"
+    database_url = payload["DATABASE_URL"]
+
+    with pytest.raises(
+        StagingRuntimeConfigurationError,
+        match="DATABASE_URL password must match POSTGRES_PASSWORD",
+    ) as error:
+        parse_runtime_secret(json.dumps(payload))
+
+    assert payload["POSTGRES_PASSWORD"] not in str(error.value)
+    assert database_url not in str(error.value)
+
+
 def test_secret_json_must_be_an_object() -> None:
     with pytest.raises(
         StagingRuntimeConfigurationError,
@@ -128,7 +156,7 @@ def test_secret_json_must_be_an_object() -> None:
 
 
 def test_unexpected_secret_keys_are_not_forwarded() -> None:
-    payload = {key: f"inert-{key.lower()}" for key in EXPECTED_RUNTIME_KEYS}
+    payload = complete_secret_payload()
     # Use a credential-shaped field to prove arbitrary secret JSON cannot widen
     # the child/container environment beyond the canonical allowlist.
     payload["AWS_SECRET_ACCESS_KEY"] = "must-not-be-forwarded"
@@ -278,7 +306,7 @@ def test_secret_retrieval_failure_is_redacted(
 def test_loads_one_secret_snapshot_per_deployment_attempt(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    payload = {key: f"inert-{key.lower()}" for key in EXPECTED_RUNTIME_KEYS}
+    payload = complete_secret_payload()
     retrievals: list[tuple[str, str]] = []
 
     # Recording calls protects the one-fetch rule needed to prevent rotation

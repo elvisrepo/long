@@ -6,9 +6,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from config.settings.production_environment import (
-    REQUIRED_ENVIRONMENT_VARIABLES,
-)
 from scripts.smoke_production_deployment import (
     SmokeVerificationError,
     deploy_smoke_stack,
@@ -17,6 +14,7 @@ from scripts.smoke_production_deployment import (
     verify_smoke_liveness,
     verify_smoke_readiness,
 )
+from scripts.staging_runtime import REQUIRED_RUNTIME_KEYS
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -51,7 +49,7 @@ def test_smoke_deployment_uses_step7_environment_injection(
         "--project-name",
         "longevity-production-smoke",
     ]
-    assert set(runtime_environment) == set(REQUIRED_ENVIRONMENT_VARIABLES)
+    assert set(runtime_environment) == set(REQUIRED_RUNTIME_KEYS)
     assert all(value not in command for value in runtime_environment.values())
 
 

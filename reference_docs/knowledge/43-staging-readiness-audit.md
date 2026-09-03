@@ -6,19 +6,22 @@
 
 ## Status
 
-Audit started on 2026-08-20. AWS account access is bootstrapped, but no
-Longevity application resources have been provisioned. The backend inspection
-is complete. Production settings validation and HTTPS/proxy security were
+Audit started on 2026-08-20. AWS account access is bootstrapped, and the public
+frontend foundation is provisioned: Route 53, the CloudFront viewer
+certificate, private S3/OAC, CloudFront, SPA routing, and the public
+`staging.syncvitals.space` alias. EC2 and backend/data resources are not yet
+provisioned. The backend inspection is complete. Production settings validation and HTTPS/proxy security were
 implemented on 2026-08-21, and the `.env`-free staging secret/runtime contract
 was implemented on 2026-08-25. The production-like migration/API deployment
 smoke was completed locally and in GitHub CI on 2026-08-26. The frontend
 delivery contract was completed on 2026-08-27, and the isolated Android staging
-build contract was completed on 2026-08-31. Detailed AWS cost/resource analysis
-and the manual provisioning runbook remain open.
+build contract was completed on 2026-08-31. The AWS fixed-cost analysis,
+deployable staging Compose contract, and manual provisioning runbook were
+completed on 2026-09-03.
 
 The deployment topology changed on 2026-08-28. Current presentation staging is
 `CloudFront -> Nginx on one public EC2 host -> Gunicorn/Django -> self-hosted
-PostgreSQL/TimescaleDB`, with encrypted EBS and scheduled `pg_dump` backups to
+plain PostgreSQL 16`, with encrypted EBS and scheduled `pg_dump` backups to
 private S3. The earlier ALB, NAT Gateway, and Timescale Cloud wording below is
 historical audit evidence where explicitly labelled; it is not a provisioning
 instruction. Recommended production is the separate resilient
@@ -237,9 +240,10 @@ a persistent `.env` or putting values in command arguments. Expected retrieval,
 configuration, and child-process failures are redacted and return controlled
 nonzero statuses.
 
-The planned secret ID is `longevity/staging/backend-runtime`; no AWS resource
-has been created by this slice. The human Systems Manager caller remains
-separate from the future EC2 instance-profile role. The completed Step 8 smoke
+The secret ID is `longevity/staging/backend-runtime`. AWS frontend resources
+have been provisioned, while the secret and EC2/backend resources remain future
+steps. The human Systems Manager caller remains separate from the future EC2
+instance-profile role. The completed Step 8 smoke
 consumes this loader contract without creating an AWS resource or persistent
 `.env`.
 
@@ -345,29 +349,33 @@ verification.
       fragment-bearing staging origins before assembling the APK
     - permit local debug signing only for the first direct-device smoke; require
       a dedicated Play upload-signing boundary for Internal Testing
-    - reserve the no-`adb reverse` physical-device test for the provisioned
-      CloudFront hostname because no public staging origin exists yet
-11. Cost and write the manual AWS provisioning runbook, including Route 53,
+    - reserve the no-`adb reverse` physical-device API test until the CloudFront
+      `/api/*` behavior and EC2 origin are deployed; the frontend hostname exists
+11. Cost and write the manual AWS provisioning runbook — completed 2026-09-03:
+    include Route 53,
     CloudFront, private S3/OAC, one ACM viewer certificate, EC2/EIP, the
     CloudFront-only origin security group, Nginx, Let's Encrypt DNS-01 renewal,
-    ECR, encrypted EBS, PostgreSQL/TimescaleDB, monitored `pg_dump` backups to
+    ECR, encrypted EBS, plain PostgreSQL 16, monitored `pg_dump` backups to
     private encrypted versioned S3, CloudWatch, Systems Manager, and Secrets
     Manager. Explicitly exclude ALB, NAT Gateway, Timescale Cloud, and RDS from
     presentation staging.
-12. Provision staging only after the preceding application and runbook gates pass.
+12. Provision staging after the preceding application and runbook gates pass —
+    in progress. The public frontend foundation is live; the next resource is
+    the private backend ECR repository, followed by the immutable ARM64 image,
+    secret/IAM boundary, EC2/EBS host, Nginx origin, and CloudFront API behavior.
 
-Do not provision EC2, DNS, S3/CloudFront, or the self-hosted database before the
-application and runbook gates pass. Otherwise cloud debugging will mix
-application runtime defects with infrastructure-learning defects.
+Do not provision EC2 or the self-hosted database outside the reviewed runbook.
+Otherwise cloud debugging will mix application runtime defects with
+infrastructure-learning defects.
 
 ## 5. Current gate
 
-Steps 1–10 are complete. The next implementation slice is step 11: cost and
-write the manual AWS provisioning runbook for the agreed presentation-staging
-topology. Do not provision AWS application resources until that runbook is
-reviewed. The real hostname, no-tunnel Android smoke, and Play Internal Testing
-upload key are deployment-time gates rather than reasons to invent placeholder
-cloud resources during the build audit. Keep the
+Steps 1–11 are complete. Step 12 is active and follows
+`reference_docs/playbooks/presentation-staging-manual-provisioning.md` one gate
+at a time. The next manual action is creating the private ECR backend repository
+in `eu-central-1`; do not add CloudFront's `/api/*` origin until Nginx and Django
+are healthy. The no-tunnel Android API smoke and Play Internal Testing upload
+key remain later deployment gates. Keep the
 PostgreSQL-backed backend suite, production-image smoke, migration/API deployment
 smoke, health contract, removed-route, runtime-artifact, E2E Stripe-isolation,
 and staging-runtime contract checks green in CI.

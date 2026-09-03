@@ -13,7 +13,7 @@ React/Vite frontend
   ↓
 Django REST API
   ↓
-PostgreSQL / TimescaleDB
+PostgreSQL 16
 
 Redis + Celery exist for background work
 Stripe CLI forwards local webhooks to Django
@@ -28,7 +28,9 @@ Android companion app
 Current runtime nuance:
 
 - PostgreSQL is required for the implemented application.
-- TimescaleDB-specific capabilities are not yet materially used; the database currently behaves mostly like normal PostgreSQL until hypertables, continuous aggregates, retention, or compression policies are introduced.
+- TimescaleDB is not enabled: current migrations and CI use ordinary PostgreSQL.
+  Consider it later only when measured needs justify hypertables, continuous
+  aggregates, retention, or compression and a tested migration exists.
 - Redis, Celery Worker, and Celery Beat are present locally but are prepared infrastructure. Current auth, manual metrics, Settings, Stripe Checkout, Stripe Portal, and webhook reconciliation flows run synchronously in Django.
 - Android WorkManager owns device-side scheduling because only the phone can read Health Connect. Celery cannot fetch on-device records.
 - Celery becomes useful later for expensive server-side processing, repair/retry jobs, large backfills, analytics precomputation, maintenance jobs, and account export/delete work. It is not required for the first bounded synchronous staging deployment.
@@ -142,7 +144,7 @@ Browser SPA
   ↓
 Django API
   ↓
-Postgres / TimescaleDB
+PostgreSQL 16
 
 Samsung Health
   ↓ writes records into
@@ -228,7 +230,7 @@ Recommended order:
 
 12. Deploy a public HTTPS staging environment — next
 
-   Start from the completed AWS access bootstrap, then manually provision the cost-bounded presentation staging resources: CloudFront, private S3/OAC, Route 53, one public `t4g.small` EC2 Docker host with an Elastic IP, Nginx with automated Let's Encrypt DNS-01 renewal, Gunicorn/Django and one-off migration containers, self-hosted PostgreSQL/TimescaleDB on encrypted EBS, monitored `pg_dump` backups to private S3, Systems Manager, an instance role, Secrets Manager, ECR, and CloudWatch. Do not add ALB, NAT Gateway, Timescale Cloud, RDS, Redis, or Celery to staging. Record every decision and review projected/actual cost. Configure a public Stripe test webhook, then prove Weight and Steps sync without USB or `adb reverse`.
+   Start from the completed AWS access bootstrap, then manually provision the cost-bounded presentation staging resources: CloudFront, private S3/OAC, Route 53, one public `t4g.small` EC2 Docker host with an Elastic IP, Nginx with automated Let's Encrypt DNS-01 renewal, Gunicorn/Django and one-off migration containers, self-hosted plain PostgreSQL 16 on encrypted EBS, monitored `pg_dump` backups to private S3, Systems Manager, an instance role, Secrets Manager, ECR, and CloudWatch. Do not add ALB, NAT Gateway, TimescaleDB/Timescale Cloud, RDS, Redis, or Celery to staging. Record every decision and review projected/actual cost. Configure a public Stripe test webhook, then prove Weight and Steps sync without USB or `adb reverse`.
 
 13. Add asynchronous server processing — deferred until justified
 
@@ -257,7 +259,7 @@ CloudFront
                     EC2 + Docker Compose
                       ├── Django API container
                       ├── one-off migration container
-                      └── PostgreSQL/TimescaleDB container
+                      └── PostgreSQL 16 container
                                ↓ encrypted EBS
                     scheduled pg_dump → private S3 backups
 
@@ -338,7 +340,7 @@ Final target:
 Web app
 Mobile companion app
 Backend API
-Postgres / TimescaleDB
+PostgreSQL 16
 Redis / background workers
 Stripe billing
 Wearable/device integrations
@@ -377,7 +379,7 @@ Prepare and deploy a public HTTPS staging environment
 ```
 
 The staging slice should manually provision CloudFront/private S3 and one
-public EC2 host running Nginx, Gunicorn/Django, and PostgreSQL/TimescaleDB on
+public EC2 host running Nginx, Gunicorn/Django, and plain PostgreSQL 16 on
 encrypted EBS. It must include one-off Docker migrations, scheduled logical
 backups, a restore drill, health checks, structured logs, a public Stripe test
 webhook, and an Android staging API base URL. Every manual step belongs in a

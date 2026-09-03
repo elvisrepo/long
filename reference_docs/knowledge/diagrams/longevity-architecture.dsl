@@ -879,7 +879,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                                         tags "ComputeZone"
                                         migrationInstance = containerInstance longevity.api
                                     }
-                                    databaseNode = deploymentNode "PostgreSQL / TimescaleDB Container" "Self-hosted PostgreSQL using the same TimescaleDB-flavoured PostgreSQL 16 image as local development; Timescale-specific features remain unused." {
+                                    databaseNode = deploymentNode "PostgreSQL 16 Container" "Self-hosted plain PostgreSQL 16 on persistent encrypted EBS. TimescaleDB is deferred until measured query needs justify a tested migration." {
                                         tags "DataZone"
                                         dbInstance = containerInstance longevity.db
                                     }
@@ -1964,14 +1964,14 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             autolayout lr
         }
 
-        deployment * presentationStaging "current-presentation-staging" "[CURRENT] Agreed low-cost presentation staging: one CloudFront entry point, private S3 React origin, uncached /api/* to Let's Encrypt-backed Nginx on one public EC2 host, Gunicorn/Django, self-hosted PostgreSQL/TimescaleDB on encrypted EBS, S3 logical backups, Secrets Manager, Systems Manager, and CloudWatch. ALB, NAT Gateway, Timescale Cloud, Redis, Celery Worker, and Celery Beat are absent." {
+        deployment * presentationStaging "current-presentation-staging" "[CURRENT] Agreed low-cost presentation staging: one CloudFront entry point, private S3 React origin, uncached /api/* to Let's Encrypt-backed Nginx on one public EC2 host, Gunicorn/Django, self-hosted plain PostgreSQL 16 on encrypted EBS, S3 logical backups, Secrets Manager, Systems Manager, and CloudWatch. ALB, NAT Gateway, TimescaleDB/Timescale Cloud, Redis, Celery Worker, and Celery Beat are absent." {
             include *
             exclude webCallsApi
             exclude androidCallsApi
             autolayout tb
         }
 
-        deployment * presentationStaging "current-presentation-staging-compact" "[CURRENT / COMPACT] Request and data path for the agreed presentation environment: browser or Android to CloudFront, private S3 for React, /api/* to Nginx, Gunicorn/Django, and the self-hosted PostgreSQL/TimescaleDB container." {
+        deployment * presentationStaging "current-presentation-staging-compact" "[CURRENT / COMPACT] Request and data path for the agreed presentation environment: browser or Android to CloudFront, private S3 for React, /api/* to Nginx, Gunicorn/Django, and the self-hosted plain PostgreSQL 16 container." {
             include presentationStaging.userDevices.browserNode.browserClient
             include presentationStaging.userDevices.androidNode.androidClient
             include presentationStaging.aws.globalEdge.cloudFront.endpoint

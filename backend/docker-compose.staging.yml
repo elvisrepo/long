@@ -1,0 +1,72 @@
+x-backend-image: &backend-image
+  image: "${BACKEND_IMAGE:?BACKEND_IMAGE is required}"
+  pull_policy: always
+
+x-backend-environment: &backend-environment
+  SECRET_KEY: "${SECRET_KEY:?SECRET_KEY is required}"
+  PII_ENCRYPTION_KEY: "${PII_ENCRYPTION_KEY:?PII_ENCRYPTION_KEY is required}"
+  EMAIL_LOOKUP_KEY: "${EMAIL_LOOKUP_KEY:?EMAIL_LOOKUP_KEY is required}"
+  JWT_SIGNING_KEY: "${JWT_SIGNING_KEY:?JWT_SIGNING_KEY is required}"
+  DATABASE_URL: "${DATABASE_URL:?DATABASE_URL is required}"
+  ALLOWED_HOSTS: "${ALLOWED_HOSTS:?ALLOWED_HOSTS is required}"
+  CSRF_TRUSTED_ORIGINS: "${CSRF_TRUSTED_ORIGINS:?CSRF_TRUSTED_ORIGINS is required}"
+  STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY:?STRIPE_SECRET_KEY is required}"
+  STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET:?STRIPE_WEBHOOK_SECRET is required}"
+  STRIPE_CHECKOUT_SUCCESS_URL: "${STRIPE_CHECKOUT_SUCCESS_URL:?STRIPE_CHECKOUT_SUCCESS_URL is required}"
+  STRIPE_CHECKOUT_CANCEL_URL: "${STRIPE_CHECKOUT_CANCEL_URL:?STRIPE_CHECKOUT_CANCEL_URL is required}"
+  STRIPE_CUSTOMER_PORTAL_RETURN_URL: "${STRIPE_CUSTOMER_PORTAL_RETURN_URL:?STRIPE_CUSTOMER_PORTAL_RETURN_URL is required}"
+  LOG_LEVEL: "${LOG_LEVEL:?LOG_LEVEL is required}"
+  DJANGO_LOG_LEVEL: "${DJANGO_LOG_LEVEL:?DJANGO_LOG_LEVEL is required}"
+
+services:
+  database:
+    image: "postgres:16@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94"
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: longevity
+      POSTGRES_USER: longevity
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}"
+    volumes:
+      - type: bind
+        source: /srv/syncvitals/postgresql
+        target: /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U longevity -d longevity"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  migration:
+    <<: *backend-image
+    environment: *backend-environment
+    command: ["python", "manage.py", "migrate", "--no-input"]
+    depends_on:
+      database:
+        condition: service_healthy
+
+  api:
+    <<: *backend-image
+    restart: unless-stopped
+    environment: *backend-environment
+    ports:
+      - "127.0.0.1:18000:8000"
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import urllib.request
+          request = urllib.request.Request(
+              "http://127.0.0.1:8000/api/v1/health/ready/",
+              headers={"X-Forwarded-Proto": "https"},
+          )
+          urllib.request.urlopen(request, timeout=3).close()
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s

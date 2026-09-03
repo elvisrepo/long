@@ -9,7 +9,7 @@
 | Layer | Choice | Why |
 |---|---|---|
 | **Backend** | Python / Django + DRF | Know it well, batteries-included, great ORM |
-| **Database** | PostgreSQL 16; TimescaleDB extension in presentation staging; RDS PostgreSQL Multi-AZ recommended for production | Keep the implemented PostgreSQL contract; self-host TimescaleDB cheaply for staging, but prefer managed recovery boundaries for real production users |
+| **Database** | Plain PostgreSQL 16 in presentation staging; RDS PostgreSQL Multi-AZ recommended for production; TimescaleDB deferred | Keep the implemented PostgreSQL contract and add TimescaleDB only after measured time-series needs justify a tested migration |
 | **Cache / Broker** | Redis (deferred) | Add only when measured asynchronous or cache workloads justify it |
 | **Task Queue** | Celery + Celery Beat (deferred) | Mature Django option for future server-side jobs; not part of current staging or baseline production |
 | **WebSockets** | Django Channels | Stays in Django ecosystem, ASGI support |

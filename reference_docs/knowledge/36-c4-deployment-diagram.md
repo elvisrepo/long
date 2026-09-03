@@ -234,8 +234,8 @@ This is the current manually provisioned presentation-staging target:
   Let's Encrypt DNS-01 certificate
 - Nginx proxies through the private Docker network to Gunicorn, which invokes
   Django through WSGI
-- the same EC2 host runs a PostgreSQL/TimescaleDB 16 container; Timescale-specific
-  capabilities remain unused
+- the same EC2 host runs a plain PostgreSQL 16 container; TimescaleDB is deferred
+  until measured query needs justify a tested migration
 - encrypted gp3 EBS persists PostgreSQL data and certificate state
 - a scheduled backup container runs `pg_dump` and uploads encrypted logical
   backups to a separate private S3 bucket
@@ -262,7 +262,7 @@ Browser or Android
        -> private S3 for React
        -> Nginx for /api/*
           -> Gunicorn / Django
-             -> PostgreSQL / TimescaleDB on encrypted EBS
+             -> PostgreSQL 16 on encrypted EBS
 ```
 
 It omits DNS, certificates, security groups, migrations, runtime loading,
@@ -325,7 +325,7 @@ Android staging container instance
     → CloudFront /api/* behavior
     → HTTPS Nginx on EC2
     → Gunicorn / Django container
-    → PostgreSQL / TimescaleDB container on the same EC2 host
+    → PostgreSQL 16 container on the same EC2 host
 ```
 
 The Android container is a peer client of the React container; it never routes

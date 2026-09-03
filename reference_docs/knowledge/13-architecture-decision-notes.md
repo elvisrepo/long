@@ -36,12 +36,17 @@
 - Revisit when:
   A root-level multi-service runtime becomes the default.
 
-### ADR-003: Use TimescaleDB Instead of Plain PostgreSQL from the Start
+### ADR-003: Use TimescaleDB for the Local Development Image
 
-- Status: Accepted
+- Status: Amended by ADR-023 for presentation staging
 - Date: 2026-03-13
 - Decision:
   Use a TimescaleDB image for local development instead of plain PostgreSQL.
+- Amendment:
+  This did not create a product dependency on TimescaleDB. Presentation staging
+  uses plain PostgreSQL 16 because no migration enables the extension or creates
+  hypertables. A cloud Timescale migration requires measured need and a tested
+  migration/rollback plan.
 - Alternatives considered:
   Start with plain PostgreSQL and add Timescale later.
 - Why we chose it:
@@ -395,8 +400,8 @@ without changing the API.
   Cloud staging proposal.
 - Decision:
   Run presentation staging behind CloudFront using private S3 for the React SPA
-  and one public `t4g.small` EC2 host for Nginx, Gunicorn/Django, and a
-  PostgreSQL/TimescaleDB container. Use encrypted EBS for database persistence
+  and one public `t4g.small` EC2 host for Nginx, Gunicorn/Django, and a plain
+  PostgreSQL 16 container. Use encrypted EBS for database persistence
   and scheduled, monitored `pg_dump` backups to private encrypted versioned S3.
   Do not provision an ALB, NAT Gateway, Timescale Cloud, RDS, Redis, or Celery
   for this low-volume staging environment.
@@ -420,12 +425,12 @@ without changing the API.
   with point-in-time recovery, and one NAT Gateway per AZ. Nginx is unnecessary
   there because CloudFront and ALB own the relevant proxy responsibilities.
 - Database consequence:
-  Current application behavior needs PostgreSQL but does not materially depend
-  on TimescaleDB-specific capabilities. Presentation staging may keep the
-  extension self-hosted. Recommended production starts on RDS PostgreSQL even
-  though it lacks TimescaleDB; revisit the managed database only when concrete
-  hypertable, compression, retention, or continuous-aggregate requirements
-  justify it.
+  Current application behavior needs PostgreSQL but does not depend on
+  TimescaleDB-specific capabilities. Presentation staging therefore starts on
+  plain PostgreSQL 16, matching the actual migrations and CI contract.
+  Recommended production starts on RDS PostgreSQL. Revisit TimescaleDB only
+  when concrete hypertable, compression, retention, or continuous-aggregate
+  requirements justify a tested migration.
 - Why:
   The presentation environment expects about 100 requests per day and does not
   justify the fixed monthly cost of an ALB, NAT Gateway, and Timescale Cloud.

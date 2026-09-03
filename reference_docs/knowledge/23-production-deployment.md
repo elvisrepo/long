@@ -19,7 +19,7 @@ Current presentation staging:
 | Frontend and browser edge | CloudFront + private S3/OAC | One public browser origin; cached static files and uncached `/api/*` |
 | API origin | Nginx on one public `t4g.small` EC2 host | Origin TLS, secret-origin-header validation, reverse proxy to Gunicorn |
 | Application | Gunicorn/Django container | Long-running API; no development server |
-| Database | PostgreSQL 16 with TimescaleDB extension on the EC2 host | Persistent encrypted EBS volume; not highly available |
+| Database | Plain PostgreSQL 16 on the EC2 host | Persistent encrypted EBS volume; not highly available; TimescaleDB is deferred |
 | Migrations | One-off container from the backend image | Must succeed before API replacement |
 | Secrets | AWS Secrets Manager | One validated `.env`-free runtime snapshot |
 | Operations | Systems Manager + CloudWatch | No public SSH; container logs and host alarms |
@@ -161,9 +161,11 @@ validation still apply.
 
 ### 8.5 Database and Migrations
 
-Current staging runs PostgreSQL/TimescaleDB on encrypted EBS attached to the EC2
+Current staging runs plain PostgreSQL 16 on encrypted EBS attached to the EC2
 host. Database files must live on the mounted persistent volume, never only in
-the container layer. PostgreSQL is not publicly reachable.
+the container layer. PostgreSQL is not publicly reachable. No current migration
+enables TimescaleDB or creates a hypertable, so the staging runtime must not
+claim otherwise.
 
 ```bash
 # Command inside the one-off container built from the immutable backend image.

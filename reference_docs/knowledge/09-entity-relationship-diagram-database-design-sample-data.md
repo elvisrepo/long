@@ -63,7 +63,7 @@ erDiagram
         uuid user_id FK
         uuid metric_definition_id FK
         float value
-        timestamptz recorded_at "hypertable partition key"
+        timestamptz recorded_at "measurement timestamp"
         uuid source_connection_id FK "nullable"
         string source "manual|samsung_health|garmin|fitbit|oura|withings|csv_import"
         string external_source_id "nullable, stable dedupe key"
@@ -122,7 +122,8 @@ erDiagram
 ### 2.2 Database Design
 
  Key decisions:
-- `MetricEntry` = TimescaleDB hypertable, partitioned by `recorded_at`
+- `MetricEntry` is currently an ordinary PostgreSQL table indexed for its
+  implemented access patterns; it is not a TimescaleDB hypertable
 - UUIDs for all PKs (no sequential ID exposure)
 - PII encrypted at field level; email lookup via `email_lookup_hash`
 - `Subscription` is the single source of truth for entitlements
@@ -133,9 +134,11 @@ erDiagram
 
 `recorded_at` is a **field on our MetricEntry entity** — it's the timestamp of *when the health measurement was taken* (not when it was inserted into the DB; that's `created_at`). It's a `timestamptz` column in PostgreSQL, stored as UTC.
 
-TimescaleDB uses `recorded_at` as the **hypertable partition key** — meaning it automatically splits the `metric_entries` table into time-based chunks behind the scenes (e.g., one chunk per week). This makes time-range queries ("give me all heart rate entries from the last 30 days") dramatically faster because Postgres only scans the relevant chunks, not the entire table.
-
-`recorded_at` is *our* field. TimescaleDB just uses it for partitioning.
+The current system uses `recorded_at` in ordinary PostgreSQL indexes and query
+ordering. TimescaleDB could later use this field as a hypertable partition key,
+but no migration currently enables the extension or converts this table. That
+change should happen only after measured query pressure and with a tested data
+migration and rollback plan.
 
 #### Why MetricDefinition AND MetricEntry? (Not just normalization)
 

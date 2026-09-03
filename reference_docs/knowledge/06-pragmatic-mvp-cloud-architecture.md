@@ -31,7 +31,7 @@ Browser -> staging.<domain> CloudFront
                                       -> Elastic IP
                                       -> Nginx on one public EC2 host
                                       -> Gunicorn/Django container
-                                      -> PostgreSQL/TimescaleDB container
+                                      -> PostgreSQL 16 container
 
 Android staging build / Stripe webhook / uptime monitor
     -> public HTTPS API hostname
@@ -107,11 +107,12 @@ backend image. Migration failure leaves the old API running. After migration
 succeeds, replacing the single API container may cause a brief maintenance
 interruption; zero-downtime promotion is not a requirement.
 
-PostgreSQL with the TimescaleDB extension is self-hosted in a container on the
-same EC2 host. Its data lives on encrypted persistent EBS storage, not in the
-container writable layer. A scheduled, monitored `pg_dump` writes encrypted
-logical backups to private versioned S3, and a restore drill is required before
-staging can be treated as recoverable.
+Plain PostgreSQL 16 is self-hosted in a container on the same EC2 host. Its data
+lives on encrypted persistent EBS storage, not in the container writable layer.
+A scheduled, monitored `pg_dump` writes encrypted logical backups to private
+versioned S3, and a restore drill is required before staging can be treated as
+recoverable. TimescaleDB is deferred until measured query behavior justifies a
+tested migration.
 
 The staging runtime deliberately omits ALB, NAT Gateway, Timescale Cloud, RDS,
 Redis, Celery Worker, and Celery Beat. The wearable upload is bounded and

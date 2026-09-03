@@ -11,9 +11,18 @@ import os
 import subprocess
 import sys
 from collections.abc import Mapping, Sequence
+from urllib.parse import unquote, urlsplit
 
-from config.settings.production_environment import (
-    REQUIRED_ENVIRONMENT_VARIABLES as REQUIRED_RUNTIME_KEYS,
+from config.settings.production_environment import REQUIRED_ENVIRONMENT_VARIABLES
+
+
+# PostgreSQL's official image needs its bootstrap password separately from the
+# DATABASE_URL consumed by Django. Compose passes this additional value only to
+# the database service, while the API and migration retain the canonical Django
+# inventory from production_environment.py.
+REQUIRED_RUNTIME_KEYS = (
+    *REQUIRED_ENVIRONMENT_VARIABLES,
+    "POSTGRES_PASSWORD",
 )
 
 
@@ -125,6 +134,21 @@ def parse_runtime_secret(secret_json: str) -> dict[str, str]:
                 f"staging runtime secret has blank required value: {key}"
             )
         runtime_environment[key] = value
+
+    try:
+        database_password = urlsplit(
+            runtime_environment["DATABASE_URL"]
+        ).password
+    except ValueError:
+        database_password = None
+    if (
+        database_password is None
+        or unquote(database_password)
+        != runtime_environment["POSTGRES_PASSWORD"]
+    ):
+        raise StagingRuntimeConfigurationError(
+            "DATABASE_URL password must match POSTGRES_PASSWORD"
+        )
 
     return runtime_environment
 
