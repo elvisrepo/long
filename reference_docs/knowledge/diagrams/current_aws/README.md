@@ -33,6 +33,7 @@ do not replace or modify that target; they show verified implementation progress
 | V002 | 2026-08-31 | V001 plus the private account-regional frontend S3 bucket in `eu-central-1`; public access and ACLs are blocked, SSE-S3 is enabled, and S3 website hosting is absent; CloudFront/OAC and frontend objects do not exist in this checkpoint |
 | V003 | 2026-09-01 | V002 plus deployed CloudFront distribution `E1BWDS134TAX2K`, its SigV4 always-sign OAC, the attached ACM viewer certificate, and a distribution-scoped S3 `GetObject` policy; Route 53 still has no staging A/AAAA alias and CloudFront has no default root object |
 | V004 | 2026-09-01 | V003 plus public A/AAAA aliases for `staging.syncvitals.space`, `index.html` as the default root, the LIVE SPA rewrite function, no-cache application-shell delivery, optimized `/assets/*` delivery, S3 versioning and HTTPS-only enforcement, and the first uploaded 18-file Vite build; no EC2/Nginx/Django/PostgreSQL API origin exists yet |
+| V005 | 2026-09-04 | V004 plus the empty private `syncvitals/staging/backend` ECR repository in Frankfurt with immutable tags, AES-256 encryption, free basic scan on push, and no lifecycle or repository permission policy; no backend image or API compute exists yet |
 
 ## Companion Request Flows
 
@@ -51,7 +52,7 @@ image currently used by the project:
 docker run --rm \
   -v "$PWD:/usr/local/structurizr:ro" \
   structurizr/structurizr \
-  validate -workspace /usr/local/structurizr/v004-public-frontend-live.dsl
+  validate -workspace /usr/local/structurizr/v005-private-backend-ecr.dsl
 ```
 
 The next version should be created only after the next manually provisioned AWS

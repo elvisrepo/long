@@ -39,7 +39,9 @@ Already created and verified:
   rewrite function, immutable asset caching, and uncached application-shell
   caching;
 - Route 53 A and AAAA aliases from `staging.syncvitals.space` to CloudFront;
-- deployed frontend assets and successful public SPA/deep-link checks.
+- deployed frontend assets and successful public SPA/deep-link checks;
+- empty private ECR repository `syncvitals/staging/backend` in `eu-central-1`
+  with immutable tags, AES-256 encryption, and basic scan on push.
 
 CloudFront currently has only the private S3 origin. The `/api/*` origin and
 behavior must not be added until the EC2 origin is ready and healthy.
@@ -261,4 +263,3 @@ When resuming after a pause:
    `reference_docs/knowledge/diagrams/current_aws/`.
 4. Inspect existing AWS resources read-only before creating anything.
 5. Continue with exactly the first incomplete numbered section.
-
