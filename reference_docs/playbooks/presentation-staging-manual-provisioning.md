@@ -47,7 +47,11 @@ Already created and verified:
   `sha256:f830d2790257ce835ace60268d1408d71f3b50c4b3eb205c5f8360dd3d9d9122`;
 - Secrets Manager secret `longevity/staging/backend-runtime` in `eu-central-1`
   with one `AWSCURRENT` version whose 15 required values passed the loader's
-  in-memory validation; automatic rotation is not configured.
+  in-memory validation; automatic rotation is not configured;
+- EC2 role and instance profile `syncvitals-staging-ec2-role`, trusted only by
+  EC2, with `AmazonSSMManagedInstanceCore`, pull-only access to the one backend
+  ECR repository, read-only access to the one runtime secret, and Route 53
+  mutation limited to the origin certificate's ACME TXT record.
 
 Image-scan acceptance recorded on 2026-09-04:
 
@@ -161,6 +165,13 @@ host.
 
 Gate: IAM Access Analyzer finds no invalid resource policy, and the role scope
 has been reviewed before it is attached.
+
+Current result: the base role, instance profile, SSM access, runtime-read
+policy, and DNS-01 policy passed document inspection and IAM simulation on
+2026-09-04. The exact ACME TXT UPSERT is allowed; unrelated ECR repositories,
+secrets, and DNS A-record changes are implicitly denied. CloudWatch publication
+and backup-write permissions remain deferred until their destination resources
+exist, so they can be scoped instead of granted broadly.
 
 ### 5. Create the origin security group
 
