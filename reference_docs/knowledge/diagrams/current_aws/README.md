@@ -34,6 +34,7 @@ do not replace or modify that target; they show verified implementation progress
 | V003 | 2026-09-01 | V002 plus deployed CloudFront distribution `E1BWDS134TAX2K`, its SigV4 always-sign OAC, the attached ACM viewer certificate, and a distribution-scoped S3 `GetObject` policy; Route 53 still has no staging A/AAAA alias and CloudFront has no default root object |
 | V004 | 2026-09-01 | V003 plus public A/AAAA aliases for `staging.syncvitals.space`, `index.html` as the default root, the LIVE SPA rewrite function, no-cache application-shell delivery, optimized `/assets/*` delivery, S3 versioning and HTTPS-only enforcement, and the first uploaded 18-file Vite build; no EC2/Nginx/Django/PostgreSQL API origin exists yet |
 | V005 | 2026-09-04 | V004 plus the empty private `syncvitals/staging/backend` ECR repository in Frankfurt with immutable tags, AES-256 encryption, free basic scan on push, and no lifecycle or repository permission policy; no backend image or API compute exists yet |
+| V006 | 2026-09-04 | V005 plus the tested Trixie-based ARM64 backend image from Git commit `912f84c17dd2b8535acec65dd60751d17d245dd5`, pinned by ECR index digest `sha256:f830d2790257ce835ace60268d1408d71f3b50c4b3eb205c5f8360dd3d9d9122`; its OS-package scan findings are explicitly accepted only for demo-data presentation staging, while the earlier Bookworm artifact remains rejected |
 
 ## Companion Request Flows
 
@@ -52,7 +53,7 @@ image currently used by the project:
 docker run --rm \
   -v "$PWD:/usr/local/structurizr:ro" \
   structurizr/structurizr \
-  validate -workspace /usr/local/structurizr/v005-private-backend-ecr.dsl
+  validate -workspace /usr/local/structurizr/v006-backend-image-published.dsl
 ```
 
 The next version should be created only after the next manually provisioned AWS

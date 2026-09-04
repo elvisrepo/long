@@ -40,8 +40,25 @@ Already created and verified:
   caching;
 - Route 53 A and AAAA aliases from `staging.syncvitals.space` to CloudFront;
 - deployed frontend assets and successful public SPA/deep-link checks;
-- empty private ECR repository `syncvitals/staging/backend` in `eu-central-1`
-  with immutable tags, AES-256 encryption, and basic scan on push.
+- private ECR repository `syncvitals/staging/backend` in `eu-central-1` with
+  immutable tags, AES-256 encryption, and basic scan on push;
+- accepted Trixie-based ARM64 backend image from Git commit
+  `912f84c17dd2b8535acec65dd60751d17d245dd5`, pinned by index digest
+  `sha256:f830d2790257ce835ace60268d1408d71f3b50c4b3eb205c5f8360dd3d9d9122`.
+
+Image-scan acceptance recorded on 2026-09-04:
+
+- ECR basic scanning completed with 6 critical, 10 high, 3 medium, and 1 low
+  OS-package findings;
+- the critical findings concern Perl code paths the Python/Gunicorn application
+  does not invoke, one 32-bit-only Perl condition on a 64-bit ARM image, and a
+  glibc `scanf` pattern with no known application request path;
+- this residual risk is accepted only for presentation staging containing
+  demo/test data, with a non-root application process and no user-controlled
+  Perl, archive-extraction, or Perl-regex execution path;
+- this acceptance does not apply to production or environments containing real
+  health or personal data, and the image must be rescanned when its base image
+  is refreshed.
 
 CloudFront currently has only the private S3 origin. The `/api/*` origin and
 behavior must not be added until the EC2 origin is ready and healthy.
@@ -96,6 +113,10 @@ has been recorded without publishing credentials.
 
 Gate: ECR reports an ARM64 image and the intended digest; critical findings are
 resolved or explicitly accepted before deployment.
+
+Current result: passed on 2026-09-04 through the staging-only risk acceptance
+recorded in the current checkpoint. Use the digest-qualified image URI, not the
+mutable repository name or a convenience tag.
 
 ### 3. Create the runtime secret
 
