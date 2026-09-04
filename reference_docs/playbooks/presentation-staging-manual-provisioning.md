@@ -44,7 +44,10 @@ Already created and verified:
   immutable tags, AES-256 encryption, and basic scan on push;
 - accepted Trixie-based ARM64 backend image from Git commit
   `912f84c17dd2b8535acec65dd60751d17d245dd5`, pinned by index digest
-  `sha256:f830d2790257ce835ace60268d1408d71f3b50c4b3eb205c5f8360dd3d9d9122`.
+  `sha256:f830d2790257ce835ace60268d1408d71f3b50c4b3eb205c5f8360dd3d9d9122`;
+- Secrets Manager secret `longevity/staging/backend-runtime` in `eu-central-1`
+  with one `AWSCURRENT` version whose 15 required values passed the loader's
+  in-memory validation; automatic rotation is not configured.
 
 Image-scan acceptance recorded on 2026-09-04:
 
@@ -137,6 +140,10 @@ HTTPS CSRF origin, Stripe test mode, and deliberate log levels.
 
 Gate: a Systems Manager session on the future host can invoke the loader and
 receive only a redacted success/failure result; no `.env` file exists.
+
+Current result: secret creation and contract validation passed on 2026-09-04.
+The instance-role retrieval and no-`.env` host checks remain deferred until the
+EC2 host exists.
 
 ### 4. Create the EC2 instance role
 
