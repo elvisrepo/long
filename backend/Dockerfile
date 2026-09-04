@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim AS python-dependencies
+FROM ghcr.io/astral-sh/uv:python3.14-trixie-slim AS python-dependencies
 
 WORKDIR /app
 
@@ -27,7 +27,7 @@ RUN uv sync --frozen --no-dev --no-editable
 
 # The final runtime contains Python, the production virtual environment, and
 # application source only; build tooling and test source stay in earlier stages.
-FROM python:3.14-slim-bookworm AS production
+FROM python:3.14-slim-trixie AS production
 
 WORKDIR /app
 

@@ -54,10 +54,21 @@ def test_production_dependency_stage_excludes_development_group() -> None:
     assert "uv sync --frozen --no-dev" in dockerfile
 
 
+def test_production_build_and_runtime_use_trixie() -> None:
+    dockerfile = dockerfile_text()
+
+    assert (
+        "FROM ghcr.io/astral-sh/uv:python3.14-trixie-slim "
+        "AS python-dependencies"
+    ) in dockerfile
+    assert "FROM python:3.14-slim-trixie AS production" in dockerfile
+    assert "bookworm" not in dockerfile
+
+
 def test_final_production_stage_is_minimal_and_non_root() -> None:
     dockerfile = dockerfile_text()
 
-    assert "FROM python:3.14-slim-bookworm AS production" in dockerfile
+    assert "FROM python:3.14-slim-trixie AS production" in dockerfile
     assert dockerfile.count("COPY . .") == 1
     assert "COPY tests" not in dockerfile
     assert "USER django" in dockerfile
