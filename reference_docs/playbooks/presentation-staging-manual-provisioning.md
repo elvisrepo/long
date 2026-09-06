@@ -27,7 +27,7 @@ This is a low-cost presentation environment, not a highly available production
 system. Losing the one EC2 host temporarily removes Nginx and Django; losing or
 corrupting its database volume risks data until a tested backup is restored.
 
-## Current Checkpoint — 2026-09-03
+## Current Checkpoint — 2026-09-06
 
 Already created and verified:
 
@@ -51,7 +51,11 @@ Already created and verified:
 - EC2 role and instance profile `syncvitals-staging-ec2-role`, trusted only by
   EC2, with `AmazonSSMManagedInstanceCore`, pull-only access to the one backend
   ECR repository, read-only access to the one runtime secret, and Route 53
-  mutation limited to the origin certificate's ACME TXT record.
+  mutation limited to the origin certificate's ACME TXT record;
+- origin security group `sg-0bb8f60ee0b21cb06` in the Frankfurt default VPC,
+  with inbound TCP 443 restricted to AWS-managed CloudFront origin-facing
+  prefix list `pl-a3a144ca`, no CIDR-based inbound rules, and default IPv4
+  outbound access retained for required host dependencies.
 
 Image-scan acceptance recorded on 2026-09-04:
 
@@ -183,13 +187,36 @@ exist, so they can be scoped instead of granted broadly.
 Gate: the console shows exactly one public-service inbound purpose—CloudFront to
 Nginx on 443—and no world-open administration or application ports.
 
-### 6. Create persistent encrypted storage
+Current result: passed on 2026-09-06. Live EC2 inspection confirmed exactly one
+inbound rule: TCP 443 from `pl-a3a144ca`; there are no inbound IPv4/IPv6 CIDRs,
+SSH, HTTP, Gunicorn, or PostgreSQL rules. The security group is not attached to
+an instance yet.
 
-- EC2 root volume: 16 GiB gp3, encrypted.
-- Database data volume: 10 GiB gp3, encrypted and tagged separately.
-- For the database volume, disable delete-on-termination.
-- After attachment, format it once, mount by filesystem UUID beneath
-  `/srv/syncvitals`, add the UUID to `/etc/fstab`, and create
+### 6. Launch the EC2 host with encrypted root storage
+
+- Region: `eu-central-1`.
+- Image: official Ubuntu Server 24.04 LTS ARM64.
+- Type: `t4g.small`.
+- Root volume: 16 GiB gp3, encrypted.
+- Require IMDSv2.
+- Attach the reviewed instance role and origin security group.
+- Do not configure an SSH key as the operational access path; verify Systems
+  Manager registration.
+- Install Docker Engine/Compose, Nginx, Certbot with the Route 53 DNS plugin,
+  and the CloudWatch agent from trusted package sources.
+
+Gate: the instance is running with the intended encrypted root volume, role,
+and security group; a Systems Manager session works, IMDSv1 is disabled, and
+Docker runs.
+
+### 7. Create and attach persistent encrypted database storage
+
+- After the instance's Availability Zone is known, create a separate 10 GiB
+  gp3 volume in that same Availability Zone.
+- Enable encryption, tag it separately as the staging database volume, and
+  disable delete-on-termination.
+- Attach it to the staging instance, format it once, mount by filesystem UUID
+  beneath `/srv/syncvitals`, add the UUID to `/etc/fstab`, and create
   `/srv/syncvitals/postgresql` with ownership suitable for the PostgreSQL
   container.
 
@@ -198,21 +225,6 @@ must never rely on a container layer or temporary volume.
 
 Gate: reboot the instance and prove the same encrypted volume remounts before
 starting PostgreSQL.
-
-### 7. Launch the EC2 host
-
-- Region: `eu-central-1`.
-- Image: official Ubuntu Server 24.04 LTS ARM64.
-- Type: `t4g.small`.
-- Require IMDSv2.
-- Attach the reviewed instance role and origin security group.
-- Do not configure an SSH key as the operational access path; verify Systems
-  Manager registration.
-- Install Docker Engine/Compose, Nginx, Certbot with the Route 53 DNS plugin,
-  and the CloudWatch agent from trusted package sources.
-
-Gate: a Systems Manager session works, IMDSv1 is disabled, Docker runs, and the
-data-volume reboot test passes.
 
 ### 8. Assign the stable origin address and DNS name
 

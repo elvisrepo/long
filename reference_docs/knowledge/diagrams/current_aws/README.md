@@ -37,6 +37,7 @@ do not replace or modify that target; they show verified implementation progress
 | V006 | 2026-09-04 | V005 plus the tested Trixie-based ARM64 backend image from Git commit `912f84c17dd2b8535acec65dd60751d17d245dd5`, pinned by ECR index digest `sha256:f830d2790257ce835ace60268d1408d71f3b50c4b3eb205c5f8360dd3d9d9122`; its OS-package scan findings are explicitly accepted only for demo-data presentation staging, while the earlier Bookworm artifact remains rejected |
 | V007 | 2026-09-04 | V006 plus the Frankfurt Secrets Manager secret `longevity/staging/backend-runtime`; its single `AWSCURRENT` version passed the 15-key loader contract and password-consistency check entirely in memory, no secret value is recorded in the model, and instance-role retrieval remains unverified until EC2 exists |
 | V008 | 2026-09-04 | V007 plus the global EC2 role and instance profile `syncvitals-staging-ec2-role`; EC2-only trust, Systems Manager core, one-repository ECR pull, one-secret read, and exact ACME TXT mutation were verified, while unrelated ECR, secret, and DNS record access is implicitly denied and destination-specific logging/backup permissions remain deferred |
+| V009 | 2026-09-06 | V008 plus origin security group `sg-0bb8f60ee0b21cb06` in the Frankfurt default VPC; its only inbound rule is TCP 443 from AWS-managed CloudFront origin-facing prefix list `pl-a3a144ca`, with no CIDR ingress or administrative/application/database ports exposed; the group remains unattached because EC2 does not exist yet |
 
 ## Companion Request Flows
 
@@ -55,7 +56,7 @@ image currently used by the project:
 docker run --rm \
   -v "$PWD:/usr/local/structurizr:ro" \
   structurizr/structurizr \
-  validate -workspace /usr/local/structurizr/v008-ec2-instance-role.dsl
+  validate -workspace /usr/local/structurizr/v009-origin-security-group.dsl
 ```
 
 The next version should be created only after the next manually provisioned AWS
