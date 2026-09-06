@@ -6,6 +6,10 @@
   presentation-staging environment.
 - This is an operator runbook, not Infrastructure as Code. Record every created
   resource so the topology can later be reproduced with Terraform.
+- Record every EC2 guest operating-system mutation in
+  `reference_docs/knowledge/diagrams/current_aws/ec2-host-change-log.md`,
+  including failed or partial package, repository, service, configuration, and
+  persistent filesystem changes.
 
 ## Fixed Architecture Decisions
 

@@ -73,6 +73,7 @@ Load only the parts you need. You can load multiple files when useful. Be specif
 - `reference_docs/knowledge/diagrams/target-state-erd.md` when you need the intended completed-product ERD including billing, Stripe, wearable sync, audit, and long-term subscription state.
 - `reference_docs/knowledge/diagrams/frontend-router-query-data-flow.md` when you need the current TanStack Router versus TanStack Query responsibility split, cache ownership, route-param flow, or frontend server-state data-flow diagram.
 - `reference_docs/knowledge/diagrams/wearable-ingestion-data-flow.md` when you need the end-to-end Samsung Health, Health Connect, Android, Django upload, payload-hash, `SyncRun`, and `MetricEntry` flow or its current-versus-planned implementation boundary.
+- `reference_docs/knowledge/diagrams/current_aws/ec2-host-change-log.md` when you need the append-only record of package, repository, service, configuration, and persistent filesystem changes made inside the presentation-staging EC2 host.
 
 
 ## Playbooks at `reference_docs/playbooks/`

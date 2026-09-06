@@ -48,6 +48,12 @@ do not replace or modify that target; they show verified implementation progress
   for behavioral ordering; the matching Structurizr DSL remains the structural
   C4 source of truth.
 
+## Host Operations Log
+
+- [`ec2-host-change-log.md`](./ec2-host-change-log.md) is the append-only
+  record of every package, repository, service, configuration, and persistent
+  filesystem change made inside the presentation-staging EC2 host.
+
 ## Validation
 
 From this directory, validate an individual snapshot with the Structurizr CLI
