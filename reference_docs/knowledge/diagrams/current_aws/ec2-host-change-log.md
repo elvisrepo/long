@@ -33,8 +33,10 @@ create a new host section before recording changes to the replacement.
 2. State who typed or initiated the command and how it reached the host.
 3. Record exact commands, but redact credentials, tokens, secret values, and
    generated passwords.
-4. Record exact installed package versions from APT/DPKG evidence rather than
-   relying on the version requested by a command.
+4. Record exact installed versions for targeted package installations. For a
+   bulk operating-system upgrade, record the APT transaction timestamps,
+   counts, kernel versions, and the on-host APT history location containing
+   every before-and-after package version.
 5. Include a verification result and a rollback or recovery note.
 6. Do not silently rewrite history. Add a correction beneath the affected
    entry if later evidence changes what is known.
@@ -259,8 +261,92 @@ unless the operator explicitly changes this convention.
   expect a reboot afterward.
 - Pre-change disk capacity: root filesystem 15 GiB total, 2.5 GiB used,
   13 GiB available, 17% utilization.
+- Pre-change running kernel: `6.17.0-1017-aws`.
 - Persistent host change: none; both commands were simulations.
-- Status: reviewed; execution pending.
+- Status: reviewed; executed in EC2-008.
+
+### EC2-008 — Ubuntu packages and AWS kernel upgraded
+
+- Date: 2026-09-06
+- Performed by: operator
+- Execution path: root shell in browser-based AWS Systems Manager Session
+  Manager.
+- Intent: apply all reviewed Ubuntu security/maintenance updates and avoid
+  leaving the AWS kernel metapackages behind.
+- Exact command:
+
+  ```bash
+  DEBIAN_FRONTEND=noninteractive apt-get full-upgrade -y
+  ```
+
+- Transaction scope from the reviewed plan:
+  - upgraded 132 packages;
+  - newly installed 9 packages;
+  - removed 0 packages;
+  - left 0 packages not upgraded.
+- APT history evidence:
+  - started: 2026-09-06 14:38:55;
+  - ended: 2026-09-06 14:40:45;
+  - requested by: `ssm-user` (UID `1001`);
+  - canonical per-package before-and-after version record:
+    `/var/log/apt/history.log`, in the transaction whose command line is
+    `apt-get full-upgrade -y`.
+- Newly installed packages:
+  - `linux-image-7.0.0-1012-aws:arm64`
+    `7.0.0-1012.12~24.04.1`;
+  - `linux-modules-7.0.0-1012-aws:arm64`
+    `7.0.0-1012.12~24.04.1`;
+  - `linux-headers-7.0.0-1012-aws:arm64`
+    `7.0.0-1012.12~24.04.1`;
+  - `linux-aws-7.0-headers-7.0.0-1012:arm64`
+    `7.0.0-1012.12~24.04.1`;
+  - `linux-aws-7.0-tools-7.0.0-1012:arm64`
+    `7.0.0-1012.12~24.04.1`;
+  - `linux-tools-7.0.0-1012-aws:arm64`
+    `7.0.0-1012.12~24.04.1`;
+  - `libdebuginfod-common:arm64` `0.190-1.1ubuntu0.1`;
+  - `libdebuginfod1t64:arm64` `0.190-1.1ubuntu0.1`;
+  - `libllvm19:arm64` `1:19.1.1-1ubuntu1~24.04.2`.
+- Services restarted by the package-maintenance tooling:
+  - `acpid.service`;
+  - `chrony.service`;
+  - `containerd.service`;
+  - `cron.service`;
+  - `irqbalance.service`;
+  - `polkit.service`;
+  - `snap.amazon-ssm-agent.amazon-ssm-agent.service`.
+- Service restarts deferred until reboot:
+  - `ModemManager.service`;
+  - `dbus.service`;
+  - `docker.service`;
+  - `getty@tty1.service`;
+  - `networkd-dispatcher.service`;
+  - `serial-getty@ttyS0.service`;
+  - `systemd-logind.service`;
+  - `unattended-upgrades.service`.
+- Post-upgrade state:
+  - installed expected kernel: `7.0.0-1012-aws`;
+  - still-running kernel: `6.17.0-1017-aws`;
+  - no containers required restart;
+  - the root user manager was still using outdated binaries;
+  - reboot is required and was not performed automatically.
+- Exact upgraded package versions were reconciled against the APT history
+  transaction identified above.
+- Verification:
+  - `dpkg --audit` returned no output, confirming no unpacked or partially
+    configured packages;
+  - the operator ran `systemctl reboot`;
+  - a new browser-based Session Manager session connected successfully after
+    reboot;
+  - `uname -r` returned `7.0.0-1012-aws`, confirming the new AWS kernel is
+    active;
+  - `systemctl is-active docker` returned `active` after reboot;
+  - `docker version` reported client `29.8.0` and server `29.8.0` after
+    reboot, proving daemon communication;
+  - a final `apt-get full-upgrade --simulate` reported 0 upgrades, 0 new
+    packages, 0 removals, and 0 packages not upgraded.
+- Status: completed and reconciled; upgrade, kernel activation, Session
+  Manager recovery, and Docker recovery verified.
 
 ## Current Known Host-Software State
 
