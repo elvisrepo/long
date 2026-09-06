@@ -55,7 +55,18 @@ Already created and verified:
 - origin security group `sg-0bb8f60ee0b21cb06` in the Frankfurt default VPC,
   with inbound TCP 443 restricted to AWS-managed CloudFront origin-facing
   prefix list `pl-a3a144ca`, no CIDR-based inbound rules, and default IPv4
-  outbound access retained for required host dependencies.
+  outbound access retained for required host dependencies;
+- running EC2 instance `i-08fbc9f0c53265b63` in `eu-central-1c`: `t4g.small`
+  ARM64 on Canonical Ubuntu 24.04, using the intended instance profile and
+  origin security group, required IMDSv2, termination protection, both EC2
+  health checks passing, an AWS-managed-key-encrypted 16 GiB gp3 root volume, and
+  verified Session Manager access as `ssm-user` with passwordless `sudo`.
+
+The EC2 launch is verified, but Section 6 is not complete: Docker Engine and
+Compose, Nginx, Certbot, the Route 53 Certbot plugin, and the CloudWatch agent
+were absent during the 2026-09-06 Systems Manager inspection. The current
+public IPv4 address is auto-assigned and must not be treated as the stable
+origin address planned in Section 8.
 
 Image-scan acceptance recorded on 2026-09-04:
 
@@ -189,8 +200,8 @@ Nginx on 443—and no world-open administration or application ports.
 
 Current result: passed on 2026-09-06. Live EC2 inspection confirmed exactly one
 inbound rule: TCP 443 from `pl-a3a144ca`; there are no inbound IPv4/IPv6 CIDRs,
-SSH, HTTP, Gunicorn, or PostgreSQL rules. The security group is not attached to
-an instance yet.
+SSH, HTTP, Gunicorn, or PostgreSQL rules. The security group is attached to
+instance `i-08fbc9f0c53265b63` as its only security group.
 
 ### 6. Launch the EC2 host with encrypted root storage
 
@@ -208,6 +219,13 @@ an instance yet.
 Gate: the instance is running with the intended encrypted root volume, role,
 and security group; a Systems Manager session works, IMDSv1 is disabled, and
 Docker runs.
+
+Current result: partially passed on 2026-09-06. The running instance, official
+Ubuntu ARM64 image, type, encrypted root volume, role, security group, required
+IMDSv2, EC2 status checks, termination protection, and Systems Manager access
+were verified. Docker is absent, so the gate remains open. Nginx, Certbot, the
+Route 53 Certbot plugin, and the CloudWatch agent are also not installed. Finish
+the host software bootstrap and prove Docker runs before starting Section 7.
 
 ### 7. Create and attach persistent encrypted database storage
 

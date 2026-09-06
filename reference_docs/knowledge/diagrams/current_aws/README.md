@@ -38,6 +38,7 @@ do not replace or modify that target; they show verified implementation progress
 | V007 | 2026-09-04 | V006 plus the Frankfurt Secrets Manager secret `longevity/staging/backend-runtime`; its single `AWSCURRENT` version passed the 15-key loader contract and password-consistency check entirely in memory, no secret value is recorded in the model, and instance-role retrieval remains unverified until EC2 exists |
 | V008 | 2026-09-04 | V007 plus the global EC2 role and instance profile `syncvitals-staging-ec2-role`; EC2-only trust, Systems Manager core, one-repository ECR pull, one-secret read, and exact ACME TXT mutation were verified, while unrelated ECR, secret, and DNS record access is implicitly denied and destination-specific logging/backup permissions remain deferred |
 | V009 | 2026-09-06 | V008 plus origin security group `sg-0bb8f60ee0b21cb06` in the Frankfurt default VPC; its only inbound rule is TCP 443 from AWS-managed CloudFront origin-facing prefix list `pl-a3a144ca`, with no CIDR ingress or administrative/application/database ports exposed; the group remains unattached because EC2 does not exist yet |
+| V010 | 2026-09-06 | V009 plus running instance `i-08fbc9f0c53265b63`: a healthy `t4g.small` ARM64 host in `eu-central-1c` using Canonical Ubuntu 24.04, the intended instance profile and origin security group, required IMDSv2, termination protection, an AWS-managed-key-encrypted 16 GiB gp3 root volume, and verified Session Manager access; host bootstrap remains incomplete because Docker, Nginx, Certbot, its Route 53 plugin, and the CloudWatch agent are not installed |
 
 ## Companion Request Flows
 
@@ -56,7 +57,7 @@ image currently used by the project:
 docker run --rm \
   -v "$PWD:/usr/local/structurizr:ro" \
   structurizr/structurizr \
-  validate -workspace /usr/local/structurizr/v009-origin-security-group.dsl
+  validate -workspace /usr/local/structurizr/v010-ec2-host-launched.dsl
 ```
 
 The next version should be created only after the next manually provisioned AWS

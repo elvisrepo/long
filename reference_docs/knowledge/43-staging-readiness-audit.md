@@ -9,22 +9,29 @@
 Audit started on 2026-08-20. AWS account access is bootstrapped, and the public
 frontend foundation is provisioned: Route 53, the CloudFront viewer
 certificate, private S3/OAC, CloudFront, SPA routing, and the public
-`staging.syncvitals.space` alias. EC2 and backend/data resources are not yet
-provisioned. The backend inspection is complete. Production settings validation and HTTPS/proxy security were
-implemented on 2026-08-21, and the `.env`-free staging secret/runtime contract
-was implemented on 2026-08-25. The production-like migration/API deployment
-smoke was completed locally and in GitHub CI on 2026-08-26. The frontend
-delivery contract was completed on 2026-08-27, and the isolated Android staging
-build contract was completed on 2026-08-31. The AWS fixed-cost analysis,
-deployable staging Compose contract, and manual provisioning runbook were
-completed on 2026-09-03.
+`staging.syncvitals.space` alias. On 2026-09-06 the first EC2 origin host was
+launched and verified with encrypted root EBS, the intended restricted
+role/security group, required
+IMDSv2, and working Systems Manager access. Host bootstrap is not complete:
+Docker, Nginx, Certbot, the Route 53 Certbot plugin, and the CloudWatch agent
+are not installed, and the persistent database volume and backend runtime are
+not deployed. The backend inspection is complete. Production settings
+validation and HTTPS/proxy security were implemented on 2026-08-21, and the
+`.env`-free staging secret/runtime contract was implemented on 2026-08-25. The
+production-like migration/API deployment smoke was completed locally and in
+GitHub CI on 2026-08-26. The frontend delivery contract was completed on
+2026-08-27, and the isolated Android staging build contract was completed on
+2026-08-31. The AWS fixed-cost analysis, deployable staging Compose contract,
+and manual provisioning runbook were completed on 2026-09-03.
 
-The deployment topology changed on 2026-08-28. Current presentation staging is
+The approved deployment topology changed on 2026-08-28. Its intended request
+path is
 `CloudFront -> Nginx on one public EC2 host -> Gunicorn/Django -> self-hosted
 plain PostgreSQL 16`, with encrypted EBS and scheduled `pg_dump` backups to
-private S3. The earlier ALB, NAT Gateway, and Timescale Cloud wording below is
-historical audit evidence where explicitly labelled; it is not a provisioning
-instruction. Recommended production is the separate resilient
+private S3. The currently deployed state has not reached Nginx, Django, or
+PostgreSQL yet. The earlier ALB, NAT Gateway, and Timescale Cloud wording below
+is historical audit evidence where explicitly labelled; it is not a
+provisioning instruction. Recommended production is the separate resilient
 CloudFront/WAF -> ALB -> two Fargate tasks -> RDS PostgreSQL Multi-AZ topology.
 
 ## 1. Verified foundations
