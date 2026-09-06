@@ -84,16 +84,22 @@ unless the operator explicitly changes this convention.
   - Docker repository candidate:
     `5:29.8.0-1~ubuntu.24.04~noble`;
   - Docker Engine remained absent immediately after this entry.
-- Package-version evidence:
-  - the transaction updated `ca-certificates`, `curl`, and libcurl-related
-    packages;
-  - exact installed versions and the complete dependency list still need to be
-    reconciled from `/var/log/apt/history.log` before this record is considered
-    package-complete.
+- APT transaction evidence:
+  - started: 2026-09-06 12:52:08;
+  - ended: 2026-09-06 12:52:16;
+  - no new package was installed;
+  - `ca-certificates:arm64`: `20240203` →
+    `20260601~24.04.1`;
+  - `curl:arm64`: `8.5.0-2ubuntu10.9` →
+    `8.5.0-2ubuntu10.13`;
+  - `libcurl3t64-gnutls:arm64`: `8.5.0-2ubuntu10.9` →
+    `8.5.0-2ubuntu10.13`;
+  - `libcurl4t64:arm64`: `8.5.0-2ubuntu10.9` →
+    `8.5.0-2ubuntu10.13`.
 - Recovery:
   - removing the source and key would remove Docker's repository;
   - that would not automatically downgrade packages changed by APT.
-- Status: completed; package-version reconciliation pending.
+- Status: completed and reconciled against `/var/log/apt/history.log`.
 
 ### EC2-003 — Docker installation request interrupted
 
@@ -105,11 +111,13 @@ unless the operator explicitly changes this convention.
 - Result:
   - the local request was interrupted before a command ID was returned;
   - a subsequent manual `docker --version` check returned
-    `Command 'docker' not found`.
-- Persistent host change: Docker installation was not proven to have occurred.
-  The package database must be inspected before treating this as definitively
-  change-free.
-- Status: interrupted; reconciliation pending.
+    `Command 'docker' not found`;
+  - a subsequent manual `dpkg-query` found none of `docker-ce`,
+    `docker-ce-cli`, `containerd.io`, `docker-buildx-plugin`, or
+    `docker-compose-plugin`.
+- Persistent host change: none from the interrupted Docker installation
+  request.
+- Status: interrupted request reconciled; Docker packages were not installed.
 
 ### EC2-004 — Manual Session Manager access confirmed
 
@@ -132,13 +140,135 @@ unless the operator explicitly changes this convention.
     was present.
 - Status: completed, read-only.
 
+### EC2-005 — Docker Engine and Compose packages installed
+
+- Date: 2026-09-06
+- Performed by: operator
+- Execution path: root shell in browser-based AWS Systems Manager Session
+  Manager.
+- Intent: install a reproducible Docker runtime from Docker's official ARM64
+  Ubuntu repository.
+- Pre-change evidence:
+  - Docker CLI and all five explicitly requested packages were absent;
+  - an APT simulation reported 7 new packages, 0 upgrades, 0 removals, and 132
+    unrelated packages left unchanged.
+- Exact command:
+
+  ```bash
+  apt-get install -y \
+    'docker-ce=5:29.8.0-1~ubuntu.24.04~noble' \
+    'docker-ce-cli=5:29.8.0-1~ubuntu.24.04~noble' \
+    'containerd.io=2.3.4-2~ubuntu.24.04~noble' \
+    'docker-buildx-plugin=0.37.0-1~ubuntu.24.04~noble' \
+    'docker-compose-plugin=5.5.1-1~ubuntu.24.04~noble'
+  ```
+
+- Newly installed packages:
+  - `containerd.io:arm64` `2.3.4-2~ubuntu.24.04~noble`;
+  - `docker-ce-cli:arm64` `5:29.8.0-1~ubuntu.24.04~noble`;
+  - `docker-ce:arm64` `5:29.8.0-1~ubuntu.24.04~noble`;
+  - `docker-buildx-plugin:arm64` `0.37.0-1~ubuntu.24.04~noble`;
+  - `docker-ce-rootless-extras:arm64`
+    `5:29.8.0-1~ubuntu.24.04~noble`;
+  - `docker-compose-plugin:arm64` `5.5.1-1~ubuntu.24.04~noble`;
+  - `pigz:arm64` `2.8-1`.
+- Package transaction:
+  - downloaded 86.3 MB;
+  - added approximately 359 MB of disk usage;
+  - upgraded 0 packages and removed 0 packages;
+  - left 132 unrelated available upgrades unapplied.
+- Service changes:
+  - enabled `containerd.service` for `multi-user.target`;
+  - enabled `docker.service` for `multi-user.target`;
+  - enabled `docker.socket` for `sockets.target`.
+- Post-install report:
+  - running kernel was current;
+  - no service, container, user-session, or VM-guest restart was required.
+- Verification:
+  - package configuration completed;
+  - `systemctl is-active docker` returned `active`;
+  - `systemctl is-enabled docker` returned `enabled`;
+  - `docker version` reported client `29.8.0` and server `29.8.0`,
+    proving CLI-to-daemon communication;
+  - `docker compose version --short` returned `5.5.1`;
+  - `docker buildx version` returned `v0.37.0` at commit
+    `ac30b249211430b85fb8f37b6e7154b5c47ba0b6`;
+  - `docker info --format '{{.Architecture}}'` returned `aarch64`;
+  - `docker run --rm hello-world` pulled and successfully ran the
+    `arm64v8` image with content digest
+    `sha256:5dd0d3e6e255913fc30f90b9f2b1d359cc2cbdb48090cc4b65f1676e203243cc`.
+- Smoke-test side effects:
+  - the test container was configured for automatic removal with `--rm`;
+  - a subsequent `docker ps -a` returned only the headings, confirming zero
+    retained containers;
+  - `hello-world:latest` remains cached locally and is tied in this record to
+    the content digest above because the tag itself is mutable.
+- Recovery: remove these packages only after confirming that no required
+  containers, images, volumes, or host data depend on the Docker runtime.
+- Status: completed; Docker runtime gate passed.
+
+### EC2-006 — APT repository metadata refreshed
+
+- Date: 2026-09-06
+- Performed by: operator
+- Execution path: root shell in browser-based AWS Systems Manager Session
+  Manager.
+- Intent: refresh package indexes before reviewing Ubuntu host updates and
+  installing additional host software.
+- Exact command: `apt-get update`.
+- Repositories refreshed successfully:
+  - Docker official Ubuntu `noble`;
+  - Ubuntu `noble-security`;
+  - Ubuntu `noble`;
+  - Ubuntu `noble-updates`;
+  - Ubuntu `noble-backports`.
+- Packages installed, upgraded, or removed: none.
+- Status: completed.
+
+### EC2-007 — Ubuntu full-upgrade plan reviewed
+
+- Date: 2026-09-06
+- Performed by: operator
+- Execution path: root shell in browser-based AWS Systems Manager Session
+  Manager.
+- Intent: review all pending Ubuntu updates without changing the host.
+- Read-only commands:
+  - `apt-get upgrade --simulate`;
+  - `apt-get full-upgrade --simulate`.
+- Ordinary-upgrade result:
+  - 129 packages would be upgraded;
+  - `linux-aws`, `linux-headers-aws`, and `linux-image-aws` would be kept
+    back.
+- Full-upgrade result:
+  - 132 packages would be upgraded;
+  - 9 packages would be newly installed;
+  - 0 packages would be removed;
+  - 0 packages would remain not upgraded.
+- New kernel/support packages in the full plan:
+  - `linux-image-7.0.0-1012-aws`;
+  - `linux-modules-7.0.0-1012-aws`;
+  - `linux-headers-7.0.0-1012-aws`;
+  - `linux-aws-7.0-headers-7.0.0-1012`;
+  - `linux-aws-7.0-tools-7.0.0-1012`;
+  - `linux-tools-7.0.0-1012-aws`;
+  - `libdebuginfod-common`;
+  - `libdebuginfod1t64`;
+  - `libllvm19`.
+- Decision: prefer the full upgrade so the AWS kernel metapackages and security
+  updates are not left behind. Verify disk capacity before applying it and
+  expect a reboot afterward.
+- Pre-change disk capacity: root filesystem 15 GiB total, 2.5 GiB used,
+  13 GiB available, 17% utilization.
+- Persistent host change: none; both commands were simulations.
+- Status: reviewed; execution pending.
+
 ## Current Known Host-Software State
 
 | Component | State | Evidence |
 |---|---|---|
 | Docker official APT repository | Configured | Manual source-file inspection |
-| Docker Engine and CLI | CLI absent | Manual `docker --version` result |
-| Exact EC2-002 APT transaction | Reconciliation pending | Inspect APT history before continuing |
+| Docker Engine, CLI, containerd, Buildx, and Compose | Installed and runtime-verified | EC2-005 package transaction, systemd checks, version checks, architecture check, and container smoke test |
+| Exact EC2-002 APT transaction | Reconciled | `/var/log/apt/history.log` |
 | Nginx | Not installed at the initial host inspection | Earlier SSM inspection |
 | Certbot and Route 53 plugin | Not installed at the initial host inspection | Earlier SSM inspection |
 | CloudWatch agent | Not installed at the initial host inspection | Earlier SSM inspection |

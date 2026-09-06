@@ -66,11 +66,13 @@ Already created and verified:
   health checks passing, an AWS-managed-key-encrypted 16 GiB gp3 root volume, and
   verified Session Manager access as `ssm-user` with passwordless `sudo`.
 
-The EC2 launch is verified, but Section 6 is not complete: Docker Engine and
-Compose, Nginx, Certbot, the Route 53 Certbot plugin, and the CloudWatch agent
-were absent during the 2026-09-06 Systems Manager inspection. The current
-public IPv4 address is auto-assigned and must not be treated as the stable
-origin address planned in Section 8.
+The EC2 launch is verified. Docker Engine 29.8.0, Compose 5.5.1, Buildx 0.37.0,
+and containerd 2.3.4 were subsequently installed from Docker's official ARM64
+Ubuntu repository and passed service, native-architecture, and container-run
+checks. Section 6 remains incomplete because Nginx, Certbot, the Route 53
+Certbot plugin, and the CloudWatch agent are not installed. The current public
+IPv4 address is auto-assigned and must not be treated as the stable origin
+address planned in Section 8.
 
 Image-scan acceptance recorded on 2026-09-04:
 
@@ -227,9 +229,12 @@ Docker runs.
 Current result: partially passed on 2026-09-06. The running instance, official
 Ubuntu ARM64 image, type, encrypted root volume, role, security group, required
 IMDSv2, EC2 status checks, termination protection, and Systems Manager access
-were verified. Docker is absent, so the gate remains open. Nginx, Certbot, the
-Route 53 Certbot plugin, and the CloudWatch agent are also not installed. Finish
-the host software bootstrap and prove Docker runs before starting Section 7.
+were verified. Docker Engine 29.8.0, Compose 5.5.1, Buildx 0.37.0, and
+containerd 2.3.4 are now installed from Docker's official ARM64 Ubuntu
+repository. Docker is active, enabled at boot, reports native `aarch64`, and
+successfully ran the `hello-world` container. The section remains incomplete
+because Nginx, Certbot, the Route 53 Certbot plugin, and the CloudWatch agent
+are not installed.
 
 ### 7. Create and attach persistent encrypted database storage
 
