@@ -39,6 +39,7 @@ do not replace or modify that target; they show verified implementation progress
 | V008 | 2026-09-04 | V007 plus the global EC2 role and instance profile `syncvitals-staging-ec2-role`; EC2-only trust, Systems Manager core, one-repository ECR pull, one-secret read, and exact ACME TXT mutation were verified, while unrelated ECR, secret, and DNS record access is implicitly denied and destination-specific logging/backup permissions remain deferred |
 | V009 | 2026-09-06 | V008 plus origin security group `sg-0bb8f60ee0b21cb06` in the Frankfurt default VPC; its only inbound rule is TCP 443 from AWS-managed CloudFront origin-facing prefix list `pl-a3a144ca`, with no CIDR ingress or administrative/application/database ports exposed; the group remains unattached because EC2 does not exist yet |
 | V010 | 2026-09-06 | V009 plus running instance `i-08fbc9f0c53265b63`: a healthy `t4g.small` ARM64 host in `eu-central-1c` using Canonical Ubuntu 24.04, the intended instance profile and origin security group, required IMDSv2, termination protection, an AWS-managed-key-encrypted 16 GiB gp3 root volume, and verified Session Manager access; host bootstrap remains incomplete because Docker, Nginx, Certbot, its Route 53 plugin, and the CloudWatch agent are not installed |
+| V011 | 2026-09-07 | V010 plus a fully updated Ubuntu host running AWS kernel `7.0.0-1012-aws`, verified native ARM64 Docker Engine 29.8.0 with containerd 2.3.4, Compose 5.5.1, and Buildx 0.37.0, plus verified Nginx 1.24.0; Nginx currently serves only its packaged local port-80 site, while the security group blocks port 80 and origin TLS, reverse proxying, application containers, the CloudFront API origin, and persistent PostgreSQL storage remain absent |
 
 ## Companion Request Flows
 
@@ -63,7 +64,7 @@ image currently used by the project:
 docker run --rm \
   -v "$PWD:/usr/local/structurizr:ro" \
   structurizr/structurizr \
-  validate -workspace /usr/local/structurizr/v010-ec2-host-launched.dsl
+  validate -workspace /usr/local/structurizr/v011-docker-nginx-host-ready.dsl
 ```
 
 The next version should be created only after the next manually provisioned AWS

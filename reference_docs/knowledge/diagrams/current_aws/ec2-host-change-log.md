@@ -348,12 +348,60 @@ unless the operator explicitly changes this convention.
 - Status: completed and reconciled; upgrade, kernel activation, Session
   Manager recovery, and Docker recovery verified.
 
+### EC2-009 — Nginx installed
+
+- Date: 2026-09-07
+- Performed by: operator
+- Execution path: root shell in browser-based AWS Systems Manager Session
+  Manager.
+- Intent: install the host reverse proxy from Ubuntu's signed Noble update
+  repository.
+- Pre-change evidence:
+  - an APT simulation reported 2 new packages, 0 upgrades, 0 removals, and 0
+    packages left not upgraded.
+- Exact command:
+
+  ```bash
+  apt-get install -y \
+    'nginx=1.24.0-2ubuntu7.17' \
+    'nginx-common=1.24.0-2ubuntu7.17'
+  ```
+
+- Newly installed packages:
+  - `nginx-common` `1.24.0-2ubuntu7.17`;
+  - `nginx:arm64` `1.24.0-2ubuntu7.17`.
+- Package transaction:
+  - downloaded 565 kB;
+  - added approximately 1,626 kB of disk usage;
+  - upgraded 0 packages and removed 0 packages.
+- Service changes:
+  - enabled `nginx.service` for `multi-user.target`;
+  - the Ubuntu package performed its standard Nginx binary start/upgrade
+    action successfully.
+- Post-install report:
+  - the running kernel was current;
+  - no service, container, user-session, or VM-guest restart was required.
+- Security boundary:
+  - the package initially provides Ubuntu's default HTTP configuration;
+  - EC2 security-group ingress still blocks port 80 and permits only
+    CloudFront-origin traffic on port 443.
+- Verification:
+  - `nginx -t` reported valid syntax and a successful configuration test;
+  - `systemctl is-active nginx` returned `active`;
+  - `systemctl is-enabled nginx` returned `enabled`;
+  - `ss -ltnp` showed Nginx listening on `0.0.0.0:80` and `[::]:80`;
+  - a local HTTP HEAD request to `http://127.0.0.1` returned
+    `HTTP/1.1 200 OK` from `nginx/1.24.0 (Ubuntu)`.
+- Status: installed and verified with syntax, service, listener, and local HTTP
+  response checks.
+
 ## Current Known Host-Software State
 
 | Component | State | Evidence |
 |---|---|---|
 | Docker official APT repository | Configured | Manual source-file inspection |
 | Docker Engine, CLI, containerd, Buildx, and Compose | Installed and runtime-verified | EC2-005 package transaction, systemd checks, version checks, architecture check, and container smoke test |
+| Nginx | Installed; verification pending | EC2-009 package transaction |
 | Exact EC2-002 APT transaction | Reconciled | `/var/log/apt/history.log` |
 | Nginx | Not installed at the initial host inspection | Earlier SSM inspection |
 | Certbot and Route 53 plugin | Not installed at the initial host inspection | Earlier SSM inspection |
