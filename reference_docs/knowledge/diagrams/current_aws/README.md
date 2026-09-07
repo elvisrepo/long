@@ -40,6 +40,7 @@ do not replace or modify that target; they show verified implementation progress
 | V009 | 2026-09-06 | V008 plus origin security group `sg-0bb8f60ee0b21cb06` in the Frankfurt default VPC; its only inbound rule is TCP 443 from AWS-managed CloudFront origin-facing prefix list `pl-a3a144ca`, with no CIDR ingress or administrative/application/database ports exposed; the group remains unattached because EC2 does not exist yet |
 | V010 | 2026-09-06 | V009 plus running instance `i-08fbc9f0c53265b63`: a healthy `t4g.small` ARM64 host in `eu-central-1c` using Canonical Ubuntu 24.04, the intended instance profile and origin security group, required IMDSv2, termination protection, an AWS-managed-key-encrypted 16 GiB gp3 root volume, and verified Session Manager access; host bootstrap remains incomplete because Docker, Nginx, Certbot, its Route 53 plugin, and the CloudWatch agent are not installed |
 | V011 | 2026-09-07 | V010 plus a fully updated Ubuntu host running AWS kernel `7.0.0-1012-aws`, verified native ARM64 Docker Engine 29.8.0 with containerd 2.3.4, Compose 5.5.1, and Buildx 0.37.0, plus verified Nginx 1.24.0; Nginx currently serves only its packaged local port-80 site, while the security group blocks port 80 and origin TLS, reverse proxying, application containers, the CloudFront API origin, and persistent PostgreSQL storage remain absent |
+| V012 | 2026-09-07 | V011 plus verified Certbot 2.9.0, its discovered Route 53 DNS-01 authenticator, and an enabled, active, scheduled automatic renewal timer; no certificate has been requested, no ACME TXT record has been changed, and origin TLS, reverse proxying, application containers, the CloudFront API origin, and persistent PostgreSQL storage remain absent |
 
 ## Companion Request Flows
 
@@ -64,7 +65,7 @@ image currently used by the project:
 docker run --rm \
   -v "$PWD:/usr/local/structurizr:ro" \
   structurizr/structurizr \
-  validate -workspace /usr/local/structurizr/v011-docker-nginx-host-ready.dsl
+  validate -workspace /usr/local/structurizr/v012-certbot-host-ready.dsl
 ```
 
 The next version should be created only after the next manually provisioned AWS
