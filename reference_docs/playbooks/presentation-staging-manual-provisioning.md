@@ -69,10 +69,13 @@ Already created and verified:
 The EC2 launch is verified. Docker Engine 29.8.0, Compose 5.5.1, Buildx 0.37.0,
 and containerd 2.3.4 were subsequently installed from Docker's official ARM64
 Ubuntu repository and passed service, native-architecture, and container-run
-checks. Section 6 remains incomplete because Nginx, Certbot, the Route 53
-Certbot plugin, and the CloudWatch agent are not installed. The current public
-IPv4 address is auto-assigned and must not be treated as the stable origin
-address planned in Section 8.
+checks. Nginx 1.24.0 is installed, enabled, and serving its default page
+locally on port 80. Certbot 2.9.0 and its Route 53 DNS plugin are installed,
+and the automatic renewal timer is enabled, active, and scheduled. No
+certificate has been requested and no DNS record has been changed. Section 6
+remains incomplete because the CloudWatch agent is not installed. The current
+public IPv4 address is auto-assigned and must not be treated as the stable
+origin address planned in Section 8.
 
 Image-scan acceptance recorded on 2026-09-04:
 
@@ -226,15 +229,18 @@ Gate: the instance is running with the intended encrypted root volume, role,
 and security group; a Systems Manager session works, IMDSv1 is disabled, and
 Docker runs.
 
-Current result: partially passed on 2026-09-06. The running instance, official
+Current result: partially passed as of 2026-09-07. The running instance, official
 Ubuntu ARM64 image, type, encrypted root volume, role, security group, required
 IMDSv2, EC2 status checks, termination protection, and Systems Manager access
 were verified. Docker Engine 29.8.0, Compose 5.5.1, Buildx 0.37.0, and
 containerd 2.3.4 are now installed from Docker's official ARM64 Ubuntu
 repository. Docker is active, enabled at boot, reports native `aarch64`, and
-successfully ran the `hello-world` container. The section remains incomplete
-because Nginx, Certbot, the Route 53 Certbot plugin, and the CloudWatch agent
-are not installed.
+successfully ran the `hello-world` container. Nginx 1.24.0 is installed,
+enabled, syntax-checked, listening locally on port 80, and returned HTTP 200.
+Certbot 2.9.0 and the Route 53 DNS plugin are installed and discovered; the
+renewal timer is enabled, active, and scheduled. Certificate issuance remains
+deferred until the stable origin address and hostname exist. The section
+remains incomplete only because the CloudWatch agent is not installed.
 
 ### 7. Create and attach persistent encrypted database storage
 

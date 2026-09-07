@@ -395,13 +395,70 @@ unless the operator explicitly changes this convention.
 - Status: installed and verified with syntax, service, listener, and local HTTP
   response checks.
 
+### EC2-010 — Certbot and Route 53 DNS plugin installed
+
+- Date: 2026-09-07
+- Performed by: operator
+- Execution path: root shell in browser-based AWS Systems Manager Session
+  Manager.
+- Intent: install ACME certificate tooling and the Route 53 DNS-01
+  authenticator without requesting a certificate or changing DNS.
+- Pre-change evidence:
+  - an APT simulation reported 9 new packages, 0 upgrades, 0 removals, and 0
+    packages left not upgraded.
+- Exact command:
+
+  ```bash
+  apt-get install -y \
+    'certbot=2.9.0-1' \
+    'python3-certbot-dns-route53=2.9.0-1'
+  ```
+
+- Newly installed packages:
+  - `certbot` `2.9.0-1`;
+  - `python3-certbot` `2.9.0-1`;
+  - `python3-certbot-dns-route53` `2.9.0-1`;
+  - `python3-acme` `2.9.0-1`;
+  - `python3-configargparse` `1.7-1`;
+  - `python3-icu:arm64` `2.12-1build2`;
+  - `python3-josepy` `1.14.0-1`;
+  - `python3-parsedatetime` `2.6-3`;
+  - `python3-rfc3339` `1.1-4`.
+- Package transaction:
+  - downloaded 989 kB;
+  - added approximately 5,402 kB of disk usage;
+  - upgraded 0 packages and removed 0 packages.
+- Service changes:
+  - enabled `certbot.timer` for `timers.target`.
+- Post-install report:
+  - the running kernel was current;
+  - no service, container, user-session, or VM-guest restart was required.
+- External changes: no certificate was requested and no Route 53 record was
+  changed.
+- Verification:
+  - `certbot --version` returned `certbot 2.9.0`;
+  - `certbot plugins` discovered the `dns-route53` authenticator plus the
+    packaged `standalone` and `webroot` authenticators;
+  - `dns-route53` advertises the expected Authenticator and Plugin
+    interfaces;
+  - `systemctl is-enabled certbot.timer` returned `enabled`;
+  - `systemctl is-active certbot.timer` returned `active`;
+  - `systemctl list-timers certbot.timer --no-pager` reported the timer's next
+    activation at `2026-09-07 18:01:38 UTC`.
+- Verification-command side effect:
+  - Certbot created or appended its debug log at
+    `/var/log/letsencrypt/letsencrypt.log`.
+- Status: installed and verified, including plugin discovery and the automatic
+  renewal timer's enabled, active, and scheduled states.
+
 ## Current Known Host-Software State
 
 | Component | State | Evidence |
 |---|---|---|
 | Docker official APT repository | Configured | Manual source-file inspection |
 | Docker Engine, CLI, containerd, Buildx, and Compose | Installed and runtime-verified | EC2-005 package transaction, systemd checks, version checks, architecture check, and container smoke test |
-| Nginx | Installed; verification pending | EC2-009 package transaction |
+| Nginx | Installed and verified | EC2-009 syntax, service, listener, and local HTTP checks |
+| Certbot and Route 53 DNS plugin | Installed and verified; no certificate requested yet | EC2-010 package transaction, plugin discovery, and timer checks |
 | Exact EC2-002 APT transaction | Reconciled | `/var/log/apt/history.log` |
 | Nginx | Not installed at the initial host inspection | Earlier SSM inspection |
 | Certbot and Route 53 plugin | Not installed at the initial host inspection | Earlier SSM inspection |
