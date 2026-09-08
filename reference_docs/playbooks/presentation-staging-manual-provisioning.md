@@ -72,8 +72,11 @@ Ubuntu repository and passed service, native-architecture, and container-run
 checks. Nginx 1.24.0 is installed, enabled, and serving its default page
 locally on port 80. Certbot 2.9.0 and its Route 53 DNS plugin are installed,
 and the automatic renewal timer is enabled, active, and scheduled. No
-certificate has been requested and no DNS record has been changed. Section 6
-remains incomplete because the CloudWatch agent is not installed. The current
+certificate has been requested and no DNS record has been changed. CloudWatch
+Agent was installed and configured through the console on 2026-09-08; memory
+and root-disk metrics are arriving in `CWAgent` in Frankfurt. The role now has
+`SyncVitalsStagingMetricsWrite`, allowing `PutMetricData` only in that namespace
+and region. Logs and alarms remain pending. Section 6's gate is passed. The current
 public IPv4 address is auto-assigned and must not be treated as the stable
 origin address planned in Section 8.
 
@@ -229,7 +232,7 @@ Gate: the instance is running with the intended encrypted root volume, role,
 and security group; a Systems Manager session works, IMDSv1 is disabled, and
 Docker runs.
 
-Current result: partially passed as of 2026-09-07. The running instance, official
+Current result: gate passed as of 2026-09-08. The running instance, official
 Ubuntu ARM64 image, type, encrypted root volume, role, security group, required
 IMDSv2, EC2 status checks, termination protection, and Systems Manager access
 were verified. Docker Engine 29.8.0, Compose 5.5.1, Buildx 0.37.0, and
@@ -239,8 +242,11 @@ successfully ran the `hello-world` container. Nginx 1.24.0 is installed,
 enabled, syntax-checked, listening locally on port 80, and returned HTTP 200.
 Certbot 2.9.0 and the Route 53 DNS plugin are installed and discovered; the
 renewal timer is enabled, active, and scheduled. Certificate issuance remains
-deferred until the stable origin address and hostname exist. The section
-remains incomplete only because the CloudWatch agent is not installed.
+deferred until the stable origin address and hostname exist. CloudWatch Agent
+is installed and configured through the console, with memory and root-disk
+usage collected every 60 seconds and datapoint delivery verified. Exact agent
+version and boot enablement remain to be inspected; logs and alarms are not
+configured. See EC2-012 in the host change log for the configuration and IAM policy.
 
 ### 7. Create and attach persistent encrypted database storage
 

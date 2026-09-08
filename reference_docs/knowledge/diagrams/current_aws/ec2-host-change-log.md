@@ -451,6 +451,102 @@ unless the operator explicitly changes this convention.
 - Status: installed and verified, including plugin discovery and the automatic
   renewal timer's enabled, active, and scheduled states.
 
+### EC2-011 — CloudWatch Agent package downloaded but not installed
+
+- Date: 2026-09-07
+- Performed by: automation at the operator's explicit request.
+- Execution path: AWS Systems Manager Run Command
+  `17bd3573-af1a-46e6-b67a-2fe398580b38` using `AWS-RunShellScript`.
+- Intent: download the current AWS-published Ubuntu ARM64 CloudWatch Agent
+  package for inspection without installing, configuring, or starting it.
+- Exact command:
+
+  ```bash
+  curl --proto '=https' --tlsv1.2 -fSL \
+    -o /tmp/amazon-cloudwatch-agent.deb \
+    https://amazoncloudwatch-agent-eu-central-1.s3.eu-central-1.amazonaws.com/ubuntu/arm64/latest/amazon-cloudwatch-agent.deb
+  ```
+
+- Filesystem change:
+  - created or replaced the temporary file
+    `/tmp/amazon-cloudwatch-agent.deb`;
+  - curl reported approximately 60.6 MiB transferred.
+- Command result: Systems Manager reported `Success` with response code `0`.
+- Important compatibility boundary:
+  - the downloaded package is AWS-published for Ubuntu ARM64, but AWS's current
+    supported-operating-systems matrix does not list Ubuntu 24.04 under ARM64;
+  - local inspection of the same published artifact found package version
+    `1.300072.0b1766-1`, architecture `arm64`, dependency `libc6`, the expected
+    AWS signing-key fingerprint, and a good package signature;
+  - compatibility with this Ubuntu 24.04 ARM64 host is therefore not yet
+    treated as vendor-supported or runtime-verified.
+- Status: downloaded only; on-host checksum/signature verification and
+  installation remain pending.
+
+### EC2-012 — CloudWatch Agent installed and metrics verified through the console
+
+- Date: 2026-09-08
+- Performed by: operator through the CloudWatch and IAM consoles.
+- Execution path: CloudWatch Getting Started agent workflow, manually targeting
+  only `i-08fbc9f0c53265b63` in `eu-central-1`; workload detection remained disabled.
+- Host changes: console-managed agent installation and configuration deployment.
+  The console reported both `Installed` and `Configured`. Exact installed
+  package version, installation command ID, generated file paths, and boot
+  enablement have not yet been independently inspected; the earlier downloaded
+  package's version must not be assumed to be the installed version.
+- Related IAM change: operator created inline policy
+  `SyncVitalsStagingMetricsWrite` on `syncvitals-staging-ec2-role`:
+
+  ```json
+  {
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Sid": "PublishStagingHostMetrics",
+      "Effect": "Allow",
+      "Action": "cloudwatch:PutMetricData",
+      "Resource": "*",
+      "Condition": {"StringEquals": {
+        "cloudwatch:namespace": "CWAgent",
+        "aws:RequestedRegion": "eu-central-1"
+      }}
+    }]
+  }
+  ```
+
+- Exact configuration reviewed and deployed:
+
+  ```json
+  {
+    "agent": {
+      "metrics_collection_interval": 60,
+      "run_as_user": "cwagent",
+      "region": "eu-central-1"
+    },
+    "metrics": {
+      "namespace": "CWAgent",
+      "append_dimensions": {"InstanceId": "${aws:InstanceId}"},
+      "metrics_collected": {
+        "mem": {"measurement": ["mem_used_percent"]},
+        "disk": {
+          "measurement": ["disk_used_percent"],
+          "resources": ["/"],
+          "drop_device": true
+        }
+      }
+    }
+  }
+  ```
+
+- Verification: operator screenshots show two metric series in `CWAgent` in
+  Frankfurt. Memory datapoints are approximately 16%; disk datapoints are
+  approximately 26% for this instance's `ext4` filesystem mounted at `/`.
+  Successful datapoint delivery verifies the configured collection and
+  publishing path on this host, but does not establish vendor OS support.
+- Scope: no logs, traces, or aggregation rollups are configured. Alarm setup
+  remains pending; the disk metric's console row shows `No alarms`.
+- Status: installed, configured, and metric delivery verified. The temporary
+  download from EC2-011 has not been explicitly removed.
+
 ## Current Known Host-Software State
 
 | Component | State | Evidence |
@@ -459,6 +555,7 @@ unless the operator explicitly changes this convention.
 | Docker Engine, CLI, containerd, Buildx, and Compose | Installed and runtime-verified | EC2-005 package transaction, systemd checks, version checks, architecture check, and container smoke test |
 | Nginx | Installed and verified | EC2-009 syntax, service, listener, and local HTTP checks |
 | Certbot and Route 53 DNS plugin | Installed and verified; no certificate requested yet | EC2-010 package transaction, plugin discovery, and timer checks |
+| CloudWatch Agent | Installed and configured through console; memory and root-disk metric delivery verified | EC2-012 console status and graphs; installed version and boot enablement not yet inspected |
 | Exact EC2-002 APT transaction | Reconciled | `/var/log/apt/history.log` |
 | Nginx | Not installed at the initial host inspection | Earlier SSM inspection |
 | Certbot and Route 53 plugin | Not installed at the initial host inspection | Earlier SSM inspection |
