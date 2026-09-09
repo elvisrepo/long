@@ -265,6 +265,15 @@ must never rely on a container layer or temporary volume.
 Gate: reboot the instance and prove the same encrypted volume remounts before
 starting PostgreSQL.
 
+Current result: passed on 2026-09-09. Encrypted 10 GiB gp3 volume
+`vol-0f23b93a2f1cd46b4` is attached in `eu-central-1c` with
+`DeleteOnTermination=false`. After reboot, ext4 UUID
+`f4a12602-0ab0-45ae-a73d-dc6fc8fb00e2` remounted at `/srv/syncvitals`;
+`/srv/syncvitals/postgresql` retained ownership `999:999` and mode `700`.
+No database has been initialized. Before deploying PostgreSQL, enforce the
+mount prerequisite because the fstab entry uses `nofail`. Add database-disk
+monitoring separately; the current agent configuration collects only `/`.
+
 ### 8. Assign the stable origin address and DNS name
 
 - Allocate one Elastic IP and associate it with the instance.

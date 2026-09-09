@@ -547,6 +547,74 @@ unless the operator explicitly changes this convention.
 - Status: installed, configured, and metric delivery verified. The temporary
   download from EC2-011 has not been explicitly removed.
 
+### EC2-013 — Database EBS volume mounted and PostgreSQL directory prepared
+
+- Date: 2026-09-08
+- Performed by: operator in the EC2 console and root Session Manager shell.
+- Volume: `vol-0f23b93a2f1cd46b4`, Name `syncvitals-staging-postgresql`,
+  10 GiB gp3, 3000 IOPS, 125 MiB/s, encrypted with `aws/ebs`, created without
+  a source snapshot in `eu-central-1c`. Attached to `i-08fbc9f0c53265b63`
+  as `/dev/sdf`; Ubuntu identified it as `/dev/nvme1n1` with matching serial.
+- Pre-format checks: `lsblk` showed the new 10 GiB disk without a filesystem
+  or mount, separate from the 16 GiB root disk; `wipefs --no-act` found no
+  signatures.
+- Commands completed:
+
+  ```bash
+  mkfs.ext4 -L staging-postgres /dev/nvme1n1
+  mkdir -p /srv/syncvitals
+  mount UUID=f4a12602-0ab0-45ae-a73d-dc6fc8fb00e2 /srv/syncvitals
+  cp -a --no-clobber /etc/fstab /etc/fstab.before-postgresql-volume
+  ```
+
+- `findmnt` confirmed the ext4 UUID and mount. The fstab backup matched the
+  original using `cmp`; the copy command emitted a portability warning only.
+- Added this entry to `/etc/fstab`:
+
+  ```fstab
+  UUID=f4a12602-0ab0-45ae-a73d-dc6fc8fb00e2 /srv/syncvitals ext4 defaults,nofail 0 2
+  ```
+
+- The first paste split the entry into two lines. Verification detected the
+  parse error; the operator joined lines 4 and 5 with
+  `sed -i '4{N;s/\n */ /;}' /etc/fstab`. After `systemctl daemon-reload`,
+  `findmnt --verify --verbose` reported no errors or warnings.
+- Created `/srv/syncvitals/postgresql`. Downloaded the pinned PostgreSQL image
+  and ran only its `id` command using a temporary `--rm` container, without
+  mounting the database directory or starting PostgreSQL:
+
+  ```bash
+  pg_digest=f1c3376c26f2609ab9f29f71f824103f
+  pg_digest=${pg_digest}e2fcd8ee0346485cb6122a4f93df6f94
+  docker run --rm --entrypoint id postgres:16@sha256:$pg_digest postgres
+  chown 999:999 /srv/syncvitals/postgresql
+  chmod 700 /srv/syncvitals/postgresql
+  ```
+
+- The image reported PostgreSQL UID/GID `999:999`; final directory `stat`
+  confirmed `999:999 700 /srv/syncvitals/postgresql`. The image remains cached.
+  An earlier multiline paste failed before Docker started a container.
+- Status: mounted and directory prepared; no database initialized. Reboot
+  remount verification and confirmation of `DeleteOnTermination=false` remain
+  pending. Because the fstab entry uses `nofail`, deployment must prevent
+  PostgreSQL from starting when the database volume is not mounted.
+
+### EC2-014 — Database volume retention and reboot persistence verified
+
+- Date: 2026-09-09
+- Performed by: operator through the EC2 console and Session Manager.
+- EC2 Storage tab confirmed `DeleteOnTermination=false` for database volume
+  `vol-0f23b93a2f1cd46b4` on `/dev/sdf`; root volume
+  `vol-0fb2e65033bb83fb5` retains `DeleteOnTermination=true`.
+- Operator rebooted the instance and reconnected through Session Manager.
+- Post-reboot `findmnt -o SOURCE,TARGET,FSTYPE,UUID /srv/syncvitals` returned
+  `/dev/nvme1n1 /srv/syncvitals ext4 f4a12602-0ab0-45ae-a73d-dc6fc8fb00e2`.
+- Post-reboot `stat -c '%u:%g %a %n' /srv/syncvitals/postgresql` returned
+  `999:999 700 /srv/syncvitals/postgresql`.
+- Status: EC2-013's retention and reboot verification checks are complete.
+  PostgreSQL is not initialized or running. The deployment mount guard remains
+  required before starting it; CloudWatch currently monitors only the root disk.
+
 ## Current Known Host-Software State
 
 | Component | State | Evidence |
