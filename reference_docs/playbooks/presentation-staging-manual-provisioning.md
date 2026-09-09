@@ -71,14 +71,14 @@ and containerd 2.3.4 were subsequently installed from Docker's official ARM64
 Ubuntu repository and passed service, native-architecture, and container-run
 checks. Nginx 1.24.0 is installed, enabled, and serving its default page
 locally on port 80. Certbot 2.9.0 and its Route 53 DNS plugin are installed,
-and the automatic renewal timer is enabled, active, and scheduled. No
-certificate has been requested and no DNS record has been changed. CloudWatch
+and the automatic renewal timer is enabled, active, and scheduled. The origin
+certificate was issued on 2026-09-09 and its renewal dry-run passed. CloudWatch
 Agent was installed and configured through the console on 2026-09-08; memory
 and root-disk metrics are arriving in `CWAgent` in Frankfurt. The role now has
 `SyncVitalsStagingMetricsWrite`, allowing `PutMetricData` only in that namespace
-and region. Logs and alarms remain pending. Section 6's gate is passed. The current
-public IPv4 address is auto-assigned and must not be treated as the stable
-origin address planned in Section 8.
+and region. Logs and alarms remain pending. Sections 6, 7, and 8 have passed:
+the database volume remounts after reboot, and the origin hostname resolves to
+the associated Elastic IP `3.73.229.16`. Nginx TLS configuration remains pending.
 
 Image-scan acceptance recorded on 2026-09-04:
 
@@ -283,6 +283,11 @@ monitoring separately; the current agent configuration collects only `/`.
 Gate: public DNS resolves the origin hostname to the Elastic IP. Port 443 is
 still restricted to CloudFront at the security group.
 
+Current result: passed on 2026-09-09. Elastic IP `3.73.229.16`
+(`eipalloc-093b36cd5cd7ac947`) is associated with the staging host through
+`eipassoc-0c713bbbe834242eb`. The origin A record was created, and the operator's
+DNS lookup returned the assigned IP. No security-group change was performed.
+
 ### 9. Configure origin TLS and Nginx
 
 - Obtain a Let's Encrypt certificate for `origin-staging.syncvitals.space`
@@ -296,6 +301,13 @@ still restricted to CloudFront at the security group.
 Gate: Nginx configuration validation passes, renewal dry-run passes, direct
 requests without the origin header are rejected, and the certificate chain is
 valid.
+
+Current result: partially passed on 2026-09-09. Certbot issued the origin
+certificate (reported expiry 2026-12-08), its DNS-01 renewal dry-run passed,
+and `/etc/letsencrypt/renewal-hooks/deploy/reload-nginx` successfully validated
+and reloaded Nginx during the dry-run. Nginx TLS, origin-header enforcement,
+and expiry/renewal alerting remain pending. See EC2-015 and EC2-016 in the host
+change log.
 
 ### 10. Deploy PostgreSQL, migrate, and start the API
 

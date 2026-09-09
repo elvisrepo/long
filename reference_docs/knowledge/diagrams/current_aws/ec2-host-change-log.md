@@ -615,6 +615,63 @@ unless the operator explicitly changes this convention.
   PostgreSQL is not initialized or running. The deployment mount guard remains
   required before starting it; CloudWatch currently monitors only the root disk.
 
+### EC2-015 — Stable origin address and certificate issuance verified
+
+- Date: 2026-09-09
+- Performed by: operator using the EC2/Route 53 consoles and root Session Manager shell.
+- Related AWS changes: Elastic IP `3.73.229.16`, allocation
+  `eipalloc-093b36cd5cd7ac947`, association `eipassoc-0c713bbbe834242eb`,
+  attached to `i-08fbc9f0c53265b63`, ENI `eni-0f5c7007ed1557258`, private
+  IP `172.31.14.35`. Route 53 A record `origin-staging.syncvitals.space`
+  created for this IP (operator instructed: simple routing, non-alias, TTL 300).
+  `dig +short origin-staging.syncvitals.space A` returned `3.73.229.16`.
+- Certificate command:
+
+  ```bash
+  certbot certonly --dns-route53 \
+    -d origin-staging.syncvitals.space \
+    --email elvisrepo23@gmail.com \
+    --agree-tos --non-interactive
+  ```
+
+- Certbot registered an account and successfully issued the certificate,
+  reporting expiry `2026-12-08`. Certificate and private key paths:
+  `/etc/letsencrypt/live/origin-staging.syncvitals.space/fullchain.pem` and
+  `/etc/letsencrypt/live/origin-staging.syncvitals.space/privkey.pem`.
+  Renewal configuration: `/etc/letsencrypt/renewal/origin-staging.syncvitals.space.conf`.
+  Certbot also maintains account/archive state and `/var/log/letsencrypt/letsencrypt.log`.
+- `certbot renew --dry-run --cert-name origin-staging.syncvitals.space`
+  registered a staging account and reported all simulated renewals succeeded.
+- Status: issuance and DNS-01 renewal verified. Existing Certbot timer was
+  previously verified enabled/active. Nginx TLS configuration, post-renewal
+  reload hook, and renewal/expiry alerting remain pending. Private key contents
+  are intentionally not recorded.
+
+### EC2-016 — Certbot deploy hook and renewal dry-run verified
+
+- Date: 2026-09-09
+- Performed by: operator in the root Session Manager shell.
+- Created `/etc/letsencrypt/renewal-hooks/deploy/reload-nginx` with mode `750`.
+  The hook validates Nginx and reloads it after a successful certificate
+  renewal:
+
+  ```sh
+  #!/bin/sh
+  set -eu
+  /usr/sbin/nginx -t >/dev/null 2>&1
+  /usr/bin/systemctl reload nginx
+  ```
+
+- A first edit accidentally expanded the shell replacement character and
+  produced `/usr/sbin/nginx -t 2>nginx -t1`; the error was diagnosed with
+  `sh -x` and corrected. Direct reload returned exit code `0`.
+- `certbot renew --dry-run --run-deploy-hooks` then reported all simulated
+  renewals succeeded without hook errors for
+  `origin-staging.syncvitals.space`.
+- Status: certificate issuance, DNS-01 renewal simulation, Nginx deploy hook,
+  and clean hook execution are verified. Nginx is still serving only its
+  default site; TLS listener and reverse proxy configuration remain pending.
+
 ## Current Known Host-Software State
 
 | Component | State | Evidence |
@@ -622,7 +679,7 @@ unless the operator explicitly changes this convention.
 | Docker official APT repository | Configured | Manual source-file inspection |
 | Docker Engine, CLI, containerd, Buildx, and Compose | Installed and runtime-verified | EC2-005 package transaction, systemd checks, version checks, architecture check, and container smoke test |
 | Nginx | Installed and verified | EC2-009 syntax, service, listener, and local HTTP checks |
-| Certbot and Route 53 DNS plugin | Installed and verified; no certificate requested yet | EC2-010 package transaction, plugin discovery, and timer checks |
+| Certbot and Route 53 DNS plugin | Origin certificate issued; renewal dry-run and Nginx deploy hook passed | EC2-010, EC2-015, and EC2-016 |
 | CloudWatch Agent | Installed and configured through console; memory and root-disk metric delivery verified | EC2-012 console status and graphs; installed version and boot enablement not yet inspected |
 | Exact EC2-002 APT transaction | Reconciled | `/var/log/apt/history.log` |
 | Nginx | Not installed at the initial host inspection | Earlier SSM inspection |
