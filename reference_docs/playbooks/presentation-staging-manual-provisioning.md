@@ -78,7 +78,9 @@ and root-disk metrics are arriving in `CWAgent` in Frankfurt. The role now has
 `SyncVitalsStagingMetricsWrite`, allowing `PutMetricData` only in that namespace
 and region. Logs and alarms remain pending. Sections 6, 7, and 8 have passed:
 the database volume remounts after reboot, and the origin hostname resolves to
-the associated Elastic IP `3.73.229.16`. Nginx TLS configuration remains pending.
+the associated Elastic IP `3.73.229.16`. Nginx now redirects HTTP to HTTPS and
+terminates TLS for the origin hostname; its `/` route remains an intentional
+404 placeholder until the API container is deployed.
 
 Image-scan acceptance recorded on 2026-09-04:
 
@@ -305,9 +307,10 @@ valid.
 Current result: partially passed on 2026-09-09. Certbot issued the origin
 certificate (reported expiry 2026-12-08), its DNS-01 renewal dry-run passed,
 and `/etc/letsencrypt/renewal-hooks/deploy/reload-nginx` successfully validated
-and reloaded Nginx during the dry-run. Nginx TLS, origin-header enforcement,
-and expiry/renewal alerting remain pending. See EC2-015 and EC2-016 in the host
-change log.
+and reloaded Nginx during the dry-run. Nginx TLS termination and the HTTP
+redirect were then validated locally with `curl --resolve`. Origin-header
+enforcement, API reverse proxying, and expiry/renewal alerting remain pending.
+See EC2-015 through EC2-017 in the host change log.
 
 ### 10. Deploy PostgreSQL, migrate, and start the API
 

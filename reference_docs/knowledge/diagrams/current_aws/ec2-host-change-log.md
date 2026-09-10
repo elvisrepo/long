@@ -672,6 +672,25 @@ unless the operator explicitly changes this convention.
   and clean hook execution are verified. Nginx is still serving only its
   default site; TLS listener and reverse proxy configuration remain pending.
 
+### EC2-017 — Nginx origin TLS listener configured
+
+- Date: 2026-09-09
+- Performed by: operator in the root Session Manager shell.
+- Configured `/etc/nginx/sites-available/origin-staging` and enabled it with a
+  symlink under `/etc/nginx/sites-enabled/`; the packaged `default` site was
+  disabled.
+- HTTP on port 80 for `origin-staging.syncvitals.space` returns a 301 redirect
+  to the equivalent HTTPS URL.
+- HTTPS on port 443 uses the Certbot-managed certificate and key for
+  `origin-staging.syncvitals.space`, with TLS 1.2 and 1.3 enabled. The current
+  `/` location intentionally returns 404 until the API container is deployed.
+- `nginx -t` passed and Nginx was reloaded successfully.
+- Local checks passed with `curl --resolve`: HTTPS returned `404 Not Found`
+  and HTTP returned `301 Moved Permanently` with the expected `Location`.
+- Status: TLS termination and HTTP redirect verified. CloudFront-only origin
+  header enforcement, API reverse proxying, and renewal/expiry alerting remain
+  pending. No private key contents are recorded.
+
 ## Current Known Host-Software State
 
 | Component | State | Evidence |
