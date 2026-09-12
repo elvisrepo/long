@@ -1,8 +1,16 @@
+x-logging: &bounded-logging
+  driver: local
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 x-backend-image: &backend-image
   image: "${BACKEND_IMAGE:?BACKEND_IMAGE is required}"
   pull_policy: always
+  logging: *bounded-logging
 
 x-backend-environment: &backend-environment
+  DJANGO_SETTINGS_MODULE: config.settings.prod
   SECRET_KEY: "${SECRET_KEY:?SECRET_KEY is required}"
   PII_ENCRYPTION_KEY: "${PII_ENCRYPTION_KEY:?PII_ENCRYPTION_KEY is required}"
   EMAIL_LOOKUP_KEY: "${EMAIL_LOOKUP_KEY:?EMAIL_LOOKUP_KEY is required}"
@@ -21,6 +29,7 @@ x-backend-environment: &backend-environment
 services:
   database:
     image: "postgres:16@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94"
+    logging: *bounded-logging
     restart: unless-stopped
     environment:
       POSTGRES_DB: longevity
@@ -30,6 +39,8 @@ services:
       - type: bind
         source: /srv/syncvitals/postgresql
         target: /var/lib/postgresql/data
+        bind:
+          create_host_path: false
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U longevity -d longevity"]
       interval: 5s
@@ -60,10 +71,14 @@ services:
         - python
         - -c
         - |
+          import os
           import urllib.request
+          host = next(h.strip().lstrip(".") for h in os.environ["ALLOWED_HOSTS"].split(",") if h.strip())
+          if host == "*":
+              host = "localhost"
           request = urllib.request.Request(
               "http://127.0.0.1:8000/api/v1/health/ready/",
-              headers={"X-Forwarded-Proto": "https"},
+              headers={"Host": host, "X-Forwarded-Proto": "https"},
           )
           urllib.request.urlopen(request, timeout=3).close()
       interval: 5s

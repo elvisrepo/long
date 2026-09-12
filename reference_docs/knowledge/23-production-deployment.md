@@ -83,15 +83,18 @@ and its target security group is the only source allowed to reach Fargate.
 - no persistent production `.env` file
 
 The staging secret ID is `longevity/staging/backend-runtime`. Canonical keys
-live in `backend/config/settings/production_environment.py` and are consumed by
-both Django settings and `scripts.staging_runtime`.
+live in dependency-free `backend/runtime_contract.py` and are consumed by both
+Django settings (through the compatibility re-export in
+`config.settings.production_environment`) and `scripts.staging_runtime`.
 
 ```bash
-cd backend
-uv run --no-sync python -m scripts.staging_runtime \
+cd /opt/syncvitals/deployment
+python3 -m scripts.staging_runtime \
   --secret-id longevity/staging/backend-runtime \
   --region eu-central-1 \
-  -- docker compose ...
+  -- python3 -m scripts.production_deployment \
+  --compose-file docker-compose.staging.yml \
+  --project-name syncvitals-staging
 ```
 
 The loader disables workstation credential sources, retrieves `AWSCURRENT`
@@ -101,11 +104,22 @@ or validation failure stops before Docker is invoked. A human starts a Systems
 Manager session; the machine instance role, not the human profile, reads the
 runtime secret.
 
+Before retrieval, the host CLI requires a digest-qualified `BACKEND_IMAGE` from
+the staging ECR repository and verifies the expected writable EBS filesystem.
+After retrieval it also validates the complete staging PostgreSQL destination,
+including user, host, port, database, engine, and absence of URL overrides.
+The shared parser remains usable by the disposable smoke harness with its own
+database credentials; the staging destination check belongs to the host loader.
+Section 10 of the manual provisioning playbook defines the seven-file bundle,
+standard-Python host prerequisites, and mandatory Docker systemd mount guard.
+
 `scripts.production_deployment` freezes that inherited snapshot, runs the
 migration container, and starts/waits for the API only after migration success.
 `scripts.smoke_production_deployment` verifies the same contract locally and in
 CI. Privileged host or Docker operators can still inspect process environments,
 so restrict those privileges and never print unredacted Compose configuration.
+Docker may persist container environments in metadata; avoiding a persistent
+`.env` does not mean secrets never reach the host's encrypted disk.
 
 ### 8.4 Frontend and Request Routing
 
@@ -172,8 +186,10 @@ claim otherwise.
 python manage.py migrate --no-input
 ```
 
-The migration and API containers receive the same frozen configuration snapshot.
-If migration fails, deployment stops and the old API remains running. After a
+The migration and API containers receive the same frozen configuration snapshot
+and explicitly select `config.settings.prod`. If migration fails, deployment
+stops without replacing the old API container; already-applied schema changes
+are not automatically rolled back. After a
 successful migration, replacement of the single API container may create a
 brief maintenance interruption. Blue/green and zero-downtime promotion are not
 requirements, although automated continuous deployment is still possible.
@@ -182,7 +198,24 @@ Keep migrations backward-compatible where practical and retain a documented
 manual rollback procedure. In recommended production, the command is unchanged
 but runs as a one-off Fargate task against RDS before service promotion.
 
+The staging bind mount disables automatic source-directory creation. The host
+loader checks the filesystem UUID, mount point, type, writable state, and
+non-symlinked data path. Docker's systemd override performs the same check before
+daemon startup and binds its lifecycle to the mount, protecting automatic
+container restarts. This override is dedicated to the single staging host and
+requires Docker live restore to remain disabled. It is prepared in the repository
+but still requires installation and reboot verification on EC2.
+
+Changing the bootstrap password in Secrets Manager does not change the password
+inside an initialized PostgreSQL volume. Coordinate database password changes
+with the runtime secret; never delete the volume to resolve authentication errors.
+
 ### 8.6 Health, Security, Monitoring, and Backups
+
+The container readiness probe connects to loopback while sending a hostname
+selected from `ALLOWED_HOSTS`, so Django need not allow loopback as a public Host.
+Staging containers use the `local` log driver with `max-size=10m` and `max-file=3`
+to bound each container's local log storage independently of daemon defaults.
 
 - `GET /api/v1/health/live/` proves the public process/edge path without a
   database dependency and is used by external uptime monitoring.

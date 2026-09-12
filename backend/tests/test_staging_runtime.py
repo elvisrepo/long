@@ -58,6 +58,19 @@ EXPECTED_RUNTIME_KEYS = {
 }
 
 
+@pytest.fixture(autouse=True)
+def valid_backend_image(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Exercise secret handling after storage and image preflight succeed."""
+    monkeypatch.setattr(
+        "scripts.staging_storage.verify_database_storage", lambda: None,
+    )
+    monkeypatch.setenv(
+        "BACKEND_IMAGE",
+        "173291122778.dkr.ecr.eu-central-1.amazonaws.com/"
+        "syncvitals/staging/backend@sha256:" + "a" * 64,
+    )
+
+
 def complete_secret_payload() -> dict[str, str]:
     """Return one internally consistent inert staging secret."""
 

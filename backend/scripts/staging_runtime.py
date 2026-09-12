@@ -8,21 +8,27 @@ an `.env`, then launches one deployment command with the values in memory.
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 from collections.abc import Mapping, Sequence
 from urllib.parse import unquote, urlsplit
 
-from config.settings.production_environment import REQUIRED_ENVIRONMENT_VARIABLES
+from runtime_contract import REQUIRED_ENVIRONMENT_VARIABLES
+from scripts import staging_storage
 
 
 # PostgreSQL's official image needs its bootstrap password separately from the
 # DATABASE_URL consumed by Django. Compose passes this additional value only to
 # the database service, while the API and migration retain the canonical Django
-# inventory from production_environment.py.
+# inventory from runtime_contract.py.
 REQUIRED_RUNTIME_KEYS = (
     *REQUIRED_ENVIRONMENT_VARIABLES,
     "POSTGRES_PASSWORD",
+)
+
+STAGING_BACKEND_REPOSITORY = (
+    "173291122778.dkr.ecr.eu-central-1.amazonaws.com/syncvitals/staging/backend"
 )
 
 
@@ -159,7 +165,42 @@ def load_runtime_environment(secret_id: str, *, region: str) -> dict[str, str]:
     # Fetch once. The returned dictionary is the snapshot that the deployment
     # command must reuse for migration and API startup.
     secret_json = retrieve_secret_string(secret_id, region=region)
-    return parse_runtime_secret(secret_json)
+    runtime_environment = parse_runtime_secret(secret_json)
+    validate_staging_database(runtime_environment["DATABASE_URL"])
+    return runtime_environment
+
+
+def validate_staging_database(database_url: str) -> None:
+    """Reject another database or URL options that could change the destination."""
+
+    try:
+        target = urlsplit(database_url)
+        valid = (
+            target.scheme in {"postgres", "postgresql"}
+            and target.hostname == "database"
+            and target.port in {None, 5432}
+            and unquote(target.username or "") == "longevity"
+            and unquote(target.path) == "/longevity"
+            and not target.query
+            and not target.fragment
+        )
+    except ValueError:
+        valid = False
+    if not valid:
+        raise StagingRuntimeConfigurationError(
+            "DATABASE_URL must use the staging PostgreSQL destination"
+        )
+
+
+def validate_backend_image(image: str) -> None:
+    """Require an immutable digest from the intended staging ECR repository."""
+
+    if not re.fullmatch(
+        re.escape(STAGING_BACKEND_REPOSITORY) + r"@sha256:[0-9a-f]{64}", image
+    ):
+        raise StagingRuntimeConfigurationError(
+            "BACKEND_IMAGE must be a digest-qualified staging ECR image"
+        )
 
 
 def run_deployment_command(
@@ -194,11 +235,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("a deployment command is required after --")
 
     try:
+        validate_backend_image(os.environ.get("BACKEND_IMAGE", ""))
+        staging_storage.verify_database_storage()
         runtime_environment = load_runtime_environment(
             arguments.secret_id,
             region=arguments.region,
         )
-    except StagingRuntimeConfigurationError as error:
+    except (StagingRuntimeConfigurationError, staging_storage.StagingStorageError) as error:
         # Expected configuration failures are already redacted and should not
         # produce a traceback that might expose local process state.
         print(f"error: {error}", file=sys.stderr)

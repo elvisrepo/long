@@ -39,6 +39,7 @@ RUN addgroup --system django && adduser --system --ingroup django django
 
 COPY --from=production-dependencies /opt/venv /opt/venv
 COPY --chown=django:django manage.py ./
+COPY --chown=django:django runtime_contract.py ./
 COPY --chown=django:django apps ./apps
 COPY --chown=django:django common ./common
 COPY --chown=django:django config ./config

@@ -257,8 +257,9 @@ contract: `SECRET_KEY`, `PII_ENCRYPTION_KEY`, `EMAIL_LOOKUP_KEY`,
 `JWT_SIGNING_KEY`, `DATABASE_URL`, `ALLOWED_HOSTS`,
 `CSRF_TRUSTED_ORIGINS`, both Stripe secrets, all three Stripe browser return
 URLs, `LOG_LEVEL`, and `DJANGO_LOG_LEVEL`. The canonical key tuple lives in
-`backend/config/settings/production_environment.py`; both Django production
-validation and the host-side loader import that same tuple.
+`backend/runtime_contract.py`; Django's
+`config.settings.production_environment` re-exports it for compatibility.
+The host loader imports the standalone module without initializing Celery.
 
 `backend/scripts/staging_runtime.py` is the `.env`-free host boundary. It uses
 the AWS CLI without a shell, disables workstation/static/web-identity/container
@@ -267,17 +268,25 @@ the EC2 instance profile, validates and allowlists the JSON, and passes the
 result to exactly one child deployment command through its process environment:
 
 ```bash
-uv run --no-sync python -m scripts.staging_runtime \
+python3 -m scripts.staging_runtime \
   --secret-id longevity/staging/backend-runtime \
   --region eu-central-1 \
-  -- docker compose ...
+  -- python3 -m scripts.production_deployment \
+  --compose-file docker-compose.staging.yml \
+  --project-name syncvitals-staging
 ```
 
-Run this from `backend/`. The future Step 8 Compose contract must explicitly
-map the canonical variable names into the migration and API containers. Do not
+Run this on EC2 from `/opt/syncvitals/deployment` after installing the allowlisted
+bundle and Docker boot guard from Section 10 of the manual provisioning
+playbook. Host prerequisites are standard Python 3.12, AWS CLI, util-linux, and
+Docker/Compose; application dependencies and `uv` are not needed there.
+`BACKEND_IMAGE` must name a digest in the staging ECR repository. The loader
+rejects an incorrect/missing EBS mount and incorrect database destination.
+Compose explicitly selects production settings for migration and API. Do not
 run or retain unredacted `docker compose config` output. Process-environment
 injection avoids a persistent `.env`; it does not hide values from privileged
-host users or operators with Docker-daemon access.
+host users or operators with Docker-daemon access. Docker can persist container
+environment values in its metadata, even though the loader creates no `.env`.
 
 Rotation is not uniform: changing `PII_ENCRYPTION_KEY` requires a data
 re-encryption plan; changing `EMAIL_LOOKUP_KEY` requires rebuilding lookup

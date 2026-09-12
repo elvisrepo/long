@@ -157,7 +157,7 @@ mutable repository name or a convenience tag.
 ### 3. Create the runtime secret
 
 Create `longevity/staging/backend-runtime` in `eu-central-1` as JSON. Its keys
-are defined by `backend/config/settings/production_environment.py` plus the
+are defined by `backend/runtime_contract.py` plus the
 database-container bootstrap key enforced by `backend/scripts/staging_runtime.py`.
 
 Important database invariant:
@@ -165,7 +165,8 @@ Important database invariant:
 - `POSTGRES_PASSWORD` is the raw database password used only by PostgreSQL;
 - `DATABASE_URL` contains the URL-encoded form of that same password and uses
   host `database`, port `5432`, database `longevity`, and user `longevity`;
-- the loader rejects a mismatch before Docker is invoked.
+- the host loader rejects a password or destination mismatch before Docker is
+  invoked, including another engine, user, host, port, database, or URL options.
 
 Do not paste secret values into this playbook, shell history, tickets, commits,
 or screenshots. Use `config.settings.prod` values for the public staging host,
@@ -272,8 +273,10 @@ Current result: passed on 2026-09-09. Encrypted 10 GiB gp3 volume
 `DeleteOnTermination=false`. After reboot, ext4 UUID
 `f4a12602-0ab0-45ae-a73d-dc6fc8fb00e2` remounted at `/srv/syncvitals`;
 `/srv/syncvitals/postgresql` retained ownership `999:999` and mode `700`.
-No database has been initialized. Before deploying PostgreSQL, enforce the
-mount prerequisite because the fstab entry uses `nofail`. Add database-disk
+No database has been initialized. The repository now includes the mount guard
+and Docker boot override described in Section 10, but they have not yet been
+installed or reboot-tested on EC2. They are required because fstab uses `nofail`.
+Add database-disk
 monitoring separately; the current agent configuration collects only `/`.
 
 ### 8. Assign the stable origin address and DNS name
@@ -317,17 +320,131 @@ See EC2-015 through EC2-017 in the host change log.
 Use `backend/docker-compose.staging.yml` with a digest-qualified
 `BACKEND_IMAGE`. Invoke deployment only through the validated runtime loader.
 
+Repository fixes implemented on 2026-09-10; **not yet installed on EC2**:
+
+- The loader uses only Python's standard library, checks the backend repository
+  and SHA-256 image reference, and verifies the expected writable EBS filesystem
+  before retrieving a secret. The database URL must target PostgreSQL at
+  `database:5432`, user/database `longevity`, without query/fragment overrides.
+- Both migration and API explicitly use `DJANGO_SETTINGS_MODULE=config.settings.prod`.
+  The loopback readiness probe sends a hostname from `ALLOWED_HOSTS`.
+- PostgreSQL cannot automatically create a missing bind source. All staging
+  containers use Docker's `local` log driver with three 10 MiB log files.
+- `scripts/staging_storage.py` checks the ext4 UUID
+  `f4a12602-0ab0-45ae-a73d-dc6fc8fb00e2`, mount `/srv/syncvitals`, write access,
+  and the prepared, non-symlinked PostgreSQL directory. Restoring to a newly
+  formatted replacement disk requires deliberately updating this UUID.
+
+#### Prepare the host bundle locally
+
+From `backend/`, use a new output filename for each bundle:
+
+```bash
+uv run --no-sync python -m scripts.build_staging_bundle \
+  --output /tmp/syncvitals-staging-deployment.tar.gz
+```
+
+The builder prints the archive's SHA-256 and refuses to overwrite an existing
+file. Its explicit allowlist contains exactly:
+
+```text
+runtime_contract.py
+docker-compose.staging.yml
+scripts/__init__.py
+scripts/staging_runtime.py
+scripts/production_deployment.py
+scripts/staging_storage.py
+deploy/docker.service.d/10-staging-storage.conf
+```
+
+No application tree, `.env`, AWS credentials, or Python dependencies are included.
+Transfer the bundle using the agreed operator-controlled path, compare its
+SHA-256, and extract into the root-owned `/opt/syncvitals/deployment` directory.
+For the first installation, this must be a new empty directory; review existing
+files before updating an installation. Preserve the archive's relative paths.
+
+Host prerequisites: Ubuntu Python 3.12 (`python3`), AWS CLI, `findmnt` from
+util-linux, Docker Engine/Compose, the instance role, ECR pull authentication,
+and the verified EBS mount. Django, Celery, and `uv` are not needed on the host.
+Run the Python commands from the bundle root so its modules can be imported.
+
+#### Install the boot guard before any database container
+
+The override makes **all Docker containers on this dedicated staging host**
+depend on the database mount. `RequiresMountsFor` and `After` order Docker after
+mount activation; `BindsTo` stops Docker if systemd marks the mount inactive.
+`ExecStartPre` verifies the UUID before Docker can restore existing containers.
+Keep Docker live restore disabled for this dependency model. This uses
+[systemd's mount and lifecycle dependencies](https://raw.githubusercontent.com/systemd/systemd/v255/man/systemd.unit.xml).
+
+In the root Session Manager shell, after installing the bundle:
+
+```bash
+cd /opt/syncvitals/deployment
+python3 scripts/staging_storage.py
+install -d -m 0755 /etc/systemd/system/docker.service.d
+install -m 0644 deploy/docker.service.d/10-staging-storage.conf \
+  /etc/systemd/system/docker.service.d/
+systemctl daemon-reload
+systemd-analyze verify docker.service
+systemctl restart docker
+systemctl is-active docker
+docker info --format '{{.LiveRestoreEnabled}}'
+systemctl show docker -p RequiresMountsFor -p BindsTo -p ExecStartPre
+```
+
+Stop on any failed check. Live restore must report `false`. Restarting Docker
+is an initial-setup step here; once containers exist it requires a maintenance
+window. Verify the loaded dependencies, reboot, then recheck the storage guard
+and Docker status before the first database deployment. Do not test a missing
+disk by unmounting or detaching a live database volume.
+
+If the guard fails, restore the expected disk/mount and fix the reported cause;
+do not bypass the guard or initialize PostgreSQL on the root disk. Once the
+storage check passes, clear any service start limit with
+`systemctl reset-failed docker` and start Docker again.
+
+#### Deploy with the verified bundle
+
+Set `BACKEND_IMAGE` to the reviewed, digest-qualified ECR image and establish
+ECR pull authentication using the instance role. A newly built application
+image must include `runtime_contract.py`; the Dockerfile now copies it. Local
+smoke-image verification does not publish or approve an ARM64 image in ECR.
+
+```bash
+cd /opt/syncvitals/deployment
+python3 -m scripts.staging_runtime \
+  --secret-id longevity/staging/backend-runtime \
+  --region eu-central-1 \
+  -- python3 -m scripts.production_deployment \
+  --compose-file docker-compose.staging.yml \
+  --project-name syncvitals-staging
+```
+
+`scripts.production_deployment` is the internal orchestration helper; on EC2,
+always invoke it through `scripts.staging_runtime` so preflight and secret
+validation cannot be accidentally skipped. It is also used directly by the
+local disposable smoke harness, which does not require an EBS mount.
+
 The flow is fixed:
 
-1. fetch and validate one secret snapshot;
+1. validate the image reference and EBS mount, then fetch/validate one secret snapshot;
 2. make PostgreSQL healthy on persistent EBS;
 3. run `python manage.py migrate --no-input` in the one-off migration container;
-4. stop if migration fails, leaving the prior API running;
+4. stop if migration fails, without replacing the prior API container;
 5. start/replace the long-running API container;
 6. wait for database-backed readiness through the loopback-published port.
 
 A successful API replacement may cause a short maintenance interruption. This
 environment does not implement blue/green or zero-downtime replacement.
+Migration failure does not undo already-applied database changes; backward
+compatibility still matters for the prior API. Changing `POSTGRES_PASSWORD` in
+Secrets Manager does not rotate the password inside an initialized PostgreSQL
+volume; that requires a coordinated database operation.
+
+No persistent `.env` is generated. Container environment values remain visible
+to privileged Docker/host operators and may be persisted in Docker metadata on
+the encrypted root disk; this is not a guarantee of memory-only secret storage.
 
 Gate: both health routes pass locally on the host, migration exited zero, only
 database and API remain long-running, and PostgreSQL has no host/public port.

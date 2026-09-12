@@ -233,8 +233,9 @@ attempt. Focused tests protect all three boundaries.
 
 ### Blocker J — staging secret/runtime contract — resolved 2026-08-25
 
-The canonical 14-key production environment inventory now lives in
-`config.settings.production_environment` and is shared by Django production
+The canonical 14-key production environment inventory now lives in dependency-free
+`runtime_contract.py` (re-exported by `config.settings.production_environment`)
+and is shared by Django production
 validation and the host-side staging loader, preventing the two contracts from
 drifting.
 
@@ -375,13 +376,49 @@ Do not provision EC2 or the self-hosted database outside the reviewed runbook.
 Otherwise cloud debugging will mix application runtime defects with
 infrastructure-learning defects.
 
-## 5. Current gate
+## 5. Staging deployment review — 2026-09-10
+
+The pre-deployment review found gaps beyond the earlier mocked orchestration
+tests. Repository fixes now cover:
+
+- **EBS prerequisite:** the host loader verifies the prepared data directory is
+  on the expected writable ext4 UUID. Compose refuses to create a missing bind
+  source. A Docker systemd override requires the mount and runs the same guard
+  before daemon startup, including automatic container restoration after reboot.
+- **Host bundle:** a seven-file allowlisted archive contains the complete
+  standard-library-only host runtime. The key inventory no longer imports the
+  application/Celery tree. Python 3.12, AWS CLI, util-linux, and Docker/Compose
+  are explicit host prerequisites; no host Django/Celery installation is needed.
+- **Migration settings:** both staging and disposable smoke Compose files select
+  `config.settings.prod` explicitly for migration and API containers.
+- **Destination validation:** the real host loader checks the PostgreSQL engine,
+  host, port, user, database, password consistency, and absence of URL overrides.
+- **Image identity:** host deployment requires a SHA-256 reference from the one
+  staging ECR repository. Choosing an approved release digest remains an operator
+  responsibility; syntax/repository validation does not substitute for image review.
+- **Logs and probes:** staging logs rotate with bounded retention; readiness
+  connects to loopback with an allowed Host and trusted HTTPS metadata.
+
+These are local repository changes, not EC2 installation evidence. The Docker
+override still needs installation, loaded-unit inspection, and a reboot check.
+It intentionally gates all Docker containers on this dedicated host and assumes
+Docker live restore is disabled. See Section 10 of the manual provisioning
+playbook for bundle generation, host installation, and the supported entry point.
+
+The workflow does not promise transactional schema rollback, uninterrupted API
+availability, automatic database-password rotation, or memory-only Docker secret
+storage. Migration failure blocks API replacement but may leave schema changes;
+Docker metadata can retain container environments on the encrypted root disk.
+
+## 6. Current gate
 
 Steps 1–11 are complete. Step 12 is active and follows
 `reference_docs/playbooks/presentation-staging-manual-provisioning.md` one gate
-at a time. The next manual action is creating the private ECR backend repository
-in `eu-central-1`; do not add CloudFront's `/api/*` origin until Nginx and Django
-are healthy. The no-tunnel Android API smoke and Play Internal Testing upload
+at a time. ECR, the runtime secret, EC2/EBS, and the Nginx origin TLS listener
+have been provisioned. Next, install and verify the reviewed deployment bundle
+and boot guard before initializing PostgreSQL and deploying Django. Do not add
+CloudFront's `/api/*` origin until Nginx and Django are healthy.
+The no-tunnel Android API smoke and Play Internal Testing upload
 key remain later deployment gates. Keep the
 PostgreSQL-backed backend suite, production-image smoke, migration/API deployment
 smoke, health contract, removed-route, runtime-artifact, E2E Stripe-isolation,

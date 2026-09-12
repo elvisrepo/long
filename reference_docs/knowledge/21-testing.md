@@ -35,7 +35,8 @@ Current backend production-runtime checkpoint:
 
 Current staging-runtime configuration checkpoint:
 - `tests/test_staging_runtime.py` protects the canonical 14-key production
-  inventory shared by Django and the host-side deployment loader
+  inventory in dependency-free `runtime_contract.py`, shared by Django and the
+  host-side deployment loader, plus PostgreSQL's bootstrap password
 - focused tests reject malformed or non-object JSON, missing keys, blank
   values, and non-string values, while unexpected keys are omitted
 - AWS CLI calls are stubbed; tests prove one `AWSCURRENT` retrieval, EC2
@@ -51,6 +52,33 @@ Current staging-runtime configuration checkpoint:
 - no focused loader test contacts AWS or starts Docker; the production-like
   smoke supplies inert local values through the same validation/injection
   boundary
+
+Staging review regression coverage added 2026-09-10:
+- `tests/test_staging_safety.py` resolves the actual staging/smoke Compose models
+  with dummy values through `docker compose config` (no daemon needed), verifies
+  production settings for both migration and API, executes the readiness probe
+  with a stubbed HTTP transport and real Django Host validation, checks bounded
+  log settings, and rejects missing/unpinned/wrong-repository images before any
+  secret retrieval. The real host loader rejects incorrect database destinations.
+- `tests/test_staging_storage.py` tests absent/wrong/read-only filesystems,
+  redirected/missing directories, failed/invalid `findmnt` responses, and a valid
+  expected volume. It verifies the Docker mount dependencies and runs
+  `systemd-analyze verify` against temporary units when systemd tools are present.
+  The verifier needs ordinary local socket permissions; run outside a restrictive
+  sandbox when required. It never installs a unit or mounts a disk.
+- `tests/test_staging_bundle.py` extracts the allowlisted host archive and runs
+  its CLIs with Python `-S`, without the application tree or site packages, and
+  checks every bundled Python file against Python 3.12 syntax for the EC2 host.
+- The production image smoke imports the new shared contract from the actual
+  rebuilt image. The migration/API smoke still owns a disposable database and
+  cleans up its containers/network after checking both health endpoints.
+- Local regression evidence is not proof of the EC2 boot sequence. Installing
+  the Docker override, rebooting, and verifying the mounted UUID on that host
+  remain explicit manual provisioning gates.
+- Verification on 2026-09-10: all `390` backend tests passed against a disposable
+  local PostgreSQL database; Ruff and mypy (`96` source files) passed. The rebuilt
+  production image smoke and actual migration/API deployment smoke passed, as
+  did the systemd unit verifier. No EC2 installation or AWS deployment was made.
 
 Current production-like deployment checkpoint, completed 2026-08-26:
 - `tests/test_production_deployment.py` proves migration runs before API
