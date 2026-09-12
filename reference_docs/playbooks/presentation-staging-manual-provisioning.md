@@ -31,7 +31,7 @@ This is a low-cost presentation environment, not a highly available production
 system. Losing the one EC2 host temporarily removes Nginx and Django; losing or
 corrupting its database volume risks data until a tested backup is restored.
 
-## Current Checkpoint — 2026-09-06
+## Current Checkpoint — 2026-09-12
 
 Already created and verified:
 
@@ -47,8 +47,8 @@ Already created and verified:
 - private ECR repository `syncvitals/staging/backend` in `eu-central-1` with
   immutable tags, AES-256 encryption, and basic scan on push;
 - accepted Trixie-based ARM64 backend image from Git commit
-  `912f84c17dd2b8535acec65dd60751d17d245dd5`, pinned by index digest
-  `sha256:f830d2790257ce835ace60268d1408d71f3b50c4b3eb205c5f8360dd3d9d9122`;
+  `cf1397bd91a169c0ac20e1c3e6acd73cdb60f996`, pinned by index digest
+  `sha256:24edf7e3d5911c72a2565ff5b30b05d4eaeaf0b0eee7c0dac212731179deeb83`;
 - Secrets Manager secret `longevity/staging/backend-runtime` in `eu-central-1`
   with one `AWSCURRENT` version whose 15 required values passed the loader's
   in-memory validation; automatic rotation is not configured;
@@ -67,37 +67,44 @@ Already created and verified:
   verified Session Manager access as `ssm-user` with passwordless `sudo`.
 
 The EC2 launch is verified. Docker Engine 29.8.0, Compose 5.5.1, Buildx 0.37.0,
-and containerd 2.3.4 were subsequently installed from Docker's official ARM64
-Ubuntu repository and passed service, native-architecture, and container-run
-checks. Nginx 1.24.0 is installed, enabled, and serving its default page
-locally on port 80. Certbot 2.9.0 and its Route 53 DNS plugin are installed,
-and the automatic renewal timer is enabled, active, and scheduled. The origin
-certificate was issued on 2026-09-09 and its renewal dry-run passed. CloudWatch
-Agent was installed and configured through the console on 2026-09-08; memory
-and root-disk metrics are arriving in `CWAgent` in Frankfurt. The role now has
-`SyncVitalsStagingMetricsWrite`, allowing `PutMetricData` only in that namespace
-and region. Logs and alarms remain pending. Sections 6, 7, and 8 have passed:
-the database volume remounts after reboot, and the origin hostname resolves to
-the associated Elastic IP `3.73.229.16`. Nginx now redirects HTTP to HTTPS and
-terminates TLS for the origin hostname; its `/` route remains an intentional
-404 placeholder until the API container is deployed.
+and containerd 2.3.4 were installed from Docker's official ARM64 Ubuntu
+repository. AWS CLI 2.36.44 is installed from AWS's version-pinned ARM64 bundle
+after PGP signature verification. Certbot 2.9.0 and its Route 53 DNS plugin are
+installed; the certificate, automatic renewal timer, deploy hook, and renewal
+dry-run are verified. CloudWatch Agent publishes memory and root-disk metrics
+to `CWAgent` in Frankfurt; logs and alarms remain pending.
 
-Image-scan acceptance recorded on 2026-09-04:
+The encrypted database volume remounts at `/srv/syncvitals` after reboot. The
+root-owned deployment bundle and Docker systemd storage guard are installed,
+loaded, and reboot-verified. PostgreSQL 16 and the digest-pinned Django image
+are running as healthy containers. PostgreSQL writes through the bind mount
+`/srv/syncvitals/postgresql`; it has no host port. Gunicorn is published only on
+`127.0.0.1:18000`. All migrations completed successfully.
 
-- ECR basic scanning completed with 6 critical, 10 high, 3 medium, and 1 low
-  OS-package findings;
-- the critical findings concern Perl code paths the Python/Gunicorn application
-  does not invoke, one 32-bit-only Perl condition on a 64-bit ARM image, and a
-  glibc `scanf` pattern with no known application request path;
+Nginx terminates origin TLS, rejects requests without the root-only secret
+origin header, and proxies accepted requests to Gunicorn. CloudFront now has an
+HTTPS custom origin plus an uncached `/api/*` behavior that forwards all needed
+methods, headers, cookies, query strings, and request bodies. Public readiness,
+API-404 isolation, SPA deep-link routing, and repeated cache misses are verified.
+
+Image-scan acceptance recorded on 2026-09-12:
+
+- ECR basic scanning completed with 0 critical, 1 high, 0 medium, and 0 low
+  findings for the accepted image;
+- the remaining high finding is CVE-2026-85091 in Debian's `zlib1g`; no fixed
+  Trixie package was available at review time, and the affected non-blocking
+  `gzwrite`/`gzprintf` continuation path is not intentionally used by the
+  Django/Gunicorn service;
 - this residual risk is accepted only for presentation staging containing
-  demo/test data, with a non-root application process and no user-controlled
-  Perl, archive-extraction, or Perl-regex execution path;
+  demo/test data and a non-root application process;
 - this acceptance does not apply to production or environments containing real
   health or personal data, and the image must be rescanned when its base image
-  is refreshed.
+  is refreshed. The operator deleted the prior ECR images, so this checkpoint
+  has no image rollback candidate.
 
-CloudFront currently has only the private S3 origin. The `/api/*` origin and
-behavior must not be added until the EC2 origin is ready and healthy.
+CloudFront's S3 frontend and `/api/*` Django origin are both deployed. Section
+12 remains active for browser, Android, and Stripe end-to-end proof. Section 13
+backup/restore work has not started.
 
 ## Cost Gate
 
@@ -386,7 +393,9 @@ install -d -m 0755 /etc/systemd/system/docker.service.d
 install -m 0644 deploy/docker.service.d/10-staging-storage.conf \
   /etc/systemd/system/docker.service.d/
 systemctl daemon-reload
-systemd-analyze verify docker.service
+mount_unit_path="$(systemctl show -p FragmentPath --value srv-syncvitals.mount)"
+test -n "$mount_unit_path"
+systemd-analyze verify "$mount_unit_path" docker.service
 systemctl restart docker
 systemctl is-active docker
 docker info --format '{{.LiveRestoreEnabled}}'
@@ -460,8 +469,9 @@ database and API remain long-running, and PostgreSQL has no host/public port.
 - Keep the SPA rewrite away from `/api/*` and asset requests.
 
 Gate: API failures remain API responses, deep links still return the React
-application shell, missing hashed assets remain `404`, and direct EC2-origin
-requests without CloudFront's secret header are rejected.
+application shell, missing hashed assets never return that shell (private
+S3/OAC can return `403` for a missing object), and direct EC2-origin requests
+without CloudFront's secret header are rejected.
 
 ### 12. Prove the public system
 

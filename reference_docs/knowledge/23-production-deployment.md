@@ -133,7 +133,8 @@ URLs. Its behaviors are:
 | `/api/v1/metrics/entries/` | Django | Uncached API behavior forwards method, body, auth, cookies, CSRF data, and query string to Nginx |
 
 SPA fallback applies only to extensionless static routes. A missing hashed asset
-must remain a static `404`, and `/api/*` failures must remain API responses.
+must remain a non-HTML static-origin error (private S3/OAC commonly returns
+`403` rather than `404`), and `/api/*` failures must remain API responses.
 
 ```text
 GET /metrics/resting_hr

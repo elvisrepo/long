@@ -691,6 +691,91 @@ unless the operator explicitly changes this convention.
   header enforcement, API reverse proxying, and renewal/expiry alerting remain
   pending. No private key contents are recorded.
 
+### EC2-018 — Deployment bundle and Docker storage guard installed
+
+- Date: 2026-09-12
+- Performed by: operator through AWS CLI and Systems Manager Run Command.
+- Installed the seven-file deployment bundle at the root-owned
+  `/opt/syncvitals/deployment`; its transferred archive SHA-256 was
+  `0b68bc239eabb8be3b079782752d7fb72ba5dc655cabbc7f2cfca4618297fd7f`.
+- Installed `/etc/systemd/system/docker.service.d/10-staging-storage.conf`.
+  Docker now requires and binds to `srv-syncvitals.mount`, and runs the bundle's
+  EBS UUID/writeability guard before daemon startup. Live restore is disabled.
+- A standalone `systemd-analyze verify docker.service` initially failed because
+  the generated mount unit was not in that verifier invocation. Verification
+  passed when `/run/systemd/generator/srv-syncvitals.mount` was supplied with
+  `docker.service`; the loaded mount unit itself was already healthy.
+- Docker restart passed. A later EC2 reboot changed the boot ID, remounted UUID
+  `f4a12602-0ab0-45ae-a73d-dc6fc8fb00e2`, and reran `ExecStartPre` successfully
+  before Docker became active.
+- Status: bundle, boot guard, Docker restart, and reboot persistence verified.
+
+### EC2-019 — AWS CLI v2 host prerequisite installed
+
+- Date: 2026-09-12
+- Performed by: operator through AWS CLI and Systems Manager Run Command.
+- Runtime preflight initially stopped with `aws: not found`. Ubuntu Noble had no
+  `awscli` APT candidate. AWS's official install script then stopped safely
+  because `unzip` was missing.
+- Installed pinned Ubuntu package `unzip=6.0-28ubuntu4.1`.
+- Installed AWS CLI `2.36.44` from AWS's version-pinned Linux ARM64 bundle under
+  `/usr/local/aws-cli`; the installer's SHA-256 was checked before execution and
+  the downloaded bundle's AWS PGP signature verified.
+- `/usr/local/bin/aws --version` reported native `aarch64` on Ubuntu 24 with
+  kernel `7.0.0-1012-aws`.
+- The no-container runtime preflight then passed: image identity, EBS storage,
+  instance-role secret retrieval, and runtime contract were all accepted.
+- A later read-only APT simulation reported eight pending upgrades:
+  `base-files`, `containerd.io`, `docker-buildx-plugin`, `motd-news-config`,
+  `python-apt-common`, `python3-apt`, `python3-distupgrade`, and
+  `ubuntu-release-upgrader-core`. They were not applied during the live
+  deployment; container runtime updates require a maintenance window.
+
+### EC2-020 — PostgreSQL and Django containers deployed
+
+- Date: 2026-09-12
+- Performed by: operator through AWS CLI and Systems Manager Run Command.
+- Pulled the accepted ECR index digest
+  `sha256:24edf7e3d5911c72a2565ff5b30b05d4eaeaf0b0eee7c0dac212731179deeb83`;
+  Docker verified it as `linux/arm64`. The temporary ECR login was removed after
+  deployment.
+- `scripts.staging_runtime` retrieved and validated one `AWSCURRENT` secret
+  snapshot, then `scripts.production_deployment` started PostgreSQL, applied all
+  Django migrations, and started Gunicorn/Django.
+- `syncvitals-staging-database-1` and `syncvitals-staging-api-1` are healthy.
+  PostgreSQL has no host port and bind-mounts `/srv/syncvitals/postgresql` to
+  `/var/lib/postgresql/data`; the API is bound only to `127.0.0.1:18000`.
+- Local database-backed readiness passed. Django reported the existing
+  `auth.W004` warning because `User.email` is the `USERNAME_FIELD` but is not
+  database-unique; this did not block deployment and remains application debt.
+
+### EC2-021 — Nginx API proxy and CloudFront origin guard enabled
+
+- Date: 2026-09-12
+- Performed by: operator through AWS CLI and Systems Manager Run Command.
+- Replaced the HTTPS 404 placeholder in
+  `/etc/nginx/sites-available/origin-staging` with a reverse proxy to
+  `http://127.0.0.1:18000`. Nginx forwards host, client IP, forwarding chain,
+  and trusted HTTPS scheme metadata. HTTP redirects to the fixed origin HTTPS
+  hostname.
+- Added root-owned mode-`600`
+  `/etc/nginx/snippets/origin-staging-auth.conf`. Its value comes from the
+  `CLOUDFRONT_ORIGIN_HEADER` field added to the existing staging runtime secret;
+  the value is intentionally not recorded here. Do not run `nginx -T` into logs
+  because it expands included files and would expose this value.
+- `nginx -t` passed. Settled probes returned `403` without the custom header and
+  `200` with it. An immediate first probe after reload briefly reached a retiring
+  worker and returned the old `404`; subsequent probes verified the new workers.
+- Related AWS change: CloudFront distribution `E1BWDS134TAX2K` now has the
+  HTTPS custom origin `origin-staging.syncvitals.space` and an uncached
+  `/api/*` behavior with all required HTTP methods and viewer data forwarded.
+  Public readiness returned `200`, unknown API routes remained API `404`s, SPA
+  deep links remained `200`, and repeated identical API requests were cache
+  misses. A missing private-S3 asset returned `403`, not the previously expected
+  `404`, and did not fall back to the SPA.
+- Status: EC2 origin, application proxy, origin-header enforcement, and public
+  CloudFront API routing verified. Renewal/expiry alerting remains pending.
+
 ## Current Known Host-Software State
 
 | Component | State | Evidence |
@@ -700,6 +785,9 @@ unless the operator explicitly changes this convention.
 | Nginx | Installed and verified | EC2-009 syntax, service, listener, and local HTTP checks |
 | Certbot and Route 53 DNS plugin | Origin certificate issued; renewal dry-run and Nginx deploy hook passed | EC2-010, EC2-015, and EC2-016 |
 | CloudWatch Agent | Installed and configured through console; memory and root-disk metric delivery verified | EC2-012 console status and graphs; installed version and boot enablement not yet inspected |
+| AWS CLI | Version-pinned native ARM64 v2 installed and signature-verified | EC2-019 |
+| PostgreSQL and Django | Healthy containers; EBS persistence and loopback-only API verified | EC2-020 |
+| Nginx origin proxy | TLS, root-only CloudFront header guard, and loopback proxy verified | EC2-021 |
 | Exact EC2-002 APT transaction | Reconciled | `/var/log/apt/history.log` |
 | Nginx | Not installed at the initial host inspection | Earlier SSM inspection |
 | Certbot and Route 53 plugin | Not installed at the initial host inspection | Earlier SSM inspection |

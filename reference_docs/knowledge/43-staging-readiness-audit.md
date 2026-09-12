@@ -414,10 +414,11 @@ Docker metadata can retain container environments on the encrypted root disk.
 
 Steps 1–11 are complete. Step 12 is active and follows
 `reference_docs/playbooks/presentation-staging-manual-provisioning.md` one gate
-at a time. ECR, the runtime secret, EC2/EBS, and the Nginx origin TLS listener
-have been provisioned. Next, install and verify the reviewed deployment bundle
-and boot guard before initializing PostgreSQL and deploying Django. Do not add
-CloudFront's `/api/*` origin until Nginx and Django are healthy.
+at a time. The reviewed ARM64 image, runtime secret, EC2/EBS storage guard,
+PostgreSQL 16, migrated Django API, Nginx TLS/header guard, and CloudFront
+uncached `/api/*` behavior are deployed and verified. Public liveness/readiness,
+browser sign-in and writes, physical Android sync, and Stripe test-mode flows
+remain the active proof gate; monitored backup and restore remain Step 13.
 The no-tunnel Android API smoke and Play Internal Testing upload
 key remain later deployment gates. Keep the
 PostgreSQL-backed backend suite, production-image smoke, migration/API deployment
