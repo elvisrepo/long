@@ -35,6 +35,8 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PATH="/opt/venv/bin:$PATH"
 
+RUN apt-get update && apt-get upgrade -y --no-install-recommends && rm -rf /var/lib/apt/lists/*
+
 RUN addgroup --system django && adduser --system --ingroup django django
 
 COPY --from=production-dependencies /opt/venv /opt/venv
