@@ -796,6 +796,58 @@ unless the operator explicitly changes this convention.
   signed webhook reconciliation remain unverified.
 - Status: staging plan catalog is ready for the Stripe sandbox flow.
 
+### EC2-023 — Public Stripe sandbox webhook enabled and verified
+
+- Date: 2026-09-13
+- Performed by: operator through local Stripe/AWS clients and Systems Manager
+  Run Command.
+- Verified that the public HTTPS webhook path rejects unsigned requests with
+  `400` before registering it with Stripe.
+- Created Stripe test webhook endpoint `we_1UFBjmF5wYJKUxPeIeG906Sn` for
+  `checkout.session.completed`, `customer.subscription.updated`, and
+  `customer.subscription.deleted` at the staging webhook URL.
+- Transferred the one-time `whsec_...` signing secret directly into a new
+  Secrets Manager version without printing it or writing it to disk. Version
+  `997ca4bd-7790-438c-9eb2-4b431675c66a` is `AWSCURRENT`; the former version is
+  retained as `AWSPREVIOUS` for rollback.
+- The first API recreation stopped safely before replacement because Compose's
+  always-pull policy found no Docker ECR authorization. The existing API stayed
+  healthy. The retry used an instance-role ECR login with an EXIT cleanup trap,
+  recreated only the API container, and verified that Docker retained no ECR
+  authorization afterward.
+- Stripe CLI generated one synthetic `checkout.session.completed` event.
+  Django accepted its signature and stored one `StripeWebhookEvent`; it did not
+  change the existing Free subscription because the synthetic event had no
+  matching application-created checkout attempt.
+- Public readiness returned `200`, and an unsigned webhook POST continued to
+  return `400` after the restart.
+- Status: signed public Stripe test webhook delivery is verified. A real
+  browser Checkout, entitlement reconciliation, Portal, and cancellation flow
+  remain pending.
+
+### EC2-024 — Real Stripe sandbox Checkout reconciled to Pro
+
+- Date: 2026-09-13
+- Performed by: operator in the public staging UI; verified through AWS Systems
+  Manager against the running Django container and through Stripe's API.
+- Completed a real hosted Stripe Checkout for the monthly Pro price using the
+  sandbox payment flow and the registered public webhook from EC2-023.
+- Verified the matching application-created `CheckoutAttempt` is `confirmed`,
+  the prior Free subscription is `cancelled`, and the current Pro monthly
+  subscription is `active`.
+- Verified a local Stripe `BillingCustomer` and provider-subscription reference
+  exist. Stripe reports the corresponding subscription as active in test mode,
+  with customer and price references matching Django. Secrets and full provider
+  customer/subscription identifiers were not recorded.
+- The event ledger contains two Checkout events: the earlier synthetic delivery
+  test and the real Checkout. Only the real event matched application-created
+  metadata and changed entitlements.
+- Persistent host or application-code change during verification: none. The
+  verification script was passed to `manage.py shell` through standard input;
+  no source file was edited inside the EC2 container.
+- Status: real staging Checkout and Pro entitlement reconciliation are verified.
+  Customer Portal and cancellation lifecycle remain pending.
+
 ## Current Known Host-Software State
 
 | Component | State | Evidence |

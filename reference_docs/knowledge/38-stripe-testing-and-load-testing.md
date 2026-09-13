@@ -194,6 +194,137 @@ For the real Checkout:
    - The matching `CheckoutAttempt` is `confirmed`.
    - `StripeWebhookEvent` stores the provider event ID.
 
+## Presentation-Staging Webhook Verification
+
+Verified on 2026-09-13 against the Stripe sandbox:
+
+- the registered HTTPS endpoint is
+  `https://staging.syncvitals.space/api/v1/subscriptions/stripe/webhook/`;
+- it subscribes only to `checkout.session.completed`,
+  `customer.subscription.updated`, and `customer.subscription.deleted`;
+- its one-time signing secret is stored in AWS Secrets Manager and is never
+  recorded in repository files or operational output;
+- Django loaded the new secret after recreating only the API container;
+- Stripe CLI generated a synthetic `checkout.session.completed`, Django
+  accepted the signature, and `StripeWebhookEvent` recorded the delivery;
+- the synthetic event did not change the existing Free subscription because it
+  did not correspond to an application-created `CheckoutAttempt`; and
+- unsigned public POSTs return `400`, while database-backed readiness remains
+  healthy.
+
+The operator then completed a real hosted Checkout for the monthly Pro price.
+Read-only verification through Systems Manager checked the running Django
+container and Stripe's API without printing secrets or full customer and
+subscription identifiers:
+
+- the application-created `CheckoutAttempt` is `confirmed`;
+- the previous local Free subscription is `cancelled`;
+- the current local Pro monthly subscription is `active`;
+- a local Stripe `BillingCustomer` and provider subscription reference exist;
+- Stripe reports the same subscription as active in test mode; and
+- Stripe's customer and price references match Django's stored references.
+
+The event ledger contains the earlier synthetic Checkout event and the real
+Checkout event. Only the real event carried matching application-created
+metadata and changed entitlements.
+
+This proves public transport, signing-secret alignment, signature validation,
+event persistence, real Checkout metadata, and entitlement promotion. Customer
+Portal behavior and the cancellation lifecycle remain unverified in staging.
+
+## Local Versus Presentation-Staging Stripe Flow
+
+Both environments currently use test mode in the same Stripe sandbox account,
+but they are separate application runtimes with separate PostgreSQL databases.
+Local users, Checkout attempts, webhook-event rows, billing-customer rows, and
+subscription rows do not automatically copy to staging, or vice versa. Stripe
+provider objects are visible in the shared sandbox, so test objects must still
+be labelled and managed carefully.
+
+| Concern | Local development | Presentation staging |
+|---|---|---|
+| Application code | Host source is bind-mounted into the development container; code edits are visible immediately and Django can reload. | Runtime source is baked into an immutable production image, pushed to ECR, selected by digest, and run without a source bind mount. Never edit application source inside the running container. |
+| Django process | Development server in the Compose `web` container using `config.settings.dev`. | Gunicorn in the EC2 `api` container using `config.settings.prod`. |
+| Browser/API path | Browser uses the local frontend; its API traffic reaches the published Django port at `localhost:8000`, directly or through the frontend development proxy. | Browser uses `staging.syncvitals.space`; CloudFront routes `/api/*` to the protected origin, then Nginx proxies accepted HTTPS traffic to loopback-only Gunicorn. |
+| Stripe API calls | Django calls the Stripe sandbox using test credentials loaded from the ignored local `.env`. | Django calls the same Stripe sandbox using test credentials retrieved from AWS Secrets Manager at container start. |
+| Webhook reachability | Stripe cannot call `localhost`. A running `stripe listen` process receives sandbox events and forwards them over local HTTP to Django. | Stripe calls the registered, stable public HTTPS webhook directly. No Stripe CLI listener is required for normal delivery. |
+| Signing secret | `stripe listen` prints a listener-specific `whsec_...`; local Django must load that current value. Restarting the listener can require updating `.env` and recreating `web`. | The registered endpoint has its own `whsec_...`, stored only in Secrets Manager. Changing it requires a new secret version and API-container recreation. It is not the local listener secret. |
+| PostgreSQL persistence | The local database container writes to Docker named volume `pgdata`. | The EC2 database container writes through `/srv/syncvitals/postgresql` to the separate encrypted EBS filesystem. |
+| Runtime configuration refresh | Recreate affected local containers; rebuild when image dependencies change. | Recreate only the affected container to reload secrets/configuration. A code change instead requires a newly built and tested image, an ECR push, and deployment by exact digest. |
+
+### Complete Local Manual Flow
+
+```text
+Local browser
+  -> local frontend
+  -> Django web container on localhost:8000
+  -> Django creates CheckoutAttempt in local PostgreSQL
+  -> Django creates a hosted Checkout Session in Stripe test mode
+  -> browser completes Checkout on Stripe
+  -> Stripe redirects browser to the local Settings URL
+
+Separately:
+Stripe sandbox event
+  -> running `stripe listen` process on the developer machine
+  -> HTTP forward to localhost:8000/api/v1/subscriptions/stripe/webhook/
+  -> Django verifies the signature with the listener-specific secret
+  -> Django records StripeWebhookEvent in local PostgreSQL
+  -> Django confirms the CheckoutAttempt and changes local entitlements
+```
+
+The local listener is a development bridge, not part of the application and
+not a deployed service. If it is stopped, Checkout can still succeed at Stripe
+and the browser can still be redirected, but local Django will not receive the
+forwarded webhook at that time.
+
+### Complete Presentation-Staging Manual Flow
+
+```text
+Public browser
+  -> CloudFront
+  -> /api/* behavior
+  -> Nginx on the EC2 origin
+  -> loopback-only Gunicorn/Django container
+  -> Django creates CheckoutAttempt in EBS-backed PostgreSQL
+  -> Django creates a hosted Checkout Session in Stripe test mode
+  -> browser completes Checkout on Stripe
+  -> Stripe redirects browser to the staging Settings URL
+
+Separately:
+Stripe sandbox event
+  -> registered public HTTPS webhook
+  -> CloudFront /api/* behavior
+  -> Nginx
+  -> Gunicorn/Django
+  -> Django verifies the signature with the registered-endpoint secret
+  -> Django records StripeWebhookEvent in EBS-backed PostgreSQL
+  -> Django confirms the CheckoutAttempt and changes staging entitlements
+```
+
+### Where The Staging Webhook Work Was Performed
+
+- The webhook endpoint was registered in Stripe's sandbox from the local
+  workstation using authenticated Stripe tooling.
+- Its one-time signing secret was transferred directly into a new version of
+  `longevity/staging/backend-runtime` in AWS Secrets Manager. It was not
+  committed, saved in a repository file, or intentionally printed.
+- Systems Manager Run Command reached the EC2 host and Docker Compose recreated
+  only the API container so it could load the new secret. PostgreSQL remained
+  running and untouched.
+- EC2 used short-lived instance-role ECR authentication for the recreation and
+  removed the Docker authorization afterward.
+- A synthetic sandbox event tested signed delivery. A separate unsigned public
+  POST returned `400`, proving that the endpoint does not trust arbitrary
+  callers.
+- The success and cancellation destinations were read from the running Django
+  configuration and verified to point to staging.
+
+Those operations changed Stripe configuration, a Secrets Manager value, and
+the running API-container instance. They did not patch application source code
+inside EC2. Earlier application fixes followed the separate deployment path:
+change and test code locally, build the production image, push it to ECR, and
+deploy that exact image digest.
+
 ## Stripe Cancellation Lifecycle
 
 Cancellation is a two-event lifecycle rather than an immediate local downgrade:

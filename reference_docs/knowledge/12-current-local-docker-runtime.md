@@ -367,6 +367,11 @@ Required for the current local product flows:
 - React frontend
 - Stripe CLI only when manually testing Stripe webhooks against localhost
 
+For the complete local Checkout/listener flow and its differences from the
+registered presentation-staging webhook, see
+`reference_docs/knowledge/38-stripe-testing-and-load-testing.md`, section
+**Local Versus Presentation-Staging Stripe Flow**.
+
 Prepared infrastructure that is present but not yet central to product behavior:
 - Redis
 - Celery worker

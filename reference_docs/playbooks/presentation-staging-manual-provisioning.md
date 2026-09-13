@@ -91,8 +91,15 @@ A browser-created staging user can register, sign in, and retrieve the Free
 subscription. The staging and local runtimes were verified to use test mode in
 the same Stripe account. The active Pro plan catalog now contains the verified
 Stripe sandbox prices for USD 10/month and USD 100/year; the public plan endpoint
-returns both options. Checkout, Portal, and webhook reconciliation remain to be
-proved end to end.
+returns both options. The public Stripe test webhook endpoint accepts the three
+implemented event types, its one-time signing secret is stored only in Secrets
+Manager, and a synthetic signed Checkout event was accepted and recorded without
+changing the Free subscription. A real hosted Checkout for Pro monthly was then
+verified end to end: the attempt is confirmed, the previous Free subscription
+is cancelled, the current Pro subscription is active, and Stripe's test-mode
+subscription, customer, and price match Django's stored references. This used
+the registered public webhook; no local Stripe listener participated. Customer
+Portal and cancellation remain to be proved end to end.
 
 Image-scan acceptance recorded on 2026-09-12:
 
