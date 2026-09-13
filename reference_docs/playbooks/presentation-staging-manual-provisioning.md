@@ -31,7 +31,7 @@ This is a low-cost presentation environment, not a highly available production
 system. Losing the one EC2 host temporarily removes Nginx and Django; losing or
 corrupting its database volume risks data until a tested backup is restored.
 
-## Current Checkpoint — 2026-09-12
+## Current Checkpoint — 2026-09-13
 
 Already created and verified:
 
@@ -86,6 +86,13 @@ origin header, and proxies accepted requests to Gunicorn. CloudFront now has an
 HTTPS custom origin plus an uncached `/api/*` behavior that forwards all needed
 methods, headers, cookies, query strings, and request bodies. Public readiness,
 API-404 isolation, SPA deep-link routing, and repeated cache misses are verified.
+
+A browser-created staging user can register, sign in, and retrieve the Free
+subscription. The staging and local runtimes were verified to use test mode in
+the same Stripe account. The active Pro plan catalog now contains the verified
+Stripe sandbox prices for USD 10/month and USD 100/year; the public plan endpoint
+returns both options. Checkout, Portal, and webhook reconciliation remain to be
+proved end to end.
 
 Image-scan acceptance recorded on 2026-09-12:
 

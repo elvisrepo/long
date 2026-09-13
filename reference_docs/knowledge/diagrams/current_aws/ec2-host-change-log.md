@@ -776,6 +776,26 @@ unless the operator explicitly changes this convention.
 - Status: EC2 origin, application proxy, origin-header enforcement, and public
   CloudFront API routing verified. Renewal/expiry alerting remains pending.
 
+### EC2-022 — Verified Stripe sandbox plan catalog seeded
+
+- Date: 2026-09-13
+- Performed by: operator through AWS CLI and Systems Manager Run Command.
+- A first read-only verification command failed before execution because nested
+  shell quoting was stripped by SSM and produced invalid Python. It made no
+  database or Stripe change. The retry transported Python through base64-decoded
+  standard input and succeeded.
+- Verified without exposing secret keys that local and staging both use Stripe
+  test mode in account `acct_1Thn2DF5wYJKUxPe`.
+- Verified through Stripe's API that the intended prices are active test-mode
+  USD prices: `price_1Tl5ZXF5wYJKUxPez2sVOkBQ` is USD 10/month and
+  `price_1Tl5aCF5wYJKUxPelMMkcDrg` is USD 100/year.
+- Atomically upserted the active non-default Pro plan and those two prices.
+  Existing users and current subscriptions were not changed.
+- Public `GET /api/v1/subscriptions/plans/` returned Free plus Pro with both
+  internal price IDs and expected amounts/intervals. Checkout, Portal, and
+  signed webhook reconciliation remain unverified.
+- Status: staging plan catalog is ready for the Stripe sandbox flow.
+
 ## Current Known Host-Software State
 
 | Component | State | Evidence |
