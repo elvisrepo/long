@@ -508,6 +508,281 @@ Gate: every check is recorded with date, deployed image digest, and outcome.
 Gate: a successful upload alone is not enough; the documented restore drill
 must pass.
 
+## Repeatable Staging Application Release And Rollback
+
+Use this section after initial provisioning. An ordinary application release
+does not recreate EC2, EBS, PostgreSQL, Nginx, CloudFront, Route 53, Certbot, or
+the registered Stripe webhook.
+
+Release only the component that changed:
+
+| Change | Required deployment |
+|---|---|
+| React/UI code only | Build and upload the frontend only |
+| Django behavior or an endpoint only | Build and deploy a new backend image only |
+| Backend contract plus its frontend caller | Deploy a backward-compatible backend first, then the frontend |
+| Django model or migration | Backend release; the guarded deployment runs migrations before API replacement |
+| Runtime secret/configuration only | Create a new Secrets Manager version and recreate the API with the current image |
+| `docker-compose.staging.yml`, `runtime_contract.py`, or host deployment scripts | Review, rebuild, transfer, and install a new deployment bundle; rebuild the backend image too when its runtime contents changed |
+| Nginx, CloudFront, DNS, certificate, IAM, or storage topology | Separate infrastructure change with its own preflight, verification, and recovery plan |
+
+### Release Preconditions And Record
+
+Before publishing either component:
+
+1. Work from a reviewed, committed tree. Do not release uncommitted files whose
+   contents cannot be recovered from Git.
+2. Record the full Git commit SHA, operator, UTC time, intended changes, and
+   focused/broad test results.
+3. Confirm the AWS account and Region, check the budget alarm, and inspect the
+   currently deployed frontend and backend read-only.
+4. Preserve the current backend digest and at least one previous accepted ECR
+   image. Never delete the only rollback image.
+5. Keep all S3, ECR, Secrets Manager, and Systems Manager permissions scoped to
+   their staging resources. Use short-lived authenticated sessions and the EC2
+   instance role; never copy long-lived AWS credentials onto the host.
+
+Every retained ECR image, S3 object version, upload, request, scan mode, and
+CloudFront delivery consumes some AWS storage or request capacity and can add
+cost. Retain enough history for safe rollback, then apply reviewed lifecycle
+rules rather than deleting the current or previous release ad hoc. AWS documents
+that [S3 Versioning stores complete object versions](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html),
+not byte-level diffs; review [S3 pricing](https://aws.amazon.com/s3/pricing/)
+before choosing long-term retention.
+
+### Frontend-Only Release
+
+The frontend is a static Vite build stored in the existing private, encrypted,
+versioned S3 bucket and served only through CloudFront. The uploader retains
+superseded files, uploads hashed immutable assets first, and uploads the
+no-cache application shell last.
+
+From `frontend/`:
+
+```bash
+npm ci
+npm run format:check
+npm run lint
+npm test
+npm run build
+
+npm run deploy:static -- \
+  --bucket syncvitals-staging-frontend-173291122778-eu-central-1-an \
+  --dry-run
+
+npm run deploy:static -- \
+  --bucket syncvitals-staging-frontend-173291122778-eu-central-1-an
+```
+
+Do not use `aws s3 sync --delete`: an older cached application shell may still
+reference an older hashed asset. The current CloudFront application-shell cache
+policy has zero TTL and `index.html` is uploaded with `no-cache`, so a routine
+release should not need a CloudFront invalidation. Investigate configuration or
+header drift before using an invalidation as a workaround.
+
+Verify after upload:
+
+1. the public root and one SPA deep link return the application shell;
+2. a changed hashed asset is served successfully;
+3. `/api/v1/health/live/` and `/api/v1/health/ready/` still return success;
+4. browser sign-in and the changed user journey work; and
+5. missing assets and API errors do not fall back to the SPA shell.
+
+Frontend rollback:
+
+1. Choose the previous known-good Git commit.
+2. Build that commit in a clean temporary worktree or checkout.
+3. Run the same tested static uploader. This restores `index.html` and any
+   non-hashed root assets while retained hashed objects remain addressable.
+4. Repeat the public verification checks and record the rollback.
+
+S3 Versioning remains an additional recovery mechanism for accidental
+overwrites, but the current uploader does not emit a complete per-release object
+version manifest. Rebuilding the known-good Git commit is therefore the
+repeatable whole-build rollback. Do not delete newer S3 versions during an
+incident.
+
+### Backend-Only Release
+
+From `backend/`, run focused tests for the touched slice first, then the broad
+relevant suite. For route or public-contract changes, update the canonical API,
+domain/security, and testing documentation, then search the repository for stale
+paths before the broad suite.
+
+Build and push one immutable ARM64 production image. Use a new release tag tied
+to the full Git commit SHA; never overwrite or rely on `latest`:
+
+```bash
+release_sha="$(git rev-parse HEAD)"
+repository="173291122778.dkr.ecr.eu-central-1.amazonaws.com/syncvitals/staging/backend"
+
+docker buildx build \
+  --platform linux/arm64 \
+  --target production \
+  --tag "$repository:$release_sha" \
+  --push \
+  .
+
+index_digest="$(aws ecr describe-images \
+  --repository-name syncvitals/staging/backend \
+  --image-ids "imageTag=$release_sha" \
+  --region eu-central-1 \
+  --query 'imageDetails[0].imageDigest' \
+  --output text)"
+
+backend_image="$repository@$index_digest"
+printf 'Candidate backend image: %s\n' "$backend_image"
+
+index_manifest="$(aws ecr batch-get-image \
+  --repository-name syncvitals/staging/backend \
+  --image-ids "imageDigest=$index_digest" \
+  --accepted-media-types application/vnd.oci.image.index.v1+json \
+  --region eu-central-1 \
+  --query 'images[0].imageManifest' \
+  --output text)"
+
+arm64_digest="$(printf '%s' "$index_manifest" \
+  | uv run --no-project python -c '
+import json
+import sys
+
+manifest = json.load(sys.stdin)
+matches = [
+    item["digest"]
+    for item in manifest["manifests"]
+    if item.get("platform", {}).get("architecture") == "arm64"
+    and item.get("platform", {}).get("os") == "linux"
+]
+if len(matches) != 1:
+    raise SystemExit("expected exactly one linux/arm64 image manifest")
+print(matches[0])
+')"
+
+aws ecr wait image-scan-complete \
+  --repository-name syncvitals/staging/backend \
+  --image-id "imageDigest=$arm64_digest" \
+  --region eu-central-1
+
+aws ecr describe-image-scan-findings \
+  --repository-name syncvitals/staging/backend \
+  --image-id "imageDigest=$arm64_digest" \
+  --region eu-central-1
+```
+
+The deployable reference uses the tagged OCI image-index digest. ECR attaches
+basic scan findings to its Linux/ARM64 child image manifest rather than the
+index or provenance/attestation manifest, so scan `arm64_digest` but deploy
+`index_digest`. Stop for an unreviewed critical or high finding. Any
+staging-only acceptance must be explicit, dated, scoped, and must not silently
+become a production acceptance.
+
+In the root Session Manager shell on EC2, first preserve the current image
+reference:
+
+```bash
+docker inspect \
+  --format '{{.Config.Image}}' \
+  syncvitals-staging-api-1
+```
+
+Record that digest-qualified value as `previous_backend_image`. Authenticate
+Docker to ECR with the instance role, set `BACKEND_IMAGE` to the reviewed new
+digest, and invoke the existing guarded deployment:
+
+```bash
+registry="173291122778.dkr.ecr.eu-central-1.amazonaws.com"
+backend_image="REPLACE_WITH_REVIEWED_DIGEST_QUALIFIED_IMAGE"
+
+cleanup_ecr_auth() {
+  docker logout "$registry" >/dev/null 2>&1 || true
+}
+trap cleanup_ecr_auth EXIT
+
+aws ecr get-login-password --region eu-central-1 \
+  | docker login --username AWS --password-stdin "$registry"
+
+export BACKEND_IMAGE="$backend_image"
+cd /opt/syncvitals/deployment
+
+python3 -m scripts.staging_runtime \
+  --secret-id longevity/staging/backend-runtime \
+  --region eu-central-1 \
+  -- python3 -m scripts.production_deployment \
+  --compose-file docker-compose.staging.yml \
+  --project-name syncvitals-staging
+
+cleanup_ecr_auth
+trap - EXIT
+```
+
+Replace the placeholder with the exact digest-qualified value recorded during
+image review; it is not a tag. The EXIT trap removes temporary Docker
+authorization after both successful and failed deployments.
+
+The deployment verifies the EBS mount and secret contract, keeps PostgreSQL on
+its existing persistent data, runs migrations, stops before API replacement if
+the migration command fails, replaces the API, and waits for database-backed
+readiness. It can cause a short API interruption because this staging host has
+no blue/green deployment.
+
+Verify after promotion:
+
+1. the running API container reports the intended digest-qualified image;
+2. only the expected database and API services remain long-running;
+3. local host liveness/readiness and public CloudFront liveness/readiness pass;
+4. Nginx still rejects direct requests without the origin header;
+5. logs contain no secrets, tokens, personal data, or unexpected tracebacks;
+6. the changed endpoint and one unchanged authenticated flow work; and
+7. the deployment result is appended to the EC2 host change log.
+
+Backend rollback:
+
+1. Set `BACKEND_IMAGE` to `previous_backend_image`.
+2. Run the same guarded deployment and verification sequence.
+3. Do not assume Django migrations are rolled back. The deployment never
+   automatically reverses schema changes, and a reverse migration can destroy
+   data.
+
+Backend releases must therefore use backward-compatible expand-and-contract
+migrations: first add schema/behavior that both old and new code tolerate,
+deploy and migrate data, and remove obsolete schema only in a later release.
+When a migration is incompatible with the previous image, recovery requires a
+forward fix or a separately reviewed data-restore plan rather than a blind image
+rollback.
+
+### Combined Frontend And Backend Release
+
+For a new or changed endpoint consumed by the frontend:
+
+1. Deploy an additive or backward-compatible backend first.
+2. Verify the new endpoint through the public CloudFront path.
+3. Deploy the frontend that consumes it.
+4. Run the complete browser journey.
+5. Remove old endpoint/schema behavior only in a later release after old
+   browsers and rollback windows no longer require it.
+
+If rollback is required and the new frontend depends on the new backend, roll
+back the frontend first. Then roll back the backend only if its database changes
+remain compatible with the previous image. A frontend-only failure never
+justifies touching PostgreSQL or replacing the backend.
+
+### When The EC2 Deployment Bundle Changes
+
+Normal Django source changes are inside the backend image and do not require a
+new host bundle. Rebuild the allowlisted bundle when its Compose file, runtime
+contract, storage check, deployment orchestration, or systemd guard changes:
+
+```bash
+cd backend
+uv run --no-sync python -m scripts.build_staging_bundle \
+  --output "/tmp/syncvitals-staging-deployment-$(git rev-parse HEAD).tar.gz"
+```
+
+Verify the printed SHA-256, transfer through the operator-controlled path,
+inspect the installed files before replacement, and retain a verified copy of
+the previous bundle for rollback. Bundle changes are host configuration changes
+and must be recorded even when the application image does not change.
+
 ## Resume Checklist
 
 When resuming after a pause:
