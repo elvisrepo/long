@@ -890,6 +890,41 @@ unless the operator explicitly changes this convention.
   retention/lifecycle policy, CloudWatch success/failure and age monitoring,
   and backup access auditing remain pending.
 
+### EC2-026 — Daily PostgreSQL backup timer and success metric verified
+
+- Date: 2026-09-15
+- Performed by: operator on the EC2 host, followed by an operator-authorized AWS
+  CLI correction through Systems Manager Run Command.
+- Installed `/usr/local/sbin/syncvitals-staging-db-backup` plus the systemd
+  service and timer `syncvitals-staging-db-backup.service` and
+  `syncvitals-staging-db-backup.timer`.
+- The timer is enabled and active. It runs daily at `03:15 UTC`, with up to
+  30 minutes of randomized delay and `Persistent=true`; the next observed run
+  was scheduled for `2026-09-16T03:18:10Z`.
+- A manual service execution completed successfully and uploaded a validated,
+  encrypted, versioned PostgreSQL custom-format dump to the dedicated backup
+  bucket.
+- The initial CloudWatch CLI shorthand incorrectly created two dimensions named
+  `Name` and `Value`. Systems Manager command
+  `27122a85-01f8-45e5-9703-5fed9a9cbeca` changed only that argument to
+  `--dimensions "InstanceId=$INSTANCE_ID"`; its preconditions, shell syntax
+  check, service execution, and rollback guard all passed.
+- The verification run uploaded
+  `postgresql/year=2026/month=09/longevity-20260915T112650Z.dump`: `82075`
+  bytes, SSE-S3 (`AES256`), version
+  `.HawSN66Ab5wSKwcV4zxQORAQHz06_UR`, and SHA-256
+  `14910b6110a5ff8000490d30f39e09fb40c9864e6d4c34242f477ae298a20123`.
+- An independent CloudWatch query returned `Maximum=1` at
+  `2026-09-15T11:26:00Z` for namespace `CWAgent`, metric
+  `StagingDatabaseBackupSuccess`, and the single dimension
+  `InstanceId=i-08fbc9f0c53265b63`.
+- The old malformed `Name, Value` metric stream cannot be renamed; it will
+  receive no further data. PostgreSQL data and the timer schedule were not
+  changed by the correction.
+- Status: daily backup execution and its correctly dimensioned success metric
+  are verified. A failure/absence alarm, retention lifecycle, and automated
+  restore testing remain pending.
+
 ## Current Known Host-Software State
 
 | Component | State | Evidence |
