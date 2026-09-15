@@ -848,6 +848,48 @@ unless the operator explicitly changes this convention.
 - Status: real staging Checkout and Pro entitlement reconciliation are verified.
   Customer Portal and cancellation lifecycle remain pending.
 
+### EC2-025 — First PostgreSQL backup and disposable restore drill verified
+
+- Date: 2026-09-15
+- Performed by: operator-authorized AWS CLI through Systems Manager Run Command.
+- Created the dedicated S3 bucket
+  `syncvitals-staging-backups-173291122778-eu-central-1-an` manually in the AWS
+  console with ACLs disabled, all public access blocked, SSE-S3 default
+  encryption, versioning, and an HTTPS-only bucket policy.
+- Added permanent inline instance-role policy
+  `SyncVitalsStagingDatabaseBackupWrite`. It allows `s3:PutObject` and
+  `s3:AbortMultipartUpload` only below `postgresql/*`; it grants no read, list,
+  delete, or bucket-administration access.
+- Systems Manager command `2304e8b4-4311-4c96-899f-7c6c4c85b7f3` ran
+  `pg_dump -Fc` against healthy `syncvitals-staging-database-1`, validated the
+  archive with `pg_restore --list`, calculated SHA-256
+  `a7be29f1362bf77efdda631a2c2a9fe3eca640590d81fa806ddea6bf699ca5c4`,
+  and uploaded it to
+  `postgresql/year=2026/month=09/longevity-20260915T103326Z.dump`.
+- Independent S3 inspection verified size `82075` bytes, SSE-S3 (`AES256`),
+  object version `84a_G6NjjAYh6Qfusu346vFEk2wi6hbI`, checksum metadata, and
+  upload time `2026-09-15T10:33:28Z`.
+- For the restore drill, temporary inline policy
+  `SyncVitalsStagingBackupRestoreTemporary` allowed `s3:GetObject` for only that
+  exact object. Systems Manager command
+  `e96b8f01-a0c8-43cc-90c4-bb5cca41fdc7` verified the downloaded checksum and
+  restored into an isolated PostgreSQL 16 container with no network and a
+  memory-backed data directory.
+- Source and restored aggregate counts matched: `django_migrations=61`,
+  `metrics_metric_entry=6`, `subscriptions_checkout_attempt=2`,
+  `subscriptions_stripe_webhook_event=5`, `subscriptions_subscription=2`,
+  `subscriptions_subscription_plan=2`, and `users_user=1`. No record contents
+  were printed or retained.
+- The disposable container and local dump were removed. The failed manual
+  zero-byte dump was also removed. Temporary S3 read permission was deleted;
+  the role retains only its permanent write-only backup policy.
+- Persistent application or database mutation: none. `pg_dump` read a
+  consistent logical snapshot; the restore targeted only the disposable
+  database.
+- Status: one off-host backup and restore drill are verified. Daily scheduling,
+  retention/lifecycle policy, CloudWatch success/failure and age monitoring,
+  and backup access auditing remain pending.
+
 ## Current Known Host-Software State
 
 | Component | State | Evidence |

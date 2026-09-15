@@ -508,6 +508,16 @@ Gate: every check is recorded with date, deployed image digest, and outcome.
 Gate: a successful upload alone is not enough; the documented restore drill
 must pass.
 
+Current checkpoint (2026-09-15): the dedicated private, SSE-S3-encrypted,
+versioned, HTTPS-only backup bucket exists. The EC2 role has permanent
+write-only access below `postgresql/`. One custom-format PostgreSQL dump was
+structurally validated, uploaded with SHA-256 metadata, independently inspected
+in S3, and restored into an isolated disposable PostgreSQL 16 container. Seven
+selected source/restored aggregate row counts matched, the disposable resources
+were removed, and the temporary exact-object read permission was deleted.
+Daily scheduling, bounded retention, CloudWatch success/failure and object-age
+signals, and backup access auditing remain incomplete.
+
 ## Repeatable Staging Application Release And Rollback
 
 Use this section after initial provisioning. An ordinary application release

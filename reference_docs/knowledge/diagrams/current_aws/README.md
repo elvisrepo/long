@@ -45,6 +45,7 @@ do not replace or modify that target; they show verified implementation progress
 | V014 | 2026-09-09 | V013 plus encrypted 10 GiB gp3 PostgreSQL volume `vol-0f23b93a2f1cd46b4` in `eu-central-1c`, retained on instance termination, formatted ext4 and mounted by UUID at `/srv/syncvitals`; automatic remount and directory ownership `999:999` with mode `700` verified after reboot. Pinned PostgreSQL 16 image is cached, but the database has not been initialized or started; database-disk monitoring and deployment mount guard remain pending |
 | V015 | 2026-09-09 | V014 plus Elastic IP `3.73.229.16` associated with the EC2 origin, Route 53 A record `origin-staging.syncvitals.space`, issued Let’s Encrypt certificate with successful DNS-01 renewal dry-run, Nginx deploy hook, and verified HTTP-to-HTTPS redirect/TLS listener; HTTPS `/` intentionally returns 404 until the API is deployed |
 | V016 | 2026-09-12 | V015 plus the new digest-pinned ARM64 Django image, installed deployment bundle and reboot-verified Docker/EBS storage guard, AWS CLI v2 prerequisite, healthy PostgreSQL 16 and Django/Gunicorn containers, applied migrations, persistent database bind mount, loopback-only Gunicorn port, root-only Nginx origin-header guard, and CloudFront HTTPS custom origin with uncached `/api/*` routing; public liveness/readiness, API 404 isolation, SPA deep links, and cache misses are verified. Logs, alarms, backups, restore testing, and authenticated browser/Android/Stripe flows remain pending |
+| V017 | 2026-09-15 | V016 plus verified Stripe test Checkout, Portal, signed webhook reconciliation, and period-end cancellation state; a separate private SSE-S3, versioned, HTTPS-only PostgreSQL backup bucket; permanent instance-role write-only access below `postgresql/`; and one checksum-verified custom-format dump restored successfully into an isolated disposable PostgreSQL 16 container with selected source/restored row counts matching. Daily scheduling, retention, backup monitoring, logs, alarms, and Android end-to-end flows remain pending |
 
 ## Companion Request Flows
 
@@ -69,7 +70,7 @@ image currently used by the project:
 docker run --rm \
   -v "$PWD:/usr/local/structurizr:ro" \
   structurizr/structurizr \
-validate -workspace /usr/local/structurizr/v016-staging-backend-live.dsl
+validate -workspace /usr/local/structurizr/v017-postgresql-backup-restore-verified.dsl
 ```
 
 The next version should be created only after the next manually provisioned AWS
