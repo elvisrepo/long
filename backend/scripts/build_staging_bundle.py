@@ -13,8 +13,13 @@ BUNDLE_FILES = (
     "scripts/__init__.py",
     "scripts/staging_runtime.py",
     "scripts/production_deployment.py",
+    "scripts/staging_db_restore_check.py",
     "scripts/staging_storage.py",
     "deploy/docker.service.d/10-staging-storage.conf",
+    "deploy/systemd/syncvitals-staging-db-restore-check.service",
+    "deploy/systemd/syncvitals-staging-db-restore-check.timer",
+    "deploy/systemd/syncvitals-staging-db-restore-freshness.service",
+    "deploy/systemd/syncvitals-staging-db-restore-freshness.timer",
 )
 
 

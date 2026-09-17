@@ -925,6 +925,75 @@ unless the operator explicitly changes this convention.
   are verified. A failure/absence alarm, retention lifecycle, and automated
   restore testing remain pending.
 
+### EC2-027 — Monthly isolated PostgreSQL restore check enabled
+
+- Date: 2026-09-17.
+- Performed by: operator on EC2, with the automation installed through
+  Systems Manager Run Command.
+- Installed `/opt/syncvitals/deployment/scripts/staging_db_restore_check.py`
+  and `syncvitals-staging-db-restore-check.service`/`.timer`. The monthly timer
+  is enabled and active; the next observed trigger was
+  `2026-10-01T04:40:58Z`.
+- The check downloads the newest backup under `postgresql/`, verifies its
+  recorded SHA-256, and restores it into a disposable PostgreSQL 16 container.
+  It verifies required tables and the migration count, publishes
+  `CWAgent/StagingDatabaseRestoreSuccess`, then removes the temporary dump and
+  container. It does not restore over the live database.
+- Manual service execution succeeded: `restore_status=ok migrations=61`,
+  `Result=success`, `ExecMainStatus=0`. The success metric was visible in
+  CloudWatch. A separate `SyncVitalsStagingDatabaseRestoreFailed` alarm watches
+  for explicit result `0` and notifies `syncvitals-staging-alerts`; missing data
+  is non-breaching because a monthly check is normally silent between runs.
+- The automated check is narrower than the earlier manual row-count drill:
+  it verifies restoreability, required schema, and migrations, but does not
+  compare every restored row with the live database.
+
+### EC2-028 — Restore freshness heartbeat and missed-run alarm added
+
+- Date: 2026-09-17.
+- Performed by: Codex through operator-authorized AWS CLI and Systems Manager
+  Run Command.
+- Updated the installed restore-check script after verifying the prior SHA-256;
+  preserved its previous version at
+  `/opt/syncvitals/deployment/rollback/staging_db_restore_check-before-freshness-20260917.py`.
+  Installed `syncvitals-staging-db-restore-freshness.service`/`.timer` without
+  replacing the existing monthly timer.
+- A successful isolated restore now records its UTC month in root-only
+  `/var/lib/syncvitals/last-restore-success-month` (mode `0600`). A manual run
+  returned `restore_status=ok migrations=61` and recorded `2026-09`.
+- The freshness service publishes `CWAgent/StagingDatabaseRestoreFresh` every
+  six hours, with `InstanceId=i-08fbc9f0c53265b63`. Value `1` means this UTC
+  month has a successful restore; until 06:00 UTC on day 1, the previous month
+  is accepted to allow the scheduled check to finish. Value `0` means stale.
+  Its timer is enabled and active. The first manual heartbeat returned
+  `restore_freshness=ok`, and an independent CloudWatch query returned `1`.
+- Created `SyncVitalsStagingDatabaseRestoreOverdue`: `Minimum` of the heartbeat
+  over 6-hour periods, `LessThanThreshold 1`, 2 of 2 periods, missing data
+  treated as breaching. ALARM and OK transitions notify the confirmed
+  `syncvitals-staging-alerts` SNS topic. Creation and configuration were
+  verified through `describe-alarms`. After the initial
+  `INSUFFICIENT_DATA` state, CloudWatch evaluated the fresh heartbeat and
+  moved the alarm to `OK`.
+- Recovery: the monthly restore timer and live PostgreSQL container were not
+  changed. The pre-change script remains in the rollback directory. A real
+  missed production restore has not been deliberately induced.
+- Controlled notification test (2026-09-17): `SetAlarmState` temporarily moved
+  `SyncVitalsStagingDatabaseRestoreOverdue` from `OK` to `ALARM`. Alarm history
+  recorded successful invocation of the staging SNS topic. The metric-driven
+  evaluation then returned it to `OK`, with a successful SNS recovery action.
+  No database, timer, marker, or metric was changed. This verifies alarm-to-SNS
+  wiring, not delivery to the subscriber inbox or a real missed-run evaluation.
+- Isolated missing-data test (2026-09-17): created temporary alarm
+  `SyncVitalsStagingDatabaseRestoreMissingTest-20260917` with the same six-hour
+  period, 2-of-2 threshold, missing-data treatment, and SNS action, but with a
+  test-only dimension that had no metric data. CloudWatch evaluated it to
+  `ALARM` with the reason "no datapoints were received for 2 periods and 2
+  missing datapoints were treated as [Breaching]"; alarm history confirmed a
+  successful SNS action. The exact temporary alarm was deleted, and the live
+  overdue alarm remained `OK`. No test datapoints were published. The operator
+  confirmed receiving the isolated missing-data test email. An actual missed
+  production restore has not been induced.
+
 ## Current Known Host-Software State
 
 | Component | State | Evidence |

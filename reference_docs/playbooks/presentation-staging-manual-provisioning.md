@@ -518,6 +518,27 @@ were removed, and the temporary exact-object read permission was deleted.
 Daily scheduling, bounded retention, CloudWatch success/failure and object-age
 signals, and backup access auditing remain incomplete.
 
+Current checkpoint (2026-09-17): the daily backup timer is active. A separate
+monthly timer restores the newest dump into an isolated disposable PostgreSQL
+16 container; its manual verification passed with 61 migrations. A successful
+restore records its UTC month, and a six-hour systemd heartbeat publishes
+`CWAgent/StagingDatabaseRestoreFresh` (`1` current, `0` stale). It accepts the
+previous month until 06:00 UTC on day 1 so the monthly job can complete.
+`SyncVitalsStagingDatabaseRestoreFailed` detects an explicit failed run;
+`SyncVitalsStagingDatabaseRestoreOverdue` is configured for 2 of 2 breaching
+six-hour periods, treating missing heartbeat data as breaching. Both notify the
+staging SNS topic. The overdue alarm evaluated to `OK`, but a real missed-run
+alert has not been exercised. A controlled `SetAlarmState` test did invoke SNS
+for both ALARM and metric-driven OK transitions. A temporary isolated alarm
+with the same 6-hour, 2-of-2, missing-as-breaching settings and no metric data
+naturally entered `ALARM` and invoked SNS; the operator confirmed receiving
+that test email. The temporary alarm was deleted, and the live alarm remained
+`OK`.
+The automated check verifies restoreability,
+required tables, and migrations; it does not compare all data rows. See EC2-027
+and EC2-028 in the host change log for exact unit, marker, metric, and alarm
+names.
+
 ## Repeatable Staging Application Release And Rollback
 
 Use this section after initial provisioning. An ordinary application release

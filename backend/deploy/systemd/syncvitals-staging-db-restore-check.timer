@@ -1,0 +1,11 @@
+[Unit]
+Description=Monthly SyncVitals staging PostgreSQL restore verification
+
+[Timer]
+OnCalendar=*-*-01 04:15:00 UTC
+RandomizedDelaySec=45m
+Persistent=true
+Unit=syncvitals-staging-db-restore-check.service
+
+[Install]
+WantedBy=timers.target
