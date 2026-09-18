@@ -122,7 +122,7 @@ The remaining product-value gap is the final step: richer, actionable insight. P
 Still missing:
 
 - production deployment with separate resilient infrastructure
-- cable-free Android distribution for invited testers, followed by production release signing and public distribution
+- a signed Android App Bundle and public Google Play distribution, including any account-specific testing gate
 - reliable application logs and alerts for API, Stripe webhook, and wearable failures
 - real analytics endpoint
 - trend calculations
@@ -372,7 +372,7 @@ Related docs:
 Next real system-design step:
 
 ```text
-Finish staging acceptance and prepare cable-free Android tester distribution
+Finish staging acceptance and prepare a public Google Play release
 ```
 
 The public staging frontend, API, database, Stripe test webhook, and monitored
@@ -380,11 +380,13 @@ backup/restore jobs are deployed. The operator reports successful automatic
 Android Weight and Steps sync and correct frontend display. Record the deployed
 image digest and test conditions, verify that logs contain no credentials,
 tokens, or health data, and add Django/Nginx application logs and failure alerts.
-For invited testers, prepare a signed Android App Bundle, Play Internal Testing,
-the required Health Connect declarations and privacy policy, and an install/update
-test on a phone that has never used `adb`. The current staging image acceptance
-covers demo/test data only; do not collect other users' real health data there
-without revisiting that security boundary. The staging architecture and manual
+For public distribution, prepare a protected upload key and signed release
+Android App Bundle targeting a real production HTTPS API, complete the Health
+Connect declarations and privacy policy, and verify Play installation and
+updates on a phone that has never used `adb`. Follow any closed-testing gate
+required by the Play developer account; internal testing is optional. The
+current staging image acceptance covers demo/test data only, so do not collect
+other users' real health data there. The staging architecture and manual
 release procedure are in
 `reference_docs/playbooks/presentation-staging-manual-provisioning.md`.
 

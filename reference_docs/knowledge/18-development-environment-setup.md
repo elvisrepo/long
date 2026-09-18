@@ -114,7 +114,7 @@ JAVA_HOME=/opt/android-studio/jbr ./gradlew connectedDebugAndroidTest
 - The current `LoginScreenPreview` can be rendered from Android Studio's Split/Design editor without a phone.
 - The debug build permits local cleartext HTTP while the main/release manifest remains HTTPS-only.
 - After connecting the authorized phone, run `adb reverse tcp:8000 tcp:8000` so `http://127.0.0.1:8000` on the phone reaches local Django. This mapping is temporary and may need to be recreated after reconnecting the phone or restarting ADB.
-- The debug build sets `BuildConfig.API_BASE_URL` to `http://127.0.0.1:8000/`; this is useful only with the `adb reverse` mapping above. The release URL remains deliberately unset until an HTTPS production API exists.
+- The debug build sets `BuildConfig.API_BASE_URL` to `http://127.0.0.1:8000/`; this is useful only with the `adb reverse` mapping above. The release build requires an explicitly supplied HTTPS production API origin root. A missing, HTTP, or non-root URL fails validation before a release task runs.
 - The non-debuggable staging build uses application ID
   `com.viridiandome.longevity.staging`, rejects cleartext traffic, and requires an
   HTTPS origin root ending in `/`. Supply it as a Gradle property or environment
@@ -131,7 +131,19 @@ JAVA_HOME=/opt/android-studio/jbr ./gradlew assembleStaging \
   `https://staging.example.com/` is test input only, not a provisioned Longevity
   hostname. `LONGEVITY_STAGING_API_BASE_URL` provides the equivalent CI input.
   The staging APK currently uses local debug signing solely for the first
-  direct-device smoke; Play Internal Testing requires a dedicated upload key.
+  direct-device smoke. Public Play distribution requires separate upload signing.
+- Release build tests can use a placeholder HTTPS origin, but a distributed app
+  must use the real production origin:
+
+```bash
+cd /home/sevi/longevity/android
+JAVA_HOME=/opt/android-studio/jbr ./gradlew testReleaseUnitTest \
+  -Plongevity.releaseApiBaseUrl=https://api.example.com/
+```
+
+  `LONGEVITY_RELEASE_API_BASE_URL` provides the equivalent CI input. The URL is
+  public build configuration, not a secret. This validation does not sign an
+  app bundle or prove that a production API exists.
 - `HttpAuthRepository` implements and mock-server-tests the mobile-login HTTP contract. `AndroidKeystoreAuthTokenStore` provides the production AES-GCM/Android-Keystore storage boundary and is verified on the physical phone.
 - `LongevityApplication` creates the shared HTTP/auth dependencies. `MainActivity` obtains `LoginViewModel` through `LoginViewModelFactory`, collects its state with lifecycle awareness, and delegates Sign in to the real repository.
 

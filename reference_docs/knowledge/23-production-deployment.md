@@ -168,8 +168,11 @@ release API origin -> https://<production-domain>/ over the internet
 Repositories append endpoint paths such as `/api/auth/mobile/login/` to that
 origin root. The staging application ID is
 `com.viridiandome.longevity.staging`. A locally debug-signed, non-debuggable APK
-is allowed for the first direct-device smoke; repeatable Play Internal Testing
-requires a dedicated upload key. The API origin is public build configuration,
+is allowed for the first direct-device smoke. The release build requires
+`-Plongevity.releaseApiBaseUrl=https://<production-domain>/` or
+`LONGEVITY_RELEASE_API_BASE_URL`; validation rejects a missing, HTTP, or
+non-root origin. The current release build is not upload-signed, and a public
+Play release requires a protected upload key. The API origin is public build configuration,
 not a secret. Native OkHttp is not governed by browser CORS, but all
 authentication, throttling, authorization, entitlement, HTTPS, and payload
 validation still apply.

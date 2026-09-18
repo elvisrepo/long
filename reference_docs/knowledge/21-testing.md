@@ -662,6 +662,11 @@ Current Android testing checkpoint — 2026-08-17:
   HTTPS origin assembled successfully for artifact inspection; the manifest
   disables cleartext traffic and the APK uses the Android debug certificate only
   for the first direct-device smoke. The combined debug and staging JVM suites pass.
+- On 2026-09-18, the release build contract added a JVM test for the production
+  application ID, non-debuggable build, and HTTPS API origin root. Gradle rejects
+  a missing or HTTP release origin before release tasks run. The release and
+  staging JVM suites pass with placeholder HTTPS origins; these tests do not
+  prove production API availability or Play signing.
 - Local JVM tests cover login form state, login and mobile-refresh request/response/error serialization, safe diagnostic strings, ViewModel success/failure/session-checking/session-restoration/logout state, and the HTTP repository contract. Refresh-contract tests prove the request contains exactly `refresh`, the response requires `access`, rotated `refresh` is optional, and neither token appears in diagnostic strings.
 - MockWebServer and repository tests prove the repository sends `POST /api/auth/mobile/login/` with the exact Django JSON body and stores both tokens before returning success. Startup-restoration coverage proves a readable stored pair restores locally without networking or token replacement. Explicit refresh coverage proves `/api/auth/mobile/refresh/` replaces access, retains or rotates refresh correctly, skips networking without stored tokens, clears tokens after `401`, and preserves tokens across transient network failure. Logout coverage proves the client posts the stored refresh token to `/api/auth/mobile/logout/`, clears locally after successful revocation, and retains tokens after a server failure so revocation can be retried.
 - `AuthenticatedApiClientTest` proves product requests use the stored access token as a Bearer credential, a `401` refreshes and retries exactly once with the replacement access token, missing/rejected sessions do not send an unauthenticated retry, and a token already replaced by another request is reused without a second rotation.

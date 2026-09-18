@@ -16,24 +16,34 @@ plugins {
 val stagingApiBaseUrlProvider = providers
     .gradleProperty("longevity.stagingApiBaseUrl")
     .orElse(providers.environmentVariable("LONGEVITY_STAGING_API_BASE_URL"))
+val releaseApiBaseUrlProvider = providers
+    .gradleProperty("longevity.releaseApiBaseUrl")
+    .orElse(providers.environmentVariable("LONGEVITY_RELEASE_API_BASE_URL"))
 
 fun String.asBuildConfigString(): String =
     "\"${replace("\\", "\\\\").replace("\"", "\\\"")}\""
 
-abstract class ValidateStagingApiBaseUrlTask : DefaultTask() {
+abstract class ValidateApiBaseUrlTask : DefaultTask() {
     @get:Input
     @get:Optional
     abstract val apiBaseUrl: Property<String>
+
+    @get:Input
+    abstract val environmentName: Property<String>
+
+    @get:Input
+    abstract val configurationHint: Property<String>
 
     @TaskAction
     fun validate() {
         val value = apiBaseUrl.orNull
             ?: throw GradleException(
-                "Set -Plongevity.stagingApiBaseUrl=https://staging.<domain>/ " +
-                    "or LONGEVITY_STAGING_API_BASE_URL before building staging.",
+                "Set ${configurationHint.get()} before building ${environmentName.get()}.",
             )
         val uri = runCatching { URI(value) }.getOrElse {
-            throw GradleException("The staging API base URL must be a valid absolute URI.")
+            throw GradleException(
+                "The ${environmentName.get()} API base URL must be a valid absolute URI.",
+            )
         }
         val isHttpsOriginRoot = uri.scheme == "https" &&
             !uri.host.isNullOrBlank() &&
@@ -44,7 +54,7 @@ abstract class ValidateStagingApiBaseUrlTask : DefaultTask() {
 
         if (!isHttpsOriginRoot) {
             throw GradleException(
-                "The staging API base URL must be an HTTPS origin root ending in / " +
+                "The ${environmentName.get()} API base URL must be an HTTPS origin root ending in / " +
                     "with no credentials, query, or fragment.",
             )
         }
@@ -88,8 +98,11 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
         release {
-            // Deliberately unset until the production API has a real HTTPS hostname.
-            buildConfigField("String", "API_BASE_URL", "\"\"")
+            buildConfigField(
+                "String",
+                "API_BASE_URL",
+                releaseApiBaseUrlProvider.orNull.orEmpty().asBuildConfigString(),
+            )
             optimization {
                 enable = false
             }
@@ -111,17 +124,35 @@ androidComponents {
             .hostTests[HostTestBuilder.UNIT_TEST_TYPE]
             ?.enable = true
     }
+    beforeVariants(selector().withBuildType("release")) { variantBuilder ->
+        (variantBuilder as HasHostTestsBuilder)
+            .hostTests[HostTestBuilder.UNIT_TEST_TYPE]
+            ?.enable = true
+    }
 }
 
-val validateStagingApiBaseUrl by tasks.registering(ValidateStagingApiBaseUrlTask::class) {
+val validateStagingApiBaseUrl by tasks.registering(ValidateApiBaseUrlTask::class) {
     group = "verification"
     description = "Rejects a missing or unsafe Android staging API base URL."
     apiBaseUrl.set(stagingApiBaseUrlProvider)
+    environmentName.set("staging")
+    configurationHint.set("-Plongevity.stagingApiBaseUrl=https://staging.<domain>/ or LONGEVITY_STAGING_API_BASE_URL")
+}
+
+val validateReleaseApiBaseUrl by tasks.registering(ValidateApiBaseUrlTask::class) {
+    group = "verification"
+    description = "Rejects a missing or unsafe Android release API base URL."
+    apiBaseUrl.set(releaseApiBaseUrlProvider)
+    environmentName.set("release")
+    configurationHint.set("-Plongevity.releaseApiBaseUrl=https://api.<domain>/ or LONGEVITY_RELEASE_API_BASE_URL")
 }
 
 tasks.configureEach {
     if (name != validateStagingApiBaseUrl.name && name.contains("Staging")) {
         dependsOn(validateStagingApiBaseUrl)
+    }
+    if (name != validateReleaseApiBaseUrl.name && name.contains("Release")) {
+        dependsOn(validateReleaseApiBaseUrl)
     }
 }
 

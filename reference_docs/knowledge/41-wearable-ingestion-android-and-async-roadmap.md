@@ -101,23 +101,24 @@ isolates its Keystore data, sessions, app storage, and Health Connect permission
 grants. Debug and release intentionally still share the production application
 ID and therefore cannot coexist; changing debug now would discard the current
 local device boundary and is not required for staging isolation. The first
-staging APK may be installed directly for a smoke test with local debug signing;
-Play Internal Testing requires a dedicated upload key and is the preferred
-repeatable private distribution path before a public Play release.
+staging APK may be installed directly for a smoke test with local debug signing.
+Public Google Play distribution is the target; internal testing is an optional
+rehearsal, not the release destination.
 
 Cable-free distribution is a separate delivery milestone from the working
-hosted API connection. For invited testers: create a protected upload key,
-produce a signed staging Android App Bundle with a monotonically increasing
-`versionCode`, configure the app and tester list in Play Console, complete the
-Health Connect permission and privacy declarations, then verify install, sign-in,
-Weight/Steps sync, and an update on a phone without `adb`. The present staging
-build is debug-signed for direct-device smoke testing and has not passed this
-distribution gate. The staging backend's documented image-risk acceptance covers
-demo/test data only, so onboarding other users with real health records also
-requires a separate security and data-handling review. Recheck current Play
-requirements at release time:
+hosted API connection. For public release: create a protected upload key,
+produce a signed release Android App Bundle with a monotonically increasing
+`versionCode` and real HTTPS production API origin, complete the Play listing,
+Health Connect permission and privacy declarations, and any testing gate
+required by the Play developer account. Verify Play install, sign-in,
+Weight/Steps sync, and an update on a phone without `adb`. The current release
+build now rejects a missing or unsafe API origin but is not upload-signed; the
+staging build remains debug-signed for direct-device smoke testing. The staging
+backend's documented image-risk acceptance covers demo/test data only, so other
+users' real health records require a separate production security and
+data-handling review. Recheck current Play requirements at release time:
 
-- [Internal testing tracks](https://support.google.com/googleplay/android-developer/answer/9845334)
+- [App testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465)
 - [App signing](https://developer.android.com/studio/publish/app-signing)
 - [Health Connect publishing](https://developer.android.com/health-and-fitness/health-connect/publish)
 
