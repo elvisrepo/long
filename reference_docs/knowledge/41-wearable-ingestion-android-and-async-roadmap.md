@@ -136,7 +136,9 @@ sync after reopening Longevity, without tapping manual sync. The Activity has no
 direct resume-sync call; it reloads policy and can refresh the scheduled request,
 while Android may also dispatch queued work then. This observation does not
 establish that an upload occurred while Longevity stayed in the background.
-An unattended WorkManager run and a same-key APK update remain untested. The
+An unattended WorkManager run remains untested. The owner confirms pilot 1.1 is
+installed and working on the authorized phone, but has not confirmed whether it
+was installed over version 1 without uninstalling. The
 staging backend's documented image-risk acceptance covers demo/test data only,
 so other users' real health records require a separate security and
 data-handling review before onboarding.

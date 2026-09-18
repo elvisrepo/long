@@ -506,6 +506,39 @@ The deployed image digest and exact device/test conditions were not recorded
 with that report; record them before treating the Section 12 evidence gate as
 complete. The log privacy check is also still open.
 
+#### Watch requests and backend errors on staging
+
+Use the root Session Manager shell on the EC2 host. In one terminal, watch new
+Nginx requests; `-F` follows the file across log rotation:
+
+```bash
+tail -n 0 -F /var/log/nginx/access.log
+```
+
+In two other terminals, watch Nginx errors and the API container's
+Gunicorn/Django output respectively:
+
+```bash
+tail -n 0 -F /var/log/nginx/error.log
+docker logs --since 5m --follow --tail 50 syncvitals-staging-api-1
+```
+
+If the shell is not root, use `sudo` for the Nginx files and Docker command.
+Open a known `/api/*` page or action in the hosted app and check its method,
+path, status, and time in the Nginx access log. The Gunicorn access log should
+show the proxied API request; Django errors appear in the same container stream.
+Static frontend requests are served by CloudFront/S3, so they do not appear in
+these origin logs. The container health probe also creates repeated readiness
+entries; distinguish those from user requests by path and timing.
+
+Inspect privately: access logs can include client IPs and full URL query
+strings, and application exceptions can include sensitive context. Do not paste
+raw logs into chat or tickets. Check representative authenticated and wearable
+requests for credentials, tokens, health values, and unexpected tracebacks
+before forwarding these logs to a central service. The current Docker `local`
+driver bounds container log files to three 10 MiB files; this live view is not
+a durable searchable log archive or a failure alert.
+
 ### 13. Back up and restore before calling staging recoverable
 
 - Create a separate private, encrypted, versioned backup bucket.

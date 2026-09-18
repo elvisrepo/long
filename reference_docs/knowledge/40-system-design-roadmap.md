@@ -389,8 +389,8 @@ signing key and password. The `ultra 17` device was authorized and, on
 connection, sync after using the background-sync control, and Samsung Health
 data appearing on the frontend. A version-code-2 pilot APK with local worker
 timing diagnostics was built and signed with the same key; the owner has reported
-its diagnostic output on the phone, but has not explicitly confirmed whether it
-was installed over version 1 without uninstalling. Before inviting other pilot
+its diagnostic output on the phone and confirms pilot 1.1 is installed and working.
+Before inviting other pilot
 users, prepare a stable HTTPS APK download link. The limit is 20
 authorized devices, and this route does not list the app on Google Play. The
 current staging image acceptance covers demo/test data only, so do not collect
