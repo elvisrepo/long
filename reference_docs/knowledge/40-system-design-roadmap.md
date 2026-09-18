@@ -1,6 +1,6 @@
 # System Design Roadmap: Local MVP to Production
 
-Current state, bluntly: the project has a working hosted staging value loop. The public HTTPS frontend and API, Stripe test-mode lifecycle, monitored database backup and restore, and Android authentication and Weight/Steps ingestion are deployed. On 2026-09-17 the operator reported that automatic Android sync reaches the hosted backend and the data appears correctly in the frontend. The remaining staging acceptance work is to record the deployed image digest and test conditions and check that application logs expose no credentials, tokens, or health data. Reliable application monitoring, richer analytics, additional health metrics, asynchronous server processing, and production hardening remain later work.
+Current state, bluntly: the project has a working hosted staging value loop. The public HTTPS frontend and API, Stripe test-mode lifecycle, monitored database backup and restore, and Android authentication and Weight/Steps ingestion are deployed. On 2026-09-17 the operator reported that automatic Android sync reaches the hosted backend and the data appears correctly in the frontend. On 2026-09-18 the operator checked sign-in and sync logs and reported no sensitive values. The remaining staging acceptance work is to record the deployed image digest and exact test conditions. Retained application logs, failure alerts, richer analytics, additional health metrics, asynchronous server processing, and production hardening remain later work.
 
 ## 1. Local system design — what exists now
 
@@ -227,7 +227,7 @@ Recommended order:
 
 12. Deploy a public HTTPS staging environment — deployed; acceptance evidence remains
 
-   The cost-bounded presentation staging environment is deployed: CloudFront, private S3/OAC, Route 53, one public `t4g.small` EC2 Docker host, Nginx, Gunicorn/Django, PostgreSQL 16 on encrypted EBS, monitored `pg_dump` backups, Secrets Manager, ECR, and CloudWatch backup/restore alarms. The public Stripe test webhook is verified. The operator reports hosted Android automatic Weight and Steps sync and correct frontend display; record its image digest and test conditions and complete the log privacy check before closing acceptance.
+   The cost-bounded presentation staging environment is deployed: CloudFront, private S3/OAC, Route 53, one public `t4g.small` EC2 Docker host, Nginx, Gunicorn/Django, PostgreSQL 16 on encrypted EBS, monitored `pg_dump` backups, Secrets Manager, ECR, and CloudWatch backup/restore alarms. The public Stripe test webhook is verified. The operator reports hosted Android automatic Weight and Steps sync and correct frontend display, and reports clean sign-in and sync logs; record its image digest and exact test conditions before closing acceptance.
 
 13. Add asynchronous server processing — deferred until justified
 
@@ -378,8 +378,8 @@ Finish staging acceptance and prepare a free 20-device Android pilot
 The public staging frontend, API, database, Stripe test webhook, and monitored
 backup/restore jobs are deployed. The operator reports successful automatic
 Android Weight and Steps sync and correct frontend display. Record the deployed
-image digest and test conditions, verify that logs contain no credentials,
-tokens, or health data, and add Django/Nginx application logs and failure alerts.
+image digest and test conditions. The owner has checked live sign-in and sync
+logs for sensitive values; add retained Django/Nginx logs and failure alerts.
 For the selected free pilot, the owner created an Android Developer Console
 limited-distribution account and, on 2026-09-18, showed the new package
 `com.viridiandome.longevity.pilot` as Registered with its key Verified. A signed

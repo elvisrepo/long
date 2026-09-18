@@ -416,11 +416,12 @@ PostgreSQL 16, migrated Django API, Nginx TLS/header guard, and CloudFront
 uncached `/api/*` behavior are deployed and verified. Public liveness/readiness
 and Stripe test-mode Checkout, Portal, and webhook flows have been verified.
 On 2026-09-17 the operator reported working Android automatic Weight and Steps
-sync to the hosted backend and correct display in the hosted frontend. Record
-the deployed image digest and test conditions, and complete the log privacy
-check before closing Step 12. Daily backup and monthly isolated restore
-monitoring are active for Step 13. Play Internal Testing upload key setup
-remains a later distribution gate. Keep the
+sync to the hosted backend and correct display in the hosted frontend. On
+2026-09-18 the operator verified live Nginx/backend log access and reported no
+sensitive values in inspected sign-in and sync logs. Record the deployed image
+digest and exact phone/test conditions before closing Step 12. Daily backup and
+monthly isolated restore monitoring are active for Step 13. Play Internal
+Testing upload key setup remains a later distribution gate. Keep the
 PostgreSQL-backed backend suite, production-image smoke, migration/API deployment
 smoke, health contract, removed-route, runtime-artifact, E2E Stripe-isolation,
 and staging-runtime contract checks green in CI.

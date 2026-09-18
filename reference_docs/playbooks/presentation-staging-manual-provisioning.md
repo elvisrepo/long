@@ -539,6 +539,21 @@ before forwarding these logs to a central service. The current Docker `local`
 driver bounds container log files to three 10 MiB files; this live view is not
 a durable searchable log archive or a failure alert.
 
+On 2026-09-18, the operator confirmed that the Nginx and backend live log
+commands work on staging. The operator then checked sign-in and sync requests
+and reported that the inspected Nginx and backend logs contained no sensitive
+values. This closes the operator-observed log privacy check for those flows;
+retained search and failure alerts remain open. Repeat the check after changing
+request logging, exception handling, or log shipping.
+
+The next monitoring slice is to send Nginx access/error and API application logs
+to three separate CloudWatch Logs groups with short, explicit retention. Keep
+the current private host logs, use a narrowly scoped EC2 write policy, and
+verify the collected events again for sensitive values. After collection works,
+add failure alerts for API 5xx responses and backend/container unavailability.
+Check ingestion and retention cost before enabling the log groups; a successful
+live `tail` does not itself require CloudWatch Logs charges.
+
 ### 13. Back up and restore before calling staging recoverable
 
 - Create a separate private, encrypted, versioned backup bucket.
