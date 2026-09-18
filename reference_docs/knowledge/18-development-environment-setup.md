@@ -144,6 +144,26 @@ JAVA_HOME=/opt/android-studio/jbr ./gradlew testReleaseUnitTest \
   `LONGEVITY_RELEASE_API_BASE_URL` provides the equivalent CI input. The URL is
   public build configuration, not a secret. This validation does not sign an
   app bundle or prove that a production API exists.
+- The free limited-distribution pilot uses application ID
+  `com.viridiandome.longevity.pilot` and a separate signing certificate. Build
+  the installable APK with the hosted staging API origin:
+
+```bash
+cd /home/sevi/longevity/android
+JAVA_HOME=/opt/android-studio/jbr ./gradlew testPilotUnitTest assemblePilot \
+  -Plongevity.pilotApiBaseUrl=https://staging.syncvitals.space/
+```
+
+  The output is `app/build/outputs/apk/pilot/app-pilot.apk`. The private key
+  and password live in ignored `android/.local-signing/pilot-signing.p12` and
+  `android/.local-signing/pilot-password.txt`; the public certificate is
+  `android/.local-signing/pilot-certificate.pem`. In Android Developer Console's
+  **Add key** flow, provide the public PEM or its SHA-256 certificate fingerprint
+  as requested by the form. Back up the private
+  key and password together in a secure owner-controlled location before
+  distributing an APK. Losing them prevents updates under this package name.
+  Never commit or share the private files. Each later APK update needs an
+  increased `versionCode` and the same key.
 - `HttpAuthRepository` implements and mock-server-tests the mobile-login HTTP contract. `AndroidKeystoreAuthTokenStore` provides the production AES-GCM/Android-Keystore storage boundary and is verified on the physical phone.
 - `LongevityApplication` creates the shared HTTP/auth dependencies. `MainActivity` obtains `LoginViewModel` through `LoginViewModelFactory`, collects its state with lifecycle awareness, and delegates Sign in to the real repository.
 

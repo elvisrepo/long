@@ -162,6 +162,7 @@ Android is an independent API client:
 ```text
 debug API origin   -> http://127.0.0.1:8000/ through adb reverse
 staging API origin -> https://staging.<domain>/ over the internet
+pilot API origin   -> https://staging.syncvitals.space/ over the internet
 release API origin -> https://<production-domain>/ over the internet
 ```
 
@@ -176,6 +177,15 @@ Play release requires a protected upload key. The API origin is public build con
 not a secret. Native OkHttp is not governed by browser CORS, but all
 authentication, throttling, authorization, entitlement, HTTPS, and payload
 validation still apply.
+
+The free pilot is a separately signed APK with application ID
+`com.viridiandome.longevity.pilot`, to be registered in Android Developer Console's
+limited-distribution flow. The console authorizes up to 20 devices; it does not
+host the APK or provide a Play Store listing. The owner must provide a separate
+HTTPS APK download, retain the private signing key and password, and use the
+same key plus a higher `versionCode` for manual updates. The current staging
+image has acceptance for demo/test data only. External users' real health data
+requires a separate security and data-handling review before invitation.
 
 ### 8.5 Database and Migrations
 

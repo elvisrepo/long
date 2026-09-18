@@ -122,7 +122,7 @@ The remaining product-value gap is the final step: richer, actionable insight. P
 Still missing:
 
 - production deployment with separate resilient infrastructure
-- a signed Android App Bundle and public Google Play distribution, including any account-specific testing gate
+- a signed APK and free Android Developer Console limited distribution for up to 20 authorized pilot devices; public Google Play distribution remains a separate paid goal
 - reliable application logs and alerts for API, Stripe webhook, and wearable failures
 - real analytics endpoint
 - trend calculations
@@ -372,7 +372,7 @@ Related docs:
 Next real system-design step:
 
 ```text
-Finish staging acceptance and prepare a public Google Play release
+Finish staging acceptance and prepare a free 20-device Android pilot
 ```
 
 The public staging frontend, API, database, Stripe test webhook, and monitored
@@ -380,11 +380,14 @@ backup/restore jobs are deployed. The operator reports successful automatic
 Android Weight and Steps sync and correct frontend display. Record the deployed
 image digest and test conditions, verify that logs contain no credentials,
 tokens, or health data, and add Django/Nginx application logs and failure alerts.
-For public distribution, prepare a protected upload key and signed release
-Android App Bundle targeting a real production HTTPS API, complete the Health
-Connect declarations and privacy policy, and verify Play installation and
-updates on a phone that has never used `adb`. Follow any closed-testing gate
-required by the Play developer account; internal testing is optional. The
+For the selected free pilot, the owner created an Android Developer Console
+limited-distribution account and, on 2026-09-18, showed the new package
+`com.viridiandome.longevity.pilot` as Registered with its key Verified. A signed
+pilot APK has been built locally. Back up its private signing key and password,
+then host the APK at an HTTPS download link. Authorize each
+pilot phone through Google's link/code flow before its owner installs the APK;
+verify a first install and a same-key update without `adb`. The limit is 20
+authorized devices, and this route does not list the app on Google Play. The
 current staging image acceptance covers demo/test data only, so do not collect
 other users' real health data there. The staging architecture and manual
 release procedure are in

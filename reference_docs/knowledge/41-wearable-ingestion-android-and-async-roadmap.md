@@ -102,25 +102,41 @@ grants. Debug and release intentionally still share the production application
 ID and therefore cannot coexist; changing debug now would discard the current
 local device boundary and is not required for staging isolation. The first
 staging APK may be installed directly for a smoke test with local debug signing.
-Public Google Play distribution is the target; internal testing is an optional
-rehearsal, not the release destination.
+The next distribution milestone is a free pilot through Android Developer
+Console limited distribution, outside Google Play. A public Play listing remains
+a separate later goal requiring a paid developer account.
 
 Cable-free distribution is a separate delivery milestone from the working
-hosted API connection. For public release: create a protected upload key,
-produce a signed release Android App Bundle with a monotonically increasing
-`versionCode` and real HTTPS production API origin, complete the Play listing,
-Health Connect permission and privacy declarations, and any testing gate
-required by the Play developer account. Verify Play install, sign-in,
-Weight/Steps sync, and an update on a phone without `adb`. The current release
-build now rejects a missing or unsafe API origin but is not upload-signed; the
-staging build remains debug-signed for direct-device smoke testing. The staging
-backend's documented image-risk acceptance covers demo/test data only, so other
-users' real health records require a separate production security and
-data-handling review. Recheck current Play requirements at release time:
+hosted API connection. The owner creates a free personal limited-distribution
+account with a Google Account, two-step verification, a payments profile, and
+a contact email. The account can authorize at most 20 devices. Google's current
+limited plan accepts only new package names, so confirm eligibility in the
+console before selecting a pilot application ID; the existing debug and staging
+IDs may already be known to Android. Register the pilot package and signing
+certificate, then authorize each phone: send Google's device link, have the user
+generate a code on that phone, and enter the code in the console. Separately
+provide a signed APK over HTTPS. The user downloads it in a browser, grants
+that browser permission to install unknown apps, and installs it. Updates require
+a higher `versionCode`, the same package name and signing key, and a new APK
+download; there is no Play-managed update channel. Verify install, sign-in,
+Weight/Steps sync, and an update without `adb` before inviting further users.
 
-- [App testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465)
-- [App signing](https://developer.android.com/studio/publish/app-signing)
-- [Health Connect publishing](https://developer.android.com/health-and-fitness/health-connect/publish)
+The current staging build is debug-signed and cannot serve as the stable pilot
+artifact. The pilot build now uses `com.viridiandome.longevity.pilot`, validates
+its HTTPS origin, and signs with a local ignored key. On 2026-09-18, the owner
+showed the Android Developer Console package as **Registered** and its signing
+fingerprint as **Verified**. The owner then showed `ultra 17` as **Authorized**
+(1 of 20 devices). The console states that a removed device still counts toward
+the limit for 30 days. A cable-free APK install remains untested. The private key and password
+must be backed up securely before distributing the APK. The staging backend's
+documented image-risk acceptance covers
+demo/test data only, so other users' real health records require a separate
+security and data-handling review before onboarding. Recheck current official
+requirements while setting up the account:
+
+- [Limited distribution and device authorization](https://support.google.com/android-developer-console/answer/17131204)
+- [Package name registration](https://support.google.com/android-developer-console/answer/16640821)
+- [APK distribution from a website](https://developer.android.com/distribute/marketing-tools/alternative-distribution)
 
 Native OkHttp is not subject to browser CORS enforcement. It is still subject
 to TLS, JWT validation, throttling, caller ownership, subscription entitlement,

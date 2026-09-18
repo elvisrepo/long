@@ -2,6 +2,7 @@
 .env
 .env.*
 !backend/.env.example
+android/.local-signing/
 
 # Python
 __pycache__/

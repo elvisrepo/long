@@ -5,6 +5,7 @@ import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
+import java.io.File
 import java.net.URI
 
 plugins {
@@ -19,6 +20,11 @@ val stagingApiBaseUrlProvider = providers
 val releaseApiBaseUrlProvider = providers
     .gradleProperty("longevity.releaseApiBaseUrl")
     .orElse(providers.environmentVariable("LONGEVITY_RELEASE_API_BASE_URL"))
+val pilotApiBaseUrlProvider = providers
+    .gradleProperty("longevity.pilotApiBaseUrl")
+    .orElse(providers.environmentVariable("LONGEVITY_PILOT_API_BASE_URL"))
+val pilotKeyFile = rootProject.file(".local-signing/pilot-signing.p12")
+val pilotPasswordFile = rootProject.file(".local-signing/pilot-password.txt")
 
 fun String.asBuildConfigString(): String =
     "\"${replace("\\", "\\\\").replace("\"", "\\\"")}\""
@@ -61,6 +67,21 @@ abstract class ValidateApiBaseUrlTask : DefaultTask() {
     }
 }
 
+abstract class ValidatePilotSigningTask : DefaultTask() {
+    @get:Input
+    abstract val keyPath: Property<String>
+
+    @get:Input
+    abstract val passwordPath: Property<String>
+
+    @TaskAction
+    fun validate() {
+        if (!File(keyPath.get()).isFile || !File(passwordPath.get()).isFile) {
+            throw GradleException("Pilot signing files are missing from android/.local-signing/.")
+        }
+    }
+}
+
 android {
     namespace = "com.viridiandome.longevity"
     compileSdk {
@@ -79,6 +100,16 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("pilot") {
+            if (pilotKeyFile.isFile && pilotPasswordFile.isFile) {
+                storeFile = pilotKeyFile
+                storePassword = pilotPasswordFile.readText().trim()
+                keyAlias = "longevity-pilot"
+                keyPassword = storePassword
+            }
+        }
+    }
     buildTypes {
         debug {
             // adb reverse maps the phone's loopback port to Django on this machine.
@@ -96,6 +127,17 @@ android {
             // Direct-device smoke only. Play Internal Testing requires a
             // dedicated upload-signing boundary before distribution.
             signingConfig = signingConfigs.getByName("debug")
+        }
+        create("pilot") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".pilot"
+            versionNameSuffix = "-pilot"
+            buildConfigField(
+                "String",
+                "API_BASE_URL",
+                pilotApiBaseUrlProvider.orNull.orEmpty().asBuildConfigString(),
+            )
+            signingConfig = signingConfigs.getByName("pilot")
         }
         release {
             buildConfigField(
@@ -119,6 +161,11 @@ android {
 }
 
 androidComponents {
+    beforeVariants(selector().withBuildType("pilot")) { variantBuilder ->
+        (variantBuilder as HasHostTestsBuilder)
+            .hostTests[HostTestBuilder.UNIT_TEST_TYPE]
+            ?.enable = true
+    }
     beforeVariants(selector().withBuildType("staging")) { variantBuilder ->
         (variantBuilder as HasHostTestsBuilder)
             .hostTests[HostTestBuilder.UNIT_TEST_TYPE]
@@ -147,12 +194,33 @@ val validateReleaseApiBaseUrl by tasks.registering(ValidateApiBaseUrlTask::class
     configurationHint.set("-Plongevity.releaseApiBaseUrl=https://api.<domain>/ or LONGEVITY_RELEASE_API_BASE_URL")
 }
 
+val validatePilotApiBaseUrl by tasks.registering(ValidateApiBaseUrlTask::class) {
+    group = "verification"
+    description = "Rejects a missing or unsafe Android pilot API base URL."
+    apiBaseUrl.set(pilotApiBaseUrlProvider)
+    environmentName.set("pilot")
+    configurationHint.set("-Plongevity.pilotApiBaseUrl=https://staging.<domain>/ or LONGEVITY_PILOT_API_BASE_URL")
+}
+
+val validatePilotSigning by tasks.registering(ValidatePilotSigningTask::class) {
+    group = "verification"
+    description = "Requires the local pilot signing key and password before packaging."
+    keyPath.set(pilotKeyFile.absolutePath)
+    passwordPath.set(pilotPasswordFile.absolutePath)
+}
+
 tasks.configureEach {
     if (name != validateStagingApiBaseUrl.name && name.contains("Staging")) {
         dependsOn(validateStagingApiBaseUrl)
     }
     if (name != validateReleaseApiBaseUrl.name && name.contains("Release")) {
         dependsOn(validateReleaseApiBaseUrl)
+    }
+    if (name != validatePilotApiBaseUrl.name && name.contains("Pilot")) {
+        dependsOn(validatePilotApiBaseUrl)
+    }
+    if (name in listOf("assemblePilot", "bundlePilot", "packagePilot")) {
+        dependsOn(validatePilotSigning)
     }
 }
 

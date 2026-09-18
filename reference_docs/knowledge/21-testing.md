@@ -16,6 +16,15 @@
 | **Performance** | Locust | Load test: 100 concurrent users, metrics CRUD + analytics queries | Pre-R3 launch |
 | **Security** | pip-audit + bandit | Dependency vulnerabilities + code security patterns | Every PR (CI) |
 
+For the Android limited-distribution pilot, `testPilotUnitTest` verifies the
+registered application ID, non-debuggable build, and HTTPS API origin. Run
+`assemblePilot` with the real hosted origin, then verify the APK with Android
+SDK `apksigner verify --print-certs` and compare its SHA-256 certificate digest
+to the public certificate registered in Android Developer Console. The console must show
+the package registration as complete before any user install. A phone without
+`adb` must complete device authorization, browser APK install, sign-in,
+Weight/Steps sync, and a same-key update before expanding the pilot.
+
 **Coverage target**: 80%+ via `pytest-cov`, enforced in CI.
 
 Current backend production-runtime checkpoint:
