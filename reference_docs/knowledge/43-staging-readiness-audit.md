@@ -6,17 +6,14 @@
 
 ## Status
 
-Audit started on 2026-08-20. AWS account access is bootstrapped, and the public
-frontend foundation is provisioned: Route 53, the CloudFront viewer
-certificate, private S3/OAC, CloudFront, SPA routing, and the public
-`staging.syncvitals.space` alias. On 2026-09-06 the first EC2 origin host was
-launched and verified with encrypted root EBS, the intended restricted
-role/security group, required
-IMDSv2, and working Systems Manager access. Host bootstrap is not complete:
-Docker, Nginx, Certbot, the Route 53 Certbot plugin, and the CloudWatch agent
-are not installed, and the persistent database volume and backend runtime are
-not deployed. The backend inspection is complete. Production settings
-validation and HTTPS/proxy security were implemented on 2026-08-21, and the
+Audit started on 2026-08-20. The public staging frontend and API are deployed
+through CloudFront, Nginx, Gunicorn/Django, and PostgreSQL 16 on encrypted EBS.
+On 2026-09-17 the operator reported that the Android staging app connects to
+the hosted backend, automatic Weight and Steps sync works, and the data appears
+correctly in the hosted frontend. The deployed image digest and test conditions
+still need to be recorded in the staging playbook. The backend inspection is
+complete. Production settings validation and HTTPS/proxy security were
+implemented on 2026-08-21, and the
 `.env`-free staging secret/runtime contract was implemented on 2026-08-25. The
 production-like migration/API deployment smoke was completed locally and in
 GitHub CI on 2026-08-26. The frontend delivery contract was completed on
@@ -28,9 +25,9 @@ The approved deployment topology changed on 2026-08-28. Its intended request
 path is
 `CloudFront -> Nginx on one public EC2 host -> Gunicorn/Django -> self-hosted
 plain PostgreSQL 16`, with encrypted EBS and scheduled `pg_dump` backups to
-private S3. The currently deployed state has not reached Nginx, Django, or
-PostgreSQL yet. The earlier ALB, NAT Gateway, and Timescale Cloud wording below
-is historical audit evidence where explicitly labelled; it is not a
+private S3. This path is deployed; daily backups and an isolated monthly restore
+check are monitored. The earlier ALB, NAT Gateway, and Timescale Cloud wording
+below is historical audit evidence where explicitly labelled; it is not a
 provisioning instruction. Recommended production is the separate resilient
 CloudFront/WAF -> ALB -> two Fargate tasks -> RDS PostgreSQL Multi-AZ topology.
 
@@ -416,11 +413,14 @@ Steps 1–11 are complete. Step 12 is active and follows
 `reference_docs/playbooks/presentation-staging-manual-provisioning.md` one gate
 at a time. The reviewed ARM64 image, runtime secret, EC2/EBS storage guard,
 PostgreSQL 16, migrated Django API, Nginx TLS/header guard, and CloudFront
-uncached `/api/*` behavior are deployed and verified. Public liveness/readiness,
-browser sign-in and writes, physical Android sync, and Stripe test-mode flows
-remain the active proof gate; monitored backup and restore remain Step 13.
-The no-tunnel Android API smoke and Play Internal Testing upload
-key remain later deployment gates. Keep the
+uncached `/api/*` behavior are deployed and verified. Public liveness/readiness
+and Stripe test-mode Checkout, Portal, and webhook flows have been verified.
+On 2026-09-17 the operator reported working Android automatic Weight and Steps
+sync to the hosted backend and correct display in the hosted frontend. Record
+the deployed image digest and test conditions, and complete the log privacy
+check before closing Step 12. Daily backup and monthly isolated restore
+monitoring are active for Step 13. Play Internal Testing upload key setup
+remains a later distribution gate. Keep the
 PostgreSQL-backed backend suite, production-image smoke, migration/API deployment
 smoke, health contract, removed-route, runtime-artifact, E2E Stripe-isolation,
 and staging-runtime contract checks green in CI.

@@ -48,6 +48,16 @@ do not replace or modify that target; they show verified implementation progress
 | V017 | 2026-09-15 | V016 plus verified Stripe test Checkout, Portal, signed webhook reconciliation, and period-end cancellation state; a separate private SSE-S3, versioned, HTTPS-only PostgreSQL backup bucket; permanent instance-role write-only access below `postgresql/`; and one checksum-verified custom-format dump restored successfully into an isolated disposable PostgreSQL 16 container with selected source/restored row counts matching. Daily scheduling, retention, backup monitoring, logs, alarms, and Android end-to-end flows remain pending |
 | V018 | 2026-09-17 | V017 plus an enabled daily PostgreSQL backup timer, two verified S3 lifecycle rules (90-day current versions, 30-day noncurrent versions, seven-day incomplete uploads, and delete-marker cleanup), prefix-scoped restore-read IAM access, an enabled monthly isolated restore check, and an enabled six-hour freshness heartbeat. CloudWatch backup/restore metrics and failure/overdue alarms are `OK`; the backup composite alarm and SNS email delivery were verified. A focused backup-operations view accompanies the complete deployment view. Application logs, traces, and Android-to-public-staging sync remain unverified. |
 
+## Validation after V018
+
+On 2026-09-17 the operator reported that the Android staging app connects to
+the hosted backend, automatic Weight and Steps sync works, and the synced data
+appears correctly in the hosted frontend. This functional validation happened
+after the V018 snapshot; its historical state remains unchanged. No new AWS
+resource was added, so there is no new deployment diagram version. The deployed
+image digest and exact test conditions still need to be recorded in the staging
+playbook. Application log shipping and privacy review remain open.
+
 ## Companion Request Flows
 
 - [`v004-public-frontend-request-flows.md`](./v004-public-frontend-request-flows.md)

@@ -116,9 +116,10 @@ Image-scan acceptance recorded on 2026-09-12:
   is refreshed. The operator deleted the prior ECR images, so this checkpoint
   has no image rollback candidate.
 
-CloudFront's S3 frontend and `/api/*` Django origin are both deployed. Section
-12 remains active for browser, Android, and Stripe end-to-end proof. Section 13
-backup/restore work has not started.
+At this 2026-09-13 checkpoint, CloudFront's S3 frontend and `/api/*` Django
+origin were deployed. Section 12 still needed Android and remaining Stripe
+proof, and Section 13 backup/restore work had not started. Later checkpoints
+below supersede this historical status.
 
 ## Cost Gate
 
@@ -496,6 +497,14 @@ without CloudFront's secret header are rejected.
 - Confirm logs contain no credentials, tokens, health data, or secret payloads.
 
 Gate: every check is recorded with date, deployed image digest, and outcome.
+
+Current checkpoint (2026-09-17): the operator reports that the physical Android
+staging app connects to the public hosted backend, automatic Weight and Steps
+sync works, and the resulting data appears correctly in the hosted frontend.
+This closes the Android-to-hosted-frontend functional check by operator report.
+The deployed image digest and exact device/test conditions were not recorded
+with that report; record them before treating the Section 12 evidence gate as
+complete. The log privacy check is also still open.
 
 ### 13. Back up and restore before calling staging recoverable
 

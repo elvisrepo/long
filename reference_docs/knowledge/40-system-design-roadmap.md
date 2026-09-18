@@ -1,6 +1,6 @@
 # System Design Roadmap: Local MVP to Production
 
-Current state, bluntly: the project now has a working local MVP value loop. Manual metrics, Stripe subscription lifecycle, synchronous wearable ingestion, Android mobile authentication, Health Connect Weight and Steps reads, version-aware provider-record upserts, and subscription-aware device scheduling are proven. The AWS account, Frankfurt Region, temporary CLI authentication, cost alert, and read-only agent-access foundation are configured, but no application cloud resources have been provisioned. The next major milestone is a public HTTPS staging deployment; richer analytics, additional health metrics, asynchronous server processing, and compliance hardening remain later work.
+Current state, bluntly: the project has a working hosted staging value loop. The public HTTPS frontend and API, Stripe test-mode lifecycle, monitored database backup and restore, and Android authentication and Weight/Steps ingestion are deployed. On 2026-09-17 the operator reported that automatic Android sync reaches the hosted backend and the data appears correctly in the frontend. The remaining staging acceptance work is to record the deployed image digest and test conditions and check that application logs expose no credentials, tokens, or health data. Reliable application monitoring, richer analytics, additional health metrics, asynchronous server processing, and production hardening remain later work.
 
 ## 1. Local system design — what exists now
 
@@ -107,7 +107,7 @@ The strongest completed parts are:
 
 6. Test posture
 
-   Backend quality gates, Android JVM tests, the physical-device connected suite, Structurizr validation, and live Weight-plus-Steps synchronization have passed at the latest checkpoint. Frontend tests remain part of the deployment gate before staging.
+   Backend quality gates, Android JVM tests, the physical-device connected suite, Structurizr validation, and live Weight-plus-Steps synchronization passed at the local checkpoint. On 2026-09-17 the operator reported the same Weight-plus-Steps value loop working through public staging and appearing in the hosted frontend.
 
 ## 3. Important gaps
 
@@ -121,14 +121,11 @@ The remaining product-value gap is the final step: richer, actionable insight. P
 
 Still missing:
 
-- all actual AWS application resources; the completed AWS work is access/bootstrap only
-- public HTTPS staging and production deployments
-- Android staging/release API base URLs and signed distribution builds
-- reliable observability for API, Stripe webhook, and wearable failures
+- production deployment with separate resilient infrastructure
+- cable-free Android distribution for invited testers, followed by production release signing and public distribution
+- reliable application logs and alerts for API, Stripe webhook, and wearable failures
 - real analytics endpoint
 - trend calculations
-- monitoring/alerts
-- backup/restore implementation
 - GDPR export/delete
 - password reset / stronger account lifecycle flows
 - additional deliberately mapped Health Connect metrics, with Heart Rate the likely next candidate
@@ -165,13 +162,13 @@ Subscription + entitlement state
 
 The wearable backend is implemented through normalized synchronous ingestion: plan-limited Health Connect registration, owner-scoped lifecycle reads, soft disconnect/reactivation, `SyncRun` idempotency, canonical payload hashing, external-record deduplication, conflict handling, and normalized `MetricEntry` persistence.
 
-Immediate next slice:
+Hosted staging checkpoint:
 
 ```text
-Production-readiness pass
-    → public HTTPS staging deployment
-    → Android staging build using the public API
-    → remote Weight + Steps + Stripe validation
+Public HTTPS staging deployment
+    → Android automatic Weight + Steps sync to hosted API
+    → hosted frontend displays the synced data
+    → record acceptance evidence and add application monitoring
 ```
 
 The Android project at `android/` implements mobile authentication, Keystore-backed JWT storage and rotation, Health Connect Weight and Steps permission/read, caller-owned connection registration, normalized incremental upload, subscription-aware manual cooldowns, Pro WorkManager scheduling, and connection disconnect. A physical phone has completed the Samsung Health → Health Connect → Android → Django → React path for both metrics. Live verification proved a newly added Weight record imports and an evolving Steps record updates through its newer Health Connect modification timestamp. Disconnect is covered on-device at the UI/cursor boundaries and cancels connection-scoped work after Django confirms the soft disconnect.
@@ -228,9 +225,9 @@ Recommended order:
 
    Android now shows connection state, honest approximate scheduling language, and the latest successful Django sync time. A dedicated history/error view remains later work.
 
-12. Deploy a public HTTPS staging environment — next
+12. Deploy a public HTTPS staging environment — deployed; acceptance evidence remains
 
-   Start from the completed AWS access bootstrap, then manually provision the cost-bounded presentation staging resources: CloudFront, private S3/OAC, Route 53, one public `t4g.small` EC2 Docker host with an Elastic IP, Nginx with automated Let's Encrypt DNS-01 renewal, Gunicorn/Django and one-off migration containers, self-hosted plain PostgreSQL 16 on encrypted EBS, monitored `pg_dump` backups to private S3, Systems Manager, an instance role, Secrets Manager, ECR, and CloudWatch. Do not add ALB, NAT Gateway, TimescaleDB/Timescale Cloud, RDS, Redis, or Celery to staging. Record every decision and review projected/actual cost. Configure a public Stripe test webhook, then prove Weight and Steps sync without USB or `adb reverse`.
+   The cost-bounded presentation staging environment is deployed: CloudFront, private S3/OAC, Route 53, one public `t4g.small` EC2 Docker host, Nginx, Gunicorn/Django, PostgreSQL 16 on encrypted EBS, monitored `pg_dump` backups, Secrets Manager, ECR, and CloudWatch backup/restore alarms. The public Stripe test webhook is verified. The operator reports hosted Android automatic Weight and Steps sync and correct frontend display; record its image digest and test conditions and complete the log privacy check before closing acceptance.
 
 13. Add asynchronous server processing — deferred until justified
 
@@ -375,24 +372,21 @@ Related docs:
 Next real system-design step:
 
 ```text
-Prepare and deploy a public HTTPS staging environment
+Finish staging acceptance and prepare cable-free Android tester distribution
 ```
 
-The staging slice should manually provision CloudFront/private S3 and one
-public EC2 host running Nginx, Gunicorn/Django, and plain PostgreSQL 16 on
-encrypted EBS. It must include one-off Docker migrations, scheduled logical
-backups, a restore drill, health checks, structured logs, a public Stripe test
-webhook, and an Android staging API base URL. Every manual step belongs in a
-runbook. Its exit condition is a physical phone synchronizing Weight and Steps
-over ordinary Wi-Fi or mobile data into the hosted frontend without USB or
-`adb reverse`.
-
-The access bootstrap is complete, but it must not be mistaken for a deployed
-staging environment. The immediate first deployment action is a cost-aware
-staging resource plan/runbook for `eu-central-1`, followed by narrowly scoped
-manual provisioning. The read-only agent role may help inspect decisions and
-availability; it cannot deploy resources. Do not bind deployment automation to
-the administrator profile.
+The public staging frontend, API, database, Stripe test webhook, and monitored
+backup/restore jobs are deployed. The operator reports successful automatic
+Android Weight and Steps sync and correct frontend display. Record the deployed
+image digest and test conditions, verify that logs contain no credentials,
+tokens, or health data, and add Django/Nginx application logs and failure alerts.
+For invited testers, prepare a signed Android App Bundle, Play Internal Testing,
+the required Health Connect declarations and privacy policy, and an install/update
+test on a phone that has never used `adb`. The current staging image acceptance
+covers demo/test data only; do not collect other users' real health data there
+without revisiting that security boundary. The staging architecture and manual
+release procedure are in
+`reference_docs/playbooks/presentation-staging-manual-provisioning.md`.
 
 Before real production users, build the separate CloudFront/WAF, ALB, two-task
 Fargate, and RDS PostgreSQL Multi-AZ topology in Terraform. Add Celery/Redis only

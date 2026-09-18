@@ -105,6 +105,22 @@ staging APK may be installed directly for a smoke test with local debug signing;
 Play Internal Testing requires a dedicated upload key and is the preferred
 repeatable private distribution path before a public Play release.
 
+Cable-free distribution is a separate delivery milestone from the working
+hosted API connection. For invited testers: create a protected upload key,
+produce a signed staging Android App Bundle with a monotonically increasing
+`versionCode`, configure the app and tester list in Play Console, complete the
+Health Connect permission and privacy declarations, then verify install, sign-in,
+Weight/Steps sync, and an update on a phone without `adb`. The present staging
+build is debug-signed for direct-device smoke testing and has not passed this
+distribution gate. The staging backend's documented image-risk acceptance covers
+demo/test data only, so onboarding other users with real health records also
+requires a separate security and data-handling review. Recheck current Play
+requirements at release time:
+
+- [Internal testing tracks](https://support.google.com/googleplay/android-developer/answer/9845334)
+- [App signing](https://developer.android.com/studio/publish/app-signing)
+- [Health Connect publishing](https://developer.android.com/health-and-fitness/health-connect/publish)
+
 Native OkHttp is not subject to browser CORS enforcement. It is still subject
 to TLS, JWT validation, throttling, caller ownership, subscription entitlement,
 idempotency, and payload-validation rules enforced by the public Django API.
@@ -167,7 +183,7 @@ Implemented:
 - `InitialWeightSyncViewModel` runs only after the user chooses **Sync now**, prevents overlapping work, aggregates Weight and Steps receipts into imported/updated/skipped counts, exposes recovery outcomes without health records or receipt IDs, and cancels/clears state on logout. The ViewModel retains its legacy name; the authenticated Compose screen and user-facing status text are metric-neutral.
 - The manifest declares `android.permission.health.READ_WEIGHT`, `android.permission.health.READ_STEPS`, and `android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND`, the pre-Android-14 Health Connect package query, and the required pre/post-Android-14 permission-rationale intents. The rationale explains authorized Weight/Steps foreground and optional background reads; the app does not write or delete Health Connect data.
 - `MainActivity` launches the ordinary Health Connect permission contract only after Connect. Once a connection is ready, a separate **Allow background sync** action appears only when the feature is supported and the additional grant is missing. Grant/denial updates local capability state without repeating backend registration.
-- The currently implemented build targets local Django at `http://127.0.0.1:8000/` through `adb reverse`. Separate debug/staging/release application IDs and public HTTPS base URLs are planned but not yet implemented; cloud deployment alone will not redirect the installed client.
+- The debug build targets local Django at `http://127.0.0.1:8000/` through `adb reverse`. An isolated staging build targets the public HTTPS API. On 2026-09-17 the operator reported that the physical staging app completed automatic Weight and Steps sync to the hosted backend and the synced data appeared correctly in the hosted frontend. The deployed image digest and device/test conditions still need to be recorded in the staging playbook.
 - The main manifest permits network access but explicitly rejects cleartext traffic; a debug-only manifest overlay permits local HTTP while release remains HTTPS-only.
 - `adb reverse tcp:8000 tcp:8000` lets the connected phone reach local Django at `http://127.0.0.1:8000`; the mapping is temporary and must be recreated after relevant ADB/device reconnects.
 - Android Studio/Gradle can build the debug APK, and `adb` can install/run the app and instrumented tests on the physical `FCP-N49` phone.
@@ -175,7 +191,7 @@ Implemented:
 
 Not implemented yet:
 
-- Reliable background/closed-process periodic execution, additional metric mappings, Celery-backed asynchronous ingestion, and production distribution remain later phases. Foreground periodic sync and live end-to-end disconnect were manually validated on 2026-08-17. Process-death and normal-Home tests confirmed the WorkManager request survives, but Honor OS delayed execution beyond the requested 15-minute minimum. The normal-Home upload occurred only after Longevity was reopened, so no background upload is claimed.
+- Reliable background/closed-process periodic execution, additional metric mappings, Celery-backed asynchronous ingestion, and production distribution remain later phases. Foreground periodic sync and live end-to-end disconnect were manually validated on 2026-08-17. Process-death and normal-Home tests confirmed the WorkManager request survives, but Honor OS delayed execution beyond the requested 15-minute minimum. The normal-Home upload occurred only after Longevity was reopened. The later hosted automatic-sync report does not specify whether the app was closed, so it does not establish closed-process background execution.
 
 Manually validated on the physical phone:
 
