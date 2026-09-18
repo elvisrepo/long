@@ -11,6 +11,7 @@ class PilotBuildConfigurationTest {
     @Test
     fun pilot_has_registered_identity_and_https_api_origin() {
         assertEquals("com.viridiandome.longevity.pilot", BuildConfig.APPLICATION_ID)
+        assertEquals(2, BuildConfig.VERSION_CODE)
         assertFalse(BuildConfig.DEBUG)
 
         val uri = URI(BuildConfig.API_BASE_URL)

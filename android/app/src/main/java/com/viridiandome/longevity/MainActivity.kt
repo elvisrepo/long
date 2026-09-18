@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -28,6 +30,7 @@ import com.viridiandome.longevity.wearables.healthconnect.BACKGROUND_READ_PERMIS
 import com.viridiandome.longevity.wearables.healthconnect.SUPPORTED_METRIC_READ_PERMISSIONS
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncViewModel
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncViewModelFactory
+import com.viridiandome.longevity.wearables.sync.AutomaticSyncAttempt
 import com.viridiandome.longevity.wearables.sync.WeightSyncScheduleAction
 import com.viridiandome.longevity.wearables.sync.decideWeightSyncScheduleAction
 import java.time.Instant
@@ -38,6 +41,9 @@ import java.time.Instant
  * This activity hosts the Compose UI; it does not use an XML layout file.
  */
 class MainActivity : ComponentActivity() {
+    private var latestBackgroundAttempt by mutableStateOf<AutomaticSyncAttempt?>(null)
+    private var latestForegroundAttempt by mutableStateOf<AutomaticSyncAttempt?>(null)
+
     // The Activity owns the ViewModel. Android retains it across configuration
     // changes, such as rotation, without saving the password to disk.
     private val loginViewModel: LoginViewModel by viewModels {
@@ -205,6 +211,11 @@ class MainActivity : ComponentActivity() {
                         initialWeightSyncState = initialWeightSyncState,
                         manualSyncAvailability = manualSyncAvailability,
                         syncPolicyState = syncPolicyState,
+                        latestBackgroundAttempt = latestBackgroundAttempt,
+                        latestForegroundAttempt = latestForegroundAttempt,
+                        showAutomaticSyncDiagnostics = BuildConfig.BUILD_TYPE == "pilot",
+                        onRefreshAutomaticSyncDiagnostics =
+                            ::refreshAutomaticSyncDiagnostics,
                         onConnectHealthConnect = wearableConnectionViewModel::load,
                         onDisconnectHealthConnect =
                             wearableConnectionViewModel::disconnect,
@@ -230,5 +241,23 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val app = application as LongevityApplication
+        app.isAppVisible = true
+        refreshAutomaticSyncDiagnostics()
+    }
+
+    private fun refreshAutomaticSyncDiagnostics() {
+        val app = application as LongevityApplication
+        latestBackgroundAttempt = app.automaticSyncDiagnostics.latestBackgroundAttempt()
+        latestForegroundAttempt = app.automaticSyncDiagnostics.latestForegroundAttempt()
+    }
+
+    override fun onStop() {
+        (application as LongevityApplication).isAppVisible = false
+        super.onStop()
     }
 }

@@ -8,6 +8,10 @@ import androidx.work.WorkerParameters
 /** Injects application-level domain dependencies into Longevity workers. */
 class LongevityWorkerFactory(
     private val incrementalWeightSyncRunner: () -> WeightSyncRunner,
+    private val diagnostics: (Context) -> AutomaticSyncDiagnostics = { context ->
+        AutomaticSyncDiagnostics(SharedPreferencesDiagnosticStore(context))
+    },
+    private val isAppVisible: () -> Boolean = { false },
 ) : WorkerFactory() {
     override fun createWorker(
         appContext: Context,
@@ -20,6 +24,8 @@ class LongevityWorkerFactory(
                     appContext = appContext,
                     workerParameters = workerParameters,
                     runner = incrementalWeightSyncRunner(),
+                    diagnostics = diagnostics(appContext),
+                    isAppVisible = isAppVisible,
                 )
 
             else -> null

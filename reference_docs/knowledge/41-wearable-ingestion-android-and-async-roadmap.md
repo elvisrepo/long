@@ -127,16 +127,62 @@ its HTTPS origin, and signs with a local ignored key. On 2026-09-18, the owner
 showed the Android Developer Console package as **Registered** and its signing
 fingerprint as **Verified**. The owner then showed `ultra 17` as **Authorized**
 (1 of 20 devices). The console states that a removed device still counts toward
-the limit for 30 days. A cable-free APK install remains untested. The private key and password
-must be backed up securely before distributing the APK. The staging backend's
-documented image-risk acceptance covers
-demo/test data only, so other users' real health records require a separate
-security and data-handling review before onboarding. Recheck current official
-requirements while setting up the account:
+the limit for 30 days. The owner reports that the private key and password were
+backed up. On 2026-09-18, the owner installed the signed pilot APK on `ultra 17`
+without a cable, signed in, connected Health Connect, used the background-sync
+control, and saw Samsung Health data sync to the hosted backend and appear on
+the frontend. In a follow-up Home-screen test, the owner observed the new data
+sync after reopening Longevity, without tapping manual sync. The Activity has no
+direct resume-sync call; it reloads policy and can refresh the scheduled request,
+while Android may also dispatch queued work then. This observation does not
+establish that an upload occurred while Longevity stayed in the background.
+An unattended WorkManager run and a same-key APK update remain untested. The
+staging backend's documented image-risk acceptance covers demo/test data only,
+so other users' real health records require a separate security and
+data-handling review before onboarding.
+
+The version-code-2 pilot diagnostic build records the latest WorkManager
+attempt while the app is away and while it is visible in separate local slots.
+The pilot-only **Automatic sync diagnostics** control shows their device-local
+start times and outcomes after reopening the app; **Refresh diagnostics** reads
+the latest local values without another relaunch. If the away slot stays empty
+while the visible slot advances on launch, Android did not start this worker
+while the Activity was away during that observation. A retry/failure in the away
+slot instead points to a started worker that could not complete. The diagnostic
+has been unit-tested and built with the same signing certificate, but no phone
+result had been reported at build time. The owner subsequently reported the v2
+panel showing **While app away: No worker attempt recorded** and **While app
+visible: Sep 18, 12:26 — success**. This establishes one successful worker run
+while the Activity was visible and no recorded away run since installing v2.
+The owner later clarified that this pilot test used a Xiaomi 17 Ultra and the
+app was away for approximately 30 minutes; the charging state is not recorded.
+The earlier Honor `FCP-N49` tests used a different phone. Xiaomi's per-app
+background battery policy is a plausible contributor, but one 30-minute
+observation does not prove it.
+
+For the current pilot, the owner accepts explicit manual sync as the reliable
+path and is not treating unattended background execution as a release gate.
+The already implemented server-owned policy allows Free users to tap manual
+sync every 30 minutes and Pro users every 15 minutes. Android uses that same
+interval to gate **Sync now** against the latest successful device/backend sync.
+The wearable upload endpoint does not enforce this 15/30-minute cooldown; it is
+a client-side pilot behavior, not a hard billing or abuse-control boundary.
+After a full app restart, the connection ViewModel starts at Idle, so the UI
+shows **Connect Health Connect** again. That action first fetches the existing
+caller-owned backend connection and reuses it; the restart screen does not by
+itself prove that Health Connect permission or the backend connection was lost.
+Restoring the connected screen automatically after session restoration is a
+separate UX improvement. The Pro UI says automatic sync is approximate and that
+Android may delay it while the app is closed. This matches the observed
+automatic sync when Longevity is reopened after the interval, without promising
+an unattended off-screen run.
+
+Recheck current official requirements while setting up the account:
 
 - [Limited distribution and device authorization](https://support.google.com/android-developer-console/answer/17131204)
 - [Package name registration](https://support.google.com/android-developer-console/answer/16640821)
 - [APK distribution from a website](https://developer.android.com/distribute/marketing-tools/alternative-distribution)
+- [Xiaomi per-app background battery setting](https://www.mi.com/sa-en/support/faq/details/KA-538010/)
 
 Native OkHttp is not subject to browser CORS enforcement. It is still subject
 to TLS, JWT validation, throttling, caller ownership, subscription entitlement,

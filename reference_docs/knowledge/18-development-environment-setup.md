@@ -164,6 +164,11 @@ JAVA_HOME=/opt/android-studio/jbr ./gradlew testPilotUnitTest assemblePilot \
   distributing an APK. Losing them prevents updates under this package name.
   Never commit or share the private files. Each later APK update needs an
   increased `versionCode` and the same key.
+  The 2026-09-18 diagnostic pilot update is version code 2 (`1.1-pilot`). A
+  versioned copy for phone installation is
+  `app/build/outputs/apk/pilot/longevity-pilot-1.1.apk`; install it over the
+  existing pilot app without uninstalling, so its session and Health Connect
+  grants remain available for the background-sync investigation.
 - `HttpAuthRepository` implements and mock-server-tests the mobile-login HTTP contract. `AndroidKeystoreAuthTokenStore` provides the production AES-GCM/Android-Keystore storage boundary and is verified on the physical phone.
 - `LongevityApplication` creates the shared HTTP/auth dependencies. `MainActivity` obtains `LoginViewModel` through `LoginViewModelFactory`, collects its state with lifecycle awareness, and delegates Sign in to the real repository.
 

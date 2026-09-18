@@ -10,6 +10,8 @@ class IncrementalWeightSyncWorker internal constructor(
     appContext: Context,
     workerParameters: WorkerParameters,
     private val runner: WeightSyncRunner,
+    private val diagnostics: AutomaticSyncDiagnostics,
+    private val isAppVisible: () -> Boolean,
 ) : CoroutineWorker(appContext, workerParameters) {
     override suspend fun doWork(): ListenableWorker.Result {
         val connectionId = inputData.getString(CONNECTION_ID_INPUT)
@@ -17,7 +19,12 @@ class IncrementalWeightSyncWorker internal constructor(
             return ListenableWorker.Result.failure()
         }
 
-        return runner.sync(connectionId).toWorkResult()
+        return runAutomaticSyncWithDiagnostics(
+            diagnostics = diagnostics,
+            appVisible = isAppVisible(),
+        ) {
+            runner.sync(connectionId).toWorkResult()
+        }
     }
 
     companion object {

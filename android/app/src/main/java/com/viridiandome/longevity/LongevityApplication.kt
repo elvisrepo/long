@@ -18,11 +18,13 @@ import com.viridiandome.longevity.wearables.healthconnect.AndroidHealthConnectAc
 import com.viridiandome.longevity.wearables.network.HttpWearableConnectionRepository
 import com.viridiandome.longevity.wearables.network.HttpWearableUploadRepository
 import com.viridiandome.longevity.wearables.sync.AllMetricsSyncRunner
+import com.viridiandome.longevity.wearables.sync.AutomaticSyncDiagnostics
 import com.viridiandome.longevity.wearables.sync.IncrementalStepsSyncPlanner
 import com.viridiandome.longevity.wearables.sync.IncrementalWeightSyncPlanner
 import com.viridiandome.longevity.wearables.sync.IncrementalWeightSyncRunner
 import com.viridiandome.longevity.wearables.sync.LongevityWorkerFactory
 import com.viridiandome.longevity.wearables.sync.SharedPreferencesWeightSyncCursorStore
+import com.viridiandome.longevity.wearables.sync.SharedPreferencesDiagnosticStore
 import com.viridiandome.longevity.wearables.sync.StepsSyncCoordinator
 import com.viridiandome.longevity.wearables.sync.SubscriptionAwareWeightSyncRunner
 import com.viridiandome.longevity.wearables.sync.WeightSyncCoordinator
@@ -40,6 +42,13 @@ import okhttp3.OkHttpClient
  * A dependency-injection framework would add ceremony before this app needs it.
  */
 class LongevityApplication : Application(), Configuration.Provider {
+    @Volatile
+    var isAppVisible: Boolean = false
+
+    val automaticSyncDiagnostics: AutomaticSyncDiagnostics by lazy {
+        AutomaticSyncDiagnostics(SharedPreferencesDiagnosticStore(this))
+    }
+
     private val httpClient: OkHttpClient by lazy {
         OkHttpClient()
     }
@@ -151,6 +160,8 @@ class LongevityApplication : Application(), Configuration.Provider {
     private val longevityWorkerFactory by lazy {
         LongevityWorkerFactory(
             incrementalWeightSyncRunner = { periodicWeightSyncRunner },
+            diagnostics = { automaticSyncDiagnostics },
+            isAppVisible = { isAppVisible },
         )
     }
 

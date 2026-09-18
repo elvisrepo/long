@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -31,6 +33,7 @@ import com.viridiandome.longevity.subscriptions.SyncPolicyUiState
 import com.viridiandome.longevity.wearables.BackgroundReadAccess
 import com.viridiandome.longevity.wearables.WearableConnectionUiState
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncUiState
+import com.viridiandome.longevity.wearables.sync.AutomaticSyncAttempt
 import com.viridiandome.longevity.wearables.sync.ManualSyncAvailability
 import com.viridiandome.longevity.wearables.sync.WeightSyncFailure
 import java.time.Instant
@@ -57,6 +60,10 @@ fun LoginScreen(
     manualSyncAvailability: ManualSyncAvailability =
         ManualSyncAvailability.Unconfigured,
     syncPolicyState: SyncPolicyUiState = SyncPolicyUiState.Idle,
+    latestBackgroundAttempt: AutomaticSyncAttempt? = null,
+    latestForegroundAttempt: AutomaticSyncAttempt? = null,
+    showAutomaticSyncDiagnostics: Boolean = false,
+    onRefreshAutomaticSyncDiagnostics: () -> Unit = {},
     onConnectHealthConnect: () -> Unit = {},
     onDisconnectHealthConnect: () -> Unit = {},
     onRetryHealthConnect: () -> Unit = {},
@@ -77,6 +84,10 @@ fun LoginScreen(
             initialWeightSyncState = initialWeightSyncState,
             manualSyncAvailability = manualSyncAvailability,
             syncPolicyState = syncPolicyState,
+            latestBackgroundAttempt = latestBackgroundAttempt,
+            latestForegroundAttempt = latestForegroundAttempt,
+            showAutomaticSyncDiagnostics = showAutomaticSyncDiagnostics,
+            onRefreshAutomaticSyncDiagnostics = onRefreshAutomaticSyncDiagnostics,
             onConnectHealthConnect = onConnectHealthConnect,
             onDisconnectHealthConnect = onDisconnectHealthConnect,
             onRetryHealthConnect = onRetryHealthConnect,
@@ -206,6 +217,10 @@ private fun AuthenticatedContent(
     initialWeightSyncState: InitialWeightSyncUiState,
     manualSyncAvailability: ManualSyncAvailability,
     syncPolicyState: SyncPolicyUiState,
+    latestBackgroundAttempt: AutomaticSyncAttempt?,
+    latestForegroundAttempt: AutomaticSyncAttempt?,
+    showAutomaticSyncDiagnostics: Boolean,
+    onRefreshAutomaticSyncDiagnostics: () -> Unit,
     onConnectHealthConnect: () -> Unit,
     onDisconnectHealthConnect: () -> Unit,
     onRetryHealthConnect: () -> Unit,
@@ -213,9 +228,11 @@ private fun AuthenticatedContent(
     onSyncMetrics: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var diagnosticsExpanded by remember { mutableStateOf(false) }
     Column(
         modifier = modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -243,6 +260,20 @@ private fun AuthenticatedContent(
             onSyncMetrics = onSyncMetrics,
         )
 
+        if (showAutomaticSyncDiagnostics) {
+            Spacer(modifier = Modifier.height(12.dp))
+            TextButton(onClick = { diagnosticsExpanded = !diagnosticsExpanded }) {
+                Text("Automatic sync diagnostics")
+            }
+            if (diagnosticsExpanded) {
+                Text("While app away: ${latestBackgroundAttempt.displayDiagnostic()}")
+                Text("While app visible: ${latestForegroundAttempt.displayDiagnostic()}")
+                TextButton(onClick = onRefreshAutomaticSyncDiagnostics) {
+                    Text("Refresh diagnostics")
+                }
+            }
+        }
+
         state.errorMessage?.let { errorMessage ->
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -268,6 +299,12 @@ private fun AuthenticatedContent(
         }
     }
 }
+
+private fun AutomaticSyncAttempt?.displayDiagnostic(): String =
+    this?.let { attempt ->
+        "${attempt.startedAt.formatLocalDateTime()} — " +
+            (attempt.outcome?.name?.lowercase() ?: "started")
+    } ?: "No worker attempt recorded"
 
 /** Renders connection state without initiating registration during composition. */
 @Composable

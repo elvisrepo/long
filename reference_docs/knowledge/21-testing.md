@@ -23,7 +23,25 @@ SDK `apksigner verify --print-certs` and compare its SHA-256 certificate digest
 to the public certificate registered in Android Developer Console. The console must show
 the package registration as complete before any user install. A phone without
 `adb` must complete device authorization, browser APK install, sign-in,
-Weight/Steps sync, and a same-key update before expanding the pilot.
+Weight/Steps sync, and a same-key update before expanding the pilot. On
+2026-09-18, the owner reported the first four on authorized `ultra 17`; the
+sync followed use of the background-sync control. An unattended WorkManager
+run and a same-key update still need independent verification.
+
+The diagnostic pilot APK (version code 2) records the latest automatic worker
+attempt separately for times when the Activity was visible and away. It keeps
+only local start times and success/retry/failure/cancelled/crashed outcomes;
+no health values, user IDs, tokens, or connection IDs are recorded. JVM tests
+cover separate foreground/background evidence and worker result recording;
+the debug unit suite, instrumented-test compilation, pilot unit suite, APK
+build, package/version inspection, and signing-certificate comparison passed.
+The owner has now reported
+the v2 panel on the phone: no worker attempt while the app was away and one
+successful attempt while visible at 12:26 on Sep 18. This does not by itself
+prove why Android deferred the work or whether v2 was installed over v1 without
+uninstalling. The pilot phone was a Xiaomi 17 Ultra, and the app was away for
+approximately 30 minutes; do not attribute this result to the earlier Honor
+`FCP-N49` phone.
 
 **Coverage target**: 80%+ via `pytest-cov`, enforced in CI.
 

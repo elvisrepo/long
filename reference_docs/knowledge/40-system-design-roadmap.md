@@ -383,15 +383,32 @@ tokens, or health data, and add Django/Nginx application logs and failure alerts
 For the selected free pilot, the owner created an Android Developer Console
 limited-distribution account and, on 2026-09-18, showed the new package
 `com.viridiandome.longevity.pilot` as Registered with its key Verified. A signed
-pilot APK has been built locally. Back up its private signing key and password,
-then host the APK at an HTTPS download link. Authorize each
-pilot phone through Google's link/code flow before its owner installs the APK;
-verify a first install and a same-key update without `adb`. The limit is 20
+pilot APK has been built locally, and the owner reports backing up its private
+signing key and password. The `ultra 17` device was authorized and, on
+2026-09-18, the owner reported a cable-free install, sign-in, Health Connect
+connection, sync after using the background-sync control, and Samsung Health
+data appearing on the frontend. A version-code-2 pilot APK with local worker
+timing diagnostics was built and signed with the same key; the owner has reported
+its diagnostic output on the phone, but has not explicitly confirmed whether it
+was installed over version 1 without uninstalling. Before inviting other pilot
+users, prepare a stable HTTPS APK download link. The limit is 20
 authorized devices, and this route does not list the app on Google Play. The
 current staging image acceptance covers demo/test data only, so do not collect
 other users' real health data there. The staging architecture and manual
 release procedure are in
 `reference_docs/playbooks/presentation-staging-manual-provisioning.md`.
+
+Pilot sync acceptance now centers on explicit **Sync now**: the implemented
+server-owned plan policy gives Free a 30-minute manual cooldown and Pro a
+15-minute manual cooldown. The Xiaomi 17 Ultra has shown a successful worker
+run while Longevity was visible but no recorded worker attempt during roughly
+30 minutes away. The owner accepts background execution as optional for this
+pilot. On restart, the Android screen returns to its initial connection state;
+the Connect action reuses an existing backend connection, but the UI should
+restore that state automatically in a later UX slice. The Pro screen's current
+automatic-sync wording is already qualified: sync is approximate, and Android
+may delay it while the app is closed. On-screen automatic sync after reopening
+has been observed without a manual tap.
 
 Before real production users, build the separate CloudFront/WAF, ALB, two-task
 Fargate, and RDS PostgreSQL Multi-AZ topology in Terraform. Add Celery/Redis only
