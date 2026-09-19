@@ -125,6 +125,7 @@ class MetricEntrySerializer(serializers.ModelSerializer):
         slug_field="slug",
         queryset=MetricDefinition.objects.none(),
     )
+    period_start = serializers.DateTimeField(read_only=True, allow_null=True)
 
     class Meta:
         model = MetricEntry
@@ -132,6 +133,7 @@ class MetricEntrySerializer(serializers.ModelSerializer):
             "id",
             "metric_definition",
             "value",
+            "period_start",
             "recorded_at",
             "source",
             "context",

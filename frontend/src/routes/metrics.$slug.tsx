@@ -6,6 +6,8 @@ import {
   formatMetricEntrySource,
   formatMetricValue,
   formatMetricValueWithUnit,
+  formatSleepDate,
+  formatSleepWindow,
 } from "../features/metrics/metric-entry-formatters";
 import { MetricTrendChart } from "../features/metrics/metric-trend-chart";
 import { useDeleteMetricEntryMutation } from "../features/metrics/use-delete-metric-entry-mutation";
@@ -146,7 +148,9 @@ function MetricDetailRoute() {
             {metricDefinition.slug} · {metricDefinition.unit}
           </p>
         </div>
-        <div className="status-pill">{metricEntries.length} entries</div>
+        <div className="status-pill">
+          {formatMetricEntryCount(metricEntries.length)}
+        </div>
       </div>
 
       <section className="metric-detail-summary" aria-label="Metric summary">
@@ -164,7 +168,7 @@ function MetricDetailRoute() {
         <article className="metric-detail-stat">
           <p className="meta-label">Tracked entries</p>
           <p className="metric-detail-stat-value">
-            {metricEntries.length} entries
+            {formatMetricEntryCount(metricEntries.length)}
           </p>
         </article>
 
@@ -194,7 +198,11 @@ function MetricDetailRoute() {
             <p className="meta-label">Oldest</p>
             <p className="trend-value">
               {oldestEntry
-                ? formatMetricValueWithUnit(oldestEntry.value, metricDefinition.slug, metricDefinition.unit)
+                ? formatMetricValueWithUnit(
+                    oldestEntry.value,
+                    metricDefinition.slug,
+                    metricDefinition.unit,
+                  )
                 : "—"}
             </p>
           </article>
@@ -203,7 +211,11 @@ function MetricDetailRoute() {
             <p className="meta-label">Latest</p>
             <p className="trend-value">
               {latestEntry
-                ? formatMetricValueWithUnit(latestEntry.value, metricDefinition.slug, metricDefinition.unit)
+                ? formatMetricValueWithUnit(
+                    latestEntry.value,
+                    metricDefinition.slug,
+                    metricDefinition.unit,
+                  )
                 : "—"}
             </p>
           </article>
@@ -376,8 +388,16 @@ function MetricEntryHistoryRow({
       <div>
         <p className="entry-label">{metricName}</p>
         <p className="meta-label">{formatMetricEntrySource(entry.source)}</p>
+        {metricSlug === "sleep_duration" && entry.period_start ? (
+          <p className="entry-time">
+            Sleep window:{" "}
+            {formatSleepWindow(entry.period_start, entry.recorded_at)}
+          </p>
+        ) : null}
         <time dateTime={entry.recorded_at}>
-          {formatMetricEntryRecordedAt(entry.recorded_at)}
+          {metricSlug === "sleep_duration"
+            ? formatSleepDate(entry.recorded_at)
+            : formatMetricEntryRecordedAt(entry.recorded_at)}
         </time>
       </div>
 
@@ -424,6 +444,10 @@ function formatMetricEntryRecordedAt(recordedAt: string) {
     timeStyle: "short",
     timeZone: "UTC",
   }).format(new Date(recordedAt));
+}
+
+function formatMetricEntryCount(count: number) {
+  return `${count} ${count === 1 ? "entry" : "entries"}`;
 }
 
 function getRangeStartIso(days: number) {

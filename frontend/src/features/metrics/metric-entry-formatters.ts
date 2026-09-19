@@ -12,6 +12,27 @@ export function formatMetricEntrySource(source: string): string {
   return metricEntrySourceLabels[source] ?? "Imported record";
 }
 
+export function formatSleepWindow(
+  periodStart: string,
+  recordedAt: string,
+  timeZone?: string,
+): string {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone,
+  });
+
+  return `${formatter.format(new Date(periodStart))}–${formatter.format(new Date(recordedAt))}`;
+}
+
+export function formatSleepDate(recordedAt: string, timeZone?: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeZone,
+  }).format(new Date(recordedAt));
+}
+
 const metricMaximumFractionDigits: Record<string, number> = {
   body_weight: 1,
 };

@@ -114,7 +114,7 @@ describe("metric detail route", () => {
     });
     expect(within(summary).getByText(/latest value/i)).toBeInTheDocument();
     expect(within(summary).getByLabelText(/58 bpm/i)).toBeInTheDocument();
-    expect(within(summary).getByText(/1 entries/i)).toBeInTheDocument();
+    expect(within(summary).getByText(/^1 entry$/i)).toBeInTheDocument();
     expect(within(summary).getByText(/20-220 bpm/i)).toBeInTheDocument();
 
     const history = screen.getByRole("region", {
@@ -124,6 +124,9 @@ describe("metric detail route", () => {
       within(history).getByRole("heading", { name: /entry history/i }),
     ).toBeInTheDocument();
     expect(within(history).getByText(/58 bpm/i)).toBeInTheDocument();
+    expect(
+      within(history).queryByText(/^sleep window:/i),
+    ).not.toBeInTheDocument();
     expect(useMetricEntriesQuery).toHaveBeenCalledWith({
       metric: "resting_hr",
       limit: 50,
@@ -252,6 +255,11 @@ describe("metric detail route", () => {
     const trend = screen.getByRole("region", {
       name: /trend overview/i,
     });
+
+    const summary = screen.getByRole("region", {
+      name: /metric summary/i,
+    });
+    expect(within(summary).getByText(/^2 entries$/i)).toBeInTheDocument();
 
     expect(
       within(trend).getByRole("heading", { name: /trend overview/i }),
@@ -471,6 +479,49 @@ describe("metric detail route", () => {
         name: /delete resting heart rate entry/i,
       }),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows the local sleep window for a synced sleep entry", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "sleep-duration-id",
+          name: "Sleep Duration",
+          slug: "sleep_duration",
+          unit: "hours",
+          category: "sleep",
+          min_value: 0,
+          max_value: 24,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([
+      {
+        id: 1,
+        metric_definition: "sleep_duration",
+        value: 7.833333,
+        period_start: "2026-09-18T23:00:00Z",
+        recorded_at: "2026-09-19T06:50:00Z",
+        source: "samsung_health",
+        context: {},
+        created_at: "2026-09-19T06:50:02Z",
+      },
+    ]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/sleep_duration");
+
+    const history = await screen.findByRole("region", {
+      name: /metric entry history/i,
+    });
+
+    expect(within(history).getByText(/^sleep window:/i)).toBeInTheDocument();
   });
 
   it("shows an error when updating an entry fails", async () => {

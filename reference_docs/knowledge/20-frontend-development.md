@@ -275,11 +275,18 @@ Current metric detail page checkpoint:
 - The detail route uses `useMetricDefinitionsQuery()` to resolve the user-facing metric definition for the slug.
 - The detail route uses `useMetricEntriesQuery({ metric: slug, limit: 50 })` to fetch a bounded entry history for that metric.
 - The detail route shows a styled summary section with latest value, tracked entry count, and accepted range.
+- Tracked-entry counts use singular `entry` for one record and plural `entries`
+  for every other count.
 - The detail route shows a Chart.js line chart in the trend overview, plus oldest value, latest value, and delta for the selected result set.
 - The trend chart is a daily trend, not a raw event plot. It collapses multiple entries on the same local calendar day to the latest `recorded_at` value for that day.
 - Entry History remains event-level and continues to show every raw manual log, including multiple logs from the same day.
 - Current chart aggregation is intentionally simple for the manual-tracking MVP. Future wearable/sync work should revisit metric-specific aggregation, for example heart-rate average/min/max ranges, weight latest value, and sleep nightly session totals.
 - The detail route shows an entry-history section using the same dark card language as the dashboard.
+- A Sleep Duration history row uses the API's read-only `period_start` and
+  `recorded_at` bounds to show a local-time sleep window such as
+  `1:00 AM–8:50 AM`. Its separate date is also local, avoiding a contradictory
+  UTC wake time on the same row. Other metric rows retain their existing UTC
+  timestamp display.
 - Entry-history rows support inline edit/delete actions.
 - Inline edit currently supports value and notes while preserving the existing `recorded_at` timestamp.
 - Inline edit blocks empty and non-numeric values before calling the update mutation.

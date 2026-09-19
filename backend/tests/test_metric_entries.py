@@ -32,6 +32,7 @@ def test_authenticated_user_can_create_metric_entry_for_default_metric():
             # Public API uses the metric slug, not the database UUID.
             "metric_definition": "resting_hr",
             "value": 58,
+            "period_start": "2026-03-05T06:15:00Z",
             "recorded_at": "2026-03-05T07:15:00Z",
             "context": {"notes": "morning measurement"},
         },
@@ -44,6 +45,7 @@ def test_authenticated_user_can_create_metric_entry_for_default_metric():
     assert data["id"]
     assert data["metric_definition"] == "resting_hr"
     assert data["value"] == 58
+    assert data["period_start"] is None
     assert data["recorded_at"] == "2026-03-05T07:15:00Z"
     assert data["source"] == "manual"
     assert data["context"] == {"notes": "morning measurement"}
@@ -210,6 +212,25 @@ def test_user_can_list_their_metric_entries_newest_first():
           "resting_hr",
           "resting_hr",
       ]
+
+
+def test_metric_entry_list_returns_sleep_interval_start():
+    client, user = authenticate_client_for("alice@example.com")
+    sleep_duration = MetricDefinition.objects.get(slug="sleep_duration")
+    MetricEntry.objects.create(
+        user=user,
+        metric_definition=sleep_duration,
+        value=7.5,
+        period_start="2026-09-18T23:00:00Z",
+        recorded_at="2026-09-19T06:30:00Z",
+        source=MetricEntry.Source.SAMSUNG_HEALTH,
+    )
+
+    response = client.get("/api/v1/metrics/entries/?metric=sleep_duration")
+
+    assert response.status_code == 200
+    assert response.json()[0]["period_start"] == "2026-09-18T23:00:00Z"
+    assert response.json()[0]["recorded_at"] == "2026-09-19T06:30:00Z"
 
 def test_metric_entry_list_only_returns_current_users_entries():
       alice_client, _alice = authenticate_client_for("alice@example.com")
