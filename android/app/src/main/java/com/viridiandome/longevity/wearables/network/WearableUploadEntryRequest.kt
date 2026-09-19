@@ -1,6 +1,7 @@
 package com.viridiandome.longevity.wearables.network
 
 import com.viridiandome.longevity.wearables.HealthConnectStepsSample
+import com.viridiandome.longevity.wearables.HealthConnectSleepSample
 import com.viridiandome.longevity.wearables.HealthConnectWeightSample
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -45,13 +46,28 @@ internal data class WearableUploadEntryRequest(
                 sourceRecordModifiedAt = sample.sourceRecordModifiedAt.toString(),
             )
 
+        /** Map one sleep session to its time-asleep duration and interval. */
+        fun from(sample: HealthConnectSleepSample): WearableUploadEntryRequest =
+            WearableUploadEntryRequest(
+                metricDefinition = SLEEP_DURATION_METRIC,
+                value = sample.timeAsleepHours,
+                periodStart = sample.periodStart.toString(),
+                recordedAt = sample.periodEnd.toString(),
+                source = SAMSUNG_HEALTH_SOURCE,
+                externalSourceId = "$HEALTH_CONNECT_SLEEP_PREFIX${sample.recordId}",
+                sourceRecordModifiedAt = sample.sourceRecordModifiedAt.toString(),
+            )
+
         private const val BODY_WEIGHT_METRIC = "body_weight"
         private const val STEPS_METRIC = "steps"
+        private const val SLEEP_DURATION_METRIC = "sleep_duration"
         private const val SAMSUNG_HEALTH_SOURCE = "samsung_health"
         private const val HEALTH_CONNECT_WEIGHT_PREFIX =
             "health_connect:WeightRecord:"
         private const val HEALTH_CONNECT_STEPS_PREFIX =
             "health_connect:StepsRecord:"
+        private const val HEALTH_CONNECT_SLEEP_PREFIX =
+            "health_connect:SleepSessionRecord:"
     }
 
     override fun toString(): String =

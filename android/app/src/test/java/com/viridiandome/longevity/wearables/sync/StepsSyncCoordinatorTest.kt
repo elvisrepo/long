@@ -115,4 +115,10 @@ private class RecordingStepsUploadRepository(
         calls += StepsUploadCall(connectionId, uploadId, samples)
         return result
     }
+
+    override suspend fun uploadSleepBatch(
+        connectionId: String,
+        uploadId: String,
+        samples: List<com.viridiandome.longevity.wearables.HealthConnectSleepSample>,
+    ): WearableUploadResult = error("A StepsSyncCoordinator must not upload Sleep samples.")
 }

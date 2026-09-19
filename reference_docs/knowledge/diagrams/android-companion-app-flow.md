@@ -2,7 +2,7 @@
 
 ## Use When
 
-- You need the complete Android lifecycle from application launch through authentication, Health Connect registration, Weight and Steps synchronization, token refresh, and logout.
+- You need the complete Android lifecycle from application launch through authentication, Health Connect registration, Weight, Steps, and Sleep synchronization, token refresh, and logout.
 - You need to distinguish explicit plan-cooled foreground sync from subscription-enabled WorkManager sync.
 - You need to see which responsibilities belong to Compose, Android domain services, Health Connect, Django, and PostgreSQL.
 
@@ -59,11 +59,11 @@ flowchart TD
 
     subgraph CONNECTION["Health Connect connection"]
         AUTHENTICATED --> CONNECT_ACTION["User chooses Connect Health Connect"]
-        CONNECT_ACTION --> SDK_CHECK["Check Health Connect SDK availability<br/>and both READ_WEIGHT + READ_STEPS grants"]
+        CONNECT_ACTION --> SDK_CHECK["Check Health Connect SDK availability<br/>and READ_WEIGHT + READ_STEPS + READ_SLEEP grants"]
         SDK_CHECK --> SDK_READY{"Available and<br/>permission granted?"}
         SDK_READY -->|Unavailable| CONNECT_RECOVERY["Show unsupported, update-required,<br/>or retryable-unavailable state"]
         SDK_READY -->|Permission needed| PERMISSION["MainActivity launches official<br/>Health Connect permission contract"]
-        PERMISSION --> PERMISSION_RESULT{"User grants both<br/>metric permissions?"}
+        PERMISSION --> PERMISSION_RESULT{"User grants all<br/>metric permissions?"}
         PERMISSION_RESULT -->|No| CONNECT_RECOVERY
         PERMISSION_RESULT -->|Yes| RESOLVE_CONNECTION
         SDK_READY -->|Yes| RESOLVE_CONNECTION["WearableConnectionRepository<br/>GET /api/v1/wearables/connections/"]
@@ -92,10 +92,10 @@ flowchart TD
         COOLDOWN --> MANUAL_GATE
         MANUAL_GATE -->|Yes| SYNC_ACTION["User chooses Sync now"]
         SYNC_ACTION --> INITIAL_VM["InitialWeightSyncViewModel<br/>prevents overlapping visible syncs"]
-        INITIAL_VM --> ALL_METRICS["AllMetricsSyncRunner<br/>runs Weight, then Steps"]
+        INITIAL_VM --> ALL_METRICS["AllMetricsSyncRunner<br/>runs Weight, Steps, then Sleep"]
         ALL_METRICS --> COORDINATOR["Metric-specific coordinators"]
-        COORDINATOR --> INCREMENTAL_PLANNER["Weight + Steps incremental planners<br/>use 24-hour cursor overlap<br/>or 30-day first-run fallback"]
-        INCREMENTAL_PLANNER --> HC_READ["AndroidHealthConnectAccess<br/>reads every WeightRecord + StepsRecord page"]
+        COORDINATOR --> INCREMENTAL_PLANNER["Weight + Steps + Sleep incremental planners<br/>use 24-hour cursor overlap<br/>or 30-day first-run fallback"]
+        INCREMENTAL_PLANNER --> HC_READ["AndroidHealthConnectAccess reads every<br/>WeightRecord + StepsRecord + SleepSessionRecord page"]
         SAMSUNG["Samsung Health"] -->|Writes on-device records| HEALTH_CONNECT["Health Connect"]
         HEALTH_CONNECT -->|Returns permitted records| HC_READ
         HC_READ --> FILTER["Keep Samsung-originated samples<br/>Sort and batch at most 100 entries"]
@@ -189,7 +189,7 @@ flowchart TD
 - Passwords are used only for login and are never persisted by the Android app.
 - Access and refresh JWTs are encrypted through Android Keystore before durable storage.
 - Refresh happens only after a protected API request receives `401`; ordinary app startup reuses a readable local session without rotating it.
-- Weight permission is requested before backend connection registration, so denial does not consume a plan slot. Background permission is separate and optional after the connection is ready.
+- Weight, Steps, and Sleep permissions are requested before backend connection registration, so denial does not consume a plan slot. Background permission is separate and optional after the connection is ready.
 - The Android app reads Health Connect. Django and Celery cannot directly access on-device records.
 - `SyncRun` records an upload attempt; `MetricEntry` remains the canonical metric store.
 - Foreground sync uses the incremental cursor with a 30-day first-run fallback. The official client disables its action until the server-owned cooldown has elapsed, including after a successful no-data run.

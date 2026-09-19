@@ -5,6 +5,7 @@ import com.viridiandome.longevity.auth.AuthTokens
 import com.viridiandome.longevity.auth.network.AuthenticatedApiClient
 import com.viridiandome.longevity.auth.network.SessionRefresher
 import com.viridiandome.longevity.wearables.HealthConnectStepsSample
+import com.viridiandome.longevity.wearables.HealthConnectSleepSample
 import com.viridiandome.longevity.wearables.HealthConnectWeightSample
 import com.viridiandome.longevity.wearables.WearableUploadResult
 import kotlinx.coroutines.test.runTest
@@ -104,6 +105,26 @@ class HttpWearableUploadRepositoryTest {
         assertEquals(
             """{"connection_id":"$CONNECTION_ID","upload_id":"$UPLOAD_ID","entries":[{"metric_definition":"steps","value":420.0,"period_start":"2026-08-05T07:45:00Z","recorded_at":"2026-08-05T08:00:00Z","source":"samsung_health","external_source_id":"health_connect:StepsRecord:record-steps-123","source_record_modified_at":"2026-08-05T08:02:00Z"}]}""",
             request.body?.utf8(),
+        )
+    }
+
+    @Test
+    fun new_sleep_batch_posts_duration_and_session_interval() = runTest {
+        server.enqueue(MockResponse(code = 201, body = successfulReceiptJson()))
+        val repository = buildRepository(
+            AuthTokens("stored-access-token", "stored-refresh-token"),
+        )
+
+        val result = repository.uploadSleepBatch(
+            connectionId = CONNECTION_ID,
+            uploadId = UPLOAD_ID,
+            samples = listOf(sleepSample()),
+        )
+
+        assertTrue(result is WearableUploadResult.Success)
+        assertEquals(
+            """{"connection_id":"$CONNECTION_ID","upload_id":"$UPLOAD_ID","entries":[{"metric_definition":"sleep_duration","value":8.0,"period_start":"2026-09-18T21:30:00Z","recorded_at":"2026-09-19T05:30:00Z","source":"samsung_health","external_source_id":"health_connect:SleepSessionRecord:record-sleep-123","source_record_modified_at":"2026-09-19T05:31:00Z"}]}""",
+            server.takeRequest().body?.utf8(),
         )
     }
 
@@ -256,6 +277,16 @@ class HttpWearableUploadRepositoryTest {
             periodEnd = Instant.parse("2026-08-05T08:00:00Z"),
             sourcePackageName = "com.sec.android.app.shealth",
             sourceRecordModifiedAt = Instant.parse("2026-08-05T08:02:00Z"),
+        )
+
+    private fun sleepSample(): HealthConnectSleepSample =
+        HealthConnectSleepSample(
+            recordId = "record-sleep-123",
+            periodStart = Instant.parse("2026-09-18T21:30:00Z"),
+            periodEnd = Instant.parse("2026-09-19T05:30:00Z"),
+            stages = emptyList(),
+            sourcePackageName = "com.sec.android.app.shealth",
+            sourceRecordModifiedAt = Instant.parse("2026-09-19T05:31:00Z"),
         )
 
     private fun successfulReceiptJson(): String =

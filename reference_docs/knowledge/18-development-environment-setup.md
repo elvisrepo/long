@@ -169,6 +169,10 @@ JAVA_HOME=/opt/android-studio/jbr ./gradlew testPilotUnitTest assemblePilot \
   `app/build/outputs/apk/pilot/longevity-pilot-1.1.apk`; install it over the
   existing pilot app without uninstalling, so its session and Health Connect
   grants remain available for the background-sync investigation.
+  The 2026-09-19 Sleep update is version code 3 (`1.2-pilot`). Its versioned
+  installation copy is `app/build/outputs/apk/pilot/longevity-pilot-1.2.apk`.
+  It adds `READ_SLEEP`, Samsung-originated sleep-session ingestion, and web
+  display in hours and minutes. Install it over 1.1 without uninstalling.
 - `HttpAuthRepository` implements and mock-server-tests the mobile-login HTTP contract. `AndroidKeystoreAuthTokenStore` provides the production AES-GCM/Android-Keystore storage boundary and is verified on the physical phone.
 - `LongevityApplication` creates the shared HTTP/auth dependencies. `MainActivity` obtains `LoginViewModel` through `LoginViewModelFactory`, collects its state with lifecycle awareness, and delegates Sign in to the real repository.
 

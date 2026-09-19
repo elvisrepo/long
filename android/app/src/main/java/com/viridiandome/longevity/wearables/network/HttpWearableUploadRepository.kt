@@ -3,6 +3,7 @@ package com.viridiandome.longevity.wearables.network
 import com.viridiandome.longevity.auth.network.AuthenticatedApiClient
 import com.viridiandome.longevity.auth.network.AuthenticatedApiResult
 import com.viridiandome.longevity.wearables.HealthConnectStepsSample
+import com.viridiandome.longevity.wearables.HealthConnectSleepSample
 import com.viridiandome.longevity.wearables.HealthConnectWeightSample
 import com.viridiandome.longevity.wearables.WearableUploadReceipt
 import com.viridiandome.longevity.wearables.WearableUploadRepository
@@ -44,6 +45,16 @@ class HttpWearableUploadRepository(
         connectionId: String,
         uploadId: String,
         samples: List<HealthConnectStepsSample>,
+    ): WearableUploadResult = uploadEntries(
+        connectionId = connectionId,
+        uploadId = uploadId,
+        entries = samples.map(WearableUploadEntryRequest::from),
+    )
+
+    override suspend fun uploadSleepBatch(
+        connectionId: String,
+        uploadId: String,
+        samples: List<HealthConnectSleepSample>,
     ): WearableUploadResult = uploadEntries(
         connectionId = connectionId,
         uploadId = uploadId,

@@ -319,7 +319,7 @@ Current implementation status:
 - `POST /api/v1/wearables/uploads/` requires JWT authentication and a body containing `connection_id`, `upload_id`, and `1–100` normalized `entries`. It resolves only an active connection owned by the caller and processes the batch synchronously. A new batch returns `201` with a terminal successful `SyncRun`; an exact retry returns the unchanged run with `200`; conflicting upload or external-record identity reuse returns `409`. Missing, invalid, or undeclared fields return `400`.
 - `MetricEntry` has nullable `source_connection`, `period_start`, and `source_record_modified_at` fields. Instantaneous metrics leave `period_start` null; interval metrics use `recorded_at` as the interval end. PostgreSQL requires a non-null period start to precede `recorded_at` and enforces at most one non-null `(source_connection, external_source_id)` pair. The ingestion service skips identical records, updates mutable content only when the provider timestamp is newer, permits one timestamped upgrade of a legacy null-version row, and rejects stale or inconsistent versions.
 - Metric history exposes each entry's trusted `source`. The web UI labels Samsung-originated rows as `Samsung Health` and withholds manual Edit/Delete controls; the backend independently rejects direct mutation attempts with `409`.
-- `WearableUploadEntrySerializer` is the live nested-entry boundary. It accepts active system `body_weight` and `steps` definitions, enforces each configured value range, rejects non-finite numbers, parses record and optional provider-modification timestamps, accepts Samsung Health provenance only, and requires a nonblank external source ID. Steps requires `period_start < recorded_at`; instantaneous Weight rejects a supplied period start. Current Android uploads always send Health Connect's `metadata.lastModifiedTime` as `source_record_modified_at`; omission remains accepted for backward compatibility but cannot authorize changed content.
+- `WearableUploadEntrySerializer` is the live nested-entry boundary. It accepts active system `body_weight`, `steps`, and `sleep_duration` definitions, enforces each configured value range, rejects non-finite numbers, parses record and optional provider-modification timestamps, accepts Samsung Health provenance only, and requires a nonblank external source ID. Steps and Sleep require `period_start < recorded_at`; instantaneous Weight rejects a supplied period start. Current Android uploads always send Health Connect's `metadata.lastModifiedTime` as `source_record_modified_at`; omission remains accepted for backward compatibility but cannot authorize changed content.
 - `WearableUploadBatchSerializer` is the live request boundary. It composes `connection_id`, `upload_id`, and a required list of `1–100` normalized entries, rejects undeclared fields at both levels, and rejects repeated `external_source_id` values within one batch.
 - The server-side canonical payload-hash helper fingerprints validated entries with schema version `1`, stable external-record ordering, UTC timestamps, and SHA-256. The live ingestion service uses it to reuse exact retries and reject conflicting upload identity reuse.
 - Connection-state mutations will belong to trusted ingestion/resync services rather than a generic client `PATCH` endpoint.
@@ -362,7 +362,7 @@ First-slice non-goals:
 
 MVP Samsung sync does **not** use provider webhooks or a hosted provider link flow. The Android companion app reads Samsung-originated data on device, uploads batches to our API, and the backend handles validation, deduplication, and persistence. A future aggregator webhook receiver can be added later for providers with cloud-friendly APIs.
 
-**Implemented synchronous example: uploading normalized Weight and Steps records**
+**Implemented synchronous example: uploading normalized Weight, Steps, and Sleep records**
 ```http
 POST /api/v1/wearables/uploads/
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
@@ -390,6 +390,15 @@ Content-Type: application/json
       "source": "samsung_health",
       "external_source_id": "health_connect:StepsRecord:record-123",
       "source_record_modified_at": "2026-07-29T08:02:00Z"
+    },
+    {
+      "metric_definition": "sleep_duration",
+      "value": 7.5,
+      "period_start": "2026-07-28T21:30:00Z",
+      "recorded_at": "2026-07-29T05:30:00Z",
+      "source": "samsung_health",
+      "external_source_id": "health_connect:SleepSessionRecord:record-123",
+      "source_record_modified_at": "2026-07-29T05:35:00Z"
     }
   ]
 }

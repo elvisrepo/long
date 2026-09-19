@@ -9,7 +9,7 @@ Use this document when:
 - separating initial backfill from incremental background synchronization;
 - deciding when Android WorkManager, Django, Redis, Celery, or Celery Beat should run work.
 
-This document describes the implemented Android flow as of 2026-08-17 and the agreed next architecture. The current Android slice synchronizes Samsung-originated Weight and Steps records through one user action and one periodic worker path.
+This document describes the implemented Android flow as of 2026-09-19 and the agreed next architecture. The current Android slice synchronizes Samsung-originated Weight, Steps, and Sleep records through one user action and one periodic worker path.
 
 ## 1. Implemented Android sync components
 
@@ -23,7 +23,7 @@ Paths:
 - `android/app/src/main/java/com/viridiandome/longevity/wearables/sync/StepsSyncCoordinator.kt`
 - `android/app/src/main/java/com/viridiandome/longevity/wearables/sync/IncrementalStepsSyncPlanner.kt`
 
-`LongevityApplication` composes a Weight coordinator and a Steps coordinator behind `AllMetricsSyncRunner`. It runs them in deterministic order, combines terminal receipts, ignores per-metric no-data outcomes, and stops before later metrics on the first interruption. The outer `IncrementalWeightSyncRunner` owns the shared cursor and advances it only if the complete multi-metric run completes or has no data. This prevents a successful Weight read from advancing past Steps data when the later Steps operation fails.
+`LongevityApplication` composes Weight, Steps, and Sleep coordinators behind `AllMetricsSyncRunner`. It runs them in that deterministic order, combines terminal receipts, ignores per-metric no-data outcomes, and stops before later metrics on the first interruption. The outer `IncrementalWeightSyncRunner` owns the shared cursor and advances it only if the complete multi-metric run completes or has no data. This prevents an earlier successful metric from advancing past data when a later metric fails.
 
 ### `WeightSyncBatchPlanner`
 
@@ -134,7 +134,7 @@ Path: `android/app/src/main/java/com/viridiandome/longevity/LongevityApplication
 - current-subscription sync-policy repository;
 - Health Connect adapter;
 - durable per-connection cursor store;
-- Weight and Steps coordinators configured with their incremental planners and combined by `AllMetricsSyncRunner`;
+- Weight, Steps, and Sleep coordinators configured with their incremental planners and combined by `AllMetricsSyncRunner`;
 - `SubscriptionAwareWeightSyncRunner` used only by WorkManager.
 
 This keeps dependencies out of Compose recomposition without introducing a dependency-injection framework before the MVP needs one.
@@ -166,7 +166,7 @@ User chooses Connect Health Connect
     ↓
 WearableConnectionViewModel checks Health Connect availability
     ↓
-Checks both READ_WEIGHT and READ_STEPS permissions
+Checks READ_WEIGHT, READ_STEPS, and READ_SLEEP permissions
     ↓
 MainActivity launches Android's system permission contract if required
     ↓
@@ -339,7 +339,7 @@ On the physical Honor test phone on 2026-08-17, foreground periodic sync complet
 
 Background Health Connect reads also require:
 
-- the ordinary record permissions, currently both `READ_WEIGHT` and `READ_STEPS`;
+- the ordinary record permissions: `READ_WEIGHT`, `READ_STEPS`, and `READ_SLEEP`;
 - `READ_HEALTH_DATA_IN_BACKGROUND`;
 - a feature-availability check;
 - explicit permission granted while the app is in the foreground.

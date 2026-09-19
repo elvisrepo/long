@@ -4,6 +4,7 @@ import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load
 import {
   formatMetricEntrySource,
   formatMetricValue,
+  formatMetricValueWithUnit,
 } from "../features/metrics/metric-entry-formatters";
 import { useCreateMetricEntryMutation } from "../features/metrics/use-create-metric-entry-mutation";
 import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
@@ -222,7 +223,7 @@ function MetricDefinitionValue({
   return (
     <div className="metric-current-value">
       <span>{entry ? formatMetricValue(entry.value, metricSlug) : "—"}</span>
-      <small>{unit}</small>
+      {metricSlug === "sleep_duration" ? null : <small>{unit}</small>}
     </div>
   );
 }
@@ -244,8 +245,7 @@ function MetricEntrySummary({
   unit,
   value,
 }: MetricEntrySummaryProps) {
-  const formattedValue = formatMetricValue(value, metricSlug);
-  const displayValue = unit ? `${formattedValue} ${unit}` : formattedValue;
+  const displayValue = formatMetricValueWithUnit(value, metricSlug, unit);
   const displayRecordedAt = formatMetricEntryRecordedAt(recordedAt);
 
   return (

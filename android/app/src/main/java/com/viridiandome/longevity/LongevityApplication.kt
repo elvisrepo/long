@@ -20,12 +20,14 @@ import com.viridiandome.longevity.wearables.network.HttpWearableUploadRepository
 import com.viridiandome.longevity.wearables.sync.AllMetricsSyncRunner
 import com.viridiandome.longevity.wearables.sync.AutomaticSyncDiagnostics
 import com.viridiandome.longevity.wearables.sync.IncrementalStepsSyncPlanner
+import com.viridiandome.longevity.wearables.sync.IncrementalSleepSyncPlanner
 import com.viridiandome.longevity.wearables.sync.IncrementalWeightSyncPlanner
 import com.viridiandome.longevity.wearables.sync.IncrementalWeightSyncRunner
 import com.viridiandome.longevity.wearables.sync.LongevityWorkerFactory
 import com.viridiandome.longevity.wearables.sync.SharedPreferencesWeightSyncCursorStore
 import com.viridiandome.longevity.wearables.sync.SharedPreferencesDiagnosticStore
 import com.viridiandome.longevity.wearables.sync.StepsSyncCoordinator
+import com.viridiandome.longevity.wearables.sync.SleepSyncCoordinator
 import com.viridiandome.longevity.wearables.sync.SubscriptionAwareWeightSyncRunner
 import com.viridiandome.longevity.wearables.sync.WeightSyncCoordinator
 import com.viridiandome.longevity.wearables.sync.WeightSyncCursorStore
@@ -132,9 +134,16 @@ class LongevityApplication : Application(), Configuration.Provider {
             ),
             uploadRepository = wearableUploadRepository,
         )
+        val sleepCoordinator = SleepSyncCoordinator(
+            planner = IncrementalSleepSyncPlanner(
+                reader = androidHealthConnectAccess,
+                cursorStore = weightSyncCursorStore,
+            ),
+            uploadRepository = wearableUploadRepository,
+        )
         IncrementalWeightSyncRunner(
             delegate = AllMetricsSyncRunner(
-                runners = listOf(weightCoordinator, stepsCoordinator),
+                runners = listOf(weightCoordinator, stepsCoordinator, sleepCoordinator),
             ),
             cursorStore = weightSyncCursorStore,
         )

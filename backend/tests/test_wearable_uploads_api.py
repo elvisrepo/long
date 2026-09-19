@@ -150,6 +150,58 @@ def test_wearable_upload_processes_one_normalized_steps_interval():
     )
 
 
+def test_wearable_upload_processes_one_normalized_sleep_session():
+    user = User.objects.create_user(
+        email="sleep-upload@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+    client = APIClient()
+    client.credentials(
+        HTTP_AUTHORIZATION=(
+            f"Bearer {RefreshToken.for_user(user).access_token}"
+        )
+    )
+
+    response = client.post(
+        "/api/v1/wearables/uploads/",
+        {
+            "connection_id": str(connection.id),
+            "upload_id": str(uuid.uuid4()),
+            "entries": [
+                {
+                    "metric_definition": "sleep_duration",
+                    "value": 7.5,
+                    "period_start": "2026-09-18T21:30:00Z",
+                    "recorded_at": "2026-09-19T05:30:00Z",
+                    "source": "samsung_health",
+                    "external_source_id": (
+                        "health_connect:SleepSessionRecord:record-api-123"
+                    ),
+                    "source_record_modified_at": (
+                        "2026-09-19T05:35:00Z"
+                    ),
+                }
+            ],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    metric_entry = MetricEntry.objects.get()
+    assert metric_entry.metric_definition.slug == "sleep_duration"
+    assert metric_entry.value == 7.5
+    assert metric_entry.period_start == datetime(
+        2026, 9, 18, 21, 30, tzinfo=UTC
+    )
+    assert metric_entry.recorded_at == datetime(
+        2026, 9, 19, 5, 30, tzinfo=UTC
+    )
+
+
 def test_wearable_upload_requires_authentication():
     user = User.objects.create_user(
         email="unauthenticated-upload@example.com",

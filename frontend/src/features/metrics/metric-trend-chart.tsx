@@ -12,7 +12,10 @@ import {
 } from "chart.js";
 import { useEffect, useMemo, useRef } from "react";
 
-import { formatMetricValue } from "./metric-entry-formatters";
+import {
+  formatMetricValue,
+  formatMetricValueWithUnit,
+} from "./metric-entry-formatters";
 import type { MetricEntry } from "./metric-entries-api";
 
 // Chart.js is modular: every controller, scale, element, and plugin used by
@@ -51,7 +54,7 @@ export function MetricTrendChart({
   );
   const chartSummary =
     values.length > 0
-      ? `${formatMetricValue(Math.min(...values), metricSlug)} to ${formatMetricValue(Math.max(...values), metricSlug)} ${unit}`
+      ? `${formatMetricValue(Math.min(...values), metricSlug)} to ${formatMetricValueWithUnit(Math.max(...values), metricSlug, unit)}`
       : undefined;
 
   useEffect(() => {
@@ -113,7 +116,7 @@ export function MetricTrendChart({
 
                 return value === null
                   ? "No value"
-                  : `${formatMetricValue(value, metricSlug)} ${unit}`;
+                  : formatMetricValueWithUnit(value, metricSlug, unit);
               },
             },
           },
@@ -130,7 +133,9 @@ export function MetricTrendChart({
             ticks: {
               color: "#8597b0",
               callback: (value) =>
-                `${typeof value === "number" ? formatMetricValue(value, metricSlug) : value} ${unit}`,
+                typeof value === "number"
+                  ? formatMetricValueWithUnit(value, metricSlug, unit)
+                  : `${value} ${unit}`,
             },
           },
         },

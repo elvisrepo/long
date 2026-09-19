@@ -51,6 +51,38 @@ def test_wearable_upload_entry_requires_period_start_for_steps():
     }
 
 
+def test_wearable_upload_entry_accepts_normalized_sleep_duration():
+    sleep_duration = MetricDefinition.objects.get(slug="sleep_duration")
+    serializer = WearableUploadEntrySerializer(
+        data={
+            "metric_definition": "sleep_duration",
+            "value": 7.5,
+            "period_start": "2026-09-18T21:30:00Z",
+            "recorded_at": "2026-09-19T05:30:00Z",
+            "source": "samsung_health",
+            "external_source_id": (
+                "health_connect:SleepSessionRecord:sleep-123"
+            ),
+            "source_record_modified_at": "2026-09-19T05:35:00Z",
+        }
+    )
+
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data == {
+        "metric_definition": sleep_duration,
+        "value": 7.5,
+        "period_start": datetime(2026, 9, 18, 21, 30, tzinfo=UTC),
+        "recorded_at": datetime(2026, 9, 19, 5, 30, tzinfo=UTC),
+        "source": MetricEntry.Source.SAMSUNG_HEALTH,
+        "external_source_id": (
+            "health_connect:SleepSessionRecord:sleep-123"
+        ),
+        "source_record_modified_at": datetime(
+            2026, 9, 19, 5, 35, tzinfo=UTC
+        ),
+    }
+
+
 @pytest.mark.parametrize(
     "period_start",
     (

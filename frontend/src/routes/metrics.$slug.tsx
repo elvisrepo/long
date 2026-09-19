@@ -5,6 +5,7 @@ import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load
 import {
   formatMetricEntrySource,
   formatMetricValue,
+  formatMetricValueWithUnit,
 } from "../features/metrics/metric-entry-formatters";
 import { MetricTrendChart } from "../features/metrics/metric-trend-chart";
 import { useDeleteMetricEntryMutation } from "../features/metrics/use-delete-metric-entry-mutation";
@@ -91,7 +92,7 @@ function MetricDetailRoute() {
   const formattedTrendDelta =
     trendDelta === undefined
       ? "—"
-      : `${trendDelta > 0 ? "+" : ""}${formatMetricValue(trendDelta, metricDefinition.slug)} ${metricDefinition.unit}`;
+      : `${trendDelta > 0 ? "+" : ""}${formatMetricValueWithUnit(trendDelta, metricDefinition.slug, metricDefinition.unit)}`;
 
   function handleRangeSelect(range: MetricEntryRange) {
     if (selectedRange.label === range.label) {
@@ -193,7 +194,7 @@ function MetricDetailRoute() {
             <p className="meta-label">Oldest</p>
             <p className="trend-value">
               {oldestEntry
-                ? `${formatMetricValue(oldestEntry.value, metricDefinition.slug)} ${metricDefinition.unit}`
+                ? formatMetricValueWithUnit(oldestEntry.value, metricDefinition.slug, metricDefinition.unit)
                 : "—"}
             </p>
           </article>
@@ -202,7 +203,7 @@ function MetricDetailRoute() {
             <p className="meta-label">Latest</p>
             <p className="trend-value">
               {latestEntry
-                ? `${formatMetricValue(latestEntry.value, metricDefinition.slug)} ${metricDefinition.unit}`
+                ? formatMetricValueWithUnit(latestEntry.value, metricDefinition.slug, metricDefinition.unit)
                 : "—"}
             </p>
           </article>
@@ -382,7 +383,7 @@ function MetricEntryHistoryRow({
 
       <div className="entry-row-side">
         <p className="entry-value">
-          {formatMetricValue(entry.value, metricSlug)} {unit}
+          {formatMetricValueWithUnit(entry.value, metricSlug, unit)}
         </p>
         {entry.source === "manual" ? (
           <div className="entry-actions">

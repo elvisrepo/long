@@ -15,6 +15,12 @@ interface WearableUploadRepository {
         uploadId: String,
         samples: List<HealthConnectStepsSample>,
     ): WearableUploadResult
+
+    suspend fun uploadSleepBatch(
+        connectionId: String,
+        uploadId: String,
+        samples: List<HealthConnectSleepSample>,
+    ): WearableUploadResult
 }
 
 /** Device-neutral copy of Django's read-only SyncRun receipt. */

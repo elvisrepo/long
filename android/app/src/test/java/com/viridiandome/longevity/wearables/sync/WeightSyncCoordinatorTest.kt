@@ -301,4 +301,12 @@ private class RecordingUploadRepository(
     ): WearableUploadResult = error(
         "A WeightSyncCoordinator must not upload Steps samples.",
     )
+
+    override suspend fun uploadSleepBatch(
+        connectionId: String,
+        uploadId: String,
+        samples: List<com.viridiandome.longevity.wearables.HealthConnectSleepSample>,
+    ): WearableUploadResult = error(
+        "A WeightSyncCoordinator must not upload Sleep samples.",
+    )
 }
