@@ -369,10 +369,10 @@ Related docs:
 
 ## 7. Recommended next build step
 
-Next real system-design step:
+Next real product step:
 
 ```text
-Finish staging acceptance and prepare a free 20-device Android pilot
+Add Samsung/Health Connect Sleep as one end-to-end metric slice
 ```
 
 The public staging frontend, API, database, Stripe test webhook, and monitored
@@ -413,9 +413,23 @@ automatic-sync wording is already qualified: sync is approximate, and Android
 may delay it while the app is closed. On-screen automatic sync after reopening
 has been observed without a manual tap.
 
+Body Weight and Sleep Duration are already system default metric definitions;
+Weight and Steps are the currently implemented Health Connect imports. The next
+slice is Sleep. First define and test the sleep semantics: a sleep session's
+start and end give time in bed/session duration, while total time asleep must
+exclude awake stages when stage data is present. Then implement the Android
+read, normalized upload, backend ingestion, and frontend display for that one
+metric before adding another mapping.
+
+After the Sleep slice works end to end, design and review the new Today UI as a
+separate slice. Its primary metrics are Sleep Duration, Steps, Body Weight, and
+Resting Heart Rate. Resting Heart Rate is the next candidate ingestion mapping
+after the UI slice. HRV, VO2 max, active calories, exercise time, body fat,
+sleep stages, and sleep blood oxygen remain optional follow-ups based on actual
+device availability and user value. Blood pressure, blood glucose, skin
+temperature, and other medical-adjacent measurements are not core defaults.
+
 Before real production users, build the separate CloudFront/WAF, ALB, two-task
 Fargate, and RDS PostgreSQL Multi-AZ topology in Terraform. Add Celery/Redis only
 when synchronous ingestion is a measured bottleneck or another server-side
-workflow needs durable asynchronous execution. Additional metrics follow
-staging; Heart Rate is the likely next mapping, while Sleep requires a separate
-domain-design pass.
+workflow needs durable asynchronous execution.

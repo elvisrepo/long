@@ -190,6 +190,45 @@ Native OkHttp is not subject to browser CORS enforcement. It is still subject
 to TLS, JWT validation, throttling, caller ownership, subscription entitlement,
 idempotency, and payload-validation rules enforced by the public Django API.
 
+### Agreed post-pilot metric order — 2026-09-19
+
+Body Weight and Sleep Duration already exist as active system default metric
+definitions. Weight and Steps are the only Health Connect record types currently
+read and uploaded by Android. Work proceeds one vertical slice at a time:
+
+1. define the Sleep session mapping and edge cases;
+2. implement and physically verify Sleep read, upload, ingestion, and display;
+3. design and review the new Today dashboard around Sleep Duration, Steps, Body
+   Weight, and Resting Heart Rate; and
+4. add Resting Heart Rate ingestion as a later independent slice.
+
+For Sleep, distinguish these values explicitly:
+
+- `session duration` or `time in bed` is the elapsed time from the session's
+  start/bed time to its end/wake time;
+- `time asleep` excludes intervals marked awake when stage data is available;
+  and
+- stage totals such as light, deep, and REM are supporting details, not
+  interchangeable with total sleep duration.
+
+The existing `MetricEntry.period_start` and `recorded_at` fields can retain a
+sleep interval, with a derived duration as the numeric value. Before coding,
+define handling for sessions without stages, naps, overlapping sessions,
+cross-midnight local dates and time-zone changes, mutable Samsung records,
+deletions, and multiple source apps. Preserve the Health Connect external
+record ID and modification time so a later Samsung correction updates the same
+entry instead of creating a duplicate.
+
+Samsung Health can expose additional records through Health Connect, including
+heart rate, exercise sessions, calories, distance, VO2 max, body fat, blood
+oxygen, blood pressure, blood glucose, and nutrition. Availability varies by
+device, Samsung Health version, permissions, and user behavior. After Sleep and
+Resting Heart Rate, consider HRV, active calories/exercise time, VO2 max, body
+fat, sleep stages, and sleep blood oxygen only as separate evidence-driven
+slices. Do not make blood pressure, blood glucose, skin temperature, or other
+medical-adjacent measurements core defaults without a dedicated product,
+privacy, validation, and presentation review.
+
 ## 3. Recommended Implementation Order
 
 | Phase | Work | Exit condition |

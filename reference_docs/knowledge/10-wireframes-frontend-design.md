@@ -5,6 +5,49 @@
 ## Source
 - 
 
+## Agreed next design direction — 2026-09-19
+
+The current dark, technical dashboard remains the implemented baseline. The
+next UI/UX design will be developed as a separate, reviewable slice before it
+replaces that baseline.
+
+The agreed direction combines:
+
+- Oura's calm presentation, personal-baseline trends, and progressive detail;
+- Garmin's user-controlled **In Focus** and **At a Glance** metric ordering;
+- WHOOP's clear Sleep/Recovery/Activity information hierarchy, without copying
+  its proprietary scores or visual identity; and
+- Google Health's simple Today/Sleep/Fitness/Health navigation and accessible
+  customizable focus metrics.
+
+The first redesigned **Today** view should make these four metrics prominent:
+
+1. Sleep duration;
+2. Steps;
+3. Body weight; and
+4. Resting heart rate.
+
+Heart-rate variability, VO2 max, active calories, exercise time, body-fat
+percentage, sleep stages, and sleep blood oxygen remain secondary or optional
+metrics. A user can later pin and reorder supported metrics. Do not present a
+Longevity recovery/readiness score until the product has enough reliable input
+data, a documented calculation, a personal-baseline period, and tested missing-
+data behavior.
+
+The target information architecture is:
+
+- **Today:** current values, personal-baseline comparison, and one useful
+  observation;
+- **Trends:** 7-, 30-, and 90-day views;
+- **History:** manual and synchronized records with source attribution;
+- **Metrics:** choose, add, remove, pin, and reorder metrics; and
+- **Connections:** Health Connect state, last successful sync, and **Sync now**.
+
+Use calm neutral surfaces, strong readable typography, restrained semantic
+color, and charts centered on change over time. Implement and review this as
+one UI slice after the Sleep ingestion contract, rather than changing the whole
+product and adding several data types simultaneously.
+
 
 ```
 import { useState } from "react";
