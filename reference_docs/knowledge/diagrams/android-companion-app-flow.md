@@ -21,9 +21,9 @@ Android debug build
     → adb reverse over USB
     → local Django
 
-Planned hosted staging route:
+Implemented hosted staging route:
 Android staging build
-    → API origin https://staging.<domain>/ plus /api/... endpoint path over Wi-Fi or mobile data
+    → public staging HTTPS API plus /api/... endpoint path over Wi-Fi or mobile data
     → Route53/public DNS
     → CloudFront
     → Nginx HTTPS origin on EC2
@@ -37,6 +37,11 @@ compiled API base URL and application identity differ. Planned identities use
 `.debug`, `.staging`, and the unsuffixed production ID so encrypted sessions,
 Health Connect permissions, and application data remain isolated. The phone
 contains no AWS, database, Django, or Stripe server secrets.
+
+The hosted route was physically accepted for Sleep on 2026-09-19 using signed
+pilot 1.2 on an authorized Xiaomi 17 Ultra. A Samsung Health sleep session passed
+through Health Connect and the diagrammed upload path, and the hosted web client
+displayed the resulting `sleep_duration` entry as `7h 50m`.
 
 ## Current Flow
 

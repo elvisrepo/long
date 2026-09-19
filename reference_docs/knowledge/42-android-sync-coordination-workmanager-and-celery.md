@@ -11,6 +11,14 @@ Use this document when:
 
 This document describes the implemented Android flow as of 2026-09-19 and the agreed next architecture. The current Android slice synchronizes Samsung-originated Weight, Steps, and Sleep records through one user action and one periodic worker path.
 
+Physical hosted-path acceptance on 2026-09-19 used signed pilot 1.2 on the
+authorized Xiaomi 17 Ultra. Health Connect returned the preceding night's
+Samsung Health sleep session, Django persisted it as `sleep_duration`, and the
+hosted React metric page rendered the single entry as `7h 50m`. This verifies
+the complete Sleep duration path on that device. The observation did not expose
+the source stage intervals, so the awake-stage subtraction rules retain their
+automated-test evidence.
+
 ## 1. Implemented Android sync components
 
 Both foreground taps and background work use the incremental policy; a connection without a cursor receives the bounded 30-day fallback. Several class names still contain `Weight` because they predate Steps support. Those names are naming debt, not a statement that the live application flow is Weight-only.

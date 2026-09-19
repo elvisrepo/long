@@ -149,16 +149,23 @@ registered package and pilot signing certificate. The versioned artifact is
 `ae529e29c40f7e5b444670bf8fa4d46c7968be946b98985db3bbccaf39aac161`.
 Build-contract checks verify the hosted staging HTTPS origin, non-debuggable
 pilot variant, and package identity. Manifest inspection verifies `READ_SLEEP`
-alongside Weight, Steps, and optional background access. Device installation
-and a real Samsung-originated Sleep sync remain the acceptance step.
+alongside Weight, Steps, and optional background access. On 2026-09-19, the
+owner installed pilot 1.2 on the authorized Xiaomi 17 Ultra and completed a
+real Samsung-originated Sleep sync through Health Connect and the hosted
+staging API. The hosted frontend showed one `sleep_duration` entry for Sep 19
+at 6:40 AM with a value of `7h 50m`, matching the preceding night's Samsung
+Health sleep record. This closes the pilot 1.2 physical Sleep acceptance step
+for the end-to-end read, upload, ingestion, and display path. The screenshot
+does not expose the underlying stage intervals, so stage-subtraction behavior
+remains covered by automated tests rather than this device observation.
 
 The matching backend and frontend Sleep slice was deployed to public staging on
 2026-09-19. The final backend is commit
 `cf9627f7416cee7c33f2dbb7cf1d52d9883e658c` at digest
 `sha256:4133797b381eedd384dead2c036f6749bfb35f80cfa0b1bfb215d9a2bb5217bb`.
 The live serializer and public health checks pass, and the public frontend serves
-the new hashed build. This proves deployment readiness, not Samsung/Xiaomi Sleep
-data availability; pilot 1.2 still needs the physical sync check.
+the new hashed build. The Xiaomi 17 Ultra result recorded above additionally
+proves Samsung/Xiaomi Sleep data availability through the deployed system.
 
 The version-code-2 pilot diagnostic build records the latest WorkManager
 attempt while the app is away and while it is visible in separate local slots.
@@ -211,15 +218,16 @@ idempotency, and payload-validation rules enforced by the public Django API.
 
 Body Weight and Sleep Duration already exist as active system default metric
 definitions. Android now reads and uploads Weight, Steps, and Sleep records.
-The Sleep slice has automated coverage but still needs a physical Samsung/Xiaomi
-sync before it is accepted as device-verified. Work proceeds one vertical slice
-at a time:
+The Sleep slice has automated coverage and passed its physical Samsung/Xiaomi
+sync on 2026-09-19. Work proceeds one vertical slice at a time:
 
-1. physically verify the implemented Sleep read, upload, ingestion, and display;
-2. record the device result and any Samsung-specific stage behavior;
-3. design and review the new Today dashboard around Sleep Duration, Steps, Body
+1. ~~Physically verify the implemented Sleep read, upload, ingestion, and
+   display.~~ Completed on Xiaomi 17 Ultra with a Samsung Health `7h 50m` record.
+2. Record Samsung-specific stage behavior when a future diagnostic or UI exposes
+   the source stage intervals; the current end-to-end result verifies duration.
+3. Design and review the new Today dashboard around Sleep Duration, Steps, Body
    Weight, and Resting Heart Rate; and
-4. add Resting Heart Rate ingestion as a later independent slice.
+4. Add Resting Heart Rate ingestion as a later independent slice.
 
 For Sleep, distinguish these values explicitly:
 

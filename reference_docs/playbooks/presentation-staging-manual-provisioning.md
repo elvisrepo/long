@@ -536,6 +536,14 @@ all passed on the hosted staging frontend. Together with the previously
 recorded health, Stripe, Android, image-identity, and log-privacy evidence, this
 closes the Section 12 staging acceptance gate.
 
+On 2026-09-19, the operator also installed signed pilot 1.2 on the authorized
+Xiaomi 17 Ultra and accepted the deployed Sleep slice end to end. The app read
+the preceding night's Samsung Health sleep session through Health Connect,
+uploaded it over the hosted HTTPS route, and the hosted frontend displayed one
+Sep 19, 6:40 AM `sleep_duration` entry as `7h 50m`. The screenshot verifies the
+final duration and provenance label but does not expose Samsung's underlying
+sleep-stage intervals. Stage subtraction remains verified by automated tests.
+
 #### Watch requests and backend errors on staging
 
 Use the root Session Manager shell on the EC2 host. In one terminal, watch new
