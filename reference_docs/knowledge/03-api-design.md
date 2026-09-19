@@ -95,9 +95,9 @@ Cursor-based (not offset-based) because metric entries are time-series data — 
 Current entry listing behavior:
 - `GET /api/v1/metrics/entries/` returns only the authenticated user's entries.
 - Results are ordered by `recorded_at DESC, id DESC`.
-- Every serialized entry includes nullable, read-only `period_start`. Interval
-  metrics use it as the interval beginning; instantaneous/manual entries return
-  `null`. `recorded_at` remains the interval end for Sleep and Steps.
+- Every serialized entry includes nullable `period_start`. Interval
+  metrics use it as the interval beginning; instantaneous entries return `null`.
+  `recorded_at` remains the interval end for Sleep and Steps.
 - `metric=<slug>` filters by metric definition slug, for example `metric=resting_hr`.
 - `from=<timestamp>` filters entries where `recorded_at >= from`.
 - `to=<timestamp>` filters entries where `recorded_at <= to`.
@@ -207,8 +207,10 @@ Metric-entry create behavior:
 - The slug lookup is scoped to active system defaults plus the authenticated user's active custom metric definitions.
 - The backend stores the authenticated user on the entry; clients do not submit `user`.
 - `source` defaults to `manual` for this endpoint.
-- `period_start` is response-only on the generic metric-entry API. Wearable
-  ingestion owns interval boundaries; manual writes cannot set or edit it.
+- Manual `sleep_duration` creation requires `period_start` as bedtime and uses
+  `recorded_at` as wake time. The server derives `value` as elapsed hours, so
+  clients omit `value`; missing or non-increasing bounds are rejected.
+- Other manual metrics still require `value` and reject `period_start`.
 - `value` is validated against the selected metric definition's `min_value` and `max_value`.
 - Inactive metric definitions cannot be used for new entries.
 - Another user's custom metric definitions cannot be used, even if the slug is known.
@@ -216,6 +218,8 @@ Metric-entry create behavior:
 Metric-entry detail behavior:
 - `PATCH /api/v1/metrics/entries/{id}/` supports partial updates for an authenticated user's own manual entry.
 - `PATCH` can update fields such as `value`, `recorded_at`, and `context`.
+- Manual Sleep updates send `period_start` and `recorded_at`; the server
+  recomputes duration rather than trusting a client-computed value.
 - Update validation still uses the entry's metric definition, so `value` must remain between that metric's `min_value` and `max_value`.
 - `DELETE /api/v1/metrics/entries/{id}/` deletes an authenticated user's own manual entry and returns `204`.
 - Provider/import-owned entries are immutable through the generic metric-entry detail endpoint. `PATCH` and `DELETE` return `409` with `Synced metric entries cannot be edited or deleted.` so local edits cannot diverge from the durable provider record identity or cause a deleted record to be imported again.

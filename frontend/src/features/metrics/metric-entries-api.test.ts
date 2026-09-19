@@ -63,6 +63,45 @@ describe("createMetricEntry", () => {
     });
   });
 
+  it("posts manual sleep bounds without a client-computed value", async () => {
+    setAccessToken("access-token");
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 1,
+        metric_definition: "sleep_duration",
+        value: 7.833333,
+        period_start: "2026-09-18T23:00:00Z",
+        recorded_at: "2026-09-19T06:50:00Z",
+        source: "manual",
+        context: {},
+        created_at: "2026-09-19T06:50:02Z",
+      }),
+    } as Response);
+
+    await createMetricEntry({
+      metricDefinition: "sleep_duration",
+      periodStart: "2026-09-18T23:00:00Z",
+      recordedAt: "2026-09-19T06:50:00Z",
+      context: {},
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/metrics/entries/", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer access-token",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        metric_definition: "sleep_duration",
+        period_start: "2026-09-18T23:00:00Z",
+        recorded_at: "2026-09-19T06:50:00Z",
+        context: {},
+      }),
+    });
+  });
+
   it("rejects without an access token", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch");
 
@@ -243,6 +282,34 @@ describe("updateMetricEntry", () => {
       source: "manual",
       context: { notes: "after walk" },
       created_at: "2026-03-05T07:15:02Z",
+    });
+  });
+
+  it("patches manual sleep bounds without a client-computed value", async () => {
+    setAccessToken("access-token");
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    } as Response);
+
+    await updateMetricEntry(1, {
+      periodStart: "2026-09-18T22:30:00Z",
+      recordedAt: "2026-09-19T06:30:00Z",
+      context: {},
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/metrics/entries/1/", {
+      method: "PATCH",
+      headers: {
+        Authorization: "Bearer access-token",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        period_start: "2026-09-18T22:30:00Z",
+        recorded_at: "2026-09-19T06:30:00Z",
+        context: {},
+      }),
     });
   });
 

@@ -285,20 +285,37 @@ interface MetricEntryFormProps {
 
 function MetricEntryForm({ metricName, metricSlug }: MetricEntryFormProps) {
   const [value, setValue] = useState("");
+  const [bedtime, setBedtime] = useState("");
+  const [wakeTime, setWakeTime] = useState("");
+  const [validationError, setValidationError] = useState<string | null>(null);
   const createMetricEntryMutation = useCreateMetricEntryMutation();
+  const isSleepDuration = metricSlug === "sleep_duration";
+  const sleepDurationHours = getSleepDurationHours(bedtime, wakeTime);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setValidationError(null);
+
+    const input = isSleepDuration
+      ? getSleepEntryInput(metricSlug, bedtime, wakeTime)
+      : {
+          metricDefinition: metricSlug,
+          value: Number(value),
+          recordedAt: new Date().toISOString(),
+          context: {},
+        };
+
+    if (!input) {
+      setValidationError("Wake time must be later than bedtime.");
+      return;
+    }
 
     try {
-      await createMetricEntryMutation.mutateAsync({
-        metricDefinition: metricSlug,
-        value: Number(value),
-        recordedAt: new Date().toISOString(),
-        context: {},
-      });
+      await createMetricEntryMutation.mutateAsync(input);
 
       setValue("");
+      setBedtime("");
+      setWakeTime("");
     } catch {
       // The mutation state below renders the error message.
     }
@@ -306,14 +323,43 @@ function MetricEntryForm({ metricName, metricSlug }: MetricEntryFormProps) {
 
   return (
     <form className="metric-form" onSubmit={handleSubmit}>
-      <label>
-        {metricName} value
-        <input
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          type="number"
-        />
-      </label>
+      {isSleepDuration ? (
+        <>
+          <label>
+            Bedtime
+            <input
+              required
+              type="datetime-local"
+              value={bedtime}
+              onChange={(event) => setBedtime(event.target.value)}
+            />
+          </label>
+          <label>
+            Wake time
+            <input
+              required
+              type="datetime-local"
+              value={wakeTime}
+              onChange={(event) => setWakeTime(event.target.value)}
+            />
+          </label>
+          {sleepDurationHours !== undefined ? (
+            <p className="metric-form-preview">
+              Calculated duration:{" "}
+              {formatMetricValue(sleepDurationHours, metricSlug)}
+            </p>
+          ) : null}
+        </>
+      ) : (
+        <label>
+          {metricName} value
+          <input
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            type="number"
+          />
+        </label>
+      )}
 
       <button disabled={createMetricEntryMutation.isPending} type="submit">
         {createMetricEntryMutation.isPending
@@ -321,9 +367,41 @@ function MetricEntryForm({ metricName, metricSlug }: MetricEntryFormProps) {
           : `Log ${metricName}`}
       </button>
 
+      {validationError ? <p className="form-error">{validationError}</p> : null}
+
       {createMetricEntryMutation.isError ? (
         <p className="form-error">{createMetricEntryMutation.error.message}</p>
       ) : null}
     </form>
   );
+}
+
+function getSleepDurationHours(bedtime: string, wakeTime: string) {
+  if (!bedtime || !wakeTime) {
+    return undefined;
+  }
+
+  const durationMilliseconds =
+    new Date(wakeTime).getTime() - new Date(bedtime).getTime();
+
+  return durationMilliseconds > 0
+    ? durationMilliseconds / (60 * 60 * 1000)
+    : undefined;
+}
+
+function getSleepEntryInput(
+  metricDefinition: string,
+  bedtime: string,
+  wakeTime: string,
+) {
+  if (getSleepDurationHours(bedtime, wakeTime) === undefined) {
+    return undefined;
+  }
+
+  return {
+    metricDefinition,
+    periodStart: new Date(bedtime).toISOString(),
+    recordedAt: new Date(wakeTime).toISOString(),
+    context: {},
+  };
 }

@@ -120,7 +120,8 @@ function MetricDetailRoute() {
   async function handleUpdateEntry(
     entry: MetricEntry,
     input: {
-      value: number;
+      value?: number;
+      periodStart?: string;
       recordedAt: string;
       context: Record<string, unknown>;
     },
@@ -157,11 +158,17 @@ function MetricDetailRoute() {
         <article className="metric-detail-stat metric-detail-stat-primary">
           <p className="meta-label">Latest value</p>
           <p
-            aria-label={`${formattedLatestValue ?? "No value"} ${metricDefinition.unit}`}
+            aria-label={
+              metricDefinition.slug === "sleep_duration"
+                ? (formattedLatestValue ?? "No value")
+                : `${formattedLatestValue ?? "No value"} ${metricDefinition.unit}`
+            }
             className="metric-detail-value"
           >
             <span>{formattedLatestValue ?? "—"}</span>
-            <small>{metricDefinition.unit}</small>
+            {metricDefinition.slug === "sleep_duration" ? null : (
+              <small>{metricDefinition.unit}</small>
+            )}
           </p>
         </article>
 
@@ -300,7 +307,8 @@ interface MetricEntryHistoryRowProps {
   onDelete: () => void;
   onEdit: () => void;
   onUpdate: (input: {
-    value: number;
+    value?: number;
+    periodStart?: string;
     recordedAt: string;
     context: Record<string, unknown>;
   }) => void;
@@ -321,11 +329,37 @@ function MetricEntryHistoryRow({
   unit,
 }: MetricEntryHistoryRowProps) {
   const [value, setValue] = useState(String(entry.value));
+  const [bedtime, setBedtime] = useState(
+    entry.period_start ? formatDateTimeLocalInput(entry.period_start) : "",
+  );
+  const [wakeTime, setWakeTime] = useState(
+    formatDateTimeLocalInput(entry.recorded_at),
+  );
   const [notes, setNotes] = useState(getEntryNotes(entry));
   const [validationError, setValidationError] = useState<string | null>(null);
+  const isSleepInterval =
+    metricSlug === "sleep_duration" && entry.period_start !== null;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (isSleepInterval) {
+      if (!isValidSleepWindow(bedtime, wakeTime)) {
+        setValidationError("Wake time must be later than bedtime.");
+        return;
+      }
+
+      setValidationError(null);
+      onUpdate({
+        periodStart: new Date(bedtime).toISOString(),
+        recordedAt: new Date(wakeTime).toISOString(),
+        context: {
+          ...entry.context,
+          notes,
+        },
+      });
+      return;
+    }
 
     const parsedValue = parseMetricEntryValue(value);
 
@@ -348,15 +382,41 @@ function MetricEntryHistoryRow({
   if (isEditing) {
     return (
       <article className="entry-row entry-row-editing">
-        <form className="entry-edit-form" onSubmit={handleSubmit}>
-          <label>
-            {metricName} value
-            <input
-              inputMode="decimal"
-              value={value}
-              onChange={(event) => setValue(event.target.value)}
-            />
-          </label>
+        <form
+          className={`entry-edit-form${isSleepInterval ? " entry-edit-form-sleep" : ""}`}
+          onSubmit={handleSubmit}
+        >
+          {isSleepInterval ? (
+            <>
+              <label>
+                Bedtime
+                <input
+                  required
+                  type="datetime-local"
+                  value={bedtime}
+                  onChange={(event) => setBedtime(event.target.value)}
+                />
+              </label>
+              <label>
+                Wake time
+                <input
+                  required
+                  type="datetime-local"
+                  value={wakeTime}
+                  onChange={(event) => setWakeTime(event.target.value)}
+                />
+              </label>
+            </>
+          ) : (
+            <label>
+              {metricName} value
+              <input
+                inputMode="decimal"
+                value={value}
+                onChange={(event) => setValue(event.target.value)}
+              />
+            </label>
+          )}
 
           <label>
             {metricName} notes
@@ -432,6 +492,22 @@ function parseMetricEntryValue(value: string) {
   const parsedValue = Number(value);
 
   return Number.isFinite(parsedValue) ? parsedValue : undefined;
+}
+
+function formatDateTimeLocalInput(isoTimestamp: string) {
+  const timestamp = new Date(isoTimestamp);
+  const localTimestamp = new Date(
+    timestamp.getTime() - timestamp.getTimezoneOffset() * 60 * 1000,
+  );
+  return localTimestamp.toISOString().slice(0, 16);
+}
+
+function isValidSleepWindow(bedtime: string, wakeTime: string) {
+  return (
+    bedtime !== "" &&
+    wakeTime !== "" &&
+    new Date(wakeTime).getTime() > new Date(bedtime).getTime()
+  );
 }
 
 function getErrorMessage(error: unknown) {

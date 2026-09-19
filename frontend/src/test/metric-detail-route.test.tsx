@@ -418,6 +418,64 @@ describe("metric detail route", () => {
     });
   });
 
+  it("updates manual sleep from bedtime and wake time", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "sleep-duration-id",
+          name: "Sleep Duration",
+          slug: "sleep_duration",
+          unit: "hours",
+          category: "sleep",
+          min_value: 0,
+          max_value: 24,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([
+      {
+        id: 1,
+        metric_definition: "sleep_duration",
+        value: 7.5,
+        period_start: "2026-09-18T23:00:00Z",
+        recorded_at: "2026-09-19T06:30:00Z",
+        source: "manual",
+        context: {},
+        created_at: "2026-09-19T06:30:02Z",
+      },
+    ]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/sleep_duration");
+
+    await screen.findByRole("heading", { name: /sleep duration/i });
+    await user.click(
+      screen.getByRole("button", { name: /edit sleep duration entry/i }),
+    );
+    await user.clear(screen.getByLabelText(/^bedtime$/i));
+    await user.type(screen.getByLabelText(/^bedtime$/i), "2026-09-19T00:30");
+    await user.clear(screen.getByLabelText(/^wake time$/i));
+    await user.type(screen.getByLabelText(/^wake time$/i), "2026-09-19T08:30");
+    await user.click(
+      screen.getByRole("button", { name: /save sleep duration entry/i }),
+    );
+
+    expect(updateMetricEntryMutateAsyncMock).toHaveBeenCalledWith({
+      id: 1,
+      input: {
+        periodStart: new Date("2026-09-19T00:30").toISOString(),
+        recordedAt: new Date("2026-09-19T08:30").toISOString(),
+        context: { notes: "" },
+      },
+    });
+  });
+
   it("deletes an entry from the metric history", async () => {
     const user = userEvent.setup();
 
@@ -521,6 +579,9 @@ describe("metric detail route", () => {
       name: /metric entry history/i,
     });
 
+    const summary = screen.getByRole("region", { name: /metric summary/i });
+    expect(within(summary).getByLabelText(/^7h 50m$/i)).toBeInTheDocument();
+    expect(within(summary).queryByText(/^hours$/i)).not.toBeInTheDocument();
     expect(within(history).getByText(/^sleep window:/i)).toBeInTheDocument();
   });
 

@@ -32,7 +32,6 @@ def test_authenticated_user_can_create_metric_entry_for_default_metric():
             # Public API uses the metric slug, not the database UUID.
             "metric_definition": "resting_hr",
             "value": 58,
-            "period_start": "2026-03-05T06:15:00Z",
             "recorded_at": "2026-03-05T07:15:00Z",
             "context": {"notes": "morning measurement"},
         },
@@ -50,6 +49,99 @@ def test_authenticated_user_can_create_metric_entry_for_default_metric():
     assert data["source"] == "manual"
     assert data["context"] == {"notes": "morning measurement"}
     assert data["created_at"]
+
+
+def test_manual_sleep_entry_derives_duration_from_bedtime_and_wake_time():
+    client, _user = authenticate_client_for("alice@example.com")
+
+    response = client.post(
+        "/api/v1/metrics/entries/",
+        {
+            "metric_definition": "sleep_duration",
+            "period_start": "2026-09-18T23:00:00Z",
+            "recorded_at": "2026-09-19T06:50:00Z",
+            "context": {},
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.json()["value"] == pytest.approx(7 + 50 / 60)
+    assert response.json()["period_start"] == "2026-09-18T23:00:00Z"
+    assert response.json()["recorded_at"] == "2026-09-19T06:50:00Z"
+
+
+def test_manual_sleep_entry_rejects_wake_time_before_bedtime():
+    client, _user = authenticate_client_for("alice@example.com")
+
+    response = client.post(
+        "/api/v1/metrics/entries/",
+        {
+            "metric_definition": "sleep_duration",
+            "period_start": "2026-09-19T07:00:00Z",
+            "recorded_at": "2026-09-19T06:50:00Z",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "recorded_at": ["Wake time must be later than bedtime."]
+    }
+
+
+def test_manual_sleep_entry_requires_bedtime():
+    client, _user = authenticate_client_for("alice@example.com")
+
+    response = client.post(
+        "/api/v1/metrics/entries/",
+        {
+            "metric_definition": "sleep_duration",
+            "recorded_at": "2026-09-19T06:50:00Z",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "period_start": ["Bedtime is required for Sleep Duration."]
+    }
+
+
+def test_non_sleep_manual_entry_rejects_bedtime():
+    client, _user = authenticate_client_for("alice@example.com")
+
+    response = client.post(
+        "/api/v1/metrics/entries/",
+        {
+            "metric_definition": "resting_hr",
+            "value": 58,
+            "period_start": "2026-03-05T06:15:00Z",
+            "recorded_at": "2026-03-05T07:15:00Z",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "period_start": ["Bedtime is only supported for Sleep Duration."]
+    }
+
+
+def test_non_sleep_manual_entry_still_requires_value():
+    client, _user = authenticate_client_for("alice@example.com")
+
+    response = client.post(
+        "/api/v1/metrics/entries/",
+        {
+            "metric_definition": "resting_hr",
+            "recorded_at": "2026-03-05T07:15:00Z",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {"value": ["This field is required."]}
 
 def test_metric_entry_value_must_be_within_metric_definition_range():
     client, _user = authenticate_client_for("alice@example.com")
@@ -483,6 +575,31 @@ def test_user_cannot_update_wearable_synced_metric_entry():
     }
     entry.refresh_from_db()
     assert entry.value == 78.4
+
+
+def test_user_can_update_manual_sleep_bounds_and_duration_is_recomputed():
+    client, user = authenticate_client_for("alice@example.com")
+    entry = MetricEntry.objects.create(
+        user=user,
+        metric_definition=MetricDefinition.objects.get(slug="sleep_duration"),
+        value=7.5,
+        period_start="2026-09-18T23:00:00Z",
+        recorded_at="2026-09-19T06:30:00Z",
+    )
+
+    response = client.patch(
+        f"/api/v1/metrics/entries/{entry.id}/",
+        {
+            "period_start": "2026-09-18T22:30:00Z",
+            "recorded_at": "2026-09-19T06:30:00Z",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["value"] == 8
+    entry.refresh_from_db()
+    assert entry.value == 8
 
 def test_user_cannot_update_another_users_metric_entry():
       alice_client, _alice = authenticate_client_for("alice@example.com")

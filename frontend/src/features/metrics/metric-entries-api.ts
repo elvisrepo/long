@@ -13,13 +13,15 @@ export interface MetricEntry {
 
 export interface CreateMetricEntryInput {
   metricDefinition: string;
-  value: number;
+  value?: number;
+  periodStart?: string;
   recordedAt: string;
   context?: Record<string, unknown>;
 }
 
 export interface UpdateMetricEntryInput {
   value?: number;
+  periodStart?: string;
   recordedAt?: string;
   context?: Record<string, unknown>;
 }
@@ -40,6 +42,21 @@ export async function createMetricEntry(
     throw new Error("Authentication required");
   }
 
+  const body: Record<string, unknown> = {
+    metric_definition: input.metricDefinition,
+  };
+
+  if (input.value !== undefined) {
+    body.value = input.value;
+  }
+
+  if (input.periodStart !== undefined) {
+    body.period_start = input.periodStart;
+  }
+
+  body.recorded_at = input.recordedAt;
+  body.context = input.context ?? {};
+
   const response = await fetch("/api/v1/metrics/entries/", {
     method: "POST",
     headers: {
@@ -47,12 +64,7 @@ export async function createMetricEntry(
       "Content-Type": "application/json",
     },
     // maps frontend-friendly camelCase input to the backend’s snake_case JSON contract
-    body: JSON.stringify({
-      metric_definition: input.metricDefinition,
-      value: input.value,
-      recorded_at: input.recordedAt,
-      context: input.context ?? {},
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -122,6 +134,10 @@ export async function updateMetricEntry(
 
   if (input.value !== undefined) {
     body.value = input.value;
+  }
+
+  if (input.periodStart !== undefined) {
+    body.period_start = input.periodStart;
   }
 
   if (input.recordedAt !== undefined) {

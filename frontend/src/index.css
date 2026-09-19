@@ -543,6 +543,12 @@ button {
   width: 100%;
 }
 
+.metric-form-preview {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
 .form-error {
   grid-column: 1 / -1;
   color: var(--warn);
@@ -751,6 +757,15 @@ button {
   align-items: end;
   gap: 12px;
   width: 100%;
+}
+
+.entry-edit-form-sleep {
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+}
+
+.entry-edit-form-sleep .entry-actions,
+.entry-edit-form-sleep .form-error {
+  grid-column: 1 / -1;
 }
 
 .entry-edit-form label {

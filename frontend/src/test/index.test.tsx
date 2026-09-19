@@ -317,6 +317,97 @@ describe("dashboard route", () => {
     });
   });
 
+  it("logs manual sleep from bedtime and wake time", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "sleep-duration-id",
+          name: "Sleep Duration",
+          slug: "sleep_duration",
+          unit: "hours",
+          category: "sleep",
+          min_value: 0,
+          max_value: 24,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries();
+    createMetricEntryMock.mockResolvedValue({
+      id: 1,
+      metric_definition: "sleep_duration",
+      value: 7 + 50 / 60,
+      period_start: "2026-09-18T23:00:00Z",
+      recorded_at: "2026-09-19T06:50:00Z",
+      source: "manual",
+      context: {},
+      created_at: "2026-09-19T06:50:02Z",
+    });
+
+    renderRoute("/");
+
+    await screen.findByRole("heading", { name: /dashboard/i });
+    await user.type(screen.getByLabelText(/^bedtime$/i), "2026-09-19T01:00");
+    await user.type(screen.getByLabelText(/^wake time$/i), "2026-09-19T08:50");
+
+    expect(
+      screen.getByText(/calculated duration: 7h 50m/i),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: /log sleep duration/i }),
+    );
+
+    expect(createMetricEntryMock).toHaveBeenCalledWith({
+      metricDefinition: "sleep_duration",
+      periodStart: new Date("2026-09-19T01:00").toISOString(),
+      recordedAt: new Date("2026-09-19T08:50").toISOString(),
+      context: {},
+    });
+  });
+
+  it("rejects a manual sleep wake time that is not later than bedtime", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "sleep-duration-id",
+          name: "Sleep Duration",
+          slug: "sleep_duration",
+          unit: "hours",
+          category: "sleep",
+          min_value: 0,
+          max_value: 24,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries();
+
+    renderRoute("/");
+
+    await screen.findByRole("heading", { name: /dashboard/i });
+    await user.type(screen.getByLabelText(/^bedtime$/i), "2026-09-19T08:50");
+    await user.type(screen.getByLabelText(/^wake time$/i), "2026-09-19T01:00");
+    await user.click(
+      screen.getByRole("button", { name: /log sleep duration/i }),
+    );
+
+    expect(
+      screen.getByText(/wake time must be later than bedtime/i),
+    ).toBeInTheDocument();
+    expect(createMetricEntryMock).not.toHaveBeenCalled();
+  });
+
   it("clears the metric entry value after logging succeeds", async () => {
     const user = userEvent.setup();
 

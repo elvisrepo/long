@@ -224,6 +224,10 @@ Current metrics API integration checkpoint:
 - `useDeleteMetricEntryMutation()` wraps manual metric-entry deletes and invalidates `['metric-entries']` on success.
 - The dashboard route renders a simple metric-entry form for each loaded metric definition.
 - Successful metric entry submission clears the form input.
+- The Sleep Duration card replaces the generic numeric input with local
+  `datetime-local` Bedtime and Wake time controls, previews the calculated
+  hours/minutes, rejects a wake time that is not later, and submits ISO interval
+  bounds without a client-owned duration value.
 - Failed metric entry submission renders the mutation error message.
 - Successful metric entry mutation invalidates `['metric-entries']` so entry lists can refresh after writes.
 - The dashboard route now renders a `Recent Entries` section backed by `useMetricEntriesQuery()`.
@@ -288,6 +292,8 @@ Current metric detail page checkpoint:
   UTC wake time on the same row. Other metric rows retain their existing UTC
   timestamp display.
 - Entry-history rows support inline edit/delete actions.
+- Manual Sleep history editing uses Bedtime and Wake time controls and submits
+  updated interval bounds; the backend recomputes duration.
 - Inline edit currently supports value and notes while preserving the existing `recorded_at` timestamp.
 - Inline edit blocks empty and non-numeric values before calling the update mutation.
 - Failed entry updates keep the inline edit form open so the user can correct and resubmit.

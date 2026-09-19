@@ -544,6 +544,9 @@ Current frontend metrics testing checkpoint:
 - `use-delete-metric-entry-mutation.test.tsx` covers manual metric-entry delete mutation and invalidation of metric-entry list queries.
 - `metric-trend-chart.test.tsx` covers the Chart.js-backed trend component contract: accessible chart region, empty state, summary text, latest-entry-per-local-day aggregation before chart config is built, and body-weight float-noise formatting.
 - dashboard route tests cover the first metric-entry form behavior: submit, input clearing after success, and visible error on failed save.
+- dashboard route tests prove manual Sleep uses Bedtime/Wake time inputs,
+  previews the calculated duration, sends ISO interval bounds without `value`,
+  and blocks reversed intervals before mutation.
 - dashboard route tests also cover rendering logged metric entries in the `Recent Entries` section with user-facing metric names, unit-formatted values, and readable timestamps.
 - dashboard and metric-detail route tests prove a stored body-weight value such as `83.5999984741211` displays as `83.6 kg`, including latest cards, entry rows, trend statistics, and a computed `-3.4 kg` delta; this does not assert that persistence was rounded.
 - dashboard route tests cover that metric-card latest values use an independent unfiltered `useMetricEntriesQuery({ limit: 50 })` read, so recent-entry filtering does not hide card values for other metrics.
@@ -717,7 +720,10 @@ Current Android testing checkpoint — 2026-08-17:
 - `StepsSyncCoordinatorTest` proves successful Steps batches reach the Steps upload boundary and permission loss stops before UUID generation or network access.
 - `SleepSyncCoordinatorTest` proves a planned sleep session reaches the sleep upload boundary. The HTTP repository test proves its exact `sleep_duration` JSON contract, including session bounds, decimal-hour duration, stable record ID, and provider modification timestamp.
 - `AllMetricsSyncRunnerTest` proves one action runs Weight before Steps, combines both receipt sets, ignores metric-specific no-data outcomes, and preserves already committed receipts while preventing later metric runners after an interruption.
-- Frontend formatter coverage proves `sleep_duration` decimal hours display as rounded hours and minutes (`7.5` becomes `7h 30m`) without appending a duplicate `hours` unit. It also proves a Sleep interval renders its start, wake time, and wake date in an explicit viewer timezone. Metric-detail route coverage proves one record is labeled `1 entry`, multiple records use `entries`, Sleep history renders the interval window, and non-Sleep history does not.
+- Frontend formatter coverage proves `sleep_duration` decimal hours display as rounded hours and minutes (`7.5` becomes `7h 30m`) without appending a duplicate `hours` unit. It also proves a Sleep interval renders its start, wake time, and wake date in an explicit viewer timezone. Metric-detail route coverage proves one record is labeled `1 entry`, multiple records use `entries`, Sleep history renders the interval window, the summary omits redundant `hours`, manual Sleep edits use interval bounds, and non-Sleep history does not show a sleep window.
+- Backend metric-entry tests prove manual Sleep creation and update derive duration
+  from bedtime/wake time, missing or reversed bounds fail, and non-Sleep manual
+  entries still require `value` while rejecting `period_start`.
 - `IncrementalWeightSyncRunnerTest` proves a completed or valid no-data run advances the caller-owned connection watermark to the timestamp captured before reading, while an interrupted run leaves the watermark unchanged for safe retry.
 - `WeightSyncWorkResultMapperTest` proves completed/no-data outcomes map to WorkManager success, temporary Health Connect/server/network failures map to retry, and permission/session/domain-repair outcomes map to failure without automatic backoff loops.
 - `IncrementalWeightSyncWorkerTest` uses WorkManager's instrumented worker builder on the physical phone to prove the injected worker forwards its `connection_id` to the incremental runner and returns the runner's scheduler mapping. Missing input fails without invoking the runner.

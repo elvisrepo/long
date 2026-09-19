@@ -125,7 +125,8 @@ class MetricEntrySerializer(serializers.ModelSerializer):
         slug_field="slug",
         queryset=MetricDefinition.objects.none(),
     )
-    period_start = serializers.DateTimeField(read_only=True, allow_null=True)
+    value = serializers.FloatField(required=False)
+    period_start = serializers.DateTimeField(required=False, allow_null=True)
 
     class Meta:
         model = MetricEntry
@@ -163,6 +164,38 @@ class MetricEntrySerializer(serializers.ModelSerializer):
               getattr(self.instance, "metric_definition", None),
           ),
       )
+      period_start = attrs.get(
+          "period_start",
+          getattr(self.instance, "period_start", None),
+      )
+      recorded_at = attrs.get(
+          "recorded_at",
+          getattr(self.instance, "recorded_at", None),
+      )
+
+      if definition.slug == "sleep_duration":
+          if period_start is None:
+              raise serializers.ValidationError(
+                  {"period_start": "Bedtime is required for Sleep Duration."}
+              )
+          if recorded_at is None or period_start >= recorded_at:
+              raise serializers.ValidationError(
+                  {"recorded_at": "Wake time must be later than bedtime."}
+              )
+
+          attrs["value"] = (recorded_at - period_start).total_seconds() / 3600
+      else:
+          if period_start is not None:
+              raise serializers.ValidationError(
+                  {
+                      "period_start": (
+                          "Bedtime is only supported for Sleep Duration."
+                      )
+                  }
+              )
+          if "value" not in attrs and self.instance is None:
+              raise serializers.ValidationError({"value": "This field is required."})
+
       value = cast(
           float,
           attrs.get(
