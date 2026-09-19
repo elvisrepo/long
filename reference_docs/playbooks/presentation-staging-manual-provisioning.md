@@ -502,9 +502,20 @@ Current checkpoint (2026-09-17): the operator reports that the physical Android
 staging app connects to the public hosted backend, automatic Weight and Steps
 sync works, and the resulting data appears correctly in the hosted frontend.
 This closes the Android-to-hosted-frontend functional check by operator report.
-The deployed image digest and exact device/test conditions were not recorded
-with that report; record them before treating the Section 12 evidence gate as
-complete. The log privacy check is also still open.
+On 2026-09-18, a read-only `docker inspect` through Systems Manager confirmed
+the running API image as
+`173291122778.dkr.ecr.eu-central-1.amazonaws.com/syncvitals/staging/backend@sha256:24edf7e3d5911c72a2565ff5b30b05d4eaeaf0b0eee7c0dac212731179deeb83`.
+The owner reports that pilot 1.1 on the authorized Xiaomi 17 Ultra signed in,
+connected to Health Connect, synced Samsung Health Weight and Steps over the
+hosted HTTPS API, and showed the updated data in the frontend. On-screen
+automatic sync after reopening was observed; a roughly 30-minute period with
+the app away recorded no worker attempt. Android OS version, network type, and
+whether pilot 1.1 was installed as an in-place update were not recorded. On
+2026-09-19, the operator confirmed that browser sign-in, session refresh,
+manual metric write/read and persistence after refresh, and deep-link reload
+all passed on the hosted staging frontend. Together with the previously
+recorded health, Stripe, Android, image-identity, and log-privacy evidence, this
+closes the Section 12 staging acceptance gate.
 
 #### Watch requests and backend errors on staging
 

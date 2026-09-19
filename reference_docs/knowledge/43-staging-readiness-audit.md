@@ -418,8 +418,13 @@ and Stripe test-mode Checkout, Portal, and webhook flows have been verified.
 On 2026-09-17 the operator reported working Android automatic Weight and Steps
 sync to the hosted backend and correct display in the hosted frontend. On
 2026-09-18 the operator verified live Nginx/backend log access and reported no
-sensitive values in inspected sign-in and sync logs. Record the deployed image
-digest and exact phone/test conditions before closing Step 12. Daily backup and
+sensitive values in inspected sign-in and sync logs. A read-only Systems Manager
+check confirmed the running API image index digest
+`sha256:24edf7e3d5911c72a2565ff5b30b05d4eaeaf0b0eee7c0dac212731179deeb83`.
+The owner reports successful pilot 1.1 use on an authorized Xiaomi 17 Ultra.
+On 2026-09-19, the operator confirmed that browser sign-in, session refresh,
+manual metric write/read and persistence after refresh, and deep-link reload
+passed. Step 12 acceptance is closed. Daily backup and
 monthly isolated restore monitoring are active for Step 13. Play Internal
 Testing upload key setup remains a later distribution gate. Keep the
 PostgreSQL-backed backend suite, production-image smoke, migration/API deployment
