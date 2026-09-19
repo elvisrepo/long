@@ -85,6 +85,7 @@ def test_gunicorn_has_explicit_operational_defaults() -> None:
     assert "--graceful-timeout=30" in command
     assert "--access-logfile=-" in command
     assert "--error-logfile=-" in command
+    assert "--no-control-socket" in command
 
 
 def test_local_compose_overrides_image_with_development_server() -> None:
