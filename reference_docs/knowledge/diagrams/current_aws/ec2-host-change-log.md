@@ -994,6 +994,45 @@ unless the operator explicitly changes this convention.
   confirmed receiving the isolated missing-data test email. An actual missed
   production restore has not been induced.
 
+### EC2-029 — Sleep ingestion backend release and Gunicorn control-socket correction
+
+- Date: 2026-09-19.
+- Performed by: Codex through operator-authorized AWS CLI and Systems Manager
+  Run Command.
+- Execution path: two immutable ARM64 ECR images were built from Git commits
+  `5a0736b46d1cdd81c996f6d060704e9b6c6fb8a5` and
+  `cf9627f7416cee7c33f2dbb7cf1d52d9883e658c`; the guarded staging runtime
+  loader retrieved the existing secret snapshot, ran migrations, replaced only
+  the API container, and waited for readiness after each promotion.
+- Intent: deploy Samsung-originated `sleep_duration` ingestion and correct a
+  Gunicorn 26 startup error discovered during post-deployment log review.
+- Pre-change evidence: API and PostgreSQL containers were healthy; PostgreSQL
+  remained on `/srv/syncvitals`; the running API image was
+  `sha256:24edf7e3d5911c72a2565ff5b30b05d4eaeaf0b0eee7c0dac212731179deeb83`.
+- Image review: both new Linux/ARM64 images completed ECR basic scanning with
+  zero critical and one high finding, the already reviewed
+  `CVE-2026-85091` in Debian `zlib`. The existing acceptance remains limited to
+  this demo/test-data presentation staging environment.
+- First promotion: deployed Sleep image index
+  `sha256:8b5e8eb5022ddee9795463cc56417cd7f219eecac5186c4a2453ca3209f378f5`.
+  Migrations reported no work and the API became healthy. Log review found
+  Gunicorn's new unused control socket trying to write below the system user's
+  `/nonexistent` home.
+- Corrective promotion: added the tested `--no-control-socket` runtime flag and
+  deployed final image index
+  `sha256:4133797b381eedd384dead2c036f6749bfb35f80cfa0b1bfb215d9a2bb5217bb`.
+  No database migration was needed. API and PostgreSQL are healthy.
+- Verification: the live serializer accepts the normalized Sleep interval,
+  public liveness/readiness return `200`, recent API logs contain no
+  `Traceback`, `ERROR`, or `CRITICAL` lines, the EC2 security group prevents a
+  direct-origin request from connecting, and temporary ECR authorization was
+  removed from the host.
+- Recovery or rollback: rerun the guarded deployment with the prior accepted
+  Sleep image `sha256:8b5e8eb5022ddee9795463cc56417cd7f219eecac5186c4a2453ca3209f378f5`,
+  or the pre-Sleep image `sha256:24edf7e3d5911c72a2565ff5b30b05d4eaeaf0b0eee7c0dac212731179deeb83`.
+  This release introduced no schema change.
+- Status: complete.
+
 ## Current Known Host-Software State
 
 | Component | State | Evidence |
@@ -1004,7 +1043,7 @@ unless the operator explicitly changes this convention.
 | Certbot and Route 53 DNS plugin | Origin certificate issued; renewal dry-run and Nginx deploy hook passed | EC2-010, EC2-015, and EC2-016 |
 | CloudWatch Agent | Installed and configured through console; memory and root-disk metric delivery verified | EC2-012 console status and graphs; installed version and boot enablement not yet inspected |
 | AWS CLI | Version-pinned native ARM64 v2 installed and signature-verified | EC2-019 |
-| PostgreSQL and Django | Healthy containers; EBS persistence and loopback-only API verified | EC2-020 |
+| PostgreSQL and Django | Healthy containers; EBS persistence, loopback-only API, and final Sleep ingestion image verified | EC2-020 and EC2-029 |
 | Nginx origin proxy | TLS, root-only CloudFront header guard, and loopback proxy verified | EC2-021 |
 | Exact EC2-002 APT transaction | Reconciled | `/var/log/apt/history.log` |
 | Nginx | Not installed at the initial host inspection | Earlier SSM inspection |

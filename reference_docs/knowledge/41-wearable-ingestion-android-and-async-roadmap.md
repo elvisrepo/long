@@ -152,6 +152,14 @@ pilot variant, and package identity. Manifest inspection verifies `READ_SLEEP`
 alongside Weight, Steps, and optional background access. Device installation
 and a real Samsung-originated Sleep sync remain the acceptance step.
 
+The matching backend and frontend Sleep slice was deployed to public staging on
+2026-09-19. The final backend is commit
+`cf9627f7416cee7c33f2dbb7cf1d52d9883e658c` at digest
+`sha256:4133797b381eedd384dead2c036f6749bfb35f80cfa0b1bfb215d9a2bb5217bb`.
+The live serializer and public health checks pass, and the public frontend serves
+the new hashed build. This proves deployment readiness, not Samsung/Xiaomi Sleep
+data availability; pilot 1.2 still needs the physical sync check.
+
 The version-code-2 pilot diagnostic build records the latest WorkManager
 attempt while the app is away and while it is visible in separate local slots.
 The pilot-only **Automatic sync diagnostics** control shows their device-local

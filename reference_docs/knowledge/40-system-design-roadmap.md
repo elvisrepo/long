@@ -1,6 +1,6 @@
 # System Design Roadmap: Local MVP to Production
 
-Current state, bluntly: the project has a working hosted staging value loop. The public HTTPS frontend and API, Stripe test-mode lifecycle, monitored database backup and restore, and Android authentication and Weight/Steps ingestion are deployed. On 2026-09-17 the operator reported that automatic Android sync reaches the hosted backend and the data appears correctly in the frontend. On 2026-09-18 the operator checked sign-in and sync logs and reported no sensitive values; a read-only host check confirmed the running backend image digest and the Xiaomi pilot conditions were recorded. On 2026-09-19 the operator confirmed browser sign-in, session refresh, manual metric write/read and persistence after refresh, and deep-link reload. Staging acceptance is complete. Retained application logs, failure alerts, richer analytics, additional health metrics, asynchronous server processing, and production hardening remain later work.
+Current state, bluntly: the project has a working hosted staging value loop. The public HTTPS frontend and API, Stripe test-mode lifecycle, monitored database backup and restore, and Android authentication and Weight/Steps ingestion are deployed. On 2026-09-17 the operator reported that automatic Android sync reaches the hosted backend and the data appears correctly in the frontend. On 2026-09-18 the operator checked sign-in and sync logs and reported no sensitive values; a read-only host check confirmed the running backend image digest and the Xiaomi pilot conditions were recorded. On 2026-09-19 the operator confirmed browser sign-in, session refresh, manual metric write/read and persistence after refresh, and deep-link reload. The Sleep backend/frontend slice and signed pilot 1.2 were then deployed and built; physical Sleep sync remains its acceptance step. Retained application logs, failure alerts, richer analytics, additional health metrics, asynchronous server processing, and production hardening remain later work.
 
 ## 1. Local system design — what exists now
 
@@ -55,7 +55,8 @@ Implemented slices:
 - Kotlin/Compose Android project scaffold
 - Android login, refresh, encrypted JWT storage, session checking, and server-revoking logout
 - Stateful Android authentication UI with JVM, Compose, and physical-device validation
-- Health Connect Weight and Steps permission, read, normalization, batching, and combined sync
+- Health Connect Weight, Steps, and Sleep permission, read, normalization, batching, and combined sync
+- Hosted Sleep duration ingestion and `hours:minutes` frontend presentation; physical device verification pending
 - Subscription-aware manual cooldowns and Pro WorkManager scheduling
 - Health Connect connection registration, reactivation, and disconnect
 - Stable provider-record deduplication plus newer-version updates using Health Connect modification timestamps

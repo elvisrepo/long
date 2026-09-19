@@ -47,8 +47,8 @@ Already created and verified:
 - private ECR repository `syncvitals/staging/backend` in `eu-central-1` with
   immutable tags, AES-256 encryption, and basic scan on push;
 - accepted Trixie-based ARM64 backend image from Git commit
-  `cf1397bd91a169c0ac20e1c3e6acd73cdb60f996`, pinned by index digest
-  `sha256:24edf7e3d5911c72a2565ff5b30b05d4eaeaf0b0eee7c0dac212731179deeb83`;
+  `cf9627f7416cee7c33f2dbb7cf1d52d9883e658c`, pinned by index digest
+  `sha256:4133797b381eedd384dead2c036f6749bfb35f80cfa0b1bfb215d9a2bb5217bb`;
 - Secrets Manager secret `longevity/staging/backend-runtime` in `eu-central-1`
   with one `AWSCURRENT` version whose 15 required values passed the loader's
   in-memory validation; automatic rotation is not configured;
@@ -115,6 +115,25 @@ Image-scan acceptance recorded on 2026-09-12:
   health or personal data, and the image must be rescanned when its base image
   is refreshed. The operator deleted the prior ECR images, so this checkpoint
   has no image rollback candidate.
+
+Release verification recorded on 2026-09-19:
+
+- the Sleep ingestion image and its corrective Gunicorn image were both
+  rescanned; each reported zero critical and only the same accepted
+  `CVE-2026-85091` high finding;
+- final deployed backend commit is
+  `cf9627f7416cee7c33f2dbb7cf1d52d9883e658c`, pinned by index digest
+  `sha256:4133797b381eedd384dead2c036f6749bfb35f80cfa0b1bfb215d9a2bb5217bb`;
+- the previous Sleep digest and the pre-Sleep digest remain in immutable ECR as
+  rollback candidates;
+- the live Sleep serializer, public health endpoints, container health, and
+  recent error logs passed; Gunicorn's unused control socket is explicitly
+  disabled for the non-root runtime;
+- the frontend release publishes hashed entry asset
+  `assets/index-B2HGltRi.js` and Sleep-aware route asset
+  `assets/routes-I0p_-Fh-.js`, while preserving older assets. Root, the
+  `/metrics/sleep_duration` deep link, and both assets return `200`; missing
+  assets remain static-origin errors.
 
 At this 2026-09-13 checkpoint, CloudFront's S3 frontend and `/api/*` Django
 origin were deployed. Section 12 still needed Android and remaining Stripe

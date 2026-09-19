@@ -54,9 +54,13 @@ On 2026-09-17 the operator reported that the Android staging app connects to
 the hosted backend, automatic Weight and Steps sync works, and the synced data
 appears correctly in the hosted frontend. This functional validation happened
 after the V018 snapshot; its historical state remains unchanged. No new AWS
-resource was added, so there is no new deployment diagram version. The deployed
-image digest and exact test conditions still need to be recorded in the staging
-playbook. Application log shipping and privacy review remain open.
+resource was added, so there is no new deployment diagram version. On
+2026-09-19 the backend and frontend Sleep slice was deployed from
+final commit `cf9627f7416cee7c33f2dbb7cf1d52d9883e658c`; the digest, scan,
+rollback images, public checks, and host verification are recorded in the
+staging playbook and EC2-029. No AWS resource boundary changed, so V018 remains
+the latest structural snapshot. Application log shipping and privacy review
+remain open.
 
 ## Companion Request Flows
 
