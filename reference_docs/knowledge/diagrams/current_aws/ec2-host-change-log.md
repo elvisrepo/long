@@ -1033,6 +1033,46 @@ unless the operator explicitly changes this convention.
   This release introduced no schema change.
 - Status: complete.
 
+### EC2-030 — Sleep interval display and manual bedtime/wake-time release
+
+- Date: 2026-09-20.
+- Performed by: Codex through operator-authorized AWS CLI and Systems Manager
+  Run Command after operator verification against local Docker and React.
+- Execution path: commit `e932f84776c28a50239bec092ce54b451bc11b15`
+  produced immutable Linux/ARM64 ECR index
+  `sha256:f9aa0fd3155e7baf227225774f0d9350a691ad7f31f17968b0686b067c9285ef`.
+  The guarded staging loader retrieved the existing secret snapshot, ran the
+  migration gate, replaced only the API container, and waited for readiness.
+- Intent: expose stored Sleep interval starts to the authenticated metric-entry
+  response and make manual Sleep creation/editing accept bedtime and wake time,
+  with Django deriving elapsed hours.
+- Pre-change evidence: API and PostgreSQL were healthy; the immediately prior
+  compatible API image was
+  `sha256:8e5bebf5d6be38b403cf0b2d126f428ad56ec2dd5cb2f05d1e320c69a624c8ac`.
+- Image review: zero critical findings, the previously accepted high
+  `CVE-2026-85091` in zlib, and one undefined-severity
+  `CVE-2026-82560` in Perl `Pod::Text`. The Django runtime does not invoke Perl
+  or format attacker-provided POD documents. Acceptance is limited to this
+  demo/test-data staging environment and does not apply to production or
+  onboarding users with real health data.
+- Promotion: no database migration was needed. API and PostgreSQL became
+  healthy. A no-write serializer smoke proved `7h 50m` is derived from supplied
+  bedtime/wake-time bounds. Public liveness/readiness returned `200`, recent API
+  logs contained no `Traceback`, `ERROR`, or `CRITICAL` lines, direct-origin
+  access timed out behind the CloudFront-only security group, and temporary
+  host ECR authorization was removed.
+- Frontend: safe asset-first upload published `assets/index-BOr-57li.js`,
+  `assets/routes-C2N4sCWL.js`, `assets/metrics._slug-CU8UBQx7.js`, and
+  `assets/index-BB7KTZx6.css`, with the no-cache application shell uploaded
+  last. Public root and Sleep deep link referenced the new entry asset; chunks
+  exposed Bedtime, Wake time, calculated duration, Sleep window, and corrected
+  singular/plural copy. No CloudFront invalidation was required.
+- Recovery or rollback: restore the previous frontend from Git commit
+  `3a42f81f0ac20e8ef7febc15519488fed00046bc`, then run the guarded backend
+  deployment with the prior digest above. The release introduced no schema
+  change.
+- Status: complete.
+
 ## Current Known Host-Software State
 
 | Component | State | Evidence |

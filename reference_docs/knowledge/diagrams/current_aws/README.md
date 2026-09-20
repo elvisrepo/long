@@ -60,7 +60,11 @@ final commit `cf9627f7416cee7c33f2dbb7cf1d52d9883e658c`; the digest, scan,
 rollback images, public checks, and host verification are recorded in the
 staging playbook and EC2-029. No AWS resource boundary changed, so V018 remains
 the latest structural snapshot. Application log shipping and privacy review
-remain open.
+remain open. On 2026-09-20, the locally accepted Sleep interval/manual-entry
+release was deployed from commit `e932f84776c28a50239bec092ce54b451bc11b15`.
+Its backend image, scan acceptance, rollback, frontend assets, and public checks
+are recorded in EC2-030. This application release also added no AWS resource
+boundary, so V018 remains the latest structural snapshot.
 
 ## Companion Request Flows
 

@@ -544,6 +544,22 @@ Sep 19, 6:40 AM `sleep_duration` entry as `7h 50m`. The screenshot verifies the
 final duration and provenance label but does not expose Samsung's underlying
 sleep-stage intervals. Stage subtraction remains verified by automated tests.
 
+On 2026-09-20, after local Docker/React acceptance, the manual Sleep and interval
+display release was promoted. The final backend is commit
+`e932f84776c28a50239bec092ce54b451bc11b15` at index digest
+`sha256:f9aa0fd3155e7baf227225774f0d9350a691ad7f31f17968b0686b067c9285ef`;
+the immediately prior compatible rollback digest is
+`sha256:8e5bebf5d6be38b403cf0b2d126f428ad56ec2dd5cb2f05d1e320c69a624c8ac`.
+The ECR scan contained zero critical findings, the already accepted high zlib
+finding, and undefined-severity `CVE-2026-82560` in Perl `Pod::Text`. The latter
+requires formatting an attacker-provided POD document; the Django runtime does
+not invoke that path. Both acceptances remain limited to demo/test-data staging.
+The safe frontend uploader published the matching hashed build with
+`assets/index-BOr-57li.js`, `assets/routes-C2N4sCWL.js`, and
+`assets/metrics._slug-CU8UBQx7.js`; public root, Sleep deep link, changed chunks,
+API health, backend derivation, logs, origin isolation, and credential cleanup
+passed. No migration or CloudFront invalidation was needed.
+
 #### Watch requests and backend errors on staging
 
 Use the root Session Manager shell on the EC2 host. In one terminal, watch new
