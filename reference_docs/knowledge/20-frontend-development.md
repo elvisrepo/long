@@ -45,6 +45,22 @@
 - At widths up to 680px, dashboard metric cards render in one column. Inputs
   use `min-width: 0` and `max-width: 100%` so native datetime controls remain
   inside the card.
+- The local metric-detail view now carries the `metric-detail-body-weight-v2`
+  structure across the generic `/metrics/:slug` route: a Metrics breadcrumb,
+  full metric metadata, and a selected-range badge sit above the existing
+  summary, trend, and history sections.
+- Entry history displays saved notes. Manual numeric edits use the metric
+  definition's minimum and maximum; Body Weight uses a `0.1 kg` step.
+- Body Weight can be logged directly from `/metrics/body_weight`. Its manual
+  entry dialog accepts a kilogram value, measurement date and time, and an
+  optional note; it enforces the definition's accepted range before calling
+  the existing metric-entry API and preserves form values after a failed save.
+- Deleting a manual entry now requires confirmation and explains that the
+  action is permanent. A failed deletion stays in the dialog with the backend
+  error. Synced entries remain read-only.
+- The Body Weight prototype's Pro overlay link remains reference-only until a
+  real comparison route and analytics contract exist; the local app does not
+  expose a dead control.
 - `frontend/longevity-redesign-v21` is design reference material and is
   excluded from ESLint and Prettier checks; its handoff files are not compiled
   into the application.

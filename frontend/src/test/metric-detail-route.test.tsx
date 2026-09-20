@@ -1,8 +1,9 @@
-import { screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getMe } from "../features/auth/auth-me-api";
+import { useCreateMetricEntryMutation } from "../features/metrics/use-create-metric-entry-mutation";
 import { useDeleteMetricEntryMutation } from "../features/metrics/use-delete-metric-entry-mutation";
 import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
 import { useMetricEntriesQuery } from "../features/metrics/use-metric-entries-query";
@@ -21,6 +22,10 @@ vi.mock("../features/metrics/use-metric-entries-query", () => ({
   useMetricEntriesQuery: vi.fn(),
 }));
 
+vi.mock("../features/metrics/use-create-metric-entry-mutation", () => ({
+  useCreateMetricEntryMutation: vi.fn(),
+}));
+
 vi.mock("../features/metrics/use-update-metric-entry-mutation", () => ({
   useUpdateMetricEntryMutation: vi.fn(),
 }));
@@ -31,6 +36,7 @@ vi.mock("../features/metrics/use-delete-metric-entry-mutation", () => ({
 
 const updateMetricEntryMutateAsyncMock = vi.fn();
 const deleteMetricEntryMutateAsyncMock = vi.fn();
+const createMetricEntryMutateAsyncMock = vi.fn();
 
 function mockLoadedMetricDefinitions() {
   vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
@@ -72,8 +78,15 @@ function mockLoadedMetricEntries(
 }
 
 function mockMetricEntryMutations() {
+  createMetricEntryMutateAsyncMock.mockResolvedValue(undefined);
   updateMetricEntryMutateAsyncMock.mockResolvedValue(undefined);
   deleteMetricEntryMutateAsyncMock.mockResolvedValue(undefined);
+
+  vi.mocked(useCreateMetricEntryMutation).mockReturnValue({
+    mutateAsync: createMetricEntryMutateAsyncMock,
+    isPending: false,
+    isError: false,
+  } as unknown as ReturnType<typeof useCreateMetricEntryMutation>);
 
   vi.mocked(useUpdateMetricEntryMutation).mockReturnValue({
     mutateAsync: updateMetricEntryMutateAsyncMock,
@@ -338,6 +351,224 @@ describe("metric detail route", () => {
     expect(within(history).getByText(/^83\.6 kg$/i)).toBeInTheDocument();
   });
 
+  it("shows Body Weight context and saved notes", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "body-weight-id",
+          name: "Body Weight",
+          slug: "body_weight",
+          unit: "kg",
+          category: "body_composition",
+          min_value: 20,
+          max_value: 400,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([
+      {
+        id: 1,
+        metric_definition: "body_weight",
+        value: 83.6,
+        recorded_at: "2026-08-05T07:15:00Z",
+        source: "manual",
+        context: { notes: "After morning walk" },
+        created_at: "2026-08-05T07:15:02Z",
+      },
+    ]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/body_weight");
+
+    await screen.findByRole("heading", { name: /body weight/i });
+
+    const breadcrumb = screen.getByRole("navigation", { name: /breadcrumb/i });
+    expect(
+      within(breadcrumb).getByRole("link", { name: /^metrics$/i }),
+    ).toHaveAttribute("href", "/metrics");
+    expect(
+      screen.getByText(/body_weight · kg · body_composition · default/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/all · daily latest values/i)).toBeInTheDocument();
+
+    const history = screen.getByRole("region", {
+      name: /metric entry history/i,
+    });
+    expect(
+      within(history).getByText(/after morning walk/i),
+    ).toBeInTheDocument();
+
+    await user.click(
+      within(history).getByRole("button", { name: /edit body weight entry/i }),
+    );
+    const valueInput = within(history).getByLabelText(/body weight value/i);
+    expect(valueInput).toHaveAttribute("type", "number");
+    expect(valueInput).toHaveAttribute("min", "20");
+    expect(valueInput).toHaveAttribute("max", "400");
+    expect(valueInput).toHaveAttribute("step", "0.1");
+  });
+
+  it("adds a manual weight entry from the Body Weight detail page", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "body-weight-id",
+          name: "Body Weight",
+          slug: "body_weight",
+          unit: "kg",
+          category: "body_composition",
+          min_value: 20,
+          max_value: 400,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/body_weight");
+
+    await user.click(
+      await screen.findByRole("button", { name: /add weight entry/i }),
+    );
+
+    const dialog = screen.getByRole("dialog", {
+      name: /add body weight entry/i,
+    });
+    await user.type(
+      within(dialog).getByLabelText(/body weight value/i),
+      "72.4",
+    );
+    fireEvent.change(within(dialog).getByLabelText(/recorded at/i), {
+      target: { value: "2026-09-20T08:30" },
+    });
+    await user.type(
+      within(dialog).getByLabelText(/body weight notes/i),
+      "Morning weigh-in",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: /save weight entry/i }),
+    );
+
+    expect(createMetricEntryMutateAsyncMock).toHaveBeenCalledWith({
+      metricDefinition: "body_weight",
+      value: 72.4,
+      recordedAt: new Date("2026-09-20T08:30").toISOString(),
+      context: { notes: "Morning weigh-in" },
+    });
+    expect(
+      screen.queryByRole("dialog", { name: /add body weight entry/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("rejects a weight outside the Body Weight accepted range", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "body-weight-id",
+          name: "Body Weight",
+          slug: "body_weight",
+          unit: "kg",
+          category: "body_composition",
+          min_value: 20,
+          max_value: 400,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/body_weight");
+
+    await user.click(
+      await screen.findByRole("button", { name: /add weight entry/i }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: /add body weight entry/i,
+    });
+    fireEvent.change(within(dialog).getByLabelText(/body weight value/i), {
+      target: { value: "401" },
+    });
+    fireEvent.submit(dialog.querySelector("form") as HTMLFormElement);
+
+    expect(createMetricEntryMutateAsyncMock).not.toHaveBeenCalled();
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
+      /between 20 and 400 kilograms/i,
+    );
+  });
+
+  it("keeps the weight form open when saving fails", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "body-weight-id",
+          name: "Body Weight",
+          slug: "body_weight",
+          unit: "kg",
+          category: "body_composition",
+          min_value: 20,
+          max_value: 400,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([]);
+    mockMetricEntryMutations();
+    createMetricEntryMutateAsyncMock.mockRejectedValue(
+      new Error("Weight entry failed to save"),
+    );
+
+    renderRoute("/metrics/body_weight");
+
+    await user.click(
+      await screen.findByRole("button", { name: /add weight entry/i }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: /add body weight entry/i,
+    });
+    await user.type(
+      within(dialog).getByLabelText(/body weight value/i),
+      "72.4",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: /save weight entry/i }),
+    );
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      /weight entry failed to save/i,
+    );
+    expect(
+      screen.getByRole("dialog", { name: /add body weight entry/i }),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(/body weight value/i)).toHaveValue(
+      72.4,
+    );
+  });
+
   it("shows an empty state when the metric has no entries", async () => {
     vi.mocked(getMe).mockResolvedValue({
       email: "user@example.com",
@@ -498,6 +729,13 @@ describe("metric detail route", () => {
         name: /delete resting heart rate entry/i,
       }),
     );
+
+    expect(deleteMetricEntryMutateAsyncMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("dialog", { name: /delete resting heart rate entry/i }),
+    ).toHaveTextContent(/permanently/i);
+
+    await user.click(screen.getByRole("button", { name: /^delete entry$/i }));
 
     expect(deleteMetricEntryMutateAsyncMock).toHaveBeenCalledWith(1);
   });

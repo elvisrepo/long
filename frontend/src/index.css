@@ -962,6 +962,13 @@ button {
   font-size: 11px;
 }
 
+.entry-note {
+  margin-top: 6px;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .entry-source {
   display: inline-flex;
   margin-left: 6px;
@@ -1171,6 +1178,21 @@ button {
   line-height: 1.55;
 }
 
+.metric-delete-dialog {
+  width: min(480px, 100%);
+}
+
+.metric-delete-entry-summary {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(10, 12, 16, 0.42);
+  color: var(--text);
+  padding: 11px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
 .metric-dialog-actions {
   display: flex;
   gap: 10px;
@@ -1356,11 +1378,57 @@ button {
   gap: 22px;
 }
 
+.metric-detail-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  overflow-wrap: anywhere;
+}
+
+.metric-detail-breadcrumb a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.metric-detail-breadcrumb a:hover {
+  text-decoration: underline;
+}
+
 .metric-detail-hero {
   display: flex;
   align-items: start;
   justify-content: space-between;
   gap: 22px;
+}
+
+.metric-detail-hero-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.metric-add-entry-dialog {
+  width: min(620px, 100%);
+}
+
+.metric-add-entry-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.metric-add-entry-notes,
+.metric-add-entry-form .form-error,
+.metric-add-entry-actions {
+  grid-column: 1 / -1;
 }
 
 .metric-detail-meta {
@@ -1427,6 +1495,19 @@ button {
   border-radius: 18px;
   background: rgba(24, 28, 36, 0.9);
   padding: 20px;
+}
+
+.metric-detail-range-status {
+  border: 1px solid rgba(0, 229, 160, 0.22);
+  border-radius: 999px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  padding: 7px 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .metric-trend-chart {
@@ -1787,6 +1868,15 @@ button {
   .metric-detail-summary {
     grid-template-columns: 1fr;
     gap: 10px;
+  }
+
+  .metric-detail-hero-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .metric-add-entry-form {
+    grid-template-columns: 1fr;
   }
 
   .metric-detail-stat {

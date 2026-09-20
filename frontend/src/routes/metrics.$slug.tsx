@@ -1,5 +1,6 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load";
 import {
@@ -10,6 +11,7 @@ import {
   formatSleepWindow,
 } from "../features/metrics/metric-entry-formatters";
 import { MetricTrendChart } from "../features/metrics/metric-trend-chart";
+import { useCreateMetricEntryMutation } from "../features/metrics/use-create-metric-entry-mutation";
 import { useDeleteMetricEntryMutation } from "../features/metrics/use-delete-metric-entry-mutation";
 import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
 import {
@@ -44,6 +46,9 @@ function MetricDetailRoute() {
     string | undefined
   >(undefined);
   const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
+  const [isAddingWeightEntry, setIsAddingWeightEntry] = useState(false);
+  const [entryPendingDeletion, setEntryPendingDeletion] =
+    useState<MetricEntry | null>(null);
   const [entryActionError, setEntryActionError] = useState<string | null>(null);
   const metricEntryFilters: GetMetricEntriesFilters = selectedRangeFrom
     ? {
@@ -64,6 +69,7 @@ function MetricDetailRoute() {
   } = useMetricEntriesQuery(metricEntryFilters);
   const updateMetricEntryMutation = useUpdateMetricEntryMutation();
   const deleteMetricEntryMutation = useDeleteMetricEntryMutation();
+  const createMetricEntryMutation = useCreateMetricEntryMutation();
 
   if (definitionsAreLoading) {
     return <p>Loading metric...</p>;
@@ -112,6 +118,7 @@ function MetricDetailRoute() {
 
     try {
       await deleteMetricEntryMutation.mutateAsync(entryId);
+      setEntryPendingDeletion(null);
     } catch (error) {
       setEntryActionError(getErrorMessage(error));
     }
@@ -140,17 +147,38 @@ function MetricDetailRoute() {
   }
 
   return (
-    <section className="metric-detail-screen">
+    <section
+      className={`metric-detail-screen metric-detail-screen-${metricDefinition.slug}`}
+    >
+      <nav aria-label="Breadcrumb" className="metric-detail-breadcrumb">
+        <Link to="/metrics">Metrics</Link>
+        <span aria-hidden="true">/</span>
+        <span>{metricDefinition.slug}</span>
+      </nav>
+
       <div className="metric-detail-hero">
         <div>
           <p className="eyebrow">Metric detail</p>
           <h1 className="dashboard-title">{metricDefinition.name}</h1>
           <p className="metric-detail-meta">
-            {metricDefinition.slug} · {metricDefinition.unit}
+            {metricDefinition.slug} · {metricDefinition.unit} ·{" "}
+            {metricDefinition.category} ·{" "}
+            {metricDefinition.is_default ? "default" : "custom"}
           </p>
         </div>
-        <div className="status-pill">
-          {formatMetricEntryCount(metricEntries.length)}
+        <div className="metric-detail-hero-actions">
+          {metricDefinition.slug === "body_weight" ? (
+            <button
+              className="metrics-primary-action"
+              type="button"
+              onClick={() => setIsAddingWeightEntry(true)}
+            >
+              Add weight entry
+            </button>
+          ) : null}
+          <div className="status-pill">
+            {formatMetricEntryCount(metricEntries.length)}
+          </div>
         </div>
       </div>
 
@@ -191,6 +219,9 @@ function MetricDetailRoute() {
             <p className="eyebrow">Selected range</p>
             <h2>Trend Overview</h2>
           </div>
+          <span className="metric-detail-range-status">
+            {selectedRange.label} · Daily latest values
+          </span>
         </div>
 
         <MetricTrendChart
@@ -257,7 +288,7 @@ function MetricDetailRoute() {
 
         {entriesAreLoading ? <p>Loading metric entries...</p> : null}
         {entriesFailed ? <p>Metric entries failed to load</p> : null}
-        {entryActionError ? (
+        {entryActionError && !entryPendingDeletion ? (
           <p className="form-error">{entryActionError}</p>
         ) : null}
 
@@ -277,10 +308,15 @@ function MetricDetailRoute() {
                 isEditing={editingEntryId === entry.id}
                 isUpdating={updateMetricEntryMutation.isPending}
                 key={entry.id}
+                maxValue={metricDefinition.max_value}
                 metricName={metricDefinition.name}
                 metricSlug={metricDefinition.slug}
+                minValue={metricDefinition.min_value}
                 onCancelEdit={() => setEditingEntryId(null)}
-                onDelete={() => handleDeleteEntry(entry.id)}
+                onDelete={() => {
+                  setEntryActionError(null);
+                  setEntryPendingDeletion(entry);
+                }}
                 onEdit={() => {
                   setEntryActionError(null);
                   setEditingEntryId(entry.id);
@@ -292,7 +328,291 @@ function MetricDetailRoute() {
           </div>
         )}
       </section>
+
+      {isAddingWeightEntry
+        ? createPortal(
+            <BodyWeightEntryDialog
+              isPending={createMetricEntryMutation.isPending}
+              maxValue={metricDefinition.max_value}
+              minValue={metricDefinition.min_value}
+              onClose={() => setIsAddingWeightEntry(false)}
+              onSubmit={(input) => createMetricEntryMutation.mutateAsync(input)}
+            />,
+            document.body,
+          )
+        : null}
+
+      {entryPendingDeletion
+        ? createPortal(
+            <div
+              className="metric-dialog-backdrop"
+              onMouseDown={(event) => {
+                if (
+                  event.target === event.currentTarget &&
+                  !deleteMetricEntryMutation.isPending
+                ) {
+                  setEntryActionError(null);
+                  setEntryPendingDeletion(null);
+                }
+              }}
+            >
+              <section
+                aria-labelledby="delete-entry-title"
+                aria-modal="true"
+                className="metric-dialog metric-delete-dialog"
+                role="dialog"
+                onKeyDown={(event) => {
+                  if (
+                    event.key === "Escape" &&
+                    !deleteMetricEntryMutation.isPending
+                  ) {
+                    setEntryActionError(null);
+                    setEntryPendingDeletion(null);
+                  }
+                }}
+              >
+                <div className="metric-dialog-header">
+                  <div>
+                    <p className="eyebrow">Delete entry</p>
+                    <h2 id="delete-entry-title">
+                      Delete {metricDefinition.name} entry?
+                    </h2>
+                  </div>
+                  <button
+                    aria-label="Close dialog"
+                    className="metric-dialog-close"
+                    disabled={deleteMetricEntryMutation.isPending}
+                    type="button"
+                    onClick={() => {
+                      setEntryActionError(null);
+                      setEntryPendingDeletion(null);
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+                <p className="metric-dialog-copy">
+                  This permanently removes the manual record. Synced records
+                  cannot be deleted here.
+                </p>
+                <p className="metric-delete-entry-summary">
+                  {formatMetricValueWithUnit(
+                    entryPendingDeletion.value,
+                    metricDefinition.slug,
+                    metricDefinition.unit,
+                  )}{" "}
+                  ·{" "}
+                  {formatMetricEntryRecordedAt(
+                    entryPendingDeletion.recorded_at,
+                  )}
+                </p>
+                {entryActionError ? (
+                  <p className="form-error" role="alert">
+                    {entryActionError}
+                  </p>
+                ) : null}
+                <div className="metric-dialog-actions">
+                  <button
+                    className="metric-danger-action"
+                    disabled={deleteMetricEntryMutation.isPending}
+                    type="button"
+                    onClick={() =>
+                      void handleDeleteEntry(entryPendingDeletion.id)
+                    }
+                  >
+                    {deleteMetricEntryMutation.isPending
+                      ? "Deleting..."
+                      : "Delete entry"}
+                  </button>
+                  <button
+                    className="metrics-secondary-action"
+                    disabled={deleteMetricEntryMutation.isPending}
+                    type="button"
+                    onClick={() => {
+                      setEntryActionError(null);
+                      setEntryPendingDeletion(null);
+                    }}
+                  >
+                    Keep it
+                  </button>
+                </div>
+              </section>
+            </div>,
+            document.body,
+          )
+        : null}
     </section>
+  );
+}
+
+interface BodyWeightEntryDialogProps {
+  isPending: boolean;
+  maxValue: number;
+  minValue: number;
+  onClose: () => void;
+  onSubmit: (input: {
+    metricDefinition: string;
+    value: number;
+    recordedAt: string;
+    context: Record<string, unknown>;
+  }) => Promise<unknown>;
+}
+
+function BodyWeightEntryDialog({
+  isPending,
+  maxValue,
+  minValue,
+  onClose,
+  onSubmit,
+}: BodyWeightEntryDialogProps) {
+  const [value, setValue] = useState("");
+  const [recordedAt, setRecordedAt] = useState(() =>
+    formatDateTimeLocalInput(new Date().toISOString()),
+  );
+  const [notes, setNotes] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+
+  function closeWhenIdle() {
+    if (!isPending) {
+      onClose();
+    }
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const parsedValue = parseMetricEntryValue(value);
+
+    if (
+      parsedValue === undefined ||
+      parsedValue < minValue ||
+      parsedValue > maxValue
+    ) {
+      setFormError(
+        `Enter a weight between ${minValue} and ${maxValue} kilograms.`,
+      );
+      return;
+    }
+
+    const recordedAtDate = new Date(recordedAt);
+
+    if (!recordedAt || Number.isNaN(recordedAtDate.getTime())) {
+      setFormError("Enter a valid measurement time.");
+      return;
+    }
+
+    setFormError(null);
+
+    try {
+      await onSubmit({
+        metricDefinition: "body_weight",
+        value: parsedValue,
+        recordedAt: recordedAtDate.toISOString(),
+        context: { notes },
+      });
+      onClose();
+    } catch (error) {
+      setFormError(getErrorMessage(error));
+    }
+  }
+
+  return (
+    <div
+      className="metric-dialog-backdrop"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          closeWhenIdle();
+        }
+      }}
+    >
+      <section
+        aria-labelledby="add-weight-entry-title"
+        aria-modal="true"
+        className="metric-dialog metric-add-entry-dialog"
+        role="dialog"
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            closeWhenIdle();
+          }
+        }}
+      >
+        <div className="metric-dialog-header">
+          <div>
+            <p className="eyebrow">Manual entry</p>
+            <h2 id="add-weight-entry-title">Add Body Weight entry</h2>
+          </div>
+          <button
+            aria-label="Close dialog"
+            className="metric-dialog-close"
+            disabled={isPending}
+            type="button"
+            onClick={closeWhenIdle}
+          >
+            ×
+          </button>
+        </div>
+
+        <p className="metric-dialog-copy">
+          Record a weigh-in in kilograms. The date and time can be adjusted for
+          an earlier measurement.
+        </p>
+
+        <form className="metric-add-entry-form" onSubmit={handleSubmit}>
+          <label>
+            Body Weight value
+            <input
+              autoFocus
+              inputMode="decimal"
+              max={maxValue}
+              min={minValue}
+              required
+              step="0.1"
+              type="number"
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+            />
+          </label>
+
+          <label>
+            Recorded at
+            <input
+              required
+              type="datetime-local"
+              value={recordedAt}
+              onChange={(event) => setRecordedAt(event.target.value)}
+            />
+          </label>
+
+          <label className="metric-add-entry-notes">
+            Body Weight notes
+            <input
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+            />
+          </label>
+
+          {formError ? (
+            <p className="form-error" role="alert">
+              {formError}
+            </p>
+          ) : null}
+
+          <div className="metric-dialog-actions metric-add-entry-actions">
+            <button disabled={isPending} type="submit">
+              {isPending ? "Saving..." : "Save weight entry"}
+            </button>
+            <button
+              className="metrics-secondary-action"
+              disabled={isPending}
+              type="button"
+              onClick={closeWhenIdle}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
   );
 }
 
@@ -301,8 +621,10 @@ interface MetricEntryHistoryRowProps {
   isDeleting: boolean;
   isEditing: boolean;
   isUpdating: boolean;
+  maxValue: number;
   metricName: string;
   metricSlug: string;
+  minValue: number;
   onCancelEdit: () => void;
   onDelete: () => void;
   onEdit: () => void;
@@ -320,8 +642,10 @@ function MetricEntryHistoryRow({
   isDeleting,
   isEditing,
   isUpdating,
+  maxValue,
   metricName,
   metricSlug,
+  minValue,
   onCancelEdit,
   onDelete,
   onEdit,
@@ -412,6 +736,10 @@ function MetricEntryHistoryRow({
               {metricName} value
               <input
                 inputMode="decimal"
+                max={maxValue}
+                min={minValue}
+                step={metricSlug === "body_weight" ? 0.1 : "any"}
+                type="number"
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
               />
@@ -448,6 +776,9 @@ function MetricEntryHistoryRow({
       <div>
         <p className="entry-label">{metricName}</p>
         <p className="meta-label">{formatMetricEntrySource(entry.source)}</p>
+        {getEntryNotes(entry) ? (
+          <p className="entry-note">{getEntryNotes(entry)}</p>
+        ) : null}
         {metricSlug === "sleep_duration" && entry.period_start ? (
           <p className="entry-time">
             Sleep window:{" "}

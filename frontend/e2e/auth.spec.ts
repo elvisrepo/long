@@ -454,5 +454,33 @@ test("user can open a metric detail page from the dashboard", async ({
     .getByRole("button", { name: /delete resting heart rate entry/i })
     .click();
 
+  const deleteDialog = page.getByRole("dialog", {
+    name: /delete resting heart rate entry/i,
+  });
+  await expect(deleteDialog.getByText(/permanently removes/i)).toBeVisible();
+  await deleteDialog.getByRole("button", { name: /^delete entry$/i }).click();
+
   await expect(page.getByText(/no entries recorded yet/i)).toBeVisible();
+
+  await page.goto("/metrics/body_weight");
+  await page.getByRole("button", { name: /add weight entry/i }).click();
+
+  const addWeightDialog = page.getByRole("dialog", {
+    name: /add body weight entry/i,
+  });
+  await addWeightDialog.getByLabel(/body weight value/i).fill("72.4");
+  await addWeightDialog
+    .getByLabel(/body weight notes/i)
+    .fill("Morning weigh-in");
+  await addWeightDialog
+    .getByRole("button", { name: /save weight entry/i })
+    .click();
+
+  await expect(addWeightDialog).toBeHidden();
+  await expect(
+    page
+      .getByRole("region", { name: /metric entry history/i })
+      .getByText(/72\.4 kg/i),
+  ).toBeVisible();
+  await expect(page.getByText(/morning weigh-in/i)).toBeVisible();
 });
