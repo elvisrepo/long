@@ -24,15 +24,17 @@ function RootLayout() {
 
   return (
     <div className="app-shell">
-      <header className="app-header">
-        <div className="app-header-inner">
-          <Link to="/" className="app-logo">
-            ⬡ longevity
-          </Link>
-          <AppNavigation isPublicAuthRoute={isPublicAuthRoute} />
-        </div>
-      </header>
-      <main className="app-main">
+      {isPublicAuthRoute ? null : (
+        <header className="app-header">
+          <div className="app-header-inner">
+            <Link to="/" className="app-logo">
+              ⬡ longevity
+            </Link>
+            <AppNavigation />
+          </div>
+        </header>
+      )}
+      <main className={isPublicAuthRoute ? "app-main auth-main" : "app-main"}>
         <Outlet />
       </main>
       <TanStackRouterDevtools />
@@ -40,10 +42,10 @@ function RootLayout() {
   );
 }
 
-function AppNavigation({ isPublicAuthRoute }: { isPublicAuthRoute: boolean }) {
+function AppNavigation() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const meQuery = useMeQuery(!isPublicAuthRoute);
+  const meQuery = useMeQuery();
   const [logoutError, setLogoutError] = useState("");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 

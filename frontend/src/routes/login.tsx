@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { loginWeb } from "../features/auth/auth-api";
@@ -40,10 +40,24 @@ function LoginRoute() {
   }
 
   return (
-    <section>
-      <h1>Login</h1>
-      {errorMessage ? <p>{errorMessage}</p> : null}
+    <section className="auth-panel" aria-labelledby="login-title">
+      <Link to="/" className="auth-logo">
+        ⬡ longevity
+      </Link>
+      <p className="auth-eyebrow">Welcome back</p>
+      <h1 id="login-title">Login</h1>
+      <p className="auth-intro">
+        Sign in to review your health metrics and latest trends.
+      </p>
+      {errorMessage ? (
+        <p className="auth-error" role="alert">
+          {errorMessage}
+        </p>
+      ) : null}
       <LoginForm onSubmit={handleLogin} disabled={isSubmitting} />
+      <p className="auth-footer">
+        No account? <Link to="/register">Create an account →</Link>
+      </p>
     </section>
   );
 }

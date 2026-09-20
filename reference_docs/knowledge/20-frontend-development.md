@@ -14,6 +14,15 @@
   from authenticated routes. Signed-in navigation shows Dashboard, Metrics,
   Settings, a current-user initial, and the shared Logout action. Login and
   Register are hidden from authenticated navigation.
+- Login and Register now use the focused `longevity-redesign-v21` auth-card
+  layout locally. Public auth routes hide the global application header while
+  keeping an in-card longevity link and direct navigation between both forms.
+- Auth forms keep their existing API calls and redirects, expose errors as
+  accessible alerts, and supply browser autocomplete metadata. Registration
+  guidance reflects the validators currently enforced by the registration
+  serializer: at least eight characters and rejection of common or
+  numeric-only passwords. The configured similarity validator is not effective
+  until registration validation supplies a user instance.
 - Logout is owned by the shared shell. The former duplicate Settings-page
   logout action was removed while preserving the existing secure logout,
   current-user cache removal, and redirect behavior.

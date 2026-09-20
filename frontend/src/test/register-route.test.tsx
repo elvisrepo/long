@@ -19,6 +19,19 @@ describe("register route", () => {
     ).toBeInTheDocument();
   });
 
+  it("uses a focused auth shell with accurate password guidance", async () => {
+    renderRoute("/register");
+
+    await screen.findByRole("heading", { name: /register/i });
+
+    expect(screen.queryByRole("banner")).not.toBeInTheDocument();
+    expect(screen.getByText(/at least 8 characters/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /login/i })).toHaveAttribute(
+      "href",
+      "/login",
+    );
+  });
+
   it("renders an email input at /register", async () => {
     renderRoute("/register");
 

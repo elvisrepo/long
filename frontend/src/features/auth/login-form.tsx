@@ -43,9 +43,10 @@ export function LoginForm({ onSubmit, disabled = false }: LoginFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form className="auth-form" onSubmit={handleSubmit}>
       <label htmlFor="email">Email</label>
       <input
+        autoComplete="email"
         id="email"
         name="email"
         type="email"
@@ -55,6 +56,7 @@ export function LoginForm({ onSubmit, disabled = false }: LoginFormProps) {
 
       <label htmlFor="password">Password</label>
       <input
+        autoComplete="current-password"
         id="password"
         name="password"
         type="password"
@@ -62,7 +64,11 @@ export function LoginForm({ onSubmit, disabled = false }: LoginFormProps) {
         onChange={(event) => handlePasswordChange(event.target.value)}
       />
 
-      {errorMessage ? <p>{errorMessage}</p> : null}
+      {errorMessage ? (
+        <p className="auth-error" role="alert">
+          {errorMessage}
+        </p>
+      ) : null}
 
       <button type="submit" disabled={disabled}>
         Login

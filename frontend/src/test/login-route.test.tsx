@@ -63,6 +63,17 @@ describe("login route", () => {
     ).toBeInTheDocument();
   });
 
+  it("uses a focused public auth shell", async () => {
+    renderRoute("/login");
+
+    await screen.findByRole("heading", { name: /login/i });
+
+    expect(screen.queryByRole("banner")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /create an account/i }),
+    ).toHaveAttribute("href", "/register");
+  });
+
   it("renders an email input at /login", async () => {
     renderRoute("/login");
 
