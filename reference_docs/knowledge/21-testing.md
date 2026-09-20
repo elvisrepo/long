@@ -724,6 +724,11 @@ Current Android testing checkpoint — 2026-08-17:
 - Backend metric-entry tests prove manual Sleep creation and update derive duration
   from bedtime/wake time, missing or reversed bounds fail, and non-Sleep manual
   entries still require `value` while rejecting `period_start`.
+- On 2026-09-19, the operator locally verified the complete manual Sleep UI:
+  Bedtime/Wake time entry, calculated duration preview, successful persistence,
+  singular entry count, non-redundant duration, local sleep-window display, and
+  Bedtime/Wake time editing all behaved as expected against the local Docker
+  backend and local React runtime.
 - `IncrementalWeightSyncRunnerTest` proves a completed or valid no-data run advances the caller-owned connection watermark to the timestamp captured before reading, while an interrupted run leaves the watermark unchanged for safe retry.
 - `WeightSyncWorkResultMapperTest` proves completed/no-data outcomes map to WorkManager success, temporary Health Connect/server/network failures map to retry, and permission/session/domain-repair outcomes map to failure without automatic backoff loops.
 - `IncrementalWeightSyncWorkerTest` uses WorkManager's instrumented worker builder on the physical phone to prove the injected worker forwards its `connection_id` to the incremental runner and returns the runner's scheduler mapping. Missing input fails without invoking the runner.
