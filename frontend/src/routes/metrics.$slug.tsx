@@ -15,9 +15,11 @@ import { useCreateMetricEntryMutation } from "../features/metrics/use-create-met
 import { useDeleteMetricEntryMutation } from "../features/metrics/use-delete-metric-entry-mutation";
 import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
 import {
+  type CreateMetricEntryInput,
   type GetMetricEntriesFilters,
   type MetricEntry,
 } from "../features/metrics/metric-entries-api";
+import type { MetricDefinition } from "../features/metrics/metric-definitions-api";
 import { useMetricEntriesQuery } from "../features/metrics/use-metric-entries-query";
 import { useUpdateMetricEntryMutation } from "../features/metrics/use-update-metric-entry-mutation";
 
@@ -46,7 +48,7 @@ function MetricDetailRoute() {
     string | undefined
   >(undefined);
   const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
-  const [isAddingWeightEntry, setIsAddingWeightEntry] = useState(false);
+  const [isAddingMetricEntry, setIsAddingMetricEntry] = useState(false);
   const [entryPendingDeletion, setEntryPendingDeletion] =
     useState<MetricEntry | null>(null);
   const [entryActionError, setEntryActionError] = useState<string | null>(null);
@@ -167,15 +169,13 @@ function MetricDetailRoute() {
           </p>
         </div>
         <div className="metric-detail-hero-actions">
-          {metricDefinition.slug === "body_weight" ? (
-            <button
-              className="metrics-primary-action"
-              type="button"
-              onClick={() => setIsAddingWeightEntry(true)}
-            >
-              Add weight entry
-            </button>
-          ) : null}
+          <button
+            className="metrics-primary-action"
+            type="button"
+            onClick={() => setIsAddingMetricEntry(true)}
+          >
+            {getAddEntryActionLabel(metricDefinition)}
+          </button>
           <div className="status-pill">
             {formatMetricEntryCount(metricEntries.length)}
           </div>
@@ -296,7 +296,8 @@ function MetricDetailRoute() {
           <div className="empty-state">
             <h3>No entries recorded yet</h3>
             <p>
-              Log your first value from the <Link to="/">Dashboard</Link>.
+              Use {getAddEntryActionLabel(metricDefinition)} above to record
+              your first value.
             </p>
           </div>
         ) : (
@@ -329,13 +330,12 @@ function MetricDetailRoute() {
         )}
       </section>
 
-      {isAddingWeightEntry
+      {isAddingMetricEntry
         ? createPortal(
-            <BodyWeightEntryDialog
+            <MetricEntryDialog
               isPending={createMetricEntryMutation.isPending}
-              maxValue={metricDefinition.max_value}
-              minValue={metricDefinition.min_value}
-              onClose={() => setIsAddingWeightEntry(false)}
+              metricDefinition={metricDefinition}
+              onClose={() => setIsAddingMetricEntry(false)}
               onSubmit={(input) => createMetricEntryMutation.mutateAsync(input)}
             />,
             document.body,
@@ -445,32 +445,29 @@ function MetricDetailRoute() {
   );
 }
 
-interface BodyWeightEntryDialogProps {
+interface MetricEntryDialogProps {
   isPending: boolean;
-  maxValue: number;
-  minValue: number;
+  metricDefinition: MetricDefinition;
   onClose: () => void;
-  onSubmit: (input: {
-    metricDefinition: string;
-    value: number;
-    recordedAt: string;
-    context: Record<string, unknown>;
-  }) => Promise<unknown>;
+  onSubmit: (input: CreateMetricEntryInput) => Promise<unknown>;
 }
 
-function BodyWeightEntryDialog({
+function MetricEntryDialog({
   isPending,
-  maxValue,
-  minValue,
+  metricDefinition,
   onClose,
   onSubmit,
-}: BodyWeightEntryDialogProps) {
+}: MetricEntryDialogProps) {
   const [value, setValue] = useState("");
   const [recordedAt, setRecordedAt] = useState(() =>
     formatDateTimeLocalInput(new Date().toISOString()),
   );
+  const [bedtime, setBedtime] = useState("");
+  const [wakeTime, setWakeTime] = useState("");
   const [notes, setNotes] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const isSleepDuration = metricDefinition.slug === "sleep_duration";
+  const sleepDurationHours = getSleepDurationHours(bedtime, wakeTime);
 
   function closeWhenIdle() {
     if (!isPending) {
@@ -481,15 +478,43 @@ function BodyWeightEntryDialog({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (isSleepDuration) {
+      if (
+        sleepDurationHours === undefined ||
+        sleepDurationHours < metricDefinition.min_value ||
+        sleepDurationHours > metricDefinition.max_value
+      ) {
+        setFormError(
+          `Enter a sleep window between ${metricDefinition.min_value} and ${metricDefinition.max_value} hours.`,
+        );
+        return;
+      }
+
+      setFormError(null);
+
+      try {
+        await onSubmit({
+          metricDefinition: metricDefinition.slug,
+          periodStart: new Date(bedtime).toISOString(),
+          recordedAt: new Date(wakeTime).toISOString(),
+          context: { notes },
+        });
+        onClose();
+      } catch (error) {
+        setFormError(getErrorMessage(error));
+      }
+      return;
+    }
+
     const parsedValue = parseMetricEntryValue(value);
 
     if (
       parsedValue === undefined ||
-      parsedValue < minValue ||
-      parsedValue > maxValue
+      parsedValue < metricDefinition.min_value ||
+      parsedValue > metricDefinition.max_value
     ) {
       setFormError(
-        `Enter a weight between ${minValue} and ${maxValue} kilograms.`,
+        `Enter a value between ${metricDefinition.min_value} and ${metricDefinition.max_value} ${metricDefinition.unit}.`,
       );
       return;
     }
@@ -505,7 +530,7 @@ function BodyWeightEntryDialog({
 
     try {
       await onSubmit({
-        metricDefinition: "body_weight",
+        metricDefinition: metricDefinition.slug,
         value: parsedValue,
         recordedAt: recordedAtDate.toISOString(),
         context: { notes },
@@ -526,7 +551,7 @@ function BodyWeightEntryDialog({
       }}
     >
       <section
-        aria-labelledby="add-weight-entry-title"
+        aria-labelledby="add-metric-entry-title"
         aria-modal="true"
         className="metric-dialog metric-add-entry-dialog"
         role="dialog"
@@ -539,7 +564,9 @@ function BodyWeightEntryDialog({
         <div className="metric-dialog-header">
           <div>
             <p className="eyebrow">Manual entry</p>
-            <h2 id="add-weight-entry-title">Add Body Weight entry</h2>
+            <h2 id="add-metric-entry-title">
+              Add {metricDefinition.name} entry
+            </h2>
           </div>
           <button
             aria-label="Close dialog"
@@ -553,38 +580,71 @@ function BodyWeightEntryDialog({
         </div>
 
         <p className="metric-dialog-copy">
-          Record a weigh-in in kilograms. The date and time can be adjusted for
-          an earlier measurement.
+          {isSleepDuration
+            ? "Record bedtime and wake time. Sleep duration is calculated automatically."
+            : `Record a value in ${metricDefinition.unit}. The date and time can be adjusted for an earlier measurement.`}
         </p>
 
         <form className="metric-add-entry-form" onSubmit={handleSubmit}>
-          <label>
-            Body Weight value
-            <input
-              autoFocus
-              inputMode="decimal"
-              max={maxValue}
-              min={minValue}
-              required
-              step="0.1"
-              type="number"
-              value={value}
-              onChange={(event) => setValue(event.target.value)}
-            />
-          </label>
+          {isSleepDuration ? (
+            <>
+              <label>
+                Bedtime
+                <input
+                  autoFocus
+                  required
+                  type="datetime-local"
+                  value={bedtime}
+                  onChange={(event) => setBedtime(event.target.value)}
+                />
+              </label>
+              <label>
+                Wake time
+                <input
+                  required
+                  type="datetime-local"
+                  value={wakeTime}
+                  onChange={(event) => setWakeTime(event.target.value)}
+                />
+              </label>
+              {sleepDurationHours !== undefined ? (
+                <p className="metric-form-preview metric-add-entry-preview">
+                  Calculated duration:{" "}
+                  {formatMetricValue(sleepDurationHours, metricDefinition.slug)}
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <label>
+                {metricDefinition.name} value
+                <input
+                  autoFocus
+                  inputMode="decimal"
+                  max={metricDefinition.max_value}
+                  min={metricDefinition.min_value}
+                  required
+                  step={getMetricEntryStep(metricDefinition.slug)}
+                  type="number"
+                  value={value}
+                  onChange={(event) => setValue(event.target.value)}
+                />
+              </label>
 
-          <label>
-            Recorded at
-            <input
-              required
-              type="datetime-local"
-              value={recordedAt}
-              onChange={(event) => setRecordedAt(event.target.value)}
-            />
-          </label>
+              <label>
+                Recorded at
+                <input
+                  required
+                  type="datetime-local"
+                  value={recordedAt}
+                  onChange={(event) => setRecordedAt(event.target.value)}
+                />
+              </label>
+            </>
+          )}
 
           <label className="metric-add-entry-notes">
-            Body Weight notes
+            {metricDefinition.name} notes
             <input
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
@@ -599,7 +659,9 @@ function BodyWeightEntryDialog({
 
           <div className="metric-dialog-actions metric-add-entry-actions">
             <button disabled={isPending} type="submit">
-              {isPending ? "Saving..." : "Save weight entry"}
+              {isPending
+                ? "Saving..."
+                : getSaveEntryActionLabel(metricDefinition)}
             </button>
             <button
               className="metrics-secondary-action"
@@ -839,6 +901,45 @@ function isValidSleepWindow(bedtime: string, wakeTime: string) {
     wakeTime !== "" &&
     new Date(wakeTime).getTime() > new Date(bedtime).getTime()
   );
+}
+
+function getSleepDurationHours(bedtime: string, wakeTime: string) {
+  if (!isValidSleepWindow(bedtime, wakeTime)) {
+    return undefined;
+  }
+
+  return (
+    (new Date(wakeTime).getTime() - new Date(bedtime).getTime()) /
+    (60 * 60 * 1000)
+  );
+}
+
+function getAddEntryActionLabel(metricDefinition: MetricDefinition) {
+  if (metricDefinition.slug === "body_weight") {
+    return "Add weight entry";
+  }
+
+  return `Add ${metricDefinition.name} entry`;
+}
+
+function getSaveEntryActionLabel(metricDefinition: MetricDefinition) {
+  if (metricDefinition.slug === "body_weight") {
+    return "Save weight entry";
+  }
+
+  return `Save ${metricDefinition.name} entry`;
+}
+
+function getMetricEntryStep(metricSlug: string): number | "any" {
+  if (metricSlug === "body_weight") {
+    return 0.1;
+  }
+
+  if (metricSlug === "steps") {
+    return 1;
+  }
+
+  return "any";
 }
 
 function getErrorMessage(error: unknown) {

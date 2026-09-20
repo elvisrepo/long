@@ -416,6 +416,49 @@ describe("metric detail route", () => {
     expect(valueInput).toHaveAttribute("step", "0.1");
   });
 
+  it("adds a numeric entry from a non-weight metric detail page", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    mockLoadedMetricDefinitions();
+    mockLoadedMetricEntries([]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/resting_hr");
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: /add resting heart rate entry/i,
+      }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: /add resting heart rate entry/i,
+    });
+    await user.type(
+      within(dialog).getByLabelText(/resting heart rate value/i),
+      "61",
+    );
+    fireEvent.change(within(dialog).getByLabelText(/recorded at/i), {
+      target: { value: "2026-09-20T09:15" },
+    });
+    await user.type(
+      within(dialog).getByLabelText(/resting heart rate notes/i),
+      "Before coffee",
+    );
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: /save resting heart rate entry/i,
+      }),
+    );
+
+    expect(createMetricEntryMutateAsyncMock).toHaveBeenCalledWith({
+      metricDefinition: "resting_hr",
+      value: 61,
+      recordedAt: new Date("2026-09-20T09:15").toISOString(),
+      context: { notes: "Before coffee" },
+    });
+  });
+
   it("adds a manual weight entry from the Body Weight detail page", async () => {
     const user = userEvent.setup();
 
@@ -512,7 +555,7 @@ describe("metric detail route", () => {
 
     expect(createMetricEntryMutateAsyncMock).not.toHaveBeenCalled();
     expect(within(dialog).getByRole("alert")).toHaveTextContent(
-      /between 20 and 400 kilograms/i,
+      /between 20 and 400 kg/i,
     );
   });
 
@@ -589,11 +632,11 @@ describe("metric detail route", () => {
       .closest(".empty-state") as HTMLElement;
 
     expect(emptyState).toHaveTextContent(
-      /log your first value from the dashboard\./i,
+      /use add resting heart rate entry above to record your first value/i,
     );
     expect(
-      within(emptyState).getByRole("link", { name: /dashboard/i }),
-    ).toHaveAttribute("href", "/");
+      within(emptyState).queryByRole("link", { name: /dashboard/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("updates an entry from the metric history", async () => {
@@ -646,6 +689,68 @@ describe("metric detail route", () => {
         recordedAt: "2026-03-05T07:15:00Z",
         context: { notes: "after walk" },
       },
+    });
+  });
+
+  it("adds Sleep Duration from bedtime and wake time", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "sleep-duration-id",
+          name: "Sleep Duration",
+          slug: "sleep_duration",
+          unit: "hours",
+          category: "sleep",
+          min_value: 0,
+          max_value: 24,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/sleep_duration");
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: /add sleep duration entry/i,
+      }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: /add sleep duration entry/i,
+    });
+    fireEvent.change(within(dialog).getByLabelText(/^bedtime$/i), {
+      target: { value: "2026-09-19T01:00" },
+    });
+    fireEvent.change(within(dialog).getByLabelText(/^wake time$/i), {
+      target: { value: "2026-09-19T08:50" },
+    });
+    await user.type(
+      within(dialog).getByLabelText(/sleep duration notes/i),
+      "Felt rested",
+    );
+
+    expect(
+      within(dialog).getByText(/calculated duration: 7h 50m/i),
+    ).toBeInTheDocument();
+
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: /save sleep duration entry/i,
+      }),
+    );
+
+    expect(createMetricEntryMutateAsyncMock).toHaveBeenCalledWith({
+      metricDefinition: "sleep_duration",
+      periodStart: new Date("2026-09-19T01:00").toISOString(),
+      recordedAt: new Date("2026-09-19T08:50").toISOString(),
+      context: { notes: "Felt rested" },
     });
   });
 

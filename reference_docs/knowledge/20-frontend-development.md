@@ -51,10 +51,12 @@
   summary, trend, and history sections.
 - Entry history displays saved notes. Manual numeric edits use the metric
   definition's minimum and maximum; Body Weight uses a `0.1 kg` step.
-- Body Weight can be logged directly from `/metrics/body_weight`. Its manual
-  entry dialog accepts a kilogram value, measurement date and time, and an
-  optional note; it enforces the definition's accepted range before calling
-  the existing metric-entry API and preserves form values after a failed save.
+- Every active metric can be logged from its `/metrics/:slug` detail page.
+  Numeric metrics use a value, measurement date and time, and optional note;
+  Sleep Duration uses bedtime, wake time, and an optional note while the
+  backend calculates duration. The shared dialog enforces the metric
+  definition's accepted range before calling the existing metric-entry API and
+  preserves form values after a failed save.
 - Deleting a manual entry now requires confirmation and explains that the
   action is permanent. A failed deletion stays in the dialog with the backend
   error. Synced entries remain read-only.

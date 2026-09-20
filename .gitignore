@@ -13,6 +13,7 @@ __pycache__/
 .venv/
 backend/.venv/
 frontend/.venv/
+frontend/.tanstack/
 
 # Tool caches
 .pytest_cache/

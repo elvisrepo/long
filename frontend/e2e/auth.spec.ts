@@ -462,6 +462,23 @@ test("user can open a metric detail page from the dashboard", async ({
 
   await expect(page.getByText(/no entries recorded yet/i)).toBeVisible();
 
+  await page
+    .getByRole("button", { name: /add resting heart rate entry/i })
+    .click();
+  const addHeartRateDialog = page.getByRole("dialog", {
+    name: /add resting heart rate entry/i,
+  });
+  await addHeartRateDialog.getByLabel(/resting heart rate value/i).fill("59");
+  await addHeartRateDialog
+    .getByRole("button", { name: /save resting heart rate entry/i })
+    .click();
+  await expect(addHeartRateDialog).toBeHidden();
+  await expect(
+    page
+      .getByRole("region", { name: /metric entry history/i })
+      .getByText(/59 bpm/i),
+  ).toBeVisible();
+
   await page.goto("/metrics/body_weight");
   await page.getByRole("button", { name: /add weight entry/i }).click();
 
