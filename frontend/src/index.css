@@ -12,6 +12,8 @@
   --text: #e2e8f0;
   --text-dim: #718096;
   --text-faint: #2d3748;
+  --chart-line: #00e5a0;
+  --chart-fill: rgba(0, 229, 160, 0.16);
   --font-sans: "DM Sans", "Aptos", "Segoe UI", sans-serif;
   --font-heading: "Syne", "Space Grotesk", "Trebuchet MS", sans-serif;
   --font-mono: "DM Mono", "SFMono-Regular", Consolas, monospace;
@@ -107,11 +109,22 @@ a {
 
 .app-nav {
   display: flex;
+  align-items: center;
   gap: 6px;
   overflow-x: auto;
 }
 
+.app-navigation {
+  min-width: 0;
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+}
+
 .app-nav-link {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
   padding: 7px 12px;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -122,6 +135,46 @@ a {
   text-decoration: none;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.user-chip {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.app-nav-action {
+  min-height: 44px;
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-dim);
+  padding: 7px 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.app-nav-action:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.app-nav-error {
+  color: var(--warn);
+  font-size: 12px;
 }
 
 .app-nav-link:hover,
@@ -184,6 +237,8 @@ label {
 
 input,
 select {
+  min-width: 0;
+  max-width: 100%;
   width: 100%;
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -436,8 +491,9 @@ button {
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 12px;
+  align-items: stretch;
 }
 
 .metric-card,
@@ -449,12 +505,13 @@ button {
 }
 
 .metric-card {
-  min-height: 292px;
-  display: grid;
-  grid-template-rows: 76px 54px 1fr;
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.metric-card:first-child {
+.metric-card-featured {
   border-color: rgba(0, 229, 160, 0.6);
   box-shadow: 0 0 24px rgba(0, 229, 160, 0.08);
 }
@@ -515,10 +572,11 @@ button {
 }
 
 .metric-form {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   gap: 10px;
-  align-content: end;
 }
 
 .metric-form label {
@@ -533,6 +591,7 @@ button {
 }
 
 .metric-form button {
+  margin-top: auto;
   min-height: 44px;
   padding: 11px 12px;
   border-radius: 12px;
@@ -541,6 +600,25 @@ button {
   font-weight: 800;
   line-height: 1.1;
   width: 100%;
+}
+
+.metric-sparkline {
+  width: 100%;
+  height: 44px;
+  flex: 0 0 44px;
+  overflow: visible;
+}
+
+.metric-sparkline-fill {
+  fill: var(--chart-fill);
+}
+
+.metric-sparkline-line {
+  fill: none;
+  stroke: var(--chart-line);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
 }
 
 .metric-form-preview {
@@ -1168,6 +1246,15 @@ button {
     align-items: flex-start;
   }
 
+  .app-navigation,
+  .app-nav {
+    width: 100%;
+  }
+
+  .app-nav-link {
+    flex: 0 0 auto;
+  }
+
   .app-main {
     padding-inline: 14px;
   }
@@ -1256,7 +1343,7 @@ button {
   }
 
   .metric-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: 10px;
   }
 
@@ -1267,8 +1354,7 @@ button {
   }
 
   .metric-card {
-    min-height: 216px;
-    grid-template-rows: 64px 36px 1fr;
+    min-height: 0;
   }
 
   .metric-card-header {

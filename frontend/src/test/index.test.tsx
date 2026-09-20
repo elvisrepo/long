@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { restoreWebSession } from "../features/auth/auth-bootstrap";
+import { logoutWeb } from "../features/auth/auth-logout-api";
 import { getMe } from "../features/auth/auth-me-api";
 import { createMetricEntry } from "../features/metrics/metric-entries-api";
 import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
@@ -14,10 +15,8 @@ vi.mock("../features/auth/auth-me-api", () => ({
   getMe: vi.fn(),
 }));
 
-vi.mock("../features/auth/use-me-query", () => ({
-  useMeQuery: vi.fn(() => {
-    throw new Error("Dashboard route should use beforeLoad for auth");
-  }),
+vi.mock("../features/auth/auth-logout-api", () => ({
+  logoutWeb: vi.fn(),
 }));
 
 vi.mock("../features/auth/auth-bootstrap", () => ({
@@ -199,6 +198,50 @@ describe("dashboard route", () => {
       screen.getByRole("heading", { name: /resting heart rate/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/cardiovascular · bpm/i)).toBeInTheDocument();
+
+    const navigation = screen.getByRole("navigation", {
+      name: /primary navigation/i,
+    });
+    expect(
+      within(navigation).getByRole("link", { name: "Dashboard" }),
+    ).toBeInTheDocument();
+    expect(
+      within(navigation).getByRole("link", { name: "Metrics" }),
+    ).toBeInTheDocument();
+    expect(
+      within(navigation).getByRole("link", { name: "Settings" }),
+    ).toBeInTheDocument();
+    expect(
+      within(navigation).getByTitle("Signed in as user@example.com"),
+    ).toHaveTextContent("U");
+    expect(
+      within(navigation).getByRole("button", { name: "Logout" }),
+    ).toBeInTheDocument();
+    expect(
+      within(navigation).queryByRole("link", { name: "Login" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(navigation).queryByRole("link", { name: "Register" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("logs out from the shared authenticated navigation", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    vi.mocked(logoutWeb).mockResolvedValue();
+    mockLoadedMetricDefinitions();
+
+    renderRoute("/");
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Logout" }),
+    );
+
+    expect(logoutWeb).toHaveBeenCalledOnce();
+    expect(
+      await screen.findByRole("heading", { name: "Login" }),
+    ).toBeInTheDocument();
   });
 
   it("redirects to /login when the user is not authenticated", async () => {
@@ -494,6 +537,44 @@ describe("dashboard route", () => {
     expect(screen.getByText(/samsung health/i)).toBeInTheDocument();
     expect(screen.getByText(/58 bpm/i)).toBeInTheDocument();
     expect(screen.getByText(/mar 5, 2026, 7:15 am/i)).toBeInTheDocument();
+  });
+
+  it("shows a recent trend in a metric card with multiple values", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+    mockMetricEntriesByFilters({
+      cardEntries: [
+        {
+          id: 2,
+          metric_definition: "resting_hr",
+          value: 58,
+          recorded_at: "2026-03-06T07:15:00Z",
+          source: "samsung_health",
+          context: {},
+          created_at: "2026-03-06T07:15:02Z",
+        },
+        {
+          id: 1,
+          metric_definition: "resting_hr",
+          value: 61,
+          recorded_at: "2026-03-05T07:15:00Z",
+          source: "samsung_health",
+          context: {},
+          created_at: "2026-03-05T07:15:02Z",
+        },
+      ],
+      recentEntries: [],
+    });
+
+    renderRoute("/");
+
+    expect(
+      await screen.findByRole("img", {
+        name: /resting heart rate recent trend/i,
+      }),
+    ).toBeInTheDocument();
   });
 
   it("shows a locked Pro insights prompt for Free users", async () => {

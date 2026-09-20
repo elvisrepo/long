@@ -104,7 +104,7 @@ describe("logout flow", () => {
     ).toBeInTheDocument();
   });
 
-  it("does not allow returning to settings after successful logout", async () => {
+  it("does not allow returning to a protected route after logout", async () => {
     const user = userEvent.setup();
 
     vi.mocked(logoutWeb).mockResolvedValue();
@@ -120,7 +120,7 @@ describe("logout flow", () => {
       await screen.findByRole("heading", { name: /login/i }),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole("link", { name: /settings/i }));
+    await user.click(screen.getByRole("link", { name: /longevity/i }));
 
     expect(
       await screen.findByRole("heading", { name: /login/i }),
@@ -157,7 +157,7 @@ describe("logout flow", () => {
       await screen.findByRole("heading", { name: /login/i }),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole("link", { name: /settings/i }));
+    await user.click(screen.getByRole("link", { name: /longevity/i }));
 
     expect(
       await screen.findByRole("heading", { name: /login/i }),

@@ -6,6 +6,30 @@
 ## Source
 - Derived from `reference_docs/knowledge/planning.md` section 5.
 
+### Current redesign checkpoint (September 20, 2026)
+
+- The first `longevity-redesign-v21` implementation slice is local only; it has
+  not been deployed.
+- The root application shell now distinguishes public authentication routes
+  from authenticated routes. Signed-in navigation shows Dashboard, Metrics,
+  Settings, a current-user initial, and the shared Logout action. Login and
+  Register are hidden from authenticated navigation.
+- Logout is owned by the shared shell. The former duplicate Settings-page
+  logout action was removed while preserving the existing secure logout,
+  current-user cache removal, and redirect behavior.
+- Dashboard metric cards now use the reusable
+  `src/features/metrics/dashboard-metric-card.tsx` component. Each card keeps
+  inline logging and adds an accessible sparkline when at least two fetched
+  values exist. Sleep Duration is the featured card.
+- Dashboard sparklines use the existing bounded 50-entry dashboard query and
+  order each metric's points chronologically. They do not add an API request.
+- At widths up to 680px, dashboard metric cards render in one column. Inputs
+  use `min-width: 0` and `max-width: 100%` so native datetime controls remain
+  inside the card.
+- `frontend/longevity-redesign-v21` is design reference material and is
+  excluded from ESLint and Prettier checks; its handoff files are not compiled
+  into the application.
+
 ### 5.1 Clients
 - Web dashboard: React (Vite + TypeScript)
 - Samsung-sync companion app: Kotlin Android app (R2/R3)

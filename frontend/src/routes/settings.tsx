@@ -1,11 +1,5 @@
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import {
-  createFileRoute,
-  useNavigate,
-  useRouterState,
-} from "@tanstack/react-router";
-import { logoutWeb } from "../features/auth/auth-logout-api";
+import { createFileRoute, useRouterState } from "@tanstack/react-router";
 import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load";
 import { useMeQuery } from "../features/auth/use-me-query";
 import { redirectToCheckout } from "../features/subscriptions/checkout-redirect";
@@ -40,8 +34,6 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsRoute() {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const checkoutStatus = useRouterState({
     select: (state) => state.location.search.checkout,
   });
@@ -51,7 +43,6 @@ function SettingsRoute() {
   const checkoutMutation = useCreateSubscriptionCheckoutMutation();
   const portalMutation = useCreateSubscriptionPortalMutation();
   const [errorMessage, setErrorMessage] = useState("");
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const paidPlans =
     subscriptionPlansQuery.data?.filter(
@@ -59,25 +50,6 @@ function SettingsRoute() {
     ) ?? [];
   const usesStripePortal =
     currentSubscriptionQuery.data?.billing_portal_available === true;
-
-  async function handleLogout() {
-    try {
-      setErrorMessage("");
-      setIsLoggingOut(true);
-      await logoutWeb();
-      queryClient.removeQueries({ queryKey: ["me"] });
-      await navigate({ to: "/login" });
-    } catch (error) {
-      if (error instanceof Error) {
-        setErrorMessage(error.message);
-        return;
-      }
-
-      setErrorMessage("Logout failed");
-    } finally {
-      setIsLoggingOut(false);
-    }
-  }
 
   async function handleCheckout(priceId: string) {
     try {
@@ -287,14 +259,6 @@ function SettingsRoute() {
       </section>
 
       {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
-      <button
-        className="settings-logout-button"
-        type="button"
-        disabled={isLoggingOut}
-        onClick={() => void handleLogout()}
-      >
-        Logout
-      </button>
     </section>
   );
 }

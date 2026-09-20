@@ -1,11 +1,13 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load";
+import { DashboardMetricCard } from "../features/metrics/dashboard-metric-card";
 import {
   formatMetricEntrySource,
   formatMetricValue,
   formatMetricValueWithUnit,
 } from "../features/metrics/metric-entry-formatters";
+import type { MetricEntry } from "../features/metrics/metric-entries-api";
 import { useCreateMetricEntryMutation } from "../features/metrics/use-create-metric-entry-mutation";
 import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
 import { useMetricEntriesQuery } from "../features/metrics/use-metric-entries-query";
@@ -75,46 +77,44 @@ function DashboardRoute() {
     <section className="dashboard-screen">
       <div className="dashboard-hero">
         <div>
-          <p className="eyebrow">Mar 7 · Manual tracking</p>
+          <p className="eyebrow">{formatDashboardDate()} · Health overview</p>
           <h1 className="dashboard-title">Dashboard</h1>
           <p className="dashboard-subtitle">
             Good morning. Track the baseline metrics that matter.
           </p>
         </div>
         <div className="status-pill">
-          {metricDefinitions.length} metrics active
+          {metricDefinitions.length}{" "}
+          {metricDefinitions.length === 1 ? "metric" : "metrics"} active
         </div>
       </div>
 
       <div className="metric-grid" aria-label="Metric definitions">
-        {metricDefinitions.map((definition) => (
-          <article className="metric-card" key={definition.id}>
-            <div className="metric-card-header">
-              <Link
-                className="metric-card-link"
-                params={{ slug: definition.slug }}
-                to="/metrics/$slug"
-              >
-                <p className="chip-label">
-                  {definition.category} · {definition.unit}
-                </p>
-                <h2>{definition.name}</h2>
-              </Link>
-              <p className="metric-meta">{definition.slug}</p>
-            </div>
+        {metricDefinitions.map((definition) => {
+          const latestEntry = latestEntriesByMetric.get(definition.slug);
 
-            <MetricDefinitionValue
-              entry={latestEntriesByMetric.get(definition.slug)}
-              metricSlug={definition.slug}
+          return (
+            <DashboardMetricCard
+              category={definition.category}
+              form={
+                <MetricEntryForm
+                  metricName={definition.name}
+                  metricSlug={definition.slug}
+                />
+              }
+              isFeatured={definition.slug === "sleep_duration"}
+              key={definition.id}
+              latestValue={latestEntry?.value}
+              name={definition.name}
+              slug={definition.slug}
+              trendValues={getMetricTrendValues(
+                cardMetricEntries,
+                definition.slug,
+              )}
               unit={definition.unit}
             />
-
-            <MetricEntryForm
-              metricName={definition.name}
-              metricSlug={definition.slug}
-            />
-          </article>
-        ))}
+          );
+        })}
       </div>
 
       <section className="insights-card" aria-label="Pro insights">
@@ -205,29 +205,6 @@ function DashboardRoute() {
   );
 }
 
-interface MetricDefinitionValueProps {
-  entry:
-    | {
-        value: number;
-      }
-    | undefined;
-  metricSlug: string;
-  unit: string;
-}
-
-function MetricDefinitionValue({
-  entry,
-  metricSlug,
-  unit,
-}: MetricDefinitionValueProps) {
-  return (
-    <div className="metric-current-value">
-      <span>{entry ? formatMetricValue(entry.value, metricSlug) : "—"}</span>
-      {metricSlug === "sleep_duration" ? null : <small>{unit}</small>}
-    </div>
-  );
-}
-
 interface MetricEntrySummaryProps {
   metricName: string;
   metricSlug: string;
@@ -276,6 +253,24 @@ function formatMetricEntryRecordedAt(recordedAt: string) {
     timeStyle: "short",
     timeZone: "UTC",
   }).format(new Date(recordedAt));
+}
+
+function formatDashboardDate() {
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+  }).format(new Date());
+}
+
+function getMetricTrendValues(entries: MetricEntry[], metricSlug: string) {
+  return entries
+    .filter((entry) => entry.metric_definition === metricSlug)
+    .sort(
+      (left, right) =>
+        new Date(left.recorded_at).getTime() -
+        new Date(right.recorded_at).getTime(),
+    )
+    .map((entry) => entry.value);
 }
 
 interface MetricEntryFormProps {
