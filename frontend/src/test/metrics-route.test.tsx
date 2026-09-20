@@ -130,6 +130,14 @@ async function fillCustomMetricForm(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText(/max value/i), "10");
 }
 
+async function openCustomMetricDialog(
+  user: ReturnType<typeof userEvent.setup>,
+) {
+  await user.click(screen.getByRole("button", { name: /new custom metric/i }));
+
+  return screen.getByRole("dialog", { name: /create custom metric/i });
+}
+
 describe("metrics route", () => {
   beforeEach(() => {
     mockUpdateMetricDefinitionMutation();
@@ -204,6 +212,32 @@ describe("metrics route", () => {
     ).toBeInTheDocument();
   });
 
+  it("opens and cancels the custom metric dialog", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+
+    renderRoute("/metrics");
+
+    await screen.findByRole("heading", { name: /metrics/i });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: /new custom metric/i }),
+    );
+
+    expect(
+      screen.getByRole("dialog", { name: /create custom metric/i }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /cancel/i }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("marks custom metric usage as limit reached when all slots are used", async () => {
     vi.mocked(getMe).mockResolvedValue({
       email: "user@example.com",
@@ -254,6 +288,23 @@ describe("metrics route", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows a structured loading state while metrics are loading", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+
+    renderRoute("/metrics");
+
+    expect(
+      await screen.findByRole("status", { name: /loading metrics/i }),
+    ).toHaveAttribute("aria-busy", "true");
+  });
+
   it("creates a custom metric definition from the metrics page", async () => {
     const user = userEvent.setup();
 
@@ -267,9 +318,10 @@ describe("metrics route", () => {
 
     await screen.findByRole("heading", { name: /metrics/i });
 
+    await openCustomMetricDialog(user);
     await fillCustomMetricForm(user);
     await user.click(
-      screen.getByRole("button", { name: /create custom metric/i }),
+      screen.getByRole("button", { name: /^create custom metric$/i }),
     );
 
     expect(createMetricDefinitionMock).toHaveBeenCalledWith({
@@ -281,7 +333,7 @@ describe("metrics route", () => {
     });
   });
 
-  it("clears the custom metric form after a successful create", async () => {
+  it("closes the custom metric dialog after a successful create", async () => {
     const user = userEvent.setup();
 
     vi.mocked(getMe).mockResolvedValue({
@@ -294,24 +346,15 @@ describe("metrics route", () => {
 
     await screen.findByRole("heading", { name: /metrics/i });
 
-    const nameInput = screen.getByLabelText(/name/i);
-    const slugInput = screen.getByLabelText(/slug/i);
-    const unitInput = screen.getByLabelText(/unit/i);
-    const minValueInput = screen.getByLabelText(/min value/i);
-    const maxValueInput = screen.getByLabelText(/max value/i);
-
+    await openCustomMetricDialog(user);
     await fillCustomMetricForm(user);
     await user.click(
-      screen.getByRole("button", { name: /create custom metric/i }),
+      screen.getByRole("button", { name: /^create custom metric$/i }),
     );
 
     await waitFor(() => {
-      expect(nameInput).toHaveValue("");
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
-    expect(slugInput).toHaveValue("");
-    expect(unitInput).toHaveValue("");
-    expect(minValueInput).toHaveValue(null);
-    expect(maxValueInput).toHaveValue(null);
   });
 
   it("shows an error when custom metric creation fails", async () => {
@@ -329,9 +372,10 @@ describe("metrics route", () => {
 
     await screen.findByRole("heading", { name: /metrics/i });
 
+    await openCustomMetricDialog(user);
     await fillCustomMetricForm(user);
     await user.click(
-      screen.getByRole("button", { name: /create custom metric/i }),
+      screen.getByRole("button", { name: /^create custom metric$/i }),
     );
 
     expect(
@@ -356,9 +400,10 @@ describe("metrics route", () => {
 
     await screen.findByRole("heading", { name: /metrics/i });
 
+    await openCustomMetricDialog(user);
     await fillCustomMetricForm(user);
     await user.click(
-      screen.getByRole("button", { name: /create custom metric/i }),
+      screen.getByRole("button", { name: /^create custom metric$/i }),
     );
 
     expect(
@@ -366,7 +411,7 @@ describe("metrics route", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText(/name/i)).toHaveValue("Mood");
     expect(
-      screen.getByRole("button", { name: /create custom metric/i }),
+      screen.getByRole("button", { name: /^create custom metric$/i }),
     ).toBeEnabled();
   });
 
@@ -513,6 +558,15 @@ describe("metrics route", () => {
 
     await user.click(screen.getByRole("button", { name: /deactivate mood/i }));
 
+    expect(deactivateMetricDefinitionMutateAsyncMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("dialog", { name: /deactivate mood/i }),
+    ).toHaveTextContent(/entries are kept/i);
+
+    await user.click(
+      screen.getByRole("button", { name: /^deactivate metric$/i }),
+    );
+
     expect(deactivateMetricDefinitionMutateAsyncMock).toHaveBeenCalledWith(
       "custom-metric-id",
     );
@@ -554,9 +608,15 @@ describe("metrics route", () => {
     });
 
     await user.click(screen.getByRole("button", { name: /deactivate mood/i }));
+    await user.click(
+      screen.getByRole("button", { name: /^deactivate metric$/i }),
+    );
 
     expect(
       await screen.findByText(/metric definition request failed/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: /deactivate mood/i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /edit mood/i }),

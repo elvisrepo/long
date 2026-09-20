@@ -23,6 +23,16 @@
   serializer: at least eight characters and rejection of common or
   numeric-only passwords. The configured similarity validator is not effective
   until registration validation supplies a user instance.
+- The local Metrics catalog now follows the `metrics-catalog-v2` layout while
+  preserving the existing definition, usage, create, update, deactivate, and
+  reactivate API contracts. Custom metric creation uses a quota-aware dialog;
+  creation failures keep entered values visible.
+- Custom metric deactivation now requires confirmation and explains that
+  existing entries are preserved. Failed deactivation remains in the dialog
+  with the backend error. Default metrics remain read-only.
+- The Metrics catalog loading state now uses an accessible skeleton layout
+  that respects reduced-motion preferences. Catalog toolbars, dialogs, forms,
+  and rows collapse for narrow screens.
 - Logout is owned by the shared shell. The former duplicate Settings-page
   logout action was removed while preserving the existing secure logout,
   current-user cache removal, and redirect behavior.

@@ -31,6 +31,16 @@
   box-sizing: border-box;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 body {
   min-width: 320px;
   min-height: 100vh;
@@ -997,29 +1007,210 @@ button {
   color: var(--warn);
 }
 
+.metrics-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.metrics-primary-action {
+  min-height: 48px;
+  padding-inline: 18px;
+}
+
+.metrics-secondary-action {
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-dim);
+  padding: 10px 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.metrics-toolbar-hint {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.metrics-loading-hero,
+.metrics-loading-toolbar,
+.metrics-loading-copy {
+  display: grid;
+  gap: 10px;
+}
+
+.metrics-loading-toolbar {
+  grid-template-columns: 180px 190px;
+}
+
+.metrics-skeleton {
+  border-radius: 10px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05),
+    rgba(255, 255, 255, 0.13),
+    rgba(255, 255, 255, 0.05)
+  );
+  background-size: 200% 100%;
+  animation: metrics-shimmer 1.4s infinite;
+}
+
+.metrics-skeleton-eyebrow {
+  width: 112px;
+  height: 11px;
+}
+
+.metrics-skeleton-title {
+  width: 210px;
+  height: 46px;
+}
+
+.metrics-skeleton-button {
+  height: 46px;
+}
+
+.metrics-loading-copy {
+  flex: 1;
+}
+
+.metrics-skeleton-row-title {
+  width: min(220px, 62%);
+  height: 16px;
+}
+
+.metrics-skeleton-row-meta {
+  width: min(300px, 78%);
+  height: 11px;
+}
+
+.metrics-skeleton-chip {
+  width: 110px;
+  height: 28px;
+  border-radius: 999px;
+}
+
+@keyframes metrics-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metrics-skeleton {
+    animation: none;
+  }
+}
+
+.metric-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  background: rgba(4, 6, 10, 0.72);
+  backdrop-filter: blur(4px);
+  padding: 16px;
+}
+
+.metric-dialog {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: #141821;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+  padding: 20px;
+}
+
+.metric-dialog-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.metric-dialog-header h2 {
+  font-size: 24px;
+}
+
+.metric-dialog-close {
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-dim);
+  padding: 8px;
+}
+
+.metric-dialog-quota {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text-dim);
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.metric-dialog-quota-limit {
+  border-color: rgba(255, 107, 74, 0.5);
+  color: var(--warn);
+}
+
+.metric-dialog-copy {
+  margin-top: 16px;
+  color: var(--text-dim);
+  line-height: 1.55;
+}
+
+.metric-dialog-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.metric-dialog-actions button:first-child {
+  flex: 1;
+}
+
+.metric-danger-action {
+  background: var(--warn);
+  color: #1a0b06;
+}
+
+.metric-row-actions .metric-row-danger-action {
+  border: 1px solid rgba(255, 107, 74, 0.5);
+  background: transparent;
+  color: var(--warn);
+}
+
 .custom-metric-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  background: rgba(17, 19, 24, 0.86);
-  padding: 20px;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+  margin-top: 16px;
 }
 
-.custom-metric-form h2,
-.custom-metric-form button,
+.custom-metric-form-actions,
 .custom-metric-form .form-error {
   grid-column: 1 / -1;
 }
 
-.custom-metric-form h2 {
-  font-size: 22px;
+.custom-metric-form-actions {
+  display: flex;
+  gap: 10px;
 }
 
-.custom-metric-form button {
-  margin-top: 2px;
+.custom-metric-form-actions button:first-child {
+  flex: 1;
 }
 
 .metrics-list {
@@ -1650,12 +1841,15 @@ button {
 
   .custom-metric-form {
     grid-template-columns: 1fr;
-    border-radius: 18px;
-    padding: 16px;
   }
 
-  .custom-metric-form h2 {
-    font-size: 18px;
+  .metrics-loading-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-dialog-actions,
+  .custom-metric-form-actions {
+    flex-direction: column;
   }
 
   .metrics-list {

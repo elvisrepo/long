@@ -235,18 +235,21 @@ test("user can create a custom metric and log it from the dashboard", async ({
 
   await expect(page.getByRole("heading", { name: /metrics/i })).toBeVisible();
 
-  const customMetricForm = page
-    .getByRole("heading", { name: /create custom metric/i })
-    .locator("..");
+  await page.getByRole("button", { name: /new custom metric/i }).click();
+  const customMetricDialog = page.getByRole("dialog", {
+    name: /create custom metric/i,
+  });
 
-  await customMetricForm.getByLabel(/name/i).fill("Mood");
-  await customMetricForm.getByLabel(/slug/i).fill("mood");
-  await customMetricForm.getByLabel(/unit/i).fill("score");
-  await customMetricForm.getByLabel(/min value/i).fill("1");
-  await customMetricForm.getByLabel(/max value/i).fill("10");
-  await page.getByRole("button", { name: /create custom metric/i }).click();
+  await customMetricDialog.getByLabel(/name/i).fill("Mood");
+  await customMetricDialog.getByLabel(/slug/i).fill("mood");
+  await customMetricDialog.getByLabel(/unit/i).fill("score");
+  await customMetricDialog.getByLabel(/min value/i).fill("1");
+  await customMetricDialog.getByLabel(/max value/i).fill("10");
+  await customMetricDialog
+    .getByRole("button", { name: /^create custom metric$/i })
+    .click();
 
-  await expect(customMetricForm.getByLabel(/name/i)).toHaveValue("");
+  await expect(customMetricDialog).not.toBeVisible();
   await expect(page.getByRole("heading", { name: /mood/i })).toBeVisible();
 
   await page.getByRole("link", { name: /dashboard/i }).click();
@@ -283,16 +286,19 @@ test("user can archive and reactivate a custom metric", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: /metrics/i })).toBeVisible();
 
-  const customMetricForm = page
-    .getByRole("heading", { name: /create custom metric/i })
-    .locator("..");
+  await page.getByRole("button", { name: /new custom metric/i }).click();
+  const customMetricDialog = page.getByRole("dialog", {
+    name: /create custom metric/i,
+  });
 
-  await customMetricForm.getByLabel(/name/i).fill("Mood");
-  await customMetricForm.getByLabel(/slug/i).fill("mood");
-  await customMetricForm.getByLabel(/unit/i).fill("score");
-  await customMetricForm.getByLabel(/min value/i).fill("1");
-  await customMetricForm.getByLabel(/max value/i).fill("10");
-  await page.getByRole("button", { name: /create custom metric/i }).click();
+  await customMetricDialog.getByLabel(/name/i).fill("Mood");
+  await customMetricDialog.getByLabel(/slug/i).fill("mood");
+  await customMetricDialog.getByLabel(/unit/i).fill("score");
+  await customMetricDialog.getByLabel(/min value/i).fill("1");
+  await customMetricDialog.getByLabel(/max value/i).fill("10");
+  await customMetricDialog
+    .getByRole("button", { name: /^create custom metric$/i })
+    .click();
 
   const activeMetrics = page.getByLabel(/available metrics/i);
 
@@ -301,6 +307,13 @@ test("user can archive and reactivate a custom metric", async ({ page }) => {
   ).toBeVisible();
 
   await page.getByRole("button", { name: /deactivate mood/i }).click();
+  const deactivateDialog = page.getByRole("dialog", {
+    name: /deactivate mood/i,
+  });
+  await expect(deactivateDialog.getByText(/entries are kept/i)).toBeVisible();
+  await deactivateDialog
+    .getByRole("button", { name: /^deactivate metric$/i })
+    .click();
 
   await expect(
     activeMetrics.getByRole("heading", { name: /mood/i }),
