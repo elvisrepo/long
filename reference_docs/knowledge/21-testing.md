@@ -13,6 +13,11 @@
 - Selected widths save screenshots under `frontend/test-results/layout` for
   visual inspection. These checks complement component tests; mocked fixtures
   do not validate live backend behavior or physical mobile browsers.
+- Appearance coverage includes light layouts at 320/768/1440px, light auth and
+  dialogs at 320/1440px, switching across routes and reloads, and startup/switching
+  with unavailable browser storage. Theme unit tests cover keyboard use, saving
+  preferences and cross-tab storage events. A chart component test proves an
+  already mounted canvas chart redraws with the newly selected palette.
 
 ## Use When
 - Load this when you need the testing pyramid, tool choices, CI expectations, or coverage targets.

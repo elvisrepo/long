@@ -17,6 +17,8 @@ import {
   formatMetricValueWithUnit,
 } from "./metric-entry-formatters";
 import type { MetricEntry } from "./metric-entries-api";
+import { getChartPalette } from "./chart-palette";
+import { useTheme } from "../../theme";
 
 // Chart.js is modular: every controller, scale, element, and plugin used by
 // this component must be registered before creating a chart instance.
@@ -45,6 +47,7 @@ export function MetricTrendChart({
   unit,
 }: MetricTrendChartProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const theme = useTheme();
   // The chart is a daily trend, not a raw event plot. Entry History still shows
   // every manual or synced record, but the chart uses the latest value per day.
   const chartEntries = useMemo(() => getLatestEntriesByDay(entries), [entries]);
@@ -79,6 +82,7 @@ export function MetricTrendChart({
     // React dev rendering and route reloads can reuse the same canvas. Chart.js
     // refuses to create a second chart on a canvas until the old one is gone.
     ChartJS.getChart(canvasRef.current)?.destroy();
+    const colors = getChartPalette();
 
     const chartConfig: ChartConfiguration<"line"> = {
       type: "line",
@@ -93,11 +97,11 @@ export function MetricTrendChart({
           {
             label: metricName,
             data: values,
-            borderColor: "#00e5a0",
-            backgroundColor: "rgba(0, 229, 160, 0.16)",
+            borderColor: colors.line,
+            backgroundColor: colors.fill,
             borderWidth: 3,
-            pointBackgroundColor: "#00e5a0",
-            pointBorderColor: "#07100d",
+            pointBackgroundColor: colors.line,
+            pointBorderColor: colors.background,
             pointBorderWidth: 2,
             pointRadius: 4,
             tension: 0.35,
@@ -109,7 +113,13 @@ export function MetricTrendChart({
         maintainAspectRatio: false,
         responsive: true,
         plugins: {
+          legend: { labels: { color: colors.text } },
           tooltip: {
+            backgroundColor: colors.background,
+            titleColor: colors.foreground,
+            bodyColor: colors.foreground,
+            borderColor: colors.axis,
+            borderWidth: 1,
             callbacks: {
               label: (tooltipItem) => {
                 const value = tooltipItem.parsed.y;
@@ -123,15 +133,15 @@ export function MetricTrendChart({
         },
         scales: {
           x: {
-            border: { color: "rgba(133, 151, 176, 0.35)" },
-            grid: { color: "rgba(133, 151, 176, 0.12)" },
-            ticks: { color: "#8597b0" },
+            border: { color: colors.axis },
+            grid: { color: colors.grid },
+            ticks: { color: colors.text },
           },
           y: {
-            border: { color: "rgba(133, 151, 176, 0.35)" },
-            grid: { color: "rgba(133, 151, 176, 0.14)" },
+            border: { color: colors.axis },
+            grid: { color: colors.grid },
             ticks: {
-              color: "#8597b0",
+              color: colors.text,
               callback: (value) =>
                 typeof value === "number"
                   ? formatMetricValueWithUnit(value, metricSlug, unit)
@@ -147,7 +157,7 @@ export function MetricTrendChart({
     return () => {
       chart.destroy();
     };
-  }, [chartEntries, metricName, metricSlug, unit, values]);
+  }, [chartEntries, metricName, metricSlug, unit, values, theme]);
 
   if (chartEntries.length === 0) {
     return <p className="trend-empty">No chart data yet.</p>;

@@ -14,6 +14,8 @@ import {
 import { useEffect, useRef } from "react";
 
 import type { WeightStepsPoint } from "./weight-steps-analytics-api";
+import { getChartPalette } from "./chart-palette";
+import { useTheme } from "../../theme";
 
 ChartJS.register(
   CategoryScale,
@@ -33,6 +35,7 @@ export function WeightStepsOverlayChart({
   series: WeightStepsPoint[];
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const theme = useTheme();
 
   useEffect(() => {
     if (!canvasRef.current || series.length === 0) {
@@ -51,6 +54,7 @@ export function WeightStepsOverlayChart({
     }
 
     ChartJS.getChart(canvasRef.current)?.destroy();
+    const colors = getChartPalette();
 
     const weightValues = series.flatMap((point) =>
       [point.weight_kg, point.weight_7d_average_kg].filter(
@@ -78,8 +82,8 @@ export function WeightStepsOverlayChart({
             type: "bar",
             label: "Steps total",
             data: series.map((point) => point.steps),
-            backgroundColor: "rgba(59, 130, 246, 0.55)",
-            borderColor: "rgba(96, 165, 250, 0.9)",
+            backgroundColor: colors.blueFill,
+            borderColor: colors.blue,
             borderWidth: 1,
             borderRadius: 5,
             yAxisID: "steps",
@@ -88,10 +92,10 @@ export function WeightStepsOverlayChart({
             type: "line",
             label: "Daily weight kg",
             data: series.map((point) => point.weight_kg),
-            borderColor: "rgba(0, 229, 160, 0.45)",
-            backgroundColor: "rgba(0, 229, 160, 0.45)",
+            borderColor: colors.lineDim,
+            backgroundColor: colors.lineDim,
             borderWidth: 1,
-            pointBackgroundColor: "#00e5a0",
+            pointBackgroundColor: colors.line,
             pointRadius: 4,
             showLine: false,
             spanGaps: true,
@@ -101,8 +105,8 @@ export function WeightStepsOverlayChart({
             type: "line",
             label: "7-day weight average kg",
             data: series.map((point) => point.weight_7d_average_kg),
-            borderColor: "#00e5a0",
-            backgroundColor: "rgba(0, 229, 160, 0.14)",
+            borderColor: colors.line,
+            backgroundColor: colors.fill,
             borderWidth: 3,
             pointRadius: 0,
             tension: 0.3,
@@ -116,29 +120,36 @@ export function WeightStepsOverlayChart({
         responsive: true,
         interaction: { intersect: false, mode: "index" },
         plugins: {
-          legend: { labels: { color: "#b9c6d8" } },
+          legend: { labels: { color: colors.text } },
+          tooltip: {
+            backgroundColor: colors.background,
+            titleColor: colors.foreground,
+            bodyColor: colors.foreground,
+            borderColor: colors.axis,
+            borderWidth: 1,
+          },
         },
         scales: {
           x: {
-            border: { color: "rgba(133, 151, 176, 0.35)" },
-            grid: { color: "rgba(133, 151, 176, 0.1)" },
-            ticks: { color: "#8597b0", maxTicksLimit: 10 },
+            border: { color: colors.axis },
+            grid: { color: colors.grid },
+            ticks: { color: colors.text, maxTicksLimit: 10 },
           },
           weight: {
             ...weightAxisBounds,
             position: "left",
-            border: { color: "rgba(0, 229, 160, 0.45)" },
-            grid: { color: "rgba(133, 151, 176, 0.12)" },
+            border: { color: colors.lineDim },
+            grid: { color: colors.grid },
             ticks: {
-              color: "#00e5a0",
+              color: colors.line,
               callback: (value) => `${value} kg`,
             },
           },
           steps: {
             position: "right",
-            border: { color: "rgba(96, 165, 250, 0.55)" },
+            border: { color: colors.blue },
             grid: { drawOnChartArea: false },
-            ticks: { color: "#60a5fa" },
+            ticks: { color: colors.blue },
           },
         },
       },
@@ -146,7 +157,7 @@ export function WeightStepsOverlayChart({
 
     const chart = new ChartJS(context, config);
     return () => chart.destroy();
-  }, [series]);
+  }, [series, theme]);
 
   return (
     <div

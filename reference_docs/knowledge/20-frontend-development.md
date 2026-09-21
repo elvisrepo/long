@@ -6,6 +6,24 @@
 ## Source
 - Derived from `reference_docs/knowledge/planning.md` section 5.
 
+### Light and dark appearance (September 21, 2026)
+
+- The shared header has a Light/Dark action; Login/Register expose the same
+  switch above their forms. Dark remains the default when no valid choice exists.
+- `public/theme-init.js` applies `localStorage['longevity-theme']` to the root
+  `data-theme` before React renders. It is a same-origin external script, so no
+  inline-script CSP exception is needed. Keep it in the frontend build upload.
+- `src/theme.ts` owns preference updates and subscriptions. The choice survives
+  navigation, reloads and sign-out, and changes propagate to other open tabs.
+  It is a browser preference, not a user-account setting or Android app setting.
+- Storage failures fall back to dark on startup; switching still works for the
+  current visit. Clearing the saved preference restores the default.
+- CSS variables cover surfaces, text, controls, states, dialogs and SVG charts.
+  Canvas charts read those variables through `chart-palette.ts` and redraw on
+  theme changes, including axes, legends and tooltips.
+- Light uses soft gray backgrounds, white cards, dark text and deeper green
+  controls. Both themes retain the shared responsive layout. Local only.
+
 ### Shared responsive layout (September 21, 2026)
 
 - The application shell and navigation share a `70rem` maximum outer width.

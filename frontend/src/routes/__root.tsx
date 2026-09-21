@@ -10,6 +10,7 @@ import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { useState } from "react";
 
 import { PageHeader } from "../components/page-header";
+import { ThemeToggle } from "../components/theme-toggle";
 import { logoutWeb } from "../features/auth/auth-logout-api";
 import { useMeQuery } from "../features/auth/use-me-query";
 
@@ -25,12 +26,17 @@ function RootLayout() {
 
   return (
     <div className="app-shell">
-      {isPublicAuthRoute ? null : (
+      {isPublicAuthRoute ? (
+        <div className="auth-theme-bar">
+          <ThemeToggle />
+        </div>
+      ) : (
         <header className="app-header">
           <div className="app-header-inner">
             <Link to="/" className="app-logo">
               ⬡ longevity
             </Link>
+            <ThemeToggle />
             <AppNavigation />
           </div>
         </header>

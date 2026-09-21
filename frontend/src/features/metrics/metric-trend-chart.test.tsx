@@ -1,8 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { MetricTrendChart } from "./metric-trend-chart";
 import type { MetricEntry } from "./metric-entries-api";
+import { setTheme } from "../../theme";
 
 const metricEntries: MetricEntry[] = [
   {
@@ -26,6 +27,36 @@ const metricEntries: MetricEntry[] = [
 ];
 
 describe("MetricTrendChart", () => {
+  it("redraws an open chart with the selected theme colors", () => {
+    const context = vi
+      .spyOn(HTMLCanvasElement.prototype, "getContext")
+      .mockReturnValue({} as CanvasRenderingContext2D);
+    const root = document.documentElement;
+    root.style.setProperty("--chart-line", "#00e5a0");
+    const { unmount } = render(
+      <MetricTrendChart
+        entries={metricEntries}
+        metricName="Resting Heart Rate"
+        metricSlug="resting_hr"
+        unit="bpm"
+      />,
+    );
+    expect(
+      ChartMock.create.mock.calls.at(-1)?.[0].data.datasets[0].borderColor,
+    ).toBe("#00e5a0");
+    act(() => {
+      root.style.setProperty("--chart-line", "#008465");
+      setTheme("light");
+    });
+    expect(
+      ChartMock.create.mock.calls.at(-1)?.[0].data.datasets[0].borderColor,
+    ).toBe("#008465");
+    unmount();
+    root.style.removeProperty("--chart-line");
+    setTheme("dark");
+    localStorage.removeItem("longevity-theme");
+    context.mockRestore();
+  });
   it("renders a chart region and summary for metric entries", () => {
     render(
       <MetricTrendChart

@@ -171,6 +171,50 @@ test.beforeEach(async ({ page }) => {
   await mockApi(page);
 });
 
+test("theme switch persists across pages and reloads, including authentication", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const root = page.locator("html");
+  await page.getByRole("button", { name: "Switch to light theme" }).click();
+  await expect(root).toHaveAttribute("data-theme", "light");
+  await expect(page.locator("body")).toHaveCSS(
+    "background-color",
+    "rgb(245, 247, 248)",
+  );
+  await page.reload();
+  await expect(root).toHaveAttribute("data-theme", "light");
+  for (const path of ["/metrics", "/settings", "/login", "/register"]) {
+    await page.goto(path);
+    await expect(
+      page.getByRole("button", { name: "Switch to dark theme" }),
+    ).toBeVisible();
+    await expect(root).toHaveAttribute("data-theme", "light");
+  }
+  await page.getByRole("button", { name: "Switch to dark theme" }).click();
+  await expect(root).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator("body")).toHaveCSS(
+    "background-color",
+    "rgb(13, 17, 21)",
+  );
+});
+
+test("theme remains usable when browser storage is unavailable", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "localStorage", {
+      get() {
+        throw new DOMException("Storage disabled", "SecurityError");
+      },
+    });
+  });
+  await page.goto("/login");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("button", { name: "Switch to light theme" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+});
+
 const views = [
   ["/", "Dashboard"],
   ["/metrics", "Metrics"],
@@ -183,11 +227,22 @@ const views = [
   ["/analytics/consistency", "Consistency & Coverage"],
 ];
 
-for (const width of [320, 390, 640, 768, 1024, 1440, 1920]) {
-  test(`signed-in pages share responsive alignment at ${width}px`, async ({
+const layoutCases = [
+  ...[320, 390, 640, 768, 1024, 1440, 1920].map((width) => ({
+    width,
+    theme: "dark",
+  })),
+  ...[320, 768, 1440].map((width) => ({ width, theme: "light" })),
+];
+for (const { width, theme } of layoutCases) {
+  test(`${theme} signed-in pages share responsive alignment at ${width}px`, async ({
     page,
   }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
+    await page.addInitScript(
+      (theme) => localStorage.setItem("longevity-theme", theme),
+      theme,
+    );
     let titleY: number | undefined;
     let titleSize: string | undefined;
     for (const [path, title] of views) {
@@ -195,6 +250,7 @@ for (const width of [320, 390, 640, 768, 1024, 1440, 1920]) {
       await expect(
         page.getByRole("heading", { name: title, exact: true }),
       ).toBeVisible();
+      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
       // Wait for async content, including charts and Settings cards.
       if (path === "/settings")
         await expect(
@@ -240,7 +296,7 @@ for (const width of [320, 390, 640, 768, 1024, 1440, 1920]) {
       }
       titleSize ??= bounds.titleSize;
       expect(bounds.titleSize, path).toBe(titleSize);
-      if ([390, 768, 1440].includes(width)) {
+      if ([390, 768, 1440].includes(width) || theme === "light") {
         await page.screenshot({
           path: testInfo.outputPath(
             `${path.replaceAll("/", "_") || "dashboard"}.png`,
@@ -252,11 +308,18 @@ for (const width of [320, 390, 640, 768, 1024, 1440, 1920]) {
   });
 }
 
-for (const width of [320, 768, 1440]) {
-  test(`auth pages and dialogs fit the viewport at ${width}px`, async ({
+for (const { width, theme } of [
+  ...[320, 768, 1440].map((width) => ({ width, theme: "dark" })),
+  ...[320, 1440].map((width) => ({ width, theme: "light" })),
+]) {
+  test(`${theme} auth pages and dialogs fit the viewport at ${width}px`, async ({
     page,
-  }) => {
+  }, testInfo) => {
     await page.setViewportSize({ width, height: 600 });
+    await page.addInitScript(
+      (theme) => localStorage.setItem("longevity-theme", theme),
+      theme,
+    );
     for (const path of ["/login", "/register"]) {
       await page.goto(path);
       const panel = page.locator(".auth-panel");
@@ -264,6 +327,11 @@ for (const width of [320, 768, 1440]) {
       const bounds = await panel.boundingBox();
       expect(bounds!.width).toBeLessThanOrEqual(440);
       expect(bounds!.x * 2 + bounds!.width).toBeCloseTo(width, 0);
+      if (theme === "light")
+        await page.screenshot({
+          path: testInfo.outputPath(`${path.slice(1)}.png`),
+          fullPage: true,
+        });
     }
     for (const [path, action] of [
       ["/metrics/body_weight", "Add weight entry"],
@@ -284,6 +352,15 @@ for (const width of [320, 768, 1440]) {
       expect(
         await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth),
       ).toBe(true);
+      if (theme === "light") {
+        await expect(dialog).toHaveCSS(
+          "background-color",
+          "rgb(255, 255, 255)",
+        );
+        await page.screenshot({
+          path: testInfo.outputPath(`${action.replaceAll(" ", "_")}.png`),
+        });
+      }
     }
   });
 }

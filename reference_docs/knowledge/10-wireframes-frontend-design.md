@@ -7,6 +7,12 @@
 
 ## Implemented local UI refinement — 2026-09-21
 
+Both dark and light themes are implemented locally. A Light/Dark action is
+available in the application header and above authentication forms. Dark is the
+default; the browser remembers the choice. Light uses soft gray page backgrounds,
+white surfaces, dark text and deeper green accents. Use shared CSS color variables
+for new UI; canvas charts must resolve the current palette and redraw on switches.
+
 Layout follows one fluid shell across Dashboard, Metrics, metric details,
 Settings and analytics. The 70rem outer maximum keeps large monitors readable;
 smaller screens use the available width with responsive gutters. Shared page
