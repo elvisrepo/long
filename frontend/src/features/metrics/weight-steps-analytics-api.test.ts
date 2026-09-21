@@ -17,6 +17,7 @@ describe("getWeightStepsAnalytics", () => {
         {
           date: "2026-09-19",
           weight_kg: 70.1,
+          weight_7d_average_kg: 70.3,
           steps: 7300,
         },
       ],

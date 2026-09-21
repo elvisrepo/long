@@ -25,8 +25,18 @@ describe("weight and steps analytics route", () => {
       data: {
         range_days: 30,
         series: [
-          { date: "2026-09-18", weight_kg: 70.4, steps: 6000 },
-          { date: "2026-09-19", weight_kg: 70.1, steps: 7300 },
+          {
+            date: "2026-09-18",
+            weight_kg: 70.4,
+            weight_7d_average_kg: 70.4,
+            steps: 6000,
+          },
+          {
+            date: "2026-09-19",
+            weight_kg: 70.1,
+            weight_7d_average_kg: 70.25,
+            steps: 7300,
+          },
         ],
         summary: {
           weight_start_kg: 70.4,
@@ -46,6 +56,9 @@ describe("weight and steps analytics route", () => {
       await screen.findByRole("heading", { level: 1, name: /weight × steps/i }),
     ).toBeInTheDocument();
     expect(screen.getByText("70.4 → 70.1 kg")).toBeInTheDocument();
+    expect(
+      screen.getByText(/latest 7-day average 70\.3 kg/i),
+    ).toBeInTheDocument();
     expect(screen.getByText("6,650 / day")).toBeInTheDocument();
     expect(useWeightStepsAnalyticsQuery).toHaveBeenCalledWith(30);
   });
@@ -74,7 +87,14 @@ describe("weight and steps analytics route", () => {
     vi.mocked(useWeightStepsAnalyticsQuery).mockReturnValue({
       data: {
         range_days: 30,
-        series: [],
+        series: [
+          {
+            date: "2026-09-19",
+            weight_kg: null,
+            weight_7d_average_kg: null,
+            steps: null,
+          },
+        ],
         summary: {
           weight_start_kg: null,
           weight_end_kg: null,

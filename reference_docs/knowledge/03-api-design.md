@@ -71,7 +71,7 @@ Refresh concurrency behavior:
 | POST | `/api/v1/metrics/entries/` | Log a metric entry | Implemented for manual entries; accepts `metric_definition` as a slug such as `resting_hr`; not idempotent — repeated calls create duplicate entries |
 | PATCH | `/api/v1/metrics/entries/{id}/` | Update a metric entry | Implemented for authenticated user's own manual entries; synced/imported entries are immutable and return `409`; value range validation still applies |
 | DELETE | `/api/v1/metrics/entries/{id}/` | Delete a metric entry | Implemented for authenticated user's own manual entries; returns `204` on success; synced/imported entries return `409` |
-| GET | `/api/v1/metrics/analytics/weight-steps/?days=30` | Body Weight and Steps comparison | Implemented locally for authenticated users whose current plan has `analytics_enabled=true`; `days` defaults to `30` and accepts only `7`, `30`, or `90`; returns daily latest UTC weight and daily summed UTC steps for the authenticated user |
+| GET | `/api/v1/metrics/analytics/weight-steps/?days=30` | Body Weight and Steps comparison | Implemented locally for authenticated users whose current plan has `analytics_enabled=true`; `days` defaults to `30` and accepts only `7`, `30`, or `90`; returns complete UTC calendar-day rows with daily latest weight, seven-day rolling weight average, and daily summed steps for the authenticated user |
 | POST | `/api/v1/metrics/entries/bulk/` | Bulk import | |
 | GET | `/api/v1/metrics/analytics/{slug}/?range=30d` | Analytics for one metric | `slug` is required (path param), `range` is optional (query param, default 30d) |
 
@@ -114,11 +114,16 @@ Current Weight × Steps analytics behavior:
   definitions; same-slug custom metrics and future-dated entries are excluded.
 - Multiple Body Weight entries on one UTC day collapse to the latest recorded
   value. Multiple Steps entries on one UTC day are summed.
-- `series` contains only dates that have at least one of the two metrics;
-  either `weight_kg` or `steps` can be `null` on an unpaired date.
+- `series` contains every UTC calendar date in the selected range so the chart
+  cannot compress gaps. `weight_kg` and `steps` are `null` when that raw metric
+  has no observation on the date.
+- `weight_7d_average_kg` is the mean of available daily-latest Body Weight
+  values on that date and the preceding six UTC dates. It does not invent
+  measurements for missing dates. The query reads six days before the selected
+  range so its first displayed date can use the complete trailing window.
 - `summary` returns the first and last observed weight, their change, and the
-  average across days that contain Steps data. Empty periods return an empty
-  series and null summary values.
+  average across days that contain Steps data. Empty periods return the full
+  calendar series with null metric fields and null summary values.
 
 **Example: Creating a custom metric definition**
 ```json

@@ -10,6 +10,7 @@ from apps.metrics.models import MetricEntry
 class WeightStepsPoint(TypedDict):
     date: str
     weight_kg: float | None
+    weight_7d_average_kg: float | None
     steps: int | None
 
 
@@ -34,13 +35,14 @@ def get_weight_steps_analytics(
     now = timezone.now()
     today_start = datetime.combine(now.date(), datetime.min.time(), tzinfo=UTC)
     period_start = today_start - timedelta(days=days - 1)
+    rolling_period_start = period_start - timedelta(days=6)
     entries = (
         MetricEntry.objects.filter(
             user=user,
             metric_definition__slug__in=("body_weight", "steps"),
             metric_definition__user__isnull=True,
             metric_definition__is_default=True,
-            recorded_at__gte=period_start,
+            recorded_at__gte=rolling_period_start,
             recorded_at__lte=now,
         )
         .select_related("metric_definition")
@@ -56,14 +58,33 @@ def get_weight_steps_analytics(
         else:
             values["steps"] = values.get("steps", 0) + entry.value
 
-    series: list[WeightStepsPoint] = [
-        {
-            "date": entry_date.isoformat(),
-            "weight_kg": values.get("weight_kg"),
-            "steps": (round(values["steps"]) if "steps" in values else None),
-        }
-        for entry_date, values in sorted(daily_values.items())
+    selected_dates = [
+        period_start.date() + timedelta(days=day_offset) for day_offset in range(days)
     ]
+    series: list[WeightStepsPoint] = []
+    for entry_date in selected_dates:
+        values = daily_values.get(entry_date, {})
+        rolling_weights = [
+            daily_values[rolling_date]["weight_kg"]
+            for day_offset in range(7)
+            if (
+                (rolling_date := entry_date - timedelta(days=day_offset))
+                in daily_values
+                and "weight_kg" in daily_values[rolling_date]
+            )
+        ]
+        series.append(
+            {
+                "date": entry_date.isoformat(),
+                "weight_kg": values.get("weight_kg"),
+                "weight_7d_average_kg": (
+                    round(sum(rolling_weights) / len(rolling_weights), 2)
+                    if rolling_weights
+                    else None
+                ),
+                "steps": round(values["steps"]) if "steps" in values else None,
+            }
+        )
     weights = [point["weight_kg"] for point in series if point["weight_kg"] is not None]
     daily_steps = [point["steps"] for point in series if point["steps"] is not None]
     weight_start = weights[0] if weights else None

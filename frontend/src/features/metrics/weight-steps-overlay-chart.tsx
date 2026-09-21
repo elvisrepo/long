@@ -52,6 +52,19 @@ export function WeightStepsOverlayChart({
 
     ChartJS.getChart(canvasRef.current)?.destroy();
 
+    const weightValues = series.flatMap((point) =>
+      [point.weight_kg, point.weight_7d_average_kg].filter(
+        (value): value is number => value !== null,
+      ),
+    );
+    const weightAxisBounds =
+      weightValues.length > 0
+        ? {
+            suggestedMin: Math.floor(Math.min(...weightValues) - 1),
+            suggestedMax: Math.ceil(Math.max(...weightValues) + 1),
+          }
+        : {};
+
     const config: ChartConfiguration<
       "bar" | "line",
       (number | null)[],
@@ -73,15 +86,27 @@ export function WeightStepsOverlayChart({
           },
           {
             type: "line",
-            label: "Weight kg",
+            label: "Daily weight kg",
             data: series.map((point) => point.weight_kg),
+            borderColor: "rgba(0, 229, 160, 0.45)",
+            backgroundColor: "rgba(0, 229, 160, 0.45)",
+            borderWidth: 1,
+            pointBackgroundColor: "#00e5a0",
+            pointRadius: 4,
+            showLine: false,
+            spanGaps: true,
+            yAxisID: "weight",
+          },
+          {
+            type: "line",
+            label: "7-day weight average kg",
+            data: series.map((point) => point.weight_7d_average_kg),
             borderColor: "#00e5a0",
             backgroundColor: "rgba(0, 229, 160, 0.14)",
             borderWidth: 3,
-            pointBackgroundColor: "#00e5a0",
-            pointRadius: 4,
+            pointRadius: 0,
             tension: 0.3,
-            spanGaps: true,
+            spanGaps: false,
             yAxisID: "weight",
           },
         ],
@@ -100,6 +125,7 @@ export function WeightStepsOverlayChart({
             ticks: { color: "#8597b0", maxTicksLimit: 10 },
           },
           weight: {
+            ...weightAxisBounds,
             position: "left",
             border: { color: "rgba(0, 229, 160, 0.45)" },
             grid: { color: "rgba(133, 151, 176, 0.12)" },
@@ -124,7 +150,7 @@ export function WeightStepsOverlayChart({
 
   return (
     <div
-      aria-label="Daily latest body weight and daily total steps chart"
+      aria-label="Daily body weight, seven-day weight average, and daily total steps chart"
       className="weight-steps-chart"
       role="img"
     >

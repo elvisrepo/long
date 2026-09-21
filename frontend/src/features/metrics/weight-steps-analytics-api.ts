@@ -5,6 +5,7 @@ export type WeightStepsRange = 7 | 30 | 90;
 export interface WeightStepsPoint {
   date: string;
   weight_kg: number | null;
+  weight_7d_average_kg: number | null;
   steps: number | null;
 }
 

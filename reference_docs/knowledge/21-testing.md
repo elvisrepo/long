@@ -470,7 +470,9 @@ Current backend metrics testing checkpoint:
   implemented. `test_weight_steps_analytics.py` now covers the implemented
   Pro analytics query: daily latest weight, daily summed steps, Free denial,
   authentication, supported ranges, user isolation, empty-period output, and
-  exclusion of same-slug custom metrics.
+  exclusion of same-slug custom metrics. It also proves the response contains
+  every selected UTC calendar date and computes the seven-day rolling Weight
+  average from available daily-latest observations.
 
 Current Stripe testing boundary:
 - Standard unit, service, and backend API tests must mock the Stripe network boundary and use fake test-setting credentials.
@@ -564,7 +566,9 @@ Current frontend metrics testing checkpoint:
 - metric detail route tests cover protected-route behavior, dynamic slug route rendering, metric-definition lookup, styled summary rendering, chart-backed trend overview rendering, metric-entry history rendering, inline entry update/delete orchestration, local edit validation for empty/non-numeric values, preserving the edit form on failed update, visible update failure errors, empty-state rendering, bounded `useMetricEntriesQuery({ metric, limit: 50 })` calls, range-filtered `useMetricEntriesQuery({ metric, from, limit: 50 })` calls, and stable range filter query keys.
 - Weight × Steps frontend tests cover the authenticated API request and safe
   entitlement error, loaded comparison summaries, range changes, empty data,
-  loading announcements, Free denial, and the Pro-only Body Weight link.
+  loading announcements, Free denial, and the Pro-only Body Weight link. The
+  chart configuration test proves calendar gaps remain in the dataset and
+  Steps bars, raw Weight points, and the rolling Weight line stay separate.
 - Metric-entry hook tests mock the API helper but use a real `QueryClientProvider`, so they verify Query behavior without requiring a running Django backend.
 - Playwright E2E now submits a real metric entry through the browser against the isolated E2E backend/database, verifies the saved value appears in the dashboard flow, and exercises the metric filter dropdown.
 - Playwright E2E now also creates a custom metric through `/metrics`, verifies it appears in the catalog, verifies it appears on the dashboard, and logs a custom metric entry.

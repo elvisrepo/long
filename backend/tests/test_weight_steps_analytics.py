@@ -74,21 +74,24 @@ def test_pro_user_receives_daily_latest_weight_and_summed_steps() -> None:
     response = client.get("/api/v1/metrics/analytics/weight-steps/?days=7")
 
     assert response.status_code == 200
-    assert response.json() == {
-        "range_days": 7,
-        "series": [
-            {
-                "date": yesterday.date().isoformat(),
-                "weight_kg": 70.1,
-                "steps": 7300,
-            }
-        ],
-        "summary": {
-            "weight_start_kg": 70.1,
-            "weight_end_kg": 70.1,
-            "weight_change_kg": 0.0,
-            "average_daily_steps": 7300,
-        },
+    data = response.json()
+    assert data["range_days"] == 7
+    assert len(data["series"]) == 7
+    assert next(
+        point
+        for point in data["series"]
+        if point["date"] == yesterday.date().isoformat()
+    ) == {
+        "date": yesterday.date().isoformat(),
+        "weight_kg": 70.1,
+        "weight_7d_average_kg": 70.1,
+        "steps": 7300,
+    }
+    assert data["summary"] == {
+        "weight_start_kg": 70.1,
+        "weight_end_kg": 70.1,
+        "weight_change_kg": 0.0,
+        "average_daily_steps": 7300,
     }
 
 
@@ -145,7 +148,10 @@ def test_weight_steps_analytics_excludes_another_users_entries() -> None:
     response = client.get("/api/v1/metrics/analytics/weight-steps/?days=7")
 
     assert response.status_code == 200
-    assert response.json()["series"] == []
+    assert all(
+        point["weight_kg"] is None and point["steps"] is None
+        for point in response.json()["series"]
+    )
 
 
 def test_weight_steps_analytics_returns_null_summaries_when_period_is_empty() -> None:
@@ -154,15 +160,20 @@ def test_weight_steps_analytics_returns_null_summaries_when_period_is_empty() ->
     response = client.get("/api/v1/metrics/analytics/weight-steps/?days=90")
 
     assert response.status_code == 200
-    assert response.json() == {
-        "range_days": 90,
-        "series": [],
-        "summary": {
-            "weight_start_kg": None,
-            "weight_end_kg": None,
-            "weight_change_kg": None,
-            "average_daily_steps": None,
-        },
+    data = response.json()
+    assert data["range_days"] == 90
+    assert len(data["series"]) == 90
+    assert all(
+        point["weight_kg"] is None
+        and point["weight_7d_average_kg"] is None
+        and point["steps"] is None
+        for point in data["series"]
+    )
+    assert data["summary"] == {
+        "weight_start_kg": None,
+        "weight_end_kg": None,
+        "weight_change_kg": None,
+        "average_daily_steps": None,
     }
 
 
@@ -188,4 +199,42 @@ def test_weight_steps_analytics_ignores_user_metrics_with_default_slugs() -> Non
     response = client.get("/api/v1/metrics/analytics/weight-steps/?days=7")
 
     assert response.status_code == 200
-    assert response.json()["series"] == []
+    assert all(
+        point["weight_kg"] is None and point["steps"] is None
+        for point in response.json()["series"]
+    )
+
+
+def test_weight_steps_analytics_returns_calendar_days_and_rolling_weight_average() -> (
+    None
+):
+    client, user = authenticate_pro_user()
+    weight = MetricDefinition.objects.get(slug="body_weight", user=None)
+    today = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    for days_ago, value in enumerate(reversed(range(80, 87))):
+        MetricEntry.objects.create(
+            user=user,
+            metric_definition=weight,
+            value=value,
+            recorded_at=today - timedelta(days=days_ago) + timedelta(hours=7),
+        )
+
+    response = client.get("/api/v1/metrics/analytics/weight-steps/?days=7")
+
+    assert response.status_code == 200
+    series = response.json()["series"]
+    assert len(series) == 7
+    assert [point["date"] for point in series] == [
+        (today - timedelta(days=days_ago)).date().isoformat()
+        for days_ago in reversed(range(7))
+    ]
+    assert [point["weight_7d_average_kg"] for point in series] == [
+        80.0,
+        80.5,
+        81.0,
+        81.5,
+        82.0,
+        82.5,
+        83.0,
+    ]

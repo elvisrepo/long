@@ -47,6 +47,9 @@ function WeightStepsRoute() {
   if (!analytics) {
     return null;
   }
+  const hasComparisonData = analytics.series.some(
+    (point) => point.weight_kg !== null || point.steps !== null,
+  );
 
   return (
     <section className="weight-steps-screen">
@@ -94,7 +97,7 @@ function WeightStepsRoute() {
           </div>
         </div>
 
-        {analytics.series.length === 0 ? (
+        {!hasComparisonData ? (
           <div className="empty-state">
             <h3>No comparison data in this range</h3>
             <p>Sync or log Body Weight and Steps, then return here.</p>
@@ -119,6 +122,11 @@ function WeightStepsSummaryCards({
   const pairedDays = series.filter(
     (point) => point.weight_kg !== null && point.steps !== null,
   ).length;
+  const weightDays = series.filter((point) => point.weight_kg !== null).length;
+  const stepDays = series.filter((point) => point.steps !== null).length;
+  const latestRollingAverage = [...series]
+    .reverse()
+    .find((point) => point.weight_7d_average_kg !== null)?.weight_7d_average_kg;
 
   return (
     <div className="weight-steps-summary">
@@ -129,9 +137,12 @@ function WeightStepsSummaryCards({
             ? "—"
             : `${formatWeight(summary.weight_start_kg)} → ${formatWeight(summary.weight_end_kg)} kg`}
         </p>
+        <p className="weight-steps-note">
+          Latest 7-day average {formatOptionalWeight(latestRollingAverage)}
+        </p>
       </article>
       <article>
-        <p className="meta-label">Average steps</p>
+        <p className="meta-label">Average steps · {stepDays} tracked days</p>
         <p className="weight-steps-summary-value">
           {summary.average_daily_steps === null
             ? "—"
@@ -139,9 +150,9 @@ function WeightStepsSummaryCards({
         </p>
       </article>
       <article>
-        <p className="meta-label">Paired coverage</p>
+        <p className="meta-label">Data coverage</p>
         <p className="weight-steps-summary-value">
-          {pairedDays} {pairedDays === 1 ? "day" : "days"}
+          {pairedDays} paired · {weightDays} weight · {stepDays} steps
         </p>
         <p className="weight-steps-note">
           Trend overlap can show patterns, but it does not establish cause.
@@ -167,4 +178,10 @@ function WeightStepsLoading() {
 
 function formatWeight(value: number) {
   return value.toFixed(1);
+}
+
+function formatOptionalWeight(value: number | null | undefined) {
+  return value === null || value === undefined
+    ? "unavailable"
+    : `${formatWeight(value)} kg`;
 }

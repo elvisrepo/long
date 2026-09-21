@@ -62,8 +62,12 @@
   error. Synced entries remain read-only.
 - The local `/analytics/weight-steps` protected route now implements the Pro
   comparison prototype against a real server-side analytics contract. It
-  supports 7, 30, and 90-day ranges, a dual-axis weight-line/steps-bar chart,
-  factual summary cards, and accessible loading, empty, and error states.
+  supports 7, 30, and 90-day ranges. The dual-axis chart uses blue bars for
+  daily Steps, subdued points for observed daily Weight, and a primary green
+  line for the server-computed seven-day rolling Weight average. Complete
+  calendar rows preserve missing-day spacing, the Weight axis focuses on the
+  observed range, and summary cards distinguish paired, Weight, and Steps
+  coverage. Loading, empty, and error states remain accessible.
 - The Body Weight and Steps detail pages expose reciprocal comparison links
   only when the current plan reports `analytics_enabled=true`. Django
   independently enforces the same entitlement and returns `403` to Free
@@ -71,8 +75,9 @@
 - Dashboard **Pro Insights** is the primary discovery point for paid analytics
   and links entitled users to **Weight × Steps**. Body Weight and Steps retain
   contextual secondary links; Free users see none of these links.
-- Comparison wording avoids causal claims. Paired-day coverage describes the
-  available overlap; it does not claim that movement caused weight change.
+- Comparison wording avoids causal claims. Data coverage describes available
+  overlap and tracked days; it does not claim that movement caused weight
+  change.
 - The local Settings route now follows the `settings-subscriptions-v2` visual
   structure while preserving the current subscription, Checkout, and Customer
   Portal contracts. Current-plan and plan-catalog loading use accessible
