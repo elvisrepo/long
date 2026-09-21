@@ -63,6 +63,7 @@ def test_current_subscription_returns_authenticated_users_plan_and_entitlements(
             "sync_interval_minutes": 30,
             "analytics_enabled": False,
             "csv_import_enabled": False,
+            "csv_export_enabled": False,
         },
     }
 
@@ -98,6 +99,7 @@ def test_current_subscription_returns_billing_state_for_paid_subscription():
         sync_interval_minutes=15,
         analytics_enabled=True,
         csv_import_enabled=True,
+        csv_export_enabled=True,
     )
     price = SubscriptionPrice.objects.create(
         plan=pro_plan,
@@ -154,6 +156,7 @@ def test_current_subscription_returns_billing_state_for_paid_subscription():
             "sync_interval_minutes": 15,
             "analytics_enabled": True,
             "csv_import_enabled": True,
+            "csv_export_enabled": True,
         },
     }
 

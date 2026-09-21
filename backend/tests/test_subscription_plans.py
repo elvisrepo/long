@@ -17,6 +17,7 @@ def test_subscription_plan_catalog_returns_only_active_plans():
         sync_interval_minutes=15,
         analytics_enabled=True,
         csv_import_enabled=True,
+        csv_export_enabled=True,
         is_default=False,
         is_active=True,
     )
@@ -70,6 +71,7 @@ def test_subscription_plan_catalog_returns_only_active_plans():
             "sync_interval_minutes": 30,
             "analytics_enabled": False,
             "csv_import_enabled": False,
+            "csv_export_enabled": False,
             "is_default": True,
             "prices": [],
         },
@@ -82,6 +84,7 @@ def test_subscription_plan_catalog_returns_only_active_plans():
             "sync_interval_minutes": 15,
             "analytics_enabled": True,
             "csv_import_enabled": True,
+            "csv_export_enabled": True,
             "is_default": False,
             "prices": [
                 {

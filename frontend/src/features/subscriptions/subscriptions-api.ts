@@ -9,6 +9,7 @@ export interface SubscriptionPlan {
   sync_interval_minutes: number;
   analytics_enabled: boolean;
   csv_import_enabled: boolean;
+  csv_export_enabled: boolean;
 }
 
 export interface CurrentSubscription {

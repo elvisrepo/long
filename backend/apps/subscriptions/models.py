@@ -20,6 +20,7 @@ class SubscriptionPlan(models.Model):
     sync_interval_minutes = models.PositiveIntegerField()
     analytics_enabled = models.BooleanField(default=False)
     csv_import_enabled = models.BooleanField(default=False)
+    csv_export_enabled = models.BooleanField(default=False)
     is_default = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

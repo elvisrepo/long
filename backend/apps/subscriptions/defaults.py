@@ -9,6 +9,7 @@ FREE_SUBSCRIPTION_PLAN = {
     "sync_interval_minutes": 30,
     "analytics_enabled": False,
     "csv_import_enabled": False,
+    "csv_export_enabled": False,
     "is_default": True,
     "is_active": True,
 }

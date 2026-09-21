@@ -36,6 +36,7 @@ describe("getCurrentSubscription", () => {
           sync_interval_minutes: 30,
           analytics_enabled: false,
           csv_import_enabled: false,
+          csv_export_enabled: false,
         },
       }),
     } as Response);
@@ -83,6 +84,7 @@ describe("getSubscriptionPlans", () => {
           sync_interval_minutes: 15,
           analytics_enabled: true,
           csv_import_enabled: true,
+          csv_export_enabled: true,
           is_default: false,
           prices: [
             {

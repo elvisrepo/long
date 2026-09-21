@@ -79,6 +79,7 @@ def test_default_free_plan_is_seeded():
     assert plan.sync_interval_minutes == 30
     assert plan.analytics_enabled is False
     assert plan.csv_import_enabled is False
+    assert plan.csv_export_enabled is False
     assert plan.is_default is True
     assert plan.is_active is True
 

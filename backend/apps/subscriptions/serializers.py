@@ -24,6 +24,7 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
             "sync_interval_minutes",
             "analytics_enabled",
             "csv_import_enabled",
+            "csv_export_enabled",
         ]
 
 

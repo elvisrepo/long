@@ -66,6 +66,9 @@ Current metric-usage access-control boundary:
 Current metric-entry export boundary:
 - `GET /api/v1/metrics/entries/export/` requires JWT authentication, accepts no
   user identifier, and always scopes the streamed queryset to `request.user`.
+- The endpoint loads the current server-owned subscription plan and requires
+  `csv_export_enabled=true`; Free requests receive `403`. Frontend visibility
+  is presentation only and is not the authorization boundary.
 - Metric and date filters narrow that owned queryset. Malformed date-time
   filters return a controlled `400` response.
 - The export omits wearable connection IDs and provider-owned external record

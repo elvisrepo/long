@@ -25,6 +25,8 @@ const DASHBOARD_CARD_ENTRY_LIMIT = 50;
 
 function DashboardRoute() {
   const [selectedMetricSlug, setSelectedMetricSlug] = useState("");
+  const [exportFromDate, setExportFromDate] = useState("");
+  const [exportToDate, setExportToDate] = useState("");
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const {
@@ -63,6 +65,8 @@ function DashboardRoute() {
 
   const analyticsEnabled =
     currentSubscriptionQuery.data?.plan.analytics_enabled === true;
+  const csvExportEnabled =
+    currentSubscriptionQuery.data?.plan.csv_export_enabled === true;
   const latestInsightEntry = [...latestEntriesByMetric.values()].sort(
     (left, right) =>
       new Date(right.recorded_at).getTime() -
@@ -70,13 +74,24 @@ function DashboardRoute() {
   )[0];
 
   async function handleCsvExport() {
+    if (exportFromDate && exportToDate && exportFromDate > exportToDate) {
+      setExportError("From date must be on or before To date.");
+      return;
+    }
+
     setIsExporting(true);
     setExportError(null);
 
     try {
-      await downloadMetricEntriesCsv(
-        selectedMetricSlug ? { metric: selectedMetricSlug } : {},
-      );
+      await downloadMetricEntriesCsv({
+        ...(selectedMetricSlug ? { metric: selectedMetricSlug } : {}),
+        ...(exportFromDate
+          ? { from: getLocalDayBoundary(exportFromDate, "start") }
+          : {}),
+        ...(exportToDate
+          ? { to: getLocalDayBoundary(exportToDate, "end") }
+          : {}),
+      });
     } catch {
       setExportError("CSV export failed. Please try again.");
     } finally {
@@ -216,14 +231,46 @@ function DashboardRoute() {
                 ))}
               </select>
             </label>
-            <button
-              className="export-button"
-              disabled={isExporting}
-              onClick={handleCsvExport}
-              type="button"
-            >
-              {isExporting ? "Exporting…" : "Export CSV"}
-            </button>
+            {csvExportEnabled ? (
+              <>
+                <label className="export-date-filter">
+                  Export from
+                  <input
+                    max={exportToDate || undefined}
+                    onChange={(event) => {
+                      setExportFromDate(event.target.value);
+                      setExportError(null);
+                    }}
+                    type="date"
+                    value={exportFromDate}
+                  />
+                </label>
+                <label className="export-date-filter">
+                  Export to
+                  <input
+                    min={exportFromDate || undefined}
+                    onChange={(event) => {
+                      setExportToDate(event.target.value);
+                      setExportError(null);
+                    }}
+                    type="date"
+                    value={exportToDate}
+                  />
+                </label>
+                <button
+                  className="export-button"
+                  disabled={isExporting}
+                  onClick={handleCsvExport}
+                  type="button"
+                >
+                  {isExporting ? "Exporting…" : "Export CSV"}
+                </button>
+              </>
+            ) : (
+              <button className="export-button" disabled type="button">
+                CSV export · Pro
+              </button>
+            )}
           </div>
         </div>
 
@@ -304,6 +351,11 @@ function formatDashboardDate() {
     month: "short",
     day: "numeric",
   }).format(new Date());
+}
+
+function getLocalDayBoundary(date: string, boundary: "start" | "end") {
+  const time = boundary === "start" ? "00:00:00.000" : "23:59:59.999";
+  return new Date(`${date}T${time}`).toISOString();
 }
 
 function getMetricTrendValues(entries: MetricEntry[], metricSlug: string) {

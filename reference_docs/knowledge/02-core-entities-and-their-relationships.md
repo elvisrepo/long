@@ -18,7 +18,7 @@ We derived entities from the functional requirements by asking: *"What data must
 | **MetricEntry** | Core requirement #1 — the actual data points users log. This is where 99% of storage and query load lives. | TimescaleDB hypertable partitioned by `recorded_at` for efficient time-range queries. Denormalized `user_id` for fast row-level filtering. |
 | **WearableConnection** | Core requirement #3 — represents a linked device-bridge connection and its state. | The MVP stores the authenticated user, `provider=health_connect`, status, active lifecycle state, last sync/error state, and timestamps. Disconnect marks the row inactive so its stable identity and future sync history remain available. Samsung Health is sample provenance, not a direct backend connection provider. We do not store raw Samsung Health or Health Connect tokens. |
 | **SyncRun** | Wearable uploads need a durable receipt for retries, processing state, counters, and troubleshooting. | A client-generated `upload_id` is unique per `WearableConnection`, providing batch-level idempotency without making Redis the source of truth. |
-| **SubscriptionPlan** | Product tiers need durable, backend-owned entitlement values such as custom metric limits, wearable limits, and sync cadence. | Shared plan rows are separate from individual users. Migration `subscriptions.0003` seeds the canonical active default `free` plan. |
+| **SubscriptionPlan** | Product tiers need durable, backend-owned entitlement values such as custom metric limits, wearable limits, sync cadence, analytics, CSV import, and CSV export. | Shared plan rows are separate from individual users. Migration `subscriptions.0003` seeds the canonical active default `free` plan; migration `subscriptions.0015` adds `csv_export_enabled`, leaves Free disabled, and enables the existing Pro plan. |
 | **SubscriptionPrice** | A paid plan can be offered through multiple billing options, such as monthly and yearly prices. | Stores backend-owned provider price IDs, currency, minor-unit amount, billing interval, and active availability separately from plan entitlements. |
 | **Subscription** | A user may move between free and paid tiers while retaining subscription history and provider lifecycle state. | Connects a user to one plan and optionally the exact selected price. Free subscriptions have no price; paid subscriptions select a price belonging to their plan. |
 | **AuditLog** | GDPR compliance requires knowing who changed what and when. Also useful for debugging and security forensics. | Append-only. Stores diffs (`jsonb changes`), not full snapshots. |
@@ -59,6 +59,9 @@ We derived entities from the functional requirements by asking: *"What data must
 - Applying migrations creates one shared `SubscriptionPlan(code="free")` row.
 - Registration atomically creates the user and one active `Subscription` linked to the shared free plan.
 - Users are expected to have exactly one current subscription; missing current subscription data is treated as an integrity problem rather than silently falling back.
+- The canonical Free plan has `csv_export_enabled=false`; Pro has
+  `csv_export_enabled=true`. The export endpoint checks this plan field on every
+  request rather than trusting frontend visibility or a submitted plan code.
 - `backfill_free_subscriptions` is a local/staging repair command for users created before the subscription invariant existed; it creates active Free subscriptions for users without any current subscription.
 - Trialing, active, past-due, and incomplete subscriptions count as current. Cancelled subscriptions remain historical.
 - Metric usage and create/reactivate enforcement resolve limits from the current subscription's plan.

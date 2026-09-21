@@ -139,14 +139,17 @@ Current health-contract checkpoint:
 Current frontend testing checkpoint:
 - Focused CSV export coverage proves the authenticated browser request,
   metric/from/to query serialization, object-URL download, and URL cleanup.
-  Dashboard route coverage proves that the selected metric reaches the export
-  helper and that backend failures render a generic retry message without
-  leaking private error detail.
+  Dashboard route coverage proves that metric and local-calendar date filters
+  reach the export helper as UTC boundaries, inverted ranges are rejected,
+  Free sees a locked control, Pro can export, and backend failures render a
+  generic retry message without leaking private error detail.
 - Backend export integration coverage proves authentication, per-user
   isolation, stable headers and columns, Sleep interval/context preservation,
   cumulative metric/date filtering, malformed-date rejection, and spreadsheet
-  formula escaping. The export tests run against PostgreSQL in the Compose web
-  container because the test settings use the Compose-only `db` hostname.
+  formula escaping. They also prove the server-owned `csv_export_enabled`
+  entitlement returns `403` for Free and permits Pro. The export tests run
+  against PostgreSQL in the Compose web container because the test settings use
+  the Compose-only `db` hostname.
 - the frontend now has a basic Vitest test harness
 - the current setup uses:
   - `Vitest`

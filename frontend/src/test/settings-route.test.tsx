@@ -64,6 +64,7 @@ function freeSubscription(): CurrentSubscription {
       sync_interval_minutes: 30,
       analytics_enabled: false,
       csv_import_enabled: false,
+      csv_export_enabled: false,
     },
   };
 }
@@ -91,6 +92,7 @@ function proSubscription(): CurrentSubscription {
       sync_interval_minutes: 15,
       analytics_enabled: true,
       csv_import_enabled: true,
+      csv_export_enabled: true,
     },
   };
 }
@@ -259,6 +261,7 @@ describe("settings route", () => {
         sync_interval_minutes: 30,
         analytics_enabled: false,
         csv_import_enabled: false,
+        csv_export_enabled: false,
         is_default: true,
         prices: [],
       },
@@ -271,6 +274,7 @@ describe("settings route", () => {
         sync_interval_minutes: 15,
         analytics_enabled: true,
         csv_import_enabled: true,
+        csv_export_enabled: true,
         is_default: false,
         prices: [
           {
@@ -319,6 +323,9 @@ describe("settings route", () => {
     expect(
       within(availablePlans).getByText(/^csv import included$/i),
     ).toBeInTheDocument();
+    expect(
+      within(availablePlans).getByText(/^csv export included$/i),
+    ).toBeInTheDocument();
   });
 
   it("hides checkout upgrades for Stripe-managed subscriptions", async () => {
@@ -336,6 +343,7 @@ describe("settings route", () => {
         sync_interval_minutes: 15,
         analytics_enabled: true,
         csv_import_enabled: true,
+        csv_export_enabled: true,
         is_default: false,
         prices: [
           {
@@ -386,6 +394,7 @@ describe("settings route", () => {
         sync_interval_minutes: 15,
         analytics_enabled: true,
         csv_import_enabled: true,
+        csv_export_enabled: true,
         is_default: false,
         prices: [
           {

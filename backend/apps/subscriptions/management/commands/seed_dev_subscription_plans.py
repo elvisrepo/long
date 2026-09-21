@@ -19,6 +19,7 @@ class Command(BaseCommand):
                 "sync_interval_minutes": 15,
                 "analytics_enabled": True,
                 "csv_import_enabled": True,
+                "csv_export_enabled": True,
                 "is_default": False,
                 "is_active": True,
             },

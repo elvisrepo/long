@@ -124,6 +124,7 @@ function mockAnalyticsEntitlement(analyticsEnabled: boolean) {
         sync_interval_minutes: analyticsEnabled ? 15 : 30,
         analytics_enabled: analyticsEnabled,
         csv_import_enabled: analyticsEnabled,
+        csv_export_enabled: analyticsEnabled,
       },
     },
     isLoading: false,

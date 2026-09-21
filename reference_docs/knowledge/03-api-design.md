@@ -71,6 +71,7 @@ Refresh concurrency behavior:
 | POST | `/api/v1/metrics/entries/` | Log a metric entry | Implemented for manual entries; accepts `metric_definition` as a slug such as `resting_hr`; not idempotent — repeated calls create duplicate entries |
 | PATCH | `/api/v1/metrics/entries/{id}/` | Update a metric entry | Implemented for authenticated user's own manual entries; synced/imported entries are immutable and return `409`; value range validation still applies |
 | DELETE | `/api/v1/metrics/entries/{id}/` | Delete a metric entry | Implemented for authenticated user's own manual entries; returns `204` on success; synced/imported entries return `409` |
+| GET | `/api/v1/metrics/entries/export/` | Export metric entries as CSV | Implemented locally for authenticated users whose current plan has `csv_export_enabled=true`; optional `metric`, `from`, and `to` filters narrow caller-owned rows; Free receives `403` |
 | GET | `/api/v1/metrics/preferences/sleep/` | Read saved Sleep target | Implemented for authenticated users; returns the caller's account-level `target_minutes`, defaulting to `450` |
 | PATCH | `/api/v1/metrics/preferences/sleep/` | Save Sleep target | Implemented for authenticated users; accepts `target_minutes` as a whole number from `60` through `1439` and updates only the caller's account |
 | GET | `/api/v1/metrics/analytics/weight-steps/?days=30` | Body Weight and Steps comparison | Implemented locally for authenticated users whose current plan has `analytics_enabled=true`; `days` defaults to `30` and accepts only `7`, `30`, or `90`; returns complete UTC calendar-day rows with daily latest weight, seven-day rolling weight average, and daily summed steps for the authenticated user |
@@ -125,9 +126,10 @@ Current metric-entry CSV export behavior:
   so the server does not assemble the complete history in memory.
 - User-controlled metric names and units that could be interpreted as
   spreadsheet formulas are prefixed with an apostrophe in the CSV.
-- Export is available to every authenticated plan. `csv_import_enabled` remains
-  a separate import entitlement and does not control access to a user's own
-  exported data.
+- The server enforces the current plan's `csv_export_enabled` entitlement.
+  The canonical Free plan disables it and Pro enables it; unauthorized plan
+  access returns `403` with a safe detail message. `csv_import_enabled` remains
+  a separate entitlement.
 
 Current Weight × Steps analytics behavior:
 - The server enforces the current subscription's `analytics_enabled`

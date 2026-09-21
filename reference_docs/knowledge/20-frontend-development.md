@@ -117,15 +117,19 @@
   scheduled cancellation explicit, and surfaces wearable connection,
   analytics, and CSV-import entitlements from the existing plan contract.
   Loading and mutation failures render as accessible inline alerts.
-- The dashboard's Recent Entries toolbar now exposes **Export CSV** to every
-  authenticated user. With **All metrics** selected it downloads the complete
-  metric-entry history; selecting a metric applies that slug to the export as
-  well as the bounded on-screen recent list. The browser sends the in-memory
-  bearer token, downloads the streamed blob as `longevity-metrics.csv`, disables
-  the button while pending, and displays a safe inline retry message on failure.
-  Date filters are supported by the backend contract but do not yet have
-  dashboard controls. Web Sync Now remains reference-only. Logout remains in
-  the shared authenticated shell instead of being duplicated on Settings.
+- The dashboard's Recent Entries toolbar exposes **Export CSV** when the
+  current plan reports `csv_export_enabled=true`. Free users see a disabled
+  **CSV export · Pro** control; Django independently returns `403` for an
+  unentitled request. With **All metrics** selected, Pro downloads the complete
+  metric-entry history; selecting a metric applies that slug to the export and
+  the bounded on-screen list.
+- Pro users can optionally choose local-calendar **Export from** and **Export
+  to** dates. The browser converts the start and end of those local days to UTC
+  instants before sending the existing `from` and `to` API parameters. It
+  rejects an inverted range before requesting the server. The download uses
+  the in-memory bearer token, saves `longevity-metrics.csv`, disables the button
+  while pending, and shows a safe inline retry message on failure. Web Sync Now
+  remains reference-only. Logout remains in the shared authenticated shell.
 - `frontend/longevity-redesign-v21` is design reference material and is
   excluded from ESLint and Prettier checks; its handoff files are not compiled
   into the application.

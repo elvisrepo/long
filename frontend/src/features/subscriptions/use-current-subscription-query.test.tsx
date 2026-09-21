@@ -45,6 +45,7 @@ describe("useCurrentSubscriptionQuery", () => {
         sync_interval_minutes: 30,
         analytics_enabled: false,
         csv_import_enabled: false,
+        csv_export_enabled: false,
       },
     });
 

@@ -315,6 +315,11 @@ function PlanCapabilityList({ plan }: { plan: SubscriptionPlan }) {
           ? "CSV import included"
           : "CSV import not included"}
       </li>
+      <li>
+        {plan.csv_export_enabled
+          ? "CSV export included"
+          : "CSV export not included"}
+      </li>
     </ul>
   );
 }

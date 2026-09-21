@@ -177,6 +177,10 @@ class MetricEntryCsvExportView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Request) -> StreamingHttpResponse:
+        plan = get_current_subscription_plan(request.user)
+        if plan.csv_export_enabled is False:
+            raise PermissionDenied("Pro CSV export is required.")
+
         entries = (
             MetricEntry.objects.filter(user=request.user)
             .select_related("metric_definition")

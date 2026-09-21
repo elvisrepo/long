@@ -8,16 +8,36 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.metrics.models import MetricDefinition, MetricEntry
+from apps.subscriptions.models import Subscription, SubscriptionPlan
 
 
 pytestmark = pytest.mark.django_db
 
 
-def authenticate_client_for(email: str) -> tuple[APIClient, object]:
+def authenticate_client_for(
+    email: str,
+    *,
+    csv_export_enabled: bool = True,
+) -> tuple[APIClient, object]:
     client = APIClient()
     user = get_user_model().objects.create_user(
         email=email,
         password="strong-password-123",
+    )
+    plan = SubscriptionPlan.objects.get(code="free")
+    if csv_export_enabled:
+        plan = SubscriptionPlan.objects.create(
+            code=f"export-{user.pk}",
+            name="Export",
+            active_custom_metric_limit=10,
+            wearable_connection_limit=1,
+            sync_interval_minutes=15,
+            csv_export_enabled=True,
+        )
+    Subscription.objects.create(
+        user=user,
+        plan=plan,
+        status=Subscription.Status.ACTIVE,
     )
     refresh = RefreshToken.for_user(user)
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")
@@ -27,6 +47,18 @@ def authenticate_client_for(email: str) -> tuple[APIClient, object]:
 def read_csv_response(response: object) -> list[dict[str, str]]:
     content = b"".join(response.streaming_content).decode("utf-8")
     return list(csv.DictReader(io.StringIO(content)))
+
+
+def test_free_user_cannot_export_metric_entries():
+    client, _user = authenticate_client_for(
+        "free@example.com",
+        csv_export_enabled=False,
+    )
+
+    response = client.get("/api/v1/metrics/entries/export/")
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Pro CSV export is required."}
 
 
 def test_csv_export_requires_authentication():

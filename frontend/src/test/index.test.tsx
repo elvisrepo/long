@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -66,6 +66,7 @@ function mockFreeSubscription() {
         sync_interval_minutes: 30,
         analytics_enabled: false,
         csv_import_enabled: false,
+        csv_export_enabled: false,
       },
     },
     isPending: false,
@@ -97,6 +98,7 @@ function mockProSubscription() {
         sync_interval_minutes: 15,
         analytics_enabled: true,
         csv_import_enabled: true,
+        csv_export_enabled: true,
       },
     },
     isPending: false,
@@ -677,6 +679,7 @@ describe("dashboard route", () => {
 
   it("exports all entries for the selected metric", async () => {
     const user = userEvent.setup();
+    mockProSubscription();
     vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
     vi.mocked(downloadMetricEntriesCsv).mockResolvedValue();
     mockLoadedMetricDefinitionsWithManyMetrics();
@@ -687,15 +690,58 @@ describe("dashboard route", () => {
       await screen.findByLabelText(/filter recent entries by metric/i),
       "body_weight",
     );
+    fireEvent.change(screen.getByLabelText(/export from/i), {
+      target: { value: "2026-09-19" },
+    });
+    fireEvent.change(screen.getByLabelText(/export to/i), {
+      target: { value: "2026-09-21" },
+    });
     await user.click(screen.getByRole("button", { name: /export csv/i }));
 
     expect(downloadMetricEntriesCsv).toHaveBeenCalledWith({
       metric: "body_weight",
+      from: new Date("2026-09-19T00:00:00.000").toISOString(),
+      to: new Date("2026-09-21T23:59:59.999").toISOString(),
     });
+  });
+
+  it("shows CSV export as a locked Pro feature for Free users", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    mockLoadedMetricDefinitions();
+
+    renderRoute("/");
+
+    expect(
+      await screen.findByRole("button", { name: /csv export · pro/i }),
+    ).toBeDisabled();
+    expect(screen.queryByLabelText(/export from/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/export to/i)).not.toBeInTheDocument();
+  });
+
+  it("rejects an export whose From date is after its To date", async () => {
+    const user = userEvent.setup();
+    mockProSubscription();
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    mockLoadedMetricDefinitions();
+    renderRoute("/");
+
+    fireEvent.change(await screen.findByLabelText(/export from/i), {
+      target: { value: "2026-09-21" },
+    });
+    fireEvent.change(screen.getByLabelText(/export to/i), {
+      target: { value: "2026-09-19" },
+    });
+    await user.click(screen.getByRole("button", { name: /export csv/i }));
+
+    expect(downloadMetricEntriesCsv).not.toHaveBeenCalled();
+    expect(
+      screen.getByText(/from date must be on or before to date/i),
+    ).toBeInTheDocument();
   });
 
   it("shows a safe message when CSV export fails", async () => {
     const user = userEvent.setup();
+    mockProSubscription();
     vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
     vi.mocked(downloadMetricEntriesCsv).mockRejectedValue(
       new Error("private backend detail"),

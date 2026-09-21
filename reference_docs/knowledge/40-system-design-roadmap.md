@@ -392,10 +392,10 @@ Consistency & Coverage, and authenticated metric-entry CSV export are now
 implemented locally. Consistency uses a
 dedicated Pro-gated backend aggregation rather than the dashboard's bounded
 entry list, and reports factual presence without applying one stale threshold
-to metrics with different expected tracking schedules. CSV export is available
-to every authenticated user, streams only caller-owned rows, supports metric
-and date filters, and preserves Sleep interval bounds. It awaits local browser
-acceptance before the next slice begins.
+to metrics with different expected tracking schedules. CSV export is a
+server-enforced Pro entitlement, streams only caller-owned rows, supports
+metric and local-calendar date controls, and preserves Sleep interval bounds.
+It awaits local browser acceptance before the next slice begins.
 
 The public staging frontend, API, database, Stripe test webhook, and monitored
 backup/restore jobs are deployed. The operator reports successful automatic
