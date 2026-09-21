@@ -27,6 +27,34 @@ class WeightStepsAnalytics(TypedDict):
     summary: WeightStepsSummary
 
 
+class SleepInsightsPoint(TypedDict):
+    date: str
+    duration_minutes: int | None
+    period_start: str | None
+    recorded_at: str | None
+    shortfall_minutes: int | None
+
+
+class SleepInsightsWorstNight(TypedDict):
+    date: str
+    duration_minutes: int
+
+
+class SleepInsightsSummary(TypedDict):
+    tracked_nights: int
+    nights_under_target: int
+    total_shortfall_minutes: int
+    average_duration_minutes: int | None
+    worst_night: SleepInsightsWorstNight | None
+
+
+class SleepInsightsAnalytics(TypedDict):
+    range_days: int
+    target_minutes: int
+    series: list[SleepInsightsPoint]
+    summary: SleepInsightsSummary
+
+
 def get_weight_steps_analytics(
     *,
     user: AbstractBaseUser,
@@ -106,3 +134,108 @@ def get_weight_steps_analytics(
             ),
         },
     }
+
+
+def get_sleep_insights(
+    *,
+    user: AbstractBaseUser,
+    target_minutes: int,
+) -> SleepInsightsAnalytics:
+    range_days = 7
+    now = timezone.now()
+    today_start = datetime.combine(now.date(), datetime.min.time(), tzinfo=UTC)
+    period_start = today_start - timedelta(days=range_days - 1)
+    entries = (
+        MetricEntry.objects.filter(
+            user=user,
+            metric_definition__slug="sleep_duration",
+            metric_definition__user__isnull=True,
+            metric_definition__is_default=True,
+            recorded_at__gte=period_start,
+            recorded_at__lte=now,
+        )
+        .select_related("metric_definition")
+        .order_by("recorded_at", "id")
+    )
+
+    daily_entries: dict[date, MetricEntry] = {}
+    for entry in entries:
+        daily_entries[entry.recorded_at.astimezone(UTC).date()] = entry
+
+    series: list[SleepInsightsPoint] = []
+    for day_offset in range(range_days):
+        entry_date = period_start.date() + timedelta(days=day_offset)
+        entry = daily_entries.get(entry_date)
+        if entry is None:
+            series.append(
+                {
+                    "date": entry_date.isoformat(),
+                    "duration_minutes": None,
+                    "period_start": None,
+                    "recorded_at": None,
+                    "shortfall_minutes": None,
+                }
+            )
+            continue
+
+        duration_minutes = round(entry.value * 60)
+        series.append(
+            {
+                "date": entry_date.isoformat(),
+                "duration_minutes": duration_minutes,
+                "period_start": (
+                    _format_utc_timestamp(entry.period_start)
+                    if entry.period_start is not None
+                    else None
+                ),
+                "recorded_at": _format_utc_timestamp(entry.recorded_at),
+                "shortfall_minutes": max(target_minutes - duration_minutes, 0),
+            }
+        )
+
+    tracked_points = [
+        point for point in series if point["duration_minutes"] is not None
+    ]
+    durations = [
+        point["duration_minutes"]
+        for point in tracked_points
+        if point["duration_minutes"] is not None
+    ]
+    worst_point = (
+        min(
+            tracked_points,
+            key=lambda point: point["duration_minutes"] or 0,
+        )
+        if tracked_points
+        else None
+    )
+
+    return {
+        "range_days": range_days,
+        "target_minutes": target_minutes,
+        "series": series,
+        "summary": {
+            "tracked_nights": len(tracked_points),
+            "nights_under_target": sum(
+                duration < target_minutes for duration in durations
+            ),
+            "total_shortfall_minutes": sum(
+                max(target_minutes - duration, 0) for duration in durations
+            ),
+            "average_duration_minutes": (
+                round(sum(durations) / len(durations)) if durations else None
+            ),
+            "worst_night": (
+                {
+                    "date": worst_point["date"],
+                    "duration_minutes": worst_point["duration_minutes"] or 0,
+                }
+                if worst_point is not None
+                else None
+            ),
+        },
+    }
+
+
+def _format_utc_timestamp(value: datetime) -> str:
+    return value.astimezone(UTC).isoformat().replace("+00:00", "Z")

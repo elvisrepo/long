@@ -128,12 +128,17 @@ function DashboardRoute() {
               {analyticsEnabled ? "Unlocked" : "Pro"}
             </div>
             {analyticsEnabled ? (
-              <Link
-                className="insights-action-link"
-                to="/analytics/weight-steps"
-              >
-                Weight × Steps →
-              </Link>
+              <>
+                <Link
+                  className="insights-action-link"
+                  to="/analytics/weight-steps"
+                >
+                  Weight × Steps →
+                </Link>
+                <Link className="insights-action-link" to="/analytics/sleep">
+                  Sleep Insights →
+                </Link>
+              </>
             ) : null}
           </div>
         </div>

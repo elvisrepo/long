@@ -473,6 +473,10 @@ Current backend metrics testing checkpoint:
   exclusion of same-slug custom metrics. It also proves the response contains
   every selected UTC calendar date and computes the seven-day rolling Weight
   average from available daily-latest observations.
+- `test_sleep_insights_analytics.py` covers complete seven-day UTC output,
+  daily-latest Sleep selection, null missing nights, the 7h30m default and
+  bounded target override, shortfall and factual summaries, authentication,
+  Pro authorization, user isolation, and same-slug custom metric exclusion.
 
 Current Stripe testing boundary:
 - Standard unit, service, and backend API tests must mock the Stripe network boundary and use fake test-setting credentials.
@@ -569,6 +573,10 @@ Current frontend metrics testing checkpoint:
   loading announcements, Free denial, and the Pro-only Body Weight link. The
   chart configuration test proves calendar gaps remain in the dataset and
   Steps bars, raw Weight points, and the rolling Weight line stay separate.
+- Sleep Insights frontend tests cover its authenticated API request and safe
+  entitlement error, protected-route loading/error/empty/loaded states,
+  recalculation after an editable target change, factual summary rendering,
+  and Pro-only discovery from both Dashboard and Sleep Duration detail.
 - Metric-entry hook tests mock the API helper but use a real `QueryClientProvider`, so they verify Query behavior without requiring a running Django backend.
 - Playwright E2E now submits a real metric entry through the browser against the isolated E2E backend/database, verifies the saved value appears in the dashboard flow, and exercises the metric filter dropdown.
 - Playwright E2E now also creates a custom metric through `/metrics`, verifies it appears in the catalog, verifies it appears on the dashboard, and logs a custom metric entry.

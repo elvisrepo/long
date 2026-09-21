@@ -72,6 +72,7 @@ Refresh concurrency behavior:
 | PATCH | `/api/v1/metrics/entries/{id}/` | Update a metric entry | Implemented for authenticated user's own manual entries; synced/imported entries are immutable and return `409`; value range validation still applies |
 | DELETE | `/api/v1/metrics/entries/{id}/` | Delete a metric entry | Implemented for authenticated user's own manual entries; returns `204` on success; synced/imported entries return `409` |
 | GET | `/api/v1/metrics/analytics/weight-steps/?days=30` | Body Weight and Steps comparison | Implemented locally for authenticated users whose current plan has `analytics_enabled=true`; `days` defaults to `30` and accepts only `7`, `30`, or `90`; returns complete UTC calendar-day rows with daily latest weight, seven-day rolling weight average, and daily summed steps for the authenticated user |
+| GET | `/api/v1/metrics/analytics/sleep/?target_minutes=450` | Seven-night Sleep insights | Implemented locally for authenticated users whose current plan has `analytics_enabled=true`; returns seven complete UTC wake-date rows, daily-latest Sleep intervals, coverage, factual aggregates, and an estimated shortfall against a target from `60` through `1439` whole minutes |
 | POST | `/api/v1/metrics/entries/bulk/` | Bulk import | |
 | GET | `/api/v1/metrics/analytics/{slug}/?range=30d` | Analytics for one metric | `slug` is required (path param), `range` is optional (query param, default 30d) |
 
@@ -124,6 +125,26 @@ Current Weight × Steps analytics behavior:
 - `summary` returns the first and last observed weight, their change, and the
   average across days that contain Steps data. Empty periods return the full
   calendar series with null metric fields and null summary values.
+
+Current Sleep insights behavior:
+- The server enforces the same `analytics_enabled` entitlement and scopes every
+  query to the authenticated user plus the system-owned default
+  `sleep_duration` definition. Free requests return `403`; same-slug custom
+  metrics and another user's records are excluded.
+- The fixed analysis window is the current UTC wake date plus the preceding six
+  UTC dates. Every date is returned. Missing nights contain null duration and
+  interval fields and never count as zero sleep.
+- If multiple Sleep records end on one UTC date, the latest `recorded_at` record
+  represents that date. The response preserves its UTC `period_start` and
+  `recorded_at` timestamps so the browser can display timing in local time.
+- `target_minutes` defaults to `450` (7h30m) and accepts whole minutes from `60`
+  through `1439`. The target is request-scoped and is not yet saved as a user
+  preference.
+- `shortfall_minutes` is `max(target - duration, 0)` for each tracked night.
+  `total_shortfall_minutes` sums those values; longer nights do not offset
+  shorter nights. This is labeled an estimate rather than a clinical measure.
+- The summary also returns tracked nights, nights under target, average tracked
+  duration, and the shortest tracked night.
 
 **Example: Creating a custom metric definition**
 ```json

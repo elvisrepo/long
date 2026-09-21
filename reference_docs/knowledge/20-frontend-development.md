@@ -73,11 +73,21 @@
   independently enforces the same entitlement and returns `403` to Free
   requests.
 - Dashboard **Pro Insights** is the primary discovery point for paid analytics
-  and links entitled users to **Weight × Steps**. Body Weight and Steps retain
-  contextual secondary links; Free users see none of these links.
+  and links entitled users to **Weight × Steps** and **Sleep Insights**. Body
+  Weight, Steps, and Sleep Duration retain contextual secondary links; Free
+  users see none of these links.
 - Comparison wording avoids causal claims. Data coverage describes available
   overlap and tracked days; it does not claim that movement caused weight
   change.
+- The local `/analytics/sleep` protected route summarizes the latest record for
+  each of seven UTC wake dates. It shows nightly duration bars, average sleep,
+  shortest tracked night, nights below target, data coverage, and average
+  bedtime/wake time calculated in the browser's local timezone. Users can
+  change the request-scoped nightly target from the 7h30m default.
+- Sleep shortfall is labeled as an estimate. It adds only the tracked nights'
+  positive `target - duration` differences, does not count missing nights as
+  zero, and does not claim that longer nights physiologically repay shorter
+  nights. The target is not persisted yet.
 - The local Settings route now follows the `settings-subscriptions-v2` visual
   structure while preserving the current subscription, Checkout, and Customer
   Portal contracts. Current-plan and plan-catalog loading use accessible

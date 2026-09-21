@@ -541,6 +541,35 @@ describe("metric detail route", () => {
     ).toHaveAttribute("href", "/analytics/weight-steps");
   });
 
+  it("links Pro users from Sleep Duration to Sleep Insights", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "pro@example.com" });
+    mockAnalyticsEntitlement(true);
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "sleep-id",
+          name: "Sleep Duration",
+          slug: "sleep_duration",
+          unit: "hours",
+          category: "recovery",
+          min_value: 0,
+          max_value: 24,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/sleep_duration");
+
+    expect(
+      await screen.findByRole("link", { name: /view sleep insights/i }),
+    ).toHaveAttribute("href", "/analytics/sleep");
+  });
+
   it("adds a numeric entry from a non-weight metric detail page", async () => {
     const user = userEvent.setup();
 

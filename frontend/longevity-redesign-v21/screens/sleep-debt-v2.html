@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>longevity — Sleep debt summary (Pro)</title>
+<title>longevity — Sleep insights (Pro)</title>
 <link rel="stylesheet" href="../tokens.css">
 <style>
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top left,rgba(0,229,160,.10),transparent 32rem),radial-gradient(circle at bottom right,rgba(59,130,246,.09),transparent 26rem),var(--bg);color:var(--text);font-family:var(--font-sans);min-height:100vh}
@@ -21,11 +21,11 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-off
 <body><div class="app-shell">
 <header class="app-header"><div class="app-header-inner"><a class="app-logo" href="dashboard-home-v2.html">⬡ longevity</a><nav class="app-nav" aria-label="Primary"><a href="dashboard-home-v2.html">Dashboard</a><a href="metrics-catalog-v2.html" class="active" aria-current="page">Metrics</a><a href="settings-subscriptions-v2.html">Settings</a></nav></div></header>
 <main class="app-main"><section class="detail">
-<p class="crumbs"><a href="metric-detail-sleep-v2.html">sleep_duration</a> / debt</p>
-<div class="hero"><div><p class="eyebrow">Pro Insights · summary #5</p><h1 data-od-id="debt-title">Sleep debt −3.2h</h1><p class="sub">Template text from aggregates — no ML. Sums (target − actual) over 7 daily-latest nights. Free sees nights; Pro sees the debt.</p></div><span class="status-pill">Pro · analytics_enabled</span></div>
+<p class="crumbs"><a href="metric-detail-sleep-v2.html">sleep_duration</a> / insights</p>
+<div class="hero"><div><p class="eyebrow">Pro Insights · Sleep</p><h1 data-od-id="debt-title">Sleep Insights</h1><p class="sub">Factual seven-night duration and timing patterns, plus an estimated shortfall against your selected target.</p></div><span class="status-pill">Pro · analytics_enabled</span></div>
 <section class="card" data-od-id="debt-card">
-<div class="target"><span class="note">Nightly target (default 7h30, editable later):</span><input type="time" value="07:30" aria-label="Sleep target"><span class="note">Computed from <code>sleep_duration</code> daily-latest values.</span></div>
-<p class="debt">−3.2h <small>over 7 nights</small></p>
+<div class="target"><span class="note">Nightly target (default 7h30):</span><input type="time" value="07:30" aria-label="Nightly sleep target"><span class="note">The target changes this estimate; it is not a medical prescription.</span></div>
+<p class="debt">3h 12m <small>estimated shortfall · 7 tracked nights</small></p>
 <div class="bars" role="img" aria-label="Nightly sleep versus target">
 <div class="day"><div class="bar" style="height:118px"></div><span>Sat</span></div>
 <div class="day"><div class="bar" style="height:104px"></div><span>Sun</span></div>
@@ -35,7 +35,7 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-off
 <div class="day"><div class="bar" style="height:122px"></div><span>Thu</span></div>
 <div class="day"><div class="bar" style="height:110px"></div><span>Fri</span></div>
 </div>
-<div class="kv"><article><p class="meta-label">Worst night</p><p class="kval">Tue · 5h 51m</p></article><article><p class="meta-label">Nights under target</p><p class="kval">4 of 7</p></article><article><p class="meta-label">Suggestion</p><p class="kval" style="font-size:16px;line-height:1.45">Two 8h+ nights clear this debt. Wind-down 22:40 on Fri/Sat.</p></article></div>
-<p class="note">Dashed target line omitted for simplicity — short (red) bars are under target. Repay logic: extra sleep over target counts back at 1:1, capped per night.</p>
+<div class="kv"><article><p class="meta-label">Worst tracked night</p><p class="kval">Tue · 5h 51m</p></article><article><p class="meta-label">Nights under target</p><p class="kval">4 of 7</p></article><article><p class="meta-label">Average sleep</p><p class="kval">7h 02m</p></article></div>
+<p class="note">Short (red) bars are under target. Missing nights remain missing, and longer nights do not subtract from shorter nights.</p>
 </section>
 </section></main></div></body></html>

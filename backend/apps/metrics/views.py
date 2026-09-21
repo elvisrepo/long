@@ -4,7 +4,7 @@ from rest_framework.exceptions import APIException
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from apps.metrics.analytics import get_weight_steps_analytics
+from apps.metrics.analytics import get_sleep_insights, get_weight_steps_analytics
 from apps.metrics.models import MetricDefinition, MetricEntry
 from apps.metrics.serializers import (
       MetricDefinitionSerializer,
@@ -168,6 +168,24 @@ class WeightStepsAnalyticsView(APIView):
           )
 
 
+class SleepInsightsView(APIView):
+      permission_classes = [IsAuthenticated]
+
+      def get(self, request):
+          plan = get_current_subscription_plan(request.user)
+          if plan.analytics_enabled is False:
+              raise PermissionDenied("Pro analytics are required.")
+
+          return Response(
+              get_sleep_insights(
+                  user=request.user,
+                  target_minutes=parse_sleep_target_minutes(
+                      request.query_params.get("target_minutes", "450")
+                  ),
+              )
+          )
+
+
 def parse_analytics_days(value: str) -> int:
       try:
           days = int(value)
@@ -182,6 +200,22 @@ def parse_analytics_days(value: str) -> int:
           )
 
       return days
+
+
+def parse_sleep_target_minutes(value: str) -> int:
+      try:
+          target_minutes = int(value)
+      except ValueError as exc:
+          raise ValidationError(
+              {"target_minutes": ["Choose a whole number from 60 to 1439."]}
+          ) from exc
+
+      if not 60 <= target_minutes <= 1439:
+          raise ValidationError(
+              {"target_minutes": ["Choose a whole number from 60 to 1439."]}
+          )
+
+      return target_minutes
       
 # APIView fits here because this endpoint returns calculated usage data, not model CRUD
 # handled by a generic model view.

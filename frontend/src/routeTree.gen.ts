@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as MetricsRouteImport } from './routes/metrics'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as AnalyticsSleepRouteImport } from './routes/analytics.sleep'
 import { Route as AnalyticsWeightStepsRouteImport } from './routes/analytics.weight-steps'
 import { Route as MetricsSlugRouteImport } from './routes/metrics.$slug'
 
@@ -42,6 +43,11 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AnalyticsSleepRoute = AnalyticsSleepRouteImport.update({
+  id: '/analytics/sleep',
+  path: '/analytics/sleep',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AnalyticsWeightStepsRoute = AnalyticsWeightStepsRouteImport.update({
   id: '/analytics/weight-steps',
   path: '/analytics/weight-steps',
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/metrics': typeof MetricsRouteWithChildren
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/analytics/sleep': typeof AnalyticsSleepRoute
   '/analytics/weight-steps': typeof AnalyticsWeightStepsRoute
   '/metrics/$slug': typeof MetricsSlugRoute
 }
@@ -68,6 +75,7 @@ export interface FileRoutesByTo {
   '/metrics': typeof MetricsRouteWithChildren
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/analytics/sleep': typeof AnalyticsSleepRoute
   '/analytics/weight-steps': typeof AnalyticsWeightStepsRoute
   '/metrics/$slug': typeof MetricsSlugRoute
 }
@@ -78,6 +86,7 @@ export interface FileRoutesById {
   '/metrics': typeof MetricsRouteWithChildren
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/analytics/sleep': typeof AnalyticsSleepRoute
   '/analytics/weight-steps': typeof AnalyticsWeightStepsRoute
   '/metrics/$slug': typeof MetricsSlugRoute
 }
@@ -89,6 +98,7 @@ export interface FileRouteTypes {
     | '/metrics'
     | '/register'
     | '/settings'
+    | '/analytics/sleep'
     | '/analytics/weight-steps'
     | '/metrics/$slug'
   fileRoutesByTo: FileRoutesByTo
@@ -98,6 +108,7 @@ export interface FileRouteTypes {
     | '/metrics'
     | '/register'
     | '/settings'
+    | '/analytics/sleep'
     | '/analytics/weight-steps'
     | '/metrics/$slug'
   id:
@@ -107,6 +118,7 @@ export interface FileRouteTypes {
     | '/metrics'
     | '/register'
     | '/settings'
+    | '/analytics/sleep'
     | '/analytics/weight-steps'
     | '/metrics/$slug'
   fileRoutesById: FileRoutesById
@@ -117,6 +129,7 @@ export interface RootRouteChildren {
   MetricsRoute: typeof MetricsRouteWithChildren
   RegisterRoute: typeof RegisterRoute
   SettingsRoute: typeof SettingsRoute
+  AnalyticsSleepRoute: typeof AnalyticsSleepRoute
   AnalyticsWeightStepsRoute: typeof AnalyticsWeightStepsRoute
 }
 
@@ -157,6 +170,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/analytics/sleep': {
+      id: '/analytics/sleep'
+      path: '/analytics/sleep'
+      fullPath: '/analytics/sleep'
+      preLoaderRoute: typeof AnalyticsSleepRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/analytics/weight-steps': {
       id: '/analytics/weight-steps'
       path: '/analytics/weight-steps'
@@ -191,6 +211,7 @@ const rootRouteChildren: RootRouteChildren = {
   MetricsRoute: MetricsRouteWithChildren,
   RegisterRoute: RegisterRoute,
   SettingsRoute: SettingsRoute,
+  AnalyticsSleepRoute: AnalyticsSleepRoute,
   AnalyticsWeightStepsRoute: AnalyticsWeightStepsRoute,
 }
 export const routeTree = rootRouteImport

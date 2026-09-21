@@ -645,6 +645,9 @@ describe("dashboard route", () => {
     expect(
       within(insights).getByRole("link", { name: /weight × steps/i }),
     ).toHaveAttribute("href", "/analytics/weight-steps");
+    expect(
+      within(insights).getByRole("link", { name: /sleep insights/i }),
+    ).toHaveAttribute("href", "/analytics/sleep");
   });
 
   it("limits recent entries on the dashboard", async () => {

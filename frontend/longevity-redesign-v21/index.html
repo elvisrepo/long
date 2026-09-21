@@ -62,7 +62,7 @@ ul{margin:8px 0;padding-left:20px;color:var(--muted)}
     <span class="tag">Pro-only</span>
     <a class="btn" style="background:var(--surface);color:var(--fg);border:1px solid var(--border)" href="screens/overlay-weight-steps-v2.html" data-od-id="cta-pro-overlay">Weight × Steps overlay</a>
     <a class="btn" style="background:var(--surface);color:var(--fg);border:1px solid var(--border)" href="screens/consistency-v2.html" data-od-id="cta-pro-consistency">Consistency</a>
-    <a class="btn" style="background:var(--surface);color:var(--fg);border:1px solid var(--border)" href="screens/sleep-debt-v2.html" data-od-id="cta-pro-debt">Sleep debt</a>
+    <a class="btn" style="background:var(--surface);color:var(--fg);border:1px solid var(--border)" href="screens/sleep-debt-v2.html" data-od-id="cta-pro-debt">Sleep Insights</a>
     <span style="align-self:center;color:var(--muted);font-size:14px">v1 light concepts below (superseded)</span>
   </div>
   <div class="grid">
@@ -74,7 +74,7 @@ ul{margin:8px 0;padding-left:20px;color:var(--muted)}
     <div class="card" data-od-id="nav-card-principles"><span class="tag">Design notes</span><h2>What changed vs. a typical tracker</h2><p>One primary action per screen · filled data encoding · 44px targets · no shouting gradients.</p><span class="kbd">human-approachable · teal accent</span></div>
   </div>
   <div class="hero">
-    <div class="panel" data-od-id="overview-changes"><h3>v2 — mapped to real frontend</h3><ul><li>Dashboard: <strong>collapsible quick-log</strong>, skeletons, gated nav.</li><li>Metrics: <strong>dialog create</strong>, quota, archived + confirms.</li><li>Detail: <strong>body_weight + sleep_duration</strong> variants, trend skeletons, states, delete confirms.</li><li>Pro-only: <strong>weight×steps overlay, consistency, sleep debt, export/sync</strong> + paywall copy.</li><li>Responsive to <strong>390px</strong> · <span class="kbd">brand-spec.md</span> tokens.</li></ul></div>
+    <div class="panel" data-od-id="overview-changes"><h3>v2 — mapped to real frontend</h3><ul><li>Dashboard: <strong>collapsible quick-log</strong>, skeletons, gated nav.</li><li>Metrics: <strong>dialog create</strong>, quota, archived + confirms.</li><li>Detail: <strong>body_weight + sleep_duration</strong> variants, trend skeletons, states, delete confirms.</li><li>Pro-only: <strong>weight×steps overlay, consistency, Sleep Insights, export/sync</strong> + paywall copy.</li><li>Responsive to <strong>390px</strong> · <span class="kbd">brand-spec.md</span> tokens.</li></ul></div>
     <div class="panel" data-od-id="overview-handoff"><h3>Handoff</h3><p style="color:var(--muted);margin:0 0 10px">File per route: <span class="kbd">dashboard-home-v2</span>, <span class="kbd">metrics-catalog-v2</span>, <span class="kbd">metric-detail-*-v2</span>, <span class="kbd">settings-subscriptions-v2</span>, <span class="kbd">login/register-v2</span>. Class names match your components for 1:1 porting.</p><p style="margin:0 0 10px;color:var(--muted)">Tokens: single source in <span class="kbd">tokens.css</span> (linked by all 11 screens) — colors, fonts, radius, plus <span class="kbd">--chart-*</span> vars with retint rules for legacy hardcoded SVG hex.</p><p style="margin:0;color:var(--muted)">Demo data is one labeled September sample week — replace with your API.</p></div>
   </div>
 </div>

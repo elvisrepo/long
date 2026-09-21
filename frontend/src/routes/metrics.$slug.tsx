@@ -178,8 +178,9 @@ function MetricDetailRoute() {
             {getAddEntryActionLabel(metricDefinition)}
           </button>
           {metricDefinition.slug === "body_weight" ||
-          metricDefinition.slug === "steps" ? (
-            <WeightStepsAnalyticsLink metricSlug={metricDefinition.slug} />
+          metricDefinition.slug === "steps" ||
+          metricDefinition.slug === "sleep_duration" ? (
+            <MetricAnalyticsLink metricSlug={metricDefinition.slug} />
           ) : null}
           <div className="status-pill">
             {formatMetricEntryCount(metricEntries.length)}
@@ -450,11 +451,19 @@ function MetricDetailRoute() {
   );
 }
 
-function WeightStepsAnalyticsLink({ metricSlug }: { metricSlug: string }) {
+function MetricAnalyticsLink({ metricSlug }: { metricSlug: string }) {
   const subscriptionQuery = useCurrentSubscriptionQuery();
 
   if (!subscriptionQuery.data?.plan.analytics_enabled) {
     return null;
+  }
+
+  if (metricSlug === "sleep_duration") {
+    return (
+      <Link className="metric-pro-insight-link" to="/analytics/sleep">
+        View Sleep Insights
+      </Link>
+    );
   }
 
   return (
