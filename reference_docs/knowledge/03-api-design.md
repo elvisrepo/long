@@ -75,6 +75,7 @@ Refresh concurrency behavior:
 | PATCH | `/api/v1/metrics/preferences/sleep/` | Save Sleep target | Implemented for authenticated users; accepts `target_minutes` as a whole number from `60` through `1439` and updates only the caller's account |
 | GET | `/api/v1/metrics/analytics/weight-steps/?days=30` | Body Weight and Steps comparison | Implemented locally for authenticated users whose current plan has `analytics_enabled=true`; `days` defaults to `30` and accepts only `7`, `30`, or `90`; returns complete UTC calendar-day rows with daily latest weight, seven-day rolling weight average, and daily summed steps for the authenticated user |
 | GET | `/api/v1/metrics/analytics/sleep/?target_minutes=450` | Seven-night Sleep insights | Implemented locally for authenticated users whose current plan has `analytics_enabled=true`; returns seven complete UTC wake-date rows, daily-latest Sleep intervals, coverage, factual aggregates, and an estimated shortfall against a target from `60` through `1439` whole minutes |
+| GET | `/api/v1/metrics/analytics/consistency/` | Seven-day consistency and coverage | Implemented locally for authenticated users whose current plan has `analytics_enabled=true`; returns seven UTC dates, active metric definitions, per-day entry presence, a seven-day-bounded current streak, latest entry timestamps, and factual coverage summaries |
 | POST | `/api/v1/metrics/entries/bulk/` | Bulk import | |
 | GET | `/api/v1/metrics/analytics/{slug}/?range=30d` | Analytics for one metric | `slug` is required (path param), `range` is optional (query param, default 30d) |
 
@@ -148,6 +149,22 @@ Current Sleep insights behavior:
   shorter nights. This is labeled an estimate rather than a clinical measure.
 - The summary also returns tracked nights, nights under target, average tracked
   duration, and the shortest tracked night.
+
+Current Consistency & Coverage behavior:
+- The fixed window is the current UTC date plus the preceding six UTC dates.
+  `dates` always contains all seven dates in chronological order.
+- The endpoint includes active system-owned default definitions and the
+  authenticated user's active custom definitions. Inactive custom metrics,
+  another user's definitions and entries, and future-dated entries are
+  excluded.
+- `day_presence` records whether at least one entry ended on each UTC date.
+  Multiple entries for one metric on one date still count as one tracked day.
+- `current_window_streak_days` counts consecutive present dates ending on the
+  current UTC date and is deliberately bounded to the displayed seven dates.
+- `last_recorded_at` can predate the seven-day window. Summary coverage reports
+  metrics with data in the window, total included metrics, and dates containing
+  any included entry. The endpoint makes no judgment about an appropriate
+  tracking frequency and does not label metrics stale.
 
 **Example: Creating a custom metric definition**
 ```json

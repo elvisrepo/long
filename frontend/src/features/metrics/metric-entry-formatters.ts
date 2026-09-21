@@ -33,6 +33,14 @@ export function formatSleepDate(recordedAt: string, timeZone?: string): string {
   }).format(new Date(recordedAt));
 }
 
+export function formatMetricEntryRecordedAt(recordedAt: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "UTC",
+  }).format(new Date(recordedAt));
+}
+
 const metricMaximumFractionDigits: Record<string, number> = {
   body_weight: 1,
 };

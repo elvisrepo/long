@@ -482,6 +482,10 @@ Current backend metrics testing checkpoint:
 - `test_sleep_target_preference.py` covers the 7h30m default, authenticated
   GET/PATCH behavior, persistence, integer/range validation, caller ownership,
   and unauthenticated denial.
+- `test_consistency_analytics.py` covers complete seven-date UTC output,
+  duplicate-entry day collapse, the current-window streak, latest entries that
+  predate the window, active/inactive custom definitions, empty metrics, future
+  exclusion, authentication, Pro authorization, and cross-user isolation.
 
 Current Stripe testing boundary:
 - Standard unit, service, and backend API tests must mock the Stripe network boundary and use fake test-setting credentials.
@@ -569,6 +573,8 @@ Current frontend metrics testing checkpoint:
 - dashboard route tests cover the default recent-entry read limit with `useMetricEntriesQuery({ limit: 5 })`.
 - dashboard route tests cover metric-card links and recent-entry links to `/metrics/$slug`.
 - dashboard route tests cover subscription-aware Pro insights: Free users see a locked upgrade prompt, while Pro users with `analytics_enabled=true` see metric coverage and latest-update summaries.
+- dashboard route tests also prove the Consistency & Coverage link appears only
+  in the entitled Pro Insights actions.
 - dashboard route tests continued to pass after the responsive visual foundation work, so the UI restyle did not change the dashboard behavior contract.
 - metrics route tests cover protected-route behavior, metric catalog rendering, catalog-row links to `/metrics/$slug`, custom metric creation submit payload, form clearing after success, visible backend validation errors, custom metric metadata updates, custom metric deactivation, visible deactivation errors, include-inactive catalog reads, archived custom metric separation, archived row non-link behavior, archived status markers, archived custom metric reactivation, and visible reactivation errors.
 - metrics route tests prove the usage indicator renders backend-provided `used` and `limit` values independently of the loaded definition list, exposes an accessible status, and switches to the limit-reached warning state when `used >= limit`.
@@ -584,6 +590,9 @@ Current frontend metrics testing checkpoint:
   and Pro-only discovery from both Dashboard and Sleep Duration detail. Sleep
   target tests cover authenticated preference reads/writes, initialization from
   the saved value, explicit saving, and accessible saving/saved/error feedback.
+- Consistency frontend tests cover its authenticated API request, safe backend
+  error, loaded summary and per-metric presence rendering, metric-detail links,
+  and accessible loading, error, and empty states.
 - Metric-entry hook tests mock the API helper but use a real `QueryClientProvider`, so they verify Query behavior without requiring a running Django backend.
 - Playwright E2E now submits a real metric entry through the browser against the isolated E2E backend/database, verifies the saved value appears in the dashboard flow, and exercises the metric filter dropdown.
 - Playwright E2E now also creates a custom metric through `/metrics`, verifies it appears in the catalog, verifies it appears on the dashboard, and logs a custom metric entry.

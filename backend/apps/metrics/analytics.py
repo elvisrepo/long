@@ -2,9 +2,10 @@ from datetime import UTC, date, datetime, timedelta
 from typing import TypedDict
 
 from django.contrib.auth.models import AbstractBaseUser
+from django.db.models import Max, Q
 from django.utils import timezone
 
-from apps.metrics.models import MetricEntry
+from apps.metrics.models import MetricDefinition, MetricEntry
 
 
 class WeightStepsPoint(TypedDict):
@@ -53,6 +54,112 @@ class SleepInsightsAnalytics(TypedDict):
     target_minutes: int
     series: list[SleepInsightsPoint]
     summary: SleepInsightsSummary
+
+
+class ConsistencyMetric(TypedDict):
+    metric_definition_id: str
+    name: str
+    slug: str
+    tracked_days: int
+    current_window_streak_days: int
+    last_recorded_at: str | None
+    day_presence: list[bool]
+
+
+class ConsistencySummary(TypedDict):
+    metrics_with_data: int
+    total_metrics: int
+    days_with_any_data: int
+
+
+class ConsistencyAnalytics(TypedDict):
+    range_days: int
+    dates: list[str]
+    metrics: list[ConsistencyMetric]
+    summary: ConsistencySummary
+
+
+def get_consistency_analytics(
+    *,
+    user: AbstractBaseUser,
+) -> ConsistencyAnalytics:
+    range_days = 7
+    now = timezone.now()
+    today_start = datetime.combine(now.date(), datetime.min.time(), tzinfo=UTC)
+    period_start = today_start - timedelta(days=range_days - 1)
+    dates = [
+        period_start.date() + timedelta(days=day_offset)
+        for day_offset in range(range_days)
+    ]
+    definitions = list(
+        MetricDefinition.objects.filter(
+            Q(user__isnull=True, is_default=True) | Q(user=user),
+            is_active=True,
+        ).order_by("category", "name", "id")
+    )
+    definition_ids = [definition.id for definition in definitions]
+
+    presence_by_definition: dict[object, set[date]] = {
+        definition_id: set() for definition_id in definition_ids
+    }
+    window_entries = MetricEntry.objects.filter(
+        user=user,
+        metric_definition_id__in=definition_ids,
+        recorded_at__gte=period_start,
+        recorded_at__lte=now,
+    ).values_list("metric_definition_id", "recorded_at")
+    for definition_id, recorded_at in window_entries:
+        presence_by_definition[definition_id].add(recorded_at.astimezone(UTC).date())
+
+    latest_by_definition = {
+        row["metric_definition_id"]: row["last_recorded_at"]
+        for row in MetricEntry.objects.filter(
+            user=user,
+            metric_definition_id__in=definition_ids,
+            recorded_at__lte=now,
+        )
+        .values("metric_definition_id")
+        .annotate(last_recorded_at=Max("recorded_at"))
+    }
+
+    metrics: list[ConsistencyMetric] = []
+    days_with_any_data: set[date] = set()
+    for definition in definitions:
+        present_dates = presence_by_definition[definition.id]
+        days_with_any_data.update(present_dates)
+        day_presence = [entry_date in present_dates for entry_date in dates]
+        current_streak = 0
+        for is_present in reversed(day_presence):
+            if not is_present:
+                break
+            current_streak += 1
+        last_recorded_at = latest_by_definition.get(definition.id)
+        metrics.append(
+            {
+                "metric_definition_id": str(definition.id),
+                "name": definition.name,
+                "slug": definition.slug,
+                "tracked_days": len(present_dates),
+                "current_window_streak_days": current_streak,
+                "last_recorded_at": (
+                    _format_utc_timestamp(last_recorded_at)
+                    if last_recorded_at is not None
+                    else None
+                ),
+                "day_presence": day_presence,
+            }
+        )
+
+    return {
+        "range_days": range_days,
+        "dates": [entry_date.isoformat() for entry_date in dates],
+        "metrics": metrics,
+        "summary": {
+            "metrics_with_data": sum(metric["tracked_days"] > 0 for metric in metrics),
+            "total_metrics": len(metrics),
+            "days_with_any_data": len(days_with_any_data),
+        },
+    }
 
 
 def get_weight_steps_analytics(

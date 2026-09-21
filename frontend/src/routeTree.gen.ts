@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as MetricsRouteImport } from './routes/metrics'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as AnalyticsConsistencyRouteImport } from './routes/analytics.consistency'
 import { Route as AnalyticsSleepRouteImport } from './routes/analytics.sleep'
 import { Route as AnalyticsWeightStepsRouteImport } from './routes/analytics.weight-steps'
 import { Route as MetricsSlugRouteImport } from './routes/metrics.$slug'
@@ -43,6 +44,11 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AnalyticsConsistencyRoute = AnalyticsConsistencyRouteImport.update({
+  id: '/analytics/consistency',
+  path: '/analytics/consistency',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AnalyticsSleepRoute = AnalyticsSleepRouteImport.update({
   id: '/analytics/sleep',
   path: '/analytics/sleep',
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/metrics': typeof MetricsRouteWithChildren
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/analytics/consistency': typeof AnalyticsConsistencyRoute
   '/analytics/sleep': typeof AnalyticsSleepRoute
   '/analytics/weight-steps': typeof AnalyticsWeightStepsRoute
   '/metrics/$slug': typeof MetricsSlugRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/metrics': typeof MetricsRouteWithChildren
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/analytics/consistency': typeof AnalyticsConsistencyRoute
   '/analytics/sleep': typeof AnalyticsSleepRoute
   '/analytics/weight-steps': typeof AnalyticsWeightStepsRoute
   '/metrics/$slug': typeof MetricsSlugRoute
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/metrics': typeof MetricsRouteWithChildren
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/analytics/consistency': typeof AnalyticsConsistencyRoute
   '/analytics/sleep': typeof AnalyticsSleepRoute
   '/analytics/weight-steps': typeof AnalyticsWeightStepsRoute
   '/metrics/$slug': typeof MetricsSlugRoute
@@ -98,6 +107,7 @@ export interface FileRouteTypes {
     | '/metrics'
     | '/register'
     | '/settings'
+    | '/analytics/consistency'
     | '/analytics/sleep'
     | '/analytics/weight-steps'
     | '/metrics/$slug'
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/metrics'
     | '/register'
     | '/settings'
+    | '/analytics/consistency'
     | '/analytics/sleep'
     | '/analytics/weight-steps'
     | '/metrics/$slug'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/metrics'
     | '/register'
     | '/settings'
+    | '/analytics/consistency'
     | '/analytics/sleep'
     | '/analytics/weight-steps'
     | '/metrics/$slug'
@@ -129,6 +141,7 @@ export interface RootRouteChildren {
   MetricsRoute: typeof MetricsRouteWithChildren
   RegisterRoute: typeof RegisterRoute
   SettingsRoute: typeof SettingsRoute
+  AnalyticsConsistencyRoute: typeof AnalyticsConsistencyRoute
   AnalyticsSleepRoute: typeof AnalyticsSleepRoute
   AnalyticsWeightStepsRoute: typeof AnalyticsWeightStepsRoute
 }
@@ -168,6 +181,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analytics/consistency': {
+      id: '/analytics/consistency'
+      path: '/analytics/consistency'
+      fullPath: '/analytics/consistency'
+      preLoaderRoute: typeof AnalyticsConsistencyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/analytics/sleep': {
@@ -211,6 +231,7 @@ const rootRouteChildren: RootRouteChildren = {
   MetricsRoute: MetricsRouteWithChildren,
   RegisterRoute: RegisterRoute,
   SettingsRoute: SettingsRoute,
+  AnalyticsConsistencyRoute: AnalyticsConsistencyRoute,
   AnalyticsSleepRoute: AnalyticsSleepRoute,
   AnalyticsWeightStepsRoute: AnalyticsWeightStepsRoute,
 }

@@ -1,6 +1,7 @@
 from django.urls import path
 
 from apps.metrics.views import (
+    ConsistencyAnalyticsView,
     MetricDefinitionDetailView,
     MetricDefinitionListView,
     MetricEntryDetailView,
@@ -13,6 +14,11 @@ from apps.metrics.views import (
 
 
 urlpatterns = [
+      path(
+          "analytics/consistency/",
+          ConsistencyAnalyticsView.as_view(),
+          name="consistency-analytics",
+      ),
       path(
           "analytics/sleep/",
           SleepInsightsView.as_view(),

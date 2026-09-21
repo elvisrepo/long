@@ -3,6 +3,7 @@ import { type FormEvent, useState } from "react";
 import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load";
 import { DashboardMetricCard } from "../features/metrics/dashboard-metric-card";
 import {
+  formatMetricEntryRecordedAt,
   formatMetricEntrySource,
   formatMetricValue,
   formatMetricValueWithUnit,
@@ -138,6 +139,12 @@ function DashboardRoute() {
                 <Link className="insights-action-link" to="/analytics/sleep">
                   Sleep Insights →
                 </Link>
+                <Link
+                  className="insights-action-link"
+                  to="/analytics/consistency"
+                >
+                  Consistency →
+                </Link>
               </>
             ) : null}
           </div>
@@ -260,14 +267,6 @@ function MetricEntrySummary({
       <p className="entry-value">{displayValue}</p>
     </article>
   );
-}
-
-function formatMetricEntryRecordedAt(recordedAt: string) {
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "UTC",
-  }).format(new Date(recordedAt));
 }
 
 function formatDashboardDate() {

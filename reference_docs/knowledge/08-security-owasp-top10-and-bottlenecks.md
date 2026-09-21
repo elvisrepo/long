@@ -144,11 +144,17 @@ Current Stripe credential and traffic boundary:
 - **Concurrent provider-record writes**: The conditional `(source_connection, external_source_id)` unique constraint is the final race-safe guard against inserting one provider record twice. Application-level existence checks alone remain insufficient. Manual entries have null external IDs and remain outside this constraint.
 - **Concurrent custom metric entitlement writes**: Create/reactivate requests for the same user lock that user's row before counting and writing, so only one request can claim the final active custom metric slot.
 - **Concurrent wearable connection writes**: Creation requests for the same user lock that user's row before counting and inserting, so only one request can claim the final wearable connection slot.
-- **Paid analytics authorization**: The Weight × Steps and Sleep Insights
+- **Paid analytics authorization**: The Weight × Steps, Sleep Insights, and
+  Consistency & Coverage
   endpoints check the authenticated user's current server-owned subscription
   plan before querying entries. Hiding frontend links is only presentation;
   Free users receive `403`, and every analytics query remains scoped to
-  `request.user` and system-owned default metrics.
+  `request.user`. Weight and Sleep use system-owned default metrics;
+  Consistency additionally includes the caller's active custom metrics.
+- **Consistency analytics ownership**: The consistency query includes only
+  active system definitions plus active custom definitions owned by
+  `request.user`; entry reads are independently scoped to that user and reject
+  future timestamps. The endpoint does not accept a user identifier.
 - **Sleep-target ownership and validation**: The authenticated preference
   endpoint reads and updates only `request.user`; it accepts no user ID and
   validates `target_minutes` as an integer from `60` through `1439` before

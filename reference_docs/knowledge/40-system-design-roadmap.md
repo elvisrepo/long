@@ -1,6 +1,6 @@
 # System Design Roadmap: Local MVP to Production
 
-Current state, bluntly: the project has a working hosted staging value loop. The public HTTPS frontend and API, Stripe test-mode lifecycle, monitored database backup and restore, and Android authentication and Weight/Steps ingestion are deployed. On 2026-09-17 the operator reported that automatic Android sync reaches the hosted backend and the data appears correctly in the frontend. On 2026-09-18 the operator checked sign-in and sync logs and reported no sensitive values; a read-only host check confirmed the running backend image digest and the Xiaomi pilot conditions were recorded. On 2026-09-19 the operator confirmed browser sign-in, session refresh, manual metric write/read and persistence after refresh, and deep-link reload. The owner later confirmed physical Samsung Health Sleep sync and correct frontend display. A server-enforced Weight × Steps Pro comparison is now implemented locally and awaits local UI acceptance before any deployment. Retained application logs, failure alerts, additional analytics, more health metrics, asynchronous server processing, and production hardening remain later work.
+Current state, bluntly: the project has a working hosted staging value loop. The public HTTPS frontend and API, Stripe test-mode lifecycle, monitored database backup and restore, and Android authentication and Weight/Steps ingestion are deployed. On 2026-09-17 the operator reported that automatic Android sync reaches the hosted backend and the data appears correctly in the frontend. On 2026-09-18 the operator checked sign-in and sync logs and reported no sensitive values; a read-only host check confirmed the running backend image digest and the Xiaomi pilot conditions were recorded. On 2026-09-19 the operator confirmed browser sign-in, session refresh, manual metric write/read and persistence after refresh, and deep-link reload. The owner later confirmed physical Samsung Health Sleep sync and correct frontend display. Weight × Steps, seven-night Sleep Insights with a persisted target, and Consistency & Coverage are implemented and locally verified; these newer slices have not been deployed. Retained application logs, failure alerts, more health metrics, data export/deletion, asynchronous server processing, and production hardening remain later work.
 
 ## 1. Local system design — what exists now
 
@@ -49,14 +49,16 @@ Implemented slices:
 - Scheduled cancellation / renewal handling
 - Local subscription state synced from Stripe
 - Settings billing UI
-- Basic Pro Insights scaffold
+- Pro Insights discovery plus Weight × Steps, seven-night Sleep Insights with a
+  persisted account target, and seven-day Consistency & Coverage
 - Health Connect connection lifecycle and plan limits
 - Idempotent synchronous wearable upload ingestion into `MetricEntry`
 - Kotlin/Compose Android project scaffold
 - Android login, refresh, encrypted JWT storage, session checking, and server-revoking logout
 - Stateful Android authentication UI with JVM, Compose, and physical-device validation
 - Health Connect Weight, Steps, and Sleep permission, read, normalization, batching, and combined sync
-- Hosted Sleep duration ingestion and `hours:minutes` frontend presentation; physical device verification pending
+- Hosted Sleep duration ingestion and `hours:minutes` frontend presentation,
+  verified with physical Samsung Health data
 - Subscription-aware manual cooldowns and Pro WorkManager scheduling
 - Health Connect connection registration, reactivation, and disconnect
 - Stable provider-record deduplication plus newer-version updates using Health Connect modification timestamps
@@ -118,15 +120,19 @@ The project now has the basic value loop:
 Wearable data → device sync → normalized metrics → dashboard trends
 ```
 
-The remaining product-value gap is the final step: richer, actionable insight. Pro Insights is mostly a placeholder; it proves feature gating and UI placement, but not deep user value.
+Pro Insights now has three factual analytics views. The next product-value gap
+is user-controlled portability and account lifecycle support, followed by
+validation of which insights users actually find useful.
 
 Still missing:
 
 - production deployment with separate resilient infrastructure
-- a signed APK and free Android Developer Console limited distribution for up to 20 authorized pilot devices; public Google Play distribution remains a separate paid goal
+- a stable HTTPS APK download link and broader Android distribution; the signed
+  limited-distribution pilot is working, while public Google Play distribution
+  remains a separate paid goal
 - reliable application logs and alerts for API, Stripe webhook, and wearable failures
-- additional analytics beyond the local Weight × Steps comparison
-- additional trend calculations and insight validation
+- insight validation with pilot users and additional calculations only when the
+  feedback shows a concrete need
 - GDPR export/delete
 - password reset / stronger account lifecycle flows
 - additional deliberately mapped Health Connect metrics, with Heart Rate the likely next candidate
@@ -236,7 +242,10 @@ Recommended order:
 
 14. Add another Health Connect metric — after staging
 
-   Heart Rate is the strongest next candidate because it adds product value and exercises higher-volume instantaneous time-series batching. Sleep remains later because sessions, stages, overlap, and provider edits require more domain design.
+   Sleep is now implemented and physically verified. Resting Heart Rate is the
+   strongest next ingestion candidate because it adds product value and
+   exercises higher-volume instantaneous time-series batching, but export and
+   account lifecycle work currently come first.
 
 Related doc:
 
@@ -373,9 +382,15 @@ Related docs:
 Next real product step:
 
 ```text
-Review the local Weight × Steps Pro comparison, then add a user sleep target
-and Sleep Debt as the next end-to-end analytics slice
+Complete local acceptance of Consistency & Coverage, then implement
+authenticated CSV export as the next bounded product-value slice
 ```
+
+Weight × Steps, seven-night Sleep Insights, the persisted user sleep target,
+and Consistency & Coverage are now implemented locally. Consistency uses a
+dedicated Pro-gated backend aggregation rather than the dashboard's bounded
+entry list, and reports factual presence without applying one stale threshold
+to metrics with different expected tracking schedules.
 
 The public staging frontend, API, database, Stripe test webhook, and monitored
 backup/restore jobs are deployed. The operator reports successful automatic
@@ -415,18 +430,14 @@ automatic-sync wording is already qualified: sync is approximate, and Android
 may delay it while the app is closed. On-screen automatic sync after reopening
 has been observed without a manual tap.
 
-Body Weight and Sleep Duration are already system default metric definitions;
-Weight and Steps are the currently implemented Health Connect imports. The next
-slice is Sleep. First define and test the sleep semantics: a sleep session's
-start and end give time in bed/session duration, while total time asleep must
-exclude awake stages when stage data is present. Then implement the Android
-read, normalized upload, backend ingestion, and frontend display for that one
-metric before adding another mapping.
+Weight, Steps, and Sleep are implemented Health Connect imports. Sleep session
+bounds, awake-stage subtraction, normalized upload, backend ingestion, and
+frontend duration/window display are implemented and physically verified.
 
-After the Sleep slice works end to end, design and review the new Today UI as a
-separate slice. Its primary metrics are Sleep Duration, Steps, Body Weight, and
-Resting Heart Rate. Resting Heart Rate is the next candidate ingestion mapping
-after the UI slice. HRV, VO2 max, active calories, exercise time, body fat,
+The redesigned dashboard and analytics surfaces now prioritize Sleep Duration,
+Steps, and Body Weight. Resting Heart Rate remains the next candidate ingestion
+mapping after the current export and account-lifecycle priorities. HRV, VO2
+max, active calories, exercise time, body fat,
 sleep stages, and sleep blood oxygen remain optional follow-ups based on actual
 device availability and user value. Blood pressure, blood glucose, skin
 temperature, and other medical-adjacent measurements are not core defaults.

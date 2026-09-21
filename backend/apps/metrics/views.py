@@ -4,7 +4,11 @@ from rest_framework.exceptions import APIException
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from apps.metrics.analytics import get_sleep_insights, get_weight_steps_analytics
+from apps.metrics.analytics import (
+    get_consistency_analytics,
+    get_sleep_insights,
+    get_weight_steps_analytics,
+)
 from apps.metrics.models import MetricDefinition, MetricEntry
 from apps.metrics.serializers import (
       MetricDefinitionSerializer,
@@ -167,6 +171,17 @@ class WeightStepsAnalyticsView(APIView):
                   ),
               )
           )
+
+
+class ConsistencyAnalyticsView(APIView):
+      permission_classes = [IsAuthenticated]
+
+      def get(self, request):
+          plan = get_current_subscription_plan(request.user)
+          if plan.analytics_enabled is False:
+              raise PermissionDenied("Pro analytics are required.")
+
+          return Response(get_consistency_analytics(user=request.user))
 
 
 class SleepInsightsView(APIView):

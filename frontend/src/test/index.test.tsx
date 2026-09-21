@@ -598,6 +598,9 @@ describe("dashboard route", () => {
     expect(
       within(insights).queryByRole("link", { name: /weight × steps/i }),
     ).not.toBeInTheDocument();
+    expect(
+      within(insights).queryByRole("link", { name: /consistency/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows Pro insights when analytics are enabled", async () => {
@@ -648,6 +651,9 @@ describe("dashboard route", () => {
     expect(
       within(insights).getByRole("link", { name: /sleep insights/i }),
     ).toHaveAttribute("href", "/analytics/sleep");
+    expect(
+      within(insights).getByRole("link", { name: /consistency/i }),
+    ).toHaveAttribute("href", "/analytics/consistency");
   });
 
   it("limits recent entries on the dashboard", async () => {

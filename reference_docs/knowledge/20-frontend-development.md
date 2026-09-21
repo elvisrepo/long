@@ -73,7 +73,8 @@
   independently enforces the same entitlement and returns `403` to Free
   requests.
 - Dashboard **Pro Insights** is the primary discovery point for paid analytics
-  and links entitled users to **Weight × Steps** and **Sleep Insights**. Body
+  and links entitled users to **Weight × Steps**, **Sleep Insights**, and
+  **Consistency & Coverage**. Body
   Weight, Steps, and Sleep Duration retain contextual secondary links; Free
   users see none of these links.
 - Comparison wording avoids causal claims. Data coverage describes available
@@ -90,6 +91,13 @@
   positive `target - duration` differences, does not count missing nights as
   zero, and does not claim that longer nights physiologically repay shorter
   nights.
+- The local `/analytics/consistency` protected route displays the backend's
+  complete seven-date UTC presence grid for every active available metric. It
+  shows factual metric coverage, dates with any data, the most tracked metric,
+  each metric's tracked-day count, a streak bounded to the visible window, and
+  its latest entry timestamp. It links each row to metric detail and includes
+  accessible loading, error, and empty states. It deliberately avoids a generic
+  stale or on-track label because expected tracking frequency varies by metric.
 - The local Settings route now follows the `settings-subscriptions-v2` visual
   structure while preserving the current subscription, Checkout, and Customer
   Portal contracts. Current-plan and plan-catalog loading use accessible
