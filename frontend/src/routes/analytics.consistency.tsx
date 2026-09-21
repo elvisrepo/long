@@ -1,3 +1,4 @@
+import { PageHeader } from "../components/page-header";
 import { Link, createFileRoute } from "@tanstack/react-router";
 
 import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load";
@@ -41,23 +42,24 @@ function ConsistencyAnalyticsRoute() {
 
   return (
     <section className="consistency-screen">
-      <nav aria-label="Breadcrumb" className="metric-detail-breadcrumb">
-        <Link to="/">Pro Insights</Link>
-        <span aria-hidden="true">/</span>
-        <span>consistency</span>
-      </nav>
-
-      <div className="metric-detail-hero">
-        <div>
-          <p className="eyebrow">Pro Insights · Tracking</p>
-          <h1 className="dashboard-title">Consistency &amp; Coverage</h1>
+      <PageHeader
+        title="Consistency & Coverage"
+        eyebrow="Pro Insights · Tracking"
+        breadcrumb={
+          <nav aria-label="Breadcrumb" className="metric-detail-breadcrumb">
+            <Link to="/">Pro Insights</Link>
+            <span aria-hidden="true">/</span>
+            <span>consistency</span>
+          </nav>
+        }
+        description={
           <p className="weight-steps-subtitle">
             A factual view of which active metrics received data during the
             latest seven UTC dates.
           </p>
-        </div>
-        <span className="status-pill">Pro · Analytics</span>
-      </div>
+        }
+        actions={<span className="status-pill">Pro · Analytics</span>}
+      />
 
       <section
         aria-label="Seven-day consistency and coverage"

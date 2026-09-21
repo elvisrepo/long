@@ -7,6 +7,14 @@
 
 ## Implemented local UI refinement — 2026-09-21
 
+Layout follows one fluid shell across Dashboard, Metrics, metric details,
+Settings and analytics. The 70rem outer maximum keeps large monitors readable;
+smaller screens use the available width with responsive gutters. Shared page
+headers align titles and breadcrumbs, and controls wrap as space narrows.
+Login/Register stay intentionally narrower. Forms and confirmations use two
+dialog size limits, bounded by viewport width and height. Avoid adding new
+route-specific width caps or fixed phone widths.
+
 The current direction combines Apple Health's readable hierarchy, Oura's calm
 presentation, Samsung Health's straightforward entry flow, and detailed metric
 pages inspired by Garmin. The dark theme uses neutral values, softer borders,

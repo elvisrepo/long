@@ -1,5 +1,19 @@
 ## 6. Testing
 
+## Responsive frontend layout checks
+
+- Run from `frontend`: `npm run test:e2e -- --config playwright.layout.config.ts`.
+- The dedicated Vite server uses port 5187 and does not reuse an unrelated dev
+  server. API fixtures intercept all requests; no Docker or database is needed.
+- `e2e/layout.spec.ts` checks shared page edges, heading sizes and overflow at
+  320, 390, 640, 768, 1024, 1440 and 1920 CSS pixels across all signed-in route
+  types, including weight, sleep and a long custom metric title.
+- Separate cases cover Login/Register, entry/create/export/confirmation dialogs
+  at narrow, tablet and desktop sizes, and navigation from an unknown URL.
+- Selected widths save screenshots under `frontend/test-results/layout` for
+  visual inspection. These checks complement component tests; mocked fixtures
+  do not validate live backend behavior or physical mobile browsers.
+
 ## Use When
 - Load this when you need the testing pyramid, tool choices, CI expectations, or coverage targets.
 

@@ -1,3 +1,5 @@
+import { PageState } from "../components/page-state";
+import { PageHeader } from "../components/page-header";
 import { MetricEntryDialog } from "../features/metrics/metric-entry-dialog";
 import {
   formatDateTimeLocalInput,
@@ -95,11 +97,11 @@ function MetricDetailRoute() {
   const createMetricEntryMutation = useCreateMetricEntryMutation();
 
   if (definitionsAreLoading) {
-    return <p>Loading metric...</p>;
+    return <PageState message="Loading metric..." />;
   }
 
   if (definitionsFailed) {
-    return <p>Metric failed to load</p>;
+    return <PageState message="Metric failed to load" error />;
   }
 
   const metricDefinition = metricDefinitions.find(
@@ -107,7 +109,7 @@ function MetricDetailRoute() {
   );
 
   if (!metricDefinition) {
-    return <p>Metric not found</p>;
+    return <PageState message="Metric not found" notFound />;
   }
 
   const latestEntry = metricEntries[0];
@@ -173,39 +175,42 @@ function MetricDetailRoute() {
     <section
       className={`metric-detail-screen metric-detail-screen-${metricDefinition.slug}`}
     >
-      <nav aria-label="Breadcrumb" className="metric-detail-breadcrumb">
-        <Link to="/metrics">Metrics</Link>
-        <span aria-hidden="true">/</span>
-        <span>{metricDefinition.name}</span>
-      </nav>
-
-      <div className="metric-detail-hero">
-        <div>
-          <p className="eyebrow">Metric detail</p>
-          <h1 className="dashboard-title">{metricDefinition.name}</h1>
+      <PageHeader
+        title={metricDefinition.name}
+        eyebrow="Metric detail"
+        breadcrumb={
+          <nav aria-label="Breadcrumb" className="metric-detail-breadcrumb">
+            <Link to="/metrics">Metrics</Link>
+            <span aria-hidden="true">/</span>
+            <span>{metricDefinition.name}</span>
+          </nav>
+        }
+        description={
           <p className="metric-detail-meta">
             {metricDefinition.category.replaceAll("_", " ")} ·{" "}
             {metricDefinition.unit}
           </p>
-        </div>
-        <div className="metric-detail-hero-actions">
-          <button
-            className="metrics-primary-action"
-            type="button"
-            onClick={() => setIsAddingMetricEntry(true)}
-          >
-            {getAddEntryActionLabel(metricDefinition)}
-          </button>
-          {metricDefinition.slug === "body_weight" ||
-          metricDefinition.slug === "steps" ||
-          metricDefinition.slug === "sleep_duration" ? (
-            <MetricAnalyticsLink metricSlug={metricDefinition.slug} />
-          ) : null}
-          <div className="status-pill">
-            {formatMetricEntryCount(metricEntries.length)}
+        }
+        actions={
+          <div className="metric-detail-hero-actions">
+            <button
+              className="metrics-primary-action"
+              type="button"
+              onClick={() => setIsAddingMetricEntry(true)}
+            >
+              {getAddEntryActionLabel(metricDefinition)}
+            </button>
+            {metricDefinition.slug === "body_weight" ||
+            metricDefinition.slug === "steps" ||
+            metricDefinition.slug === "sleep_duration" ? (
+              <MetricAnalyticsLink metricSlug={metricDefinition.slug} />
+            ) : null}
+            <div className="status-pill">
+              {formatMetricEntryCount(metricEntries.length)}
+            </div>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       <section className="metric-detail-summary" aria-label="Metric summary">
         <article className="metric-detail-stat metric-detail-stat-primary">

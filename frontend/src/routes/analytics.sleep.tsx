@@ -1,3 +1,4 @@
+import { PageHeader } from "../components/page-header";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
@@ -68,25 +69,26 @@ function SleepInsightsRoute() {
 
   return (
     <section className="sleep-insights-screen">
-      <nav aria-label="Breadcrumb" className="metric-detail-breadcrumb">
-        <Link to="/metrics/$slug" params={{ slug: "sleep_duration" }}>
-          Sleep Duration
-        </Link>
-        <span aria-hidden="true">/</span>
-        <span>insights</span>
-      </nav>
-
-      <div className="metric-detail-hero">
-        <div>
-          <p className="eyebrow">Pro Insights · Sleep</p>
-          <h1 className="dashboard-title">Sleep Insights</h1>
+      <PageHeader
+        title="Sleep Insights"
+        eyebrow="Pro Insights · Sleep"
+        breadcrumb={
+          <nav aria-label="Breadcrumb" className="metric-detail-breadcrumb">
+            <Link to="/metrics/$slug" params={{ slug: "sleep_duration" }}>
+              Sleep Duration
+            </Link>
+            <span aria-hidden="true">/</span>
+            <span>insights</span>
+          </nav>
+        }
+        description={
           <p className="weight-steps-subtitle">
             Your recent duration, timing, and estimated shortfall across seven
             nights.
           </p>
-        </div>
-        <span className="status-pill">Pro · Analytics</span>
-      </div>
+        }
+        actions={<span className="status-pill">Pro · Analytics</span>}
+      />
 
       <section
         className="sleep-insights-card"

@@ -1,3 +1,5 @@
+import { PageHeader } from "../components/page-header";
+import { PageState } from "../components/page-state";
 import { useState } from "react";
 import { MetricExportPanel } from "../features/metrics/metric-export-panel";
 import { createFileRoute, useRouterState } from "@tanstack/react-router";
@@ -86,18 +88,16 @@ function SettingsRoute() {
   }
 
   if (!meQuery.data) {
-    return <p>Loading...</p>;
+    return <PageState message="Loading..." />;
   }
 
   return (
     <section className="settings-screen">
-      <header className="settings-header">
-        <div>
-          <p className="eyebrow">Account</p>
-          <h1>Settings</h1>
-          <p>Signed in as {meQuery.data.email}</p>
-        </div>
-      </header>
+      <PageHeader
+        title="Settings"
+        eyebrow="Account"
+        description={`Signed in as ${meQuery.data.email}`}
+      />
 
       {checkoutStatus === "success" ? (
         <p className="settings-alert" role="status">

@@ -1,3 +1,4 @@
+import { PageHeader } from "../components/page-header";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
@@ -53,26 +54,27 @@ function WeightStepsRoute() {
 
   return (
     <section className="weight-steps-screen">
-      <nav aria-label="Breadcrumb" className="metric-detail-breadcrumb">
-        <Link to="/metrics/$slug" params={{ slug: "body_weight" }}>
-          body_weight
-        </Link>
-        <span aria-hidden="true">×</span>
-        <Link to="/metrics/$slug" params={{ slug: "steps" }}>
-          steps
-        </Link>
-      </nav>
-
-      <div className="metric-detail-hero">
-        <div>
-          <p className="eyebrow">Pro Insights · Comparison</p>
-          <h1 className="dashboard-title">Weight × Steps</h1>
+      <PageHeader
+        title="Weight × Steps"
+        eyebrow="Pro Insights · Comparison"
+        breadcrumb={
+          <nav aria-label="Breadcrumb" className="metric-detail-breadcrumb">
+            <Link to="/metrics/$slug" params={{ slug: "body_weight" }}>
+              body_weight
+            </Link>
+            <span aria-hidden="true">×</span>
+            <Link to="/metrics/$slug" params={{ slug: "steps" }}>
+              steps
+            </Link>
+          </nav>
+        }
+        description={
           <p className="weight-steps-subtitle">
             Daily latest weight and daily total steps on one timeline.
           </p>
-        </div>
-        <span className="status-pill">Pro · Analytics</span>
-      </div>
+        }
+        actions={<span className="status-pill">Pro · Analytics</span>}
+      />
 
       <section
         className="weight-steps-card"

@@ -9,6 +9,7 @@ import {
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { useState } from "react";
 
+import { PageHeader } from "../components/page-header";
 import { logoutWeb } from "../features/auth/auth-logout-api";
 import { useMeQuery } from "../features/auth/use-me-query";
 
@@ -116,5 +117,18 @@ function AppNavigation() {
 
 export const Route = createRootRouteWithContext<RouterContext>()({
   component: RootLayout,
-  notFoundComponent: () => <div>404 Not Found</div>,
+  notFoundComponent: () => (
+    <section>
+      <PageHeader
+        title="Page not found"
+        eyebrow="404"
+        description="This page may have moved or the link may be incorrect."
+        actions={
+          <Link className="insights-action-link" to="/">
+            Back to dashboard
+          </Link>
+        }
+      />
+    </section>
+  ),
 });

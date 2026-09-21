@@ -6,6 +6,26 @@
 ## Source
 - Derived from `reference_docs/knowledge/planning.md` section 5.
 
+### Shared responsive layout (September 21, 2026)
+
+- The application shell and navigation share a `70rem` maximum outer width.
+  This is a ceiling, not a fixed width: pages fill the available space with
+  responsive `1rem`–`1.5rem` side gutters.
+- Dashboard, Metrics, metric details, Settings, and all three analytics pages
+  use the same content edges. Removed narrower per-route and mobile caps.
+- `PageHeader` owns title sizing, the breadcrumb row, description and wrapping
+  actions. Long custom metric names wrap without widening the page.
+- Login/Register retain focused, centered forms capped at 440px. Form dialogs
+  share a 36.25rem maximum; confirmation dialogs use 30rem. Both shrink to the
+  viewport and scroll vertically when needed.
+- Loading/error sections use the shared content width. Unknown URLs show a
+  matching Page not found view with a dashboard link.
+- Changes are local only. Layout browser tests use mocked API responses and
+  make no database changes; see `21-testing.md` for the standalone command.
+- Separate follow-up found during screenshot review: custom numeric metric
+  charts can show excessive decimal places on axis labels (for example a
+  single score entry of 7). Review tick formatting in a later slice.
+
 ### Metrics catalog cleanup (September 21, 2026)
 
 - `/metrics` uses readable category/unit subtitles without slug badges or

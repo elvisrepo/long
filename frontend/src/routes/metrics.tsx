@@ -1,3 +1,5 @@
+import { PageHeader } from "../components/page-header";
+import { PageState } from "../components/page-state";
 import {
   Link,
   Outlet,
@@ -52,7 +54,7 @@ function MetricsCatalog() {
   }
 
   if (isError || isMetricUsageError || !metricUsage) {
-    return <p>Metrics failed to load</p>;
+    return <PageState message="Metrics failed to load" error />;
   }
 
   const activeMetricDefinitions = metricDefinitions.filter(
@@ -65,26 +67,26 @@ function MetricsCatalog() {
 
   return (
     <section className="metrics-screen">
-      <div className="metrics-hero">
-        <div>
-          <p className="eyebrow">Metric catalog</p>
-          <h1 className="dashboard-title">Metrics</h1>
-        </div>
-        <div className="metrics-usage">
-          <div className="status-pill">
-            {activeMetricDefinitions.length} tracked
+      <PageHeader
+        title="Metrics"
+        eyebrow="Metric catalog"
+        actions={
+          <div className="metrics-usage">
+            <div className="status-pill">
+              {activeMetricDefinitions.length} tracked
+            </div>
+            <p
+              aria-label={`${used} of ${limit} custom metrics used`}
+              className={`custom-metric-usage ${
+                used >= limit ? "custom-metric-usage-limit" : ""
+              }`}
+              role="status"
+            >
+              {used} of {limit} custom metrics used
+            </p>
           </div>
-          <p
-            aria-label={`${used} of ${limit} custom metrics used`}
-            className={`custom-metric-usage ${
-              used >= limit ? "custom-metric-usage-limit" : ""
-            }`}
-            role="status"
-          >
-            {used} of {limit} custom metrics used
-          </p>
-        </div>
-      </div>
+        }
+      />
 
       <div className="metrics-toolbar">
         <button

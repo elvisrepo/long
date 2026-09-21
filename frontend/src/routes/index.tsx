@@ -1,3 +1,5 @@
+import { PageHeader } from "../components/page-header";
+import { PageState } from "../components/page-state";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load";
@@ -71,28 +73,26 @@ function DashboardRoute() {
   )[0];
 
   if (isLoading) {
-    return <p>Loading metric definitions...</p>;
+    return <PageState message="Loading metric definitions..." />;
   }
 
   if (isError) {
-    return <p>Metric definitions failed to load</p>;
+    return <PageState message="Metric definitions failed to load" error />;
   }
 
   return (
     <section className="dashboard-screen">
-      <div className="dashboard-hero">
-        <div>
-          <p className="eyebrow">{formatDashboardDate()} · Health overview</p>
-          <h1 className="dashboard-title">Dashboard</h1>
-          <p className="dashboard-subtitle">
-            Your health at a glance. Start with how you slept, moved and felt.
-          </p>
-        </div>
-        <div className="status-pill">
-          {metricDefinitions.length}{" "}
-          {metricDefinitions.length === 1 ? "metric" : "metrics"} active
-        </div>
-      </div>
+      <PageHeader
+        title="Dashboard"
+        eyebrow={`${formatDashboardDate()} · Health overview`}
+        description="Your health at a glance. Start with how you slept, moved and felt."
+        actions={
+          <div className="status-pill">
+            {metricDefinitions.length}{" "}
+            {metricDefinitions.length === 1 ? "metric" : "metrics"} active
+          </div>
+        }
+      />
 
       <section aria-label="Metric definitions" className="dashboard-metrics">
         {[true, false].map((priority) => {
