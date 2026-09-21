@@ -1,4 +1,6 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { downloadMetricEntriesCsv } from "../features/metrics/metric-entry-export-api";
+import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -36,6 +38,13 @@ import {
   type CurrentSubscription,
 } from "../features/subscriptions/subscriptions-api";
 import { renderRoute } from "./render-route";
+
+vi.mock("../features/metrics/metric-entry-export-api", () => ({
+  downloadMetricEntriesCsv: vi.fn(),
+}));
+vi.mock("../features/metrics/use-metric-definitions-query", () => ({
+  useMetricDefinitionsQuery: vi.fn(),
+}));
 
 const getMeMock = vi.mocked(getMe);
 const createSubscriptionCheckoutMock = vi.mocked(createSubscriptionCheckout);
@@ -100,6 +109,144 @@ function proSubscription(): CurrentSubscription {
 describe("settings route", () => {
   afterEach(() => {
     vi.resetAllMocks();
+  });
+
+  it("opens export from Data & Privacy and exports the selected metric and dates", async () => {
+    const user = userEvent.setup();
+    getMeMock.mockResolvedValue({ email: "user@example.com" });
+    getCurrentSubscriptionMock.mockResolvedValue(proSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([]);
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [{ id: "weight", slug: "body_weight", name: "Body Weight" }],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    vi.mocked(downloadMetricEntriesCsv).mockResolvedValue(undefined);
+    renderRoute("/settings");
+    const panel = await screen.findByRole("region", { name: "Data & Privacy" });
+    expect(screen.queryByLabelText("Export from")).not.toBeInTheDocument();
+    const trigger = await within(panel).findByRole("button", {
+      name: "Export health data",
+    });
+    await user.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "Export health data" });
+    await user.selectOptions(
+      within(dialog).getByLabelText("Metric"),
+      "body_weight",
+    );
+    fireEvent.change(within(dialog).getByLabelText("Export from"), {
+      target: { value: "2026-09-19" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Export to"), {
+      target: { value: "2026-09-21" },
+    });
+    await user.click(
+      within(dialog).getByRole("button", { name: "Export CSV" }),
+    );
+    expect(downloadMetricEntriesCsv).toHaveBeenCalledWith({
+      metric: "body_weight",
+      from: new Date("2026-09-19T00:00:00.000").toISOString(),
+      to: new Date("2026-09-21T23:59:59.999").toISOString(),
+    });
+    expect(await within(dialog).findByRole("status")).toHaveTextContent(
+      "CSV downloaded",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Close dialog" }),
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it("exports full history when no filters are selected", async () => {
+    const user = userEvent.setup();
+    getMeMock.mockResolvedValue({ email: "user@example.com" });
+    getCurrentSubscriptionMock.mockResolvedValue(proSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([]);
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    vi.mocked(downloadMetricEntriesCsv).mockResolvedValue(undefined);
+    renderRoute("/settings");
+    await user.click(
+      await screen.findByRole("button", { name: "Export health data" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Export CSV" }));
+    expect(downloadMetricEntriesCsv).toHaveBeenCalledWith({});
+  });
+
+  it("offers Pro plans instead of export controls for Free users", async () => {
+    getMeMock.mockResolvedValue({ email: "user@example.com" });
+    getCurrentSubscriptionMock.mockResolvedValue(freeSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([]);
+    renderRoute("/settings");
+    const link = await screen.findByRole("link", { name: "View plans →" });
+    expect(link).toHaveAttribute("href", "#available-plans");
+    expect(
+      screen.queryByRole("button", { name: /export/i }),
+    ).not.toBeInTheDocument();
+    expect(downloadMetricEntriesCsv).not.toHaveBeenCalled();
+  });
+
+  it("rejects an export whose From date is after its To date", async () => {
+    const user = userEvent.setup();
+    getCurrentSubscriptionMock.mockResolvedValue(proSubscription());
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    getSubscriptionPlansMock.mockResolvedValue([]);
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [{ id: "weight", slug: "body_weight", name: "Body Weight" }],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    renderRoute("/settings");
+    await user.click(
+      await screen.findByRole("button", { name: "Export health data" }),
+    );
+
+    fireEvent.change(await screen.findByLabelText(/export from/i), {
+      target: { value: "2026-09-21" },
+    });
+    fireEvent.change(screen.getByLabelText(/export to/i), {
+      target: { value: "2026-09-19" },
+    });
+    await user.click(screen.getByRole("button", { name: /export csv/i }));
+
+    expect(downloadMetricEntriesCsv).not.toHaveBeenCalled();
+    expect(
+      screen.getByText(/from date must be on or before to date/i),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a safe message when CSV export fails", async () => {
+    const user = userEvent.setup();
+    getCurrentSubscriptionMock.mockResolvedValue(proSubscription());
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(downloadMetricEntriesCsv).mockRejectedValue(
+      new Error("private backend detail"),
+    );
+    getSubscriptionPlansMock.mockResolvedValue([]);
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [{ id: "weight", slug: "body_weight", name: "Body Weight" }],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+
+    renderRoute("/settings");
+    await user.click(
+      await screen.findByRole("button", { name: "Export health data" }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /export csv/i }),
+    );
+
+    expect(
+      await screen.findByText(/csv export failed\. please try again\./i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/private backend detail/i),
+    ).not.toBeInTheDocument();
   });
 
   it("redirects to /login when the user is not authenticated", async () => {
@@ -170,9 +317,9 @@ describe("settings route", () => {
     renderRoute("/settings");
 
     const alerts = await screen.findAllByRole("alert");
-    expect(alerts).toHaveLength(2);
+    expect(alerts).toHaveLength(3);
     expect(alerts[0]).toHaveTextContent(/current plan failed to load/i);
-    expect(alerts[1]).toHaveTextContent(/available plans failed to load/i);
+    expect(alerts[2]).toHaveTextContent(/available plans failed to load/i);
   });
 
   it("hides portal management when no Stripe billing customer exists", async () => {

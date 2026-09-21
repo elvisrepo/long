@@ -139,10 +139,24 @@ Current health-contract checkpoint:
 Current frontend testing checkpoint:
 - Focused CSV export coverage proves the authenticated browser request,
   metric/from/to query serialization, object-URL download, and URL cleanup.
-  Dashboard route coverage proves that metric and local-calendar date filters
+  Settings route coverage proves that metric and local-calendar date filters
   reach the export helper as UTC boundaries, inverted ranges are rejected,
-  Free sees a locked control, Pro can export, and backend failures render a
+  Free sees a Pro explanation, Pro can export, and backend failures render a
   generic retry message without leaking private error detail.
+- The September 21 UI refinement uses shared entry-dialog tests on Dashboard
+  and Metric Detail for numeric/Sleep saves, validation, failure feedback, and
+  successful dismissal. Settings tests also cover opening export from Data &
+  Privacy, full-history export, success feedback and restored focus. Dashboard
+  tests assert export controls are absent from Recent Entries.
+- Browser visual exploration uses synthetic API responses for desktop/mobile
+  layout checks, priority ordering, actual native modal focus containment and
+  Escape, CSV download, and the Free restriction. Browser screenshots are local
+  ignored artifacts in `playground/`; they contain synthetic health records.
+- Real-backend Playwright regression covers registration/login/settings/logout,
+  manual entry from Dashboard, custom metrics, archive/reactivate, and detail
+  entry editing/deletion/addition. The local review uses Vite on port 5175 and
+  the isolated E2E backend/database on 8001, with a temporary E2E-only trusted
+  origin override. It does not repoint the user's dev server on port 5173.
 - Backend export integration coverage proves authentication, per-user
   isolation, stable headers and columns, Sleep interval/context preservation,
   cumulative metric/date filtering, malformed-date rejection, and spreadsheet

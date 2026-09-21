@@ -1,61 +1,74 @@
 import { Link } from "@tanstack/react-router";
-import type { ReactNode } from "react";
-
-import { formatMetricValue } from "./metric-entry-formatters";
+import type { MetricEntry } from "./metric-entries-api";
+import {
+  formatMetricValue,
+  formatMetricEntrySource,
+  formatMetricEntryRecordedAt,
+} from "./metric-entry-formatters";
 
 interface DashboardMetricCardProps {
-  category: string;
-  form: ReactNode;
-  isFeatured?: boolean;
-  latestValue: number | undefined;
+  latestEntry: MetricEntry | undefined;
   name: string;
   slug: string;
   trendValues: number[];
   unit: string;
+  onAddEntry: () => void;
 }
 
 export function DashboardMetricCard({
-  category,
-  form,
-  isFeatured = false,
-  latestValue,
+  latestEntry,
   name,
   slug,
   trendValues,
   unit,
+  onAddEntry,
 }: DashboardMetricCardProps) {
   return (
-    <article
-      className={`metric-card${isFeatured ? " metric-card-featured" : ""}`}
-    >
+    <article className="metric-card">
       <div className="metric-card-header">
-        <p className="chip-label">
-          {category} · {unit}
-        </p>
         <h2>
           <Link
             className="metric-card-link"
             params={{ slug }}
             to="/metrics/$slug"
           >
-            {name} →
+            {name} <span aria-hidden="true">↗</span>
           </Link>
         </h2>
-        <p className="metric-meta">{slug}</p>
+        <p className="metric-meta">
+          {latestEntry ? "Latest reading" : "No readings yet"}
+        </p>
       </div>
-
       <div className="metric-current-value">
         <span>
-          {latestValue === undefined
-            ? "—"
-            : formatMetricValue(latestValue, slug)}
+          {latestEntry ? formatMetricValue(latestEntry.value, slug) : "—"}
         </span>
         {slug === "sleep_duration" ? null : <small>{unit}</small>}
       </div>
-
-      <MetricSparkline metricName={name} values={trendValues} />
-
-      {form}
+      <div className="metric-card-trend">
+        <MetricSparkline metricName={name} values={trendValues} />
+        <p className="metric-meta">
+          {trendValues.length >= 2
+            ? "Recent readings"
+            : "Add readings to see your trend"}
+        </p>
+      </div>
+      {latestEntry ? (
+        <p className="metric-card-source">
+          {formatMetricEntrySource(latestEntry.source)} · Recorded{" "}
+          <time dateTime={latestEntry.recorded_at}>
+            {formatMetricEntryRecordedAt(latestEntry.recorded_at)} UTC
+          </time>
+        </p>
+      ) : null}
+      <button
+        className="metric-card-add"
+        type="button"
+        aria-label={`Add ${name} entry`}
+        onClick={onAddEntry}
+      >
+        + Add entry
+      </button>
     </article>
   );
 }

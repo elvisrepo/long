@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { MetricExportPanel } from "../features/metrics/metric-export-panel";
 import { createFileRoute, useRouterState } from "@tanstack/react-router";
 import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load";
 import { useMeQuery } from "../features/auth/use-me-query";
@@ -222,7 +223,19 @@ function SettingsRoute() {
         ) : null}
       </section>
 
-      <section className="subscription-card" aria-label="Available plans">
+      <MetricExportPanel
+        enabled={
+          currentSubscriptionQuery.data?.plan.csv_export_enabled === true
+        }
+        pending={currentSubscriptionQuery.isPending}
+        failed={currentSubscriptionQuery.isError}
+      />
+
+      <section
+        id="available-plans"
+        className="subscription-card"
+        aria-label="Available plans"
+      >
         <div className="subscription-card-header">
           <div>
             <p className="meta-label">Plan catalog</p>

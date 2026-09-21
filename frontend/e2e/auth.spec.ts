@@ -31,10 +31,15 @@ test("user can register, log in, visit settings, and log out", async ({
     page.getByRole("heading", { name: /resting heart rate/i }),
   ).toBeVisible();
 
+  await page
+    .getByRole("button", { name: /add resting heart rate entry/i })
+    .click();
   await page.getByLabel(/resting heart rate value/i).fill("58");
-  await page.getByRole("button", { name: /log resting heart rate/i }).click();
+  await page
+    .getByRole("button", { name: /save resting heart rate entry/i })
+    .click();
 
-  await expect(page.getByLabel(/resting heart rate value/i)).toHaveValue("");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByText(/58 bpm/i)).toBeVisible();
 
   await page
@@ -255,12 +260,13 @@ test("user can create a custom metric and log it from the dashboard", async ({
   await page.getByRole("link", { name: /dashboard/i }).click();
 
   await expect(page.getByRole("heading", { name: /dashboard/i })).toBeVisible();
+  await page.getByRole("button", { name: /add mood entry/i }).click();
   await expect(page.getByLabel(/mood value/i)).toBeVisible();
 
   await page.getByLabel(/mood value/i).fill("7");
-  await page.getByRole("button", { name: /log mood/i }).click();
+  await page.getByRole("button", { name: /save mood entry/i }).click();
 
-  await expect(page.getByLabel(/mood value/i)).toHaveValue("");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByText(/7 score/i)).toBeVisible();
 });
 
@@ -350,6 +356,7 @@ test("user can archive and reactivate a custom metric", async ({ page }) => {
   await page.getByRole("link", { name: /dashboard/i }).click();
 
   await expect(page.getByRole("heading", { name: /dashboard/i })).toBeVisible();
+  await page.getByRole("button", { name: /add mood entry/i }).click();
   await expect(page.getByLabel(/mood value/i)).toBeVisible();
 });
 
@@ -413,8 +420,13 @@ test("user can open a metric detail page from the dashboard", async ({
 
   await expect(page.getByRole("heading", { name: /dashboard/i })).toBeVisible();
 
+  await page
+    .getByRole("button", { name: /add resting heart rate entry/i })
+    .click();
   await page.getByLabel(/resting heart rate value/i).fill("58");
-  await page.getByRole("button", { name: /log resting heart rate/i }).click();
+  await page
+    .getByRole("button", { name: /save resting heart rate entry/i })
+    .click();
 
   await expect(page.getByText(/58 bpm/i)).toBeVisible();
 
@@ -427,7 +439,7 @@ test("user can open a metric detail page from the dashboard", async ({
   await expect(
     page.getByRole("heading", { name: /resting heart rate/i }),
   ).toBeVisible();
-  await expect(page.getByText(/resting_hr · bpm/i)).toBeVisible();
+  await expect(page.getByText(/cardiovascular · bpm/i)).toBeVisible();
   await expect(page.getByText("Latest value", { exact: true })).toBeVisible();
   await expect(page.getByLabel(/58 bpm/i)).toBeVisible();
   await expect(

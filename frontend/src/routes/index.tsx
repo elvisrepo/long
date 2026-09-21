@@ -1,14 +1,14 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { type FormEvent, useState } from "react";
+import { useState } from "react";
 import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load";
 import { DashboardMetricCard } from "../features/metrics/dashboard-metric-card";
 import {
   formatMetricEntryRecordedAt,
   formatMetricEntrySource,
-  formatMetricValue,
   formatMetricValueWithUnit,
 } from "../features/metrics/metric-entry-formatters";
-import { downloadMetricEntriesCsv } from "../features/metrics/metric-entry-export-api";
+import { MetricEntryDialog } from "../features/metrics/metric-entry-dialog";
+import type { MetricDefinition } from "../features/metrics/metric-definitions-api";
 import type { MetricEntry } from "../features/metrics/metric-entries-api";
 import { useCreateMetricEntryMutation } from "../features/metrics/use-create-metric-entry-mutation";
 import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
@@ -25,10 +25,9 @@ const DASHBOARD_CARD_ENTRY_LIMIT = 50;
 
 function DashboardRoute() {
   const [selectedMetricSlug, setSelectedMetricSlug] = useState("");
-  const [exportFromDate, setExportFromDate] = useState("");
-  const [exportToDate, setExportToDate] = useState("");
-  const [isExporting, setIsExporting] = useState(false);
-  const [exportError, setExportError] = useState<string | null>(null);
+  const [entryDefinition, setEntryDefinition] =
+    useState<MetricDefinition | null>(null);
+  const createEntryMutation = useCreateMetricEntryMutation();
   const {
     data: metricDefinitions = [],
     isLoading,
@@ -65,39 +64,11 @@ function DashboardRoute() {
 
   const analyticsEnabled =
     currentSubscriptionQuery.data?.plan.analytics_enabled === true;
-  const csvExportEnabled =
-    currentSubscriptionQuery.data?.plan.csv_export_enabled === true;
   const latestInsightEntry = [...latestEntriesByMetric.values()].sort(
     (left, right) =>
       new Date(right.recorded_at).getTime() -
       new Date(left.recorded_at).getTime(),
   )[0];
-
-  async function handleCsvExport() {
-    if (exportFromDate && exportToDate && exportFromDate > exportToDate) {
-      setExportError("From date must be on or before To date.");
-      return;
-    }
-
-    setIsExporting(true);
-    setExportError(null);
-
-    try {
-      await downloadMetricEntriesCsv({
-        ...(selectedMetricSlug ? { metric: selectedMetricSlug } : {}),
-        ...(exportFromDate
-          ? { from: getLocalDayBoundary(exportFromDate, "start") }
-          : {}),
-        ...(exportToDate
-          ? { to: getLocalDayBoundary(exportToDate, "end") }
-          : {}),
-      });
-    } catch {
-      setExportError("CSV export failed. Please try again.");
-    } finally {
-      setIsExporting(false);
-    }
-  }
 
   if (isLoading) {
     return <p>Loading metric definitions...</p>;
@@ -114,7 +85,7 @@ function DashboardRoute() {
           <p className="eyebrow">{formatDashboardDate()} · Health overview</p>
           <h1 className="dashboard-title">Dashboard</h1>
           <p className="dashboard-subtitle">
-            Good morning. Track the baseline metrics that matter.
+            Your health at a glance. Start with how you slept, moved and felt.
           </p>
         </div>
         <div className="status-pill">
@@ -123,33 +94,44 @@ function DashboardRoute() {
         </div>
       </div>
 
-      <div className="metric-grid" aria-label="Metric definitions">
-        {metricDefinitions.map((definition) => {
-          const latestEntry = latestEntriesByMetric.get(definition.slug);
-
+      <section aria-label="Metric definitions" className="dashboard-metrics">
+        {[true, false].map((priority) => {
+          const order = ["sleep_duration", "steps", "body_weight"];
+          const definitions = metricDefinitions
+            .filter(
+              (definition) => order.includes(definition.slug) === priority,
+            )
+            .sort((left, right) =>
+              priority
+                ? order.indexOf(left.slug) - order.indexOf(right.slug)
+                : 0,
+            );
+          if (!definitions.length) return null;
           return (
-            <DashboardMetricCard
-              category={definition.category}
-              form={
-                <MetricEntryForm
-                  metricName={definition.name}
-                  metricSlug={definition.slug}
-                />
-              }
-              isFeatured={definition.slug === "sleep_duration"}
-              key={definition.id}
-              latestValue={latestEntry?.value}
-              name={definition.name}
-              slug={definition.slug}
-              trendValues={getMetricTrendValues(
-                cardMetricEntries,
-                definition.slug,
-              )}
-              unit={definition.unit}
-            />
+            <div key={String(priority)}>
+              <h2 className="dashboard-section-title">
+                {priority ? "Your daily overview" : "More metrics"}
+              </h2>
+              <div className="metric-grid">
+                {definitions.map((definition) => (
+                  <DashboardMetricCard
+                    key={definition.id}
+                    onAddEntry={() => setEntryDefinition(definition)}
+                    latestEntry={latestEntriesByMetric.get(definition.slug)}
+                    name={definition.name}
+                    slug={definition.slug}
+                    unit={definition.unit}
+                    trendValues={getMetricTrendValues(
+                      cardMetricEntries,
+                      definition.slug,
+                    )}
+                  />
+                ))}
+              </div>
+            </div>
           );
         })}
-      </div>
+      </section>
 
       <section className="insights-card" aria-label="Pro insights">
         <div className="entries-toolbar">
@@ -157,54 +139,45 @@ function DashboardRoute() {
             <p className="eyebrow">Analytics</p>
             <h2>Pro Insights</h2>
           </div>
-          <div className="insights-actions">
-            <div className="status-pill">
-              {analyticsEnabled ? "Unlocked" : "Pro"}
-            </div>
-            {analyticsEnabled ? (
-              <>
-                <Link
-                  className="insights-action-link"
-                  to="/analytics/weight-steps"
-                >
-                  Weight × Steps →
-                </Link>
-                <Link className="insights-action-link" to="/analytics/sleep">
-                  Sleep Insights →
-                </Link>
-                <Link
-                  className="insights-action-link"
-                  to="/analytics/consistency"
-                >
-                  Consistency →
-                </Link>
-              </>
-            ) : null}
-          </div>
+          <span className="status-pill">Pro</span>
         </div>
 
         {analyticsEnabled ? (
-          <div className="insights-grid">
-            <article>
-              <p className="meta-label">Coverage</p>
-              <p className="insight-value">
-                {latestEntriesByMetric.size} metrics with data
-              </p>
-            </article>
-            <article>
-              <p className="meta-label">Freshness</p>
-              <p className="insight-value">
-                {latestInsightEntry
-                  ? `Latest update ${formatMetricEntryRecordedAt(
-                      latestInsightEntry.recorded_at,
-                    )}`
-                  : "No data yet"}
-              </p>
-            </article>
-          </div>
+          <>
+            <p className="insight-context">
+              {latestEntriesByMetric.size} metrics with data
+              {latestInsightEntry
+                ? ` · Latest update ${formatMetricEntryRecordedAt(latestInsightEntry.recorded_at)} UTC`
+                : " · No data yet"}
+            </p>
+            <p className="insight-guidance">
+              Start with your sleep: compare your recent nights with your
+              personal target.
+            </p>
+            <div className="insight-navigation">
+              <Link className="insight-destination" to="/analytics/sleep">
+                <strong>Sleep Insights →</strong>
+                <span>See your shortfall and adjust your nightly target.</span>
+              </Link>
+              <Link
+                className="insight-destination"
+                to="/analytics/weight-steps"
+              >
+                <strong>Weight × Steps →</strong>
+                <span>Explore weight and movement trends together.</span>
+              </Link>
+              <Link className="insight-destination" to="/analytics/consistency">
+                <strong>Consistency →</strong>
+                <span>Find gaps in your records and keep them up to date.</span>
+              </Link>
+            </div>
+          </>
         ) : (
           <p className="insights-locked">
-            Upgrade to Pro to unlock trend summaries and advanced analytics.
+            Upgrade to Pro to unlock trend summaries and advanced analytics.{" "}
+            <Link to="/settings" search={{}}>
+              View plans →
+            </Link>
           </p>
         )}
       </section>
@@ -231,50 +204,8 @@ function DashboardRoute() {
                 ))}
               </select>
             </label>
-            {csvExportEnabled ? (
-              <>
-                <label className="export-date-filter">
-                  Export from
-                  <input
-                    max={exportToDate || undefined}
-                    onChange={(event) => {
-                      setExportFromDate(event.target.value);
-                      setExportError(null);
-                    }}
-                    type="date"
-                    value={exportFromDate}
-                  />
-                </label>
-                <label className="export-date-filter">
-                  Export to
-                  <input
-                    min={exportFromDate || undefined}
-                    onChange={(event) => {
-                      setExportToDate(event.target.value);
-                      setExportError(null);
-                    }}
-                    type="date"
-                    value={exportToDate}
-                  />
-                </label>
-                <button
-                  className="export-button"
-                  disabled={isExporting}
-                  onClick={handleCsvExport}
-                  type="button"
-                >
-                  {isExporting ? "Exporting…" : "Export CSV"}
-                </button>
-              </>
-            ) : (
-              <button className="export-button" disabled type="button">
-                CSV export · Pro
-              </button>
-            )}
           </div>
         </div>
-
-        {exportError ? <p className="form-error">{exportError}</p> : null}
 
         {cardMetricEntriesAreLoading || metricEntriesAreLoading ? (
           <p>Loading metric entries...</p>
@@ -283,6 +214,14 @@ function DashboardRoute() {
           <p>Metric entries failed to load</p>
         ) : null}
 
+        {!metricEntriesAreLoading &&
+        !metricEntriesFailed &&
+        recentMetricEntries.length === 0 ? (
+          <p className="empty-state">
+            No entries yet{selectedMetricSlug ? " for this metric" : ""}. Use
+            Add entry on a metric card to get started.
+          </p>
+        ) : null}
         <div className="entry-list">
           {recentMetricEntries.map((entry) => (
             <MetricEntrySummary
@@ -300,6 +239,14 @@ function DashboardRoute() {
           ))}
         </div>
       </section>
+      {entryDefinition ? (
+        <MetricEntryDialog
+          metricDefinition={entryDefinition}
+          isPending={createEntryMutation.isPending}
+          onClose={() => setEntryDefinition(null)}
+          onSubmit={createEntryMutation.mutateAsync}
+        />
+      ) : null}
     </section>
   );
 }
@@ -353,11 +300,6 @@ function formatDashboardDate() {
   }).format(new Date());
 }
 
-function getLocalDayBoundary(date: string, boundary: "start" | "end") {
-  const time = boundary === "start" ? "00:00:00.000" : "23:59:59.999";
-  return new Date(`${date}T${time}`).toISOString();
-}
-
 function getMetricTrendValues(entries: MetricEntry[], metricSlug: string) {
   return entries
     .filter((entry) => entry.metric_definition === metricSlug)
@@ -367,132 +309,4 @@ function getMetricTrendValues(entries: MetricEntry[], metricSlug: string) {
         new Date(right.recorded_at).getTime(),
     )
     .map((entry) => entry.value);
-}
-
-interface MetricEntryFormProps {
-  metricName: string;
-  metricSlug: string;
-}
-
-function MetricEntryForm({ metricName, metricSlug }: MetricEntryFormProps) {
-  const [value, setValue] = useState("");
-  const [bedtime, setBedtime] = useState("");
-  const [wakeTime, setWakeTime] = useState("");
-  const [validationError, setValidationError] = useState<string | null>(null);
-  const createMetricEntryMutation = useCreateMetricEntryMutation();
-  const isSleepDuration = metricSlug === "sleep_duration";
-  const sleepDurationHours = getSleepDurationHours(bedtime, wakeTime);
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setValidationError(null);
-
-    const input = isSleepDuration
-      ? getSleepEntryInput(metricSlug, bedtime, wakeTime)
-      : {
-          metricDefinition: metricSlug,
-          value: Number(value),
-          recordedAt: new Date().toISOString(),
-          context: {},
-        };
-
-    if (!input) {
-      setValidationError("Wake time must be later than bedtime.");
-      return;
-    }
-
-    try {
-      await createMetricEntryMutation.mutateAsync(input);
-
-      setValue("");
-      setBedtime("");
-      setWakeTime("");
-    } catch {
-      // The mutation state below renders the error message.
-    }
-  }
-
-  return (
-    <form className="metric-form" onSubmit={handleSubmit}>
-      {isSleepDuration ? (
-        <>
-          <label>
-            Bedtime
-            <input
-              required
-              type="datetime-local"
-              value={bedtime}
-              onChange={(event) => setBedtime(event.target.value)}
-            />
-          </label>
-          <label>
-            Wake time
-            <input
-              required
-              type="datetime-local"
-              value={wakeTime}
-              onChange={(event) => setWakeTime(event.target.value)}
-            />
-          </label>
-          {sleepDurationHours !== undefined ? (
-            <p className="metric-form-preview">
-              Calculated duration:{" "}
-              {formatMetricValue(sleepDurationHours, metricSlug)}
-            </p>
-          ) : null}
-        </>
-      ) : (
-        <label>
-          {metricName} value
-          <input
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
-            type="number"
-          />
-        </label>
-      )}
-
-      <button disabled={createMetricEntryMutation.isPending} type="submit">
-        {createMetricEntryMutation.isPending
-          ? "Logging..."
-          : `Log ${metricName}`}
-      </button>
-
-      {validationError ? <p className="form-error">{validationError}</p> : null}
-
-      {createMetricEntryMutation.isError ? (
-        <p className="form-error">{createMetricEntryMutation.error.message}</p>
-      ) : null}
-    </form>
-  );
-}
-
-function getSleepDurationHours(bedtime: string, wakeTime: string) {
-  if (!bedtime || !wakeTime) {
-    return undefined;
-  }
-
-  const durationMilliseconds =
-    new Date(wakeTime).getTime() - new Date(bedtime).getTime();
-
-  return durationMilliseconds > 0
-    ? durationMilliseconds / (60 * 60 * 1000)
-    : undefined;
-}
-
-function getSleepEntryInput(
-  metricDefinition: string,
-  bedtime: string,
-  wakeTime: string,
-) {
-  if (getSleepDurationHours(bedtime, wakeTime) === undefined) {
-    return undefined;
-  }
-
-  return {
-    metricDefinition,
-    periodStart: new Date(bedtime).toISOString(),
-    recordedAt: new Date(wakeTime).toISOString(),
-    context: {},
-  };
 }

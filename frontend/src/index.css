@@ -1,21 +1,22 @@
 :root {
-  --bg: #0a0c10;
-  --surface: #111318;
-  --surface-high: #181c24;
-  --border: #1f2535;
-  --accent: #00e5a0;
+  color-scheme: dark;
+  --bg: #0d1115;
+  --surface: #12181d;
+  --surface-high: #181f25;
+  --border: #2b343d;
+  --accent: #49d9af;
   --accent-dim: rgba(0, 229, 160, 0.12);
   --accent-glow: rgba(0, 229, 160, 0.25);
   --warn: #ff6b4a;
   --blue: #3b82f6;
-  --muted: #4a5568;
+  --muted: #97a5b4;
   --text: #e2e8f0;
-  --text-dim: #718096;
-  --text-faint: #2d3748;
+  --text-dim: #a0adba;
+  --text-faint: #303b45;
   --chart-line: #00e5a0;
   --chart-fill: rgba(0, 229, 160, 0.16);
   --font-sans: "DM Sans", "Aptos", "Segoe UI", sans-serif;
-  --font-heading: "Syne", "Space Grotesk", "Trebuchet MS", sans-serif;
+  --font-heading: var(--font-sans);
   --font-mono: "DM Mono", "SFMono-Regular", Consolas, monospace;
 
   color: var(--text);
@@ -45,18 +46,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
-  background:
-    radial-gradient(
-      circle at top left,
-      rgba(0, 229, 160, 0.1),
-      transparent 32rem
-    ),
-    radial-gradient(
-      circle at bottom right,
-      rgba(59, 130, 246, 0.09),
-      transparent 26rem
-    ),
-    var(--bg);
+  background: var(--bg);
 }
 
 button,
@@ -111,8 +101,8 @@ a {
   color: var(--accent);
   font-family: var(--font-heading);
   font-size: 17px;
-  font-weight: 800;
-  letter-spacing: -0.04em;
+  font-weight: 650;
+  letter-spacing: -0.025em;
   text-decoration: none;
   white-space: nowrap;
 }
@@ -136,14 +126,14 @@ a {
   display: inline-flex;
   align-items: center;
   padding: 7px 12px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
+  border: 1px solid transparent;
+  border-radius: 10px;
   color: var(--text-dim);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.05em;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  letter-spacing: 0;
   text-decoration: none;
-  text-transform: uppercase;
+  text-transform: none;
   white-space: nowrap;
 }
 
@@ -159,21 +149,21 @@ a {
   background: var(--accent-dim);
   color: var(--accent);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .app-nav-action {
   min-height: 44px;
   flex: 0 0 auto;
-  border: 1px solid var(--border);
-  border-radius: 999px;
+  border: 1px solid transparent;
+  border-radius: 10px;
   background: transparent;
   color: var(--text-dim);
   padding: 7px 14px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
   white-space: nowrap;
 }
 
@@ -234,8 +224,8 @@ a {
   display: inline-block;
   color: var(--accent);
   font-family: var(--font-heading);
-  font-weight: 800;
-  letter-spacing: -0.04em;
+  font-weight: 650;
+  letter-spacing: -0.025em;
   text-decoration: none;
 }
 
@@ -312,7 +302,7 @@ h3 {
   margin: 0;
   color: var(--text);
   font-family: var(--font-heading);
-  letter-spacing: -0.04em;
+  letter-spacing: -0.025em;
 }
 
 p {
@@ -328,10 +318,10 @@ label {
   display: grid;
   gap: 7px;
   color: var(--text-dim);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 input,
@@ -360,7 +350,7 @@ button {
   color: #00150f;
   padding: 12px 15px;
   font-family: var(--font-heading);
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .error-text {
@@ -382,7 +372,7 @@ button {
 }
 
 .settings-header h1 {
-  font-size: clamp(34px, 5vw, 52px);
+  font-size: clamp(32px, 4vw, 42px);
   line-height: 1;
 }
 
@@ -485,7 +475,7 @@ button {
 .subscription-plan-card h3 {
   font-family: var(--font-sans);
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 650;
   letter-spacing: -0.02em;
 }
 
@@ -557,7 +547,7 @@ button {
   color: var(--accent);
   font-family: var(--font-heading);
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 650;
   letter-spacing: -0.03em;
 }
 
@@ -635,7 +625,7 @@ button {
 }
 
 .dashboard-title {
-  font-size: clamp(44px, 6vw, 72px);
+  font-size: clamp(34px, 4.5vw, 50px);
   line-height: 1.05;
 }
 
@@ -658,7 +648,7 @@ button {
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   align-items: stretch;
 }
@@ -668,11 +658,12 @@ button {
   border: 1px solid var(--border);
   border-radius: 18px;
   background: var(--surface-high);
-  padding: 18px;
+  padding: 22px;
 }
 
 .metric-card {
-  min-height: 360px;
+  min-height: 270px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -702,7 +693,7 @@ button {
   text-decoration: none;
 }
 
-.metric-card-link:hover h2 {
+.metric-card-link:hover {
   color: var(--accent);
 }
 
@@ -722,13 +713,13 @@ button {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  color: var(--accent);
+  color: var(--text);
 }
 
 .metric-current-value span {
   font-family: var(--font-heading);
   font-size: 36px;
-  font-weight: 800;
+  font-weight: 650;
   line-height: 1;
 }
 
@@ -764,7 +755,7 @@ button {
   border-radius: 12px;
   font-family: var(--font-sans);
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 650;
   line-height: 1.1;
   width: 100%;
 }
@@ -838,9 +829,9 @@ button {
   border-radius: 999px;
   color: var(--accent);
   padding: 9px 14px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.04em;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  letter-spacing: 0;
   text-decoration: none;
 }
 
@@ -861,8 +852,8 @@ button {
   color: var(--text);
   font-family: var(--font-heading);
   font-size: 24px;
-  font-weight: 800;
-  letter-spacing: -0.04em;
+  font-weight: 650;
+  letter-spacing: -0.025em;
 }
 
 .insights-locked {
@@ -919,10 +910,10 @@ button {
   background: transparent;
   color: var(--text-dim);
   padding: 6px 10px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .range-toggle button:hover,
@@ -1007,10 +998,10 @@ button {
 }
 
 .entry-value {
-  color: var(--accent);
+  color: var(--text);
   font-family: var(--font-heading);
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 650;
   white-space: nowrap;
 }
 
@@ -1031,10 +1022,10 @@ button {
   min-height: 32px;
   border-radius: 999px;
   padding: 7px 11px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .entry-row-editing {
@@ -1142,14 +1133,14 @@ button {
 .metrics-secondary-action {
   min-height: 44px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: 10px;
   background: transparent;
   color: var(--text-dim);
   padding: 10px 16px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .metrics-toolbar-hint {
@@ -1526,10 +1517,10 @@ button {
 }
 
 .sleep-target-control label {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .sleep-target-control input {
@@ -1596,7 +1587,7 @@ button {
   overflow-wrap: anywhere;
   font-family: var(--font-heading);
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .consistency-metrics {
@@ -1664,8 +1655,8 @@ button {
   border: 1px solid var(--accent);
   border-radius: 999px;
   color: var(--accent);
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-sans);
+  font-size: 14px;
   text-decoration: none;
   white-space: nowrap;
 }
@@ -1746,7 +1737,7 @@ button {
   color: var(--warn);
   font-family: var(--font-heading);
   font-size: clamp(48px, 8vw, 76px);
-  font-weight: 800;
+  font-weight: 650;
   letter-spacing: -0.06em;
   line-height: 1;
 }
@@ -1857,11 +1848,11 @@ button {
   background: var(--accent-dim);
   color: var(--accent);
   padding: 10px 15px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.04em;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  letter-spacing: 0;
   text-decoration: none;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .weight-steps-subtitle {
@@ -1909,7 +1900,7 @@ button {
   margin-top: 10px;
   font-family: var(--font-heading);
   font-size: clamp(18px, 2.5vw, 24px);
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .weight-steps-note {
@@ -1956,8 +1947,8 @@ button {
   flex-wrap: wrap;
   gap: 7px;
   color: var(--text-dim);
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-sans);
+  font-size: 14px;
   letter-spacing: 0.06em;
   overflow-wrap: anywhere;
 }
@@ -2006,10 +1997,10 @@ button {
 .metric-detail-meta {
   margin-top: 12px;
   color: var(--text-dim);
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .metric-detail-summary {
@@ -2035,13 +2026,13 @@ button {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  color: var(--accent);
+  color: var(--text);
 }
 
 .metric-detail-value span {
   font-family: var(--font-heading);
-  font-size: clamp(44px, 7vw, 72px);
-  font-weight: 800;
+  font-size: clamp(36px, 5vw, 52px);
+  font-weight: 650;
   line-height: 0.95;
 }
 
@@ -2056,8 +2047,8 @@ button {
   color: var(--text);
   font-family: var(--font-heading);
   font-size: 26px;
-  font-weight: 800;
-  letter-spacing: -0.04em;
+  font-weight: 650;
+  letter-spacing: -0.025em;
 }
 
 .trend-card {
@@ -2157,12 +2148,12 @@ button {
   color: var(--text);
   font-family: var(--font-heading);
   font-size: 28px;
-  font-weight: 800;
-  letter-spacing: -0.04em;
+  font-weight: 650;
+  letter-spacing: -0.025em;
 }
 
 .trend-delta {
-  color: var(--accent);
+  color: var(--text);
 }
 
 @media (max-width: 680px) {
@@ -2299,12 +2290,12 @@ button {
   }
 
   .metric-card h2 {
-    font-size: 13px;
+    font-size: 17px;
   }
 
   .metric-meta,
   .chip-label {
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .metric-current-value {
@@ -2312,7 +2303,7 @@ button {
   }
 
   .metric-current-value span {
-    font-size: 24px;
+    font-size: 34px;
   }
 
   .metric-current-value small {
@@ -2542,5 +2533,287 @@ button {
 
   .metric-list-row h2 {
     font-size: 14px;
+  }
+}
+
+/* Calm health overview: hierarchy comes from space and type. */
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+.app-main {
+  padding-top: 36px;
+}
+.dashboard-metrics {
+  display: grid;
+  gap: 28px;
+}
+.dashboard-section-title {
+  font-size: 18px;
+  margin-bottom: 14px;
+}
+.metric-card-link {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.metric-card-link span {
+  color: var(--text-dim);
+}
+.metric-card-source,
+.metric-meta {
+  color: var(--text-dim);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.metric-card-source {
+  overflow-wrap: anywhere;
+}
+.metric-card-trend {
+  display: grid;
+  gap: 6px;
+}
+.metric-card-add {
+  margin-top: auto;
+  align-self: start;
+  background: transparent;
+  color: var(--text-dim);
+  padding: 10px 0;
+  min-height: 44px;
+  font-weight: 500;
+}
+.metric-card-add:hover {
+  color: var(--accent);
+}
+.metric-sparkline-line {
+  stroke: #7aaea4;
+  stroke-width: 2;
+}
+.metric-sparkline-fill {
+  fill: rgba(122, 174, 164, 0.06);
+}
+.status-pill {
+  border-color: transparent;
+  background: var(--surface);
+  color: var(--text-dim);
+  font-family: var(--font-sans);
+  font-size: 12px;
+}
+.subscription-status-problem {
+  color: var(--warn);
+}
+.eyebrow {
+  color: var(--text-dim);
+}
+.insights-card,
+.sleep-insights-card,
+.weight-steps-card,
+.consistency-card,
+.subscription-card,
+.subscription-card-featured,
+.trend-card {
+  border-color: var(--border);
+  background: var(--surface-high);
+  box-shadow: none;
+}
+.metric-detail-stat-primary {
+  border-color: var(--border);
+  box-shadow: none;
+}
+.metric-detail-stat-value {
+  font-size: 23px;
+}
+.metric-detail-summary {
+  grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(0, 1fr));
+}
+.insight-context {
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.insight-guidance {
+  line-height: 1.6;
+}
+.insight-navigation {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+.insight-destination {
+  display: grid;
+  gap: 8px;
+  padding: 16px 0 4px;
+  border-top: 1px solid var(--border);
+  text-decoration: none;
+}
+.insight-destination strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+.insight-destination span {
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.insight-destination:hover strong {
+  color: var(--accent);
+}
+.insights-locked {
+  padding: 0;
+  border: 0;
+  background: none;
+  line-height: 1.6;
+}
+.insights-locked a {
+  display: inline-block;
+  padding: 10px;
+  color: var(--accent);
+}
+.trend-grid article,
+.weight-steps-summary article,
+.sleep-insights-summary article,
+.consistency-summary article {
+  border-color: transparent;
+  background: var(--surface);
+}
+.metric-trend-chart,
+.weight-steps-chart {
+  background: transparent;
+  border-color: transparent;
+  padding-inline: 0;
+}
+.entry-time,
+.entry-source {
+  font-family: var(--font-sans);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-dim);
+}
+.entry-source {
+  border: 0;
+  background: none;
+  font-size: 12px;
+}
+.entry-actions button {
+  background: var(--surface);
+  color: var(--text-dim);
+}
+.entry-actions button:hover {
+  color: var(--text);
+}
+.range-toggle button {
+  min-height: 36px;
+}
+.app-modal {
+  width: min(580px, calc(100% - 32px));
+  color: var(--text);
+  max-height: calc(100dvh - 32px);
+}
+.app-modal::backdrop {
+  background: rgba(4, 6, 10, 0.75);
+  backdrop-filter: blur(4px);
+}
+body:has(dialog[open]) {
+  overflow: hidden;
+}
+.export-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  display: grid;
+  gap: 18px;
+}
+.export-dates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.app-modal form {
+  margin-top: 20px;
+}
+.export-upgrade {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  font-size: 14px;
+}
+.export-upgrade a {
+  color: var(--accent);
+  padding-block: 10px;
+}
+.settings-data-copy {
+  color: var(--text-dim);
+  margin-top: 8px;
+  line-height: 1.6;
+}
+#available-plans {
+  scroll-margin-top: 100px;
+}
+@media (max-width: 850px) and (min-width: 681px) {
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 680px) {
+  .app-main {
+    padding-top: 24px;
+  }
+  .app-header-inner {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .app-navigation,
+  .app-nav {
+    width: 100%;
+  }
+  .app-nav {
+    justify-content: space-between;
+  }
+  .app-nav-link,
+  .app-nav-action {
+    padding-inline: 8px;
+    font-size: 13px;
+  }
+  .dashboard-title {
+    font-size: 34px;
+  }
+  .metric-grid,
+  .insight-navigation,
+  .metric-detail-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .metric-card {
+    padding: 20px;
+  }
+  .metric-card-source {
+    font-size: 12px;
+  }
+  .metric-detail-stat {
+    min-width: 0;
+  }
+  .metric-detail-hero {
+    flex-direction: column;
+  }
+  .metric-detail-hero-actions {
+    width: 100%;
+  }
+  .insight-navigation {
+    gap: 12px;
+  }
+  .metric-detail-meta {
+    text-transform: capitalize;
+  }
+  .export-dates {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .entry-link {
+    font-size: 15px;
+  }
+  .user-chip {
+    display: none;
   }
 }

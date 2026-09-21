@@ -447,7 +447,7 @@ describe("metrics route", () => {
     expect(
       await screen.findByRole("heading", { name: /resting heart rate/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/resting_hr · bpm/i)).toBeInTheDocument();
+    expect(screen.getByText(/cardiovascular · bpm/i)).toBeInTheDocument();
   });
 
   it("updates a custom metric from the metrics catalog", async () => {

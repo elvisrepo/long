@@ -5,6 +5,37 @@
 ## Source
 - 
 
+## Implemented local UI refinement — 2026-09-21
+
+The current direction combines Apple Health's readable hierarchy, Oura's calm
+presentation, Samsung Health's straightforward entry flow, and detailed metric
+pages inspired by Garmin. The dark theme uses neutral values, softer borders,
+sans serif headings and controls, restrained green accents, and visible keyboard
+focus. No proprietary scores, branding, or health recommendations were copied.
+
+- Dashboard: Sleep Duration, Steps, and Body Weight first; remaining definitions
+  under **More metrics**. This supersedes the earlier four-metric priority list.
+- Cards: latest reading, recent sparkline, source and measurement timestamp,
+  then **Add entry**. Slugs and full forms no longer occupy the cards.
+- Dashboard and detail pages share one entry dialog with measurement time,
+  optional notes, numeric validation, and Bedtime/Wake time for Sleep.
+- Native dialogs contain focus, support Escape, restore trigger focus, and
+  prevent accidental dismissal while a request is pending.
+- Metric details: readable breadcrumbs/category, source and recorded time,
+  and range controls directly above the chart.
+- Pro Insights: a brief sleep review prompt and three descriptive links to
+  Sleep, Weight × Steps, and Consistency, instead of a toolbar of pills.
+- CSV export lives in **Settings → Data & Privacy → Export health data**.
+  The dialog owns metric and optional local From/To dates. Recent Entries
+  retains only its own metric filter. Free users see a Pro explanation and
+  **View plans** link; the backend still enforces the export entitlement.
+
+Scope: local frontend only. Dashboard data remains a bounded 50-entry read;
+**Recent readings** does not promise seven complete days or full metric coverage.
+Displayed measurement timestamps are not last-sync timestamps. Pinning,
+reordering, complete seven-day dashboard aggregates, and a dedicated Connections
+screen remain future work. No cloud deployment was performed.
+
 ## Agreed next design direction — 2026-09-19
 
 The current dark, technical dashboard remains the implemented baseline. The

@@ -70,7 +70,7 @@ function SleepInsightsRoute() {
     <section className="sleep-insights-screen">
       <nav aria-label="Breadcrumb" className="metric-detail-breadcrumb">
         <Link to="/metrics/$slug" params={{ slug: "sleep_duration" }}>
-          sleep_duration
+          Sleep Duration
         </Link>
         <span aria-hidden="true">/</span>
         <span>insights</span>

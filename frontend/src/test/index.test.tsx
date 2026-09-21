@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -6,7 +6,6 @@ import { restoreWebSession } from "../features/auth/auth-bootstrap";
 import { logoutWeb } from "../features/auth/auth-logout-api";
 import { getMe } from "../features/auth/auth-me-api";
 import { createMetricEntry } from "../features/metrics/metric-entries-api";
-import { downloadMetricEntriesCsv } from "../features/metrics/metric-entry-export-api";
 import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
 import { useMetricEntriesQuery } from "../features/metrics/use-metric-entries-query";
 import { useCurrentSubscriptionQuery } from "../features/subscriptions/use-current-subscription-query";
@@ -34,10 +33,6 @@ vi.mock("../features/metrics/use-metric-entries-query", () => ({
 
 vi.mock("../features/metrics/metric-entries-api", () => ({
   createMetricEntry: vi.fn(),
-}));
-
-vi.mock("../features/metrics/metric-entry-export-api", () => ({
-  downloadMetricEntriesCsv: vi.fn(),
 }));
 
 vi.mock("../features/subscriptions/use-current-subscription-query", () => ({
@@ -204,7 +199,7 @@ describe("dashboard route", () => {
     expect(
       screen.getByRole("heading", { name: /resting heart rate/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/cardiovascular · bpm/i)).toBeInTheDocument();
+    expect(screen.getByText(/no readings yet/i)).toBeInTheDocument();
 
     const navigation = screen.getByRole("navigation", {
       name: /primary navigation/i,
@@ -354,16 +349,25 @@ describe("dashboard route", () => {
 
     await screen.findByRole("heading", { name: /dashboard/i });
 
+    expect(
+      screen.queryByLabelText(/resting heart rate value/i),
+    ).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: /add resting heart rate entry/i }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: /add resting heart rate entry/i }),
+    ).toBeInTheDocument();
     await user.type(screen.getByLabelText(/resting heart rate value/i), "58");
     await user.click(
-      screen.getByRole("button", { name: /log resting heart rate/i }),
+      screen.getByRole("button", { name: /save resting heart rate entry/i }),
     );
 
     expect(createMetricEntryMock).toHaveBeenCalledWith({
       metricDefinition: "resting_hr",
       value: 58,
       recordedAt: expect.any(String),
-      context: {},
+      context: { notes: "" },
     });
   });
 
@@ -402,6 +406,9 @@ describe("dashboard route", () => {
     renderRoute("/");
 
     await screen.findByRole("heading", { name: /dashboard/i });
+    await user.click(
+      screen.getByRole("button", { name: /add sleep duration entry/i }),
+    );
     await user.type(screen.getByLabelText(/^bedtime$/i), "2026-09-19T01:00");
     await user.type(screen.getByLabelText(/^wake time$/i), "2026-09-19T08:50");
 
@@ -410,14 +417,14 @@ describe("dashboard route", () => {
     ).toBeInTheDocument();
 
     await user.click(
-      screen.getByRole("button", { name: /log sleep duration/i }),
+      screen.getByRole("button", { name: /save sleep duration entry/i }),
     );
 
     expect(createMetricEntryMock).toHaveBeenCalledWith({
       metricDefinition: "sleep_duration",
       periodStart: new Date("2026-09-19T01:00").toISOString(),
       recordedAt: new Date("2026-09-19T08:50").toISOString(),
-      context: {},
+      context: { notes: "" },
     });
   });
 
@@ -446,14 +453,17 @@ describe("dashboard route", () => {
     renderRoute("/");
 
     await screen.findByRole("heading", { name: /dashboard/i });
+    await user.click(
+      screen.getByRole("button", { name: /add sleep duration entry/i }),
+    );
     await user.type(screen.getByLabelText(/^bedtime$/i), "2026-09-19T08:50");
     await user.type(screen.getByLabelText(/^wake time$/i), "2026-09-19T01:00");
     await user.click(
-      screen.getByRole("button", { name: /log sleep duration/i }),
+      screen.getByRole("button", { name: /save sleep duration entry/i }),
     );
 
     expect(
-      screen.getByText(/wake time must be later than bedtime/i),
+      screen.getByText(/enter a sleep window between 0 and 24 hours/i),
     ).toBeInTheDocument();
     expect(createMetricEntryMock).not.toHaveBeenCalled();
   });
@@ -479,15 +489,18 @@ describe("dashboard route", () => {
 
     await screen.findByRole("heading", { name: /dashboard/i });
 
+    await user.click(
+      screen.getByRole("button", { name: /add resting heart rate entry/i }),
+    );
     const valueInput = screen.getByLabelText(/resting heart rate value/i);
 
     await user.type(valueInput, "58");
     await user.click(
-      screen.getByRole("button", { name: /log resting heart rate/i }),
+      screen.getByRole("button", { name: /save resting heart rate entry/i }),
     );
 
     await waitFor(() => {
-      expect(valueInput).toHaveValue(null);
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
   });
 
@@ -506,9 +519,12 @@ describe("dashboard route", () => {
 
     await screen.findByRole("heading", { name: /dashboard/i });
 
-    await user.type(screen.getByLabelText(/resting heart rate value/i), "500");
     await user.click(
-      screen.getByRole("button", { name: /log resting heart rate/i }),
+      screen.getByRole("button", { name: /add resting heart rate entry/i }),
+    );
+    await user.type(screen.getByLabelText(/resting heart rate value/i), "58");
+    await user.click(
+      screen.getByRole("button", { name: /save resting heart rate entry/i }),
     );
 
     expect(
@@ -541,9 +557,17 @@ describe("dashboard route", () => {
       0,
     );
     expect(screen.getByText(/manual and synced records/i)).toBeInTheDocument();
-    expect(screen.getByText(/samsung health/i)).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("region", { name: /metric entries/i })).getByText(
+        /samsung health/i,
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByText(/58 bpm/i)).toBeInTheDocument();
-    expect(screen.getByText(/mar 5, 2026, 7:15 am/i)).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("region", { name: /metric entries/i })).getByText(
+        /mar 5, 2026, 7:15 am/i,
+      ),
+    ).toBeInTheDocument();
   });
 
   it("shows a recent trend in a metric card with multiple values", async () => {
@@ -677,88 +701,16 @@ describe("dashboard route", () => {
     expect(useMetricEntriesQuery).toHaveBeenCalledWith({ limit: 5 });
   });
 
-  it("exports all entries for the selected metric", async () => {
-    const user = userEvent.setup();
-    mockProSubscription();
-    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
-    vi.mocked(downloadMetricEntriesCsv).mockResolvedValue();
-    mockLoadedMetricDefinitionsWithManyMetrics();
-
-    renderRoute("/");
-
-    await user.selectOptions(
-      await screen.findByLabelText(/filter recent entries by metric/i),
-      "body_weight",
-    );
-    fireEvent.change(screen.getByLabelText(/export from/i), {
-      target: { value: "2026-09-19" },
-    });
-    fireEvent.change(screen.getByLabelText(/export to/i), {
-      target: { value: "2026-09-21" },
-    });
-    await user.click(screen.getByRole("button", { name: /export csv/i }));
-
-    expect(downloadMetricEntriesCsv).toHaveBeenCalledWith({
-      metric: "body_weight",
-      from: new Date("2026-09-19T00:00:00.000").toISOString(),
-      to: new Date("2026-09-21T23:59:59.999").toISOString(),
-    });
-  });
-
-  it("shows CSV export as a locked Pro feature for Free users", async () => {
+  it("keeps export controls out of Recent Entries", async () => {
     vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
     mockLoadedMetricDefinitions();
-
-    renderRoute("/");
-
-    expect(
-      await screen.findByRole("button", { name: /csv export · pro/i }),
-    ).toBeDisabled();
-    expect(screen.queryByLabelText(/export from/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/export to/i)).not.toBeInTheDocument();
-  });
-
-  it("rejects an export whose From date is after its To date", async () => {
-    const user = userEvent.setup();
     mockProSubscription();
-    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
-    mockLoadedMetricDefinitions();
     renderRoute("/");
-
-    fireEvent.change(await screen.findByLabelText(/export from/i), {
-      target: { value: "2026-09-21" },
-    });
-    fireEvent.change(screen.getByLabelText(/export to/i), {
-      target: { value: "2026-09-19" },
-    });
-    await user.click(screen.getByRole("button", { name: /export csv/i }));
-
-    expect(downloadMetricEntriesCsv).not.toHaveBeenCalled();
+    await screen.findByRole("heading", { name: /dashboard/i });
     expect(
-      screen.getByText(/from date must be on or before to date/i),
-    ).toBeInTheDocument();
-  });
-
-  it("shows a safe message when CSV export fails", async () => {
-    const user = userEvent.setup();
-    mockProSubscription();
-    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
-    vi.mocked(downloadMetricEntriesCsv).mockRejectedValue(
-      new Error("private backend detail"),
-    );
-    mockLoadedMetricDefinitions();
-
-    renderRoute("/");
-    await user.click(
-      await screen.findByRole("button", { name: /export csv/i }),
-    );
-
-    expect(
-      await screen.findByText(/csv export failed\. please try again\./i),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText(/private backend detail/i),
+      screen.queryByRole("button", { name: /export/i }),
     ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/export from/i)).not.toBeInTheDocument();
   });
 
   it("shows card latest values from entries beyond the five-entry recent list", async () => {

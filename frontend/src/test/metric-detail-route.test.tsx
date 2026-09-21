@@ -157,7 +157,7 @@ describe("metric detail route", () => {
         name: /resting heart rate/i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/resting_hr · bpm/i)).toBeInTheDocument();
+    expect(screen.getByText(/cardiovascular · bpm/i)).toBeInTheDocument();
 
     const summary = screen.getByRole("region", {
       name: /metric summary/i,
@@ -460,10 +460,13 @@ describe("metric detail route", () => {
     expect(
       within(breadcrumb).getByRole("link", { name: /^metrics$/i }),
     ).toHaveAttribute("href", "/metrics");
+    expect(screen.getByText(/body composition · kg/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/body_weight · kg · body_composition · default/i),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/all · daily latest values/i)).toBeInTheDocument();
+      within(screen.getByRole("region", { name: /trend overview/i })).getByRole(
+        "button",
+        { name: /^all$/i },
+      ),
+    ).toHaveAttribute("aria-pressed", "true");
 
     const history = screen.getByRole("region", {
       name: /metric entry history/i,

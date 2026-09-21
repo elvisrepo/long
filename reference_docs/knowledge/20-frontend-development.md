@@ -6,7 +6,7 @@
 ## Source
 - Derived from `reference_docs/knowledge/planning.md` section 5.
 
-### Current redesign checkpoint (September 20, 2026)
+### Current redesign checkpoint (September 21, 2026)
 
 - The first `longevity-redesign-v21` implementation slice is local only; it has
   not been deployed.
@@ -117,19 +117,30 @@
   scheduled cancellation explicit, and surfaces wearable connection,
   analytics, and CSV-import entitlements from the existing plan contract.
   Loading and mutation failures render as accessible inline alerts.
-- The dashboard's Recent Entries toolbar exposes **Export CSV** when the
-  current plan reports `csv_export_enabled=true`. Free users see a disabled
-  **CSV export · Pro** control; Django independently returns `403` for an
-  unentitled request. With **All metrics** selected, Pro downloads the complete
-  metric-entry history; selecting a metric applies that slug to the export and
-  the bounded on-screen list.
-- Pro users can optionally choose local-calendar **Export from** and **Export
-  to** dates. The browser converts the start and end of those local days to UTC
-  instants before sending the existing `from` and `to` API parameters. It
-  rejects an inverted range before requesting the server. The download uses
-  the in-memory bearer token, saves `longevity-metrics.csv`, disables the button
-  while pending, and shows a safe inline retry message on failure. Web Sync Now
-  remains reference-only. Logout remains in the shared authenticated shell.
+- CSV export is now in **Settings → Data & Privacy → Export health data**.
+  Pro opens a native dialog with metric selection (including archived metrics)
+  and optional local-calendar **Export from / Export to** fields. Free sees a
+  Pro explanation and **View plans** link. Entitlements that are loading or
+  unavailable have separate states. Django still independently returns `403`
+  for an unentitled request.
+- With no filters, the export contains the full metric-entry history. The
+  browser converts local date boundaries to UTC for the existing `from`/`to`
+  API parameters, rejects inverted ranges, uses the in-memory bearer token,
+  downloads `longevity-metrics.csv`, and displays success or a safe retry error.
+  Controls are disabled during download. Recent Entries filtering is independent.
+- The September 21 local visual refinement puts Sleep, Steps and Weight first,
+  uses compact cards and neutral reading colors, removes technical slugs from
+  cards/detail headers, and places metric-detail range controls above charts.
+  Dashboard Add entry and detail Add entry share `metric-entry-dialog.tsx` and
+  `metric-entry-input.ts`; dates, notes and validation follow the same behavior.
+  `components/modal.tsx` supplies native focus containment and Escape handling.
+- Sources on cards/detail summaries refer to measurement time, not sync time.
+  Sparklines remain bounded by the 50-entry dashboard query and are labelled
+  **Recent readings**. Pro Insights uses descriptive destinations and a sleep
+  review prompt without claiming a computed personal recommendation.
+- Typography, controls, cards, focus indicators and dark browser controls were
+  refined across existing routes. The design is local only. Web Sync Now remains
+  reference-only; Logout remains in the shared authenticated shell.
 - `frontend/longevity-redesign-v21` is design reference material and is
   excluded from ESLint and Prettier checks; its handoff files are not compiled
   into the application.
