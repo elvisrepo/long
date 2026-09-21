@@ -98,6 +98,17 @@
   its latest entry timestamp. It links each row to metric detail and includes
   accessible loading, error, and empty states. It deliberately avoids a generic
   stale or on-track label because expected tracking frequency varies by metric.
+- Every presence cell is a keyboard-accessible date deep link to
+  `/metrics/$slug?date=YYYY-MM-DD`. Metric detail validates that search value,
+  requests entries using exact UTC day bounds, replaces the range controls with
+  a selected-date indicator, and seeds the manual-entry dialog from that date.
+  This exposes every entry when a metric has multiple records on one date and
+  gives missing dates a direct path to manual entry.
+- Consistency also shows a factual **Needs attention** section. Steps and Sleep
+  appear after two UTC calendar days without an entry; other metrics appear
+  after seven days only if they have previously been used. The copy states the
+  actual age of the latest record and links to metric detail. It does not claim
+  that the metric is clinically stale or invent a wearable provider.
 - The local Settings route now follows the `settings-subscriptions-v2` visual
   structure while preserving the current subscription, Checkout, and Customer
   Portal contracts. Current-plan and plan-catalog loading use accessible

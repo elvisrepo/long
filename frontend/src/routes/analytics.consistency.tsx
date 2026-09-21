@@ -37,6 +37,7 @@ function ConsistencyAnalyticsRoute() {
     return null;
   }
   const mostConsistent = findMostConsistentMetric(analytics.metrics);
+  const attentionItems = getAttentionItems(analytics.metrics, analytics.dates);
 
   return (
     <section className="consistency-screen">
@@ -107,6 +108,34 @@ function ConsistencyAnalyticsRoute() {
                 />
               ))}
             </div>
+            {attentionItems.length > 0 ? (
+              <section
+                aria-label="Needs attention"
+                className="consistency-attention"
+              >
+                <div>
+                  <p className="eyebrow">Recent gaps</p>
+                  <h2>Needs attention</h2>
+                </div>
+                <div className="consistency-attention-list">
+                  {attentionItems.map(({ message, metric }) => (
+                    <article key={metric.metric_definition_id}>
+                      <p>
+                        <strong>{metric.name}:</strong> {message}
+                      </p>
+                      <Link
+                        aria-label={`Open ${metric.name}`}
+                        className="consistency-open-link"
+                        params={{ slug: metric.slug }}
+                        to="/metrics/$slug"
+                      >
+                        Open →
+                      </Link>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ) : null}
             <p className="consistency-note">
               Presence means at least one entry ended on that UTC date. Multiple
               entries still count as one tracked day. This view does not judge
@@ -148,14 +177,17 @@ function ConsistencyMetricRow({
         {dates.map((date, index) => {
           const isPresent = metric.day_presence[index] ?? false;
           return (
-            <span
-              aria-label={`${date}: ${isPresent ? "tracked" : "no entry"}`}
+            <Link
+              aria-label={`${metric.name} on ${date}: ${isPresent ? "tracked" : "no entry"}`}
               className={`consistency-day ${isPresent ? "is-present" : "is-missing"}`}
               key={date}
+              params={{ slug: metric.slug }}
+              search={{ date }}
               title={date}
+              to="/metrics/$slug"
             >
               {formatWeekday(date)}
-            </span>
+            </Link>
           );
         })}
       </div>
@@ -182,6 +214,54 @@ function findMostConsistentMetric(
       ? metric
       : best;
   }, null);
+}
+
+interface AttentionItem {
+  metric: ConsistencyMetric;
+  message: string;
+}
+
+function getAttentionItems(
+  metrics: ConsistencyMetric[],
+  dates: string[],
+): AttentionItem[] {
+  const currentDate = dates.at(-1);
+  if (!currentDate) {
+    return [];
+  }
+
+  return metrics.flatMap((metric) => {
+    const isDailyMetric = ["steps", "sleep_duration"].includes(metric.slug);
+    if (!metric.last_recorded_at) {
+      return isDailyMetric ? [{ metric, message: "No entries yet." }] : [];
+    }
+
+    const daysSinceLatest = utcCalendarDayDifference(
+      metric.last_recorded_at.slice(0, 10),
+      currentDate,
+    );
+    if (daysSinceLatest < (isDailyMetric ? 2 : 7)) {
+      return [];
+    }
+
+    return [
+      {
+        metric,
+        message: `Last entry ${daysSinceLatest} day${daysSinceLatest === 1 ? "" : "s"} ago.`,
+      },
+    ];
+  });
+}
+
+function utcCalendarDayDifference(earlier: string, later: string): number {
+  const millisecondsPerDay = 24 * 60 * 60 * 1000;
+  return Math.max(
+    0,
+    Math.round(
+      (Date.parse(`${later}T00:00:00Z`) - Date.parse(`${earlier}T00:00:00Z`)) /
+        millisecondsPerDay,
+    ),
+  );
 }
 
 function formatWeekday(date: string): string {

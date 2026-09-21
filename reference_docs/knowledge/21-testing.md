@@ -592,7 +592,11 @@ Current frontend metrics testing checkpoint:
   the saved value, explicit saving, and accessible saving/saved/error feedback.
 - Consistency frontend tests cover its authenticated API request, safe backend
   error, loaded summary and per-metric presence rendering, metric-detail links,
-  and accessible loading, error, and empty states.
+  date-specific tracked/missing cell links, factual attention messaging, and
+  accessible loading, error, and empty states. Metric-detail route tests prove
+  a valid `date` search value produces exact UTC `from`/`to` entry filters, a
+  visible selected-date state, a clear-date link, and a date-prefilled manual
+  entry dialog.
 - Metric-entry hook tests mock the API helper but use a real `QueryClientProvider`, so they verify Query behavior without requiring a running Django backend.
 - Playwright E2E now submits a real metric entry through the browser against the isolated E2E backend/database, verifies the saved value appears in the dashboard flow, and exercises the metric filter dropdown.
 - Playwright E2E now also creates a custom metric through `/metrics`, verifies it appears in the catalog, verifies it appears on the dashboard, and logs a custom metric entry.

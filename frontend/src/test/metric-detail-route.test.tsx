@@ -237,6 +237,35 @@ describe("metric detail route", () => {
     );
   });
 
+  it("filters to a linked UTC date and prefills a manual entry on that date", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    mockLoadedMetricDefinitions();
+    mockLoadedMetricEntries([]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/resting_hr?date=2026-09-16");
+
+    expect(
+      await screen.findByText(/entries for sep 16, 2026 \(utc\)/i),
+    ).toBeInTheDocument();
+    expect(useMetricEntriesQuery).toHaveBeenCalledWith({
+      metric: "resting_hr",
+      from: "2026-09-16T00:00:00.000Z",
+      to: "2026-09-16T23:59:59.999Z",
+      limit: 50,
+    });
+    expect(
+      screen.getByRole("link", { name: /clear selected date/i }),
+    ).toHaveAttribute("href", "/metrics/resting_hr");
+
+    await user.click(
+      screen.getByRole("button", { name: /add resting heart rate entry/i }),
+    );
+    const recordedAt = screen.getByLabelText(/recorded at/i);
+    expect((recordedAt as HTMLInputElement).value).toMatch(/^2026-09-16T/);
+  });
+
   it("keeps the selected range filter stable across rerenders", async () => {
     const user = userEvent.setup();
 

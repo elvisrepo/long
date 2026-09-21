@@ -27,7 +27,14 @@ import { useCurrentSubscriptionQuery } from "../features/subscriptions/use-curre
 export const Route = createFileRoute("/metrics/$slug")({
   beforeLoad: requireAuthBeforeLoad,
   component: MetricDetailRoute,
+  validateSearch: (search: Record<string, unknown>): MetricDetailSearch => ({
+    date: isUtcDate(search.date) ? search.date : undefined,
+  }),
 });
+
+interface MetricDetailSearch {
+  date?: string;
+}
 
 const metricEntryRanges = [
   { label: "7d", days: 7 },
@@ -42,6 +49,7 @@ type MetricEntryRange = (typeof metricEntryRanges)[number];
 
 function MetricDetailRoute() {
   const { slug } = Route.useParams();
+  const { date: selectedDate } = Route.useSearch();
   const [selectedRange, setSelectedRange] = useState<MetricEntryRange>(
     metricEntryRanges[3],
   );
@@ -53,13 +61,20 @@ function MetricDetailRoute() {
   const [entryPendingDeletion, setEntryPendingDeletion] =
     useState<MetricEntry | null>(null);
   const [entryActionError, setEntryActionError] = useState<string | null>(null);
-  const metricEntryFilters: GetMetricEntriesFilters = selectedRangeFrom
+  const metricEntryFilters: GetMetricEntriesFilters = selectedDate
     ? {
         metric: slug,
-        from: selectedRangeFrom,
+        from: `${selectedDate}T00:00:00.000Z`,
+        to: `${selectedDate}T23:59:59.999Z`,
         limit: METRIC_DETAIL_ENTRY_LIMIT,
       }
-    : { metric: slug, limit: METRIC_DETAIL_ENTRY_LIMIT };
+    : selectedRangeFrom
+      ? {
+          metric: slug,
+          from: selectedRangeFrom,
+          limit: METRIC_DETAIL_ENTRY_LIMIT,
+        }
+      : { metric: slug, limit: METRIC_DETAIL_ENTRY_LIMIT };
   const {
     data: metricDefinitions = [],
     isLoading: definitionsAreLoading,
@@ -226,7 +241,9 @@ function MetricDetailRoute() {
             <h2>Trend Overview</h2>
           </div>
           <span className="metric-detail-range-status">
-            {selectedRange.label} · Daily latest values
+            {selectedDate
+              ? `${formatUtcDate(selectedDate)} · selected UTC date`
+              : `${selectedRange.label} · Daily latest values`}
           </span>
         </div>
 
@@ -278,18 +295,32 @@ function MetricDetailRoute() {
             <h2>Entry History</h2>
           </div>
 
-          <div className="range-toggle" aria-label="Metric entry range">
-            {metricEntryRanges.map((range) => (
-              <button
-                aria-pressed={selectedRange.label === range.label}
-                key={range.label}
-                onClick={() => handleRangeSelect(range)}
-                type="button"
+          {selectedDate ? (
+            <div className="metric-selected-date">
+              <span>Entries for {formatUtcDate(selectedDate)} (UTC)</span>
+              <Link
+                aria-label="Clear selected date"
+                params={{ slug }}
+                search={{ date: undefined }}
+                to="/metrics/$slug"
               >
-                {range.label}
-              </button>
-            ))}
-          </div>
+                Clear date
+              </Link>
+            </div>
+          ) : (
+            <div className="range-toggle" aria-label="Metric entry range">
+              {metricEntryRanges.map((range) => (
+                <button
+                  aria-pressed={selectedRange.label === range.label}
+                  key={range.label}
+                  onClick={() => handleRangeSelect(range)}
+                  type="button"
+                >
+                  {range.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {entriesAreLoading ? <p>Loading metric entries...</p> : null}
@@ -339,6 +370,7 @@ function MetricDetailRoute() {
       {isAddingMetricEntry
         ? createPortal(
             <MetricEntryDialog
+              initialDate={selectedDate}
               isPending={createMetricEntryMutation.isPending}
               metricDefinition={metricDefinition}
               onClose={() => setIsAddingMetricEntry(false)}
@@ -474,6 +506,7 @@ function MetricAnalyticsLink({ metricSlug }: { metricSlug: string }) {
 }
 
 interface MetricEntryDialogProps {
+  initialDate?: string;
   isPending: boolean;
   metricDefinition: MetricDefinition;
   onClose: () => void;
@@ -481,6 +514,7 @@ interface MetricEntryDialogProps {
 }
 
 function MetricEntryDialog({
+  initialDate,
   isPending,
   metricDefinition,
   onClose,
@@ -488,10 +522,23 @@ function MetricEntryDialog({
 }: MetricEntryDialogProps) {
   const [value, setValue] = useState("");
   const [recordedAt, setRecordedAt] = useState(() =>
-    formatDateTimeLocalInput(new Date().toISOString()),
+    formatDateTimeLocalInput(
+      initialDate ? `${initialDate}T12:00:00Z` : new Date().toISOString(),
+    ),
   );
-  const [bedtime, setBedtime] = useState("");
-  const [wakeTime, setWakeTime] = useState("");
+  const initialWakeTime = initialDate ? `${initialDate}T07:00:00Z` : undefined;
+  const [bedtime, setBedtime] = useState(() =>
+    initialWakeTime
+      ? formatDateTimeLocalInput(
+          new Date(
+            new Date(initialWakeTime).getTime() - 8 * 60 * 60 * 1000,
+          ).toISOString(),
+        )
+      : "",
+  );
+  const [wakeTime, setWakeTime] = useState(() =>
+    initialWakeTime ? formatDateTimeLocalInput(initialWakeTime) : "",
+  );
   const [notes, setNotes] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const isSleepDuration = metricDefinition.slug === "sleep_duration";
@@ -921,6 +968,25 @@ function formatDateTimeLocalInput(isoTimestamp: string) {
     timestamp.getTime() - timestamp.getTimezoneOffset() * 60 * 1000,
   );
   return localTimestamp.toISOString().slice(0, 16);
+}
+
+function isUtcDate(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return (
+    !Number.isNaN(parsed.getTime()) &&
+    parsed.toISOString().slice(0, 10) === value
+  );
+}
+
+function formatUtcDate(value: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeZone: "UTC",
+  }).format(new Date(`${value}T00:00:00Z`));
 }
 
 function isValidSleepWindow(bedtime: string, wakeTime: string) {

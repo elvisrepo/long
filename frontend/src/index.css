@@ -515,6 +515,7 @@ button {
   color: var(--text-dim);
   font-family: var(--font-mono);
   font-size: 10px;
+  text-decoration: none;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1656,6 +1657,45 @@ button {
   line-height: 1.5;
 }
 
+.consistency-attention {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--warn) 50%, var(--border));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--warn) 4%, var(--surface));
+}
+
+.consistency-attention h2,
+.consistency-attention p {
+  margin: 0;
+}
+
+.consistency-attention-list {
+  display: grid;
+  gap: 10px;
+}
+
+.consistency-attention-list article {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.metric-selected-date {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.metric-selected-date a {
+  color: var(--accent);
+}
+
 @media (max-width: 720px) {
   .consistency-summary {
     grid-template-columns: 1fr;
@@ -1672,6 +1712,12 @@ button {
 
   .consistency-day {
     width: 100%;
+  }
+
+  .consistency-attention-list article,
+  .metric-selected-date {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 
