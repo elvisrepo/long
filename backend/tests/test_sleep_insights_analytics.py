@@ -219,3 +219,25 @@ def test_sleep_insights_excludes_other_users_and_custom_same_slug_metrics() -> N
 
     assert response.status_code == 200
     assert response.json()["summary"]["tracked_nights"] == 0
+
+
+def test_sleep_insights_uses_saved_target_when_query_override_is_absent() -> None:
+    client, user = authenticate_pro_user()
+    user.sleep_target_minutes = 480
+    user.save(update_fields=["sleep_target_minutes"])
+
+    response = client.get("/api/v1/metrics/analytics/sleep/")
+
+    assert response.status_code == 200
+    assert response.json()["target_minutes"] == 480
+
+
+def test_sleep_insights_query_target_is_a_non_persisting_preview() -> None:
+    client, user = authenticate_pro_user()
+
+    response = client.get("/api/v1/metrics/analytics/sleep/?target_minutes=480")
+
+    assert response.status_code == 200
+    assert response.json()["target_minutes"] == 480
+    user.refresh_from_db()
+    assert user.sleep_target_minutes == 450

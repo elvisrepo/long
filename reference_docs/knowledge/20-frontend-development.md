@@ -83,11 +83,13 @@
   each of seven UTC wake dates. It shows nightly duration bars, average sleep,
   shortest tracked night, nights below target, data coverage, and average
   bedtime/wake time calculated in the browser's local timezone. Users can
-  change the request-scoped nightly target from the 7h30m default.
+  preview a changed nightly target immediately and explicitly save it to their
+  account. The persisted value loads across refreshes and devices; saving,
+  saved, and failure states are visible and accessible.
 - Sleep shortfall is labeled as an estimate. It adds only the tracked nights'
   positive `target - duration` differences, does not count missing nights as
   zero, and does not claim that longer nights physiologically repay shorter
-  nights. The target is not persisted yet.
+  nights.
 - The local Settings route now follows the `settings-subscriptions-v2` visual
   structure while preserving the current subscription, Checkout, and Customer
   Portal contracts. Current-plan and plan-catalog loading use accessible

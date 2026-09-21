@@ -8,6 +8,7 @@ from cryptography.fernet import Fernet, InvalidToken
 from django.conf import settings
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
@@ -116,6 +117,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     email_lookup_hash: str = models.CharField(max_length=64, unique=True, editable=False)
     is_active: bool = models.BooleanField(default=True)
     is_staff: bool = models.BooleanField(default=False)
+    sleep_target_minutes: int = models.PositiveSmallIntegerField(
+        default=450,
+        validators=[MinValueValidator(60), MaxValueValidator(1439)],
+    )
 
     objects = UserManager()
 

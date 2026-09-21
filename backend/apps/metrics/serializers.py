@@ -9,6 +9,10 @@ from apps.metrics.limits import validate_active_custom_metric_limit
 from apps.metrics.models import MetricDefinition, MetricEntry
 
 
+class SleepTargetPreferenceSerializer(serializers.Serializer):
+    target_minutes = serializers.IntegerField(min_value=60, max_value=1439)
+
+
 class MetricDefinitionSerializer(serializers.ModelSerializer):
     is_active = serializers.BooleanField(required=False)
 

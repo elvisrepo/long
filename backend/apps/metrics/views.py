@@ -9,6 +9,7 @@ from apps.metrics.models import MetricDefinition, MetricEntry
 from apps.metrics.serializers import (
       MetricDefinitionSerializer,
       MetricEntrySerializer,
+      SleepTargetPreferenceSerializer,
   )
 
 from rest_framework.response import Response
@@ -180,9 +181,30 @@ class SleepInsightsView(APIView):
               get_sleep_insights(
                   user=request.user,
                   target_minutes=parse_sleep_target_minutes(
-                      request.query_params.get("target_minutes", "450")
+                      request.query_params.get("target_minutes")
+                      or str(request.user.sleep_target_minutes)
                   ),
               )
+          )
+
+
+class SleepTargetPreferenceView(APIView):
+      permission_classes = [IsAuthenticated]
+
+      def get(self, request):
+          return Response(
+              {"target_minutes": request.user.sleep_target_minutes}
+          )
+
+      def patch(self, request):
+          serializer = SleepTargetPreferenceSerializer(data=request.data)
+          serializer.is_valid(raise_exception=True)
+          request.user.sleep_target_minutes = serializer.validated_data[
+              "target_minutes"
+          ]
+          request.user.save(update_fields=["sleep_target_minutes"])
+          return Response(
+              {"target_minutes": request.user.sleep_target_minutes}
           )
 
 

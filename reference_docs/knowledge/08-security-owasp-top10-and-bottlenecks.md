@@ -149,6 +149,10 @@ Current Stripe credential and traffic boundary:
   plan before querying entries. Hiding frontend links is only presentation;
   Free users receive `403`, and every analytics query remains scoped to
   `request.user` and system-owned default metrics.
+- **Sleep-target ownership and validation**: The authenticated preference
+  endpoint reads and updates only `request.user`; it accepts no user ID and
+  validates `target_minutes` as an integer from `60` through `1439` before
+  writing. A query-string analytics target is a non-persisting preview.
 - **Android upload retry after network loss**: Upload receipts are idempotent per `(wearable_connection, upload_id)`. The first request returns `201`; a retry returns the existing caller-owned receipt with `200`, while the database unique constraint prevents a concurrent duplicate receipt. Future entry ingestion must preserve this guarantee and accept out-of-order samples by `recorded_at`, not arrival time.
 - **Wearable payload abuse or schema smuggling**: The live batch contract requires `1–100` entries, rejects undeclared fields at the batch and nested-entry levels, rejects non-finite numeric values, and rejects repeated external record IDs within a batch.
 - **Wearable upload identity reused for different content**: The server, rather than the Android client, computes a versioned canonical SHA-256 payload fingerprint after validation. Entry order and equivalent timezone representations do not change the fingerprint; changed, added, or removed entries do. Conflicting reuse returns `409` without repeating writes.

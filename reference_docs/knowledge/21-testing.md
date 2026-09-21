@@ -477,6 +477,11 @@ Current backend metrics testing checkpoint:
   daily-latest Sleep selection, null missing nights, the 7h30m default and
   bounded target override, shortfall and factual summaries, authentication,
   Pro authorization, user isolation, and same-slug custom metric exclusion.
+  It also proves a missing query override uses the saved account target while
+  an explicit analytics override does not persist.
+- `test_sleep_target_preference.py` covers the 7h30m default, authenticated
+  GET/PATCH behavior, persistence, integer/range validation, caller ownership,
+  and unauthenticated denial.
 
 Current Stripe testing boundary:
 - Standard unit, service, and backend API tests must mock the Stripe network boundary and use fake test-setting credentials.
@@ -576,7 +581,9 @@ Current frontend metrics testing checkpoint:
 - Sleep Insights frontend tests cover its authenticated API request and safe
   entitlement error, protected-route loading/error/empty/loaded states,
   recalculation after an editable target change, factual summary rendering,
-  and Pro-only discovery from both Dashboard and Sleep Duration detail.
+  and Pro-only discovery from both Dashboard and Sleep Duration detail. Sleep
+  target tests cover authenticated preference reads/writes, initialization from
+  the saved value, explicit saving, and accessible saving/saved/error feedback.
 - Metric-entry hook tests mock the API helper but use a real `QueryClientProvider`, so they verify Query behavior without requiring a running Django backend.
 - Playwright E2E now submits a real metric entry through the browser against the isolated E2E backend/database, verifies the saved value appears in the dashboard flow, and exercises the metric filter dropdown.
 - Playwright E2E now also creates a custom metric through `/metrics`, verifies it appears in the catalog, verifies it appears on the dashboard, and logs a custom metric entry.

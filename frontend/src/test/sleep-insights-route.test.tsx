@@ -1,8 +1,12 @@
 import { fireEvent, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getMe } from "../features/auth/auth-me-api";
 import { useSleepInsightsQuery } from "../features/metrics/use-sleep-insights-query";
+import {
+  useSleepTargetPreferenceQuery,
+  useUpdateSleepTargetPreferenceMutation,
+} from "../features/metrics/use-sleep-target-preference";
 import { renderRoute } from "./render-route";
 
 vi.mock("../features/auth/auth-me-api", () => ({
@@ -13,7 +17,28 @@ vi.mock("../features/metrics/use-sleep-insights-query", () => ({
   useSleepInsightsQuery: vi.fn(),
 }));
 
+vi.mock("../features/metrics/use-sleep-target-preference", () => ({
+  useSleepTargetPreferenceQuery: vi.fn(),
+  useUpdateSleepTargetPreferenceMutation: vi.fn(),
+}));
+
+const updateSleepTargetMutateAsyncMock = vi.fn();
+
 describe("Sleep Insights route", () => {
+  beforeEach(() => {
+    mockSleepTargetPreference(450);
+    updateSleepTargetMutateAsyncMock.mockResolvedValue({
+      target_minutes: 450,
+    });
+    vi.mocked(useUpdateSleepTargetPreferenceMutation).mockReturnValue({
+      mutateAsync: updateSleepTargetMutateAsyncMock,
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+    } as unknown as ReturnType<typeof useUpdateSleepTargetPreferenceMutation>);
+  });
+
   afterEach(() => {
     vi.resetAllMocks();
   });
@@ -90,6 +115,89 @@ describe("Sleep Insights route", () => {
     });
 
     expect(useSleepInsightsQuery).toHaveBeenLastCalledWith(480);
+  });
+
+  it("initializes from the saved target and persists a changed target", async () => {
+    mockSleepTargetPreference(480);
+    vi.mocked(getMe).mockResolvedValue({ email: "pro@example.com" });
+    vi.mocked(useSleepInsightsQuery).mockReturnValue({
+      data: {
+        range_days: 7,
+        target_minutes: 480,
+        series: Array.from({ length: 7 }, (_, index) =>
+          emptyPoint(`2026-09-${String(15 + index).padStart(2, "0")}`),
+        ),
+        summary: {
+          tracked_nights: 0,
+          nights_under_target: 0,
+          total_shortfall_minutes: 0,
+          average_duration_minutes: null,
+          worst_night: null,
+        },
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as ReturnType<typeof useSleepInsightsQuery>);
+
+    renderRoute("/analytics/sleep");
+
+    const targetInput = await screen.findByLabelText(/nightly sleep target/i);
+    expect(targetInput).toHaveValue("08:00");
+    fireEvent.change(targetInput, { target: { value: "08:30" } });
+    fireEvent.click(screen.getByRole("button", { name: /save target/i }));
+
+    expect(updateSleepTargetMutateAsyncMock).toHaveBeenCalledWith(510);
+  });
+
+  it("shows a target save failure", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "pro@example.com" });
+    mockEmptySleepInsights();
+    vi.mocked(useUpdateSleepTargetPreferenceMutation).mockReturnValue({
+      mutateAsync: updateSleepTargetMutateAsyncMock,
+      isPending: false,
+      isError: true,
+      isSuccess: false,
+      error: new Error("Sleep target could not be saved."),
+    } as unknown as ReturnType<typeof useUpdateSleepTargetPreferenceMutation>);
+
+    renderRoute("/analytics/sleep");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Sleep target could not be saved.",
+    );
+  });
+
+  it("announces target saving and saved states", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "pro@example.com" });
+    mockEmptySleepInsights();
+    vi.mocked(useUpdateSleepTargetPreferenceMutation).mockReturnValue({
+      mutateAsync: updateSleepTargetMutateAsyncMock,
+      isPending: true,
+      isError: false,
+      isSuccess: false,
+      error: null,
+    } as unknown as ReturnType<typeof useUpdateSleepTargetPreferenceMutation>);
+
+    const route = renderRoute("/analytics/sleep");
+
+    expect(
+      await screen.findByRole("button", { name: /saving/i }),
+    ).toBeDisabled();
+
+    route.unmount();
+    vi.mocked(useUpdateSleepTargetPreferenceMutation).mockReturnValue({
+      mutateAsync: updateSleepTargetMutateAsyncMock,
+      isPending: false,
+      isError: false,
+      isSuccess: true,
+      error: null,
+    } as unknown as ReturnType<typeof useUpdateSleepTargetPreferenceMutation>);
+    renderRoute("/analytics/sleep");
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Target saved.",
+    );
   });
 
   it("shows an empty state when no nights were tracked", async () => {
@@ -182,6 +290,37 @@ function emptyPoint(date: string) {
     recorded_at: null,
     shortfall_minutes: null,
   };
+}
+
+function mockSleepTargetPreference(targetMinutes: number) {
+  vi.mocked(useSleepTargetPreferenceQuery).mockReturnValue({
+    data: { target_minutes: targetMinutes },
+    isLoading: false,
+    isError: false,
+    error: null,
+  } as ReturnType<typeof useSleepTargetPreferenceQuery>);
+}
+
+function mockEmptySleepInsights() {
+  vi.mocked(useSleepInsightsQuery).mockReturnValue({
+    data: {
+      range_days: 7,
+      target_minutes: 450,
+      series: Array.from({ length: 7 }, (_, index) =>
+        emptyPoint(`2026-09-${String(15 + index).padStart(2, "0")}`),
+      ),
+      summary: {
+        tracked_nights: 0,
+        nights_under_target: 0,
+        total_shortfall_minutes: 0,
+        average_duration_minutes: null,
+        worst_night: null,
+      },
+    },
+    isLoading: false,
+    isError: false,
+    error: null,
+  } as ReturnType<typeof useSleepInsightsQuery>);
 }
 
 function sleepPoint(

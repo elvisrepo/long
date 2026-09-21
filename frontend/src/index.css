@@ -1498,7 +1498,7 @@ button {
 
 .sleep-target-control {
   display: grid;
-  grid-template-columns: auto 128px minmax(0, 1fr);
+  grid-template-columns: auto 128px auto minmax(0, 1fr);
   align-items: center;
   gap: 12px;
   color: var(--text-dim);
@@ -1518,6 +1518,20 @@ button {
 .sleep-target-control p {
   font-size: 12px;
   line-height: 1.45;
+}
+
+.sleep-target-control button {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.sleep-target-control .sleep-target-success,
+.sleep-target-control .form-error {
+  grid-column: 1 / -1;
+}
+
+.sleep-target-success {
+  color: var(--accent);
 }
 
 .sleep-shortfall-summary {

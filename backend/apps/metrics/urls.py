@@ -7,6 +7,7 @@ from apps.metrics.views import (
     MetricEntryListCreateView,
     MetricUsageView,
     SleepInsightsView,
+    SleepTargetPreferenceView,
     WeightStepsAnalyticsView,
 )
 
@@ -16,6 +17,11 @@ urlpatterns = [
           "analytics/sleep/",
           SleepInsightsView.as_view(),
           name="sleep-insights",
+      ),
+      path(
+          "preferences/sleep/",
+          SleepTargetPreferenceView.as_view(),
+          name="sleep-target-preference",
       ),
       path(
           "analytics/weight-steps/",

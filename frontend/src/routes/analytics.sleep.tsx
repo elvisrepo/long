@@ -5,6 +5,10 @@ import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load
 import type { SleepInsightsPoint } from "../features/metrics/sleep-insights-api";
 import { SleepInsightsChart } from "../features/metrics/sleep-insights-chart";
 import { useSleepInsightsQuery } from "../features/metrics/use-sleep-insights-query";
+import {
+  useSleepTargetPreferenceQuery,
+  useUpdateSleepTargetPreferenceMutation,
+} from "../features/metrics/use-sleep-target-preference";
 
 export const Route = createFileRoute("/analytics/sleep")({
   beforeLoad: requireAuthBeforeLoad,
@@ -14,14 +18,22 @@ export const Route = createFileRoute("/analytics/sleep")({
 const DEFAULT_TARGET_MINUTES = 7 * 60 + 30;
 
 function SleepInsightsRoute() {
-  const [targetMinutes, setTargetMinutes] = useState(DEFAULT_TARGET_MINUTES);
+  const [draftTargetMinutes, setDraftTargetMinutes] = useState<number | null>(
+    null,
+  );
+  const preferenceQuery = useSleepTargetPreferenceQuery();
+  const updatePreferenceMutation = useUpdateSleepTargetPreferenceMutation();
+  const savedTargetMinutes =
+    preferenceQuery.data?.target_minutes ?? DEFAULT_TARGET_MINUTES;
+  const targetMinutes = draftTargetMinutes ?? savedTargetMinutes;
   const analyticsQuery = useSleepInsightsQuery(targetMinutes);
 
-  if (analyticsQuery.isLoading) {
+  if (preferenceQuery.isLoading || analyticsQuery.isLoading) {
     return <SleepInsightsLoading />;
   }
 
-  if (analyticsQuery.isError) {
+  if (preferenceQuery.isError || analyticsQuery.isError) {
+    const error = preferenceQuery.error ?? analyticsQuery.error;
     return (
       <section className="sleep-insights-screen">
         <Link
@@ -32,8 +44,8 @@ function SleepInsightsRoute() {
           ← Sleep Duration
         </Link>
         <div className="settings-inline-error" role="alert">
-          {analyticsQuery.error instanceof Error
-            ? analyticsQuery.error.message
+          {error instanceof Error
+            ? error.message
             : "Sleep insights failed to load"}
         </div>
       </section>
@@ -43,6 +55,15 @@ function SleepInsightsRoute() {
   const analytics = analyticsQuery.data;
   if (!analytics) {
     return null;
+  }
+
+  async function saveTarget() {
+    try {
+      await updatePreferenceMutation.mutateAsync(targetMinutes);
+      setDraftTargetMinutes(null);
+    } catch {
+      // The mutation exposes its safe error message in the form below.
+    }
   }
 
   return (
@@ -81,16 +102,38 @@ function SleepInsightsRoute() {
             onChange={(event) => {
               const minutes = parseDurationInput(event.target.value);
               if (minutes !== null) {
-                setTargetMinutes(minutes);
+                setDraftTargetMinutes(minutes);
               }
             }}
             type="time"
             value={formatDurationInput(targetMinutes)}
           />
+          <button
+            disabled={
+              updatePreferenceMutation.isPending ||
+              targetMinutes === savedTargetMinutes
+            }
+            onClick={() => void saveTarget()}
+            type="button"
+          >
+            {updatePreferenceMutation.isPending ? "Saving…" : "Save target"}
+          </button>
           <p id="sleep-target-help">
-            Default 7h 30m. This changes the estimate; it is not a medical
-            prescription.
+            Default 7h 30m. Preview changes immediately, then save the target to
+            your account. It is not a medical prescription.
           </p>
+          {updatePreferenceMutation.isSuccess ? (
+            <p className="sleep-target-success" role="status">
+              Target saved.
+            </p>
+          ) : null}
+          {updatePreferenceMutation.isError ? (
+            <p className="form-error" role="alert">
+              {updatePreferenceMutation.error instanceof Error
+                ? updatePreferenceMutation.error.message
+                : "Sleep target failed to save"}
+            </p>
+          ) : null}
         </div>
 
         {analytics.summary.tracked_nights === 0 ? (

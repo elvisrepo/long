@@ -71,6 +71,8 @@ Refresh concurrency behavior:
 | POST | `/api/v1/metrics/entries/` | Log a metric entry | Implemented for manual entries; accepts `metric_definition` as a slug such as `resting_hr`; not idempotent — repeated calls create duplicate entries |
 | PATCH | `/api/v1/metrics/entries/{id}/` | Update a metric entry | Implemented for authenticated user's own manual entries; synced/imported entries are immutable and return `409`; value range validation still applies |
 | DELETE | `/api/v1/metrics/entries/{id}/` | Delete a metric entry | Implemented for authenticated user's own manual entries; returns `204` on success; synced/imported entries return `409` |
+| GET | `/api/v1/metrics/preferences/sleep/` | Read saved Sleep target | Implemented for authenticated users; returns the caller's account-level `target_minutes`, defaulting to `450` |
+| PATCH | `/api/v1/metrics/preferences/sleep/` | Save Sleep target | Implemented for authenticated users; accepts `target_minutes` as a whole number from `60` through `1439` and updates only the caller's account |
 | GET | `/api/v1/metrics/analytics/weight-steps/?days=30` | Body Weight and Steps comparison | Implemented locally for authenticated users whose current plan has `analytics_enabled=true`; `days` defaults to `30` and accepts only `7`, `30`, or `90`; returns complete UTC calendar-day rows with daily latest weight, seven-day rolling weight average, and daily summed steps for the authenticated user |
 | GET | `/api/v1/metrics/analytics/sleep/?target_minutes=450` | Seven-night Sleep insights | Implemented locally for authenticated users whose current plan has `analytics_enabled=true`; returns seven complete UTC wake-date rows, daily-latest Sleep intervals, coverage, factual aggregates, and an estimated shortfall against a target from `60` through `1439` whole minutes |
 | POST | `/api/v1/metrics/entries/bulk/` | Bulk import | |
@@ -137,9 +139,10 @@ Current Sleep insights behavior:
 - If multiple Sleep records end on one UTC date, the latest `recorded_at` record
   represents that date. The response preserves its UTC `period_start` and
   `recorded_at` timestamps so the browser can display timing in local time.
-- `target_minutes` defaults to `450` (7h30m) and accepts whole minutes from `60`
-  through `1439`. The target is request-scoped and is not yet saved as a user
-  preference.
+- Without a query override, `target_minutes` uses the authenticated user's
+  persisted `sleep_target_minutes`, which defaults to `450` (7h30m). An
+  explicit whole-minute value from `60` through `1439` previews a different
+  calculation without saving it; persistence requires the preference PATCH.
 - `shortfall_minutes` is `max(target - duration, 0)` for each tracked night.
   `total_shortfall_minutes` sums those values; longer nights do not offset
   shorter nights. This is labeled an estimate rather than a clinical measure.
