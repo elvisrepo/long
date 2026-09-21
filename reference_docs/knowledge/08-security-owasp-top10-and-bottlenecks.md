@@ -144,6 +144,10 @@ Current Stripe credential and traffic boundary:
 - **Concurrent provider-record writes**: The conditional `(source_connection, external_source_id)` unique constraint is the final race-safe guard against inserting one provider record twice. Application-level existence checks alone remain insufficient. Manual entries have null external IDs and remain outside this constraint.
 - **Concurrent custom metric entitlement writes**: Create/reactivate requests for the same user lock that user's row before counting and writing, so only one request can claim the final active custom metric slot.
 - **Concurrent wearable connection writes**: Creation requests for the same user lock that user's row before counting and inserting, so only one request can claim the final wearable connection slot.
+- **Paid analytics authorization**: The Weight × Steps endpoint checks the
+  authenticated user's current server-owned subscription plan before querying
+  entries. Hiding the frontend link is only presentation; Free users receive
+  `403`, and every analytics query remains scoped to `request.user`.
 - **Android upload retry after network loss**: Upload receipts are idempotent per `(wearable_connection, upload_id)`. The first request returns `201`; a retry returns the existing caller-owned receipt with `200`, while the database unique constraint prevents a concurrent duplicate receipt. Future entry ingestion must preserve this guarantee and accept out-of-order samples by `recorded_at`, not arrival time.
 - **Wearable payload abuse or schema smuggling**: The live batch contract requires `1–100` entries, rejects undeclared fields at the batch and nested-entry levels, rejects non-finite numeric values, and rejects repeated external record IDs within a batch.
 - **Wearable upload identity reused for different content**: The server, rather than the Android client, computes a versioned canonical SHA-256 payload fingerprint after validation. Entry order and equivalent timezone representations do not change the fingerprint; changed, added, or removed entries do. Conflicting reuse returns `409` without repeating writes.

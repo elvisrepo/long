@@ -466,7 +466,11 @@ Current backend metrics testing checkpoint:
 - Metric-entry detail tests cover deleting an authenticated user's own entry.
 - Metric-entry detail tests prove users cannot delete another user's entry; the entry remains persisted.
 - Metric-entry update tests prove value range validation still applies during partial updates.
-- The current metric-entry coverage does not yet cover cursor pagination or analytics queries.
+- Metric-entry cursor pagination remains uncovered because it is not yet
+  implemented. `test_weight_steps_analytics.py` now covers the implemented
+  Pro analytics query: daily latest weight, daily summed steps, Free denial,
+  authentication, supported ranges, user isolation, empty-period output, and
+  exclusion of same-slug custom metrics.
 
 Current Stripe testing boundary:
 - Standard unit, service, and backend API tests must mock the Stripe network boundary and use fake test-setting credentials.
@@ -558,6 +562,9 @@ Current frontend metrics testing checkpoint:
 - metrics route tests cover protected-route behavior, metric catalog rendering, catalog-row links to `/metrics/$slug`, custom metric creation submit payload, form clearing after success, visible backend validation errors, custom metric metadata updates, custom metric deactivation, visible deactivation errors, include-inactive catalog reads, archived custom metric separation, archived row non-link behavior, archived status markers, archived custom metric reactivation, and visible reactivation errors.
 - metrics route tests prove the usage indicator renders backend-provided `used` and `limit` values independently of the loaded definition list, exposes an accessible status, and switches to the limit-reached warning state when `used >= limit`.
 - metric detail route tests cover protected-route behavior, dynamic slug route rendering, metric-definition lookup, styled summary rendering, chart-backed trend overview rendering, metric-entry history rendering, inline entry update/delete orchestration, local edit validation for empty/non-numeric values, preserving the edit form on failed update, visible update failure errors, empty-state rendering, bounded `useMetricEntriesQuery({ metric, limit: 50 })` calls, range-filtered `useMetricEntriesQuery({ metric, from, limit: 50 })` calls, and stable range filter query keys.
+- Weight × Steps frontend tests cover the authenticated API request and safe
+  entitlement error, loaded comparison summaries, range changes, empty data,
+  loading announcements, Free denial, and the Pro-only Body Weight link.
 - Metric-entry hook tests mock the API helper but use a real `QueryClientProvider`, so they verify Query behavior without requiring a running Django backend.
 - Playwright E2E now submits a real metric entry through the browser against the isolated E2E backend/database, verifies the saved value appears in the dashboard flow, and exercises the metric filter dropdown.
 - Playwright E2E now also creates a custom metric through `/metrics`, verifies it appears in the catalog, verifies it appears on the dashboard, and logs a custom metric entry.

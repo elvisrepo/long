@@ -2,8 +2,9 @@ from django.db.models import Q
 from rest_framework import generics
 from rest_framework.exceptions import APIException
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
+from apps.metrics.analytics import get_weight_steps_analytics
 from apps.metrics.models import MetricDefinition, MetricEntry
 from apps.metrics.serializers import (
       MetricDefinitionSerializer,
@@ -14,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.metrics.limits import get_active_custom_metric_usage
+from apps.subscriptions.services import get_current_subscription_plan
 
 DEFAULT_METRIC_ENTRY_LIMIT = 50
 
@@ -146,6 +148,40 @@ class MetricUsageView(APIView):
                   )
               }
           )
+
+
+class WeightStepsAnalyticsView(APIView):
+      permission_classes = [IsAuthenticated]
+
+      def get(self, request):
+          plan = get_current_subscription_plan(request.user)
+          if plan.analytics_enabled is False:
+              raise PermissionDenied("Pro analytics are required.")
+
+          return Response(
+              get_weight_steps_analytics(
+                  user=request.user,
+                  days=parse_analytics_days(
+                      request.query_params.get("days", "30")
+                  ),
+              )
+          )
+
+
+def parse_analytics_days(value: str) -> int:
+      try:
+          days = int(value)
+      except ValueError as exc:
+          raise ValidationError(
+              {"days": ["Choose one of 7, 30, or 90 days."]}
+          ) from exc
+
+      if days not in (7, 30, 90):
+          raise ValidationError(
+              {"days": ["Choose one of 7, 30, or 90 days."]}
+          )
+
+      return days
       
 # APIView fits here because this endpoint returns calculated usage data, not model CRUD
 # handled by a generic model view.

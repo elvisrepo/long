@@ -1,6 +1,6 @@
 import { fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getMe } from "../features/auth/auth-me-api";
 import { useCreateMetricEntryMutation } from "../features/metrics/use-create-metric-entry-mutation";
@@ -8,6 +8,7 @@ import { useDeleteMetricEntryMutation } from "../features/metrics/use-delete-met
 import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
 import { useMetricEntriesQuery } from "../features/metrics/use-metric-entries-query";
 import { useUpdateMetricEntryMutation } from "../features/metrics/use-update-metric-entry-mutation";
+import { useCurrentSubscriptionQuery } from "../features/subscriptions/use-current-subscription-query";
 import { renderRoute } from "./render-route";
 
 vi.mock("../features/auth/auth-me-api", () => ({
@@ -32,6 +33,10 @@ vi.mock("../features/metrics/use-update-metric-entry-mutation", () => ({
 
 vi.mock("../features/metrics/use-delete-metric-entry-mutation", () => ({
   useDeleteMetricEntryMutation: vi.fn(),
+}));
+
+vi.mock("../features/subscriptions/use-current-subscription-query", () => ({
+  useCurrentSubscriptionQuery: vi.fn(),
 }));
 
 const updateMetricEntryMutateAsyncMock = vi.fn();
@@ -99,7 +104,38 @@ function mockMetricEntryMutations() {
   } as unknown as ReturnType<typeof useDeleteMetricEntryMutation>);
 }
 
+function mockAnalyticsEntitlement(analyticsEnabled: boolean) {
+  vi.mocked(useCurrentSubscriptionQuery).mockReturnValue({
+    data: {
+      id: "subscription-id",
+      status: "active",
+      billing_portal_available: false,
+      current_period_start: null,
+      current_period_end: null,
+      cancel_at: null,
+      cancel_at_period_end: false,
+      price: null,
+      plan: {
+        code: analyticsEnabled ? "pro" : "free",
+        name: analyticsEnabled ? "Pro" : "Free",
+        active_custom_metric_limit: analyticsEnabled ? 10 : 3,
+        wearable_connection_limit: analyticsEnabled ? 2 : 1,
+        automatic_sync_enabled: analyticsEnabled,
+        sync_interval_minutes: analyticsEnabled ? 15 : 30,
+        analytics_enabled: analyticsEnabled,
+        csv_import_enabled: analyticsEnabled,
+      },
+    },
+    isLoading: false,
+    isError: false,
+  } as ReturnType<typeof useCurrentSubscriptionQuery>);
+}
+
 describe("metric detail route", () => {
+  beforeEach(() => {
+    mockAnalyticsEntitlement(false);
+  });
+
   afterEach(() => {
     vi.resetAllMocks();
   });
@@ -414,6 +450,95 @@ describe("metric detail route", () => {
     expect(valueInput).toHaveAttribute("min", "20");
     expect(valueInput).toHaveAttribute("max", "400");
     expect(valueInput).toHaveAttribute("step", "0.1");
+  });
+
+  it("links Pro users from Body Weight to the Weight and Steps comparison", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "pro@example.com" });
+    mockAnalyticsEntitlement(true);
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "weight-id",
+          name: "Body Weight",
+          slug: "body_weight",
+          unit: "kg",
+          category: "body_composition",
+          min_value: 20,
+          max_value: 400,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/body_weight");
+
+    expect(
+      await screen.findByRole("link", { name: /compare with steps/i }),
+    ).toHaveAttribute("href", "/analytics/weight-steps");
+  });
+
+  it("does not show the Weight and Steps comparison link to Free users", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "free@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "weight-id",
+          name: "Body Weight",
+          slug: "body_weight",
+          unit: "kg",
+          category: "body_composition",
+          min_value: 20,
+          max_value: 400,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/body_weight");
+
+    expect(
+      await screen.findByRole("heading", { name: /body weight/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /compare with steps/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("links Pro users from Steps to the Weight and Steps comparison", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "pro@example.com" });
+    mockAnalyticsEntitlement(true);
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "steps-id",
+          name: "Steps",
+          slug: "steps",
+          unit: "steps",
+          category: "activity",
+          min_value: 0,
+          max_value: 200000,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/steps");
+
+    expect(
+      await screen.findByRole("link", { name: /compare with weight/i }),
+    ).toHaveAttribute("href", "/analytics/weight-steps");
   });
 
   it("adds a numeric entry from a non-weight metric detail page", async () => {

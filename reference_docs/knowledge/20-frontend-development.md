@@ -60,9 +60,30 @@
 - Deleting a manual entry now requires confirmation and explains that the
   action is permanent. A failed deletion stays in the dialog with the backend
   error. Synced entries remain read-only.
-- The Body Weight prototype's Pro overlay link remains reference-only until a
-  real comparison route and analytics contract exist; the local app does not
-  expose a dead control.
+- The local `/analytics/weight-steps` protected route now implements the Pro
+  comparison prototype against a real server-side analytics contract. It
+  supports 7, 30, and 90-day ranges, a dual-axis weight-line/steps-bar chart,
+  factual summary cards, and accessible loading, empty, and error states.
+- The Body Weight and Steps detail pages expose reciprocal comparison links
+  only when the current plan reports `analytics_enabled=true`. Django
+  independently enforces the same entitlement and returns `403` to Free
+  requests.
+- Dashboard **Pro Insights** is the primary discovery point for paid analytics
+  and links entitled users to **Weight × Steps**. Body Weight and Steps retain
+  contextual secondary links; Free users see none of these links.
+- Comparison wording avoids causal claims. Paired-day coverage describes the
+  available overlap; it does not claim that movement caused weight change.
+- The local Settings route now follows the `settings-subscriptions-v2` visual
+  structure while preserving the current subscription, Checkout, and Customer
+  Portal contracts. Current-plan and plan-catalog loading use accessible
+  skeletons that respect reduced-motion preferences.
+- Settings derives its subscription status label from backend state, keeps
+  scheduled cancellation explicit, and surfaces wearable connection,
+  analytics, and CSV-import entitlements from the existing plan contract.
+  Loading and mutation failures render as accessible inline alerts.
+- The prototype's Export All, per-metric export, and web Sync Now controls stay
+  reference-only until supported backend contracts exist. Logout remains in
+  the shared authenticated shell instead of being duplicated on Settings.
 - `frontend/longevity-redesign-v21` is design reference material and is
   excluded from ESLint and Prettier checks; its handoff files are not compiled
   into the application.

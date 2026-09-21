@@ -1,6 +1,6 @@
 # System Design Roadmap: Local MVP to Production
 
-Current state, bluntly: the project has a working hosted staging value loop. The public HTTPS frontend and API, Stripe test-mode lifecycle, monitored database backup and restore, and Android authentication and Weight/Steps ingestion are deployed. On 2026-09-17 the operator reported that automatic Android sync reaches the hosted backend and the data appears correctly in the frontend. On 2026-09-18 the operator checked sign-in and sync logs and reported no sensitive values; a read-only host check confirmed the running backend image digest and the Xiaomi pilot conditions were recorded. On 2026-09-19 the operator confirmed browser sign-in, session refresh, manual metric write/read and persistence after refresh, and deep-link reload. The Sleep backend/frontend slice and signed pilot 1.2 were then deployed and built; physical Sleep sync remains its acceptance step. Retained application logs, failure alerts, richer analytics, additional health metrics, asynchronous server processing, and production hardening remain later work.
+Current state, bluntly: the project has a working hosted staging value loop. The public HTTPS frontend and API, Stripe test-mode lifecycle, monitored database backup and restore, and Android authentication and Weight/Steps ingestion are deployed. On 2026-09-17 the operator reported that automatic Android sync reaches the hosted backend and the data appears correctly in the frontend. On 2026-09-18 the operator checked sign-in and sync logs and reported no sensitive values; a read-only host check confirmed the running backend image digest and the Xiaomi pilot conditions were recorded. On 2026-09-19 the operator confirmed browser sign-in, session refresh, manual metric write/read and persistence after refresh, and deep-link reload. The owner later confirmed physical Samsung Health Sleep sync and correct frontend display. A server-enforced Weight × Steps Pro comparison is now implemented locally and awaits local UI acceptance before any deployment. Retained application logs, failure alerts, additional analytics, more health metrics, asynchronous server processing, and production hardening remain later work.
 
 ## 1. Local system design — what exists now
 
@@ -125,8 +125,8 @@ Still missing:
 - production deployment with separate resilient infrastructure
 - a signed APK and free Android Developer Console limited distribution for up to 20 authorized pilot devices; public Google Play distribution remains a separate paid goal
 - reliable application logs and alerts for API, Stripe webhook, and wearable failures
-- real analytics endpoint
-- trend calculations
+- additional analytics beyond the local Weight × Steps comparison
+- additional trend calculations and insight validation
 - GDPR export/delete
 - password reset / stronger account lifecycle flows
 - additional deliberately mapped Health Connect metrics, with Heart Rate the likely next candidate
@@ -373,7 +373,8 @@ Related docs:
 Next real product step:
 
 ```text
-Add Samsung/Health Connect Sleep as one end-to-end metric slice
+Review the local Weight × Steps Pro comparison, then add a user sleep target
+and Sleep Debt as the next end-to-end analytics slice
 ```
 
 The public staging frontend, API, database, Stripe test webhook, and monitored

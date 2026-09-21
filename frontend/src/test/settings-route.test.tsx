@@ -136,6 +136,41 @@ describe("settings route", () => {
     expect(
       screen.getByText(/manual sync every 30 minutes/i),
     ).toBeInTheDocument();
+    expect(screen.getByText(/^1 wearable connection$/i)).toBeInTheDocument();
+  });
+
+  it("shows accessible subscription skeletons while settings data loads", async () => {
+    getMeMock.mockResolvedValue({ email: "user@example.com" });
+    getCurrentSubscriptionMock.mockReturnValue(new Promise(() => {}));
+    getSubscriptionPlansMock.mockReturnValue(new Promise(() => {}));
+
+    renderRoute("/settings");
+
+    await screen.findByRole("heading", { name: /settings/i });
+
+    expect(
+      screen.getByRole("status", { name: /loading current subscription/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("status", { name: /loading available plans/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows subscription loading failures as accessible card alerts", async () => {
+    getMeMock.mockResolvedValue({ email: "user@example.com" });
+    getCurrentSubscriptionMock.mockRejectedValue(
+      new Error("Current subscription failed to load"),
+    );
+    getSubscriptionPlansMock.mockRejectedValue(
+      new Error("Subscription plans failed to load"),
+    );
+
+    renderRoute("/settings");
+
+    const alerts = await screen.findAllByRole("alert");
+    expect(alerts).toHaveLength(2);
+    expect(alerts[0]).toHaveTextContent(/current plan failed to load/i);
+    expect(alerts[1]).toHaveTextContent(/available plans failed to load/i);
   });
 
   it("hides portal management when no Stripe billing customer exists", async () => {
@@ -186,6 +221,27 @@ describe("settings route", () => {
     renderRoute("/settings");
 
     expect(await screen.findByText(/cancels aug 2, 2026/i)).toBeInTheDocument();
+  });
+
+  it("shows the backend subscription status when the plan is not active", async () => {
+    getMeMock.mockResolvedValue({ email: "user@example.com" });
+    getCurrentSubscriptionMock.mockResolvedValue({
+      ...proSubscription(),
+      status: "past_due",
+    });
+    getSubscriptionPlansMock.mockResolvedValue([]);
+
+    renderRoute("/settings");
+
+    const currentSubscription = await screen.findByRole("region", {
+      name: /current subscription/i,
+    });
+    expect(
+      await within(currentSubscription).findByText(/^past due$/i),
+    ).toBeInTheDocument();
+    expect(
+      within(currentSubscription).queryByText(/^active$/i),
+    ).not.toBeInTheDocument();
   });
 
   it("lists available paid subscription prices", async () => {
@@ -253,6 +309,15 @@ describe("settings route", () => {
     ).toBeInTheDocument();
     expect(
       within(availablePlans).getByText(/\$100\.00 \/ year/i),
+    ).toBeInTheDocument();
+    expect(
+      within(availablePlans).getByText(/^2 wearable connections$/i),
+    ).toBeInTheDocument();
+    expect(
+      within(availablePlans).getByText(/^analytics included$/i),
+    ).toBeInTheDocument();
+    expect(
+      within(availablePlans).getByText(/^csv import included$/i),
     ).toBeInTheDocument();
   });
 

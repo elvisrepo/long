@@ -4,7 +4,10 @@ import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load
 import { useMeQuery } from "../features/auth/use-me-query";
 import { redirectToCheckout } from "../features/subscriptions/checkout-redirect";
 import { redirectToPortal } from "../features/subscriptions/portal-redirect";
-import type { SubscriptionPlan } from "../features/subscriptions/subscriptions-api";
+import type {
+  CurrentSubscription,
+  SubscriptionPlan,
+} from "../features/subscriptions/subscriptions-api";
 import { useCreateSubscriptionCheckoutMutation } from "../features/subscriptions/use-create-subscription-checkout-mutation";
 import { useCreateSubscriptionPortalMutation } from "../features/subscriptions/use-create-subscription-portal-mutation";
 import { useCurrentSubscriptionQuery } from "../features/subscriptions/use-current-subscription-query";
@@ -116,82 +119,94 @@ function SettingsRoute() {
             <h2>Current Plan</h2>
           </div>
           {currentSubscriptionQuery.data ? (
-            <span className="status-pill">
-              {currentSubscriptionQuery.data.cancel_at
-                ? "Cancelling"
-                : "Active"}
+            <span
+              className={`status-pill${
+                currentSubscriptionQuery.data.status === "active" ||
+                currentSubscriptionQuery.data.cancel_at
+                  ? ""
+                  : " subscription-status-problem"
+              }`}
+            >
+              {formatSubscriptionStatus(currentSubscriptionQuery.data)}
             </span>
           ) : null}
         </div>
         {currentSubscriptionQuery.isPending ? (
-          <p>Loading current plan...</p>
+          <SubscriptionLoadingSkeleton label="Loading current subscription" />
         ) : null}
         {currentSubscriptionQuery.isError ? (
-          <p>Current plan failed to load.</p>
+          <p className="settings-inline-error" role="alert">
+            Current plan failed to load.
+          </p>
         ) : null}
         {currentSubscriptionQuery.data ? (
-          <div className="subscription-current-layout">
-            <div>
-              <h3>{currentSubscriptionQuery.data.plan.name}</h3>
-              <div className="subscription-detail-grid">
-                <div>
-                  <span className="subscription-detail-label">Metrics</span>
-                  <strong>
-                    {
-                      currentSubscriptionQuery.data.plan
-                        .active_custom_metric_limit
-                    }{" "}
-                    custom metrics
-                  </strong>
-                </div>
-                <div>
-                  <span className="subscription-detail-label">Sync</span>
-                  <strong>
-                    {formatSyncPolicy(currentSubscriptionQuery.data.plan)}
-                  </strong>
-                </div>
-                {currentSubscriptionQuery.data.price ? (
+          <>
+            <div className="subscription-current-layout">
+              <div>
+                <h3>{currentSubscriptionQuery.data.plan.name}</h3>
+                <div className="subscription-detail-grid">
                   <div>
-                    <span className="subscription-detail-label">Price</span>
+                    <span className="subscription-detail-label">Metrics</span>
                     <strong>
-                      {formatSubscriptionPrice(
-                        currentSubscriptionQuery.data.price.unit_amount,
-                        currentSubscriptionQuery.data.price.currency,
-                      )}{" "}
-                      / {currentSubscriptionQuery.data.price.billing_interval}
+                      {
+                        currentSubscriptionQuery.data.plan
+                          .active_custom_metric_limit
+                      }{" "}
+                      custom metrics
                     </strong>
                   </div>
-                ) : null}
-                {currentSubscriptionQuery.data.price ? (
                   <div>
-                    <span className="subscription-detail-label">Interval</span>
+                    <span className="subscription-detail-label">Sync</span>
                     <strong>
-                      {formatBillingInterval(
-                        currentSubscriptionQuery.data.price.billing_interval,
-                      )}
+                      {formatSyncPolicy(currentSubscriptionQuery.data.plan)}
                     </strong>
                   </div>
-                ) : null}
+                  {currentSubscriptionQuery.data.price ? (
+                    <div>
+                      <span className="subscription-detail-label">Price</span>
+                      <strong>
+                        {formatSubscriptionPrice(
+                          currentSubscriptionQuery.data.price.unit_amount,
+                          currentSubscriptionQuery.data.price.currency,
+                        )}{" "}
+                        / {currentSubscriptionQuery.data.price.billing_interval}
+                      </strong>
+                    </div>
+                  ) : null}
+                  {currentSubscriptionQuery.data.price ? (
+                    <div>
+                      <span className="subscription-detail-label">
+                        Interval
+                      </span>
+                      <strong>
+                        {formatBillingInterval(
+                          currentSubscriptionQuery.data.price.billing_interval,
+                        )}
+                      </strong>
+                    </div>
+                  ) : null}
+                </div>
+                <PlanCapabilityList plan={currentSubscriptionQuery.data.plan} />
               </div>
-            </div>
-            <div className="subscription-billing-panel">
-              {currentSubscriptionQuery.data.cancel_at ? (
-                <p>
-                  Cancels{" "}
-                  {formatSubscriptionDate(
-                    currentSubscriptionQuery.data.cancel_at,
-                  )}
-                </p>
-              ) : currentSubscriptionQuery.data.current_period_end ? (
-                <p>
-                  Renews{" "}
-                  {formatSubscriptionDate(
-                    currentSubscriptionQuery.data.current_period_end,
-                  )}
-                </p>
-              ) : (
-                <p>No paid billing period yet.</p>
-              )}
+              <div className="subscription-billing-panel">
+                {currentSubscriptionQuery.data.cancel_at ? (
+                  <p>
+                    Cancels{" "}
+                    {formatSubscriptionDate(
+                      currentSubscriptionQuery.data.cancel_at,
+                    )}
+                  </p>
+                ) : currentSubscriptionQuery.data.current_period_end ? (
+                  <p>
+                    Renews{" "}
+                    {formatSubscriptionDate(
+                      currentSubscriptionQuery.data.current_period_end,
+                    )}
+                  </p>
+                ) : (
+                  <p>No paid billing period yet.</p>
+                )}
+              </div>
             </div>
             {currentSubscriptionQuery.data.billing_portal_available ? (
               <button
@@ -203,7 +218,7 @@ function SettingsRoute() {
                 Manage subscription
               </button>
             ) : null}
-          </div>
+          </>
         ) : null}
       </section>
 
@@ -215,10 +230,12 @@ function SettingsRoute() {
           </div>
         </div>
         {subscriptionPlansQuery.isPending ? (
-          <p>Loading available plans...</p>
+          <SubscriptionLoadingSkeleton label="Loading available plans" />
         ) : null}
         {subscriptionPlansQuery.isError ? (
-          <p>Available plans failed to load.</p>
+          <p className="settings-inline-error" role="alert">
+            Available plans failed to load.
+          </p>
         ) : null}
         {usesStripePortal ? (
           <p className="subscription-help-text">
@@ -233,6 +250,7 @@ function SettingsRoute() {
                   <h3>{plan.name}</h3>
                   <p>{plan.active_custom_metric_limit} custom metrics</p>
                   <p>{formatSyncPolicy(plan)}</p>
+                  <PlanCapabilityList plan={plan} />
                 </div>
                 <ul className="subscription-price-list">
                   {plan.prices.map((price) => (
@@ -258,9 +276,57 @@ function SettingsRoute() {
             ))}
       </section>
 
-      {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
+      {errorMessage ? (
+        <p className="settings-inline-error" role="alert">
+          {errorMessage}
+        </p>
+      ) : null}
     </section>
   );
+}
+
+function SubscriptionLoadingSkeleton({ label }: { label: string }) {
+  return (
+    <div aria-label={label} className="settings-loading-skeleton" role="status">
+      <span className="settings-skeleton settings-skeleton-title" />
+      <span className="settings-skeleton settings-skeleton-copy" />
+      <span className="settings-skeleton settings-skeleton-row" />
+      <span className="settings-skeleton settings-skeleton-row" />
+    </div>
+  );
+}
+
+function PlanCapabilityList({ plan }: { plan: SubscriptionPlan }) {
+  return (
+    <ul aria-label="Plan capabilities" className="subscription-capability-list">
+      <li>
+        {plan.wearable_connection_limit}{" "}
+        {plan.wearable_connection_limit === 1
+          ? "wearable connection"
+          : "wearable connections"}
+      </li>
+      <li>
+        {plan.analytics_enabled
+          ? "Analytics included"
+          : "Analytics not included"}
+      </li>
+      <li>
+        {plan.csv_import_enabled
+          ? "CSV import included"
+          : "CSV import not included"}
+      </li>
+    </ul>
+  );
+}
+
+function formatSubscriptionStatus(subscription: CurrentSubscription) {
+  if (subscription.cancel_at) {
+    return "Cancelling";
+  }
+
+  return subscription.status
+    .replaceAll("_", " ")
+    .replace(/^./, (character) => character.toUpperCase());
 }
 
 function formatSubscriptionPrice(unitAmount: number, currency: string) {

@@ -5,11 +5,17 @@ from apps.metrics.views import (
     MetricDefinitionListView,
     MetricEntryDetailView,
     MetricEntryListCreateView,
-    MetricUsageView
+    MetricUsageView,
+    WeightStepsAnalyticsView,
 )
 
 
 urlpatterns = [
+      path(
+          "analytics/weight-steps/",
+          WeightStepsAnalyticsView.as_view(),
+          name="weight-steps-analytics",
+      ),
       path(
           "definitions/",
           MetricDefinitionListView.as_view(),

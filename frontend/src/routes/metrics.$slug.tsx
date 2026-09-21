@@ -22,6 +22,7 @@ import {
 import type { MetricDefinition } from "../features/metrics/metric-definitions-api";
 import { useMetricEntriesQuery } from "../features/metrics/use-metric-entries-query";
 import { useUpdateMetricEntryMutation } from "../features/metrics/use-update-metric-entry-mutation";
+import { useCurrentSubscriptionQuery } from "../features/subscriptions/use-current-subscription-query";
 
 export const Route = createFileRoute("/metrics/$slug")({
   beforeLoad: requireAuthBeforeLoad,
@@ -176,6 +177,10 @@ function MetricDetailRoute() {
           >
             {getAddEntryActionLabel(metricDefinition)}
           </button>
+          {metricDefinition.slug === "body_weight" ||
+          metricDefinition.slug === "steps" ? (
+            <WeightStepsAnalyticsLink metricSlug={metricDefinition.slug} />
+          ) : null}
           <div className="status-pill">
             {formatMetricEntryCount(metricEntries.length)}
           </div>
@@ -442,6 +447,20 @@ function MetricDetailRoute() {
           )
         : null}
     </section>
+  );
+}
+
+function WeightStepsAnalyticsLink({ metricSlug }: { metricSlug: string }) {
+  const subscriptionQuery = useCurrentSubscriptionQuery();
+
+  if (!subscriptionQuery.data?.plan.analytics_enabled) {
+    return null;
+  }
+
+  return (
+    <Link className="metric-pro-insight-link" to="/analytics/weight-steps">
+      {metricSlug === "steps" ? "Compare with Weight" : "Compare with Steps"}
+    </Link>
   );
 }
 

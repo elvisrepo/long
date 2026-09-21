@@ -123,8 +123,18 @@ function DashboardRoute() {
             <p className="eyebrow">Analytics</p>
             <h2>Pro Insights</h2>
           </div>
-          <div className="status-pill">
-            {analyticsEnabled ? "Unlocked" : "Pro"}
+          <div className="insights-actions">
+            <div className="status-pill">
+              {analyticsEnabled ? "Unlocked" : "Pro"}
+            </div>
+            {analyticsEnabled ? (
+              <Link
+                className="insights-action-link"
+                to="/analytics/weight-steps"
+              >
+                Weight × Steps →
+              </Link>
+            ) : null}
           </div>
         </div>
 

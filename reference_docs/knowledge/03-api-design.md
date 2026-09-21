@@ -71,6 +71,7 @@ Refresh concurrency behavior:
 | POST | `/api/v1/metrics/entries/` | Log a metric entry | Implemented for manual entries; accepts `metric_definition` as a slug such as `resting_hr`; not idempotent — repeated calls create duplicate entries |
 | PATCH | `/api/v1/metrics/entries/{id}/` | Update a metric entry | Implemented for authenticated user's own manual entries; synced/imported entries are immutable and return `409`; value range validation still applies |
 | DELETE | `/api/v1/metrics/entries/{id}/` | Delete a metric entry | Implemented for authenticated user's own manual entries; returns `204` on success; synced/imported entries return `409` |
+| GET | `/api/v1/metrics/analytics/weight-steps/?days=30` | Body Weight and Steps comparison | Implemented locally for authenticated users whose current plan has `analytics_enabled=true`; `days` defaults to `30` and accepts only `7`, `30`, or `90`; returns daily latest UTC weight and daily summed UTC steps for the authenticated user |
 | POST | `/api/v1/metrics/entries/bulk/` | Bulk import | |
 | GET | `/api/v1/metrics/analytics/{slug}/?range=30d` | Analytics for one metric | `slug` is required (path param), `range` is optional (query param, default 30d) |
 
@@ -104,6 +105,20 @@ Current entry listing behavior:
 - `limit=<positive integer>` caps returned entries. If omitted, the backend applies the current default limit of `50`.
 - Invalid limits such as `0`, negative values, or non-numeric values return `400`.
 - Cursor pagination is still planned; the current implementation supports a single bounded result set but does not yet return `next_cursor` or `has_more`.
+
+Current Weight × Steps analytics behavior:
+- The server enforces the current subscription's `analytics_enabled`
+  entitlement; Free requests return `403` with a safe detail message.
+- The query is always scoped to the authenticated user and the requested UTC
+  date window. It includes only the system-owned default Body Weight and Steps
+  definitions; same-slug custom metrics and future-dated entries are excluded.
+- Multiple Body Weight entries on one UTC day collapse to the latest recorded
+  value. Multiple Steps entries on one UTC day are summed.
+- `series` contains only dates that have at least one of the two metrics;
+  either `weight_kg` or `steps` can be `null` on an unpaired date.
+- `summary` returns the first and last observed weight, their change, and the
+  average across days that contain Steps data. Empty periods return an empty
+  series and null summary values.
 
 **Example: Creating a custom metric definition**
 ```json

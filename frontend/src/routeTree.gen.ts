@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as MetricsRouteImport } from './routes/metrics'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as AnalyticsWeightStepsRouteImport } from './routes/analytics.weight-steps'
 import { Route as MetricsSlugRouteImport } from './routes/metrics.$slug'
 
 const IndexRoute = IndexRouteImport.update({
@@ -41,6 +42,11 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AnalyticsWeightStepsRoute = AnalyticsWeightStepsRouteImport.update({
+  id: '/analytics/weight-steps',
+  path: '/analytics/weight-steps',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MetricsSlugRoute = MetricsSlugRouteImport.update({
   id: '/$slug',
   path: '/$slug',
@@ -53,6 +59,7 @@ export interface FileRoutesByFullPath {
   '/metrics': typeof MetricsRouteWithChildren
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/analytics/weight-steps': typeof AnalyticsWeightStepsRoute
   '/metrics/$slug': typeof MetricsSlugRoute
 }
 export interface FileRoutesByTo {
@@ -61,6 +68,7 @@ export interface FileRoutesByTo {
   '/metrics': typeof MetricsRouteWithChildren
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/analytics/weight-steps': typeof AnalyticsWeightStepsRoute
   '/metrics/$slug': typeof MetricsSlugRoute
 }
 export interface FileRoutesById {
@@ -70,6 +78,7 @@ export interface FileRoutesById {
   '/metrics': typeof MetricsRouteWithChildren
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/analytics/weight-steps': typeof AnalyticsWeightStepsRoute
   '/metrics/$slug': typeof MetricsSlugRoute
 }
 export interface FileRouteTypes {
@@ -80,9 +89,17 @@ export interface FileRouteTypes {
     | '/metrics'
     | '/register'
     | '/settings'
+    | '/analytics/weight-steps'
     | '/metrics/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/metrics' | '/register' | '/settings' | '/metrics/$slug'
+  to:
+    | '/'
+    | '/login'
+    | '/metrics'
+    | '/register'
+    | '/settings'
+    | '/analytics/weight-steps'
+    | '/metrics/$slug'
   id:
     | '__root__'
     | '/'
@@ -90,6 +107,7 @@ export interface FileRouteTypes {
     | '/metrics'
     | '/register'
     | '/settings'
+    | '/analytics/weight-steps'
     | '/metrics/$slug'
   fileRoutesById: FileRoutesById
 }
@@ -99,6 +117,7 @@ export interface RootRouteChildren {
   MetricsRoute: typeof MetricsRouteWithChildren
   RegisterRoute: typeof RegisterRoute
   SettingsRoute: typeof SettingsRoute
+  AnalyticsWeightStepsRoute: typeof AnalyticsWeightStepsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -138,6 +157,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/analytics/weight-steps': {
+      id: '/analytics/weight-steps'
+      path: '/analytics/weight-steps'
+      fullPath: '/analytics/weight-steps'
+      preLoaderRoute: typeof AnalyticsWeightStepsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/metrics/$slug': {
       id: '/metrics/$slug'
       path: '/$slug'
@@ -165,6 +191,7 @@ const rootRouteChildren: RootRouteChildren = {
   MetricsRoute: MetricsRouteWithChildren,
   RegisterRoute: RegisterRoute,
   SettingsRoute: SettingsRoute,
+  AnalyticsWeightStepsRoute: AnalyticsWeightStepsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

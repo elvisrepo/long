@@ -595,6 +595,9 @@ describe("dashboard route", () => {
     expect(
       within(insights).getByText(/upgrade to pro to unlock trend summaries/i),
     ).toBeInTheDocument();
+    expect(
+      within(insights).queryByRole("link", { name: /weight × steps/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows Pro insights when analytics are enabled", async () => {
@@ -639,6 +642,9 @@ describe("dashboard route", () => {
     expect(
       within(insights).getByText(/latest update mar 6, 2026/i),
     ).toBeInTheDocument();
+    expect(
+      within(insights).getByRole("link", { name: /weight × steps/i }),
+    ).toHaveAttribute("href", "/analytics/weight-steps");
   });
 
   it("limits recent entries on the dashboard", async () => {
