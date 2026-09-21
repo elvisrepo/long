@@ -75,13 +75,13 @@ function MetricsCatalog() {
             {activeMetricDefinitions.length} tracked
           </div>
           <p
-            aria-label={`${used} / ${limit} active custom metrics used`}
+            aria-label={`${used} of ${limit} custom metrics used`}
             className={`custom-metric-usage ${
               used >= limit ? "custom-metric-usage-limit" : ""
             }`}
             role="status"
           >
-            {used} / {limit} active custom metrics used
+            {used} of {limit} custom metrics used
           </p>
         </div>
       </div>
@@ -96,17 +96,14 @@ function MetricsCatalog() {
           + New custom metric
         </button>
         <button
+          aria-expanded={showInactive}
+          aria-controls="archived-metrics"
           className="metrics-secondary-action"
           type="button"
           onClick={() => setShowInactive((currentValue) => !currentValue)}
         >
-          {showInactive
-            ? "Hide deactivated custom metrics"
-            : "Show deactivated custom metrics"}
+          {showInactive ? "Hide archived" : "Show archived"}
         </button>
-        <p className="metrics-toolbar-hint">
-          {Math.max(limit - used, 0)} custom metric slots available
-        </p>
       </div>
 
       {isCreateDialogOpen ? (
@@ -148,8 +145,7 @@ function MetricsCatalog() {
                 used >= limit ? "metric-dialog-quota-limit" : ""
               }`}
             >
-              {used} / {limit} active custom metrics used ·{" "}
-              {Math.max(limit - used, 0)} slots left
+              {used} of {limit} custom metrics used
             </p>
             <CreateCustomMetricForm
               onCancel={() => setIsCreateDialogOpen(false)}
@@ -165,24 +161,27 @@ function MetricsCatalog() {
         ))}
       </div>
 
-      {showInactive && archivedCustomMetricDefinitions.length > 0 ? (
-        <section
-          aria-label="Archived custom metrics"
-          className="metrics-list archived-metrics-list"
-        >
-          <div className="archived-metrics-header">
-            <p className="eyebrow">Archived</p>
-            <h2>Archived custom metrics</h2>
-          </div>
+      <section
+        hidden={!showInactive}
+        id="archived-metrics"
+        aria-label="Archived custom metrics"
+        className="metrics-list archived-metrics-list"
+      >
+        <div className="archived-metrics-header">
+          <p className="eyebrow">Archived</p>
+          <h2>Archived custom metrics</h2>
+        </div>
 
-          {archivedCustomMetricDefinitions.map((definition) => (
-            <ArchivedMetricDefinitionRow
-              definition={definition}
-              key={definition.id}
-            />
-          ))}
-        </section>
-      ) : null}
+        {showInactive && archivedCustomMetricDefinitions.length === 0 ? (
+          <p className="metrics-archive-empty">No archived custom metrics.</p>
+        ) : null}
+        {archivedCustomMetricDefinitions.map((definition) => (
+          <ArchivedMetricDefinitionRow
+            definition={definition}
+            key={definition.id}
+          />
+        ))}
+      </section>
     </section>
   );
 }
@@ -247,24 +246,23 @@ function ArchivedMetricDefinitionRow({
     <article className="metric-list-row archived-metric-row">
       <div>
         <h2>{definition.name}</h2>
-        <p>
-          {definition.category} · {definition.unit}
-        </p>
+        <p>{formatMetricSubtitle(definition)}</p>
       </div>
 
       <div className="metric-row-actions">
         <span className="metric-status-pill archived-status-pill">
           Archived
         </span>
-        <span>{definition.slug}</span>
         <button
+          aria-label={`${reactivateMetricDefinitionMutation.isPending ? "Reactivating" : "Reactivate"} ${definition.name}`}
+          className="metric-row-secondary-action"
           disabled={reactivateMetricDefinitionMutation.isPending}
           type="button"
           onClick={handleReactivate}
         >
           {reactivateMetricDefinitionMutation.isPending
             ? "Reactivating..."
-            : `Reactivate ${definition.name}`}
+            : "Reactivate"}
         </button>
       </div>
 
@@ -373,7 +371,11 @@ function MetricDefinitionRow({ definition }: MetricDefinitionRowProps) {
               ? "Saving..."
               : `Save ${definition.name}`}
           </button>
-          <button type="button" onClick={() => setIsEditing(false)}>
+          <button
+            className="metrics-secondary-action"
+            type="button"
+            onClick={() => setIsEditing(false)}
+          >
             Cancel
           </button>
         </div>
@@ -397,26 +399,29 @@ function MetricDefinitionRow({ definition }: MetricDefinitionRowProps) {
         >
           <div>
             <h2>{definition.name} →</h2>
-            <p>
-              {definition.category} · {definition.unit} ·{" "}
-              {definition.is_default ? "default" : "custom"}
-            </p>
+            <p>{formatMetricSubtitle(definition)}</p>
           </div>
         </Link>
 
         <div className="metric-row-actions">
-          <span>{definition.slug}</span>
           {!definition.is_default ? (
             <>
-              <button type="button" onClick={() => setIsEditing(true)}>
-                Edit {definition.name}
+              <span className="metric-custom-label">Custom</span>
+              <button
+                aria-label={`Edit ${definition.name}`}
+                className="metric-row-secondary-action"
+                type="button"
+                onClick={() => setIsEditing(true)}
+              >
+                Edit
               </button>
               <button
+                aria-label={`Deactivate ${definition.name}`}
                 className="metric-row-danger-action"
                 type="button"
                 onClick={() => setIsDeactivateDialogOpen(true)}
               >
-                Deactivate {definition.name}
+                Deactivate
               </button>
             </>
           ) : null}
@@ -602,4 +607,12 @@ function CreateCustomMetricForm({
       ) : null}
     </form>
   );
+}
+
+function formatMetricSubtitle(definition: MetricDefinition): string {
+  if (definition.category === "custom") return definition.unit;
+  const category = definition.category
+    .replaceAll("_", " ")
+    .replace(/^./, (letter) => letter.toUpperCase());
+  return `${category} · ${definition.unit}`;
 }

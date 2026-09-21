@@ -6,6 +6,23 @@
 ## Source
 - Derived from `reference_docs/knowledge/planning.md` section 5.
 
+### Metrics catalog cleanup (September 21, 2026)
+
+- `/metrics` uses readable category/unit subtitles without slug badges or
+  default labels. Custom rows show a small Custom label; archived rows retain
+  their Archived label.
+- Edit, Deactivate and Reactivate show short button text while accessible names
+  retain the metric name. Edit and Reactivate use neutral styles; New custom
+  metric remains the main catalog action.
+- Custom metric quota is shown once as “used of limit custom metrics used”;
+  the create dialog repeats this only when opened.
+- Show archived / Hide archived exposes its expanded state, starts collapsed,
+  and shows an empty message when there are no archived custom metrics.
+- Mobile rows wrap actions below the metric name. API routes, stored slugs,
+  quota enforcement, edit and archive/reactivate behavior are unchanged.
+- Verified with the existing catalog component tests and local browser layouts;
+  this is a local frontend change, with no cloud deployment.
+
 ### Current redesign checkpoint (September 21, 2026)
 
 - The first `longevity-redesign-v21` implementation slice is local only; it has

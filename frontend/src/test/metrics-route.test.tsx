@@ -173,7 +173,11 @@ describe("metrics route", () => {
     expect(
       screen.getByRole("heading", { name: /resting heart rate/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/cardiovascular · bpm/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Cardiovascular · bpm$/)).toBeInTheDocument();
+    expect(screen.queryByText("resting_hr")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Show archived" }),
+    ).toHaveAttribute("aria-expanded", "false");
   });
 
   it("shows active custom metric usage returned by the backend", async () => {
@@ -208,8 +212,15 @@ describe("metrics route", () => {
     renderRoute("/metrics");
 
     expect(
-      await screen.findByText(/2 \/ 5 active custom metrics used/i),
+      await screen.findByText(/2 of 5 custom metrics used/i),
     ).toBeInTheDocument();
+    expect(screen.queryByText(/slots available/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit Mood" })).toHaveTextContent(
+      /^Edit$/,
+    );
+    expect(
+      screen.getByRole("button", { name: "Deactivate Mood" }),
+    ).toHaveTextContent(/^Deactivate$/);
   });
 
   it("opens and cancels the custom metric dialog", async () => {
@@ -269,7 +280,7 @@ describe("metrics route", () => {
     renderRoute("/metrics");
 
     const usage = await screen.findByRole("status", {
-      name: /3 \/ 3 active custom metrics used/i,
+      name: /3 of 3 custom metrics used/i,
     });
 
     expect(usage).toHaveClass("custom-metric-usage-limit");
@@ -659,9 +670,7 @@ describe("metrics route", () => {
       name: /metrics/i,
     });
 
-    await user.click(
-      screen.getByRole("button", { name: /show deactivated custom metrics/i }),
-    );
+    await user.click(screen.getByRole("button", { name: /show archived/i }));
 
     expect(useMetricDefinitionsQuery).toHaveBeenLastCalledWith({
       includeInactive: true,
@@ -706,10 +715,11 @@ describe("metrics route", () => {
       name: /metrics/i,
     });
 
-    await user.click(
-      screen.getByRole("button", { name: /show deactivated custom metrics/i }),
-    );
+    await user.click(screen.getByRole("button", { name: /show archived/i }));
 
+    expect(
+      screen.getByRole("button", { name: "Hide archived" }),
+    ).toHaveAttribute("aria-expanded", "true");
     const activeMetrics = screen.getByLabelText(/available metrics/i);
     expect(activeMetrics).toHaveTextContent(/sleep score/i);
     expect(activeMetrics).not.toHaveTextContent(/mood/i);
@@ -725,6 +735,13 @@ describe("metrics route", () => {
     ).toBeInTheDocument();
     expect(
       within(archivedMetrics).queryByRole("link", { name: /mood/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(archivedMetrics).getByRole("button", { name: "Reactivate Mood" }),
+    ).toHaveTextContent(/^Reactivate$/);
+    await user.click(screen.getByRole("button", { name: "Hide archived" }));
+    expect(
+      screen.queryByRole("region", { name: "Archived custom metrics" }),
     ).not.toBeInTheDocument();
   });
 
@@ -755,9 +772,7 @@ describe("metrics route", () => {
       name: /metrics/i,
     });
 
-    await user.click(
-      screen.getByRole("button", { name: /show deactivated custom metrics/i }),
-    );
+    await user.click(screen.getByRole("button", { name: /show archived/i }));
     await user.click(screen.getByRole("button", { name: /reactivate mood/i }));
 
     expect(reactivateMetricDefinitionMutateAsyncMock).toHaveBeenCalledWith(
@@ -795,9 +810,7 @@ describe("metrics route", () => {
       name: /metrics/i,
     });
 
-    await user.click(
-      screen.getByRole("button", { name: /show deactivated custom metrics/i }),
-    );
+    await user.click(screen.getByRole("button", { name: /show archived/i }));
     await user.click(screen.getByRole("button", { name: /reactivate mood/i }));
 
     expect(

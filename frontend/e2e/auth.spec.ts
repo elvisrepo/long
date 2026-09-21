@@ -325,9 +325,7 @@ test("user can archive and reactivate a custom metric", async ({ page }) => {
     activeMetrics.getByRole("heading", { name: /mood/i }),
   ).not.toBeVisible();
 
-  await page
-    .getByRole("button", { name: /show deactivated custom metrics/i })
-    .click();
+  await page.getByRole("button", { name: /show archived/i }).click();
 
   const archivedMetrics = page.getByRole("region", {
     name: /archived custom metrics/i,
