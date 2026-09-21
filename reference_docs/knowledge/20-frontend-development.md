@@ -117,8 +117,14 @@
   scheduled cancellation explicit, and surfaces wearable connection,
   analytics, and CSV-import entitlements from the existing plan contract.
   Loading and mutation failures render as accessible inline alerts.
-- The prototype's Export All, per-metric export, and web Sync Now controls stay
-  reference-only until supported backend contracts exist. Logout remains in
+- The dashboard's Recent Entries toolbar now exposes **Export CSV** to every
+  authenticated user. With **All metrics** selected it downloads the complete
+  metric-entry history; selecting a metric applies that slug to the export as
+  well as the bounded on-screen recent list. The browser sends the in-memory
+  bearer token, downloads the streamed blob as `longevity-metrics.csv`, disables
+  the button while pending, and displays a safe inline retry message on failure.
+  Date filters are supported by the backend contract but do not yet have
+  dashboard controls. Web Sync Now remains reference-only. Logout remains in
   the shared authenticated shell instead of being duplicated on Settings.
 - `frontend/longevity-redesign-v21` is design reference material and is
   excluded from ESLint and Prettier checks; its handoff files are not compiled

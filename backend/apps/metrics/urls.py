@@ -4,6 +4,7 @@ from apps.metrics.views import (
     ConsistencyAnalyticsView,
     MetricDefinitionDetailView,
     MetricDefinitionListView,
+    MetricEntryCsvExportView,
     MetricEntryDetailView,
     MetricEntryListCreateView,
     MetricUsageView,
@@ -43,6 +44,11 @@ urlpatterns = [
           "entries/",
           MetricEntryListCreateView.as_view(),
           name="metric-entries",
+      ),
+      path(
+          "entries/export/",
+          MetricEntryCsvExportView.as_view(),
+          name="metric-entry-csv-export",
       ),
       path(
       "entries/<int:pk>/",

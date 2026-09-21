@@ -63,6 +63,20 @@ Current metric-usage access-control boundary:
 - Entitlement-changing create and reactivation writes use `transaction.atomic()` plus `SELECT ... FOR UPDATE` on the authenticated user's row. This serializes competing writes for one account and closes the count-then-write race.
 - The lock is scoped per user, so one user's custom metric write does not serialize unrelated users' writes.
 
+Current metric-entry export boundary:
+- `GET /api/v1/metrics/entries/export/` requires JWT authentication, accepts no
+  user identifier, and always scopes the streamed queryset to `request.user`.
+- Metric and date filters narrow that owned queryset. Malformed date-time
+  filters return a controlled `400` response.
+- The export omits wearable connection IDs and provider-owned external record
+  IDs. It contains the portable metric record fields needed by the user.
+- User-controlled metric names and units beginning with spreadsheet formula
+  characters are prefixed with an apostrophe to prevent CSV formula execution
+  when the file is opened in common spreadsheet software.
+- Streaming avoids holding the entire history in application memory. Very
+  large account-wide GDPR archives may still require the planned asynchronous
+  object-storage flow.
+
 Current wearable-connection access-control boundary:
 - Connection collection reads and writes require JWT authentication and are scoped to `request.user`.
 - Connection status reads require JWT authentication and resolve UUIDs only inside the caller-owned queryset, so another user's connection existence and sync/error state are not disclosed.

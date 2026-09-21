@@ -110,6 +110,25 @@ Current entry listing behavior:
 - Invalid limits such as `0`, negative values, or non-numeric values return `400`.
 - Cursor pagination is still planned; the current implementation supports a single bounded result set but does not yet return `next_cursor` or `has_more`.
 
+Current metric-entry CSV export behavior:
+- `GET /api/v1/metrics/entries/export/` requires bearer authentication and
+  streams only the authenticated user's entries as
+  `longevity-metrics.csv`.
+- Optional `metric=<slug>`, `from=<timestamp>`, and `to=<timestamp>` filters
+  are cumulative. Invalid date-time filters return `400` rather than reaching
+  the database as malformed values.
+- Rows are ordered by `recorded_at ASC, id ASC` and include `entry_id`, metric
+  slug/name, value, unit, nullable `period_start`, `recorded_at`, source,
+  JSON-encoded context, and `created_at`. Sleep rows therefore preserve their
+  bedtime and wake-time bounds.
+- The response uses a streaming iterator with a database chunk size of 1,000,
+  so the server does not assemble the complete history in memory.
+- User-controlled metric names and units that could be interpreted as
+  spreadsheet formulas are prefixed with an apostrophe in the CSV.
+- Export is available to every authenticated plan. `csv_import_enabled` remains
+  a separate import entitlement and does not control access to a user's own
+  exported data.
+
 Current Weight × Steps analytics behavior:
 - The server enforces the current subscription's `analytics_enabled`
   entitlement; Free requests return `403` with a safe detail message.

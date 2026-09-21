@@ -8,6 +8,7 @@ import {
   formatMetricValue,
   formatMetricValueWithUnit,
 } from "../features/metrics/metric-entry-formatters";
+import { downloadMetricEntriesCsv } from "../features/metrics/metric-entry-export-api";
 import type { MetricEntry } from "../features/metrics/metric-entries-api";
 import { useCreateMetricEntryMutation } from "../features/metrics/use-create-metric-entry-mutation";
 import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
@@ -24,6 +25,8 @@ const DASHBOARD_CARD_ENTRY_LIMIT = 50;
 
 function DashboardRoute() {
   const [selectedMetricSlug, setSelectedMetricSlug] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const {
     data: metricDefinitions = [],
     isLoading,
@@ -65,6 +68,21 @@ function DashboardRoute() {
       new Date(right.recorded_at).getTime() -
       new Date(left.recorded_at).getTime(),
   )[0];
+
+  async function handleCsvExport() {
+    setIsExporting(true);
+    setExportError(null);
+
+    try {
+      await downloadMetricEntriesCsv(
+        selectedMetricSlug ? { metric: selectedMetricSlug } : {},
+      );
+    } catch {
+      setExportError("CSV export failed. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
 
   if (isLoading) {
     return <p>Loading metric definitions...</p>;
@@ -183,21 +201,33 @@ function DashboardRoute() {
             <h2>Recent Entries</h2>
           </div>
 
-          <label className="entries-filter">
-            Filter recent entries by metric
-            <select
-              value={selectedMetricSlug}
-              onChange={(event) => setSelectedMetricSlug(event.target.value)}
+          <div className="entries-controls">
+            <label className="entries-filter">
+              Filter recent entries by metric
+              <select
+                value={selectedMetricSlug}
+                onChange={(event) => setSelectedMetricSlug(event.target.value)}
+              >
+                <option value="">All metrics</option>
+                {metricDefinitions.map((definition) => (
+                  <option key={definition.id} value={definition.slug}>
+                    {definition.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              className="export-button"
+              disabled={isExporting}
+              onClick={handleCsvExport}
+              type="button"
             >
-              <option value="">All metrics</option>
-              {metricDefinitions.map((definition) => (
-                <option key={definition.id} value={definition.slug}>
-                  {definition.name}
-                </option>
-              ))}
-            </select>
-          </label>
+              {isExporting ? "Exporting…" : "Export CSV"}
+            </button>
+          </div>
         </div>
+
+        {exportError ? <p className="form-error">{exportError}</p> : null}
 
         {cardMetricEntriesAreLoading || metricEntriesAreLoading ? (
           <p>Loading metric entries...</p>

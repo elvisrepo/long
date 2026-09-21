@@ -1,8 +1,16 @@
+import csv
+import json
+from collections.abc import Iterable
+from datetime import UTC, datetime
+
 from django.db.models import Q
+from django.http import StreamingHttpResponse
+from django.utils.dateparse import parse_datetime
 from rest_framework import generics
 from rest_framework.exceptions import APIException
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.request import Request
 
 from apps.metrics.analytics import (
     get_consistency_analytics,
@@ -23,6 +31,71 @@ from apps.metrics.limits import get_active_custom_metric_usage
 from apps.subscriptions.services import get_current_subscription_plan
 
 DEFAULT_METRIC_ENTRY_LIMIT = 50
+METRIC_EXPORT_COLUMNS = (
+    "entry_id",
+    "metric_slug",
+    "metric_name",
+    "value",
+    "unit",
+    "period_start",
+    "recorded_at",
+    "source",
+    "context",
+    "created_at",
+)
+
+
+class CsvEcho:
+    """Give csv.writer the file-like interface needed for streamed rows."""
+
+    def write(self, value: str) -> str:
+        return value
+
+
+def format_export_timestamp(value: datetime | None) -> str:
+    if value is None:
+        return ""
+
+    return value.isoformat().replace("+00:00", "Z")
+
+
+def parse_export_datetime(value: str, field_name: str) -> datetime:
+    parsed_value = parse_datetime(value)
+    if parsed_value is None:
+        raise ValidationError({field_name: ["Enter a valid date/time."]})
+
+    if parsed_value.tzinfo is None:
+        return parsed_value.replace(tzinfo=UTC)
+
+    return parsed_value
+
+
+def escape_spreadsheet_formula(value: str) -> str:
+    if value.lstrip().startswith(("=", "+", "-", "@")):
+        return f"'{value}"
+
+    return value
+
+
+def iter_metric_export_rows(entries: Iterable[MetricEntry]) -> Iterable[str]:
+    writer = csv.writer(CsvEcho())
+    yield writer.writerow(METRIC_EXPORT_COLUMNS)
+
+    for entry in entries:
+        yield writer.writerow(
+            (
+                entry.id,
+                entry.metric_definition.slug,
+                escape_spreadsheet_formula(entry.metric_definition.name),
+                entry.value,
+                escape_spreadsheet_formula(entry.metric_definition.unit),
+                format_export_timestamp(entry.period_start),
+                format_export_timestamp(entry.recorded_at),
+                entry.source,
+                json.dumps(entry.context, ensure_ascii=False, sort_keys=True),
+                format_export_timestamp(entry.created_at),
+            )
+        )
 
 
 class SyncedMetricEntryMutationError(APIException):
@@ -98,7 +171,43 @@ class MetricEntryListCreateView(generics.ListCreateAPIView):
           '''
 
           return queryset
-      
+
+
+class MetricEntryCsvExportView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> StreamingHttpResponse:
+        entries = (
+            MetricEntry.objects.filter(user=request.user)
+            .select_related("metric_definition")
+            .order_by("recorded_at", "id")
+        )
+        metric_slug = request.query_params.get("metric")
+        if metric_slug:
+            entries = entries.filter(metric_definition__slug=metric_slug)
+
+        recorded_from = request.query_params.get("from")
+        if recorded_from:
+            entries = entries.filter(
+                recorded_at__gte=parse_export_datetime(recorded_from, "from")
+            )
+
+        recorded_to = request.query_params.get("to")
+        if recorded_to:
+            entries = entries.filter(
+                recorded_at__lte=parse_export_datetime(recorded_to, "to")
+            )
+
+        response = StreamingHttpResponse(
+            iter_metric_export_rows(entries.iterator(chunk_size=1000)),
+            content_type="text/csv; charset=utf-8",
+        )
+        response["Content-Disposition"] = (
+            'attachment; filename="longevity-metrics.csv"'
+        )
+        return response
+
+
 class MetricEntryDetailView(generics.RetrieveUpdateDestroyAPIView):
       serializer_class = MetricEntrySerializer
       permission_classes = [IsAuthenticated]

@@ -1,6 +1,6 @@
 # System Design Roadmap: Local MVP to Production
 
-Current state, bluntly: the project has a working hosted staging value loop. The public HTTPS frontend and API, Stripe test-mode lifecycle, monitored database backup and restore, and Android authentication and Weight/Steps ingestion are deployed. On 2026-09-17 the operator reported that automatic Android sync reaches the hosted backend and the data appears correctly in the frontend. On 2026-09-18 the operator checked sign-in and sync logs and reported no sensitive values; a read-only host check confirmed the running backend image digest and the Xiaomi pilot conditions were recorded. On 2026-09-19 the operator confirmed browser sign-in, session refresh, manual metric write/read and persistence after refresh, and deep-link reload. The owner later confirmed physical Samsung Health Sleep sync and correct frontend display. Weight × Steps, seven-night Sleep Insights with a persisted target, and Consistency & Coverage are implemented and locally verified; these newer slices have not been deployed. Retained application logs, failure alerts, more health metrics, data export/deletion, asynchronous server processing, and production hardening remain later work.
+Current state, bluntly: the project has a working hosted staging value loop. The public HTTPS frontend and API, Stripe test-mode lifecycle, monitored database backup and restore, and Android authentication and Weight/Steps ingestion are deployed. On 2026-09-17 the operator reported that automatic Android sync reaches the hosted backend and the data appears correctly in the frontend. On 2026-09-18 the operator checked sign-in and sync logs and reported no sensitive values; a read-only host check confirmed the running backend image digest and the Xiaomi pilot conditions were recorded. On 2026-09-19 the operator confirmed browser sign-in, session refresh, manual metric write/read and persistence after refresh, and deep-link reload. The owner later confirmed physical Samsung Health Sleep sync and correct frontend display. Weight × Steps, seven-night Sleep Insights with a persisted target, Consistency & Coverage, and authenticated metric-entry CSV export are implemented locally; these newer slices have not been deployed. Retained application logs, failure alerts, more health metrics, account-wide export/deletion, asynchronous server processing, and production hardening remain later work.
 
 ## 1. Local system design — what exists now
 
@@ -133,7 +133,8 @@ Still missing:
 - reliable application logs and alerts for API, Stripe webhook, and wearable failures
 - insight validation with pilot users and additional calculations only when the
   feedback shows a concrete need
-- GDPR export/delete
+- account-wide GDPR archive and account deletion; metric-entry CSV export is
+  implemented locally
 - password reset / stronger account lifecycle flows
 - additional deliberately mapped Health Connect metrics, with Heart Rate the likely next candidate
 - richer sync history/repair UI
@@ -382,15 +383,19 @@ Related docs:
 Next real product step:
 
 ```text
-Complete local acceptance of Consistency & Coverage, then implement
-authenticated CSV export as the next bounded product-value slice
+Complete local acceptance of authenticated metric-entry CSV export, then add
+password reset as the next bounded account-lifecycle slice
 ```
 
 Weight × Steps, seven-night Sleep Insights, the persisted user sleep target,
-and Consistency & Coverage are now implemented locally. Consistency uses a
+Consistency & Coverage, and authenticated metric-entry CSV export are now
+implemented locally. Consistency uses a
 dedicated Pro-gated backend aggregation rather than the dashboard's bounded
 entry list, and reports factual presence without applying one stale threshold
-to metrics with different expected tracking schedules.
+to metrics with different expected tracking schedules. CSV export is available
+to every authenticated user, streams only caller-owned rows, supports metric
+and date filters, and preserves Sleep interval bounds. It awaits local browser
+acceptance before the next slice begins.
 
 The public staging frontend, API, database, Stripe test webhook, and monitored
 backup/restore jobs are deployed. The operator reports successful automatic

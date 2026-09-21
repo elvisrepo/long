@@ -6,6 +6,7 @@ import { restoreWebSession } from "../features/auth/auth-bootstrap";
 import { logoutWeb } from "../features/auth/auth-logout-api";
 import { getMe } from "../features/auth/auth-me-api";
 import { createMetricEntry } from "../features/metrics/metric-entries-api";
+import { downloadMetricEntriesCsv } from "../features/metrics/metric-entry-export-api";
 import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
 import { useMetricEntriesQuery } from "../features/metrics/use-metric-entries-query";
 import { useCurrentSubscriptionQuery } from "../features/subscriptions/use-current-subscription-query";
@@ -33,6 +34,10 @@ vi.mock("../features/metrics/use-metric-entries-query", () => ({
 
 vi.mock("../features/metrics/metric-entries-api", () => ({
   createMetricEntry: vi.fn(),
+}));
+
+vi.mock("../features/metrics/metric-entry-export-api", () => ({
+  downloadMetricEntriesCsv: vi.fn(),
 }));
 
 vi.mock("../features/subscriptions/use-current-subscription-query", () => ({
@@ -668,6 +673,46 @@ describe("dashboard route", () => {
 
     expect(useMetricEntriesQuery).toHaveBeenCalledWith({ limit: 50 });
     expect(useMetricEntriesQuery).toHaveBeenCalledWith({ limit: 5 });
+  });
+
+  it("exports all entries for the selected metric", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(downloadMetricEntriesCsv).mockResolvedValue();
+    mockLoadedMetricDefinitionsWithManyMetrics();
+
+    renderRoute("/");
+
+    await user.selectOptions(
+      await screen.findByLabelText(/filter recent entries by metric/i),
+      "body_weight",
+    );
+    await user.click(screen.getByRole("button", { name: /export csv/i }));
+
+    expect(downloadMetricEntriesCsv).toHaveBeenCalledWith({
+      metric: "body_weight",
+    });
+  });
+
+  it("shows a safe message when CSV export fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(downloadMetricEntriesCsv).mockRejectedValue(
+      new Error("private backend detail"),
+    );
+    mockLoadedMetricDefinitions();
+
+    renderRoute("/");
+    await user.click(
+      await screen.findByRole("button", { name: /export csv/i }),
+    );
+
+    expect(
+      await screen.findByText(/csv export failed\. please try again\./i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/private backend detail/i),
+    ).not.toBeInTheDocument();
   });
 
   it("shows card latest values from entries beyond the five-entry recent list", async () => {

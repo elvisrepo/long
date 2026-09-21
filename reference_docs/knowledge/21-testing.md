@@ -137,6 +137,16 @@ Current health-contract checkpoint:
 - route coverage proves the obsolete `/health/` contract returns `404`
 
 Current frontend testing checkpoint:
+- Focused CSV export coverage proves the authenticated browser request,
+  metric/from/to query serialization, object-URL download, and URL cleanup.
+  Dashboard route coverage proves that the selected metric reaches the export
+  helper and that backend failures render a generic retry message without
+  leaking private error detail.
+- Backend export integration coverage proves authentication, per-user
+  isolation, stable headers and columns, Sleep interval/context preservation,
+  cumulative metric/date filtering, malformed-date rejection, and spreadsheet
+  formula escaping. The export tests run against PostgreSQL in the Compose web
+  container because the test settings use the Compose-only `db` hostname.
 - the frontend now has a basic Vitest test harness
 - the current setup uses:
   - `Vitest`
