@@ -7,7 +7,7 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { PageHeader } from "../components/page-header";
 import { ThemeToggle } from "../components/theme-toggle";
@@ -53,6 +53,9 @@ function AppNavigation() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const meQuery = useMeQuery();
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
   const [logoutError, setLogoutError] = useState("");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -83,11 +86,78 @@ function AppNavigation() {
     );
   }
 
-  const userInitial = meQuery.data.email.charAt(0).toUpperCase();
+  return (
+    <AuthenticatedNavigation
+      key={pathname}
+      email={meQuery.data.email}
+      isLoggingOut={isLoggingOut}
+      logoutError={logoutError}
+      onLogout={() => void handleLogout()}
+    />
+  );
+}
+
+function AuthenticatedNavigation({
+  email,
+  isLoggingOut,
+  logoutError,
+  onLogout,
+}: {
+  email: string;
+  isLoggingOut: boolean;
+  logoutError: string;
+  onLogout: () => void;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const navigationRef = useRef<HTMLDivElement>(null);
+  const userInitial = email.charAt(0).toUpperCase();
+
+  useEffect(() => {
+    if (!menuOpen) {
+      return;
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    }
+    function closeOnOutsidePointerDown(event: PointerEvent) {
+      const target = event.target as Node | null;
+      if (
+        target &&
+        !navigationRef.current?.contains(target) &&
+        !menuButtonRef.current?.contains(target)
+      ) {
+        setMenuOpen(false);
+      }
+    }
+    window.addEventListener("keydown", closeOnEscape);
+    window.addEventListener("pointerdown", closeOnOutsidePointerDown);
+    return () => {
+      window.removeEventListener("keydown", closeOnEscape);
+      window.removeEventListener("pointerdown", closeOnOutsidePointerDown);
+    };
+  }, [menuOpen]);
 
   return (
-    <div className="app-navigation">
-      <nav className="app-nav" aria-label="Primary navigation">
+    <div ref={navigationRef} className="app-navigation has-menu">
+      <button
+        ref={menuButtonRef}
+        aria-controls="primary-navigation"
+        aria-expanded={menuOpen}
+        className="app-nav-menu-button"
+        type="button"
+        onClick={() => setMenuOpen((open) => !open)}
+      >
+        <span aria-hidden="true">☰</span> Menu
+      </button>
+      <nav
+        id="primary-navigation"
+        className={`app-nav${menuOpen ? " is-open" : ""}`}
+        aria-label="Primary navigation"
+      >
         <Link to="/" className="app-nav-link">
           Dashboard
         </Link>
@@ -97,17 +167,14 @@ function AppNavigation() {
         <Link to="/settings" search={{}} className="app-nav-link">
           Settings
         </Link>
-        <span
-          className="user-chip"
-          title={`Signed in as ${meQuery.data.email}`}
-        >
+        <span className="user-chip" title={`Signed in as ${email}`}>
           {userInitial}
         </span>
         <button
           className="app-nav-action"
           disabled={isLoggingOut}
           type="button"
-          onClick={() => void handleLogout()}
+          onClick={onLogout}
         >
           {isLoggingOut ? "Logging out..." : "Logout"}
         </button>

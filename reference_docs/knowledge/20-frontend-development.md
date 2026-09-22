@@ -40,6 +40,10 @@
 - Login/Register retain focused, centered forms capped at 440px. Form dialogs
   share a 36.25rem maximum; confirmation dialogs use 30rem. Both shrink to the
   viewport and scroll vertically when needed.
+- Below 680px the authenticated header collapses Dashboard, Metrics, Settings,
+  and Logout into a Menu dropdown panel instead of a wrapped second nav row.
+  The panel closes on navigation, Escape (returning focus to the button), and
+  outside tap. Logged-out Login/Register links stay inline.
 - Loading/error sections use the shared content width. Unknown URLs show a
   matching Page not found view with a dashboard link.
 - Changes are local only. Layout browser tests use mocked API responses and

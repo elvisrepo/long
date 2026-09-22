@@ -326,6 +326,66 @@ a {
   color: var(--accent);
 }
 
+.app-nav-menu-button {
+  display: none;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.app-nav-menu-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+@media (max-width: 680px) {
+  .app-header-inner > .app-navigation {
+    margin-left: 0;
+  }
+  .app-navigation.has-menu {
+    position: relative;
+    width: auto;
+  }
+  .app-navigation.has-menu .app-nav-menu-button {
+    display: inline-flex;
+  }
+  .app-navigation.has-menu .app-nav {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 20;
+    width: max-content;
+    min-width: 220px;
+    max-width: min(80vw, 320px);
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--dialog-bg);
+    box-shadow: var(--dialog-shadow);
+  }
+  .app-navigation.has-menu .app-nav.is-open {
+    display: flex;
+  }
+  .app-navigation.has-menu .app-nav-link,
+  .app-navigation.has-menu .app-nav-action {
+    justify-content: flex-start;
+    width: 100%;
+  }
+}
+
 .app-main {
   width: min(var(--page-max-width), 100%);
   margin: 0 auto;
