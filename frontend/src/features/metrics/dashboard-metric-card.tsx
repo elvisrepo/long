@@ -1,10 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { MetricEntry } from "./metric-entries-api";
-import {
-  formatMetricValue,
-  formatMetricEntrySource,
-  formatMetricEntryRecordedAt,
-} from "./metric-entry-formatters";
+import { formatMetricValue } from "./metric-entry-formatters";
 
 interface DashboardMetricCardProps {
   latestEntry: MetricEntry | undefined;
@@ -24,8 +20,11 @@ export function DashboardMetricCard({
   onAddEntry,
 }: DashboardMetricCardProps) {
   return (
-    <article className="metric-card">
+    <article className="metric-card" data-metric={slug}>
       <div className="metric-card-header">
+        <span className="metric-card-symbol" aria-hidden="true">
+          {metricSymbol(slug, name)}
+        </span>
         <h2>
           <Link
             className="metric-card-link"
@@ -35,9 +34,6 @@ export function DashboardMetricCard({
             {name} <span aria-hidden="true">↗</span>
           </Link>
         </h2>
-        <p className="metric-meta">
-          {latestEntry ? "Latest reading" : "No readings yet"}
-        </p>
       </div>
       <div className="metric-current-value">
         <span>
@@ -45,32 +41,35 @@ export function DashboardMetricCard({
         </span>
         {slug === "sleep_duration" ? null : <small>{unit}</small>}
       </div>
-      <div className="metric-card-trend">
-        <MetricSparkline metricName={name} values={trendValues} />
-        <p className="metric-meta">
-          {trendValues.length >= 2
-            ? "Recent readings"
-            : "Add readings to see your trend"}
-        </p>
+      <div className="metric-card-footer">
+        {latestEntry ? (
+          <MetricSparkline metricName={name} values={trendValues} />
+        ) : (
+          <p className="metric-meta">No readings yet</p>
+        )}
+        <button
+          className="metric-card-add"
+          type="button"
+          aria-label={`Add ${name} entry`}
+          onClick={onAddEntry}
+        >
+          <span aria-hidden="true">+</span>
+        </button>
       </div>
-      {latestEntry ? (
-        <p className="metric-card-source">
-          {formatMetricEntrySource(latestEntry.source)} · Recorded{" "}
-          <time dateTime={latestEntry.recorded_at}>
-            {formatMetricEntryRecordedAt(latestEntry.recorded_at)} UTC
-          </time>
-        </p>
-      ) : null}
-      <button
-        className="metric-card-add"
-        type="button"
-        aria-label={`Add ${name} entry`}
-        onClick={onAddEntry}
-      >
-        + Add entry
-      </button>
     </article>
   );
+}
+
+function metricSymbol(slug: string, name: string) {
+  const symbols: Record<string, string> = {
+    steps: "↗",
+    sleep_duration: "☾",
+    body_weight: "◒",
+    resting_hr: "♡",
+    hrv: "♡",
+    vo2_max: "◌",
+  };
+  return symbols[slug] ?? name.slice(0, 1).toUpperCase();
 }
 
 function MetricSparkline({

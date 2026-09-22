@@ -227,6 +227,44 @@ describe("dashboard route", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows compact metrics in one horizontal rail", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    mockLoadedMetricDefinitionsWithManyMetrics();
+    mockLoadedMetricEntries([
+      {
+        id: 1,
+        metric_definition: "body_weight",
+        value: 83.6,
+        recorded_at: "2026-09-21T07:15:00Z",
+        source: "manual",
+        context: {},
+        created_at: "2026-09-21T07:15:02Z",
+      },
+    ]);
+
+    renderRoute("/");
+
+    const rail = await screen.findByRole("region", { name: "Health metrics" });
+    expect(rail).toHaveClass("dashboard-metric-rail");
+    expect(within(rail).getAllByRole("article")).toHaveLength(2);
+    expect(
+      within(rail).getByRole("link", { name: /body weight/i }),
+    ).toHaveAttribute("href", "/metrics/body_weight");
+    expect(
+      within(rail).getByRole("button", { name: /add body weight entry/i }),
+    ).toBeInTheDocument();
+    expect(within(rail).queryByText(/latest reading/i)).not.toBeInTheDocument();
+    expect(within(rail).queryByText(/manual entry/i)).not.toBeInTheDocument();
+
+    Object.defineProperty(rail, "clientWidth", { value: 400 });
+    const scrollBy = vi.fn();
+    rail.scrollBy = scrollBy;
+    await userEvent.click(
+      screen.getByRole("button", { name: "Scroll metrics right" }),
+    );
+    expect(scrollBy).toHaveBeenCalledWith({ left: 320, behavior: "smooth" });
+  });
+
   it("logs out from the shared authenticated navigation", async () => {
     vi.mocked(getMe).mockResolvedValue({
       email: "user@example.com",
@@ -556,7 +594,9 @@ describe("dashboard route", () => {
     expect(screen.getAllByText(/resting heart rate/i).length).toBeGreaterThan(
       0,
     );
-    expect(screen.getByText(/manual and synced records/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /recent entries/i }),
+    ).toBeInTheDocument();
     expect(
       within(screen.getByRole("region", { name: /metric entries/i })).getByText(
         /samsung health/i,
@@ -624,7 +664,7 @@ describe("dashboard route", () => {
       within(insights).getByRole("heading", { name: /pro insights/i }),
     ).toBeInTheDocument();
     expect(
-      within(insights).getByText(/upgrade to pro to unlock trend summaries/i),
+      within(insights).getByText(/upgrade to pro for insights/i),
     ).toBeInTheDocument();
     expect(
       within(insights).queryByRole("link", { name: /weight × steps/i }),
@@ -670,12 +710,6 @@ describe("dashboard route", () => {
       name: /pro insights/i,
     });
 
-    expect(
-      within(insights).getByText(/2 metrics with data/i),
-    ).toBeInTheDocument();
-    expect(
-      within(insights).getByText(/latest update mar 6, 2026/i),
-    ).toBeInTheDocument();
     expect(
       within(insights).getByRole("link", { name: /weight × steps/i }),
     ).toHaveAttribute("href", "/analytics/weight-steps");

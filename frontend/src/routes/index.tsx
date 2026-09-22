@@ -1,7 +1,7 @@
 import { PageHeader } from "../components/page-header";
 import { PageState } from "../components/page-state";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load";
 import { DashboardMetricCard } from "../features/metrics/dashboard-metric-card";
 import {
@@ -24,8 +24,10 @@ export const Route = createFileRoute("/")({
 
 const DASHBOARD_RECENT_ENTRY_LIMIT = 5;
 const DASHBOARD_CARD_ENTRY_LIMIT = 50;
+const DASHBOARD_METRIC_ORDER = ["sleep_duration", "steps", "body_weight"];
 
 function DashboardRoute() {
+  const metricRailRef = useRef<HTMLDivElement>(null);
   const [selectedMetricSlug, setSelectedMetricSlug] = useState("");
   const [entryDefinition, setEntryDefinition] =
     useState<MetricDefinition | null>(null);
@@ -66,11 +68,22 @@ function DashboardRoute() {
 
   const analyticsEnabled =
     currentSubscriptionQuery.data?.plan.analytics_enabled === true;
-  const latestInsightEntry = [...latestEntriesByMetric.values()].sort(
-    (left, right) =>
-      new Date(right.recorded_at).getTime() -
-      new Date(left.recorded_at).getTime(),
-  )[0];
+  const orderedDefinitions = [...metricDefinitions].sort((left, right) => {
+    const leftIndex = DASHBOARD_METRIC_ORDER.indexOf(left.slug);
+    const rightIndex = DASHBOARD_METRIC_ORDER.indexOf(right.slug);
+    if (leftIndex < 0) return rightIndex < 0 ? 0 : 1;
+    if (rightIndex < 0) return -1;
+    return leftIndex - rightIndex;
+  });
+
+  function scrollMetrics(direction: -1 | 1) {
+    const rail = metricRailRef.current;
+    if (!rail) return;
+    rail.scrollBy({
+      left: direction * rail.clientWidth * 0.8,
+      behavior: "smooth",
+    });
+  }
 
   if (isLoading) {
     return <PageState message="Loading metric definitions..." />;
@@ -82,55 +95,52 @@ function DashboardRoute() {
 
   return (
     <section className="dashboard-screen">
-      <PageHeader
-        title="Dashboard"
-        eyebrow={`${formatDashboardDate()} · Health overview`}
-        description="Your health at a glance. Start with how you slept, moved and felt."
-        actions={
-          <div className="status-pill">
-            {metricDefinitions.length}{" "}
-            {metricDefinitions.length === 1 ? "metric" : "metrics"} active
-          </div>
-        }
-      />
+      <PageHeader title="Dashboard" eyebrow={formatDashboardDate()} />
 
-      <section aria-label="Metric definitions" className="dashboard-metrics">
-        {[true, false].map((priority) => {
-          const order = ["sleep_duration", "steps", "body_weight"];
-          const definitions = metricDefinitions
-            .filter(
-              (definition) => order.includes(definition.slug) === priority,
-            )
-            .sort((left, right) =>
-              priority
-                ? order.indexOf(left.slug) - order.indexOf(right.slug)
-                : 0,
-            );
-          if (!definitions.length) return null;
-          return (
-            <div key={String(priority)}>
-              <h2 className="dashboard-section-title">
-                {priority ? "Your daily overview" : "More metrics"}
-              </h2>
-              <div className="metric-grid">
-                {definitions.map((definition) => (
-                  <DashboardMetricCard
-                    key={definition.id}
-                    onAddEntry={() => setEntryDefinition(definition)}
-                    latestEntry={latestEntriesByMetric.get(definition.slug)}
-                    name={definition.name}
-                    slug={definition.slug}
-                    unit={definition.unit}
-                    trendValues={getMetricTrendValues(
-                      cardMetricEntries,
-                      definition.slug,
-                    )}
-                  />
-                ))}
-              </div>
+      <section className="dashboard-metrics">
+        <div className="dashboard-metrics-heading">
+          <h2 className="dashboard-section-title">Your metrics</h2>
+          {metricDefinitions.length > 1 ? (
+            <div className="dashboard-rail-controls">
+              <button
+                type="button"
+                aria-label="Scroll metrics left"
+                onClick={() => scrollMetrics(-1)}
+              >
+                ←
+              </button>
+              <button
+                type="button"
+                aria-label="Scroll metrics right"
+                onClick={() => scrollMetrics(1)}
+              >
+                →
+              </button>
             </div>
-          );
-        })}
+          ) : null}
+        </div>
+        <div
+          ref={metricRailRef}
+          className="dashboard-metric-rail"
+          role="region"
+          aria-label="Health metrics"
+          tabIndex={0}
+        >
+          {orderedDefinitions.map((definition) => (
+            <DashboardMetricCard
+              key={definition.id}
+              onAddEntry={() => setEntryDefinition(definition)}
+              latestEntry={latestEntriesByMetric.get(definition.slug)}
+              name={definition.name}
+              slug={definition.slug}
+              unit={definition.unit}
+              trendValues={getMetricTrendValues(
+                cardMetricEntries,
+                definition.slug,
+              )}
+            />
+          ))}
+        </div>
       </section>
 
       <section className="insights-card" aria-label="Pro insights">
@@ -144,37 +154,24 @@ function DashboardRoute() {
 
         {analyticsEnabled ? (
           <>
-            <p className="insight-context">
-              {latestEntriesByMetric.size} metrics with data
-              {latestInsightEntry
-                ? ` · Latest update ${formatMetricEntryRecordedAt(latestInsightEntry.recorded_at)} UTC`
-                : " · No data yet"}
-            </p>
-            <p className="insight-guidance">
-              Start with your sleep: compare your recent nights with your
-              personal target.
-            </p>
             <div className="insight-navigation">
               <Link className="insight-destination" to="/analytics/sleep">
                 <strong>Sleep Insights →</strong>
-                <span>See your shortfall and adjust your nightly target.</span>
               </Link>
               <Link
                 className="insight-destination"
                 to="/analytics/weight-steps"
               >
                 <strong>Weight × Steps →</strong>
-                <span>Explore weight and movement trends together.</span>
               </Link>
               <Link className="insight-destination" to="/analytics/consistency">
                 <strong>Consistency →</strong>
-                <span>Find gaps in your records and keep them up to date.</span>
               </Link>
             </div>
           </>
         ) : (
           <p className="insights-locked">
-            Upgrade to Pro to unlock trend summaries and advanced analytics.{" "}
+            Upgrade to Pro for insights.{" "}
             <Link to="/settings" search={{}}>
               View plans →
             </Link>
@@ -185,7 +182,6 @@ function DashboardRoute() {
       <section className="entries-card" aria-label="Metric entries">
         <div className="entries-toolbar">
           <div>
-            <p className="eyebrow">Manual and synced records</p>
             <h2>Recent Entries</h2>
           </div>
 

@@ -3090,3 +3090,215 @@ body:has(dialog[open]) {
     width: 100%;
   }
 }
+
+/* Dashboard: compact, swipeable metric overview. */
+.dashboard-screen {
+  gap: 22px;
+}
+
+.dashboard-screen .page-breadcrumb {
+  display: none;
+}
+
+.dashboard-screen .page-header .dashboard-title {
+  font-size: clamp(29px, 4vw, 38px);
+}
+
+.dashboard-metrics {
+  min-width: 0;
+  gap: 10px;
+}
+
+.dashboard-metrics-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dashboard-metrics .dashboard-section-title {
+  margin: 0;
+  font-size: 17px;
+}
+
+.dashboard-rail-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.dashboard-rail-controls button {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface-high);
+  color: var(--text);
+  font-size: 19px;
+}
+
+.dashboard-rail-controls button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.dashboard-metric-rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: clamp(190px, 23vw, 244px);
+  gap: 12px;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 2px;
+  padding: 2px 2px 12px;
+  scrollbar-width: thin;
+}
+
+.dashboard-metric-rail .metric-card {
+  --metric-accent: var(--accent);
+  min-height: 164px;
+  scroll-snap-align: start;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid color-mix(in srgb, var(--metric-accent) 28%, var(--border));
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--metric-accent) 14%, var(--surface-high));
+}
+
+.dashboard-metric-rail .metric-card[data-metric="steps"] {
+  --metric-accent: #30bfb2;
+}
+
+.dashboard-metric-rail .metric-card[data-metric="sleep_duration"] {
+  --metric-accent: #a77ce4;
+}
+
+.dashboard-metric-rail .metric-card[data-metric="body_weight"] {
+  --metric-accent: #6a9ee8;
+}
+
+.dashboard-metric-rail .metric-card[data-metric="resting_hr"],
+.dashboard-metric-rail .metric-card[data-metric="hrv"] {
+  --metric-accent: #e48793;
+}
+
+.dashboard-metric-rail .metric-card-header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.dashboard-metric-rail .metric-card-symbol {
+  display: grid;
+  flex: 0 0 31px;
+  place-items: center;
+  height: 31px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--metric-accent) 26%, var(--surface-high));
+  color: var(--text);
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.dashboard-metric-rail .metric-card h2 {
+  min-width: 0;
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.dashboard-metric-rail .metric-card-link {
+  align-items: center;
+}
+
+.dashboard-metric-rail .metric-card-link span {
+  flex: 0 0 auto;
+  font-size: 14px;
+}
+
+.dashboard-metric-rail .metric-current-value {
+  align-items: baseline;
+  min-height: 38px;
+}
+
+.dashboard-metric-rail .metric-current-value span {
+  font-size: clamp(25px, 2.5vw, 32px);
+  white-space: nowrap;
+}
+
+.dashboard-metric-rail .metric-current-value small {
+  font-size: 11px;
+}
+
+.dashboard-metric-rail .metric-card-footer {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 34px;
+  margin-top: auto;
+}
+
+.dashboard-metric-rail .metric-sparkline {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 26px;
+}
+
+.dashboard-metric-rail .metric-sparkline-line {
+  stroke: var(--metric-accent);
+}
+
+.dashboard-metric-rail .metric-meta {
+  line-height: 1.2;
+}
+
+.dashboard-metric-rail .metric-card-add {
+  display: grid;
+  flex: 0 0 34px;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--metric-accent) 48%, var(--border));
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--metric-accent) 18%, var(--surface-high));
+  color: var(--text);
+  font-size: 21px;
+}
+
+.dashboard-metric-rail .metric-card-add:hover {
+  background: color-mix(in srgb, var(--metric-accent) 34%, var(--surface-high));
+}
+
+.dashboard-screen .insights-card {
+  gap: 8px;
+  padding: 17px 20px;
+}
+
+.dashboard-screen .insight-navigation {
+  gap: 12px;
+}
+
+.dashboard-screen .insight-destination {
+  padding: 12px 0 0;
+}
+
+.dashboard-screen .insight-destination strong {
+  font-size: 14px;
+}
+
+@media (max-width: 680px) {
+  .dashboard-metric-rail {
+    grid-auto-columns: clamp(190px, 66vw, 244px);
+  }
+
+  .dashboard-screen .insight-navigation {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
