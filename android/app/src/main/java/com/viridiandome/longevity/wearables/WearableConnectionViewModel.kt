@@ -58,6 +58,41 @@ class WearableConnectionViewModel(
         resolveHealthConnectConnection()
     }
 
+    /**
+     * Re-reads the caller's backend connections and refreshes the displayed
+     * row when it is still present. This runs after a sync terminal state so
+     * the visible last-sync timestamp cannot lag behind Django. It never
+     * shows a loading state and never touches permissions: failures and a
+     * missing row keep the current UI untouched.
+     */
+    fun refreshConnectionStatus() {
+        val readyState = _state.value as? WearableConnectionUiState.Ready
+            ?: return
+        if (resolutionJob?.isActive == true) {
+            return
+        }
+
+        resolutionJob = viewModelScope.launch {
+            try {
+                when (val result = repository.getConnections()) {
+                    is WearableConnectionsResult.Success ->
+                        result.connections
+                            .firstOrNull { it.id == readyState.connection.id }
+                            ?.let { fresh ->
+                                _state.value = readyState.copy(connection = fresh)
+                            }
+
+                    else -> Unit
+                }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                // A failed refresh keeps the last known row. The sync result
+                // text already describes the outcome; the next load repairs this.
+            }
+        }
+    }
+
     fun disconnect() {
         val readyState = _state.value as? WearableConnectionUiState.Ready
             ?: return

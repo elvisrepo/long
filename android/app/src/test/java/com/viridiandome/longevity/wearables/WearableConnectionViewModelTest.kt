@@ -113,6 +113,86 @@ class WearableConnectionViewModelTest {
     }
 
     @Test
+    fun refresh_updates_connection_timestamp_without_leaving_ready_state() =
+        runTest {
+            val stale = healthConnectConnection(status = "connected")
+            val repository = ControllableWearableConnectionRepository()
+            val viewModel = WearableConnectionViewModel(
+                repository,
+                GrantedWeightReadHealthConnectAccess,
+            )
+            viewModel.load()
+            runCurrent()
+            repository.complete(WearableConnectionResolutionResult.Success(stale))
+            advanceUntilIdle()
+
+            val fresh = stale.copy(lastSyncedAt = "2026-09-22T14:05:52Z")
+            repository.connectionsResult =
+                WearableConnectionsResult.Success(listOf(fresh))
+            viewModel.refreshConnectionStatus()
+            advanceUntilIdle()
+
+            assertEquals(
+                WearableConnectionUiState.Ready(fresh),
+                viewModel.state.value,
+            )
+            assertEquals(1, repository.connectionsRequests)
+        }
+
+    @Test
+    fun refresh_keeps_stale_connection_when_backend_omits_it() = runTest {
+        val stale = healthConnectConnection(status = "connected")
+        val repository = ControllableWearableConnectionRepository()
+        val viewModel = WearableConnectionViewModel(
+            repository,
+            GrantedWeightReadHealthConnectAccess,
+        )
+        viewModel.load()
+        runCurrent()
+        repository.complete(WearableConnectionResolutionResult.Success(stale))
+        advanceUntilIdle()
+
+        repository.connectionsResult = WearableConnectionsResult.Success(
+            listOf(
+                stale.copy(id = "other-connection-id"),
+            ),
+        )
+        viewModel.refreshConnectionStatus()
+        advanceUntilIdle()
+
+        assertEquals(
+            WearableConnectionUiState.Ready(stale),
+            viewModel.state.value,
+        )
+    }
+
+    @Test
+    fun refresh_ignores_failures_and_non_ready_states() = runTest {
+        val repository = ControllableWearableConnectionRepository()
+        val viewModel = WearableConnectionViewModel(
+            repository,
+            GrantedWeightReadHealthConnectAccess,
+        )
+
+        viewModel.refreshConnectionStatus()
+        runCurrent()
+
+        assertEquals(0, repository.connectionsRequests)
+        assertSame(WearableConnectionUiState.Idle, viewModel.state.value)
+
+        repository.connectionsResult = WearableConnectionsResult.Unavailable
+        viewModel.load()
+        runCurrent()
+        repository.complete(WearableConnectionResolutionResult.Unavailable)
+        advanceUntilIdle()
+
+        viewModel.refreshConnectionStatus()
+        advanceUntilIdle()
+
+        assertSame(WearableConnectionUiState.Unavailable, viewModel.state.value)
+    }
+
+    @Test
     fun retry_resolves_health_connect_again_after_temporary_failure() = runTest {
         val connection = healthConnectConnection(status = "connected")
         val repository = SequencedWearableConnectionRepository(
@@ -454,8 +534,15 @@ private class ControllableWearableConnectionRepository :
         resolution.complete(result)
     }
 
-    override suspend fun getConnections(): WearableConnectionsResult =
-        error("Direct connection reads are not expected from the ViewModel.")
+    var connectionsResult: WearableConnectionsResult =
+        WearableConnectionsResult.Unavailable
+    var connectionsRequests = 0
+        private set
+
+    override suspend fun getConnections(): WearableConnectionsResult {
+        connectionsRequests += 1
+        return connectionsResult
+    }
 
     override suspend fun registerHealthConnect():
         WearableConnectionRegistrationResult =

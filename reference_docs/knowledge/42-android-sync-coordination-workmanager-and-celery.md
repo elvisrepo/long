@@ -244,6 +244,9 @@ ViewModel aggregates imported/updated/skipped counts
     ↓
 Compose renders a safe terminal state
     ↓
+MainActivity refreshes the caller-owned connection row on Completed/NoData
+so the visible last-sync timestamp cannot lag behind Django
+    ↓
 Completed or valid NoData starts the plan cooldown
 ```
 

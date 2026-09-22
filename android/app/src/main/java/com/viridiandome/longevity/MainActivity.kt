@@ -28,6 +28,7 @@ import com.viridiandome.longevity.wearables.WearableConnectionUiState
 import com.viridiandome.longevity.wearables.healthconnect.BACKGROUND_READ_PERMISSION
 import com.viridiandome.longevity.wearables.healthconnect.BACKGROUND_READ_PERMISSIONS
 import com.viridiandome.longevity.wearables.healthconnect.SUPPORTED_METRIC_READ_PERMISSIONS
+import com.viridiandome.longevity.wearables.sync.InitialWeightSyncUiState
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncViewModel
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncViewModelFactory
 import com.viridiandome.longevity.wearables.sync.AutomaticSyncAttempt
@@ -182,6 +183,20 @@ class MainActivity : ComponentActivity() {
                                         .getOrNull()
                                 },
                         )
+                    }
+                }
+
+                // A finished sync may have moved Django's last-sync timestamp.
+                // Refreshing the connection row keeps the visible status and
+                // the cooldown basis honest without a loading flicker.
+                LaunchedEffect(initialWeightSyncState) {
+                    if (
+                        initialWeightSyncState is
+                            InitialWeightSyncUiState.Completed ||
+                        initialWeightSyncState ===
+                            InitialWeightSyncUiState.NoData
+                    ) {
+                        wearableConnectionViewModel.refreshConnectionStatus()
                     }
                 }
 
