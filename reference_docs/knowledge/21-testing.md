@@ -54,9 +54,12 @@ compilation, and signed APK assembly. Package inspection found the registered
 `com.viridiandome.longevity.pilot` identity, and `apksigner` found the same
 SHA-256 signing-certificate fingerprint as pilot 1.2:
 `ffcc75055452336e85f0f997071decef5df05067cd8024e87626858b4788e5e9`.
-The build embeds `https://staging.syncvitals.space/`. ADB listed no connected
-device, so an in-place install and retained-session/Health Connect check remain
-physical-device acceptance items.
+The build embeds `https://staging.syncvitals.space/`. ADB subsequently installed
+pilot 1.3 over pilot 1.2 on the authorized phone. The package version changed
+from code 3 to code 4, its original installation timestamp remained unchanged,
+and Weight, Steps, and Sleep Health Connect permissions remained granted. This
+closes the same-key in-place update and permission-retention checks; an app-open
+session and sync check remains user-visible acceptance.
 
 The diagnostic pilot APK (version code 2) records the latest automatic worker
 attempt separately for times when the Activity was visible and away. It keeps

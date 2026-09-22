@@ -185,8 +185,9 @@ cd /home/sevi/longevity
 /home/sevi/Android/Sdk/platform-tools/adb install -r android/releases/longevity-pilot-1.3.apk
 ```
 
-  A connected, authorized phone is required; the 2026-09-22 build could not
-  complete physical update acceptance because ADB listed no device.
+  On 2026-09-22, ADB installed pilot 1.3 over pilot 1.2 on the authorized phone.
+  The package retained its original installation timestamp and its granted
+  Weight, Steps, and Sleep Health Connect permissions.
 - `HttpAuthRepository` implements and mock-server-tests the mobile-login HTTP contract. `AndroidKeystoreAuthTokenStore` provides the production AES-GCM/Android-Keystore storage boundary and is verified on the physical phone.
 - `LongevityApplication` creates the shared HTTP/auth dependencies. `MainActivity` obtains `LoginViewModel` through `LoginViewModelFactory`, collects its state with lifecycle awareness, and delegates Sign in to the real repository.
 

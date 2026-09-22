@@ -637,8 +637,11 @@ Its signing certificate SHA-256
 matches the prior Pilot 1.2 artifact; its API base URL is the public staging
 origin. The focused pilot version test first failed against version code 3, then
 passed with code 4. The full pilot and debug JVM suites, debug instrumented-test
-compilation, Pilot lint, and APK assembly passed. ADB listed no connected
-device, so no in-place install or on-phone data-retention check occurred.
+compilation, Pilot lint, and APK assembly passed. ADB later installed the APK
+over pilot 1.2 on the authorized phone. `dumpsys package` reported code 4 and
+version `1.3-pilot`, preserved the original 2026-09-18 installation timestamp,
+and showed Weight, Steps, and Sleep Health Connect permissions still granted.
+Opening the updated app and completing a sync remain owner acceptance checks.
 
 #### Watch requests and backend errors on staging
 
