@@ -57,7 +57,10 @@ describe("weight and steps analytics route", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("70.4 → 70.1 kg")).toBeInTheDocument();
     expect(
-      screen.getByText(/latest 7-day average 70\.3 kg/i),
+      screen.getByText(/latest trailing 7-day average 70\.3 kg/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/trailing 7-day mean of your daily weigh-ins/i),
     ).toBeInTheDocument();
     expect(screen.getByText("6,650 / day")).toBeInTheDocument();
     expect(useWeightStepsAnalyticsQuery).toHaveBeenCalledWith(30);

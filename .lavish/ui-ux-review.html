@@ -69,7 +69,8 @@
     <h1>What the product looks like today, and what to fix first</h1>
     <p class="dim">Captured 2026-09-22 · 11 routes × dark / light / sand × desktop 1440px / mobile 390px = 66 mocked-API screenshots.
     Method: live code audit + Playwright captures against the dev server (no backend writes) + existing layout-suite results.
-    Annotate anything in this page or answer the triage forms at the bottom to queue follow-up work.</p>
+    <strong>Status update, afternoon 2026-09-22:</strong> all High and Medium findings below are fixed, tested, and re-captured —
+    every screenshot on this page is post-fix. Only the three Low items remain open. Annotate anything or use the triage forms at the bottom.</p>
   </header>
 
   <section>
@@ -98,15 +99,15 @@
   <section>
     <h2>2 · Verdict</h2>
     <div class="verdict">
-      <article><div class="n sev-high">2</div><p><strong>High</strong> — user-visible bugs worth a correctness slice (raw slugs, float axis labels).</p></article>
-      <article><div class="n sev-med">5</div><p><strong>Medium</strong> — polish / empty-state / rhythm issues, incl. the 13 failing layout tests.</p></article>
-      <article><div class="n sev-low">4</div><p><strong>Low / Info</strong> — doc drift, micro-copy, plus corrected H1 (devtools are prod-gated by the library itself).</p></article>
-      <article><div class="n sev-low">✓</div><p><strong>Solid</strong> — theme engine, dialog a11y, skeletons + reduced-motion, UTC discipline, Pro gating.</p></article>
+      <article><div class="n sev-low">7</div><p><strong>Fixed ✓</strong> — H2, H3, M1–M5 implemented TDD (red→green), verified by suites + re-captured screenshots.</p></article>
+      <article><div class="n sev-low">3</div><p><strong>Open (Low)</strong> — L1 doc drift, L2 day-cell abbreviations, L3 long-name button wrap.</p></article>
+      <article><div class="n sev-low">1</div><p><strong>Info</strong> — H1 corrected: Router devtools never ship to production (library-gated).</p></article>
+      <article><div class="n sev-low">✓</div><p><strong>Verified</strong> — vitest 51 files / 286 tests green · layout suite 23/23 green · tsc + eslint + prettier clean.</p></article>
     </div>
   </section>
 
   <section>
-    <h2>3 · Findings (annotate any row to discuss it)</h2>
+    <h2>3 · Findings (fixed rows describe the original report; annotate any row to discuss it)</h2>
     <div class="table-scroll"><table>
       <tr><th>Sev</th><th>View</th><th>Finding</th><th>Evidence</th></tr>
       <tr><td><span class="pill low">INFO</span></td><td>All pages (local dev only)</td>
@@ -115,25 +116,25 @@
         production/staging builds render nothing, as you noted. It only overlays local dev-server screens (and covered the Consistency link
         in mobile captures). Optional: gate explicitly in <code>__root.tsx:47</code> for cleaner local review screenshots; otherwise no action.</td>
         <td>node_modules/@tanstack/react-router-devtools/dist/esm/index.js:5; dashboard-dark-mobile.png (dev-only badge)</td></tr>
-      <tr><td><span class="pill high">HIGH</span></td><td>Weight × Steps</td>
+      <tr><td><span class="pill low">FIXED ✓</span></td><td>Weight × Steps</td>
         <td><strong>H2 · Breadcrumb leaks raw slugs.</strong> Shows <code>body_weight × steps</code> instead of “Body Weight × Steps”. Every other breadcrumb uses human names.</td>
         <td>analytics-weight-steps-dark-desktop.png</td></tr>
-      <tr><td><span class="pill high">HIGH</span></td><td>Metric detail (custom)</td>
+      <tr><td><span class="pill low">FIXED ✓</span></td><td>Metric detail (custom)</td>
         <td><strong>H3 · Y-axis float artifacts.</strong> A single score of 7 renders ticks <code>7.200000000000001 / 7.000000000000001 / 6.800000000000001…</code>. The known follow-up in <code>20-frontend-development.md</code> is confirmed live. Only body_weight is normalized; unknown/custom metrics are not.</td>
         <td>metric-custom-long-name-dark-mobile.png</td></tr>
-      <tr><td><span class="pill med">MED</span></td><td>All signed-in</td>
+      <tr><td><span class="pill low">FIXED ✓</span></td><td>All signed-in</td>
         <td><strong>M1 · 13 layout tests fail on title rhythm.</strong> <code>titleY</code> differs by ~36px between Dashboard and Metrics: breadcrumb / description / action slots shift the H1. Decide: relax the test to per-template rhythm, or reserve fixed slots in <code>PageHeader</code>.</td>
         <td>layout.spec.ts:246; dashboard vs metrics screenshots</td></tr>
-      <tr><td><span class="pill med">MED</span></td><td>Metric detail · Weight × Steps</td>
+      <tr><td><span class="pill low">FIXED ✓</span></td><td>Metric detail · Weight × Steps</td>
         <td><strong>M2 · Single-point charts look degenerate.</strong> One 84kg entry → y-axis 79–89kg with one dot, “84 TO 84 KG”, Oldest = Latest, Delta 0. Comparison shows one full-width bar and a 0–90kg weight axis despite the “axis focuses on observed range” doc claim.</td>
         <td>metric-body-weight-dark-desktop.png; analytics-weight-steps-dark-desktop.png</td></tr>
-      <tr><td><span class="pill med">MED</span></td><td>Login / Register (mobile)</td>
+      <tr><td><span class="pill low">FIXED ✓</span></td><td>Login / Register (mobile)</td>
         <td><strong>M3 · Large void above the auth card</strong> on tall viewports — the centered 440px panel starts mid-screen with ~250px of empty header space.</td>
         <td>login-dark-mobile.png</td></tr>
-      <tr><td><span class="pill med">MED</span></td><td>Settings</td>
+      <tr><td><span class="pill low">FIXED ✓</span></td><td>Settings</td>
         <td><strong>M4 · “No paid billing period yet.”</strong> renders as a large green headline inside an otherwise empty billing panel — reads like a celebration of missing data.</td>
         <td>settings-dark-desktop.png</td></tr>
-      <tr><td><span class="pill med">MED</span></td><td>Sleep Insights</td>
+      <tr><td><span class="pill low">FIXED ✓</span></td><td>Sleep Insights</td>
         <td><strong>M5 · Zero shortfall shouts “0h 00m”</strong> in huge orange alert type. Zero is the best outcome; consider neutral/green treatment or “On target”.</td>
         <td>analytics-sleep-dark-desktop.png</td></tr>
       <tr><td><span class="pill low">LOW</span></td><td>Dashboard</td>
@@ -147,6 +148,14 @@
         <td>metric-custom-long-name-dark-mobile.png</td></tr>
     </table></div>
     <div class="callout">
+      <strong>Fixed 2026-09-22 (TDD, 10 new tests):</strong> H2 human breadcrumb (<code>analytics.weight-steps.tsx</code>);
+      H3 <code>formatChartAxisTick()</code> + wiring in both chart components; M1 phantom breadcrumb row removed,
+      dashboard title unified, layout test groups <code>titleY</code> by header variant;
+      M2 single-day notes + enforced weight-axis min/max; M3 top-aligned auth layout;
+      M4 quiet billing-empty copy; M5 “No shortfall” hero. Reference docs updated
+      (<code>20-frontend-development.md</code>). Screenshots below are re-captured post-fix.
+    </div>
+    <div class="callout">
       <strong>What is genuinely good:</strong> three-theme engine with persistence + storage-failure fallback; native dialogs with focus containment, Escape, and pending-guards;
       loading skeletons that respect reduced-motion; consistent UTC handling with local-time sleep windows; Pro links hidden for Free <em>and</em> backend-enforced;
       consistency day-cells as keyboard-accessible deep links. Sand theme (new, brightest-theme complaint response) renders cleanly with no stray white cards.
@@ -159,30 +168,30 @@
     <h3>Dashboard — desktop vs mobile (dark)</h3>
     <div class="duo">
       <figure class="shot"><img src="ui-review-assets/dashboard-dark-desktop.png" alt="Dashboard desktop dark"><figcaption>Desktop: 3-up cards, inline Pro destinations, side-by-side Recent Entries. Calm and readable.</figcaption></figure>
-      <figure class="shot"><img src="ui-review-assets/dashboard-dark-mobile.png" alt="Dashboard mobile dark"><figcaption>Mobile: 2-up cards hold up; entries stack; devtools badge covers “Consistency →” (H1).</figcaption></figure>
+      <figure class="shot"><img src="ui-review-assets/dashboard-dark-mobile.png" alt="Dashboard mobile dark"><figcaption>Mobile: 2-up cards hold up; entries stack. The floating badge is the dev-server-only Router overlay (H1, info).</figcaption></figure>
     </div>
 
     <h3>Same dashboard in Sand — the “not too bright” theme works</h3>
     <figure class="shot"><img src="ui-review-assets/dashboard-sand-desktop.png" alt="Dashboard desktop sand"><figcaption>Oatmeal surfaces, brown controls, no white cards. Beige cards carry faint pastel tints (sleep lilac, steps mint) — check contrast of muted text on tinted cards.</figcaption></figure>
 
     <h3>Metrics catalog (dark desktop)</h3>
-    <figure class="shot"><img src="ui-review-assets/metrics-dark-desktop.png" alt="Metrics catalog"><figcaption>Clean rows, quota shown once, archived collapsed by default. This is the page the layout test trips on (M1): its H1 sits ~36px lower than Dashboard’s.</figcaption></figure>
+    <figure class="shot"><img src="ui-review-assets/metrics-dark-desktop.png" alt="Metrics catalog"><figcaption>Clean rows, quota shown once, archived collapsed by default. Post-fix, its H1 aligns with Dashboard (M1).</figcaption></figure>
 
     <h3>Metric detail — solid for Body Weight, broken ticks for custom metrics</h3>
     <div class="duo">
-      <figure class="shot"><img src="ui-review-assets/metric-body-weight-dark-desktop.png" alt="Body weight detail"><figcaption>Body Weight: breadcrumb, summary trio, range toggle above chart — all per spec. With one entry the chart is honest but empty (M2).</figcaption></figure>
-      <figure class="shot"><img src="ui-review-assets/metric-custom-long-name-dark-mobile.png" alt="Custom metric mobile"><figcaption>Custom score=7: y-axis shows 7.200000000000001-style ticks (H3). Hero button wraps to two lines (L3).</figcaption></figure>
+      <figure class="shot"><img src="ui-review-assets/metric-body-weight-dark-desktop.png" alt="Body weight detail"><figcaption>Body Weight: breadcrumb, summary trio, range toggle above chart — all per spec. Single-entry view now carries the honest one-day note (M2 fixed).</figcaption></figure>
+      <figure class="shot"><img src="ui-review-assets/metric-custom-long-name-dark-mobile.png" alt="Custom metric mobile"><figcaption>Post-fix: y-axis ticks are denoised via <span class="mono">formatChartAxisTick()</span> (H3 fixed). Hero button still wraps on very long names (L3, open).</figcaption></figure>
     </div>
 
     <h3>Pro analytics — Weight × Steps vs Sleep vs Consistency</h3>
-    <figure class="shot"><img src="ui-review-assets/analytics-weight-steps-dark-desktop.png" alt="Weight times steps"><figcaption>Note the raw-slug breadcrumb <span class="mono">body_weight × steps</span> (H2) and the single full-width bar with a 0–90kg axis (M2).</figcaption></figure>
-    <figure class="shot"><img src="ui-review-assets/analytics-sleep-dark-desktop.png" alt="Sleep insights"><figcaption>Target control, shortfall hero, nightly bars, local-time averages — strong page. “0h 00m” in alarm-orange for a perfect week (M5).</figcaption></figure>
+    <figure class="shot"><img src="ui-review-assets/analytics-weight-steps-dark-desktop.png" alt="Weight times steps"><figcaption>Post-fix: human breadcrumb “Body Weight × Steps” (H2), single-day note, and a focused 83–85 kg axis with the reading visible (M2).</figcaption></figure>
+    <figure class="shot"><img src="ui-review-assets/analytics-sleep-dark-desktop.png" alt="Sleep insights"><figcaption>Target control, shortfall hero, nightly bars, local-time averages — strong page. A perfect week now reads “No shortfall” in accent green (M5 fixed).</figcaption></figure>
     <figure class="shot"><img src="ui-review-assets/analytics-consistency-light-desktop.png" alt="Consistency light"><figcaption>Light theme holds up: coverage trio, per-metric presence rows, factual Needs-attention copy. Day glyphs are single letters (L2).</figcaption></figure>
 
     <h3>Settings + auth</h3>
-    <figure class="shot"><img src="ui-review-assets/settings-dark-desktop.png" alt="Settings"><figcaption>Capability pills, portal action, export panel — good. The billing panel’s “No paid billing period yet.” headline (M4) needs a quieter style.</figcaption></figure>
+    <figure class="shot"><img src="ui-review-assets/settings-dark-desktop.png" alt="Settings"><figcaption>Capability pills, portal action, export panel — good. The empty billing panel is now quiet muted copy (M4 fixed).</figcaption></figure>
     <div class="duo">
-      <figure class="shot"><img src="ui-review-assets/login-dark-mobile.png" alt="Login mobile"><figcaption>Focused card, good contrast — but a large void above it on tall screens (M3).</figcaption></figure>
+      <figure class="shot"><img src="ui-review-assets/login-dark-mobile.png" alt="Login mobile"><figcaption>Post-fix: card top-aligns with a capped offset — the tall-screen void is gone (M3).</figcaption></figure>
       <figure class="shot"><img src="ui-review-assets/login-light-desktop.png" alt="Login light desktop"><figcaption>Light theme auth. Same layout question as mobile, less severe.</figcaption></figure>
     </div>
   </section>
@@ -211,16 +220,17 @@
   </section>
 
   <section>
-    <h2>6 · Proposed next actions</h2>
+    <h2>6 · Remaining work</h2>
     <ol class="actions">
-      <li><strong>Correctness slice (approved):</strong> humanize Weight × Steps breadcrumb (H2), add axis-tick formatting for custom metrics (H3).</li>
-      <li><strong>Empty-state slice:</strong> single-point trend treatment (M2), quiet billing-panel empty copy (M4), zero-shortfall hero tone (M5).</li>
-      <li><strong>Rhythm slice:</strong> decide PageHeader slot policy and align the 13 failing layout assertions with it (M1); tighten auth vertical rhythm on tall mobile (M3).</li>
+      <li><strong>L1</strong> — reconcile the “sleep review prompt” wording in <code>10-wireframes-frontend-design.md</code> with the current three-link Pro Insights card.</li>
+      <li><strong>L2</strong> — consider two-letter weekday abbreviations in the Consistency presence grid.</li>
+      <li><strong>L3</strong> — confirm the two-line hero button on very long custom metric names is acceptable, or clamp it.</li>
+      <li><strong>Chore</strong> — commit the working tree (source + tests + docs + re-captured <code>.lavish</code> assets) when ready.</li>
     </ol>
   </section>
 
   <section>
-    <h2>7 · Your call — queue follow-up work</h2>
+    <h2>7 · Your call — remaining L-items and commit</h2>
     <form class="triage" data-lavish-question="triage" onsubmit="event.preventDefault(); const picked = Array.from(event.currentTarget.querySelectorAll('input[name=fix]:checked')).map(i => i.value); const note = document.getElementById('triage-note').textContent; const msg = picked.length ? 'Approved fixes: ' + picked.join(', ') + (note.trim() ? '. Note: ' + note.trim() : '') : 'No fixes approved yet'; window.lavish.queuePrompt(msg, { tag: 'triage', text: msg, element: event.currentTarget, data: { question: 'triage', answers: picked } }); document.getElementById('triage-status').textContent = 'Queued — press Send to Agent when ready.';">
       <fieldset>
         <legend>Which findings should become the next fix slice? (select, then queue)</legend>
@@ -252,7 +262,9 @@
 
   <footer>
     Scope: local frontend only, mocked-API captures (fixture: 4 metrics incl. long-name custom, 1 entry each, Pro plan). No cloud deployment, no DB writes.
-    Full set: 66 PNGs in <span class="mono">.lavish/ui-review-assets/</span>. Layout suite: 10 passed / 13 failed (titleY rhythm, <span class="mono">frontend/e2e/layout.spec.ts:246</span>).
+    Full set: 66 PNGs in <span class="mono">.lavish/ui-review-assets/</span> (re-captured post-fix).
+    Layout suite: 23 passed, 0 failed (<span class="mono">frontend/e2e/layout.spec.ts</span>).
+    Unit suite: 51 files / 286 tests passed. Uncommitted working-tree changes — no commit requested yet.
     Design source for this page: the product’s own dark tokens (option 2 — reviewing this product, so echoing its palette).
   </footer>
 

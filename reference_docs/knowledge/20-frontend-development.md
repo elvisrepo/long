@@ -146,7 +146,12 @@
   comparison prototype against a real server-side analytics contract. It
   supports 7, 30, and 90-day ranges. The dual-axis chart uses blue bars for
   daily Steps, subdued points for observed daily Weight, and a primary green
-  line for the server-computed seven-day rolling Weight average. Complete
+  line for the server-computed trailing seven-day mean of daily Weight (each
+  point averages that day plus the 6 days before it, including pre-range
+  lookback days). The mean renders with hollow markers and straight segments
+  so it visibly passes through its own points next to the solid daily-weight
+  dots. The page states this plotting rule in a short explainer so
+  the line is not mistaken for a fit through the dots. Complete
   calendar rows preserve missing-day spacing, the Weight axis focuses on the
   observed range, and summary cards distinguish paired, Weight, and Steps
   coverage. Loading, empty, and error states remain accessible.

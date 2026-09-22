@@ -104,13 +104,20 @@ export function WeightStepsOverlayChart({
           },
           {
             type: "line",
-            label: "7-day weight average kg",
+            label: "Trailing 7-day mean kg",
             data: series.map((point) => point.weight_7d_average_kg),
             borderColor: colors.line,
             backgroundColor: colors.fill,
             borderWidth: 3,
-            pointRadius: 0,
-            tension: 0.3,
+            // Hollow markers so the mean reads as its own series next to the
+            // solid daily-weight dots; straight segments so the line passes
+            // exactly through its markers instead of smoothed Bézier estimates.
+            pointBackgroundColor: colors.background,
+            pointBorderColor: colors.line,
+            pointBorderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            tension: 0,
             spanGaps: false,
             yAxisID: "weight",
           },
@@ -165,7 +172,7 @@ export function WeightStepsOverlayChart({
 
   return (
     <div
-      aria-label="Daily body weight, seven-day weight average, and daily total steps chart"
+      aria-label="Daily body weight, trailing seven-day mean, and daily total steps chart"
       className="weight-steps-chart"
       role="img"
     >

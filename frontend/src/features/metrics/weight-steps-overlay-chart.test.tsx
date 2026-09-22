@@ -38,7 +38,7 @@ describe("WeightStepsOverlayChart", () => {
 
     expect(
       screen.getByRole("img", {
-        name: /daily body weight, seven-day weight average, and daily total steps/i,
+        name: /daily body weight, trailing seven-day mean, and daily total steps/i,
       }),
     ).toBeInTheDocument();
     expect(chartMock.mock.calls.at(-1)?.[0].data.labels).toEqual([
@@ -58,8 +58,10 @@ describe("WeightStepsOverlayChart", () => {
           showLine: false,
         }),
         expect.objectContaining({
-          label: "7-day weight average kg",
+          label: "Trailing 7-day mean kg",
           data: [84.8, 84.8, 84.7],
+          pointRadius: 3,
+          tension: 0,
         }),
       ]),
     );

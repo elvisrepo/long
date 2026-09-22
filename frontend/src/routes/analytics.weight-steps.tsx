@@ -116,6 +116,12 @@ function WeightStepsRoute() {
               </p>
             ) : null}
             <WeightStepsOverlayChart series={analytics.series} />
+            <p className="weight-steps-note">
+              How the line is plotted: the green line is a trailing 7-day mean
+              of your daily weigh-ins — each point averages the readings from
+              that day and the 6 days before it, including days before this
+              range. Dots are your actual daily readings.
+            </p>
             <WeightStepsSummaryCards analytics={analytics} />
           </>
         )}
@@ -149,7 +155,8 @@ function WeightStepsSummaryCards({
             : `${formatWeight(summary.weight_start_kg)} → ${formatWeight(summary.weight_end_kg)} kg`}
         </p>
         <p className="weight-steps-note">
-          Latest 7-day average {formatOptionalWeight(latestRollingAverage)}
+          Latest trailing 7-day average{" "}
+          {formatOptionalWeight(latestRollingAverage)}
         </p>
       </article>
       <article>
