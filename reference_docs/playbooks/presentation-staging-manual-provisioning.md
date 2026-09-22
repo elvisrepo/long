@@ -611,6 +611,22 @@ It is a direct-device staging artifact, not an update to the separately signed
 `com.viridiandome.longevity.pilot` app. Authenticated browser and physical-device
 acceptance for this new UI/APK are still pending.
 
+At approximately 17:14 UTC on 2026-09-22, the owner requested a new backend
+image for the same release. Codex built and pushed the immutable Linux/ARM64
+image tagged with committed SHA `899561c7a5874ceb749192c7568c9251de7cf430`.
+The deployable image index digest is
+`sha256:f2f0d6443cbfce30aa0497b70688768d30f002d18ae9b04942951412bc9318c8`;
+the prior index digest `sha256:ee2d55721c4ce3a2820eba2b336d1ba372193fab72275338b43746ec29e5a318`
+remains the rollback candidate. Backend application source did not change. Ruff,
+mypy, and 462 PostgreSQL-backed tests passed. The ARM64 ECR scan found zero
+critical issues and the same previously accepted high zlib and undefined Perl
+findings, still accepted only for demo/test-data staging. The guarded deployment
+applied no migrations, replaced the API, and reached healthy readiness. Public
+liveness/readiness returned `200`; the origin rejected an untrusted request with
+`403`; the API and database containers were healthy; recent API logs had zero
+error or traceback lines; and Docker ECR authorization was removed. See EC2-032
+in the host change log for command IDs and rollback details.
+
 #### Watch requests and backend errors on staging
 
 Use the root Session Manager shell on the EC2 host. In one terminal, watch new

@@ -1126,6 +1126,45 @@ target editing, analytics, and Pro CSV export. The authenticated acceptance
 item is closed by owner report; no separate automated browser evidence was
 captured.
 
+### EC2-032 — Backend image refresh for the frontend and Android staging release
+
+- Date: 2026-09-22, approximately 17:14 UTC.
+- Performed by: Codex through AWS CLI and Systems Manager Run Command under the
+  owner's explicit request to add a new backend image to this staging release.
+- Execution path: SSM command `f3753117-835b-4ff7-ba45-b305e7d3726a` ran
+  the existing guarded loader and deployment script from
+  `/opt/syncvitals/deployment`. An earlier command
+  `f215339b-c071-42d2-ad8d-5989234344bc` failed on an unsupported
+  `set -o pipefail` before image pull, migration, or API replacement.
+- Intent: deploy a fresh immutable ARM64 backend image alongside the newly
+  released frontend and Android staging APK. Backend application source is
+  unchanged from EC2-031.
+- Source commit: `899561c7a5874ceb749192c7568c9251de7cf430`.
+- Pre-change image:
+  `173291122778.dkr.ecr.eu-central-1.amazonaws.com/syncvitals/staging/backend@sha256:ee2d55721c4ce3a2820eba2b336d1ba372193fab72275338b43746ec29e5a318`.
+- New image:
+  `173291122778.dkr.ecr.eu-central-1.amazonaws.com/syncvitals/staging/backend@sha256:f2f0d6443cbfce30aa0497b70688768d30f002d18ae9b04942951412bc9318c8`.
+- Image review: the Linux/ARM64 child scan completed with zero critical, one
+  high (`CVE-2026-85091` in zlib), and one undefined-severity finding
+  (`CVE-2026-82560` in Perl). The unchanged findings retain the EC2-031
+  acceptance for demo/test-data staging only.
+- Commands/actions: checked the exact previous digest; authenticated Docker to
+  ECR with the instance role; exported the new digest-qualified `BACKEND_IMAGE`;
+  invoked `python3 -m scripts.staging_runtime --secret-id longevity/staging/backend-runtime --region eu-central-1 -- python3 -m scripts.production_deployment --compose-file docker-compose.staging.yml --project-name syncvitals-staging`;
+  logged out from ECR via an exit trap. No host package, Nginx configuration,
+  deployment bundle, or persistent database mount changed.
+- Database change: no migrations to apply.
+- Verification: SSM command `74b64c67-34f1-4e8a-afa5-414af5d59933`
+  confirmed the new digest, healthy API and database containers, local readiness,
+  origin `403` without the secret header, no root Docker ECR authorization, and
+  zero `ERROR` or `Traceback` lines among 26 recent API log lines. Public
+  liveness/readiness returned `200`; an unknown API path returned `404`.
+  Pre-release Ruff, mypy, and all 462 PostgreSQL-backed backend tests passed.
+- Recovery or rollback: the pre-change digest above remains in immutable ECR.
+  Use the guarded deployment procedure to restore it if needed; no migration
+  reversal is needed for this release.
+- Status: deployment and public/host smoke checks complete.
+
 ## Current Known Host-Software State
 
 | Component | State | Evidence |
@@ -1136,7 +1175,7 @@ captured.
 | Certbot and Route 53 DNS plugin | Origin certificate issued; renewal dry-run and Nginx deploy hook passed | EC2-010, EC2-015, and EC2-016 |
 | CloudWatch Agent | Installed and configured through console; memory and root-disk metric delivery verified | EC2-012 console status and graphs; installed version and boot enablement not yet inspected |
 | AWS CLI | Version-pinned native ARM64 v2 installed and signature-verified | EC2-019 |
-| PostgreSQL and Django | Healthy containers; EBS persistence, loopback-only API, and image index `sha256:ee2d55721c4ce3a2820eba2b336d1ba372193fab72275338b43746ec29e5a318` verified | EC2-020 and EC2-031 |
+| PostgreSQL and Django | Healthy containers; EBS persistence, loopback-only API, and image index `sha256:f2f0d6443cbfce30aa0497b70688768d30f002d18ae9b04942951412bc9318c8` verified | EC2-020 and EC2-032 |
 | Nginx origin proxy | TLS, root-only CloudFront header guard, and loopback proxy verified | EC2-021 |
 | Exact EC2-002 APT transaction | Reconciled | `/var/log/apt/history.log` |
 | Nginx | Not installed at the initial host inspection | Earlier SSM inspection |
