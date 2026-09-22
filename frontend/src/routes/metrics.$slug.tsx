@@ -13,7 +13,6 @@ import { createPortal } from "react-dom";
 import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load";
 import {
   formatMetricEntrySource,
-  formatMetricValue,
   formatMetricValueWithUnit,
   formatSleepDate,
   formatSleepWindow,
@@ -121,10 +120,6 @@ function MetricDetailRoute() {
   }
 
   const latestEntry = metricEntries[0];
-  const formattedLatestValue = latestEntry
-    ? formatMetricValue(latestEntry.value, metricDefinition.slug)
-    : undefined;
-  const valueRange = `${metricDefinition.min_value}-${metricDefinition.max_value} ${metricDefinition.unit}`;
   const oldestEntry = metricEntries.at(-1);
   const trendDelta =
     latestEntry && oldestEntry
@@ -219,43 +214,6 @@ function MetricDetailRoute() {
           </div>
         }
       />
-
-      <section className="metric-detail-summary" aria-label="Metric summary">
-        <article className="metric-detail-stat metric-detail-stat-primary">
-          <p className="meta-label">Latest value</p>
-          <p
-            aria-label={
-              metricDefinition.slug === "sleep_duration"
-                ? (formattedLatestValue ?? "No value")
-                : `${formattedLatestValue ?? "No value"} ${metricDefinition.unit}`
-            }
-            className="metric-detail-value"
-          >
-            <span>{formattedLatestValue ?? "—"}</span>
-            {metricDefinition.slug === "sleep_duration" ? null : (
-              <small>{metricDefinition.unit}</small>
-            )}
-          </p>
-          {latestEntry ? (
-            <p className="metric-card-source">
-              {formatMetricEntrySource(latestEntry.source)} · Recorded{" "}
-              {formatMetricEntryRecordedAt(latestEntry.recorded_at)} UTC
-            </p>
-          ) : null}
-        </article>
-
-        <article className="metric-detail-stat">
-          <p className="meta-label">Tracked entries</p>
-          <p className="metric-detail-stat-value">
-            {formatMetricEntryCount(metricEntries.length)}
-          </p>
-        </article>
-
-        <article className="metric-detail-stat">
-          <p className="meta-label">Accepted range</p>
-          <p className="metric-detail-stat-value">{valueRange}</p>
-        </article>
-      </section>
 
       <section className="trend-card" aria-label="Trend overview">
         <div className="entries-toolbar">

@@ -526,7 +526,7 @@ Current metric detail page checkpoint:
 - The detail route reads `slug` through `Route.useParams()`.
 - The detail route uses `useMetricDefinitionsQuery()` to resolve the user-facing metric definition for the slug.
 - The detail route uses `useMetricEntriesQuery({ metric: slug, limit: 50 })` to fetch a bounded entry history for that metric.
-- The detail route shows a styled summary section with latest value, tracked entry count, and accepted range.
+- The page leads with the Trend Overview (range controls directly above the chart, daily-latest line, Oldest/Latest/Delta). The old Latest-value / Tracked-entries / Accepted-range summary trio was removed as redundant with the trend boxes, header count pill, and entry-dialog validation; its CSS went with it.
 - Tracked-entry counts use singular `entry` for one record and plural `entries`
   for every other count.
 - The detail route shows a Chart.js line chart in the trend overview, plus oldest value, latest value, and delta for the selected result set.

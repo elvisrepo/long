@@ -2279,13 +2279,6 @@ button {
   text-decoration: underline;
 }
 
-.metric-detail-hero {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 22px;
-}
-
 .metric-detail-hero-actions {
   display: flex;
   align-items: center;
@@ -2318,54 +2311,6 @@ button {
   font-size: 12px;
   letter-spacing: 0;
   text-transform: none;
-}
-
-.metric-detail-summary {
-  display: grid;
-  grid-template-columns: 1.4fr repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.metric-detail-stat {
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  background: var(--list-bg);
-  padding: 18px;
-}
-
-.metric-detail-stat-primary {
-  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-  box-shadow: 0 0 24px color-mix(in srgb, var(--accent) 8%, transparent);
-}
-
-.metric-detail-value {
-  margin-top: 18px;
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  color: var(--text);
-}
-
-.metric-detail-value span {
-  font-family: var(--font-heading);
-  font-size: clamp(36px, 5vw, 52px);
-  font-weight: 650;
-  line-height: 0.95;
-}
-
-.metric-detail-value small {
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: 13px;
-}
-
-.metric-detail-stat-value {
-  margin-top: 18px;
-  color: var(--text);
-  font-family: var(--font-heading);
-  font-size: 26px;
-  font-weight: 650;
-  letter-spacing: -0.025em;
 }
 
 .trend-card {
@@ -2481,7 +2426,6 @@ button {
   .app-header-inner,
   .dashboard-hero,
   .metrics-hero,
-  .metric-detail-hero,
   .entry-row {
     align-items: stretch;
     flex-direction: column;
@@ -2754,11 +2698,6 @@ button {
     gap: 16px;
   }
 
-  .metric-detail-summary {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-
   .metric-detail-hero-actions {
     align-items: stretch;
     flex-direction: column;
@@ -2768,27 +2707,9 @@ button {
     grid-template-columns: 1fr;
   }
 
-  .metric-detail-stat {
-    border-radius: 14px;
-    padding: 14px;
-  }
-
   .metric-detail-meta {
     margin-top: 8px;
     font-size: 10px;
-  }
-
-  .metric-detail-value {
-    margin-top: 12px;
-  }
-
-  .metric-detail-value span {
-    font-size: 38px;
-  }
-
-  .metric-detail-stat-value {
-    margin-top: 12px;
-    font-size: 22px;
   }
 
   .trend-card {
@@ -2872,15 +2793,11 @@ summary:focus-visible {
 .metric-card-link span {
   color: var(--text-dim);
 }
-.metric-card-source,
 .metric-meta {
   color: var(--text-dim);
   font-family: var(--font-sans);
   font-size: 12px;
   line-height: 1.5;
-}
-.metric-card-source {
-  overflow-wrap: anywhere;
 }
 .metric-card-trend {
   display: grid;
@@ -2928,16 +2845,6 @@ summary:focus-visible {
   border-color: var(--border);
   background: var(--surface-high);
   box-shadow: none;
-}
-.metric-detail-stat-primary {
-  border-color: var(--border);
-  box-shadow: none;
-}
-.metric-detail-stat-value {
-  font-size: 23px;
-}
-.metric-detail-summary {
-  grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(0, 1fr));
 }
 .insight-context {
   color: var(--text-dim);
@@ -3092,21 +2999,11 @@ body:has(dialog[open]) {
     font-size: 34px;
   }
   .metric-grid,
-  .insight-navigation,
-  .metric-detail-summary {
+  .insight-navigation {
     grid-template-columns: minmax(0, 1fr);
   }
   .metric-card {
     padding: 20px;
-  }
-  .metric-card-source {
-    font-size: 12px;
-  }
-  .metric-detail-stat {
-    min-width: 0;
-  }
-  .metric-detail-hero {
-    flex-direction: column;
   }
   .metric-detail-hero-actions {
     width: 100%;

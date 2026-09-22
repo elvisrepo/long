@@ -141,6 +141,30 @@ describe("metric detail route", () => {
     vi.resetAllMocks();
   });
 
+  it("leads with the trend and omits the summary section", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+    mockLoadedMetricEntries();
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/resting_hr");
+
+    const trend = await screen.findByRole("region", {
+      name: /trend overview/i,
+    });
+    const history = screen.getByRole("region", {
+      name: /metric entry history/i,
+    });
+    expect(
+      screen.queryByRole("region", { name: /metric summary/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      trend.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("renders one metric and its entry history for an authenticated user", async () => {
     vi.mocked(getMe).mockResolvedValue({
       email: "user@example.com",
@@ -159,13 +183,12 @@ describe("metric detail route", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/cardiovascular · bpm/i)).toBeInTheDocument();
 
-    const summary = screen.getByRole("region", {
-      name: /metric summary/i,
+    const trend = screen.getByRole("region", {
+      name: /trend overview/i,
     });
-    expect(within(summary).getByText(/latest value/i)).toBeInTheDocument();
-    expect(within(summary).getByLabelText(/58 bpm/i)).toBeInTheDocument();
-    expect(within(summary).getByText(/^1 entry$/i)).toBeInTheDocument();
-    expect(within(summary).getByText(/20-220 bpm/i)).toBeInTheDocument();
+    expect(within(trend).getByText(/^latest$/i)).toBeInTheDocument();
+    const trendStats = trend.querySelector(".trend-grid") as HTMLElement;
+    expect(within(trendStats).getAllByText(/58 bpm/i)).toHaveLength(2);
 
     const history = screen.getByRole("region", {
       name: /metric entry history/i,
@@ -335,11 +358,6 @@ describe("metric detail route", () => {
       name: /trend overview/i,
     });
 
-    const summary = screen.getByRole("region", {
-      name: /metric summary/i,
-    });
-    expect(within(summary).getByText(/^2 entries$/i)).toBeInTheDocument();
-
     expect(
       within(trend).getByRole("heading", { name: /trend overview/i }),
     ).toBeInTheDocument();
@@ -508,7 +526,7 @@ describe("metric detail route", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("formats body-weight floating-point noise in the latest value", async () => {
+  it("formats body-weight floating-point noise in trend and history", async () => {
     vi.mocked(getMe).mockResolvedValue({
       email: "user@example.com",
     });
@@ -552,14 +570,11 @@ describe("metric detail route", () => {
 
     renderRoute("/metrics/body_weight");
 
-    const summary = await screen.findByRole("region", {
-      name: /metric summary/i,
+    const trend = await screen.findByRole("region", {
+      name: /trend overview/i,
     });
-
-    expect(within(summary).getByLabelText(/83\.6 kg/i)).toBeInTheDocument();
-
-    const trend = screen.getByRole("region", { name: /trend overview/i });
-    expect(within(trend).getByText(/-3\.4 kg/i)).toBeInTheDocument();
+    const trendStats = trend.querySelector(".trend-grid") as HTMLElement;
+    expect(within(trendStats).getByText(/-3\.4 kg/i)).toBeInTheDocument();
 
     const history = screen.getByRole("region", {
       name: /metric entry history/i,
@@ -1259,9 +1274,10 @@ describe("metric detail route", () => {
       name: /metric entry history/i,
     });
 
-    const summary = screen.getByRole("region", { name: /metric summary/i });
-    expect(within(summary).getByLabelText(/^7h 50m$/i)).toBeInTheDocument();
-    expect(within(summary).queryByText(/^hours$/i)).not.toBeInTheDocument();
+    const trend = screen.getByRole("region", { name: /trend overview/i });
+    const trendStats = trend.querySelector(".trend-grid") as HTMLElement;
+    expect(within(trendStats).getAllByText(/^7h 50m$/i)).toHaveLength(2);
+    expect(within(trendStats).queryByText(/^hours$/i)).not.toBeInTheDocument();
     expect(within(history).getByText(/^sleep window:/i)).toBeInTheDocument();
   });
 
