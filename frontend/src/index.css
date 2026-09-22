@@ -1658,6 +1658,25 @@ button {
   font-size: 14px;
 }
 
+.metrics-section-header {
+  padding: 4px 0 0;
+}
+
+.metrics-section-header .eyebrow {
+  margin-bottom: 2px;
+}
+
+.metrics-section-header h2 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+
+.metrics-empty {
+  padding: 8px 0 4px;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
 .archived-metrics-list[hidden] {
   display: none;
 }

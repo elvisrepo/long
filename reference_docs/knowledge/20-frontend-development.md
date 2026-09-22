@@ -85,8 +85,12 @@
   and shows an empty message when there are no archived custom metrics.
 - Mobile rows wrap actions below the metric name. API routes, stored slugs,
   quota enforcement, edit and archive/reactivate behavior are unchanged.
-- Verified with the existing catalog component tests and local browser layouts;
-  this is a local frontend change, with no cloud deployment.
+- The catalog groups active metrics into “Default metrics” (built-in) and
+  “Custom metrics” (yours) sections with an empty-state prompt when no custom
+  metric exists. Row links use a chevron marker, and row-level Deactivate is a
+  neutral secondary action (archiving is reversible; the confirm dialog keeps
+  the danger styling). Verified with the catalog component tests and local
+  browser layouts; this is a local frontend change, with no cloud deployment.
 
 ### Current redesign checkpoint (September 21, 2026)
 

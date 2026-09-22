@@ -168,7 +168,7 @@ describe("metrics route", () => {
     renderRoute("/metrics");
 
     expect(
-      await screen.findByRole("heading", { name: /metrics/i }),
+      await screen.findByRole("heading", { level: 1, name: "Metrics" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /resting heart rate/i }),
@@ -178,6 +178,97 @@ describe("metrics route", () => {
     expect(
       screen.getByRole("button", { name: "Show archived" }),
     ).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("groups available metrics into default and custom sections", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions([
+      {
+        id: "metric-id",
+        name: "Resting Heart Rate",
+        slug: "resting_hr",
+        unit: "bpm",
+        category: "cardiovascular",
+        min_value: 20,
+        max_value: 220,
+        is_default: true,
+        is_active: true,
+      },
+      {
+        id: "custom-id",
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        category: "custom",
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: true,
+      },
+    ]);
+
+    renderRoute("/metrics");
+
+    const defaultSection = await screen.findByRole("region", {
+      name: "Default metrics",
+    });
+    const customSection = screen.getByRole("region", {
+      name: "Custom metrics",
+    });
+    expect(
+      within(defaultSection).getByRole("link", { name: /resting heart rate/i }),
+    ).toBeInTheDocument();
+    expect(
+      within(defaultSection).queryByRole("link", { name: /mood/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(customSection).getByRole("link", { name: /mood/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows an empty custom section prompt when no custom metrics exist", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+
+    renderRoute("/metrics");
+
+    const customSection = await screen.findByRole("region", {
+      name: "Custom metrics",
+    });
+    expect(
+      within(customSection).getByText(/no custom metrics yet/i),
+    ).toBeInTheDocument();
+  });
+
+  it("styles row-level deactivation as a neutral action", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions([
+      {
+        id: "custom-id",
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        category: "custom",
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: true,
+      },
+    ]);
+
+    renderRoute("/metrics");
+
+    const deactivate = await screen.findByRole("button", {
+      name: "Deactivate Mood",
+    });
+    expect(deactivate).toHaveClass("metric-row-secondary-action");
+    expect(deactivate).not.toHaveClass("metric-row-danger-action");
   });
 
   it("shows active custom metric usage returned by the backend", async () => {
@@ -233,7 +324,7 @@ describe("metrics route", () => {
 
     renderRoute("/metrics");
 
-    await screen.findByRole("heading", { name: /metrics/i });
+    await screen.findByRole("heading", { level: 1, name: "Metrics" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     await user.click(
@@ -327,7 +418,7 @@ describe("metrics route", () => {
 
     renderRoute("/metrics");
 
-    await screen.findByRole("heading", { name: /metrics/i });
+    await screen.findByRole("heading", { level: 1, name: "Metrics" });
 
     await openCustomMetricDialog(user);
     await fillCustomMetricForm(user);
@@ -355,7 +446,7 @@ describe("metrics route", () => {
 
     renderRoute("/metrics");
 
-    await screen.findByRole("heading", { name: /metrics/i });
+    await screen.findByRole("heading", { level: 1, name: "Metrics" });
 
     await openCustomMetricDialog(user);
     await fillCustomMetricForm(user);
@@ -381,7 +472,7 @@ describe("metrics route", () => {
 
     renderRoute("/metrics");
 
-    await screen.findByRole("heading", { name: /metrics/i });
+    await screen.findByRole("heading", { level: 1, name: "Metrics" });
 
     await openCustomMetricDialog(user);
     await fillCustomMetricForm(user);
@@ -409,7 +500,7 @@ describe("metrics route", () => {
 
     renderRoute("/metrics");
 
-    await screen.findByRole("heading", { name: /metrics/i });
+    await screen.findByRole("heading", { level: 1, name: "Metrics" });
 
     await openCustomMetricDialog(user);
     await fillCustomMetricForm(user);
@@ -720,7 +811,9 @@ describe("metrics route", () => {
     expect(
       screen.getByRole("button", { name: "Hide archived" }),
     ).toHaveAttribute("aria-expanded", "true");
-    const activeMetrics = screen.getByLabelText(/available metrics/i);
+    const activeMetrics = screen.getByRole("region", {
+      name: "Custom metrics",
+    });
     expect(activeMetrics).toHaveTextContent(/sleep score/i);
     expect(activeMetrics).not.toHaveTextContent(/mood/i);
 

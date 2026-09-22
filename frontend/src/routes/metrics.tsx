@@ -60,6 +60,12 @@ function MetricsCatalog() {
   const activeMetricDefinitions = metricDefinitions.filter(
     (definition) => definition.is_active,
   );
+  const defaultMetricDefinitions = activeMetricDefinitions.filter(
+    (definition) => definition.is_default,
+  );
+  const customMetricDefinitions = activeMetricDefinitions.filter(
+    (definition) => !definition.is_default,
+  );
   const archivedCustomMetricDefinitions = metricDefinitions.filter(
     (definition) => !definition.is_active && !definition.is_default,
   );
@@ -157,11 +163,36 @@ function MetricsCatalog() {
         </div>
       ) : null}
 
-      <div className="metrics-list" aria-label="Available metrics">
-        {activeMetricDefinitions.map((definition) => (
+      <section
+        aria-label="Default metrics"
+        className="metrics-list metrics-default-list"
+      >
+        <div className="metrics-section-header">
+          <p className="eyebrow">Built-in</p>
+          <h2>Default metrics</h2>
+        </div>
+        {defaultMetricDefinitions.map((definition) => (
           <MetricDefinitionRow definition={definition} key={definition.id} />
         ))}
-      </div>
+      </section>
+
+      <section
+        aria-label="Custom metrics"
+        className="metrics-list metrics-custom-list"
+      >
+        <div className="metrics-section-header">
+          <p className="eyebrow">Yours</p>
+          <h2>Custom metrics</h2>
+        </div>
+        {customMetricDefinitions.length === 0 ? (
+          <p className="metrics-empty">
+            No custom metrics yet. Create one to track anything else.
+          </p>
+        ) : null}
+        {customMetricDefinitions.map((definition) => (
+          <MetricDefinitionRow definition={definition} key={definition.id} />
+        ))}
+      </section>
 
       <section
         hidden={!showInactive}
@@ -400,7 +431,7 @@ function MetricDefinitionRow({ definition }: MetricDefinitionRowProps) {
           to="/metrics/$slug"
         >
           <div>
-            <h2>{definition.name} →</h2>
+            <h2>{definition.name} ›</h2>
             <p>{formatMetricSubtitle(definition)}</p>
           </div>
         </Link>
@@ -419,7 +450,7 @@ function MetricDefinitionRow({ definition }: MetricDefinitionRowProps) {
               </button>
               <button
                 aria-label={`Deactivate ${definition.name}`}
-                className="metric-row-danger-action"
+                className="metric-row-secondary-action"
                 type="button"
                 onClick={() => setIsDeactivateDialogOpen(true)}
               >
