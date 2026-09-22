@@ -24,6 +24,7 @@ export const Route = createFileRoute("/")({
 
 const DASHBOARD_RECENT_ENTRY_LIMIT = 5;
 const DASHBOARD_CARD_ENTRY_LIMIT = 50;
+const DASHBOARD_METRICS_PER_PAGE = 6;
 const DASHBOARD_METRIC_ORDER = ["sleep_duration", "steps", "body_weight"];
 
 function DashboardRoute() {
@@ -75,12 +76,22 @@ function DashboardRoute() {
     if (rightIndex < 0) return -1;
     return leftIndex - rightIndex;
   });
+  const metricPages = Array.from(
+    {
+      length: Math.ceil(orderedDefinitions.length / DASHBOARD_METRICS_PER_PAGE),
+    },
+    (_, index) =>
+      orderedDefinitions.slice(
+        index * DASHBOARD_METRICS_PER_PAGE,
+        (index + 1) * DASHBOARD_METRICS_PER_PAGE,
+      ),
+  );
 
   function scrollMetrics(direction: -1 | 1) {
     const rail = metricRailRef.current;
     if (!rail) return;
     rail.scrollBy({
-      left: direction * rail.clientWidth * 0.8,
+      left: direction * rail.clientWidth,
       behavior: "smooth",
     });
   }
@@ -100,7 +111,7 @@ function DashboardRoute() {
       <section className="dashboard-metrics">
         <div className="dashboard-metrics-heading">
           <h2 className="dashboard-section-title">Your metrics</h2>
-          {metricDefinitions.length > 1 ? (
+          {metricPages.length > 1 ? (
             <div className="dashboard-rail-controls">
               <button
                 type="button"
@@ -126,19 +137,28 @@ function DashboardRoute() {
           aria-label="Health metrics"
           tabIndex={0}
         >
-          {orderedDefinitions.map((definition) => (
-            <DashboardMetricCard
-              key={definition.id}
-              onAddEntry={() => setEntryDefinition(definition)}
-              latestEntry={latestEntriesByMetric.get(definition.slug)}
-              name={definition.name}
-              slug={definition.slug}
-              unit={definition.unit}
-              trendValues={getMetricTrendValues(
-                cardMetricEntries,
-                definition.slug,
-              )}
-            />
+          {metricPages.map((page, pageIndex) => (
+            <div
+              key={page[0].id}
+              className="dashboard-metric-page"
+              role="group"
+              aria-label={`Metrics page ${pageIndex + 1} of ${metricPages.length}`}
+            >
+              {page.map((definition) => (
+                <DashboardMetricCard
+                  key={definition.id}
+                  onAddEntry={() => setEntryDefinition(definition)}
+                  latestEntry={latestEntriesByMetric.get(definition.slug)}
+                  name={definition.name}
+                  slug={definition.slug}
+                  unit={definition.unit}
+                  trendValues={getMetricTrendValues(
+                    cardMetricEntries,
+                    definition.slug,
+                  )}
+                />
+              ))}
+            </div>
           ))}
         </div>
       </section>

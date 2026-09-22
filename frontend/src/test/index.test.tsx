@@ -227,7 +227,7 @@ describe("dashboard route", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows compact metrics in one horizontal rail", async () => {
+  it("shows compact metrics in one page when there are six or fewer", async () => {
     vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
     mockLoadedMetricDefinitionsWithManyMetrics();
     mockLoadedMetricEntries([
@@ -246,6 +246,7 @@ describe("dashboard route", () => {
 
     const rail = await screen.findByRole("region", { name: "Health metrics" });
     expect(rail).toHaveClass("dashboard-metric-rail");
+    expect(within(rail).getAllByRole("group")).toHaveLength(1);
     expect(within(rail).getAllByRole("article")).toHaveLength(2);
     expect(
       within(rail).getByRole("link", { name: /body weight/i }),
@@ -256,13 +257,45 @@ describe("dashboard route", () => {
     expect(within(rail).queryByText(/latest reading/i)).not.toBeInTheDocument();
     expect(within(rail).queryByText(/manual entry/i)).not.toBeInTheDocument();
 
+    expect(
+      screen.queryByRole("button", { name: "Scroll metrics right" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("paginates additional metrics six at a time", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: Array.from({ length: 7 }, (_, index) => ({
+        id: `metric-${index + 1}`,
+        name: `Metric ${index + 1}`,
+        slug: `metric_${index + 1}`,
+        unit: "score",
+        category: "custom",
+        min_value: 0,
+        max_value: 100,
+        is_default: false,
+        is_active: true,
+      })),
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries();
+
+    renderRoute("/");
+
+    const rail = await screen.findByRole("region", { name: "Health metrics" });
+    const pages = within(rail).getAllByRole("group");
+    expect(pages).toHaveLength(2);
+    expect(within(pages[0]).getAllByRole("article")).toHaveLength(6);
+    expect(within(pages[1]).getAllByRole("article")).toHaveLength(1);
+
     Object.defineProperty(rail, "clientWidth", { value: 400 });
     const scrollBy = vi.fn();
     rail.scrollBy = scrollBy;
     await userEvent.click(
       screen.getByRole("button", { name: "Scroll metrics right" }),
     );
-    expect(scrollBy).toHaveBeenCalledWith({ left: 320, behavior: "smooth" });
+    expect(scrollBy).toHaveBeenCalledWith({ left: 400, behavior: "smooth" });
   });
 
   it("logs out from the shared authenticated navigation", async () => {

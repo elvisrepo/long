@@ -3145,7 +3145,7 @@ body:has(dialog[open]) {
 .dashboard-metric-rail {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: clamp(190px, 23vw, 244px);
+  grid-auto-columns: 100%;
   gap: 12px;
   min-width: 0;
   overflow-x: auto;
@@ -3156,12 +3156,20 @@ body:has(dialog[open]) {
   scrollbar-width: thin;
 }
 
+.dashboard-metric-page {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(132px, auto));
+  gap: 12px;
+  min-width: 0;
+  scroll-snap-align: start;
+}
+
 .dashboard-metric-rail .metric-card {
   --metric-accent: var(--accent);
-  min-height: 164px;
-  scroll-snap-align: start;
-  gap: 12px;
-  padding: 15px;
+  min-height: 132px;
+  gap: 8px;
+  padding: 13px;
   border: 1px solid color-mix(in srgb, var(--metric-accent) 28%, var(--border));
   border-radius: 22px;
   background: color-mix(in srgb, var(--metric-accent) 14%, var(--surface-high));
@@ -3193,13 +3201,13 @@ body:has(dialog[open]) {
 
 .dashboard-metric-rail .metric-card-symbol {
   display: grid;
-  flex: 0 0 31px;
+  flex: 0 0 28px;
   place-items: center;
-  height: 31px;
+  height: 28px;
   border-radius: 50%;
   background: color-mix(in srgb, var(--metric-accent) 26%, var(--surface-high));
   color: var(--text);
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 700;
 }
 
@@ -3225,7 +3233,7 @@ body:has(dialog[open]) {
 }
 
 .dashboard-metric-rail .metric-current-value span {
-  font-size: clamp(25px, 2.5vw, 32px);
+  font-size: clamp(23px, 2.5vw, 30px);
   white-space: nowrap;
 }
 
@@ -3238,7 +3246,7 @@ body:has(dialog[open]) {
   align-items: end;
   justify-content: space-between;
   gap: 10px;
-  min-height: 34px;
+  min-height: 30px;
   margin-top: auto;
 }
 
@@ -3258,11 +3266,11 @@ body:has(dialog[open]) {
 
 .dashboard-metric-rail .metric-card-add {
   display: grid;
-  flex: 0 0 34px;
+  flex: 0 0 30px;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  min-height: 34px;
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
   margin: 0;
   padding: 0;
   border: 1px solid color-mix(in srgb, var(--metric-accent) 48%, var(--border));
@@ -3293,9 +3301,46 @@ body:has(dialog[open]) {
   font-size: 14px;
 }
 
+@media (max-width: 900px) {
+  .dashboard-metric-page {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(3, minmax(122px, auto));
+    gap: 10px;
+  }
+
+  .dashboard-metric-rail .metric-card {
+    min-height: 122px;
+    gap: 6px;
+    padding: 10px;
+    border-radius: 16px;
+  }
+
+  .dashboard-metric-rail .metric-card-header {
+    gap: 6px;
+  }
+
+  .dashboard-metric-rail .metric-card-symbol {
+    flex-basis: 25px;
+    height: 25px;
+    font-size: 15px;
+  }
+
+  .dashboard-metric-rail .metric-card h2 {
+    font-size: 12px;
+  }
+
+  .dashboard-metric-rail .metric-current-value {
+    min-height: 29px;
+  }
+
+  .dashboard-metric-rail .metric-current-value span {
+    font-size: 23px;
+  }
+}
+
 @media (max-width: 680px) {
   .dashboard-metric-rail {
-    grid-auto-columns: clamp(190px, 66vw, 244px);
+    gap: 8px;
   }
 
   .dashboard-screen .insight-navigation {
