@@ -48,6 +48,16 @@ Weight/Steps sync, and a same-key update before expanding the pilot. On
 sync followed use of the background-sync control. An unattended WorkManager
 run and a same-key update still need independent verification.
 
+On 2026-09-22, pilot 1.3 (version code 4) passed the focused version-contract
+test, the complete pilot and debug JVM suites, debug instrumented-test
+compilation, and signed APK assembly. Package inspection found the registered
+`com.viridiandome.longevity.pilot` identity, and `apksigner` found the same
+SHA-256 signing-certificate fingerprint as pilot 1.2:
+`ffcc75055452336e85f0f997071decef5df05067cd8024e87626858b4788e5e9`.
+The build embeds `https://staging.syncvitals.space/`. ADB listed no connected
+device, so an in-place install and retained-session/Health Connect check remain
+physical-device acceptance items.
+
 The diagnostic pilot APK (version code 2) records the latest automatic worker
 attempt separately for times when the Activity was visible and away. It keeps
 only local start times and success/retry/failure/cancelled/crashed outcomes;

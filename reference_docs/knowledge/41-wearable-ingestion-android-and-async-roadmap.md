@@ -159,6 +159,16 @@ for the end-to-end read, upload, ingestion, and display path. The screenshot
 does not expose the underlying stage intervals, so stage-subtraction behavior
 remains covered by automated tests rather than this device observation.
 
+Pilot 1.3 was built locally on 2026-09-22 as version code 4 to update the
+installed Pilot app in place with the redesigned login and connection UI. It
+keeps `com.viridiandome.longevity.pilot`, the pilot signing certificate, and
+the hosted staging API origin. The ignored, persistent artifact is
+`android/releases/longevity-pilot-1.3.apk`; its SHA-256 is
+`45035c78252990aa3d4f52e39cadf7d5993290029e2948cc643ba747bd2ad5a3`.
+Build and JVM checks passed. ADB listed no device at build time, so installation
+over pilot 1.2 and preservation of local session and Health Connect grants still
+need physical-device verification.
+
 The matching backend and frontend Sleep slice was deployed to public staging on
 2026-09-19. The final backend is commit
 `cf9627f7416cee7c33f2dbb7cf1d52d9883e658c` at digest

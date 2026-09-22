@@ -627,6 +627,19 @@ liveness/readiness returned `200`; the origin rejected an untrusted request with
 error or traceback lines; and Docker ECR authorization was removed. See EC2-032
 in the host change log for command IDs and rollback details.
 
+At 17:22 UTC on 2026-09-22, Codex built signed Pilot 1.3 as the in-place update
+for the installed Pilot app after the owner clarified that intent. The artifact
+is `android/releases/longevity-pilot-1.3.apk`, version code 4, package
+`com.viridiandome.longevity.pilot`, SHA-256
+`45035c78252990aa3d4f52e39cadf7d5993290029e2948cc643ba747bd2ad5a3`.
+Its signing certificate SHA-256
+`ffcc75055452336e85f0f997071decef5df05067cd8024e87626858b4788e5e9`
+matches the prior Pilot 1.2 artifact; its API base URL is the public staging
+origin. The focused pilot version test first failed against version code 3, then
+passed with code 4. The full pilot and debug JVM suites, debug instrumented-test
+compilation, Pilot lint, and APK assembly passed. ADB listed no connected
+device, so no in-place install or on-phone data-retention check occurred.
+
 #### Watch requests and backend errors on staging
 
 Use the root Session Manager shell on the EC2 host. In one terminal, watch new
