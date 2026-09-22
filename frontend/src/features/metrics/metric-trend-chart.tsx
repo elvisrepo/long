@@ -13,6 +13,7 @@ import {
 import { useEffect, useMemo, useRef } from "react";
 
 import {
+  formatChartAxisTick,
   formatMetricValue,
   formatMetricValueWithUnit,
 } from "./metric-entry-formatters";
@@ -144,7 +145,7 @@ export function MetricTrendChart({
               color: colors.text,
               callback: (value) =>
                 typeof value === "number"
-                  ? formatMetricValueWithUnit(value, metricSlug, unit)
+                  ? formatChartAxisTick(value, metricSlug, unit)
                   : `${value} ${unit}`,
             },
           },
@@ -173,6 +174,11 @@ export function MetricTrendChart({
         <p className="metric-trend-chart-summary">{chartSummary}</p>
         <p className="metric-trend-chart-mode">Daily latest values</p>
       </div>
+      {chartEntries.length < 2 ? (
+        <p className="metric-trend-single-day-note">
+          Only one day of data so far. Log a second day to see a trend.
+        </p>
+      ) : null}
       <canvas ref={canvasRef} />
     </div>
   );

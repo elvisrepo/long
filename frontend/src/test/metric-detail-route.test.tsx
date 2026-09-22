@@ -358,6 +358,61 @@ describe("metric detail route", () => {
     expect(within(trendStats).getByText(/\+2 bpm/i)).toBeInTheDocument();
   });
 
+  it("explains that a single day of data cannot show a trend yet", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+    mockLoadedMetricEntries();
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/resting_hr");
+
+    const trend = await screen.findByRole("region", {
+      name: /trend overview/i,
+    });
+    expect(
+      within(trend).getByText(/only one day of data/i),
+    ).toBeInTheDocument();
+  });
+
+  it("hides the single-day note once two days of data exist", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+    mockLoadedMetricEntries([
+      {
+        id: 1,
+        metric_definition: "resting_hr",
+        value: 58,
+        recorded_at: "2026-03-05T07:15:00Z",
+        source: "manual",
+        context: {},
+        created_at: "2026-03-05T07:15:02Z",
+      },
+      {
+        id: 2,
+        metric_definition: "resting_hr",
+        value: 56,
+        recorded_at: "2026-03-01T07:15:00Z",
+        source: "manual",
+        context: {},
+        created_at: "2026-03-01T07:15:02Z",
+      },
+    ]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/resting_hr");
+
+    const trend = await screen.findByRole("region", {
+      name: /trend overview/i,
+    });
+    expect(
+      within(trend).queryByText(/only one day of data/i),
+    ).not.toBeInTheDocument();
+  });
+
   it("formats body-weight floating-point noise in the latest value", async () => {
     vi.mocked(getMe).mockResolvedValue({
       email: "user@example.com",

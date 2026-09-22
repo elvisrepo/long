@@ -249,6 +249,27 @@ describe("settings route", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("states the empty billing period quietly instead of a headline", async () => {
+    getMeMock.mockResolvedValue({
+      email: "user@example.com",
+    });
+    getCurrentSubscriptionMock.mockResolvedValue(freeSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([]);
+
+    renderRoute("/settings");
+
+    expect(
+      await screen.findByText(/no paid billing period yet/i),
+    ).toBeInTheDocument();
+    const billingPanel = screen
+      .getByText(/no paid billing period yet/i)
+      .closest(".subscription-billing-panel");
+    expect(billingPanel).not.toBeNull();
+    expect(
+      within(billingPanel as HTMLElement).getByText(/no paid billing period yet/i),
+    ).toHaveClass("subscription-billing-empty");
+  });
+
   it("redirects to /login when the user is not authenticated", async () => {
     getMeMock.mockRejectedValue(
       new Error("Authentication credentials were not provided."),

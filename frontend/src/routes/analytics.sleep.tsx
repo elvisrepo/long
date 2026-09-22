@@ -148,9 +148,15 @@ function SleepInsightsRoute() {
             <div className="sleep-shortfall-summary">
               <div>
                 <p className="meta-label">Estimated 7-day sleep shortfall</p>
-                <p className="sleep-shortfall-value">
-                  {formatMinutes(analytics.summary.total_shortfall_minutes)}
-                </p>
+                {analytics.summary.total_shortfall_minutes === 0 ? (
+                  <p className="sleep-shortfall-value sleep-shortfall-none">
+                    No shortfall
+                  </p>
+                ) : (
+                  <p className="sleep-shortfall-value">
+                    {formatMinutes(analytics.summary.total_shortfall_minutes)}
+                  </p>
+                )}
                 <p className="weight-steps-note">
                   Calculated from {analytics.summary.tracked_nights} of 7
                   nights. Longer nights do not subtract from shorter nights.

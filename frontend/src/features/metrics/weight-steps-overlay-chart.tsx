@@ -14,6 +14,7 @@ import {
 import { useEffect, useRef } from "react";
 
 import type { WeightStepsPoint } from "./weight-steps-analytics-api";
+import { formatChartAxisTick } from "./metric-entry-formatters";
 import { getChartPalette } from "./chart-palette";
 import { useTheme } from "../../theme";
 
@@ -64,8 +65,8 @@ export function WeightStepsOverlayChart({
     const weightAxisBounds =
       weightValues.length > 0
         ? {
-            suggestedMin: Math.floor(Math.min(...weightValues) - 1),
-            suggestedMax: Math.ceil(Math.max(...weightValues) + 1),
+            min: Math.floor(Math.min(...weightValues) - 1),
+            max: Math.ceil(Math.max(...weightValues) + 1),
           }
         : {};
 
@@ -142,7 +143,10 @@ export function WeightStepsOverlayChart({
             grid: { color: colors.grid },
             ticks: {
               color: colors.line,
-              callback: (value) => `${value} kg`,
+              callback: (value) =>
+                typeof value === "number"
+                  ? formatChartAxisTick(value, "body_weight", "kg")
+                  : `${value} kg`,
             },
           },
           steps: {

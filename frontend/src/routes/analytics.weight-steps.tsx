@@ -51,6 +51,9 @@ function WeightStepsRoute() {
   const hasComparisonData = analytics.series.some(
     (point) => point.weight_kg !== null || point.steps !== null,
   );
+  const daysWithData = analytics.series.filter(
+    (point) => point.weight_kg !== null || point.steps !== null,
+  ).length;
 
   return (
     <section className="weight-steps-screen">
@@ -60,11 +63,11 @@ function WeightStepsRoute() {
         breadcrumb={
           <nav aria-label="Breadcrumb" className="metric-detail-breadcrumb">
             <Link to="/metrics/$slug" params={{ slug: "body_weight" }}>
-              body_weight
+              Body Weight
             </Link>
             <span aria-hidden="true">×</span>
             <Link to="/metrics/$slug" params={{ slug: "steps" }}>
-              steps
+              Steps
             </Link>
           </nav>
         }
@@ -106,6 +109,12 @@ function WeightStepsRoute() {
           </div>
         ) : (
           <>
+            {daysWithData < 2 ? (
+              <p className="weight-steps-note">
+                Only one day of data in this range. Add another day to see a
+                comparison trend.
+              </p>
+            ) : null}
             <WeightStepsOverlayChart series={analytics.series} />
             <WeightStepsSummaryCards analytics={analytics} />
           </>

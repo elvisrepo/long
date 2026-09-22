@@ -15,12 +15,7 @@ export function PageHeader({
 }) {
   return (
     <header className="page-header">
-      <div
-        className="page-breadcrumb"
-        aria-hidden={breadcrumb ? undefined : true}
-      >
-        {breadcrumb}
-      </div>
+      {breadcrumb ? <div className="page-breadcrumb">{breadcrumb}</div> : null}
       <div className="page-header-main">
         <div className="page-header-copy">
           <p className="eyebrow">{eyebrow}</p>

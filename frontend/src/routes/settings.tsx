@@ -205,7 +205,9 @@ function SettingsRoute() {
                     )}
                   </p>
                 ) : (
-                  <p>No paid billing period yet.</p>
+                  <p className="subscription-billing-empty">
+                    No paid billing period yet.
+                  </p>
                 )}
               </div>
             </div>

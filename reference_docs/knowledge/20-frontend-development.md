@@ -44,9 +44,32 @@
   matching Page not found view with a dashboard link.
 - Changes are local only. Layout browser tests use mocked API responses and
   make no database changes; see `21-testing.md` for the standalone command.
-- Separate follow-up found during screenshot review: custom numeric metric
-  charts can show excessive decimal places on axis labels (for example a
-  single score entry of 7). Review tick formatting in a later slice.
+- `PageHeader` renders the breadcrumb row only when a breadcrumb is passed,
+  so pages without one no longer carry a 20px phantom row plus grid gap above
+  the title. All authenticated titles share one size scale (the old dashboard
+  compact-title override is removed). The layout suite asserts title height
+  within each header variant (plain vs breadcrumb) rather than across
+  different header compositions.
+
+### UI/UX review fixes (September 22, 2026)
+
+- `formatChartAxisTick()` in `metric-entry-formatters.ts` trims Chart.js
+  interpolated-tick float noise (for example `7.200000000000001`) for
+  unknown/custom metrics while leaving stored-value display untouched. The
+  metric trend and Weight × Steps weight-axis tick callbacks use it; body
+  weight keeps its 1-decimal rule and sleep keeps duration formatting. This
+  resolves the tick-formatting follow-up noted below.
+- Metric detail and Weight × Steps show a factual single-day note when fewer
+  than two days of data exist, instead of a silent degenerate chart. The
+  Weight × Steps weight axis now uses enforced min/max from observed values,
+  so a single reading focuses the axis instead of rendering 0–90 kg.
+- The Weight × Steps breadcrumb uses “Body Weight × Steps” instead of raw
+  slugs, matching the Sleep Insights breadcrumb pattern.
+- Zero sleep shortfall renders as “No shortfall” in the accent color instead
+  of “0h 00m” in alert orange. The Settings empty billing panel uses quiet
+  muted body copy instead of the 22px accent headline style.
+- Auth pages align to the top with a clamped offset instead of vertical
+  centering, removing the large void above the card on tall viewports.
 
 ### Metrics catalog cleanup (September 21, 2026)
 

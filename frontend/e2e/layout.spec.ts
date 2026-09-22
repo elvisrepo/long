@@ -251,7 +251,7 @@ for (const { width, theme } of layoutCases) {
       (theme) => localStorage.setItem("longevity-theme", theme),
       theme,
     );
-    let titleY: number | undefined;
+    const titleYByHeaderVariant: Record<string, number> = {};
     let titleSize: string | undefined;
     for (const [path, title] of views) {
       await page.goto(path);
@@ -290,6 +290,9 @@ for (const { width, theme } of layoutCases) {
         return {
           titleY: title.getBoundingClientRect().y,
           titleSize: getComputedStyle(title).fontSize,
+          headerVariant: document.querySelector(".page-breadcrumb")
+            ? "breadcrumb"
+            : "plain",
           pageX: section.getBoundingClientRect().x,
           pageWidth: section.getBoundingClientRect().width,
           mainX: main.getBoundingClientRect().x + parseFloat(style.paddingLeft),
@@ -309,8 +312,14 @@ for (const { width, theme } of layoutCases) {
       expect(bounds.pageX, path).toBeCloseTo(bounds.headerX, 0);
       expect(bounds.documentWidth, path).toBeLessThanOrEqual(bounds.viewport);
       if (width >= 768) {
-        titleY ??= bounds.titleY;
-        expect(bounds.titleY, path).toBeCloseTo(titleY, 0);
+        // The breadcrumb row intentionally offsets titles on detail and
+        // analytics pages. Rhythm is asserted within each header variant so a
+        // page drifting out of its own composition still fails.
+        titleYByHeaderVariant[bounds.headerVariant] ??= bounds.titleY;
+        expect(
+          bounds.titleY,
+          `${path} (${bounds.headerVariant} header)`,
+        ).toBeCloseTo(titleYByHeaderVariant[bounds.headerVariant], 0);
       }
       titleSize ??= bounds.titleSize;
       expect(bounds.titleSize, path).toBe(titleSize);

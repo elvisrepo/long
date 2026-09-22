@@ -76,3 +76,27 @@ export function formatMetricValueWithUnit(
   }
   return `${formattedValue} ${unit}`;
 }
+
+// Chart.js generates axis ticks by interpolating between data bounds, so tick
+// values carry binary floating-point noise (e.g. 6.6000000000000005) that
+// stored entry values never have. This keeps the stored-value display contract
+// in formatMetricValue untouched and only cleans the derived tick labels.
+export function formatChartAxisTick(
+  value: number,
+  metricSlug: string,
+  unit: string | undefined,
+): string {
+  if (metricSlug === "sleep_duration") {
+    return formatMetricValueWithUnit(value, metricSlug, unit);
+  }
+
+  if (metricMaximumFractionDigits[metricSlug] !== undefined) {
+    return formatMetricValueWithUnit(value, metricSlug, unit);
+  }
+
+  const denoised = Number(value.toPrecision(12));
+  if (!unit) {
+    return String(denoised);
+  }
+  return `${denoised} ${unit}`;
+}

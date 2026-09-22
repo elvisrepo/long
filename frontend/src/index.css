@@ -335,8 +335,9 @@ a {
 
 .auth-main {
   display: grid;
-  place-items: center;
-  padding-block: 20px;
+  justify-items: center;
+  align-items: start;
+  padding-block: clamp(24px, 6vh, 64px) 20px;
 }
 
 .screen-panel,
@@ -696,6 +697,14 @@ button {
   font-size: 22px;
   font-weight: 650;
   letter-spacing: -0.03em;
+}
+
+.subscription-billing-panel .subscription-billing-empty {
+  color: var(--text-dim);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: normal;
 }
 
 .subscription-primary-action,
@@ -1935,6 +1944,16 @@ button {
   line-height: 1;
 }
 
+.sleep-shortfall-value.sleep-shortfall-none {
+  color: var(--accent);
+}
+
+.metric-trend-single-day-note {
+  margin: 8px 0 0;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
 .sleep-target-value {
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -3094,14 +3113,6 @@ body:has(dialog[open]) {
 /* Dashboard: compact, swipeable metric overview. */
 .dashboard-screen {
   gap: 22px;
-}
-
-.dashboard-screen .page-breadcrumb {
-  display: none;
-}
-
-.dashboard-screen .page-header .dashboard-title {
-  font-size: clamp(29px, 4vw, 38px);
 }
 
 .dashboard-metrics {

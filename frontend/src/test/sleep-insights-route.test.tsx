@@ -85,6 +85,40 @@ describe("Sleep Insights route", () => {
     expect(screen.getByText(/sep 19 · 6h 00m/i)).toBeInTheDocument();
   });
 
+  it("celebrates a week with no shortfall instead of shouting zero", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "pro@example.com" });
+    vi.mocked(useSleepInsightsQuery).mockReturnValue({
+      data: {
+        range_days: 7,
+        target_minutes: 450,
+        series: [
+          emptyPoint("2026-09-15"),
+          emptyPoint("2026-09-16"),
+          emptyPoint("2026-09-17"),
+          emptyPoint("2026-09-18"),
+          emptyPoint("2026-09-19"),
+          emptyPoint("2026-09-20"),
+          sleepPoint("2026-09-21", 480, "2026-09-20T22:30:00Z"),
+        ],
+        summary: {
+          tracked_nights: 1,
+          nights_under_target: 0,
+          total_shortfall_minutes: 0,
+          average_duration_minutes: 480,
+          worst_night: { date: "2026-09-21", duration_minutes: 480 },
+        },
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as ReturnType<typeof useSleepInsightsQuery>);
+
+    renderRoute("/analytics/sleep");
+
+    expect(await screen.findByText(/no shortfall/i)).toBeInTheDocument();
+    expect(screen.queryByText("0h 00m")).not.toBeInTheDocument();
+  });
+
   it("requests a recalculation when the nightly target changes", async () => {
     vi.mocked(getMe).mockResolvedValue({ email: "pro@example.com" });
     vi.mocked(useSleepInsightsQuery).mockReturnValue({

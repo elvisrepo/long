@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatSleepDate,
   formatSleepWindow,
+  formatChartAxisTick,
   formatMetricValue,
   formatMetricValueWithUnit,
 } from "../features/metrics/metric-entry-formatters";
@@ -15,6 +16,26 @@ describe("sleep duration formatting", () => {
     expect(formatMetricValueWithUnit(7.5, "sleep_duration", "hours")).toBe(
       "7h 30m",
     );
+  });
+});
+
+describe("chart axis tick formatting", () => {
+  it("trims binary float noise for custom metrics without changing integers", () => {
+    expect(formatChartAxisTick(6.6000000000000005, "personal_score", "score")).toBe(
+      "6.6 score",
+    );
+    expect(formatChartAxisTick(7, "personal_score", "score")).toBe("7 score");
+    expect(formatChartAxisTick(8000, "steps", "steps")).toBe("8000 steps");
+  });
+
+  it("respects the body weight display precision on axis ticks", () => {
+    expect(
+      formatChartAxisTick(83.5999984741211, "body_weight", "kg"),
+    ).toBe("83.6 kg");
+  });
+
+  it("keeps sleep duration ticks in hours and minutes", () => {
+    expect(formatChartAxisTick(7.5, "sleep_duration", "hours")).toBe("7h 30m");
   });
 });
 
