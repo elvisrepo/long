@@ -1,18 +1,26 @@
 package com.viridiandome.longevity.auth
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -23,15 +31,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.viridiandome.longevity.ui.theme.LongevityTheme
+import com.viridiandome.longevity.subscriptions.SyncPolicy
 import com.viridiandome.longevity.subscriptions.SyncPolicyUiState
 import com.viridiandome.longevity.wearables.BackgroundReadAccess
 import com.viridiandome.longevity.wearables.WearableConnectionUiState
+import com.viridiandome.longevity.wearables.network.WearableConnectionResponse
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncUiState
 import com.viridiandome.longevity.wearables.sync.AutomaticSyncAttempt
 import com.viridiandome.longevity.wearables.sync.ManualSyncAvailability
@@ -109,7 +120,18 @@ fun LoginScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(text = "Longevity")
+        Text(
+            text = "⬡ Longevity",
+            style = MaterialTheme.typography.headlineMedium,
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Sign in to sync Samsung Health.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -233,22 +255,33 @@ private fun AuthenticatedContent(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(
-            text = "Signed in",
-            style = MaterialTheme.typography.headlineMedium,
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                text = "⬡ Longevity",
+                style = MaterialTheme.typography.titleLarge,
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            TextButton(
+                onClick = onLogout,
+                enabled = !state.isLoggingOut,
+            ) {
+                Text(
+                    text = if (state.isLoggingOut) {
+                        "Logging out..."
+                    } else {
+                        "Logout"
+                    },
+                )
+            }
+        }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(text = "Your Longevity session is ready.")
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        HealthConnectContent(
+        HealthConnectCard(
             state = wearableConnectionState,
             initialWeightSyncState = initialWeightSyncState,
             manualSyncAvailability = manualSyncAvailability,
@@ -261,54 +294,27 @@ private fun AuthenticatedContent(
         )
 
         if (showAutomaticSyncDiagnostics) {
-            Spacer(modifier = Modifier.height(12.dp))
-            TextButton(onClick = { diagnosticsExpanded = !diagnosticsExpanded }) {
-                Text("Automatic sync diagnostics")
-            }
-            if (diagnosticsExpanded) {
-                Text("While app away: ${latestBackgroundAttempt.displayDiagnostic()}")
-                Text("While app visible: ${latestForegroundAttempt.displayDiagnostic()}")
-                TextButton(onClick = onRefreshAutomaticSyncDiagnostics) {
-                    Text("Refresh diagnostics")
-                }
-            }
+            DiagnosticsCard(
+                expanded = diagnosticsExpanded,
+                onToggleExpanded = { diagnosticsExpanded = !diagnosticsExpanded },
+                latestBackgroundAttempt = latestBackgroundAttempt,
+                latestForegroundAttempt = latestForegroundAttempt,
+                onRefresh = onRefreshAutomaticSyncDiagnostics,
+            )
         }
 
         state.errorMessage?.let { errorMessage ->
-            Spacer(modifier = Modifier.height(12.dp))
-
             Text(
                 text = errorMessage,
                 color = MaterialTheme.colorScheme.error,
             )
         }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Button(
-            onClick = onLogout,
-            enabled = !state.isLoggingOut,
-        ) {
-            Text(
-                text = if (state.isLoggingOut) {
-                    "Logging out..."
-                } else {
-                    "Logout"
-                },
-            )
-        }
     }
 }
 
-private fun AutomaticSyncAttempt?.displayDiagnostic(): String =
-    this?.let { attempt ->
-        "${attempt.startedAt.formatLocalDateTime()} — " +
-            (attempt.outcome?.name?.lowercase() ?: "started")
-    } ?: "No worker attempt recorded"
-
-/** Renders connection state without initiating registration during composition. */
+/** Connection status, sync actions, and disconnect grouped in one card. */
 @Composable
-private fun HealthConnectContent(
+private fun HealthConnectCard(
     state: WearableConnectionUiState,
     initialWeightSyncState: InitialWeightSyncUiState,
     manualSyncAvailability: ManualSyncAvailability,
@@ -318,157 +324,307 @@ private fun HealthConnectContent(
     onRetry: () -> Unit,
     onEnableBackgroundSync: () -> Unit,
     onSyncMetrics: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Text(
-        text = "Health Connect",
-        style = MaterialTheme.typography.titleMedium,
-    )
+    ElevatedCard(modifier = modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            ConnectionStatusHeader(state = state)
 
-    Spacer(modifier = Modifier.height(8.dp))
+            when (state) {
+                WearableConnectionUiState.Idle -> {
+                    Text(text = "Not connected")
 
-    when (state) {
-        WearableConnectionUiState.Idle -> {
-            Text(text = "Not connected")
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // The explicit tap is the consent boundary for backend registration.
-            Button(onClick = onConnect) {
-                Text(text = "Connect Health Connect")
-            }
-        }
-
-        WearableConnectionUiState.Loading -> {
-            CircularProgressIndicator()
-            Text(text = "Checking Health Connect...")
-        }
-
-        WearableConnectionUiState.PermissionRequired -> {
-            Text(text = "Weight read permission is required.")
-        }
-
-        WearableConnectionUiState.PermissionDenied -> {
-            Text(text = "Weight permission was not granted.")
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Button(onClick = onRetry) {
-                Text(text = "Retry")
-            }
-        }
-
-        WearableConnectionUiState.ProviderUpdateRequired -> {
-            Text(text = "Install or update Health Connect to continue.")
-        }
-
-        WearableConnectionUiState.HealthConnectUnavailable -> {
-            Text(text = "Health Connect is not available on this device.")
-        }
-
-        is WearableConnectionUiState.Ready -> {
-            val syncPolicy = (syncPolicyState as? SyncPolicyUiState.Ready)?.policy
-            val statusText = when (state.connection.status) {
-                "connected" -> "Connected"
-                "pending" -> "Setup pending"
-                "error" -> "Needs attention"
-                else -> "Disconnected"
-            }
-            Text(text = statusText)
-
-            if (syncPolicy != null) {
-                Text(
-                    text = if (syncPolicy.automaticSyncEnabled) {
-                        "Automatic sync approximately every " +
-                            "${syncPolicy.syncIntervalMinutes} minutes"
-                    } else {
-                        "Manual sync every ${syncPolicy.syncIntervalMinutes} minutes"
-                    },
-                )
-
-                if (syncPolicy.automaticSyncEnabled) {
-                    // WorkManager respects the interval as a minimum. Android may
-                    // batch background work after the app leaves the foreground.
-                    Text(text = "Android may delay sync while the app is closed.")
-                }
-            }
-
-            val lastSyncedAt = state.connection.lastSyncedAt
-                ?.let { timestamp ->
-                    runCatching { Instant.parse(timestamp) }.getOrNull()
-                }
-            Text(
-                text = if (lastSyncedAt != null) {
-                    "Last successful sync: ${lastSyncedAt.formatLocalDateTime()}"
-                } else {
-                    "No successful sync yet."
-                },
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (
-                state.backgroundReadAccess ===
-                BackgroundReadAccess.PermissionRequired &&
-                syncPolicy?.automaticSyncEnabled == true
-            ) {
-                // Background health access is an additional explicit consent;
-                // it never blocks the existing foreground sync action below.
-                Button(onClick = onEnableBackgroundSync) {
-                    Text(text = "Allow background sync")
+                    Button(
+                        onClick = onConnect,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(text = "Connect Health Connect")
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-            }
+                WearableConnectionUiState.Loading -> {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        CircularProgressIndicator()
+                        Text(text = "Checking Health Connect...")
+                    }
+                }
 
-            InitialWeightSyncContent(
-                state = initialWeightSyncState,
-                availability = manualSyncAvailability,
-                onSync = onSyncMetrics,
-                onReviewPermission = onRetry,
-            )
+                WearableConnectionUiState.PermissionRequired -> {
+                    Text(text = "Weight read permission is required.")
+                }
 
-            Spacer(modifier = Modifier.height(12.dp))
+                WearableConnectionUiState.PermissionDenied -> {
+                    Text(text = "Weight permission was not granted.")
 
-            TextButton(
-                onClick = onDisconnect,
-                enabled = !state.isDisconnecting,
-            ) {
-                Text(
-                    text = if (state.isDisconnecting) {
-                        "Disconnecting..."
-                    } else {
-                        "Disconnect Health Connect"
-                    },
-                )
-            }
+                    Button(
+                        onClick = onRetry,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(text = "Retry")
+                    }
+                }
 
-            if (state.disconnectFailed) {
-                Text(
-                    text = "Unable to disconnect Health Connect. Please try again.",
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-        }
+                WearableConnectionUiState.ProviderUpdateRequired -> {
+                    Text(text = "Install or update Health Connect to continue.")
+                }
 
-        WearableConnectionUiState.Rejected -> {
-            Text(text = "Health Connect is unavailable for your current plan.")
-        }
+                WearableConnectionUiState.HealthConnectUnavailable -> {
+                    Text(text = "Health Connect is not available on this device.")
+                }
 
-        WearableConnectionUiState.NoSession -> {
-            Text(text = "Your session expired. Log out and sign in again.")
-        }
+                is WearableConnectionUiState.Ready -> {
+                    ReadyConnectionBody(
+                        state = state,
+                        initialWeightSyncState = initialWeightSyncState,
+                        manualSyncAvailability = manualSyncAvailability,
+                        syncPolicyState = syncPolicyState,
+                        onDisconnect = onDisconnect,
+                        onRetry = onRetry,
+                        onEnableBackgroundSync = onEnableBackgroundSync,
+                        onSyncMetrics = onSyncMetrics,
+                    )
+                }
 
-        WearableConnectionUiState.Unavailable -> {
-            Text(text = "Unable to connect Health Connect.")
+                WearableConnectionUiState.Rejected -> {
+                    Text(text = "Health Connect is unavailable for your current plan.")
+                }
 
-            Spacer(modifier = Modifier.height(12.dp))
+                WearableConnectionUiState.NoSession -> {
+                    Text(text = "Your session expired. Log out and sign in again.")
+                }
 
-            Button(onClick = onRetry) {
-                Text(text = "Retry")
+                WearableConnectionUiState.Unavailable -> {
+                    Text(text = "Unable to connect Health Connect.")
+
+                    Button(
+                        onClick = onRetry,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(text = "Retry")
+                    }
+                }
             }
         }
     }
 }
+
+/** Status dot plus title; color follows connection health, not brand. */
+@Composable
+private fun ConnectionStatusHeader(
+    state: WearableConnectionUiState,
+    modifier: Modifier = Modifier,
+) {
+    val (statusText, dotColor) = when (state) {
+        is WearableConnectionUiState.Ready -> when (state.connection.status) {
+            "connected" -> "Connected" to MaterialTheme.colorScheme.primary
+            "pending" -> "Setup pending" to MaterialTheme.colorScheme.tertiary
+            "error" -> "Needs attention" to MaterialTheme.colorScheme.error
+            else -> "Disconnected" to MaterialTheme.colorScheme.outline
+        }
+        WearableConnectionUiState.Loading -> "Checking..." to MaterialTheme.colorScheme.outline
+        else -> "Not connected" to MaterialTheme.colorScheme.outline
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .clip(CircleShape)
+                .background(dotColor),
+        )
+        Text(
+            text = "Health Connect",
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        Text(
+            text = statusText,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (dotColor == MaterialTheme.colorScheme.error) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        )
+    }
+}
+
+/** Ready-state sync policy, last sync, manual sync, and disconnect. */
+@Composable
+private fun ReadyConnectionBody(
+    state: WearableConnectionUiState.Ready,
+    initialWeightSyncState: InitialWeightSyncUiState,
+    manualSyncAvailability: ManualSyncAvailability,
+    syncPolicyState: SyncPolicyUiState,
+    onDisconnect: () -> Unit,
+    onRetry: () -> Unit,
+    onEnableBackgroundSync: () -> Unit,
+    onSyncMetrics: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        val syncPolicy = (syncPolicyState as? SyncPolicyUiState.Ready)?.policy
+        if (syncPolicy != null) {
+            Text(
+                text = if (syncPolicy.automaticSyncEnabled) {
+                    "Automatic sync approximately every " +
+                        "${syncPolicy.syncIntervalMinutes} minutes"
+                } else {
+                    "Manual sync every ${syncPolicy.syncIntervalMinutes} minutes"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+            )
+
+            if (syncPolicy.automaticSyncEnabled) {
+                // WorkManager respects the interval as a minimum. Android may
+                // batch background work after the app leaves the foreground.
+                Text(
+                    text = "Android may delay sync while the app is closed.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        val lastSyncedAt = state.connection.lastSyncedAt
+            ?.let { timestamp ->
+                runCatching { Instant.parse(timestamp) }.getOrNull()
+            }
+        Text(
+            text = if (lastSyncedAt != null) {
+                "Last successful sync: ${lastSyncedAt.formatLocalDateTime()}"
+            } else {
+                "No successful sync yet."
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        if (
+            state.backgroundReadAccess ===
+            BackgroundReadAccess.PermissionRequired &&
+            syncPolicy?.automaticSyncEnabled == true
+        ) {
+            // Background health access is an additional explicit consent;
+            // it never blocks the existing foreground sync action below.
+            Button(
+                onClick = onEnableBackgroundSync,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(text = "Allow background sync")
+            }
+        }
+
+        InitialWeightSyncContent(
+            state = initialWeightSyncState,
+            availability = manualSyncAvailability,
+            onSync = onSyncMetrics,
+            onReviewPermission = onRetry,
+        )
+
+        HorizontalDivider()
+
+        TextButton(
+            onClick = onDisconnect,
+            enabled = !state.isDisconnecting,
+        ) {
+            Text(
+                text = if (state.isDisconnecting) {
+                    "Disconnecting..."
+                } else {
+                    "Disconnect Health Connect"
+                },
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+
+        if (state.disconnectFailed) {
+            Text(
+                text = "Unable to disconnect Health Connect. Please try again.",
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
+/** Pilot-only background/foreground worker diagnostics. */
+@Composable
+private fun DiagnosticsCard(
+    expanded: Boolean,
+    onToggleExpanded: () -> Unit,
+    latestBackgroundAttempt: AutomaticSyncAttempt?,
+    latestForegroundAttempt: AutomaticSyncAttempt?,
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    OutlinedCard(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            TextButton(onClick = onToggleExpanded) {
+                Text(
+                    text = if (expanded) {
+                        "Hide automatic sync diagnostics"
+                    } else {
+                        "Automatic sync diagnostics"
+                    },
+                )
+            }
+            if (expanded) {
+                Spacer(modifier = Modifier.height(8.dp))
+                DiagnosticRow(
+                    label = "While app away",
+                    value = latestBackgroundAttempt.displayDiagnostic(),
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                DiagnosticRow(
+                    label = "While app visible",
+                    value = latestForegroundAttempt.displayDiagnostic(),
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                TextButton(onClick = onRefresh) {
+                    Text("Refresh diagnostics")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DiagnosticRow(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
+}
+
+private fun AutomaticSyncAttempt?.displayDiagnostic(): String =
+    this?.let { attempt ->
+        "${attempt.startedAt.formatLocalDateTime()} — " +
+            (attempt.outcome?.name?.lowercase() ?: "started")
+    } ?: "No worker attempt recorded"
 
 /** Renders aggregate sync state without exposing records or receipt identifiers. */
 @Composable
@@ -479,14 +635,19 @@ private fun InitialWeightSyncContent(
     onReviewPermission: () -> Unit,
 ) {
     val canSync = availability === ManualSyncAvailability.Available
+    if (availability is ManualSyncAvailability.CoolingDown) {
+        Text(
+            text = "Sync available again at ${availability.availableAt.formatLocalTime()}.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
     when (availability) {
         ManualSyncAvailability.Unconfigured,
         ManualSyncAvailability.Checking,
         -> Text(text = "Checking manual sync availability...")
 
-        is ManualSyncAvailability.CoolingDown -> Text(
-            text = "Sync available again at ${availability.availableAt.formatLocalTime()}.",
-        )
+        is ManualSyncAvailability.CoolingDown -> Unit
 
         ManualSyncAvailability.Unavailable ->
             Text(text = "Unable to verify manual sync availability.")
@@ -496,19 +657,32 @@ private fun InitialWeightSyncContent(
 
     when (state) {
         InitialWeightSyncUiState.Idle -> {
-            Button(onClick = onSync, enabled = canSync) {
+            Button(
+                onClick = onSync,
+                enabled = canSync,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Text(text = "Sync now")
             }
         }
 
         InitialWeightSyncUiState.Syncing -> {
-            CircularProgressIndicator()
-            Text(text = "Syncing health metrics...")
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                CircularProgressIndicator()
+                Text(text = "Syncing health metrics...")
+            }
         }
 
         InitialWeightSyncUiState.NoData -> {
             Text(text = "No new Samsung Health records found in the last 30 days.")
-            Button(onClick = onSync, enabled = canSync) {
+            Button(
+                onClick = onSync,
+                enabled = canSync,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Text(text = "Sync again")
             }
         }
@@ -519,7 +693,11 @@ private fun InitialWeightSyncContent(
                     "${state.entriesUpdated} updated, " +
                     "${state.entriesSkipped} already present.",
             )
-            Button(onClick = onSync, enabled = canSync) {
+            Button(
+                onClick = onSync,
+                enabled = canSync,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Text(text = "Sync again")
             }
         }
@@ -533,7 +711,10 @@ private fun InitialWeightSyncContent(
             Text(text = state.failure.userMessage())
 
             if (state.failure === WeightSyncFailure.PermissionRequired) {
-                Button(onClick = onReviewPermission) {
+                Button(
+                    onClick = onReviewPermission,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
                     Text(text = "Review Health Connect permission")
                 }
             }
@@ -544,7 +725,11 @@ private fun InitialWeightSyncContent(
                 state.failure !== WeightSyncFailure.Rejected &&
                 state.failure !== WeightSyncFailure.NoSession
             ) {
-                Button(onClick = onSync, enabled = canSync) {
+                Button(
+                    onClick = onSync,
+                    enabled = canSync,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
                     Text(text = "Retry sync")
                 }
             }
@@ -552,7 +737,11 @@ private fun InitialWeightSyncContent(
 
         InitialWeightSyncUiState.Unavailable -> {
             Text(text = "Unable to sync health metrics right now.")
-            Button(onClick = onSync, enabled = canSync) {
+            Button(
+                onClick = onSync,
+                enabled = canSync,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Text(text = "Retry sync")
             }
         }
@@ -627,6 +816,42 @@ private fun AuthenticatedContentPreview() {
             onPasswordChange = {},
             onSignIn = {},
             onLogout = {},
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun AuthenticatedReadyPreview() {
+    LongevityTheme {
+        LoginScreen(
+            state = LoginFormState(
+                email = "user@example.com",
+                password = "",
+                isAuthenticated = true,
+            ),
+            onEmailChange = {},
+            onPasswordChange = {},
+            onSignIn = {},
+            onLogout = {},
+            wearableConnectionState = WearableConnectionUiState.Ready(
+                connection = WearableConnectionResponse(
+                    id = "connection-id",
+                    provider = "health_connect",
+                    status = "connected",
+                    lastSyncedAt = "2026-09-22T15:41:00Z",
+                    lastError = "",
+                    createdAt = "2026-09-22T15:00:00Z",
+                    updatedAt = "2026-09-22T15:41:00Z",
+                ),
+            ),
+            manualSyncAvailability = ManualSyncAvailability.Available,
+            syncPolicyState = SyncPolicyUiState.Ready(
+                policy = SyncPolicy(
+                    automaticSyncEnabled = true,
+                    syncIntervalMinutes = 15,
+                ),
+            ),
         )
     }
 }
