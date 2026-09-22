@@ -51,6 +51,7 @@ const metricEntryRanges = [
 ] as const;
 
 const METRIC_DETAIL_ENTRY_LIMIT = 50;
+const METRIC_DETAIL_HISTORY_PREVIEW_COUNT = 5;
 
 type MetricEntryRange = (typeof metricEntryRanges)[number];
 
@@ -65,6 +66,13 @@ function MetricDetailRoute() {
   >(undefined);
   const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
   const [isAddingMetricEntry, setIsAddingMetricEntry] = useState(false);
+  // The expanded state is keyed by the active filter so changing the metric,
+  // range, or selected date collapses the preview without a reset effect.
+  const historyFilterKey = `${slug}|${selectedDate ?? ""}|${selectedRangeFrom ?? ""}`;
+  const [expandedHistoryKey, setExpandedHistoryKey] = useState<string | null>(
+    null,
+  );
+  const historyExpanded = expandedHistoryKey === historyFilterKey;
   const [entryPendingDeletion, setEntryPendingDeletion] =
     useState<MetricEntry | null>(null);
   const [entryActionError, setEntryActionError] = useState<string | null>(null);
@@ -347,32 +355,53 @@ function MetricDetailRoute() {
             </p>
           </div>
         ) : (
-          <div className="entry-list">
-            {metricEntries.map((entry) => (
-              <MetricEntryHistoryRow
-                entry={entry}
-                isDeleting={deleteMetricEntryMutation.isPending}
-                isEditing={editingEntryId === entry.id}
-                isUpdating={updateMetricEntryMutation.isPending}
-                key={entry.id}
-                maxValue={metricDefinition.max_value}
-                metricName={metricDefinition.name}
-                metricSlug={metricDefinition.slug}
-                minValue={metricDefinition.min_value}
-                onCancelEdit={() => setEditingEntryId(null)}
-                onDelete={() => {
-                  setEntryActionError(null);
-                  setEntryPendingDeletion(entry);
-                }}
-                onEdit={() => {
-                  setEntryActionError(null);
-                  setEditingEntryId(entry.id);
-                }}
-                onUpdate={(input) => handleUpdateEntry(entry, input)}
-                unit={metricDefinition.unit}
-              />
-            ))}
-          </div>
+          <>
+            <div className="entry-list">
+              {(historyExpanded
+                ? metricEntries
+                : metricEntries.slice(0, METRIC_DETAIL_HISTORY_PREVIEW_COUNT)
+              ).map((entry) => (
+                <MetricEntryHistoryRow
+                  entry={entry}
+                  isDeleting={deleteMetricEntryMutation.isPending}
+                  isEditing={editingEntryId === entry.id}
+                  isUpdating={updateMetricEntryMutation.isPending}
+                  key={entry.id}
+                  maxValue={metricDefinition.max_value}
+                  metricName={metricDefinition.name}
+                  metricSlug={metricDefinition.slug}
+                  minValue={metricDefinition.min_value}
+                  onCancelEdit={() => setEditingEntryId(null)}
+                  onDelete={() => {
+                    setEntryActionError(null);
+                    setEntryPendingDeletion(entry);
+                  }}
+                  onEdit={() => {
+                    setEntryActionError(null);
+                    setEditingEntryId(entry.id);
+                  }}
+                  onUpdate={(input) => handleUpdateEntry(entry, input)}
+                  unit={metricDefinition.unit}
+                />
+              ))}
+            </div>
+            {metricEntries.length > METRIC_DETAIL_HISTORY_PREVIEW_COUNT ? (
+              <button
+                aria-expanded={historyExpanded}
+                className="metrics-secondary-action entry-history-toggle"
+                type="button"
+                onClick={() =>
+                  setExpandedHistoryKey((current) =>
+                    current === historyFilterKey ? null : historyFilterKey,
+                  )
+                }
+              >
+                {historyExpanded
+                  ? "Show fewer"
+                  : `Show all ${formatMetricEntryCount(metricEntries.length)}`}
+              </button>
+            ) : null}
+          </>
         )}
       </section>
 

@@ -818,6 +818,11 @@ button {
   padding: 22px;
 }
 
+.entry-history-toggle {
+  margin-top: 12px;
+  justify-self: start;
+}
+
 .metric-card {
   min-height: 270px;
   min-width: 0;

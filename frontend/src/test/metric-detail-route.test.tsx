@@ -376,6 +376,101 @@ describe("metric detail route", () => {
     ).toBeInTheDocument();
   });
 
+  it("collapses long entry history behind a show-all toggle", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+    mockLoadedMetricEntries(
+      [58, 57, 56, 55, 54, 53, 52].map((value, index) => ({
+        id: index + 1,
+        metric_definition: "resting_hr",
+        value,
+        recorded_at: `2026-03-${String(10 - index).padStart(2, "0")}T07:15:00Z`,
+        source: "manual",
+        context: {},
+        created_at: `2026-03-${String(10 - index).padStart(2, "0")}T07:15:02Z`,
+      })),
+    );
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/resting_hr");
+
+    const history = await screen.findByRole("region", {
+      name: /metric entry history/i,
+    });
+    expect(within(history).queryByText("52 bpm")).not.toBeInTheDocument();
+    expect(within(history).getByText("54 bpm")).toBeInTheDocument();
+
+    await user.click(
+      within(history).getByRole("button", { name: "Show all 7 entries" }),
+    );
+    expect(within(history).getByText("52 bpm")).toBeInTheDocument();
+
+    await user.click(
+      within(history).getByRole("button", { name: "Show fewer" }),
+    );
+    expect(within(history).queryByText("52 bpm")).not.toBeInTheDocument();
+  });
+
+  it("collapses the history preview when the range filter changes", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+    mockLoadedMetricEntries(
+      [58, 57, 56, 55, 54, 53, 52].map((value, index) => ({
+        id: index + 1,
+        metric_definition: "resting_hr",
+        value,
+        recorded_at: `2026-03-${String(10 - index).padStart(2, "0")}T07:15:00Z`,
+        source: "manual",
+        context: {},
+        created_at: `2026-03-${String(10 - index).padStart(2, "0")}T07:15:02Z`,
+      })),
+    );
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/resting_hr");
+
+    const history = await screen.findByRole("region", {
+      name: /metric entry history/i,
+    });
+    await user.click(
+      within(history).getByRole("button", { name: "Show all 7 entries" }),
+    );
+    expect(within(history).getByText("52 bpm")).toBeInTheDocument();
+
+    const trend = screen.getByRole("region", { name: /trend overview/i });
+    await user.click(within(trend).getByRole("button", { name: "30d" }));
+
+    expect(within(history).queryByText("52 bpm")).not.toBeInTheDocument();
+    expect(
+      within(history).getByRole("button", { name: "Show all 7 entries" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows short entry history without a toggle", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+    mockLoadedMetricEntries();
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/resting_hr");
+
+    const history = await screen.findByRole("region", {
+      name: /metric entry history/i,
+    });
+    expect(within(history).getByText("58 bpm")).toBeInTheDocument();
+    expect(
+      within(history).queryByRole("button", { name: /show all/i }),
+    ).not.toBeInTheDocument();
+  });
+
   it("hides the single-day note once two days of data exist", async () => {
     vi.mocked(getMe).mockResolvedValue({
       email: "user@example.com",

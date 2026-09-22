@@ -524,6 +524,10 @@ Current metric detail page checkpoint:
 - Entry History remains event-level and continues to show every raw manual log, including multiple logs from the same day.
 - Current chart aggregation is intentionally simple for the manual-tracking MVP. Future wearable/sync work should revisit metric-specific aggregation, for example heart-rate average/min/max ranges, weight latest value, and sleep nightly session totals.
 - The detail route shows an entry-history section using the same dark card language as the dashboard.
+- Entry History previews the 5 latest records with a “Show all N entries” /
+  “Show fewer” toggle (with `aria-expanded`), so long histories no longer bury
+  the trend. The preview resets when the metric, range, or selected date
+  changes.
 - A Sleep Duration history row uses the API's read-only `period_start` and
   `recorded_at` bounds to show a local-time sleep window such as
   `1:00 AM–8:50 AM`. Its separate date is also local, avoiding a contradictory
