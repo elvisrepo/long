@@ -176,6 +176,13 @@ function mockMetricEntriesByFilters({
   });
 }
 
+function utcDaysAgoIso(daysAgo: number): string {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() - daysAgo);
+  date.setUTCHours(7, 15, 0, 0);
+  return date.toISOString();
+}
+
 describe("dashboard route", () => {
   beforeEach(() => {
     mockFreeSubscription();
@@ -752,6 +759,132 @@ describe("dashboard route", () => {
     expect(
       within(insights).getByRole("link", { name: /consistency/i }),
     ).toHaveAttribute("href", "/analytics/consistency");
+  });
+
+  it("shows Pro insight previews from loaded entries", async () => {
+    mockProSubscription();
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "body-weight-id",
+          name: "Body Weight",
+          slug: "body_weight",
+          unit: "kg",
+          category: "body_composition",
+          min_value: 20,
+          max_value: 300,
+          is_default: true,
+        },
+        {
+          id: "sleep-id",
+          name: "Sleep Duration",
+          slug: "sleep_duration",
+          unit: "hours",
+          category: "recovery",
+          min_value: 0,
+          max_value: 24,
+          is_default: true,
+        },
+        {
+          id: "steps-id",
+          name: "Steps",
+          slug: "steps",
+          unit: "steps",
+          category: "activity",
+          min_value: 0,
+          max_value: 100000,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockMetricEntriesByFilters({
+      cardEntries: [
+        {
+          id: 1,
+          metric_definition: "sleep_duration",
+          value: 7.5,
+          recorded_at: utcDaysAgoIso(1),
+          source: "manual",
+          context: {},
+          created_at: utcDaysAgoIso(1),
+        },
+        {
+          id: 2,
+          metric_definition: "sleep_duration",
+          value: 7,
+          recorded_at: utcDaysAgoIso(3),
+          source: "manual",
+          context: {},
+          created_at: utcDaysAgoIso(3),
+        },
+        {
+          id: 3,
+          metric_definition: "body_weight",
+          value: 84,
+          recorded_at: utcDaysAgoIso(1),
+          source: "manual",
+          context: {},
+          created_at: utcDaysAgoIso(1),
+        },
+        {
+          id: 4,
+          metric_definition: "steps",
+          value: 8000,
+          recorded_at: utcDaysAgoIso(0),
+          source: "manual",
+          context: {},
+          created_at: utcDaysAgoIso(0),
+        },
+      ],
+      recentEntries: [],
+    });
+
+    renderRoute("/");
+
+    const insights = await screen.findByRole("region", {
+      name: /pro insights/i,
+    });
+    const sleepLink = within(insights).getByRole("link", {
+      name: /sleep insights/i,
+    });
+    expect(sleepLink).toHaveTextContent("Latest 7h 30m · 2 of 7 nights");
+    const weightStepsLink = within(insights).getByRole("link", {
+      name: /weight × steps/i,
+    });
+    expect(weightStepsLink).toHaveTextContent("84 kg · 8000 steps");
+    const consistencyLink = within(insights).getByRole("link", {
+      name: /consistency/i,
+    });
+    expect(consistencyLink).toHaveTextContent("3 of 7 days with data");
+  });
+
+  it("shows empty Pro insight previews when there is no data", async () => {
+    mockProSubscription();
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitionsWithManyMetrics();
+    mockMetricEntriesByFilters({ cardEntries: [], recentEntries: [] });
+
+    renderRoute("/");
+
+    const insights = await screen.findByRole("region", {
+      name: /pro insights/i,
+    });
+    expect(
+      within(insights).getByRole("link", { name: /sleep insights/i }),
+    ).toHaveTextContent(/no sleep data yet/i);
+    expect(
+      within(insights).getByRole("link", { name: /weight × steps/i }),
+    ).toHaveTextContent(/no weight or steps yet/i);
+    expect(
+      within(insights).getByRole("link", { name: /consistency/i }),
+    ).toHaveTextContent(/no recent data/i);
   });
 
   it("limits recent entries on the dashboard", async () => {

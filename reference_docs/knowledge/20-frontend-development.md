@@ -469,7 +469,12 @@ Current metrics API integration checkpoint:
 - Recent entries keep the raw ISO timestamp in the semantic `<time dateTime="...">` attribute while displaying a readable UTC timestamp.
 - The dashboard reads `useCurrentSubscriptionQuery()` so it can use `plan.analytics_enabled` for the first subscription-aware Pro value surface.
 - Free users see a locked **Pro Insights** card that explains trend summaries require Pro.
-- Pro users with `analytics_enabled=true` see a **Pro Insights** card summarizing how many metrics have recent data and the latest recorded update from the dashboard's unfiltered metric-entry read.
+- Pro users with `analytics_enabled=true` see a **Pro Insights** card where each
+  destination (Sleep, Weight × Steps, Consistency) carries a one-line preview
+  derived from the dashboard's existing bounded entry read: latest sleep plus
+  trailing-7-day night count, latest weight plus latest steps, and days with
+  any data in the trailing 7 UTC days. Empty states read “No sleep data yet”,
+  “No weight or steps yet”, and “No recent data”. No extra API request.
 - This first **Pro Insights** card is intentionally a scaffold, not the final paid analytics value. Return to it later with useful per-metric trend direction, deltas over 7/30 days, averages, anomaly flags, or similar higher-value summaries.
 
 Current dashboard UI checkpoint:

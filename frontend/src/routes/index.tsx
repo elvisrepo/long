@@ -26,6 +26,7 @@ const DASHBOARD_RECENT_ENTRY_LIMIT = 5;
 const DASHBOARD_CARD_ENTRY_LIMIT = 50;
 const DASHBOARD_METRICS_PER_PAGE = 6;
 const DASHBOARD_METRIC_ORDER = ["sleep_duration", "steps", "body_weight"];
+const DASHBOARD_PREVIEW_DAYS = 7;
 
 function DashboardRoute() {
   const metricRailRef = useRef<HTMLDivElement>(null);
@@ -69,6 +70,10 @@ function DashboardRoute() {
 
   const analyticsEnabled =
     currentSubscriptionQuery.data?.plan.analytics_enabled === true;
+  const insightPreviews = getInsightPreviews(
+    cardMetricEntries,
+    metricDefinitionsBySlug,
+  );
   const orderedDefinitions = [...metricDefinitions].sort((left, right) => {
     const leftIndex = DASHBOARD_METRIC_ORDER.indexOf(left.slug);
     const rightIndex = DASHBOARD_METRIC_ORDER.indexOf(right.slug);
@@ -177,15 +182,22 @@ function DashboardRoute() {
             <div className="insight-navigation">
               <Link className="insight-destination" to="/analytics/sleep">
                 <strong>Sleep Insights →</strong>
+                <span className="insight-preview">{insightPreviews.sleep}</span>
               </Link>
               <Link
                 className="insight-destination"
                 to="/analytics/weight-steps"
               >
                 <strong>Weight × Steps →</strong>
+                <span className="insight-preview">
+                  {insightPreviews.weightSteps}
+                </span>
               </Link>
               <Link className="insight-destination" to="/analytics/consistency">
                 <strong>Consistency →</strong>
+                <span className="insight-preview">
+                  {insightPreviews.consistency}
+                </span>
               </Link>
             </div>
           </>
@@ -314,6 +326,89 @@ function formatDashboardDate() {
     month: "short",
     day: "numeric",
   }).format(new Date());
+}
+
+interface InsightPreviews {
+  sleep: string;
+  weightSteps: string;
+  consistency: string;
+}
+
+// Previews derive from the dashboard's existing bounded entry read so they
+// add no API requests. Counts use UTC calendar days like the backend views.
+function getInsightPreviews(
+  entries: MetricEntry[],
+  definitionsBySlug: Map<string, MetricDefinition>,
+): InsightPreviews {
+  const previewWeek = trailingUtcDayKeys(DASHBOARD_PREVIEW_DAYS);
+  const latestBySlug = new Map<string, MetricEntry>();
+  for (const entry of entries) {
+    if (!latestBySlug.has(entry.metric_definition)) {
+      latestBySlug.set(entry.metric_definition, entry);
+    }
+  }
+
+  const sleepNights = new Set(
+    entries
+      .filter((entry) => entry.metric_definition === "sleep_duration")
+      .map((entry) => utcDayKey(entry.recorded_at))
+      .filter((day) => previewWeek.has(day)),
+  );
+  const latestSleep = latestBySlug.get("sleep_duration");
+  const sleep = latestSleep
+    ? `Latest ${formatMetricValueWithUnit(latestSleep.value, "sleep_duration", definitionsBySlug.get("sleep_duration")?.unit)} · ${sleepNights.size} of ${DASHBOARD_PREVIEW_DAYS} nights`
+    : "No sleep data yet";
+
+  const latestWeight = latestBySlug.get("body_weight");
+  const latestSteps = latestBySlug.get("steps");
+  const weightParts: string[] = [];
+  if (latestWeight) {
+    weightParts.push(
+      formatMetricValueWithUnit(
+        latestWeight.value,
+        "body_weight",
+        definitionsBySlug.get("body_weight")?.unit,
+      ),
+    );
+  }
+  if (latestSteps) {
+    weightParts.push(
+      formatMetricValueWithUnit(
+        latestSteps.value,
+        "steps",
+        definitionsBySlug.get("steps")?.unit,
+      ),
+    );
+  }
+  const weightSteps =
+    weightParts.length > 0 ? weightParts.join(" · ") : "No weight or steps yet";
+
+  const activeDays = new Set(
+    entries
+      .map((entry) => utcDayKey(entry.recorded_at))
+      .filter((day) => previewWeek.has(day)),
+  );
+  const consistency =
+    entries.length === 0
+      ? "No recent data"
+      : `${activeDays.size} of ${DASHBOARD_PREVIEW_DAYS} days with data`;
+
+  return { sleep, weightSteps, consistency };
+}
+
+function utcDayKey(recordedAt: string): string {
+  return new Date(recordedAt).toISOString().slice(0, 10);
+}
+
+function trailingUtcDayKeys(days: number): Set<string> {
+  const keys = new Set<string>();
+  const today = new Date();
+  for (let offset = 0; offset < days; offset += 1) {
+    const day = new Date(today);
+    day.setUTCDate(day.getUTCDate() - offset);
+    keys.add(day.toISOString().slice(0, 10));
+  }
+  return keys;
 }
 
 function getMetricTrendValues(entries: MetricEntry[], metricSlug: string) {
