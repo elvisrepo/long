@@ -217,7 +217,7 @@ def test_weight_steps_analytics_returns_calendar_days_and_rolling_weight_average
             user=user,
             metric_definition=weight,
             value=value,
-            recorded_at=today - timedelta(days=days_ago) + timedelta(hours=7),
+            recorded_at=today - timedelta(days=days_ago),
         )
 
     response = client.get("/api/v1/metrics/analytics/weight-steps/?days=7")
