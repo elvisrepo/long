@@ -123,16 +123,15 @@ function ConsistencyAnalyticsRoute() {
                   {attentionItems.map(({ message, metric }) => (
                     <article key={metric.metric_definition_id}>
                       <p>
-                        <strong>{metric.name}:</strong> {message}
+                        <Link
+                          className="consistency-open-link"
+                          params={{ slug: metric.slug }}
+                          to="/metrics/$slug"
+                        >
+                          {metric.name}
+                        </Link>
                       </p>
-                      <Link
-                        aria-label={`Open ${metric.name}`}
-                        className="consistency-open-link"
-                        params={{ slug: metric.slug }}
-                        to="/metrics/$slug"
-                      >
-                        Open →
-                      </Link>
+                      <p>{message}</p>
                     </article>
                   ))}
                 </div>
@@ -266,11 +265,11 @@ function utcCalendarDayDifference(earlier: string, later: string): number {
   );
 }
 
+const utcWeekdayLabels = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
 function formatWeekday(date: string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    weekday: "narrow",
-    timeZone: "UTC",
-  }).format(new Date(`${date}T00:00:00Z`));
+  const weekday = utcWeekdayLabels[new Date(`${date}T00:00:00Z`).getUTCDay()];
+  return weekday ?? "";
 }
 
 function ConsistencyLoading() {

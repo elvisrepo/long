@@ -96,9 +96,91 @@ describe("Consistency analytics route", () => {
     ).toBeVisible();
     expect(
       within(attention).getByRole("link", {
-        name: /open resting heart rate/i,
+        name: "Resting Heart Rate",
       }),
     ).toHaveAttribute("href", "/metrics/resting_hr");
+  });
+
+  it("abbreviates presence days to unambiguous two-letter labels", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "pro@example.com" });
+    vi.mocked(useConsistencyAnalyticsQuery).mockReturnValue({
+      data: {
+        range_days: 7,
+        dates: sevenDates,
+        metrics: [
+          {
+            metric_definition_id: "weight-id",
+            name: "Body Weight",
+            slug: "body_weight",
+            tracked_days: 5,
+            current_window_streak_days: 2,
+            last_recorded_at: "2026-09-21T07:00:00Z",
+            day_presence: [true, true, false, true, true, false, true],
+          },
+        ],
+        summary: {
+          metrics_with_data: 1,
+          total_metrics: 1,
+          days_with_any_data: 5,
+        },
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as ReturnType<typeof useConsistencyAnalyticsQuery>);
+
+    renderRoute("/analytics/consistency");
+
+    // 2026-09-15 is a Tuesday: single narrow letters would repeat T/S.
+    const wednesday = await screen.findByRole("link", {
+      name: /body weight on 2026-09-16: tracked/i,
+    });
+    expect(wednesday).toHaveTextContent("We");
+    const sunday = screen.getByRole("link", {
+      name: /body weight on 2026-09-20: no entry/i,
+    });
+    expect(sunday).toHaveTextContent("Su");
+  });
+
+  it("links attention items by metric name with a single open action", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "pro@example.com" });
+    vi.mocked(useConsistencyAnalyticsQuery).mockReturnValue({
+      data: {
+        range_days: 7,
+        dates: sevenDates,
+        metrics: [
+          {
+            metric_definition_id: "resting-id",
+            name: "Resting Heart Rate",
+            slug: "resting_hr",
+            tracked_days: 0,
+            current_window_streak_days: 0,
+            last_recorded_at: "2026-09-10T07:00:00Z",
+            day_presence: [false, false, false, false, false, false, false],
+          },
+        ],
+        summary: {
+          metrics_with_data: 0,
+          total_metrics: 1,
+          days_with_any_data: 0,
+        },
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as ReturnType<typeof useConsistencyAnalyticsQuery>);
+
+    renderRoute("/analytics/consistency");
+
+    const attention = await screen.findByRole("region", {
+      name: /needs attention/i,
+    });
+    expect(
+      within(attention).getByRole("link", { name: "Resting Heart Rate" }),
+    ).toHaveAttribute("href", "/metrics/resting_hr");
+    expect(
+      screen.getAllByRole("link", { name: /open resting heart rate/i }),
+    ).toHaveLength(1);
   });
 
   it("renders loading and safe error states", async () => {
