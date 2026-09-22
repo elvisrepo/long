@@ -306,6 +306,8 @@ describe("metrics route", () => {
     const cards = container.querySelectorAll("article.metric-card");
     expect(cards).toHaveLength(2);
     expect(cards[0]).toHaveAttribute("data-metric", "resting_hr");
+    expect(cards[0]).toHaveAttribute("data-category", "cardiovascular");
+    expect(cards[1]).toHaveAttribute("data-category", "custom");
   });
 
   it("shows active custom metric usage returned by the backend", async () => {

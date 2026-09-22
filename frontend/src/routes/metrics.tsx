@@ -273,6 +273,7 @@ function ArchivedMetricDefinitionRow({
   return (
     <article
       className="metric-card metric-catalog-card metric-catalog-card-archived"
+      data-category={definition.category}
       data-metric={definition.slug}
     >
       <div className="metric-card-header">
@@ -429,6 +430,7 @@ function MetricDefinitionRow({ definition }: MetricDefinitionRowProps) {
     <>
       <article
         className="metric-card metric-catalog-card"
+        data-category={definition.category}
         data-metric={definition.slug}
       >
         <div className="metric-card-header">

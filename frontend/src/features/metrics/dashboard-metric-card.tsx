@@ -4,6 +4,7 @@ import { formatMetricValue } from "./metric-entry-formatters";
 import { metricSymbol } from "./metric-symbol";
 
 interface DashboardMetricCardProps {
+  category: string;
   latestEntry: MetricEntry | undefined;
   name: string;
   slug: string;
@@ -13,6 +14,7 @@ interface DashboardMetricCardProps {
 }
 
 export function DashboardMetricCard({
+  category,
   latestEntry,
   name,
   slug,
@@ -21,7 +23,11 @@ export function DashboardMetricCard({
   onAddEntry,
 }: DashboardMetricCardProps) {
   return (
-    <article className="metric-card" data-metric={slug}>
+    <article
+      className="metric-card"
+      data-category={category}
+      data-metric={slug}
+    >
       <div className="metric-card-header">
         <span className="metric-card-symbol" aria-hidden="true">
           {metricSymbol(slug, name)}

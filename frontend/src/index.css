@@ -1587,8 +1587,9 @@ button {
 }
 
 .archived-metrics-list {
-  border-style: dashed;
-  background: var(--panel-bg);
+  border: 0;
+  background: none;
+  padding: 0;
 }
 
 .archived-metrics-header {
@@ -3277,21 +3278,30 @@ body:has(dialog[open]) {
   background: color-mix(in srgb, var(--metric-accent) 14%, var(--surface-high));
 }
 
-.metric-card[data-metric="steps"] {
+/* Measurement-family hues: one hue per family, in the spirit of Google Fit's
+   per-type colors. Unknown families fall back to the theme accent. */
+.metric-card[data-category="activity"] {
   --metric-accent: #30bfb2;
 }
 
-.metric-card[data-metric="sleep_duration"] {
+.metric-card[data-category="recovery"] {
   --metric-accent: #a77ce4;
 }
 
-.metric-card[data-metric="body_weight"] {
+.metric-card[data-category="cardiovascular"] {
+  --metric-accent: #e48793;
+}
+
+.metric-card[data-category="body_composition"] {
   --metric-accent: #6a9ee8;
 }
 
-.metric-card[data-metric="resting_hr"],
-.metric-card[data-metric="hrv"] {
-  --metric-accent: #e48793;
+.metric-card[data-category="respiratory"] {
+  --metric-accent: #d9a05b;
+}
+
+.metric-card[data-category="custom"] {
+  --metric-accent: #93a1b0;
 }
 
 .metric-card-header {

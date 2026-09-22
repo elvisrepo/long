@@ -94,7 +94,10 @@
   metric exists. Every entry renders as a two-column dashboard-style card
   (tinted per metric, symbol chip, detail link, custom Edit/Deactivate actions)
   at any viewport width; archived metrics render as muted cards in the same
-  grid. Row links use a chevron marker, and row-level Deactivate is a
+  grid. Card hues follow measurement families (activity teal, recovery purple,
+  cardiovascular rose, body composition blue, respiratory amber, custom slate)
+  with muted gray for archived cards, so custom metrics no longer all share
+  the default green. Row links use a chevron marker, and row-level Deactivate is a
   neutral secondary action (archiving is reversible; the confirm dialog keeps
   the danger styling). Verified with the catalog component tests and local
   browser layouts; this is a local frontend change, with no cloud deployment.

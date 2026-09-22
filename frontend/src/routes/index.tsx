@@ -152,6 +152,7 @@ function DashboardRoute() {
               {page.map((definition) => (
                 <DashboardMetricCard
                   key={definition.id}
+                  category={definition.category}
                   onAddEntry={() => setEntryDefinition(definition)}
                   latestEntry={latestEntriesByMetric.get(definition.slug)}
                   name={definition.name}
