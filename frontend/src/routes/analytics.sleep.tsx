@@ -175,6 +175,9 @@ function SleepInsightsRoute() {
               series={analytics.series}
               summary={analytics.summary}
             />
+            <p className="weight-steps-note">
+              Bedtimes and wake times shown in your local timezone.
+            </p>
           </>
         )}
       </section>
@@ -209,19 +212,19 @@ function SleepInsightsSummary({
         </p>
       </article>
       <article>
-        <p className="meta-label">Average bedtime · local time</p>
+        <p className="meta-label">Avg bedtime</p>
         <p className="weight-steps-summary-value">
           {formatAverageClockTime(periodStarts)}
         </p>
       </article>
       <article>
-        <p className="meta-label">Average wake time · local time</p>
+        <p className="meta-label">Avg wake time</p>
         <p className="weight-steps-summary-value">
           {formatAverageClockTime(wakeTimes)}
         </p>
       </article>
       <article>
-        <p className="meta-label">Worst tracked night</p>
+        <p className="meta-label">Shortest night</p>
         <p className="weight-steps-summary-value">
           {summary.worst_night
             ? `${formatDate(summary.worst_night.date)} · ${formatMinutes(summary.worst_night.duration_minutes)}`
@@ -229,7 +232,7 @@ function SleepInsightsSummary({
         </p>
       </article>
       <article>
-        <p className="meta-label">Nights under target</p>
+        <p className="meta-label">Under target</p>
         <p className="weight-steps-summary-value">
           {summary.nights_under_target} of {summary.tracked_nights}
         </p>

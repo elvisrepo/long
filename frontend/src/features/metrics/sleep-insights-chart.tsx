@@ -13,10 +13,16 @@ export function SleepInsightsChart({
     ...series.map((point) => point.duration_minutes ?? 0),
   );
   const targetPosition = (targetMinutes / scaleMaximum) * 100;
+  const accessibleSummary = series
+    .map(
+      (point) =>
+        `${formatWeekday(point.date)}: ${point.duration_minutes === null ? "no record" : formatMinutes(point.duration_minutes)}`,
+    )
+    .join(", ");
 
   return (
     <div
-      aria-label="Nightly sleep duration compared with the selected target"
+      aria-label={`Nightly sleep durations compared with the ${formatMinutes(targetMinutes)} target: ${accessibleSummary}`}
       className="sleep-insights-chart"
       role="img"
     >
@@ -42,15 +48,26 @@ export function SleepInsightsChart({
               {duration === null ? (
                 <span className="sleep-night-missing" title="No sleep record" />
               ) : (
-                <span
-                  className={
-                    duration < targetMinutes
-                      ? "sleep-night-bar sleep-night-bar-short"
-                      : "sleep-night-bar"
-                  }
-                  style={{ height: `${height}%` }}
-                  title={`${formatMinutes(duration)} sleep`}
-                />
+                <>
+                  <span
+                    className={
+                      duration < targetMinutes
+                        ? "sleep-night-value sleep-night-value-short"
+                        : "sleep-night-value"
+                    }
+                  >
+                    {formatMinutes(duration)}
+                  </span>
+                  <span
+                    className={
+                      duration < targetMinutes
+                        ? "sleep-night-bar sleep-night-bar-short"
+                        : "sleep-night-bar"
+                    }
+                    style={{ height: `${height}%` }}
+                    title={`${formatMinutes(duration)} sleep`}
+                  />
+                </>
               )}
             </div>
             <span>{formatWeekday(point.date)}</span>

@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getMe } from "../features/auth/auth-me-api";
@@ -80,7 +80,9 @@ describe("Sleep Insights route", () => {
     expect(
       screen.getByText(/calculated from 3 of 7 nights/i),
     ).toBeInTheDocument();
-    expect(screen.getByText("7h 00m")).toBeInTheDocument();
+    const averageTile = screen.getByText("Average sleep").closest("article");
+    expect(averageTile).not.toBeNull();
+    expect(within(averageTile as HTMLElement).getByText("7h 00m")).toBeInTheDocument();
     expect(screen.getByText("2 of 3")).toBeInTheDocument();
     expect(screen.getByText(/sep 19 · 6h 00m/i)).toBeInTheDocument();
   });
@@ -117,6 +119,124 @@ describe("Sleep Insights route", () => {
 
     expect(await screen.findByText(/no shortfall/i)).toBeInTheDocument();
     expect(screen.queryByText("0h 00m")).not.toBeInTheDocument();
+  });
+
+  it("labels each tracked bar with its readable duration", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "pro@example.com" });
+    vi.mocked(useSleepInsightsQuery).mockReturnValue({
+      data: {
+        range_days: 7,
+        target_minutes: 450,
+        series: [
+          emptyPoint("2026-09-15"),
+          emptyPoint("2026-09-16"),
+          emptyPoint("2026-09-17"),
+          emptyPoint("2026-09-18"),
+          sleepPoint("2026-09-19", 360, "2026-09-18T23:00:00Z"),
+          sleepPoint("2026-09-20", 480, "2026-09-19T22:30:00Z"),
+          sleepPoint("2026-09-21", 420, "2026-09-21T00:00:00Z"),
+        ],
+        summary: {
+          tracked_nights: 3,
+          nights_under_target: 2,
+          total_shortfall_minutes: 120,
+          average_duration_minutes: 420,
+          worst_night: { date: "2026-09-19", duration_minutes: 360 },
+        },
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as ReturnType<typeof useSleepInsightsQuery>);
+
+    renderRoute("/analytics/sleep");
+
+    const chart = await screen.findByRole("img", {
+      name: /nightly sleep duration/i,
+    });
+    expect(within(chart).getByText("8h 00m")).toBeInTheDocument();
+    expect(within(chart).getByText("6h 00m")).toBeInTheDocument();
+    expect(within(chart).queryByText("—")).not.toBeInTheDocument();
+  });
+
+  it("exposes per-night values to assistive technology", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "pro@example.com" });
+    vi.mocked(useSleepInsightsQuery).mockReturnValue({
+      data: {
+        range_days: 7,
+        target_minutes: 450,
+        series: [
+          emptyPoint("2026-09-15"),
+          emptyPoint("2026-09-16"),
+          emptyPoint("2026-09-17"),
+          emptyPoint("2026-09-18"),
+          emptyPoint("2026-09-19"),
+          emptyPoint("2026-09-20"),
+          sleepPoint("2026-09-21", 480, "2026-09-20T22:30:00Z"),
+        ],
+        summary: {
+          tracked_nights: 1,
+          nights_under_target: 0,
+          total_shortfall_minutes: 0,
+          average_duration_minutes: 480,
+          worst_night: { date: "2026-09-21", duration_minutes: 480 },
+        },
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as ReturnType<typeof useSleepInsightsQuery>);
+
+    renderRoute("/analytics/sleep");
+
+    const chart = await screen.findByRole("img", {
+      name: /nightly sleep duration/i,
+    });
+    expect(chart).toHaveAttribute(
+      "aria-label",
+      expect.stringContaining("8h 00m"),
+    );
+  });
+
+  it("keeps summary tiles short with one shared timezone footnote", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "pro@example.com" });
+    vi.mocked(useSleepInsightsQuery).mockReturnValue({
+      data: {
+        range_days: 7,
+        target_minutes: 450,
+        series: [
+          emptyPoint("2026-09-15"),
+          emptyPoint("2026-09-16"),
+          emptyPoint("2026-09-17"),
+          emptyPoint("2026-09-18"),
+          sleepPoint("2026-09-19", 360, "2026-09-18T23:00:00Z"),
+          sleepPoint("2026-09-20", 480, "2026-09-19T22:30:00Z"),
+          sleepPoint("2026-09-21", 420, "2026-09-21T00:00:00Z"),
+        ],
+        summary: {
+          tracked_nights: 3,
+          nights_under_target: 2,
+          total_shortfall_minutes: 120,
+          average_duration_minutes: 420,
+          worst_night: { date: "2026-09-19", duration_minutes: 360 },
+        },
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as ReturnType<typeof useSleepInsightsQuery>);
+
+    renderRoute("/analytics/sleep");
+
+    await screen.findByRole("heading", { level: 1, name: /sleep insights/i });
+    expect(screen.getByText("Avg bedtime")).toBeInTheDocument();
+    expect(screen.getByText("Avg wake time")).toBeInTheDocument();
+    expect(screen.getByText("Shortest night")).toBeInTheDocument();
+    expect(screen.getByText("Under target")).toBeInTheDocument();
+    expect(
+      screen.queryByText(/average bedtime · local time/i),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/local timezone/i)).toBeInTheDocument();
   });
 
   it("requests a recalculation when the nightly target changes", async () => {

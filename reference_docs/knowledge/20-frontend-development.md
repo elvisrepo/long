@@ -168,9 +168,12 @@
   overlap and tracked days; it does not claim that movement caused weight
   change.
 - The local `/analytics/sleep` protected route summarizes the latest record for
-  each of seven UTC wake dates. It shows nightly duration bars, average sleep,
-  shortest tracked night, nights below target, data coverage, and average
-  bedtime/wake time calculated in the browser's local timezone. Users can
+  each of seven UTC wake dates. It shows nightly duration bars with readable
+  per-bar duration labels (under-target values highlighted), six short-labeled
+  summary tiles (average sleep, shortest night, under target, coverage, average
+  bedtime/wake time) plus one shared local-timezone footnote, and per-night
+  values in the chart's accessible name. The target help text wraps below the
+  control instead of crowding it. Users can
   preview a changed nightly target immediately and explicitly save it to their
   account. The persisted value loads across refreshes and devices; saving,
   saved, and failure states are visible and accessible.
