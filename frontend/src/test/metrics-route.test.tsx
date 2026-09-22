@@ -271,6 +271,43 @@ describe("metrics route", () => {
     expect(deactivate).not.toHaveClass("metric-row-danger-action");
   });
 
+  it("renders catalog entries as dashboard-style cards", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions([
+      {
+        id: "metric-id",
+        name: "Resting Heart Rate",
+        slug: "resting_hr",
+        unit: "bpm",
+        category: "cardiovascular",
+        min_value: 20,
+        max_value: 220,
+        is_default: true,
+        is_active: true,
+      },
+      {
+        id: "custom-id",
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        category: "custom",
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: true,
+      },
+    ]);
+
+    const { container } = renderRoute("/metrics");
+
+    await screen.findByRole("heading", { level: 1, name: "Metrics" });
+    const cards = container.querySelectorAll("article.metric-card");
+    expect(cards).toHaveLength(2);
+    expect(cards[0]).toHaveAttribute("data-metric", "resting_hr");
+  });
+
   it("shows active custom metric usage returned by the backend", async () => {
     vi.mocked(getMe).mockResolvedValue({
       email: "user@example.com",

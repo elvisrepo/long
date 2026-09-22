@@ -1572,14 +1572,6 @@ button {
     transform 160ms ease;
 }
 
-.metric-row-link {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  color: inherit;
-  flex: 1;
-  text-decoration: none;
-}
-
 .metric-row-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1608,11 +1600,36 @@ button {
   font-size: 18px;
 }
 
-.archived-metric-row {
-  margin-top: 10px;
-  border: 1px solid var(--border);
-  background: var(--inset-bg);
-  padding: 14px;
+.metrics-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metrics-cards-grid .metrics-section-header,
+.metrics-cards-grid .metrics-empty,
+.archived-metrics-list.metrics-cards-grid .archived-metrics-header,
+.archived-metrics-list.metrics-cards-grid .metrics-archive-empty {
+  grid-column: 1 / -1;
+}
+
+.metric-catalog-card h2 {
+  overflow-wrap: anywhere;
+}
+
+.metric-catalog-subtitle {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.metric-catalog-card .metric-row-actions {
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.metric-catalog-card-archived {
+  --metric-accent: var(--muted);
 }
 
 .archived-metric-row:hover {
@@ -3250,7 +3267,7 @@ body:has(dialog[open]) {
   scroll-snap-align: start;
 }
 
-.dashboard-metric-rail .metric-card {
+.metric-card {
   --metric-accent: var(--accent);
   min-height: 132px;
   gap: 8px;
@@ -3260,31 +3277,31 @@ body:has(dialog[open]) {
   background: color-mix(in srgb, var(--metric-accent) 14%, var(--surface-high));
 }
 
-.dashboard-metric-rail .metric-card[data-metric="steps"] {
+.metric-card[data-metric="steps"] {
   --metric-accent: #30bfb2;
 }
 
-.dashboard-metric-rail .metric-card[data-metric="sleep_duration"] {
+.metric-card[data-metric="sleep_duration"] {
   --metric-accent: #a77ce4;
 }
 
-.dashboard-metric-rail .metric-card[data-metric="body_weight"] {
+.metric-card[data-metric="body_weight"] {
   --metric-accent: #6a9ee8;
 }
 
-.dashboard-metric-rail .metric-card[data-metric="resting_hr"],
-.dashboard-metric-rail .metric-card[data-metric="hrv"] {
+.metric-card[data-metric="resting_hr"],
+.metric-card[data-metric="hrv"] {
   --metric-accent: #e48793;
 }
 
-.dashboard-metric-rail .metric-card-header {
+.metric-card-header {
   display: flex;
   align-items: center;
   gap: 9px;
   min-width: 0;
 }
 
-.dashboard-metric-rail .metric-card-symbol {
+.metric-card-symbol {
   display: grid;
   flex: 0 0 28px;
   place-items: center;
@@ -3296,18 +3313,18 @@ body:has(dialog[open]) {
   font-weight: 700;
 }
 
-.dashboard-metric-rail .metric-card h2 {
+.metric-card h2 {
   min-width: 0;
   flex: 1;
   font-size: 13px;
   line-height: 1.2;
 }
 
-.dashboard-metric-rail .metric-card-link {
+.metric-card-link {
   align-items: center;
 }
 
-.dashboard-metric-rail .metric-card-link span {
+.metric-card-link span {
   flex: 0 0 auto;
   font-size: 14px;
 }
@@ -3326,7 +3343,7 @@ body:has(dialog[open]) {
   font-size: 11px;
 }
 
-.dashboard-metric-rail .metric-card-footer {
+.metric-card-footer {
   display: flex;
   align-items: end;
   justify-content: space-between;
@@ -3349,7 +3366,7 @@ body:has(dialog[open]) {
   line-height: 1.2;
 }
 
-.dashboard-metric-rail .metric-card-add {
+.metric-card-add {
   display: grid;
   flex: 0 0 30px;
   place-items: center;
@@ -3365,7 +3382,7 @@ body:has(dialog[open]) {
   font-size: 21px;
 }
 
-.dashboard-metric-rail .metric-card-add:hover {
+.metric-card-add:hover {
   background: color-mix(in srgb, var(--metric-accent) 34%, var(--surface-high));
 }
 
@@ -3393,24 +3410,24 @@ body:has(dialog[open]) {
     gap: 10px;
   }
 
-  .dashboard-metric-rail .metric-card {
+  .metric-card {
     min-height: 122px;
     gap: 6px;
     padding: 10px;
     border-radius: 16px;
   }
 
-  .dashboard-metric-rail .metric-card-header {
+  .metric-card-header {
     gap: 6px;
   }
 
-  .dashboard-metric-rail .metric-card-symbol {
+  .metric-card-symbol {
     flex-basis: 25px;
     height: 25px;
     font-size: 15px;
   }
 
-  .dashboard-metric-rail .metric-card h2 {
+  .metric-card h2 {
     font-size: 12px;
   }
 

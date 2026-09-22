@@ -10,6 +10,7 @@ import { type FormEvent, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load";
+import { metricSymbol } from "../features/metrics/metric-symbol";
 import type { MetricDefinition } from "../features/metrics/metric-definitions-api";
 import { useCreateMetricDefinitionMutation } from "../features/metrics/use-create-metric-definition-mutation";
 import { useDeactivateMetricDefinitionMutation } from "../features/metrics/use-deactivate-metric-definition-mutation";
@@ -163,10 +164,7 @@ function MetricsCatalog() {
         </div>
       ) : null}
 
-      <section
-        aria-label="Default metrics"
-        className="metrics-list metrics-default-list"
-      >
+      <section aria-label="Default metrics" className="metrics-cards-grid">
         <div className="metrics-section-header">
           <p className="eyebrow">Built-in</p>
           <h2>Default metrics</h2>
@@ -176,10 +174,7 @@ function MetricsCatalog() {
         ))}
       </section>
 
-      <section
-        aria-label="Custom metrics"
-        className="metrics-list metrics-custom-list"
-      >
+      <section aria-label="Custom metrics" className="metrics-cards-grid">
         <div className="metrics-section-header">
           <p className="eyebrow">Yours</p>
           <h2>Custom metrics</h2>
@@ -198,7 +193,7 @@ function MetricsCatalog() {
         hidden={!showInactive}
         id="archived-metrics"
         aria-label="Archived custom metrics"
-        className="metrics-list archived-metrics-list"
+        className="metrics-list archived-metrics-list metrics-cards-grid"
       >
         <div className="archived-metrics-header">
           <p className="eyebrow">Archived</p>
@@ -276,11 +271,19 @@ function ArchivedMetricDefinitionRow({
   }
 
   return (
-    <article className="metric-list-row archived-metric-row">
-      <div>
+    <article
+      className="metric-card metric-catalog-card metric-catalog-card-archived"
+      data-metric={definition.slug}
+    >
+      <div className="metric-card-header">
+        <span className="metric-card-symbol" aria-hidden="true">
+          {metricSymbol(definition.slug, definition.name)}
+        </span>
         <h2>{definition.name}</h2>
-        <p>{formatMetricSubtitle(definition)}</p>
       </div>
+      <p className="metric-catalog-subtitle">
+        {formatMetricSubtitle(definition)}
+      </p>
 
       <div className="metric-row-actions">
         <span className="metric-status-pill archived-status-pill">
@@ -356,7 +359,7 @@ function MetricDefinitionRow({ definition }: MetricDefinitionRowProps) {
   if (isEditing) {
     return (
       <form
-        className="metric-list-row metric-edit-form"
+        className="metric-card metric-catalog-card metric-edit-form"
         onSubmit={handleSubmit}
       >
         <div className="metric-edit-grid">
@@ -424,41 +427,49 @@ function MetricDefinitionRow({ definition }: MetricDefinitionRowProps) {
 
   return (
     <>
-      <article className="metric-list-row">
-        <Link
-          className="metric-row-link"
-          params={{ slug: definition.slug }}
-          to="/metrics/$slug"
-        >
-          <div>
-            <h2>{definition.name} ›</h2>
-            <p>{formatMetricSubtitle(definition)}</p>
-          </div>
-        </Link>
-
-        <div className="metric-row-actions">
-          {!definition.is_default ? (
-            <>
-              <span className="metric-custom-label">Custom</span>
-              <button
-                aria-label={`Edit ${definition.name}`}
-                className="metric-row-secondary-action"
-                type="button"
-                onClick={() => setIsEditing(true)}
-              >
-                Edit
-              </button>
-              <button
-                aria-label={`Deactivate ${definition.name}`}
-                className="metric-row-secondary-action"
-                type="button"
-                onClick={() => setIsDeactivateDialogOpen(true)}
-              >
-                Deactivate
-              </button>
-            </>
-          ) : null}
+      <article
+        className="metric-card metric-catalog-card"
+        data-metric={definition.slug}
+      >
+        <div className="metric-card-header">
+          <span className="metric-card-symbol" aria-hidden="true">
+            {metricSymbol(definition.slug, definition.name)}
+          </span>
+          <h2>
+            <Link
+              className="metric-card-link"
+              params={{ slug: definition.slug }}
+              to="/metrics/$slug"
+            >
+              {definition.name} <span aria-hidden="true">↗</span>
+            </Link>
+          </h2>
         </div>
+        <p className="metric-catalog-subtitle">
+          {formatMetricSubtitle(definition)}
+        </p>
+
+        {!definition.is_default ? (
+          <div className="metric-row-actions">
+            <span className="metric-custom-label">Custom</span>
+            <button
+              aria-label={`Edit ${definition.name}`}
+              className="metric-row-secondary-action"
+              type="button"
+              onClick={() => setIsEditing(true)}
+            >
+              Edit
+            </button>
+            <button
+              aria-label={`Deactivate ${definition.name}`}
+              className="metric-row-secondary-action"
+              type="button"
+              onClick={() => setIsDeactivateDialogOpen(true)}
+            >
+              Deactivate
+            </button>
+          </div>
+        ) : null}
       </article>
 
       {isDeactivateDialogOpen

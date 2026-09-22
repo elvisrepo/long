@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { MetricEntry } from "./metric-entries-api";
 import { formatMetricValue } from "./metric-entry-formatters";
+import { metricSymbol } from "./metric-symbol";
 
 interface DashboardMetricCardProps {
   latestEntry: MetricEntry | undefined;
@@ -24,7 +25,7 @@ export function DashboardMetricCard({
       <div className="metric-card-header">
         <span className="metric-card-symbol" aria-hidden="true">
           {metricSymbol(slug, name)}
-        </span>
+        </span>{" "}
         <h2>
           <Link
             className="metric-card-link"
@@ -60,19 +61,7 @@ export function DashboardMetricCard({
   );
 }
 
-function metricSymbol(slug: string, name: string) {
-  const symbols: Record<string, string> = {
-    steps: "↗",
-    sleep_duration: "☾",
-    body_weight: "◒",
-    resting_hr: "♡",
-    hrv: "♡",
-    vo2_max: "◌",
-  };
-  return symbols[slug] ?? name.slice(0, 1).toUpperCase();
-}
-
-function MetricSparkline({
+export function MetricSparkline({
   metricName,
   values,
 }: {
