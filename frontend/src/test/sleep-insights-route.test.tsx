@@ -82,7 +82,9 @@ describe("Sleep Insights route", () => {
     ).toBeInTheDocument();
     const averageTile = screen.getByText("Average sleep").closest("article");
     expect(averageTile).not.toBeNull();
-    expect(within(averageTile as HTMLElement).getByText("7h 00m")).toBeInTheDocument();
+    expect(
+      within(averageTile as HTMLElement).getByText("7h 00m"),
+    ).toBeInTheDocument();
     expect(screen.getByText("2 of 3")).toBeInTheDocument();
     expect(screen.getByText(/sep 19 · 6h 00m/i)).toBeInTheDocument();
   });

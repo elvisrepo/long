@@ -21,17 +21,17 @@ describe("sleep duration formatting", () => {
 
 describe("chart axis tick formatting", () => {
   it("trims binary float noise for custom metrics without changing integers", () => {
-    expect(formatChartAxisTick(6.6000000000000005, "personal_score", "score")).toBe(
-      "6.6 score",
-    );
+    expect(
+      formatChartAxisTick(6.6000000000000005, "personal_score", "score"),
+    ).toBe("6.6 score");
     expect(formatChartAxisTick(7, "personal_score", "score")).toBe("7 score");
     expect(formatChartAxisTick(8000, "steps", "steps")).toBe("8000 steps");
   });
 
   it("respects the body weight display precision on axis ticks", () => {
-    expect(
-      formatChartAxisTick(83.5999984741211, "body_weight", "kg"),
-    ).toBe("83.6 kg");
+    expect(formatChartAxisTick(83.5999984741211, "body_weight", "kg")).toBe(
+      "83.6 kg",
+    );
   });
 
   it("keeps sleep duration ticks in hours and minutes", () => {
