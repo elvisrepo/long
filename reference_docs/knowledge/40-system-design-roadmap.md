@@ -1,6 +1,6 @@
 # System Design Roadmap: Local MVP to Production
 
-Current state, bluntly: the project has a working hosted staging value loop. The public HTTPS frontend and API, Stripe test-mode lifecycle, monitored database backup and restore, and Android authentication and Weight/Steps ingestion are deployed. On 2026-09-17 the operator reported that automatic Android sync reaches the hosted backend and the data appears correctly in the frontend. On 2026-09-18 the operator checked sign-in and sync logs and reported no sensitive values; a read-only host check confirmed the running backend image digest and the Xiaomi pilot conditions were recorded. On 2026-09-19 the operator confirmed browser sign-in, session refresh, manual metric write/read and persistence after refresh, and deep-link reload. The owner later confirmed physical Samsung Health Sleep sync and correct frontend display. Weight × Steps, seven-night Sleep Insights with a persisted target, Consistency & Coverage, and authenticated metric-entry CSV export are implemented locally; these newer slices have not been deployed. Retained application logs, failure alerts, more health metrics, account-wide export/deletion, asynchronous server processing, and production hardening remain later work.
+Current state, bluntly: the project has a working hosted staging value loop. The public HTTPS frontend and API, Stripe test-mode lifecycle, monitored database backup and restore, and Android authentication and Weight/Steps ingestion are deployed. On 2026-09-17 the operator reported that automatic Android sync reaches the hosted backend and the data appears correctly in the frontend. On 2026-09-18 the operator checked sign-in and sync logs and reported no sensitive values; a read-only host check confirmed the running backend image digest and the Xiaomi pilot conditions were recorded. On 2026-09-19 the operator confirmed browser sign-in, session refresh, manual metric write/read and persistence after refresh, and deep-link reload. The owner later confirmed physical Samsung Health Sleep sync and correct frontend display. Weight × Steps, seven-night Sleep Insights with a persisted target, Consistency & Coverage, and authenticated metric-entry CSV export are deployed on staging; the owner accepted their authenticated browser journey on 2026-09-22. A redesigned frontend and a new direct-device Android staging APK were released later that day, with public smoke checks complete and authenticated/device acceptance still pending. Retained application logs, failure alerts, more health metrics, account-wide export/deletion, asynchronous server processing, and production hardening remain later work.
 
 ## 1. Local system design — what exists now
 
@@ -389,13 +389,13 @@ password reset as the next bounded account-lifecycle slice
 
 Weight × Steps, seven-night Sleep Insights, the persisted user sleep target,
 Consistency & Coverage, and authenticated metric-entry CSV export are now
-implemented locally. Consistency uses a
+deployed on staging. Consistency uses a
 dedicated Pro-gated backend aggregation rather than the dashboard's bounded
 entry list, and reports factual presence without applying one stale threshold
 to metrics with different expected tracking schedules. CSV export is a
 server-enforced Pro entitlement, streams only caller-owned rows, supports
 metric and local-calendar date controls, and preserves Sleep interval bounds.
-It awaits local browser acceptance before the next slice begins.
+The owner accepted their authenticated staging browser journey on 2026-09-22.
 
 The public staging frontend, API, database, Stripe test webhook, and monitored
 backup/restore jobs are deployed. The operator reports successful automatic

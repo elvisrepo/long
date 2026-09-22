@@ -590,6 +590,27 @@ Sleep target editing, analytics, and Pro CSV export from the requested checklist
 This closes the remaining owner acceptance item for this release; the report is
 operator evidence rather than an independently captured automated browser run.
 
+At 16:06 UTC on 2026-09-22, Codex released the frontend from committed SHA
+`8ee1677910678deea505afa3a89cfaa30e1cf866` and built a new Android staging
+APK from the same tree. The source changes since the prior release contain no
+backend files. A read-only EC2 inspection confirmed the running backend remains
+the previously accepted index digest
+`sha256:ee2d55721c4ce3a2820eba2b336d1ba372193fab72275338b43746ec29e5a318`;
+the API was not replaced and the database was not migrated. Frontend format,
+lint, 306 unit tests, build, and static-upload dry run passed. The uploader
+published immutable assets before the shell. Public root and entry asset
+matched the local build by SHA-256; two SPA deep links returned `200`, liveness
+and readiness returned `200`, an unknown asset returned `403`, and an unknown API
+path returned `404`. The Android `testStagingUnitTest` and `assembleStaging`
+tasks passed with `https://staging.syncvitals.space/` as the API base URL. The
+debug-signed `com.viridiandome.longevity.staging` APK is version code 3,
+version `1.2-staging`, at `android/app/build/outputs/apk/staging/app-staging.apk`;
+its SHA-256 is
+`686afcd5215a84c8dc97a84320665db093f8446d06265fe35eb1945f69ef70fe`.
+It is a direct-device staging artifact, not an update to the separately signed
+`com.viridiandome.longevity.pilot` app. Authenticated browser and physical-device
+acceptance for this new UI/APK are still pending.
+
 #### Watch requests and backend errors on staging
 
 Use the root Session Manager shell on the EC2 host. In one terminal, watch new
