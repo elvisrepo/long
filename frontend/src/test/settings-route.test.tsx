@@ -249,7 +249,7 @@ describe("settings route", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("states the empty billing period quietly instead of a headline", async () => {
+  it("states the empty billing period quietly under the plan name", async () => {
     getMeMock.mockResolvedValue({
       email: "user@example.com",
     });
@@ -261,13 +261,12 @@ describe("settings route", () => {
     expect(
       await screen.findByText(/no paid billing period yet/i),
     ).toBeInTheDocument();
-    const billingPanel = screen
-      .getByText(/no paid billing period yet/i)
-      .closest(".subscription-billing-panel");
-    expect(billingPanel).not.toBeNull();
+    const planHeading = screen.getByRole("heading", { name: /^free$/i });
+    const planBlock = planHeading.closest("div");
+    expect(planBlock).not.toBeNull();
     expect(
-      within(billingPanel as HTMLElement).getByText(/no paid billing period yet/i),
-    ).toHaveClass("subscription-billing-empty");
+      within(planBlock as HTMLElement).getByText(/no paid billing period yet/i),
+    ).toHaveClass("subscription-renewal-empty");
   });
 
   it("redirects to /login when the user is not authenticated", async () => {
@@ -360,7 +359,30 @@ describe("settings route", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders paid subscription billing interval and renewal date", async () => {
+  it("shows a single subscription heading without a redundant eyebrow", async () => {
+    getMeMock.mockResolvedValue({
+      email: "user@example.com",
+    });
+    getCurrentSubscriptionMock.mockResolvedValue(proSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([]);
+
+    renderRoute("/settings");
+
+    const current = await screen.findByRole("region", {
+      name: "Current subscription",
+    });
+    expect(
+      await within(current).findByRole("heading", { name: /^pro$/i }),
+    ).toBeInTheDocument();
+    expect(
+      within(current).getByRole("heading", { name: "Current Plan" }),
+    ).toBeInTheDocument();
+    expect(
+      within(current).queryByText("Current subscription", { exact: true }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders paid subscription price and renewal date without a separate interval tile", async () => {
     getMeMock.mockResolvedValue({
       email: "user@example.com",
     });
@@ -373,7 +395,7 @@ describe("settings route", () => {
       await screen.findByRole("heading", { name: /^pro$/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/\$10\.00 \/ month/i)).toBeInTheDocument();
-    expect(screen.getByText(/monthly/i)).toBeInTheDocument();
+    expect(screen.queryByText("Interval")).not.toBeInTheDocument();
     expect(screen.getByText(/renews aug 2, 2026/i)).toBeInTheDocument();
   });
 

@@ -116,7 +116,6 @@ function SettingsRoute() {
       >
         <div className="subscription-card-header">
           <div>
-            <p className="meta-label">Current subscription</p>
             <h2>Current Plan</h2>
           </div>
           {currentSubscriptionQuery.data ? (
@@ -142,74 +141,58 @@ function SettingsRoute() {
         ) : null}
         {currentSubscriptionQuery.data ? (
           <>
-            <div className="subscription-current-layout">
-              <div>
-                <h3>{currentSubscriptionQuery.data.plan.name}</h3>
-                <div className="subscription-detail-grid">
-                  <div>
-                    <span className="subscription-detail-label">Metrics</span>
-                    <strong>
-                      {
-                        currentSubscriptionQuery.data.plan
-                          .active_custom_metric_limit
-                      }{" "}
-                      custom metrics
-                    </strong>
-                  </div>
-                  <div>
-                    <span className="subscription-detail-label">Sync</span>
-                    <strong>
-                      {formatSyncPolicy(currentSubscriptionQuery.data.plan)}
-                    </strong>
-                  </div>
-                  {currentSubscriptionQuery.data.price ? (
-                    <div>
-                      <span className="subscription-detail-label">Price</span>
-                      <strong>
-                        {formatSubscriptionPrice(
-                          currentSubscriptionQuery.data.price.unit_amount,
-                          currentSubscriptionQuery.data.price.currency,
-                        )}{" "}
-                        / {currentSubscriptionQuery.data.price.billing_interval}
-                      </strong>
-                    </div>
-                  ) : null}
-                  {currentSubscriptionQuery.data.price ? (
-                    <div>
-                      <span className="subscription-detail-label">
-                        Interval
-                      </span>
-                      <strong>
-                        {formatBillingInterval(
-                          currentSubscriptionQuery.data.price.billing_interval,
-                        )}
-                      </strong>
-                    </div>
-                  ) : null}
+            <div>
+              <h3>{currentSubscriptionQuery.data.plan.name}</h3>
+              {currentSubscriptionQuery.data.cancel_at ? (
+                <p className="subscription-renewal">
+                  Cancels{" "}
+                  {formatSubscriptionDate(
+                    currentSubscriptionQuery.data.cancel_at,
+                  )}
+                </p>
+              ) : currentSubscriptionQuery.data.current_period_end ? (
+                <p className="subscription-renewal">
+                  Renews{" "}
+                  {formatSubscriptionDate(
+                    currentSubscriptionQuery.data.current_period_end,
+                  )}
+                </p>
+              ) : (
+                <p className="subscription-renewal subscription-renewal-empty">
+                  No paid billing period yet.
+                </p>
+              )}
+              <div className="subscription-detail-grid">
+                <div>
+                  <span className="subscription-detail-label">Metrics</span>
+                  <strong>
+                    {
+                      currentSubscriptionQuery.data.plan
+                        .active_custom_metric_limit
+                    }{" "}
+                    custom metrics
+                  </strong>
                 </div>
-                <PlanCapabilityList plan={currentSubscriptionQuery.data.plan} />
+                <div>
+                  <span className="subscription-detail-label">Sync</span>
+                  <strong>
+                    {formatSyncPolicy(currentSubscriptionQuery.data.plan)}
+                  </strong>
+                </div>
+                {currentSubscriptionQuery.data.price ? (
+                  <div className="subscription-detail-wide">
+                    <span className="subscription-detail-label">Price</span>
+                    <strong>
+                      {formatSubscriptionPrice(
+                        currentSubscriptionQuery.data.price.unit_amount,
+                        currentSubscriptionQuery.data.price.currency,
+                      )}{" "}
+                      / {currentSubscriptionQuery.data.price.billing_interval}
+                    </strong>
+                  </div>
+                ) : null}
               </div>
-              <div className="subscription-billing-panel">
-                {currentSubscriptionQuery.data.cancel_at ? (
-                  <p>
-                    Cancels{" "}
-                    {formatSubscriptionDate(
-                      currentSubscriptionQuery.data.cancel_at,
-                    )}
-                  </p>
-                ) : currentSubscriptionQuery.data.current_period_end ? (
-                  <p>
-                    Renews{" "}
-                    {formatSubscriptionDate(
-                      currentSubscriptionQuery.data.current_period_end,
-                    )}
-                  </p>
-                ) : (
-                  <p className="subscription-billing-empty">
-                    No paid billing period yet.
-                  </p>
-                )}
-              </div>
+              <PlanCapabilityList plan={currentSubscriptionQuery.data.plan} />
             </div>
             {currentSubscriptionQuery.data.billing_portal_available ? (
               <button
@@ -354,18 +337,6 @@ function formatSubscriptionPrice(unitAmount: number, currency: string) {
     style: "currency",
     currency,
   }).format(unitAmount / 100);
-}
-
-function formatBillingInterval(interval: string) {
-  if (interval === "month") {
-    return "Monthly";
-  }
-
-  if (interval === "year") {
-    return "Yearly";
-  }
-
-  return interval;
 }
 
 function formatSubscriptionDate(value: string) {

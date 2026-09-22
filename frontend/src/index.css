@@ -612,14 +612,6 @@ button {
   height: 50px;
 }
 
-.subscription-current-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(210px, 0.42fr);
-  gap: 18px;
-  align-items: stretch;
-}
-
-.subscription-current-layout h3,
 .subscription-plan-card h3 {
   font-family: var(--font-sans);
   font-size: 22px;
@@ -635,7 +627,6 @@ button {
 }
 
 .subscription-detail-grid div,
-.subscription-billing-panel,
 .subscription-help-text,
 .subscription-plan-card {
   border: 1px solid var(--border);
@@ -645,6 +636,10 @@ button {
 
 .subscription-detail-grid div {
   padding: 14px;
+}
+
+.subscription-detail-grid .subscription-detail-wide {
+  grid-column: 1 / -1;
 }
 
 .subscription-detail-label {
@@ -684,27 +679,14 @@ button {
   text-transform: uppercase;
 }
 
-.subscription-billing-panel {
-  display: grid;
-  align-content: center;
-  min-height: 100%;
-  padding: 18px;
-}
-
-.subscription-billing-panel p {
-  color: var(--accent);
-  font-family: var(--font-heading);
-  font-size: 22px;
-  font-weight: 650;
-  letter-spacing: -0.03em;
-}
-
-.subscription-billing-panel .subscription-billing-empty {
+.subscription-renewal {
+  margin: 6px 0 0;
   color: var(--text-dim);
-  font-family: var(--font-sans);
   font-size: 14px;
-  font-weight: 400;
-  letter-spacing: normal;
+}
+
+.subscription-renewal-empty {
+  font-style: italic;
 }
 
 .subscription-primary-action,
@@ -2499,17 +2481,8 @@ button {
     font-size: 22px;
   }
 
-  .subscription-current-layout,
   .subscription-detail-grid {
     grid-template-columns: 1fr;
-  }
-
-  .subscription-billing-panel {
-    min-height: auto;
-  }
-
-  .subscription-billing-panel p {
-    font-size: 20px;
   }
 
   .subscription-price-list li {
