@@ -6,10 +6,11 @@
 ## Source
 - Derived from `reference_docs/knowledge/planning.md` section 5.
 
-### Light and dark appearance (September 21, 2026)
+### Dark, Light and Sand appearance (September 21, 2026)
 
-- The shared header has a Light/Dark action; Login/Register expose the same
-  switch above their forms. Dark remains the default when no valid choice exists.
+- The shared header has a compact theme selector with Dark, Light and Sand;
+  Login/Register expose the same selector above their forms. Dark remains the
+  default when no valid choice exists.
 - `public/theme-init.js` applies `localStorage['longevity-theme']` to the root
   `data-theme` before React renders. It is a same-origin external script, so no
   inline-script CSP exception is needed. Keep it in the frontend build upload.
@@ -22,7 +23,10 @@
   Canvas charts read those variables through `chart-palette.ts` and redraw on
   theme changes, including axes, legends and tooltips.
 - Light uses soft gray backgrounds, white cards, dark text and deeper green
-  controls. Both themes retain the shared responsive layout. Local only.
+  controls. Sand is a softer alternative requested because Light felt too bright:
+  beige backgrounds, oatmeal surfaces, dark brown text and brown controls, with
+  earthy green and muted blue charts. Sand has no bright white card surfaces.
+  All three themes retain the shared responsive layout. Local only.
 
 ### Shared responsive layout (September 21, 2026)
 

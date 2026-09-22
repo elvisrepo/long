@@ -7,10 +7,12 @@
 
 ## Implemented local UI refinement — 2026-09-21
 
-Both dark and light themes are implemented locally. A Light/Dark action is
+Dark, Light and Sand themes are implemented locally. A three-option selector is
 available in the application header and above authentication forms. Dark is the
 default; the browser remembers the choice. Light uses soft gray page backgrounds,
-white surfaces, dark text and deeper green accents. Use shared CSS color variables
+white surfaces, dark text and deeper green accents. Sand is deliberately less
+bright, with beige backgrounds, oatmeal surfaces and warm brown text/controls.
+Use shared CSS color variables
 for new UI; canvas charts must resolve the current palette and redraw on switches.
 
 Layout follows one fluid shell across Dashboard, Metrics, metric details,

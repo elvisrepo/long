@@ -93,13 +93,50 @@
   --sparkline-fill: rgba(54, 126, 112, 0.08);
 }
 
+:root[data-theme="sand"] {
+  color-scheme: light;
+  --bg: #e4dbcc;
+  --surface: #ded3c2;
+  --surface-high: #efe7da;
+  --border: #c2b4a1;
+  --accent: #795634;
+  --accent-dim: rgba(121, 86, 52, 0.09);
+  --accent-glow: rgba(121, 86, 52, 0.18);
+  --warn: #9e3e2e;
+  --blue: #4f6986;
+  --muted: #6f6051;
+  --text: #372f27;
+  --text-dim: #685949;
+  --text-faint: #c2b4a1;
+  --chart-line: #416958;
+  --chart-fill: rgba(65, 105, 88, 0.12);
+  --chart-line-dim: rgba(65, 105, 88, 0.55);
+  --chart-blue: #4f6986;
+  --chart-blue-fill: rgba(79, 105, 134, 0.38);
+  --chart-grid: rgba(104, 89, 73, 0.14);
+  --chart-axis: rgba(104, 89, 73, 0.35);
+  --chart-bg: #efe7da;
+  --header-bg: rgba(228, 219, 204, 0.95);
+  --panel-bg: #efe7da;
+  --auth-bg: #efe7da;
+  --list-bg: #efe7da;
+  --inset-bg: #e4dbcc;
+  --dialog-bg: #efe7da;
+  --panel-shadow: 0 16px 48px rgba(55, 47, 39, 0.07);
+  --dialog-shadow: 0 24px 80px rgba(55, 47, 39, 0.23);
+  --text-on-accent: #fff8ed;
+  --text-on-warn: #fff8ed;
+  --skeleton-low: rgba(104, 89, 73, 0.06);
+  --skeleton-high: rgba(104, 89, 73, 0.14);
+  --sparkline: #52715d;
+  --sparkline-fill: rgba(82, 113, 93, 0.1);
+}
+
 .theme-toggle {
   order: 3;
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+  width: auto;
+  cursor: pointer;
   min-height: 44px;
   padding: 8px 12px;
   border: 1px solid var(--border);
@@ -2331,7 +2368,8 @@ button {
   }
 
   .app-header-inner {
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
   }
 
   .app-navigation,

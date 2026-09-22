@@ -10,16 +10,17 @@ afterEach(() => {
   localStorage.clear();
 });
 
-it("supports keyboard switching and saves the preference", async () => {
+it("offers three themes and saves the selected preference", async () => {
   const user = userEvent.setup();
   render(<ThemeToggle />);
   await user.tab();
-  await user.keyboard("{Enter}");
-  expect(
-    screen.getByRole("button", { name: "Switch to dark theme" }),
-  ).toHaveFocus();
-  expect(document.documentElement).toHaveAttribute("data-theme", "light");
-  expect(localStorage.getItem("longevity-theme")).toBe("light");
+  const selector = screen.getByRole("combobox", { name: "Color theme" });
+  expect(selector).toHaveFocus();
+  for (const theme of ["sand", "light", "dark"]) {
+    await user.selectOptions(selector, theme);
+    expect(document.documentElement).toHaveAttribute("data-theme", theme);
+    expect(localStorage.getItem("longevity-theme")).toBe(theme);
+  }
 });
 
 it("still switches when storage is blocked", async () => {
@@ -27,10 +28,11 @@ it("still switches when storage is blocked", async () => {
     throw new DOMException("Storage disabled", "SecurityError");
   });
   render(<ThemeToggle />);
-  await userEvent.click(
-    screen.getByRole("button", { name: "Switch to light theme" }),
+  await userEvent.selectOptions(
+    screen.getByRole("combobox", { name: "Color theme" }),
+    "sand",
   );
-  expect(document.documentElement).toHaveAttribute("data-theme", "light");
+  expect(document.documentElement).toHaveAttribute("data-theme", "sand");
 });
 
 it("reflects a preference changed or cleared in another tab", () => {
@@ -39,15 +41,15 @@ it("reflects a preference changed or cleared in another tab", () => {
     window.dispatchEvent(
       new StorageEvent("storage", {
         key: "longevity-theme",
-        newValue: "light",
+        newValue: "sand",
       }),
     ),
   );
-  expect(
-    screen.getByRole("button", { name: "Switch to dark theme" }),
-  ).toBeInTheDocument();
+  expect(screen.getByRole("combobox", { name: "Color theme" })).toHaveValue(
+    "sand",
+  );
   act(() => window.dispatchEvent(new StorageEvent("storage", { key: null })));
-  expect(
-    screen.getByRole("button", { name: "Switch to light theme" }),
-  ).toBeInTheDocument();
+  expect(screen.getByRole("combobox", { name: "Color theme" })).toHaveValue(
+    "dark",
+  );
 });

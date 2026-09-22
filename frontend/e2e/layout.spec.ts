@@ -176,22 +176,27 @@ test("theme switch persists across pages and reloads, including authentication",
 }) => {
   await page.goto("/");
   const root = page.locator("html");
-  await page.getByRole("button", { name: "Switch to light theme" }).click();
+  const selector = page.getByRole("combobox", { name: "Color theme" });
+  await selector.selectOption("light");
   await expect(root).toHaveAttribute("data-theme", "light");
   await expect(page.locator("body")).toHaveCSS(
     "background-color",
     "rgb(245, 247, 248)",
   );
+  await selector.selectOption("sand");
+  await expect(root).toHaveAttribute("data-theme", "sand");
+  await expect(page.locator("body")).toHaveCSS(
+    "background-color",
+    "rgb(228, 219, 204)",
+  );
   await page.reload();
-  await expect(root).toHaveAttribute("data-theme", "light");
+  await expect(root).toHaveAttribute("data-theme", "sand");
   for (const path of ["/metrics", "/settings", "/login", "/register"]) {
     await page.goto(path);
-    await expect(
-      page.getByRole("button", { name: "Switch to dark theme" }),
-    ).toBeVisible();
-    await expect(root).toHaveAttribute("data-theme", "light");
+    await expect(selector).toHaveValue("sand");
+    await expect(root).toHaveAttribute("data-theme", "sand");
   }
-  await page.getByRole("button", { name: "Switch to dark theme" }).click();
+  await selector.selectOption("dark");
   await expect(root).toHaveAttribute("data-theme", "dark");
   await expect(page.locator("body")).toHaveCSS(
     "background-color",
@@ -211,8 +216,10 @@ test("theme remains usable when browser storage is unavailable", async ({
   });
   await page.goto("/login");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await page.getByRole("button", { name: "Switch to light theme" }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page
+    .getByRole("combobox", { name: "Color theme" })
+    .selectOption("sand");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "sand");
 });
 
 const views = [
@@ -233,6 +240,7 @@ const layoutCases = [
     theme: "dark",
   })),
   ...[320, 768, 1440].map((width) => ({ width, theme: "light" })),
+  ...[320, 768, 1440].map((width) => ({ width, theme: "sand" })),
 ];
 for (const { width, theme } of layoutCases) {
   test(`${theme} signed-in pages share responsive alignment at ${width}px`, async ({
@@ -251,6 +259,16 @@ for (const { width, theme } of layoutCases) {
         page.getByRole("heading", { name: title, exact: true }),
       ).toBeVisible();
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+      if (width <= 680) {
+        const logo = await page.locator(".app-logo").boundingBox();
+        const selector = await page
+          .getByRole("combobox", { name: "Color theme" })
+          .boundingBox();
+        expect(
+          selector!.y + selector!.height / 2,
+          "Logo and theme share the top row",
+        ).toBeCloseTo(logo!.y + logo!.height / 2, 0);
+      }
       // Wait for async content, including charts and Settings cards.
       if (path === "/settings")
         await expect(
@@ -296,7 +314,7 @@ for (const { width, theme } of layoutCases) {
       }
       titleSize ??= bounds.titleSize;
       expect(bounds.titleSize, path).toBe(titleSize);
-      if ([390, 768, 1440].includes(width) || theme === "light") {
+      if ([390, 768, 1440].includes(width) || theme !== "dark") {
         await page.screenshot({
           path: testInfo.outputPath(
             `${path.replaceAll("/", "_") || "dashboard"}.png`,
@@ -311,6 +329,7 @@ for (const { width, theme } of layoutCases) {
 for (const { width, theme } of [
   ...[320, 768, 1440].map((width) => ({ width, theme: "dark" })),
   ...[320, 1440].map((width) => ({ width, theme: "light" })),
+  ...[320, 1440].map((width) => ({ width, theme: "sand" })),
 ]) {
   test(`${theme} auth pages and dialogs fit the viewport at ${width}px`, async ({
     page,
@@ -327,7 +346,7 @@ for (const { width, theme } of [
       const bounds = await panel.boundingBox();
       expect(bounds!.width).toBeLessThanOrEqual(440);
       expect(bounds!.x * 2 + bounds!.width).toBeCloseTo(width, 0);
-      if (theme === "light")
+      if (theme !== "dark")
         await page.screenshot({
           path: testInfo.outputPath(`${path.slice(1)}.png`),
           fullPage: true,
@@ -352,10 +371,10 @@ for (const { width, theme } of [
       expect(
         await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth),
       ).toBe(true);
-      if (theme === "light") {
+      if (theme !== "dark") {
         await expect(dialog).toHaveCSS(
           "background-color",
-          "rgb(255, 255, 255)",
+          theme === "sand" ? "rgb(239, 231, 218)" : "rgb(255, 255, 255)",
         );
         await page.screenshot({
           path: testInfo.outputPath(`${action.replaceAll(" ", "_")}.png`),
