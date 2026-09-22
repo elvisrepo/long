@@ -584,6 +584,11 @@ Recent API logs had zero error lines, and temporary ECR credentials were removed
 No CloudFront invalidation was needed. An authenticated browser journey after
 this release still needs owner acceptance; public and no-session checks do not
 prove it. See EC2-031 in the host change log for the exact host mutation.
+At 02:36 UTC on 2026-09-22, the owner reported that the post-release browser
+checks all worked, confirming the signed-in staging journey, theme switching,
+Sleep target editing, analytics, and Pro CSV export from the requested checklist.
+This closes the remaining owner acceptance item for this release; the report is
+operator evidence rather than an independently captured automated browser run.
 
 #### Watch requests and backend errors on staging
 

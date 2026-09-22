@@ -1120,6 +1120,12 @@ unless the operator explicitly changes this convention.
   journeys require owner acceptance after this release.
 - Status: deployment and unauthenticated smoke checks complete.
 
+Follow-up, 2026-09-22 at 02:36 UTC: the owner reported that all requested
+post-release browser checks worked, including sign-in, theme switching, Sleep
+target editing, analytics, and Pro CSV export. The authenticated acceptance
+item is closed by owner report; no separate automated browser evidence was
+captured.
+
 ## Current Known Host-Software State
 
 | Component | State | Evidence |
