@@ -560,6 +560,31 @@ The safe frontend uploader published the matching hashed build with
 API health, backend derivation, logs, origin isolation, and credential cleanup
 passed. No migration or CloudFront invalidation was needed.
 
+On 2026-09-22 at 02:32 UTC, the owner authorized the combined staging release.
+Codex deployed tested commit `401a1a57db813ce733740da94dbcd27e175409f1`:
+backend image index `sha256:ee2d55721c4ce3a2820eba2b336d1ba372193fab72275338b43746ec29e5a318`,
+with the previous compatible image `sha256:f9aa0fd3155e7baf227225774f0d9350a691ad7f31f17968b0686b067c9285ef`
+retained for rollback. The ARM64 ECR scan found zero critical issues, the same
+previously accepted high zlib `CVE-2026-85091`, and the same undefined-severity
+Perl `CVE-2026-82560`; this acceptance is still limited to demo/test-data
+staging. The guarded release applied additive migrations
+`subscriptions.0015_subscription_plan_csv_export` and
+`users.0003_user_sleep_target_minutes`, then replaced the API and reached
+healthy readiness. Focused backend tests passed 42/42, the full host suite
+passed 462/462, backend Ruff and mypy passed, and frontend tests passed 274/274
+with lint, format check, and build passing. The frontend uploader published
+`assets/index-Bc6JJHMx.js`, `assets/routes-6ReQ9JIm.js`,
+`assets/metrics._slug-zCzOd_-3.js`, `assets/settings-CWvcRt6L.js`, and
+`theme-init.js`. Public root and Sleep deep link matched the built shell by
+SHA-256; the entry chunk and theme script also matched. Public liveness and
+readiness returned `200`, new protected routes returned `401` without a session,
+unknown assets returned `403` rather than the app shell, local readiness returned
+`200`, and origin access without the CloudFront secret header returned `403`.
+Recent API logs had zero error lines, and temporary ECR credentials were removed.
+No CloudFront invalidation was needed. An authenticated browser journey after
+this release still needs owner acceptance; public and no-session checks do not
+prove it. See EC2-031 in the host change log for the exact host mutation.
+
 #### Watch requests and backend errors on staging
 
 Use the root Session Manager shell on the EC2 host. In one terminal, watch new

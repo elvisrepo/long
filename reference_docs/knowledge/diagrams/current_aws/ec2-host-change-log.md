@@ -1073,6 +1073,53 @@ unless the operator explicitly changes this convention.
   change.
 - Status: complete.
 
+### EC2-031 — Analytics, CSV export, and theme release
+
+- Date: 2026-09-22, approximately 02:28 UTC.
+- Performed by: Codex through AWS CLI and Systems Manager Run Command under the
+  owner's explicit authorization to execute the staging deployment. This
+  authorization permitted assistant-run host mutations for this release despite
+  the older manual operator convention above.
+- Execution path: SSM command `f22b3fd0-29a3-47ea-a693-723f6d0c20cb` ran the
+  existing guarded loader and deployment script from
+  `/opt/syncvitals/deployment` with the staging secret identifier and immutable
+  backend image index. No host package, Nginx configuration, deployment bundle,
+  or persistent database mount changed.
+- Intent: release the locally accepted analytics, editable Sleep target, Pro
+  CSV export, and matching frontend including three themes.
+- Source commit: `401a1a57db813ce733740da94dbcd27e175409f1`.
+- Pre-change image:
+  `173291122778.dkr.ecr.eu-central-1.amazonaws.com/syncvitals/staging/backend@sha256:f9aa0fd3155e7baf227225774f0d9350a691ad7f31f17968b0686b067c9285ef`.
+- New image:
+  `173291122778.dkr.ecr.eu-central-1.amazonaws.com/syncvitals/staging/backend@sha256:ee2d55721c4ce3a2820eba2b336d1ba372193fab72275338b43746ec29e5a318`.
+- Image review: the Linux/ARM64 child scan completed with zero critical, one
+  high (`CVE-2026-85091` in zlib), and one undefined-severity finding
+  (`CVE-2026-82560` in Perl). These are the two previously accepted findings
+  for demo/test-data staging only.
+- Commands/actions: authenticated Docker to ECR with the instance role; exported
+  the exact digest-qualified `BACKEND_IMAGE`; invoked
+  `python3 -m scripts.staging_runtime --secret-id longevity/staging/backend-runtime --region eu-central-1 -- python3 -m scripts.production_deployment --compose-file docker-compose.staging.yml --project-name syncvitals-staging`;
+  logged out from ECR via an exit trap.
+- Database change: additive `subscriptions.0015_subscription_plan_csv_export`
+  and `users.0003_user_sleep_target_minutes` migrations applied successfully.
+- Verification: SSM command `99fb33ae-e3f4-40aa-bfc0-62b45bde9487` found
+  only the expected API and PostgreSQL containers, both healthy. Local readiness
+  with the HTTPS forwarded header returned `200`; Nginx returned `403` without
+  the origin secret header. Recent API logs contained zero `Traceback`, `ERROR`,
+  or `CRITICAL` lines. The root Docker config had no ECR authorization. Public
+  liveness/readiness returned `200`, and protected new endpoints returned `401`
+  without authentication. An initial local readiness probe omitted the forwarded
+  HTTPS header and got the expected `301`; the corrected probe returned `200`.
+- Frontend: the safe uploader published the matching tested build to the
+  versioned staging bucket. The public app shell, theme script, and new entry
+  chunk matched local SHA-256; the Sleep deep link served the same shell.
+- Recovery or rollback: the previous frontend build can be restored from Git
+  commit `e932f84776c28a50239bec092ce54b451bc11b15`; the previous backend
+  image digest above is retained. The additive migrations are not automatically
+  reversed during image rollback. Browser sign-in and the new authenticated
+  journeys require owner acceptance after this release.
+- Status: deployment and unauthenticated smoke checks complete.
+
 ## Current Known Host-Software State
 
 | Component | State | Evidence |
@@ -1083,7 +1130,7 @@ unless the operator explicitly changes this convention.
 | Certbot and Route 53 DNS plugin | Origin certificate issued; renewal dry-run and Nginx deploy hook passed | EC2-010, EC2-015, and EC2-016 |
 | CloudWatch Agent | Installed and configured through console; memory and root-disk metric delivery verified | EC2-012 console status and graphs; installed version and boot enablement not yet inspected |
 | AWS CLI | Version-pinned native ARM64 v2 installed and signature-verified | EC2-019 |
-| PostgreSQL and Django | Healthy containers; EBS persistence, loopback-only API, and final Sleep ingestion image verified | EC2-020 and EC2-029 |
+| PostgreSQL and Django | Healthy containers; EBS persistence, loopback-only API, and image index `sha256:ee2d55721c4ce3a2820eba2b336d1ba372193fab72275338b43746ec29e5a318` verified | EC2-020 and EC2-031 |
 | Nginx origin proxy | TLS, root-only CloudFront header guard, and loopback proxy verified | EC2-021 |
 | Exact EC2-002 APT transaction | Reconciled | `/var/log/apt/history.log` |
 | Nginx | Not installed at the initial host inspection | Earlier SSM inspection |
