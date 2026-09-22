@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Longevity Frontend — UI/UX Review (2026-09-22)</title>
+<style>
+  :root {
+    --bg: #0d1115; --surface: #12181d; --surface-high: #181f25;
+    --border: #2b343d; --accent: #49d9af; --warn: #ff6b4a;
+    --text: #e2e8f0; --text-dim: #a0adba; --muted: #97a5b4;
+    --pill: rgba(73, 217, 175, 0.12); --maxw: 70rem;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: "DM Sans", "Aptos", "Segoe UI", system-ui, sans-serif;
+    line-height: 1.55; font-size: 16px;
+  }
+  .wrap { width: min(var(--maxw), 100%); margin: 0 auto; padding: 1rem clamp(1rem, 2.5vw, 1.5rem) 4rem; }
+  header.hero { border-bottom: 1px solid var(--border); padding: 2rem 0 1.5rem; }
+  .eyebrow { font-family: ui-monospace, Consolas, monospace; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin: 0 0 .5rem; }
+  h1 { font-size: clamp(2rem, 4vw, 3.125rem); margin: 0 0 .5rem; letter-spacing: -.02em; }
+  h2 { font-size: 1.4rem; margin: 2.5rem 0 .75rem; }
+  h3 { font-size: 1.05rem; margin: 1.5rem 0 .5rem; }
+  p, li { color: var(--text); }
+  .dim { color: var(--text-dim); }
+  code, .mono { font-family: ui-monospace, "DM Mono", Consolas, monospace; font-size: .85em; }
+  code { background: var(--surface-high); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; overflow-wrap: anywhere; }
+  .verdict { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: .75rem; margin: 1.5rem 0; }
+  .verdict article { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1rem 1.1rem; min-width: 0; }
+  .verdict .n { font-size: 2rem; font-weight: 700; line-height: 1; }
+  .sev-high { color: var(--warn); } .sev-med { color: #f5b04c; } .sev-low { color: var(--accent); }
+  .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 14px; }
+  table { border-collapse: collapse; width: 100%; min-width: 44rem; font-size: .92rem; }
+  th, td { text-align: left; padding: .65rem .8rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-family: ui-monospace, Consolas, monospace; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); }
+  tr:last-child td { border-bottom: none; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .78rem; font-family: ui-monospace, Consolas, monospace; border: 1px solid var(--border); white-space: nowrap; }
+  .pill.high { background: rgba(255,107,74,.12); color: var(--warn); border-color: rgba(255,107,74,.35); }
+  .pill.med { background: rgba(245,176,76,.1); color: #f5b04c; border-color: rgba(245,176,76,.35); }
+  .pill.low { background: var(--pill); color: var(--accent); border-color: rgba(73,217,175,.35); }
+  .pill.ok { background: var(--pill); color: var(--accent); border-color: rgba(73,217,175,.35); }
+  figure.shot { margin: 1rem 0 2rem; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: .9rem; min-width: 0; }
+  figure.shot img { width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--border); display: block; }
+  figure.shot figcaption { color: var(--text-dim); font-size: .88rem; margin-top: .6rem; }
+  .duo { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 1rem; }
+  .duo figure { margin: 0; }
+  .callout { border-left: 3px solid var(--accent); background: var(--surface); padding: .8rem 1rem; border-radius: 0 12px 12px 0; margin: 1rem 0; }
+  .callout.warn { border-color: var(--warn); }
+  ol.actions li { margin-bottom: .5rem; }
+  form.triage { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem 1.2rem; margin: 1rem 0; }
+  form.triage fieldset { border: none; padding: 0; margin: 0 0 1rem; min-width: 0; }
+  form.triage legend { font-weight: 700; margin-bottom: .5rem; }
+  form.triage label { display: flex; gap: .6rem; align-items: flex-start; padding: .35rem 0; cursor: pointer; }
+  form.triage button, .btn { background: var(--accent); color: #00150f; border: none; border-radius: 10px; padding: .6rem 1.1rem; font-weight: 700; font-size: .95rem; cursor: pointer; }
+  form.triage button:hover { filter: brightness(1.08); }
+  .queued-note { color: var(--accent); font-size: .9rem; min-height: 1.4em; }
+  footer { color: var(--muted); font-size: .85rem; margin-top: 3rem; border-top: 1px solid var(--border); padding-top: 1rem; }
+  @media (max-width: 680px) { body { font-size: 15px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <p class="eyebrow">Longevity Health Tracker · Frontend UI/UX review</p>
+    <h1>What the product looks like today, and what to fix first</h1>
+    <p class="dim">Captured 2026-09-22 · 11 routes × dark / light / sand × desktop 1440px / mobile 390px = 66 mocked-API screenshots.
+    Method: live code audit + Playwright captures against the dev server (no backend writes) + existing layout-suite results.
+    Annotate anything in this page or answer the triage forms at the bottom to queue follow-up work.</p>
+  </header>
+
+  <section>
+    <h2>1 · Product in one minute</h2>
+    <p><strong>Longevity</strong> is a sellable health-tracking product for health-conscious 25–45 year-olds and quantified-self users:
+    log metrics manually, sync Samsung Health via an Android companion app (Samsung Health → Health Connect → app → backend),
+    and read long-term trends on a premium dark-mode dashboard. Non-negotiables: write consistency (PostgreSQL ACID),
+    zero data loss, OWASP coverage, GDPR export/delete, &lt;200ms p95 analytics reads.</p>
+    <h3>Information architecture (all routes, all protected except auth)</h3>
+    <div class="table-scroll"><table>
+      <tr><th>Route</th><th>View</th><th>Job of the page</th><th>Entry points</th></tr>
+      <tr><td class="mono">/login · /register</td><td>Auth (public)</td><td>Sign in / create account; focused 440px card, theme switcher above the form</td><td>Logged-out nav, post-register redirect, expired-session redirect</td></tr>
+      <tr><td class="mono">/</td><td>Dashboard</td><td>Metric rail (Sleep, Steps, Weight first), Pro Insights, Recent Entries + filter</td><td>Logo, post-login landing, 404 fallback link</td></tr>
+      <tr><td class="mono">/metrics</td><td>Metrics catalog</td><td>Active definitions, custom create / edit / deactivate / reactivate, archived section</td><td>Header nav, dashboard card links</td></tr>
+      <tr><td class="mono">/metrics/$slug</td><td>Metric detail</td><td>Summary, Chart.js daily trend + Oldest/Latest/Delta, full entry history with edit/delete, Add entry</td><td>Catalog rows, dashboard cards, consistency day-cells (?date= deep links)</td></tr>
+      <tr><td class="mono">/analytics/sleep</td><td>Sleep Insights (Pro)</td><td>7-night bars, shortfall estimate, adjustable + saved nightly target</td><td>Pro Insights, Sleep detail page</td></tr>
+      <tr><td class="mono">/analytics/weight-steps</td><td>Weight × Steps (Pro)</td><td>Dual-axis overlay (steps bars + weight points + 7-day average), 7/30/90d</td><td>Pro Insights, Weight/Steps detail pages</td></tr>
+      <tr><td class="mono">/analytics/consistency</td><td>Consistency (Pro)</td><td>7-day UTC presence grid per metric, Needs-attention gaps, date deep links</td><td>Pro Insights</td></tr>
+      <tr><td class="mono">/settings</td><td>Settings</td><td>Current plan + capabilities, Stripe Checkout / Customer Portal, CSV export dialog, account email</td><td>Header nav, Free-user “View plans” links</td></tr>
+      <tr><td class="mono">/not-found</td><td>Page not found</td><td>Shared-shell 404 with “Back to dashboard”</td><td>Any unknown URL</td></tr>
+    </table></div>
+    <p class="dim">Shared shell (<code>src/routes/__root.tsx</code>): sticky blurred header, 70rem max width, Dark/Light/Sand selector,
+    Dashboard / Metrics / Settings nav, user-initial chip, Logout. Free users never see Pro links; Django returns 403 independently.</p>
+  </section>
+
+  <section>
+    <h2>2 · Verdict</h2>
+    <div class="verdict">
+      <article><div class="n sev-high">2</div><p><strong>High</strong> — user-visible bugs worth a correctness slice (raw slugs, float axis labels).</p></article>
+      <article><div class="n sev-med">5</div><p><strong>Medium</strong> — polish / empty-state / rhythm issues, incl. the 13 failing layout tests.</p></article>
+      <article><div class="n sev-low">4</div><p><strong>Low / Info</strong> — doc drift, micro-copy, plus corrected H1 (devtools are prod-gated by the library itself).</p></article>
+      <article><div class="n sev-low">✓</div><p><strong>Solid</strong> — theme engine, dialog a11y, skeletons + reduced-motion, UTC discipline, Pro gating.</p></article>
+    </div>
+  </section>
+
+  <section>
+    <h2>3 · Findings (annotate any row to discuss it)</h2>
+    <div class="table-scroll"><table>
+      <tr><th>Sev</th><th>View</th><th>Finding</th><th>Evidence</th></tr>
+      <tr><td><span class="pill low">INFO</span></td><td>All pages (local dev only)</td>
+        <td><strong>H1 · Router devtools — corrected: NOT a production leak.</strong> Review of the installed
+        <code>@tanstack/react-router-devtools</code> shows <code>process.env.NODE_ENV !== "development" ? () =&gt; null</code> —
+        production/staging builds render nothing, as you noted. It only overlays local dev-server screens (and covered the Consistency link
+        in mobile captures). Optional: gate explicitly in <code>__root.tsx:47</code> for cleaner local review screenshots; otherwise no action.</td>
+        <td>node_modules/@tanstack/react-router-devtools/dist/esm/index.js:5; dashboard-dark-mobile.png (dev-only badge)</td></tr>
+      <tr><td><span class="pill high">HIGH</span></td><td>Weight × Steps</td>
+        <td><strong>H2 · Breadcrumb leaks raw slugs.</strong> Shows <code>body_weight × steps</code> instead of “Body Weight × Steps”. Every other breadcrumb uses human names.</td>
+        <td>analytics-weight-steps-dark-desktop.png</td></tr>
+      <tr><td><span class="pill high">HIGH</span></td><td>Metric detail (custom)</td>
+        <td><strong>H3 · Y-axis float artifacts.</strong> A single score of 7 renders ticks <code>7.200000000000001 / 7.000000000000001 / 6.800000000000001…</code>. The known follow-up in <code>20-frontend-development.md</code> is confirmed live. Only body_weight is normalized; unknown/custom metrics are not.</td>
+        <td>metric-custom-long-name-dark-mobile.png</td></tr>
+      <tr><td><span class="pill med">MED</span></td><td>All signed-in</td>
+        <td><strong>M1 · 13 layout tests fail on title rhythm.</strong> <code>titleY</code> differs by ~36px between Dashboard and Metrics: breadcrumb / description / action slots shift the H1. Decide: relax the test to per-template rhythm, or reserve fixed slots in <code>PageHeader</code>.</td>
+        <td>layout.spec.ts:246; dashboard vs metrics screenshots</td></tr>
+      <tr><td><span class="pill med">MED</span></td><td>Metric detail · Weight × Steps</td>
+        <td><strong>M2 · Single-point charts look degenerate.</strong> One 84kg entry → y-axis 79–89kg with one dot, “84 TO 84 KG”, Oldest = Latest, Delta 0. Comparison shows one full-width bar and a 0–90kg weight axis despite the “axis focuses on observed range” doc claim.</td>
+        <td>metric-body-weight-dark-desktop.png; analytics-weight-steps-dark-desktop.png</td></tr>
+      <tr><td><span class="pill med">MED</span></td><td>Login / Register (mobile)</td>
+        <td><strong>M3 · Large void above the auth card</strong> on tall viewports — the centered 440px panel starts mid-screen with ~250px of empty header space.</td>
+        <td>login-dark-mobile.png</td></tr>
+      <tr><td><span class="pill med">MED</span></td><td>Settings</td>
+        <td><strong>M4 · “No paid billing period yet.”</strong> renders as a large green headline inside an otherwise empty billing panel — reads like a celebration of missing data.</td>
+        <td>settings-dark-desktop.png</td></tr>
+      <tr><td><span class="pill med">MED</span></td><td>Sleep Insights</td>
+        <td><strong>M5 · Zero shortfall shouts “0h 00m”</strong> in huge orange alert type. Zero is the best outcome; consider neutral/green treatment or “On target”.</td>
+        <td>analytics-sleep-dark-desktop.png</td></tr>
+      <tr><td><span class="pill low">LOW</span></td><td>Dashboard</td>
+        <td><strong>L1 · Doc drift:</strong> <code>10-wireframes</code> promises a “brief sleep review prompt” in Pro Insights; the card shows only three links.</td>
+        <td>dashboard-dark-desktop.png</td></tr>
+      <tr><td><span class="pill low">LOW</span></td><td>Consistency</td>
+        <td><strong>L2 · Day cells show cryptic single letters</strong> (T/W/T/F/S/S/M). Accessible via aria-labels, but two-letter abbreviations would scan better.</td>
+        <td>analytics-consistency-light-desktop.png</td></tr>
+      <tr><td><span class="pill low">LOW</span></td><td>Metric detail (mobile)</td>
+        <td><strong>L3 · Long metric names wrap hero buttons to two lines</strong> (“Add Personal wellbeing and energy score entry”). Acceptable; confirm intentional before clamping.</td>
+        <td>metric-custom-long-name-dark-mobile.png</td></tr>
+    </table></div>
+    <div class="callout">
+      <strong>What is genuinely good:</strong> three-theme engine with persistence + storage-failure fallback; native dialogs with focus containment, Escape, and pending-guards;
+      loading skeletons that respect reduced-motion; consistent UTC handling with local-time sleep windows; Pro links hidden for Free <em>and</em> backend-enforced;
+      consistency day-cells as keyboard-accessible deep links. Sand theme (new, brightest-theme complaint response) renders cleanly with no stray white cards.
+    </div>
+  </section>
+
+  <section>
+    <h2>4 · Before your eyes</h2>
+
+    <h3>Dashboard — desktop vs mobile (dark)</h3>
+    <div class="duo">
+      <figure class="shot"><img src="ui-review-assets/dashboard-dark-desktop.png" alt="Dashboard desktop dark"><figcaption>Desktop: 3-up cards, inline Pro destinations, side-by-side Recent Entries. Calm and readable.</figcaption></figure>
+      <figure class="shot"><img src="ui-review-assets/dashboard-dark-mobile.png" alt="Dashboard mobile dark"><figcaption>Mobile: 2-up cards hold up; entries stack; devtools badge covers “Consistency →” (H1).</figcaption></figure>
+    </div>
+
+    <h3>Same dashboard in Sand — the “not too bright” theme works</h3>
+    <figure class="shot"><img src="ui-review-assets/dashboard-sand-desktop.png" alt="Dashboard desktop sand"><figcaption>Oatmeal surfaces, brown controls, no white cards. Beige cards carry faint pastel tints (sleep lilac, steps mint) — check contrast of muted text on tinted cards.</figcaption></figure>
+
+    <h3>Metrics catalog (dark desktop)</h3>
+    <figure class="shot"><img src="ui-review-assets/metrics-dark-desktop.png" alt="Metrics catalog"><figcaption>Clean rows, quota shown once, archived collapsed by default. This is the page the layout test trips on (M1): its H1 sits ~36px lower than Dashboard’s.</figcaption></figure>
+
+    <h3>Metric detail — solid for Body Weight, broken ticks for custom metrics</h3>
+    <div class="duo">
+      <figure class="shot"><img src="ui-review-assets/metric-body-weight-dark-desktop.png" alt="Body weight detail"><figcaption>Body Weight: breadcrumb, summary trio, range toggle above chart — all per spec. With one entry the chart is honest but empty (M2).</figcaption></figure>
+      <figure class="shot"><img src="ui-review-assets/metric-custom-long-name-dark-mobile.png" alt="Custom metric mobile"><figcaption>Custom score=7: y-axis shows 7.200000000000001-style ticks (H3). Hero button wraps to two lines (L3).</figcaption></figure>
+    </div>
+
+    <h3>Pro analytics — Weight × Steps vs Sleep vs Consistency</h3>
+    <figure class="shot"><img src="ui-review-assets/analytics-weight-steps-dark-desktop.png" alt="Weight times steps"><figcaption>Note the raw-slug breadcrumb <span class="mono">body_weight × steps</span> (H2) and the single full-width bar with a 0–90kg axis (M2).</figcaption></figure>
+    <figure class="shot"><img src="ui-review-assets/analytics-sleep-dark-desktop.png" alt="Sleep insights"><figcaption>Target control, shortfall hero, nightly bars, local-time averages — strong page. “0h 00m” in alarm-orange for a perfect week (M5).</figcaption></figure>
+    <figure class="shot"><img src="ui-review-assets/analytics-consistency-light-desktop.png" alt="Consistency light"><figcaption>Light theme holds up: coverage trio, per-metric presence rows, factual Needs-attention copy. Day glyphs are single letters (L2).</figcaption></figure>
+
+    <h3>Settings + auth</h3>
+    <figure class="shot"><img src="ui-review-assets/settings-dark-desktop.png" alt="Settings"><figcaption>Capability pills, portal action, export panel — good. The billing panel’s “No paid billing period yet.” headline (M4) needs a quieter style.</figcaption></figure>
+    <div class="duo">
+      <figure class="shot"><img src="ui-review-assets/login-dark-mobile.png" alt="Login mobile"><figcaption>Focused card, good contrast — but a large void above it on tall screens (M3).</figcaption></figure>
+      <figure class="shot"><img src="ui-review-assets/login-light-desktop.png" alt="Login light desktop"><figcaption>Light theme auth. Same layout question as mobile, less severe.</figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>5 · Code behind the top findings</h2>
+    <p class="dim">Rendered with @pierre/diffs (needs network for the esm.sh import; paths + line numbers below carry the same info offline).</p>
+    <h3>H1 — corrected, no code change needed (library prod-gates itself; see findings table)</h3>
+    <div id="file-devtools"></div>
+    <h3>H2 — <code>frontend/src/routes/analytics.weight-steps.tsx:60-70</code>: slug literals in breadcrumb</h3>
+    <div id="file-breadcrumb"></div>
+    <script type="module">
+      import { File } from "https://esm.sh/@pierre/diffs@1.2.10?bundle";
+      const options = { theme: { light: "github-light", dark: "github-dark" }, themeType: "dark", overflow: "wrap" };
+      new File(options).render({ containerWrapper: document.querySelector("#file-devtools"),
+        file: { name: "frontend/src/routes/__root.tsx",
+          contents: "      <main className={isPublicAuthRoute ? \"app-main auth-main\" : \"app-main\"}>\n        <Outlet />\n      </main>\n      <TanStackRouterDevtools />\n    </div>\n  );\n}" } });
+      new File(options).render({ containerWrapper: document.querySelector("#file-breadcrumb"),
+        file: { name: "frontend/src/routes/analytics.weight-steps.tsx",
+          contents: "        breadcrumb={\n          <nav aria-label=\"Breadcrumb\" className=\"metric-detail-breadcrumb\">\n            <Link to=\"/metrics/$slug\" params={{ slug: \"body_weight\" }}>\n              body_weight\n            </Link>\n            <span aria-hidden=\"true\">×</span>\n            <Link to=\"/metrics/$slug\" params={{ slug: \"steps\" }}>\n              steps\n            </Link>\n          </nav>\n        }\n" } });
+    </script>
+    <div class="callout warn"><strong>H3 fix sketch:</strong> extend the body_weight display-precision normalization
+    (<code>formatMetricValueWithUnit</code> in <code>features/metrics/metric-entry-formatters.ts</code>) to Chart.js tick callbacks for
+    unknown/custom slugs — e.g. a shared <code>formatAxisTick(value, slug)</code> that trims float noise (up to N significant decimals),
+    applied in <code>metric-trend-chart.tsx</code> and <code>weight-steps-overlay-chart.tsx</code>. This closes the documented follow-up in <code>20-frontend-development.md:47-49</code>.</div>
+  </section>
+
+  <section>
+    <h2>6 · Proposed next actions</h2>
+    <ol class="actions">
+      <li><strong>Correctness slice (approved):</strong> humanize Weight × Steps breadcrumb (H2), add axis-tick formatting for custom metrics (H3).</li>
+      <li><strong>Empty-state slice:</strong> single-point trend treatment (M2), quiet billing-panel empty copy (M4), zero-shortfall hero tone (M5).</li>
+      <li><strong>Rhythm slice:</strong> decide PageHeader slot policy and align the 13 failing layout assertions with it (M1); tighten auth vertical rhythm on tall mobile (M3).</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>7 · Your call — queue follow-up work</h2>
+    <form class="triage" data-lavish-question="triage" onsubmit="event.preventDefault(); const picked = Array.from(event.currentTarget.querySelectorAll('input[name=fix]:checked')).map(i => i.value); const note = document.getElementById('triage-note').textContent; const msg = picked.length ? 'Approved fixes: ' + picked.join(', ') + (note.trim() ? '. Note: ' + note.trim() : '') : 'No fixes approved yet'; window.lavish.queuePrompt(msg, { tag: 'triage', text: msg, element: event.currentTarget, data: { question: 'triage', answers: picked } }); document.getElementById('triage-status').textContent = 'Queued — press Send to Agent when ready.';">
+      <fieldset>
+        <legend>Which findings should become the next fix slice? (select, then queue)</legend>
+        <label><input type="checkbox" name="fix" value="H1 devtools"> H1 — devtools (info only, no fix needed)</label>
+        <label><input type="checkbox" name="fix" value="H2 breadcrumb"> H2 — humanize Weight × Steps breadcrumb</label>
+        <label><input type="checkbox" name="fix" value="H3 axis ticks"> H3 — custom-metric axis tick formatting</label>
+        <label><input type="checkbox" name="fix" value="M1 header rhythm"> M1 — header rhythm + layout-test alignment</label>
+        <label><input type="checkbox" name="fix" value="M2 empty charts"> M2 — single-point chart empty states</label>
+        <label><input type="checkbox" name="fix" value="M3 auth spacing"> M3 — auth vertical rhythm on mobile</label>
+        <label><input type="checkbox" name="fix" value="M4 billing empty"> M4 — billing-panel empty copy style</label>
+        <label><input type="checkbox" name="fix" value="M5 shortfall hero"> M5 — zero-shortfall hero tone</label>
+      </fieldset>
+      <p class="dim">Optional note (editable):</p>
+      <p id="triage-note" contenteditable="true" style="border:1px dashed var(--border); border-radius:8px; padding:.5rem .7rem;" data-lavish-question="triage-note">e.g. do H1–H3 first, keep M-slice for later…</p>
+      <p><button type="submit">Queue this answer</button></p>
+      <p class="queued-note" id="triage-status"></p>
+    </form>
+    <form class="triage" data-lavish-question="slice-order" onsubmit="event.preventDefault(); const choice = new FormData(event.currentTarget).get('slice'); if (choice) window.lavish.queuePrompt('Build the ' + choice + ' slice next', { tag: 'choice', text: 'Next slice: ' + choice, element: event.currentTarget, data: { question: 'slice-order', answer: choice } }); document.getElementById('slice-status').textContent = choice ? 'Queued — press Send to Agent when ready.' : 'Pick one option first.';">
+      <fieldset>
+        <legend>Or pick the next slice wholesale:</legend>
+        <label><input type="radio" name="slice" value="correctness (H1-H3)"> Correctness slice (H1–H3)</label>
+        <label><input type="radio" name="slice" value="empty-state polish (M2/M4/M5)"> Empty-state polish (M2/M4/M5)</label>
+        <label><input type="radio" name="slice" value="rhythm (M1/M3)"> Rhythm slice (M1/M3)</label>
+      </fieldset>
+      <p><button type="submit">Queue this answer</button></p>
+      <p class="queued-note" id="slice-status"></p>
+    </form>
+  </section>
+
+  <footer>
+    Scope: local frontend only, mocked-API captures (fixture: 4 metrics incl. long-name custom, 1 entry each, Pro plan). No cloud deployment, no DB writes.
+    Full set: 66 PNGs in <span class="mono">.lavish/ui-review-assets/</span>. Layout suite: 10 passed / 13 failed (titleY rhythm, <span class="mono">frontend/e2e/layout.spec.ts:246</span>).
+    Design source for this page: the product’s own dark tokens (option 2 — reviewing this product, so echoing its palette).
+  </footer>
+
+</div>
+</body>
+</html>
