@@ -40,6 +40,7 @@ def compose_model(filename: str) -> dict[str, Any]:
             "-f",
             str(BACKEND / filename),
             "config",
+            "--no-normalize",
             "--format",
             "json",
         ],
