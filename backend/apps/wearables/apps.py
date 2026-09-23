@@ -1,0 +1,7 @@
+from django.apps import AppConfig
+
+
+class WearablesConfig(AppConfig):
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "apps.wearables"
+    label = "wearables"

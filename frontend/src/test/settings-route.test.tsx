@@ -1,0 +1,735 @@
+import { downloadMetricEntriesCsv } from "../features/metrics/metric-entry-export-api";
+import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../features/auth/auth-bootstrap", () => ({
+  restoreWebSession: vi.fn().mockResolvedValue({ access: "test-access-token" }),
+}));
+
+vi.mock("../features/auth/auth-me-api", () => ({
+  getMe: vi.fn(),
+}));
+
+vi.mock("../features/subscriptions/subscriptions-api", () => ({
+  createSubscriptionCheckout: vi.fn(),
+  createSubscriptionPortal: vi.fn(),
+  getCurrentSubscription: vi.fn(),
+  getSubscriptionPlans: vi.fn(),
+}));
+
+vi.mock("../features/subscriptions/checkout-redirect", () => ({
+  redirectToCheckout: vi.fn(),
+}));
+
+vi.mock("../features/subscriptions/portal-redirect", () => ({
+  redirectToPortal: vi.fn(),
+}));
+
+import { getMe } from "../features/auth/auth-me-api";
+import { redirectToCheckout } from "../features/subscriptions/checkout-redirect";
+import { redirectToPortal } from "../features/subscriptions/portal-redirect";
+import {
+  createSubscriptionCheckout,
+  createSubscriptionPortal,
+  getCurrentSubscription,
+  getSubscriptionPlans,
+  type CurrentSubscription,
+} from "../features/subscriptions/subscriptions-api";
+import { renderRoute } from "./render-route";
+
+vi.mock("../features/metrics/metric-entry-export-api", () => ({
+  downloadMetricEntriesCsv: vi.fn(),
+}));
+vi.mock("../features/metrics/use-metric-definitions-query", () => ({
+  useMetricDefinitionsQuery: vi.fn(),
+}));
+
+const getMeMock = vi.mocked(getMe);
+const createSubscriptionCheckoutMock = vi.mocked(createSubscriptionCheckout);
+const createSubscriptionPortalMock = vi.mocked(createSubscriptionPortal);
+const getCurrentSubscriptionMock = vi.mocked(getCurrentSubscription);
+const getSubscriptionPlansMock = vi.mocked(getSubscriptionPlans);
+const redirectToCheckoutMock = vi.mocked(redirectToCheckout);
+const redirectToPortalMock = vi.mocked(redirectToPortal);
+
+function freeSubscription(): CurrentSubscription {
+  return {
+    id: "subscription-id",
+    status: "active",
+    billing_portal_available: false,
+    current_period_start: null,
+    current_period_end: null,
+    cancel_at: null,
+    cancel_at_period_end: false,
+    price: null,
+    plan: {
+      code: "free",
+      name: "Free",
+      active_custom_metric_limit: 3,
+      wearable_connection_limit: 1,
+      automatic_sync_enabled: false,
+      sync_interval_minutes: 30,
+      analytics_enabled: false,
+      csv_import_enabled: false,
+      csv_export_enabled: false,
+    },
+  };
+}
+
+function proSubscription(): CurrentSubscription {
+  return {
+    id: "subscription-id",
+    status: "active",
+    billing_portal_available: true,
+    current_period_start: "2026-07-02T00:00:00Z",
+    current_period_end: "2026-08-02T00:00:00Z",
+    cancel_at: null,
+    cancel_at_period_end: false,
+    price: {
+      currency: "usd",
+      unit_amount: 1000,
+      billing_interval: "month",
+    },
+    plan: {
+      code: "pro",
+      name: "Pro",
+      active_custom_metric_limit: 10,
+      wearable_connection_limit: 2,
+      automatic_sync_enabled: true,
+      sync_interval_minutes: 15,
+      analytics_enabled: true,
+      csv_import_enabled: true,
+      csv_export_enabled: true,
+    },
+  };
+}
+
+describe("settings route", () => {
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("opens export from Data & Privacy and exports the selected metric and dates", async () => {
+    const user = userEvent.setup();
+    getMeMock.mockResolvedValue({ email: "user@example.com" });
+    getCurrentSubscriptionMock.mockResolvedValue(proSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([]);
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [{ id: "weight", slug: "body_weight", name: "Body Weight" }],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    vi.mocked(downloadMetricEntriesCsv).mockResolvedValue(undefined);
+    renderRoute("/settings");
+    const panel = await screen.findByRole("region", { name: "Data & Privacy" });
+    expect(screen.queryByLabelText("Export from")).not.toBeInTheDocument();
+    const trigger = await within(panel).findByRole("button", {
+      name: "Export health data",
+    });
+    await user.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "Export health data" });
+    await user.selectOptions(
+      within(dialog).getByLabelText("Metric"),
+      "body_weight",
+    );
+    fireEvent.change(within(dialog).getByLabelText("Export from"), {
+      target: { value: "2026-09-19" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Export to"), {
+      target: { value: "2026-09-21" },
+    });
+    await user.click(
+      within(dialog).getByRole("button", { name: "Export CSV" }),
+    );
+    expect(downloadMetricEntriesCsv).toHaveBeenCalledWith({
+      metric: "body_weight",
+      from: new Date("2026-09-19T00:00:00.000").toISOString(),
+      to: new Date("2026-09-21T23:59:59.999").toISOString(),
+    });
+    expect(await within(dialog).findByRole("status")).toHaveTextContent(
+      "CSV downloaded",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Close dialog" }),
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it("exports full history when no filters are selected", async () => {
+    const user = userEvent.setup();
+    getMeMock.mockResolvedValue({ email: "user@example.com" });
+    getCurrentSubscriptionMock.mockResolvedValue(proSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([]);
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    vi.mocked(downloadMetricEntriesCsv).mockResolvedValue(undefined);
+    renderRoute("/settings");
+    await user.click(
+      await screen.findByRole("button", { name: "Export health data" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Export CSV" }));
+    expect(downloadMetricEntriesCsv).toHaveBeenCalledWith({});
+  });
+
+  it("offers Pro plans instead of export controls for Free users", async () => {
+    getMeMock.mockResolvedValue({ email: "user@example.com" });
+    getCurrentSubscriptionMock.mockResolvedValue(freeSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([]);
+    renderRoute("/settings");
+    const link = await screen.findByRole("link", { name: "View plans →" });
+    expect(link).toHaveAttribute("href", "#available-plans");
+    expect(
+      screen.queryByRole("button", { name: /export/i }),
+    ).not.toBeInTheDocument();
+    expect(downloadMetricEntriesCsv).not.toHaveBeenCalled();
+  });
+
+  it("rejects an export whose From date is after its To date", async () => {
+    const user = userEvent.setup();
+    getCurrentSubscriptionMock.mockResolvedValue(proSubscription());
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    getSubscriptionPlansMock.mockResolvedValue([]);
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [{ id: "weight", slug: "body_weight", name: "Body Weight" }],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    renderRoute("/settings");
+    await user.click(
+      await screen.findByRole("button", { name: "Export health data" }),
+    );
+
+    fireEvent.change(await screen.findByLabelText(/export from/i), {
+      target: { value: "2026-09-21" },
+    });
+    fireEvent.change(screen.getByLabelText(/export to/i), {
+      target: { value: "2026-09-19" },
+    });
+    await user.click(screen.getByRole("button", { name: /export csv/i }));
+
+    expect(downloadMetricEntriesCsv).not.toHaveBeenCalled();
+    expect(
+      screen.getByText(/from date must be on or before to date/i),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a safe message when CSV export fails", async () => {
+    const user = userEvent.setup();
+    getCurrentSubscriptionMock.mockResolvedValue(proSubscription());
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(downloadMetricEntriesCsv).mockRejectedValue(
+      new Error("private backend detail"),
+    );
+    getSubscriptionPlansMock.mockResolvedValue([]);
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [{ id: "weight", slug: "body_weight", name: "Body Weight" }],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+
+    renderRoute("/settings");
+    await user.click(
+      await screen.findByRole("button", { name: "Export health data" }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /export csv/i }),
+    );
+
+    expect(
+      await screen.findByText(/csv export failed\. please try again\./i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/private backend detail/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("states the empty billing period quietly under the plan name", async () => {
+    getMeMock.mockResolvedValue({
+      email: "user@example.com",
+    });
+    getCurrentSubscriptionMock.mockResolvedValue(freeSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([]);
+
+    renderRoute("/settings");
+
+    expect(
+      await screen.findByText(/no paid billing period yet/i),
+    ).toBeInTheDocument();
+    const planHeading = screen.getByRole("heading", { name: /^free$/i });
+    const planBlock = planHeading.closest("div");
+    expect(planBlock).not.toBeNull();
+    expect(
+      within(planBlock as HTMLElement).getByText(/no paid billing period yet/i),
+    ).toHaveClass("subscription-renewal-empty");
+  });
+
+  it("redirects to /login when the user is not authenticated", async () => {
+    getMeMock.mockRejectedValue(
+      new Error("Authentication credentials were not provided."),
+    );
+
+    renderRoute("/settings");
+
+    expect(
+      await screen.findByRole("heading", { name: /login/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders settings for an authenticated user", async () => {
+    getMeMock.mockResolvedValue({
+      email: "user@example.com",
+    });
+    getCurrentSubscriptionMock.mockResolvedValue(freeSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([]);
+
+    renderRoute("/settings");
+
+    expect(
+      await screen.findByRole("heading", { name: /settings/i }),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByText(/signed in as user@example.com/i),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: /current plan/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/free/i)).toBeInTheDocument();
+    expect(screen.getByText(/3 custom metrics/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/manual sync every 30 minutes/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/^1 wearable connection$/i)).toBeInTheDocument();
+  });
+
+  it("shows accessible subscription skeletons while settings data loads", async () => {
+    getMeMock.mockResolvedValue({ email: "user@example.com" });
+    getCurrentSubscriptionMock.mockReturnValue(new Promise(() => {}));
+    getSubscriptionPlansMock.mockReturnValue(new Promise(() => {}));
+
+    renderRoute("/settings");
+
+    await screen.findByRole("heading", { name: /settings/i });
+
+    expect(
+      screen.getByRole("status", { name: /loading current subscription/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("status", { name: /loading available plans/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows subscription loading failures as accessible card alerts", async () => {
+    getMeMock.mockResolvedValue({ email: "user@example.com" });
+    getCurrentSubscriptionMock.mockRejectedValue(
+      new Error("Current subscription failed to load"),
+    );
+    getSubscriptionPlansMock.mockRejectedValue(
+      new Error("Subscription plans failed to load"),
+    );
+
+    renderRoute("/settings");
+
+    const alerts = await screen.findAllByRole("alert");
+    expect(alerts).toHaveLength(3);
+    expect(alerts[0]).toHaveTextContent(/current plan failed to load/i);
+    expect(alerts[2]).toHaveTextContent(/available plans failed to load/i);
+  });
+
+  it("hides portal management when no Stripe billing customer exists", async () => {
+    getMeMock.mockResolvedValue({
+      email: "user@example.com",
+    });
+    getCurrentSubscriptionMock.mockResolvedValue(freeSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([]);
+
+    renderRoute("/settings");
+
+    expect(
+      await screen.findByRole("heading", { name: /^free$/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /manage subscription/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a single subscription heading without a redundant eyebrow", async () => {
+    getMeMock.mockResolvedValue({
+      email: "user@example.com",
+    });
+    getCurrentSubscriptionMock.mockResolvedValue(proSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([]);
+
+    renderRoute("/settings");
+
+    const current = await screen.findByRole("region", {
+      name: "Current subscription",
+    });
+    expect(
+      await within(current).findByRole("heading", { name: /^pro$/i }),
+    ).toBeInTheDocument();
+    expect(
+      within(current).getByRole("heading", { name: "Current Plan" }),
+    ).toBeInTheDocument();
+    expect(
+      within(current).queryByText("Current subscription", { exact: true }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders paid subscription price and renewal date without a separate interval tile", async () => {
+    getMeMock.mockResolvedValue({
+      email: "user@example.com",
+    });
+    getCurrentSubscriptionMock.mockResolvedValue(proSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([]);
+
+    renderRoute("/settings");
+
+    expect(
+      await screen.findByRole("heading", { name: /^pro$/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/\$10\.00 \/ month/i)).toBeInTheDocument();
+    expect(screen.queryByText("Interval")).not.toBeInTheDocument();
+    expect(screen.getByText(/renews aug 2, 2026/i)).toBeInTheDocument();
+  });
+
+  it("renders scheduled cancellation date for paid subscriptions", async () => {
+    getMeMock.mockResolvedValue({
+      email: "user@example.com",
+    });
+    getCurrentSubscriptionMock.mockResolvedValue({
+      ...proSubscription(),
+      cancel_at: "2026-08-02T00:00:00Z",
+      cancel_at_period_end: true,
+    });
+    getSubscriptionPlansMock.mockResolvedValue([]);
+
+    renderRoute("/settings");
+
+    expect(await screen.findByText(/cancels aug 2, 2026/i)).toBeInTheDocument();
+  });
+
+  it("shows the backend subscription status when the plan is not active", async () => {
+    getMeMock.mockResolvedValue({ email: "user@example.com" });
+    getCurrentSubscriptionMock.mockResolvedValue({
+      ...proSubscription(),
+      status: "past_due",
+    });
+    getSubscriptionPlansMock.mockResolvedValue([]);
+
+    renderRoute("/settings");
+
+    const currentSubscription = await screen.findByRole("region", {
+      name: /current subscription/i,
+    });
+    expect(
+      await within(currentSubscription).findByText(/^past due$/i),
+    ).toBeInTheDocument();
+    expect(
+      within(currentSubscription).queryByText(/^active$/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("lists available paid subscription prices", async () => {
+    getMeMock.mockResolvedValue({
+      email: "user@example.com",
+    });
+    getCurrentSubscriptionMock.mockResolvedValue(freeSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([
+      {
+        code: "free",
+        name: "Free",
+        active_custom_metric_limit: 3,
+        wearable_connection_limit: 1,
+        automatic_sync_enabled: false,
+        sync_interval_minutes: 30,
+        analytics_enabled: false,
+        csv_import_enabled: false,
+        csv_export_enabled: false,
+        is_default: true,
+        prices: [],
+      },
+      {
+        code: "pro",
+        name: "Pro",
+        active_custom_metric_limit: 10,
+        wearable_connection_limit: 2,
+        automatic_sync_enabled: true,
+        sync_interval_minutes: 15,
+        analytics_enabled: true,
+        csv_import_enabled: true,
+        csv_export_enabled: true,
+        is_default: false,
+        prices: [
+          {
+            id: "monthly-price-id",
+            currency: "usd",
+            unit_amount: 1000,
+            billing_interval: "month",
+          },
+          {
+            id: "yearly-price-id",
+            currency: "usd",
+            unit_amount: 10000,
+            billing_interval: "year",
+          },
+        ],
+      },
+    ]);
+
+    renderRoute("/settings");
+
+    const availablePlans = await screen.findByRole("region", {
+      name: /available plans/i,
+    });
+
+    expect(
+      within(availablePlans).getByRole("heading", { name: /available plans/i }),
+    ).toBeInTheDocument();
+    expect(
+      await within(availablePlans).findByRole("heading", { name: /pro/i }),
+    ).toBeInTheDocument();
+    expect(
+      within(availablePlans).queryByRole("heading", { name: /^free$/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(availablePlans).getByText(/\$10\.00 \/ month/i),
+    ).toBeInTheDocument();
+    expect(
+      within(availablePlans).getByText(/\$100\.00 \/ year/i),
+    ).toBeInTheDocument();
+    expect(
+      within(availablePlans).getByText(/^2 wearable connections$/i),
+    ).toBeInTheDocument();
+    expect(
+      within(availablePlans).getByText(/^analytics included$/i),
+    ).toBeInTheDocument();
+    expect(
+      within(availablePlans).getByText(/^csv import included$/i),
+    ).toBeInTheDocument();
+    expect(
+      within(availablePlans).getByText(/^csv export included$/i),
+    ).toBeInTheDocument();
+  });
+
+  it("hides checkout upgrades for Stripe-managed subscriptions", async () => {
+    getMeMock.mockResolvedValue({
+      email: "user@example.com",
+    });
+    getCurrentSubscriptionMock.mockResolvedValue(proSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([
+      {
+        code: "pro",
+        name: "Pro",
+        active_custom_metric_limit: 10,
+        wearable_connection_limit: 2,
+        automatic_sync_enabled: true,
+        sync_interval_minutes: 15,
+        analytics_enabled: true,
+        csv_import_enabled: true,
+        csv_export_enabled: true,
+        is_default: false,
+        prices: [
+          {
+            id: "monthly-price-id",
+            currency: "usd",
+            unit_amount: 1000,
+            billing_interval: "month",
+          },
+          {
+            id: "yearly-price-id",
+            currency: "usd",
+            unit_amount: 10000,
+            billing_interval: "year",
+          },
+        ],
+      },
+    ]);
+
+    renderRoute("/settings");
+
+    expect(
+      await screen.findByText(
+        /use manage subscription to change billing details/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /upgrade to pro monthly/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /upgrade to pro yearly/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("starts checkout for a selected paid price and redirects to Stripe", async () => {
+    const user = userEvent.setup();
+
+    getMeMock.mockResolvedValue({
+      email: "user@example.com",
+    });
+    getCurrentSubscriptionMock.mockResolvedValue(freeSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([
+      {
+        code: "pro",
+        name: "Pro",
+        active_custom_metric_limit: 10,
+        wearable_connection_limit: 2,
+        automatic_sync_enabled: true,
+        sync_interval_minutes: 15,
+        analytics_enabled: true,
+        csv_import_enabled: true,
+        csv_export_enabled: true,
+        is_default: false,
+        prices: [
+          {
+            id: "monthly-price-id",
+            currency: "usd",
+            unit_amount: 1000,
+            billing_interval: "month",
+          },
+        ],
+      },
+    ]);
+    createSubscriptionCheckoutMock.mockResolvedValue({
+      url: "https://checkout.stripe.com/c/test-session",
+    });
+
+    renderRoute("/settings");
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: /upgrade to pro monthly/i,
+      }),
+    );
+
+    expect(createSubscriptionCheckoutMock).toHaveBeenCalledWith({
+      priceId: "monthly-price-id",
+    });
+    expect(redirectToCheckoutMock).toHaveBeenCalledWith(
+      "https://checkout.stripe.com/c/test-session",
+    );
+  });
+
+  it("opens the Stripe Customer Portal", async () => {
+    const user = userEvent.setup();
+
+    getMeMock.mockResolvedValue({
+      email: "user@example.com",
+    });
+    getCurrentSubscriptionMock.mockResolvedValue(proSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([]);
+    createSubscriptionPortalMock.mockResolvedValue({
+      url: "https://billing.stripe.com/p/test-session",
+    });
+
+    renderRoute("/settings");
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: /manage subscription/i,
+      }),
+    );
+
+    expect(createSubscriptionPortalMock).toHaveBeenCalledOnce();
+    expect(redirectToPortalMock).toHaveBeenCalledWith(
+      "https://billing.stripe.com/p/test-session",
+    );
+  });
+
+  it("shows an error and does not redirect when the Customer Portal fails", async () => {
+    const user = userEvent.setup();
+
+    getMeMock.mockResolvedValue({
+      email: "user@example.com",
+    });
+    getCurrentSubscriptionMock.mockResolvedValue(proSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([]);
+    createSubscriptionPortalMock.mockRejectedValue(
+      new Error("Unable to create Customer Portal session."),
+    );
+
+    renderRoute("/settings");
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: /manage subscription/i,
+      }),
+    );
+
+    expect(
+      await screen.findByText(/unable to create customer portal session\./i),
+    ).toBeInTheDocument();
+    expect(redirectToPortalMock).not.toHaveBeenCalled();
+  });
+
+  it("disables portal management while the session is being created", async () => {
+    const user = userEvent.setup();
+    let resolvePortal: ((portal: { url: string }) => void) | undefined;
+
+    getMeMock.mockResolvedValue({
+      email: "user@example.com",
+    });
+    getCurrentSubscriptionMock.mockResolvedValue(proSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([]);
+    createSubscriptionPortalMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvePortal = resolve;
+        }),
+    );
+
+    renderRoute("/settings");
+
+    const manageSubscriptionButton = await screen.findByRole("button", {
+      name: /manage subscription/i,
+    });
+
+    await user.click(manageSubscriptionButton);
+
+    await waitFor(() => {
+      expect(manageSubscriptionButton).toBeDisabled();
+    });
+
+    resolvePortal?.({
+      url: "https://billing.stripe.com/p/test-session",
+    });
+  });
+
+  it("shows an informational message after returning from successful checkout", async () => {
+    getMeMock.mockResolvedValue({
+      email: "user@example.com",
+    });
+    getCurrentSubscriptionMock.mockResolvedValue(freeSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([]);
+
+    renderRoute("/settings?checkout=success");
+
+    expect(
+      await screen.findByText(
+        /checkout completed\. your plan will update after payment confirmation/i,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("shows an informational message after returning from cancelled checkout", async () => {
+    getMeMock.mockResolvedValue({
+      email: "user@example.com",
+    });
+    getCurrentSubscriptionMock.mockResolvedValue(freeSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([]);
+
+    renderRoute("/settings?checkout=cancelled");
+
+    expect(
+      await screen.findByText(
+        /checkout cancelled\. your plan was not changed/i,
+      ),
+    ).toBeInTheDocument();
+  });
+});

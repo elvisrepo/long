@@ -1,0 +1,336 @@
+"""Contract tests for the executable production-like deployment smoke."""
+
+import subprocess
+from pathlib import Path
+from unittest.mock import MagicMock
+
+import pytest
+
+from scripts.smoke_production_deployment import (
+    SmokeVerificationError,
+    deploy_smoke_stack,
+    main,
+    run_smoke,
+    verify_smoke_liveness,
+    verify_smoke_readiness,
+)
+from scripts.staging_runtime import REQUIRED_RUNTIME_KEYS
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+BACKEND_CI_WORKFLOW = REPOSITORY_ROOT / ".github/workflows/backend-ci.yml"
+
+
+def test_smoke_deployment_uses_step7_environment_injection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    invocations: list[tuple[list[str], dict[str, str]]] = []
+
+    def fake_run_deployment_command(
+        command: list[str],
+        runtime_environment: dict[str, str],
+    ) -> None:
+        invocations.append((command, runtime_environment))
+
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.run_deployment_command",
+        fake_run_deployment_command,
+    )
+
+    deploy_smoke_stack()
+
+    assert len(invocations) == 1
+    command, runtime_environment = invocations[0]
+    assert command[1:] == [
+        "-m",
+        "scripts.production_deployment",
+        "--compose-file",
+        "docker-compose.production-smoke.yml",
+        "--project-name",
+        "longevity-production-smoke",
+    ]
+    assert set(runtime_environment) == set(REQUIRED_RUNTIME_KEYS)
+    assert all(value not in command for value in runtime_environment.values())
+
+
+def test_smoke_cleanup_is_attempted_when_deployment_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    invocations: list[tuple[list[str], dict[str, str]]] = []
+
+    def fake_run_deployment_command(
+        command: list[str],
+        runtime_environment: dict[str, str],
+    ) -> None:
+        invocations.append((command, runtime_environment))
+        if len(invocations) == 1:
+            raise subprocess.CalledProcessError(returncode=17, cmd=command)
+
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.run_deployment_command",
+        fake_run_deployment_command,
+    )
+
+    with pytest.raises(subprocess.CalledProcessError) as error:
+        run_smoke()
+
+    assert error.value.returncode == 17
+    assert len(invocations) == 2
+    cleanup_command, _ = invocations[1]
+    assert cleanup_command == [
+        "docker",
+        "compose",
+        "--project-name",
+        "longevity-production-smoke",
+        "--env-file",
+        "/dev/null",
+        "--file",
+        "docker-compose.production-smoke.yml",
+        "down",
+        "--volumes",
+        "--remove-orphans",
+    ]
+
+
+def test_smoke_cli_runs_the_complete_lifecycle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    lifecycle_calls = 0
+
+    def fake_run_smoke() -> None:
+        nonlocal lifecycle_calls
+        lifecycle_calls += 1
+
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.run_smoke",
+        fake_run_smoke,
+    )
+
+    assert main() == 0
+    assert lifecycle_calls == 1
+
+
+def test_smoke_cli_reports_subprocess_failure_without_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def fake_run_smoke() -> None:
+        raise subprocess.CalledProcessError(returncode=17, cmd=["docker"])
+
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.run_smoke",
+        fake_run_smoke,
+    )
+
+    assert main() == 17
+    assert capsys.readouterr().err == (
+        "error: production smoke failed with exit code 17\n"
+    )
+
+
+def test_smoke_cli_reports_command_start_failure_without_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def fake_run_smoke() -> None:
+        raise OSError("docker executable is unavailable")
+
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.run_smoke",
+        fake_run_smoke,
+    )
+
+    assert main() == 1
+    assert capsys.readouterr().err == (
+        "error: unable to start production smoke command\n"
+    )
+
+
+def test_smoke_cli_reports_health_verification_failure_without_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def fake_run_smoke() -> None:
+        raise SmokeVerificationError("unexpected response must not be printed")
+
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.run_smoke",
+        fake_run_smoke,
+    )
+
+    assert main() == 1
+    assert capsys.readouterr().err == (
+        "error: production smoke health verification failed\n"
+    )
+
+
+def test_smoke_liveness_probe_uses_the_public_proxy_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = MagicMock()
+    response.__enter__.return_value = response
+    response.status = 200
+    response.read.return_value = b'{"status": "ok"}'
+    requests: list[tuple[object, float]] = []
+
+    def fake_urlopen(request: object, *, timeout: float) -> MagicMock:
+        requests.append((request, timeout))
+        return response
+
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.request.urlopen",
+        fake_urlopen,
+    )
+
+    verify_smoke_liveness()
+
+    assert len(requests) == 1
+    health_request, timeout = requests[0]
+    assert health_request.full_url == (
+        "http://127.0.0.1:18000/api/v1/health/live/"
+    )
+    assert health_request.get_header("X-forwarded-proto") == "https"
+    assert timeout == 5.0
+    response.read.assert_called_once_with()
+
+
+def test_smoke_probe_rejects_malformed_json_without_exposing_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = MagicMock()
+    response.__enter__.return_value = response
+    response.status = 200
+    response.read.return_value = b"not-json secret-response-content"
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.request.urlopen",
+        lambda request, *, timeout: response,
+    )
+
+    with pytest.raises(SmokeVerificationError) as error:
+        verify_smoke_liveness()
+
+    assert str(error.value) == "production smoke liveness check failed"
+    assert "secret-response-content" not in str(error.value)
+
+
+def test_smoke_lifecycle_verifies_health_before_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    lifecycle_events: list[str] = []
+
+    def fake_deploy_smoke_stack(runtime_environment: object) -> None:
+        lifecycle_events.append("deploy")
+
+    def fake_verify_smoke_liveness() -> None:
+        lifecycle_events.append("verify-liveness")
+
+    def fake_verify_smoke_readiness() -> None:
+        lifecycle_events.append("verify-readiness")
+
+    def fake_cleanup_smoke_stack(runtime_environment: object) -> None:
+        lifecycle_events.append("cleanup")
+
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.deploy_smoke_stack",
+        fake_deploy_smoke_stack,
+    )
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.verify_smoke_liveness",
+        fake_verify_smoke_liveness,
+    )
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.verify_smoke_readiness",
+        fake_verify_smoke_readiness,
+    )
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.cleanup_smoke_stack",
+        fake_cleanup_smoke_stack,
+    )
+
+    run_smoke()
+
+    assert lifecycle_events == [
+        "deploy",
+        "verify-liveness",
+        "verify-readiness",
+        "cleanup",
+    ]
+
+
+def test_smoke_readiness_probe_uses_the_public_proxy_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = MagicMock()
+    response.__enter__.return_value = response
+    response.status = 200
+    response.read.return_value = b'{"status": "ok"}'
+    requests: list[tuple[object, float]] = []
+
+    def fake_urlopen(request: object, *, timeout: float) -> MagicMock:
+        requests.append((request, timeout))
+        return response
+
+    monkeypatch.setattr(
+        "scripts.smoke_production_deployment.request.urlopen",
+        fake_urlopen,
+    )
+
+    verify_smoke_readiness()
+
+    assert len(requests) == 1
+    health_request, timeout = requests[0]
+    assert health_request.full_url == (
+        "http://127.0.0.1:18000/api/v1/health/ready/"
+    )
+    assert health_request.get_header("X-forwarded-proto") == "https"
+    assert timeout == 5.0
+    response.read.assert_called_once_with()
+
+
+def test_backend_ci_runs_the_complete_production_deployment_smoke() -> None:
+    workflow = BACKEND_CI_WORKFLOW.read_text()
+
+    assert (
+        "      - name: Production-like deployment smoke\n"
+        "        timeout-minutes: 10\n"
+        "        run: uv run python -m scripts.smoke_production_deployment\n"
+        in workflow
+    )
+
+
+def test_backend_ci_pins_actions_to_immutable_node_24_releases() -> None:
+    workflow = BACKEND_CI_WORKFLOW.read_text()
+
+    assert "runs-on: ubuntu-24.04" in workflow
+    assert (
+        "uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+        " # v7.0.1"
+        in workflow
+    )
+    assert (
+        "uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"
+        " # v7.0.0"
+        in workflow
+    )
+    assert (
+        "uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7"
+        " # v10.2.0"
+        in workflow
+    )
+
+
+def test_backend_ci_runs_database_tests_against_postgresql() -> None:
+    workflow = BACKEND_CI_WORKFLOW.read_text()
+
+    assert "      postgres:\n        image: postgres:16\n" in workflow
+    assert (
+        "          POSTGRES_DB: longevity_ci\n"
+        "          POSTGRES_USER: postgres\n"
+        "          POSTGRES_PASSWORD: postgres\n"
+        in workflow
+    )
+    assert "pg_isready -U postgres -d longevity_ci" in workflow
+    assert (
+        "DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/longevity_ci"
+        in workflow
+    )

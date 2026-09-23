@@ -1,0 +1,39 @@
+/* longevity — shared design tokens (dark mint v2)
+   Single source of truth. Every v2 screen links this file.
+   Charts read var(--chart-*) — no hardcoded hex in new code. */
+:root {
+  --bg: #0a0c10;
+  --surface: #111318;
+  --surface-high: #181c24;
+  --border: #1f2535;
+  --faint: #2d3748;
+  --accent: #00e5a0;
+  --accent-dim: rgba(0, 229, 160, 0.12);
+  --warn: #ff6b4a;
+  --blue: #3b82f6;
+  --muted: #4a5568;
+  --text: #e2e8f0;
+  --text-dim: #718096;
+
+  /* charts — use these, never raw hex */
+  --chart-line: #00e5a0;
+  --chart-fill: rgba(0, 229, 160, 0.16);
+  --chart-bar: rgba(59, 130, 246, 0.65);
+  --chart-grid: rgba(133, 151, 176, 0.14);
+  --chart-tick: #8597b0;
+
+  --font-sans: "DM Sans", "Aptos", "Segoe UI", sans-serif;
+  --font-heading: "Syne", "Space Grotesk", "Trebuchet MS", sans-serif;
+  --font-mono: "DM Mono", Consolas, monospace;
+
+  --r: 18px;
+}
+
+/* Retint legacy hardcoded chart attributes to the variables above.
+   Lets old SVG/`metric-trend-chart.tsx` hex render from tokens until
+   the React side passes var() values directly. */
+svg path[stroke="#00e5a0"] { stroke: var(--chart-line); }
+svg circle[fill="#00e5a0"] { fill: var(--chart-line); }
+svg path[fill^="rgba(0,229,160"] { fill: var(--chart-fill); }
+svg rect[fill^="rgba(59,130,246"] { fill: var(--chart-bar); }
+svg line[stroke^="rgba(133,151,176"] { stroke: var(--chart-grid); }

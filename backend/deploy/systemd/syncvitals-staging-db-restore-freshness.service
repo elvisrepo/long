@@ -1,0 +1,11 @@
+[Unit]
+Description=Publish SyncVitals staging database restore freshness
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/syncvitals/deployment/scripts/staging_db_restore_check.py --freshness
+UMask=0077
+TimeoutStartSec=2min
+

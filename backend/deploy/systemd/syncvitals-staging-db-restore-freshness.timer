@@ -1,0 +1,10 @@
+[Unit]
+Description=Check SyncVitals staging database restore freshness every six hours
+
+[Timer]
+OnCalendar=*-*-* 00,06,12,18:10:00 UTC
+Persistent=true
+Unit=syncvitals-staging-db-restore-freshness.service
+
+[Install]
+WantedBy=timers.target

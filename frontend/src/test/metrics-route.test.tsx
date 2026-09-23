@@ -1,0 +1,956 @@
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { getMe } from "../features/auth/auth-me-api";
+import {
+  createMetricDefinition,
+  type MetricDefinition,
+} from "../features/metrics/metric-definitions-api";
+import { useDeactivateMetricDefinitionMutation } from "../features/metrics/use-deactivate-metric-definition-mutation";
+import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
+import { useMetricUsageQuery } from "../features/metrics/use-metric-usage-query";
+import { useReactivateMetricDefinitionMutation } from "../features/metrics/use-reactivate-metric-definition-mutation";
+import { useUpdateMetricDefinitionMutation } from "../features/metrics/use-update-metric-definition-mutation";
+import { renderRoute } from "./render-route";
+
+vi.mock("../features/auth/auth-me-api", () => ({
+  getMe: vi.fn(),
+}));
+
+vi.mock("../features/metrics/use-metric-definitions-query", () => ({
+  useMetricDefinitionsQuery: vi.fn(),
+}));
+
+vi.mock("../features/metrics/use-metric-usage-query", () => ({
+  useMetricUsageQuery: vi.fn(),
+}));
+
+vi.mock("../features/metrics/metric-definitions-api", () => ({
+  createMetricDefinition: vi.fn(),
+}));
+
+vi.mock("../features/metrics/use-update-metric-definition-mutation", () => ({
+  useUpdateMetricDefinitionMutation: vi.fn(),
+}));
+
+vi.mock(
+  "../features/metrics/use-deactivate-metric-definition-mutation",
+  () => ({
+    useDeactivateMetricDefinitionMutation: vi.fn(),
+  }),
+);
+
+vi.mock(
+  "../features/metrics/use-reactivate-metric-definition-mutation",
+  () => ({
+    useReactivateMetricDefinitionMutation: vi.fn(),
+  }),
+);
+
+const createMetricDefinitionMock = vi.mocked(createMetricDefinition);
+const updateMetricDefinitionMutateAsyncMock = vi.fn();
+const deactivateMetricDefinitionMutateAsyncMock = vi.fn();
+const reactivateMetricDefinitionMutateAsyncMock = vi.fn();
+
+function mockLoadedMetricDefinitions(
+  metricDefinitions: MetricDefinition[] = [
+    {
+      id: "metric-id",
+      name: "Resting Heart Rate",
+      slug: "resting_hr",
+      unit: "bpm",
+      category: "cardiovascular",
+      min_value: 20,
+      max_value: 220,
+      is_default: true,
+      is_active: true,
+    },
+  ],
+) {
+  vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+    data: metricDefinitions,
+    isLoading: false,
+    isError: false,
+  } as ReturnType<typeof useMetricDefinitionsQuery>);
+}
+
+function mockUpdateMetricDefinitionMutation() {
+  updateMetricDefinitionMutateAsyncMock.mockResolvedValue(undefined);
+
+  vi.mocked(useUpdateMetricDefinitionMutation).mockReturnValue({
+    mutateAsync: updateMetricDefinitionMutateAsyncMock,
+    isPending: false,
+    isError: false,
+    error: null,
+  } as unknown as ReturnType<typeof useUpdateMetricDefinitionMutation>);
+}
+
+function mockDeactivateMetricDefinitionMutation() {
+  deactivateMetricDefinitionMutateAsyncMock.mockResolvedValue(undefined);
+
+  vi.mocked(useDeactivateMetricDefinitionMutation).mockReturnValue({
+    mutateAsync: deactivateMetricDefinitionMutateAsyncMock,
+    isPending: false,
+    isError: false,
+    error: null,
+  } as unknown as ReturnType<typeof useDeactivateMetricDefinitionMutation>);
+}
+
+function mockReactivateMetricDefinitionMutation() {
+  reactivateMetricDefinitionMutateAsyncMock.mockResolvedValue(undefined);
+
+  vi.mocked(useReactivateMetricDefinitionMutation).mockReturnValue({
+    mutateAsync: reactivateMetricDefinitionMutateAsyncMock,
+    isPending: false,
+    isError: false,
+    error: null,
+  } as unknown as ReturnType<typeof useReactivateMetricDefinitionMutation>);
+}
+
+function mockSuccessfulCustomMetricCreate() {
+  createMetricDefinitionMock.mockResolvedValue({
+    id: "custom-metric-id",
+    name: "Mood",
+    slug: "mood",
+    unit: "score",
+    category: "custom",
+    min_value: 1,
+    max_value: 10,
+    is_default: false,
+    is_active: true,
+  });
+}
+
+async function fillCustomMetricForm(user: ReturnType<typeof userEvent.setup>) {
+  await user.type(screen.getByLabelText(/name/i), "Mood");
+  await user.type(screen.getByLabelText(/slug/i), "mood");
+  await user.type(screen.getByLabelText(/unit/i), "score");
+  await user.type(screen.getByLabelText(/min value/i), "1");
+  await user.type(screen.getByLabelText(/max value/i), "10");
+}
+
+async function openCustomMetricDialog(
+  user: ReturnType<typeof userEvent.setup>,
+) {
+  await user.click(screen.getByRole("button", { name: /new custom metric/i }));
+
+  return screen.getByRole("dialog", { name: /create custom metric/i });
+}
+
+describe("metrics route", () => {
+  beforeEach(() => {
+    mockUpdateMetricDefinitionMutation();
+    mockDeactivateMetricDefinitionMutation();
+    mockReactivateMetricDefinitionMutation();
+    vi.mocked(useMetricUsageQuery).mockReturnValue({
+      data: {
+        active_custom_metrics: {
+          used: 0,
+          limit: 3,
+        },
+      },
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricUsageQuery>);
+  });
+
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("renders available metrics for an authenticated user", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+
+    renderRoute("/metrics");
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Metrics" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /resting heart rate/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/^Cardiovascular · bpm$/)).toBeInTheDocument();
+    expect(screen.queryByText("resting_hr")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Show archived" }),
+    ).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("groups available metrics into default and custom sections", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions([
+      {
+        id: "metric-id",
+        name: "Resting Heart Rate",
+        slug: "resting_hr",
+        unit: "bpm",
+        category: "cardiovascular",
+        min_value: 20,
+        max_value: 220,
+        is_default: true,
+        is_active: true,
+      },
+      {
+        id: "custom-id",
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        category: "custom",
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: true,
+      },
+    ]);
+
+    renderRoute("/metrics");
+
+    const defaultSection = await screen.findByRole("region", {
+      name: "Default metrics",
+    });
+    const customSection = screen.getByRole("region", {
+      name: "Custom metrics",
+    });
+    expect(
+      within(defaultSection).getByRole("link", { name: /resting heart rate/i }),
+    ).toBeInTheDocument();
+    expect(
+      within(defaultSection).queryByRole("link", { name: /mood/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(customSection).getByRole("link", { name: /mood/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows an empty custom section prompt when no custom metrics exist", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+
+    renderRoute("/metrics");
+
+    const customSection = await screen.findByRole("region", {
+      name: "Custom metrics",
+    });
+    expect(
+      within(customSection).getByText(/no custom metrics yet/i),
+    ).toBeInTheDocument();
+  });
+
+  it("styles row-level deactivation as a neutral action", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions([
+      {
+        id: "custom-id",
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        category: "custom",
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: true,
+      },
+    ]);
+
+    renderRoute("/metrics");
+
+    const deactivate = await screen.findByRole("button", {
+      name: "Deactivate Mood",
+    });
+    expect(deactivate).toHaveClass("metric-row-secondary-action");
+    expect(deactivate).not.toHaveClass("metric-row-danger-action");
+  });
+
+  it("renders catalog entries as dashboard-style cards", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions([
+      {
+        id: "metric-id",
+        name: "Resting Heart Rate",
+        slug: "resting_hr",
+        unit: "bpm",
+        category: "cardiovascular",
+        min_value: 20,
+        max_value: 220,
+        is_default: true,
+        is_active: true,
+      },
+      {
+        id: "custom-id",
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        category: "custom",
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: true,
+      },
+    ]);
+
+    const { container } = renderRoute("/metrics");
+
+    await screen.findByRole("heading", { level: 1, name: "Metrics" });
+    const cards = container.querySelectorAll("article.metric-card");
+    expect(cards).toHaveLength(2);
+    expect(cards[0]).toHaveAttribute("data-metric", "resting_hr");
+    expect(cards[0]).toHaveAttribute("data-category", "cardiovascular");
+    expect(cards[1]).toHaveAttribute("data-category", "custom");
+  });
+
+  it("shows active custom metric usage returned by the backend", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions([
+      {
+        id: "custom-metric-id",
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        category: "custom",
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: true,
+      },
+    ]);
+
+    vi.mocked(useMetricUsageQuery).mockReturnValue({
+      data: {
+        active_custom_metrics: {
+          used: 2,
+          limit: 5,
+        },
+      },
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricUsageQuery>);
+
+    renderRoute("/metrics");
+
+    expect(
+      await screen.findByText(/2 of 5 custom metrics used/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/slots available/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit Mood" })).toHaveTextContent(
+      /^Edit$/,
+    );
+    expect(
+      screen.getByRole("button", { name: "Deactivate Mood" }),
+    ).toHaveTextContent(/^Deactivate$/);
+  });
+
+  it("opens and cancels the custom metric dialog", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+
+    renderRoute("/metrics");
+
+    await screen.findByRole("heading", { level: 1, name: "Metrics" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: /new custom metric/i }),
+    );
+
+    expect(
+      screen.getByRole("dialog", { name: /create custom metric/i }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /cancel/i }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("marks custom metric usage as limit reached when all slots are used", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    vi.mocked(useMetricUsageQuery).mockReturnValue({
+      data: {
+        active_custom_metrics: {
+          used: 3,
+          limit: 3,
+        },
+      },
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricUsageQuery>);
+    mockLoadedMetricDefinitions(
+      Array.from({ length: 3 }, (_, index) => ({
+        id: `custom-metric-${index}`,
+        name: `Custom Metric ${index}`,
+        slug: `custom_metric_${index}`,
+        unit: "score",
+        category: "custom",
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: true,
+      })),
+    );
+
+    renderRoute("/metrics");
+
+    const usage = await screen.findByRole("status", {
+      name: /3 of 3 custom metrics used/i,
+    });
+
+    expect(usage).toHaveClass("custom-metric-usage-limit");
+  });
+
+  it("redirects to /login when the user is not authenticated", async () => {
+    vi.mocked(getMe).mockRejectedValue(
+      new Error("Authentication credentials were not provided."),
+    );
+    mockLoadedMetricDefinitions();
+
+    renderRoute("/metrics");
+
+    expect(
+      await screen.findByRole("heading", { name: /login/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a structured loading state while metrics are loading", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+
+    renderRoute("/metrics");
+
+    expect(
+      await screen.findByRole("status", { name: /loading metrics/i }),
+    ).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("creates a custom metric definition from the metrics page", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+    mockSuccessfulCustomMetricCreate();
+
+    renderRoute("/metrics");
+
+    await screen.findByRole("heading", { level: 1, name: "Metrics" });
+
+    await openCustomMetricDialog(user);
+    await fillCustomMetricForm(user);
+    await user.click(
+      screen.getByRole("button", { name: /^create custom metric$/i }),
+    );
+
+    expect(createMetricDefinitionMock).toHaveBeenCalledWith({
+      name: "Mood",
+      slug: "mood",
+      unit: "score",
+      minValue: 1,
+      maxValue: 10,
+    });
+  });
+
+  it("closes the custom metric dialog after a successful create", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+    mockSuccessfulCustomMetricCreate();
+
+    renderRoute("/metrics");
+
+    await screen.findByRole("heading", { level: 1, name: "Metrics" });
+
+    await openCustomMetricDialog(user);
+    await fillCustomMetricForm(user);
+    await user.click(
+      screen.getByRole("button", { name: /^create custom metric$/i }),
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows an error when custom metric creation fails", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+    createMetricDefinitionMock.mockRejectedValue(
+      new Error("metric definition with this slug already exists."),
+    );
+
+    renderRoute("/metrics");
+
+    await screen.findByRole("heading", { level: 1, name: "Metrics" });
+
+    await openCustomMetricDialog(user);
+    await fillCustomMetricForm(user);
+    await user.click(
+      screen.getByRole("button", { name: /^create custom metric$/i }),
+    );
+
+    expect(
+      await screen.findByText(
+        /metric definition with this slug already exists/i,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the active custom metric limit error when custom metric creation is blocked", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+    createMetricDefinitionMock.mockRejectedValue(
+      new Error("Active custom metric limit reached."),
+    );
+
+    renderRoute("/metrics");
+
+    await screen.findByRole("heading", { level: 1, name: "Metrics" });
+
+    await openCustomMetricDialog(user);
+    await fillCustomMetricForm(user);
+    await user.click(
+      screen.getByRole("button", { name: /^create custom metric$/i }),
+    );
+
+    expect(
+      await screen.findByText(/active custom metric limit reached/i),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/name/i)).toHaveValue("Mood");
+    expect(
+      screen.getByRole("button", { name: /^create custom metric$/i }),
+    ).toBeEnabled();
+  });
+
+  it("links each metric row to its metric detail page", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+
+    renderRoute("/metrics");
+
+    const metricLink = await screen.findByRole("link", {
+      name: /resting heart rate/i,
+    });
+
+    expect(metricLink).toHaveAttribute("href", "/metrics/resting_hr");
+  });
+
+  it("navigates to the metric detail page when a metric row is clicked", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+
+    renderRoute("/metrics");
+
+    await user.click(
+      await screen.findByRole("link", { name: /resting heart rate/i }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: /resting heart rate/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/cardiovascular · bpm/i)).toBeInTheDocument();
+  });
+
+  it("updates a custom metric from the metrics catalog", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions([
+      {
+        id: "custom-metric-id",
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        category: "custom",
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: true,
+      },
+    ]);
+
+    renderRoute("/metrics");
+
+    await screen.findByRole("heading", {
+      level: 1,
+      name: /metrics/i,
+    });
+
+    await user.click(screen.getByRole("button", { name: /edit mood/i }));
+    await user.clear(screen.getByLabelText(/mood name/i));
+    await user.type(screen.getByLabelText(/mood name/i), "Mood Score");
+    await user.clear(screen.getByLabelText(/mood unit/i));
+    await user.type(screen.getByLabelText(/mood unit/i), "points");
+    await user.clear(screen.getByLabelText(/mood min value/i));
+    await user.type(screen.getByLabelText(/mood min value/i), "0");
+    await user.clear(screen.getByLabelText(/mood max value/i));
+    await user.type(screen.getByLabelText(/mood max value/i), "100");
+
+    await user.click(screen.getByRole("button", { name: /save mood/i }));
+
+    expect(updateMetricDefinitionMutateAsyncMock).toHaveBeenCalledWith({
+      id: "custom-metric-id",
+      input: {
+        name: "Mood Score",
+        unit: "points",
+        minValue: 0,
+        maxValue: 100,
+      },
+    });
+  });
+
+  it("does not show edit actions for default metrics", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+
+    renderRoute("/metrics");
+
+    await screen.findByRole("heading", {
+      level: 1,
+      name: /metrics/i,
+    });
+
+    expect(
+      screen.queryByRole("button", { name: /edit resting heart rate/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("deactivates a custom metric from the metrics catalog", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions([
+      {
+        id: "default-metric-id",
+        name: "Resting Heart Rate",
+        slug: "resting_hr",
+        unit: "bpm",
+        category: "cardiovascular",
+        min_value: 20,
+        max_value: 220,
+        is_default: true,
+        is_active: true,
+      },
+      {
+        id: "custom-metric-id",
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        category: "custom",
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: true,
+      },
+    ]);
+
+    renderRoute("/metrics");
+
+    await screen.findByRole("heading", {
+      level: 1,
+      name: /metrics/i,
+    });
+
+    await user.click(screen.getByRole("button", { name: /deactivate mood/i }));
+
+    expect(deactivateMetricDefinitionMutateAsyncMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("dialog", { name: /deactivate mood/i }),
+    ).toHaveTextContent(/entries are kept/i);
+
+    await user.click(
+      screen.getByRole("button", { name: /^deactivate metric$/i }),
+    );
+
+    expect(deactivateMetricDefinitionMutateAsyncMock).toHaveBeenCalledWith(
+      "custom-metric-id",
+    );
+    expect(
+      screen.queryByRole("button", {
+        name: /deactivate resting heart rate/i,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows an error when custom metric deactivation fails", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions([
+      {
+        id: "custom-metric-id",
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        category: "custom",
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: true,
+      },
+    ]);
+    deactivateMetricDefinitionMutateAsyncMock.mockRejectedValueOnce(
+      new Error("Metric definition request failed"),
+    );
+
+    renderRoute("/metrics");
+
+    await screen.findByRole("heading", {
+      level: 1,
+      name: /metrics/i,
+    });
+
+    await user.click(screen.getByRole("button", { name: /deactivate mood/i }));
+    await user.click(
+      screen.getByRole("button", { name: /^deactivate metric$/i }),
+    );
+
+    expect(
+      await screen.findByText(/metric definition request failed/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: /deactivate mood/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /edit mood/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /deactivate mood/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("loads active metric definitions by default", async () => {
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+
+    renderRoute("/metrics");
+
+    await screen.findByRole("heading", {
+      level: 1,
+      name: /metrics/i,
+    });
+
+    expect(useMetricDefinitionsQuery).toHaveBeenCalledWith({
+      includeInactive: false,
+    });
+  });
+
+  it("loads inactive custom metrics when requested", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions();
+
+    renderRoute("/metrics");
+
+    await screen.findByRole("heading", {
+      level: 1,
+      name: /metrics/i,
+    });
+
+    await user.click(screen.getByRole("button", { name: /show archived/i }));
+
+    expect(useMetricDefinitionsQuery).toHaveBeenLastCalledWith({
+      includeInactive: true,
+    });
+  });
+
+  it("shows inactive custom metrics in a separate archived section", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions([
+      {
+        id: "active-metric-id",
+        name: "Sleep Score",
+        slug: "sleep_score",
+        unit: "number",
+        category: "custom",
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: true,
+      },
+      {
+        id: "inactive-metric-id",
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        category: "custom",
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: false,
+      },
+    ]);
+
+    renderRoute("/metrics");
+
+    await screen.findByRole("heading", {
+      level: 1,
+      name: /metrics/i,
+    });
+
+    await user.click(screen.getByRole("button", { name: /show archived/i }));
+
+    expect(
+      screen.getByRole("button", { name: "Hide archived" }),
+    ).toHaveAttribute("aria-expanded", "true");
+    const activeMetrics = screen.getByRole("region", {
+      name: "Custom metrics",
+    });
+    expect(activeMetrics).toHaveTextContent(/sleep score/i);
+    expect(activeMetrics).not.toHaveTextContent(/mood/i);
+
+    const archivedMetrics = screen.getByRole("region", {
+      name: /archived custom metrics/i,
+    });
+    expect(archivedMetrics).toHaveTextContent(/mood/i);
+    expect(
+      within(archivedMetrics).getByText(/^archived$/i, {
+        selector: ".archived-status-pill",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(archivedMetrics).queryByRole("link", { name: /mood/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(archivedMetrics).getByRole("button", { name: "Reactivate Mood" }),
+    ).toHaveTextContent(/^Reactivate$/);
+    await user.click(screen.getByRole("button", { name: "Hide archived" }));
+    expect(
+      screen.queryByRole("region", { name: "Archived custom metrics" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("reactivates an archived custom metric from the metrics catalog", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions([
+      {
+        id: "inactive-metric-id",
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        category: "custom",
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: false,
+      },
+    ]);
+
+    renderRoute("/metrics");
+
+    await screen.findByRole("heading", {
+      level: 1,
+      name: /metrics/i,
+    });
+
+    await user.click(screen.getByRole("button", { name: /show archived/i }));
+    await user.click(screen.getByRole("button", { name: /reactivate mood/i }));
+
+    expect(reactivateMetricDefinitionMutateAsyncMock).toHaveBeenCalledWith(
+      "inactive-metric-id",
+    );
+  });
+
+  it("shows an error when archived custom metric reactivation fails", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getMe).mockResolvedValue({
+      email: "user@example.com",
+    });
+    mockLoadedMetricDefinitions([
+      {
+        id: "inactive-metric-id",
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        category: "custom",
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: false,
+      },
+    ]);
+    reactivateMetricDefinitionMutateAsyncMock.mockRejectedValueOnce(
+      new Error("Metric definition request failed"),
+    );
+
+    renderRoute("/metrics");
+
+    await screen.findByRole("heading", {
+      level: 1,
+      name: /metrics/i,
+    });
+
+    await user.click(screen.getByRole("button", { name: /show archived/i }));
+    await user.click(screen.getByRole("button", { name: /reactivate mood/i }));
+
+    expect(
+      await screen.findByText(/metric definition request failed/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /mood/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /reactivate mood/i }),
+    ).toBeInTheDocument();
+  });
+});

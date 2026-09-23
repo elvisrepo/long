@@ -1,0 +1,7 @@
+interface:
+  display_name: "Learning Opportunities"
+  short_description: "Offer short deliberate learning exercises"
+  default_prompt: "Use $learning-opportunities to offer a short learning exercise about the code or architectural change we just made."
+
+policy:
+  allow_implicit_invocation: true

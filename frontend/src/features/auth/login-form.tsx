@@ -1,0 +1,78 @@
+import { useState } from "react";
+
+interface LoginFormValues {
+  email: string;
+  password: string;
+}
+
+interface LoginFormProps {
+  onSubmit: (values: LoginFormValues) => void | Promise<void>;
+  disabled?: boolean;
+}
+
+export function LoginForm({ onSubmit, disabled = false }: LoginFormProps) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  function handleSubmit(event: { preventDefault: () => void }) {
+    event.preventDefault();
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail || !password) {
+      setErrorMessage("Email and password are required.");
+      return;
+    }
+
+    setErrorMessage("");
+
+    onSubmit({
+      email: trimmedEmail,
+      password,
+    });
+  }
+
+  function handleEmailChange(value: string) {
+    setEmail(value);
+    setErrorMessage("");
+  }
+
+  function handlePasswordChange(value: string) {
+    setPassword(value);
+    setErrorMessage("");
+  }
+
+  return (
+    <form className="auth-form" onSubmit={handleSubmit}>
+      <label htmlFor="email">Email</label>
+      <input
+        autoComplete="email"
+        id="email"
+        name="email"
+        type="email"
+        value={email}
+        onChange={(event) => handleEmailChange(event.target.value)}
+      />
+
+      <label htmlFor="password">Password</label>
+      <input
+        autoComplete="current-password"
+        id="password"
+        name="password"
+        type="password"
+        value={password}
+        onChange={(event) => handlePasswordChange(event.target.value)}
+      />
+
+      {errorMessage ? (
+        <p className="auth-error" role="alert">
+          {errorMessage}
+        </p>
+      ) : null}
+
+      <button type="submit" disabled={disabled}>
+        Login
+      </button>
+    </form>
+  );
+}

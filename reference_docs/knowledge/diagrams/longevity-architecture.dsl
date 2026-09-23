@@ -1,0 +1,2271 @@
+workspace "Longevity" "Architecture workspace for the Longevity project." {
+    !identifiers hierarchical
+
+    model {
+        user = person "Longevity User" "Uses the platform to view metrics, manage account data, and review synced health information."
+        deploymentOperator = person "Longevity Operator" "Runs the controlled staging deployment and reviews migration and readiness outcomes."
+
+        samsungHealth = softwareSystem "Samsung Health" "On-device source application that writes Samsung-originated health records into Health Connect."
+        healthConnect = softwareSystem "Health Connect" "Android on-device health data platform that exposes user-permitted records to the companion app."
+        stripe = softwareSystem "Stripe" "External billing provider for hosted Checkout and Customer Portal sessions, subscription payment collection, and billing webhooks."
+        uptimeMonitor = softwareSystem "Uptime Monitoring" "External availability monitor that checks the public Django health endpoint and alerts operators."
+        letsEncrypt = softwareSystem "Let's Encrypt" "Public certificate authority used only for the current presentation-staging Nginx origin certificate through automated ACME DNS validation."
+        publicDns = softwareSystem "Public DNS" "The client's recursive DNS resolver plus Route 53 authoritative records used to resolve staging.<domain> to CloudFront. DNS discovers the destination; it does not carry the HTTP request."
+        awsSecretsManager = softwareSystem "AWS Secrets Manager" "Stores the canonical staging runtime JSON retrieved once through the EC2 instance role."
+
+        longevity = softwareSystem "Longevity Platform" "Tracks user auth, subscriptions, metrics, analytics entitlements, and wearable ingestion." {
+            webapp = container "React Web App" "Implemented browser client for registration, hardened web sessions, dashboard/manual metrics, metric catalog/detail management, and Stripe-backed settings." "React + TypeScript" {
+                webRoutes = component "Routes and Screens" "TanStack Router pages for registration, login, protected Dashboard, Metrics, Metric Detail, and Settings flows." "React + TanStack Router"
+                webAuth = component "Web Auth Session" "Bootstraps CSRF, keeps the access token in memory, relies on an HttpOnly refresh cookie, shares in-flight refreshes, and uses the browser Lock Manager for cross-tab rotation when available." "TypeScript"
+                webServerState = component "Server State Layer" "Fetches, caches, mutates, and invalidates current-user, metric, and subscription server state." "TanStack Query"
+            }
+
+            android = container "Android Companion App" "Implemented mobile authentication, encrypted JWT storage, Health Connect permission boundaries, plan-cooled foreground Samsung Weight and Steps sync, and subscription-enabled periodic WorkManager scheduling." "Kotlin + Jetpack Compose" {
+                androidPresentation = component "Compose UI and ViewModels" "Renders login/session, Health Connect connection, subscription sync policy, manual cooldown, optional Pro background capability, and safe aggregate metric-sync state." "Jetpack Compose + AndroidX Lifecycle"
+                androidAuth = component "Mobile Auth Repository" "Implements mobile login, local startup restoration, on-demand refresh rotation, logout revocation, and safe error translation." "Kotlin + OkHttp"
+                androidTokenStore = component "Keystore Token Store" "Encrypts access and refresh JWTs with an Android-Keystore key and durably stores only ciphertext in private SharedPreferences." "Android Keystore + AES-GCM"
+                androidApiClient = component "Authenticated API Client" "Attaches stored bearer access tokens, coordinates one refresh after a 401, and retries the original product request once." "Kotlin + OkHttp + Coroutines"
+                androidSyncPolicy = component "Subscription Sync Policy" "Reads server-owned automatic-sync and cadence entitlements, validates WorkManager-compatible intervals, exposes UI state, and gates background execution after downgrades." "Kotlin + OkHttp + Coroutines"
+                androidWearables = component "Wearable Connection Repository" "Lists, registers, and disconnects caller-owned Health Connect connections; confirmed disconnect performs connection-scoped scheduler and cursor cleanup." "Kotlin + kotlinx.serialization"
+                androidUploads = component "Wearable Upload Repository" "Posts normalized, retry-stable Weight and Steps batches with Health Connect modification timestamps and maps imported/updated/skipped SyncRun receipts without exposing transport DTOs." "Kotlin + OkHttp + kotlinx.serialization"
+                androidHealthAccess = component "Health Connect Access" "Checks SDK, requires WeightRecord and StepsRecord read permissions, checks the background-read feature/grant, and maps paginated reads into domain samples." "AndroidX Health Connect"
+                androidWeightSyncPlanner = component "Metric Sync Planners" "Weight and Steps incremental policies read a shared per-connection watermark with a 24-hour overlap and 30-day fallback, keep Samsung provenance, and produce backend-safe batches." "Kotlin + Coroutines"
+                androidWeightSyncCoordinator = component "Metric Sync Coordinators and Runners" "Metric coordinators upload ordered batches with one UUID each; AllMetricsSyncRunner combines Weight then Steps, and the outer incremental runner advances its cursor only after the complete attempt succeeds or has no data." "Kotlin + Coroutines"
+                androidWeightSyncCursor = component "Weight Sync Cursor Store" "Durably stores private device-local epoch-millisecond watermarks per backend connection, returns missing values safely, removes corrupted/disconnected connection values, and is excluded from backup/device transfer." "Android SharedPreferences + Coroutines"
+                androidWeightSyncScheduler = component "Weight Sync Scheduler" "Enqueues one network-constrained periodic request at the validated server interval using unique UPDATE semantics; cancels one connection after disconnect or all tagged work after logout/manual-only policy." "AndroidX WorkManager"
+                androidWeightSyncWorker = component "Incremental Metric Sync Worker" "CoroutineWorker that validates a connection ID, rechecks automatic-sync entitlement before device access, invokes the all-metric incremental runner, and maps outcomes to success, retry, or failure. Kotlin type names retain legacy Weight wording." "AndroidX WorkManager + Kotlin Coroutines"
+            }
+
+            stagingEdgeGateway = container "Staging Edge Gateway" "Logical C4 representation of the current staging CloudFront distribution. It terminates viewer TLS, selects static versus /api/* behavior, and opens a separate TLS connection to the API origin. Concrete placement remains in the staging deployment views." "AWS CloudFront" {
+                tags "StagingOnly"
+            }
+
+            stagingOriginProxy = container "Staging Origin Proxy" "Logical C4 representation of the current staging Nginx container. It terminates CloudFront origin TLS, validates the secret origin header, and proxies API traffic to Gunicorn over the private Docker network. Concrete placement remains in the staging deployment views." "Nginx" {
+                tags "StagingOnly"
+            }
+
+            stagingFrontendStore = container "Staging Frontend Artifact Store" "Logical C4 representation of the private S3 bucket containing index.html and immutable Vite assets. CloudFront reads it through Origin Access Control on static cache misses." "Amazon S3" {
+                tags "StagingOnly"
+            }
+
+            stagingDeploymentController = container "Staging Deployment Controller" "Host-side runtime-loader and deployment scripts that freeze one validated configuration snapshot, run migration first, replace the API only after migration success, and wait for readiness." "Python + Docker Compose" {
+                tags "StagingOnly"
+            }
+
+            stagingMigrationTask = container "Staging Migration Task" "One-off container from the immutable backend image that applies Django migrations before API replacement." "Docker + Django management command" {
+                tags "StagingOnly"
+            }
+
+            api = container "Django API" "Gunicorn-hosted synchronous HTTP API for auth, subscriptions/Stripe, metrics, and wearable connection/upload workflows." "Gunicorn + Django + Django REST Framework" {
+                gunicornRuntime = component "Gunicorn WSGI Runtime" "Accepts private HTTP from the trusted reverse proxy and invokes Django through config.wsgi:application. It does not terminate TLS in the staging topology." "Gunicorn + WSGI"
+                healthApi = component "Health Endpoints" "Exposes database-independent liveness and PostgreSQL-backed readiness without leaking internal errors." "Django"
+                authApi = component "Authentication" "Registration, web/mobile login, CSRF, current-user, logout, and concurrency-safe SimpleJWT refresh rotation." "Django REST Framework + SimpleJWT"
+                subscriptionsApi = component "Subscriptions and Billing" "Plan/price reads, entitlement state, Checkout/Portal session creation, and idempotent signed Stripe webhook reconciliation." "Django REST Framework + Stripe SDK"
+                metricsApi = component "Metrics" "Metric definitions, entitlement-limited custom metrics, manual entries, history reads, and entry maintenance." "Django REST Framework"
+                wearablesApi = component "Wearables" "Plan-limited Health Connect lifecycle plus synchronous idempotent ingestion with version-aware provider-record upserts." "Django REST Framework"
+            }
+
+            worker = container "Celery Worker" "Prepared local/future runtime for asynchronous wearable processing, exports, deletion, and other background jobs; no current product flow depends on it." "Celery" {
+                tags "PreparedInfrastructure"
+            }
+
+            beat = container "Celery Beat" "Prepared local/future scheduler; no current product flow depends on scheduled Celery work." "Celery Beat" {
+                tags "PreparedInfrastructure"
+            }
+
+            db = container "PostgreSQL / TimescaleDB" "System of record for encrypted user identity, JWT revocation state, subscriptions, Stripe receipts, metric data, wearable connections, and sync receipts. Timescale-specific features are not enabled yet." "PostgreSQL + TimescaleDB"
+
+            redis = container "Redis" "Running-capable Celery broker infrastructure reserved for future asynchronous work; current product requests do not depend on it." "Redis" {
+                tags "PreparedInfrastructure"
+            }
+        }
+
+        user -> longevity "Views metrics, manages account, and reviews health data"
+        healthConnect -> longevity "Supplies permitted on-device health records indirectly through the Android companion app"
+        stripe -> longevity "Sends verified billing webhooks after checkout and subscription events"
+        uptimeMonitor -> longevity "Checks the public API health endpoint"
+        publicDns -> longevity "Resolves public Longevity hostnames"
+        awsSecretsManager -> longevity "Supplies controlled runtime configuration"
+        deploymentOperator -> longevity "Deploys tested staging releases"
+
+        user -> longevity.webapp "Uses"
+        user -> longevity.android "Uses to connect and sync on-device health data"
+        samsungHealth -> healthConnect "Writes Samsung-originated health records on device"
+          longevity.android -> healthConnect "Checks SDK availability and Weight/Steps permissions and reads paginated WeightRecord and StepsRecord data after sync actions"
+        user -> stripe "Completes hosted Checkout and manages billing/cancellation in the Customer Portal"
+
+          webCallsApi = longevity.webapp -> longevity.api "Calls JSON API over HTTPS"
+          longevity.webapp -> stripe "Redirects user to hosted Stripe Checkout and Customer Portal URLs"
+          stripe -> longevity.webapp "Redirects the browser to server-configured Settings return URLs"
+          androidCallsApi = longevity.android -> longevity.api "Calls JSON API over HTTPS"
+          longevity.android -> publicDns "Resolves the configured staging hostname before connecting"
+          longevity.android -> longevity.stagingEdgeGateway "Calls the staging JSON API over viewer TLS"
+          longevity.webapp -> publicDns "Resolves the staging browser hostname before connecting"
+          longevity.webapp -> longevity.stagingEdgeGateway "Loads staging routes and calls relative API paths over viewer TLS"
+          longevity.stagingEdgeGateway -> longevity.stagingOriginProxy "Forwards uncached /api/* requests over separate origin TLS"
+          longevity.stagingEdgeGateway -> longevity.stagingFrontendStore "Reads index.html and immutable frontend assets through Origin Access Control"
+          longevity.stagingOriginProxy -> longevity.api.gunicornRuntime "Proxies requests over private HTTP"
+          longevity.api.gunicornRuntime -> longevity.api.metricsApi "Invokes Django metric routing and request handling through WSGI"
+          longevity.api.gunicornRuntime -> longevity.api.subscriptionsApi "Invokes Django subscription and Stripe-webhook handling through WSGI"
+          longevity.api.gunicornRuntime -> longevity.api.healthApi "Invokes Django liveness or readiness handling through WSGI"
+          longevity.api.healthApi -> longevity.db "Executes the constant PostgreSQL readiness probe"
+          stripe -> publicDns "Resolves the staging webhook hostname before connecting"
+          stripe -> longevity.stagingEdgeGateway "POSTs signed staging webhook events over viewer TLS"
+          deploymentOperator -> longevity.stagingDeploymentController "Starts a controlled staging deployment"
+          longevity.stagingDeploymentController -> awsSecretsManager "Retrieves one AWSCURRENT runtime JSON snapshot"
+          longevity.stagingDeploymentController -> longevity.stagingMigrationTask "Runs and waits for the one-off migration container"
+          longevity.stagingMigrationTask -> longevity.db "Applies schema migrations using the validated snapshot"
+          longevity.stagingDeploymentController -> longevity.api.gunicornRuntime "Replaces and waits for the API only after migration success"
+
+          longevity.api -> longevity.db "Reads and writes data"
+          longevity.api -> stripe "Creates Checkout Sessions with server-owned Stripe Price IDs and on-demand Customer Portal Sessions; verifies signed webhook events"
+          stripe -> longevity.api "POSTs signed billing webhook events"
+          user -> longevity.webapp.webRoutes "Uses browser screens"
+          longevity.webapp.webRoutes -> longevity.webapp.webAuth "Requires session state and protected-route checks"
+          longevity.webapp.webRoutes -> longevity.webapp.webServerState "Reads and mutates product data"
+          longevity.webapp.webAuth -> longevity.api "Calls web auth endpoints with CSRF, bearer access tokens, and browser cookies"
+          longevity.webapp.webServerState -> longevity.api "Calls authenticated metric and subscription endpoints"
+          longevity.webapp.webRoutes -> stripe "Navigates to hosted Checkout and Customer Portal pages"
+          user -> longevity.android.androidPresentation "Uses mobile screens"
+          longevity.android.androidPresentation -> longevity.android.androidAuth "Restores, creates, and revokes the mobile session"
+          longevity.android.androidPresentation -> longevity.android.androidWearables "Starts Health Connect connection registration"
+          longevity.android.androidPresentation -> longevity.android.androidSyncPolicy "Loads scheduling and manual-cooldown policy"
+          longevity.android.androidPresentation -> longevity.android.androidHealthAccess "Checks Health Connect availability and existing permission"
+          longevity.android.androidPresentation -> longevity.android.androidWeightSyncCoordinator "Starts explicit all-metric sync and renders aggregate outcome"
+          longevity.android.androidWeightSyncPlanner -> longevity.android.androidHealthAccess "Reads normalized Weight and Steps samples for incremental windows"
+          longevity.android.androidWeightSyncCoordinator -> longevity.android.androidWeightSyncPlanner "Requests ordered Samsung-originated metric batches"
+          longevity.android.androidWeightSyncCoordinator -> longevity.android.androidUploads "Uploads each planned batch with one generated UUID"
+          longevity.android.androidWeightSyncPlanner -> longevity.android.androidWeightSyncCursor "Loads the incremental connection watermark"
+          longevity.android.androidWeightSyncCoordinator -> longevity.android.androidWeightSyncCursor "Persists a conservative watermark after successful incremental outcomes"
+          longevity.android.androidPresentation -> longevity.android.androidWeightSyncCursor "Resolves manual cooldown from the durable successful-sync timestamp"
+          longevity.android.androidPresentation -> longevity.android.androidWeightSyncScheduler "Schedules after background access is granted and cancels after confirmed logout"
+          longevity.android.androidWeightSyncScheduler -> longevity.android.androidWeightSyncWorker "Enqueues unique periodic connection work with a network constraint"
+          longevity.android.androidWeightSyncWorker -> longevity.android.androidSyncPolicy "Rechecks automatic entitlement before Health Connect access"
+          longevity.android.androidWeightSyncWorker -> longevity.android.androidWeightSyncCoordinator "Invokes the application-scoped incremental runner"
+          longevity.android.androidPresentation -> healthConnect "Launches the official permission Activity Result contract"
+          longevity.android.androidAuth -> longevity.android.androidTokenStore "Reads, encrypts, commits, and clears JWT pairs"
+          longevity.android.androidAuth -> longevity.api "Calls mobile authentication endpoints"
+          longevity.android.androidAuth -> longevity.api.authApi "Calls mobile login, refresh, and logout endpoints"
+          longevity.android.androidApiClient -> longevity.android.androidTokenStore "Reads bearer credentials and rereads after refresh coordination"
+          longevity.android.androidApiClient -> longevity.android.androidAuth "Requests one refresh after a rejected access token"
+          longevity.android.androidApiClient -> longevity.api "Calls authenticated product endpoints"
+          longevity.android.androidApiClient -> longevity.api.wearablesApi "Calls authenticated wearable connection and upload endpoints"
+          longevity.android.androidApiClient -> longevity.api.subscriptionsApi "Calls the authenticated current-subscription endpoint"
+          longevity.android.androidSyncPolicy -> longevity.android.androidApiClient "Executes authenticated current-subscription reads"
+          longevity.android.androidWearables -> longevity.android.androidApiClient "Executes authenticated connection requests"
+          longevity.android.androidWearables -> longevity.android.androidWeightSyncScheduler "Cancels confirmed disconnected connection work"
+          longevity.android.androidWearables -> longevity.android.androidWeightSyncCursor "Removes the confirmed disconnected connection cursor"
+          longevity.android.androidUploads -> longevity.android.androidApiClient "Executes authenticated normalized upload requests"
+          longevity.android.androidHealthAccess -> healthConnect "Checks SDK availability and both WeightRecord and StepsRecord read grants"
+
+          longevity.webapp -> longevity.api.authApi "Uses web auth and current-user endpoints"
+          longevity.webapp -> longevity.api.metricsApi "Uses metric definition and entry endpoints"
+          longevity.webapp -> longevity.api.subscriptionsApi "Uses subscription, Checkout, and Portal endpoints"
+          longevity.android -> longevity.api.authApi "Uses mobile auth endpoints"
+          longevity.android -> longevity.api.wearablesApi "Uses implemented connection and normalized upload endpoints through explicit mobile actions"
+          longevity.android -> longevity.api.subscriptionsApi "Reads server-owned wearable sync policy"
+
+          longevity.api.authApi -> longevity.db "Reads users and writes SimpleJWT outstanding/blacklisted token state"
+          longevity.api.authApi -> longevity.api.subscriptionsApi "Creates the default Free subscription during registration"
+          longevity.api.metricsApi -> longevity.db "Reads and writes metric definitions and entries"
+          longevity.api.metricsApi -> longevity.api.subscriptionsApi "Checks current plan entitlements"
+          longevity.api.subscriptionsApi -> longevity.db "Reads and writes plans, subscriptions, billing mappings, attempts, and webhook receipts"
+          longevity.api.subscriptionsApi -> stripe "Creates hosted sessions and verifies signed events"
+          stripe -> longevity.api.subscriptionsApi "POSTs signed subscription events"
+          longevity.api.wearablesApi -> longevity.db "Reads and writes connections, SyncRuns, and normalized MetricEntries"
+          longevity.api.wearablesApi -> longevity.api.subscriptionsApi "Checks wearable connection entitlements"
+
+          longevity.api -> longevity.redis "Planned: publishes asynchronous work through the broker" {
+              tags "PreparedTraffic"
+          }
+          longevity.worker -> longevity.db "Planned: reads and writes durable job state" {
+              tags "PreparedTraffic"
+          }
+          longevity.worker -> longevity.redis "Prepared broker connection" {
+              tags "PreparedTraffic"
+          }
+          longevity.beat -> longevity.redis "Prepared scheduled-work publisher" {
+              tags "PreparedTraffic"
+          }
+
+            localDev = deploymentEnvironment "Local Development" {
+                developerMachine = deploymentNode "Developer Machine" "Local host machine used for browser testing, Vite, Android Studio/Gradle/adb, and Stripe webhook forwarding." {
+                    tags "ClientZone"
+
+                    localBrowserNode = deploymentNode "Browser" "Local browser runtime that executes the React application." {
+                        tags "ClientZone"
+                        localBrowser = infrastructureNode "Local Web Browser" "Loads the Vite-served React application and follows Stripe hosted redirects." {
+                            tags "ClientRuntime"
+                        }
+                        localWebapp = containerInstance longevity.webapp
+                    }
+
+                    viteNode = deploymentNode "Vite Dev Server" "Serves React assets on :5173 and proxies relative /api requests to Django on :8000." {
+                        tags "ClientZone"
+                        viteServer = infrastructureNode "Vite Runtime and /api Proxy" "Provides frontend development assets and the same-origin API proxy." {
+                            tags "ClientRuntime"
+                        }
+                    }
+
+                    stripeCli = infrastructureNode "Stripe CLI Listener" "Forwards selected Stripe sandbox webhook events to the local Django webhook endpoint." {
+                        tags "EdgeService"
+                    }
+
+                    androidTooling = infrastructureNode "Android Studio + Gradle + adb" "Builds the Kotlin/Compose app and installs/runs debug and test APKs on the authorized physical phone." {
+                        tags "ClientRuntime"
+                    }
+
+                    adbReverse = infrastructureNode "adb reverse Tunnel" "Forwards the phone's localhost:8000 traffic to the host Django development port for physical-device API testing." {
+                        tags "EdgeService"
+                    }
+                }
+
+                physicalAndroidPhone = deploymentNode "Physical Android Phone" "Current USB-connected test device. Weight and Steps sync, durable cursors, subscription-aware scheduling, and execution-time entitlement checks are implemented. Honor OS may defer periodic work until the app reopens, after which the overlap cursor catches up missed records." {
+                    tags "ClientZone"
+
+                    localAndroidClient = containerInstance longevity.android
+
+                    localHealthConnect = infrastructureNode "Health Connect" "On-device platform with implemented availability, WeightRecord and StepsRecord permissions, paginated reads, and tested multi-metric synchronization." {
+                        tags "ClientRuntime"
+                    }
+
+                    localSamsungHealth = infrastructureNode "Samsung Health" "On-device source application expected to write Samsung-originated records into Health Connect." {
+                        tags "ClientRuntime"
+                    }
+                }
+
+                dockerCompose = deploymentNode "Docker Compose" "Local backend runtime." {
+                    tags "CloudZone"
+
+                    localApiNode = deploymentNode "Django API Container" {
+                        tags "ComputeZone"
+                        localApi = containerInstance longevity.api
+                    }
+
+                    localWorkerNode = deploymentNode "Celery Worker Container" {
+                        tags "ComputeZone"
+                        localWorker = containerInstance longevity.worker
+                    }
+
+                    localBeatNode = deploymentNode "Celery Beat Container" {
+                        tags "ComputeZone"
+                        localBeat = containerInstance longevity.beat
+                    }
+
+                    localDbNode = deploymentNode "PostgreSQL / TimescaleDB Container" {
+                        tags "DataZone"
+                        localDb = containerInstance longevity.db
+                    }
+
+                    localRedisNode = deploymentNode "Redis Container" {
+                        tags "DataZone"
+                        localRedis = containerInstance longevity.redis
+                    }
+                }
+
+                localDev.developerMachine.localBrowserNode.localBrowser -> localDev.developerMachine.viteNode.viteServer "Loads React application assets from :5173" {
+                    tags "ClientTraffic"
+                }
+
+                localDev.developerMachine.viteNode.viteServer -> localDev.developerMachine.localBrowserNode.localWebapp "Serves the application executed by the browser" {
+                    tags "ClientTraffic"
+                }
+
+                localDev.developerMachine.androidTooling -> localDev.physicalAndroidPhone.localAndroidClient "Builds, installs, and runs debug/test APKs over USB using adb" {
+                    tags "ClientTraffic"
+                }
+
+                localDev.physicalAndroidPhone.localSamsungHealth -> localDev.physicalAndroidPhone.localHealthConnect "Writes Samsung-originated records on device" {
+                    tags "ClientTraffic"
+                }
+
+                localDev.physicalAndroidPhone.localAndroidClient -> localDev.physicalAndroidPhone.localHealthConnect "Checks foreground/background capability, launches explicit permission contracts, and reads paginated WeightRecord and StepsRecord data" {
+                    tags "ClientTraffic"
+                }
+
+                localDev.physicalAndroidPhone.localAndroidClient -> localDev.developerMachine.adbReverse "Calls Django mobile auth and wearable connection APIs through the debug localhost tunnel" {
+                    tags "ClientTraffic"
+                }
+
+                localDev.developerMachine.adbReverse -> localDev.dockerCompose.localApiNode.localApi "Forwards TCP port 8000 to Django" {
+                    tags "EdgeTraffic"
+                }
+
+                localDev.developerMachine.localBrowserNode.localWebapp -> localDev.developerMachine.viteNode.viteServer "Calls relative /api URLs through the Vite proxy" {
+                    tags "ClientTraffic"
+                }
+
+                localDev.developerMachine.viteNode.viteServer -> localDev.dockerCompose.localApiNode.localApi "Proxies /api requests to host port 8000" {
+                    tags "EdgeTraffic"
+                }
+
+                localDev.developerMachine.localBrowserNode.localWebapp -> stripe "Redirects to hosted Checkout and Customer Portal" {
+                    tags "ClientTraffic"
+                }
+
+                localDev.dockerCompose.localApiNode.localApi -> stripe "Creates Checkout and Portal Sessions in Stripe sandbox" {
+                    tags "EdgeTraffic"
+                }
+
+                stripe -> localDev.developerMachine.stripeCli "Sends sandbox billing events to the Stripe CLI listener" {
+                    tags "EdgeTraffic"
+                }
+
+                localDev.developerMachine.stripeCli -> localDev.dockerCompose.localApiNode.localApi "Forwards signed events to /api/v1/subscriptions/stripe/webhook/" {
+                    tags "EdgeTraffic"
+                }
+
+            }
+
+            mvpStaging = deploymentEnvironment "[LEGACY / SUPERSEDED] MVP Staging - Two EC2 Targets" {
+                operatorAccess = deploymentNode "Operator Workstation" "Trusted administrator workstation; the human operator authenticates to AWS with IAM rather than connecting to EC2 over public SSH." {
+                    tags "ClientZone"
+                    awsAccessClient = infrastructureNode "AWS Console / CLI Session Manager Client" "Starts authorized Systems Manager sessions and operational commands." {
+                        tags "ClientRuntime"
+                    }
+                }
+
+                userDevices = deploymentNode "User Devices" "Where staging users run the browser and internally distributed Android client." {
+                    tags "ClientZone"
+
+                    browserNode = deploymentNode "Browser" "Web browser runtime that executes the staging React client." {
+                        tags "ClientZone"
+                        browserRuntime = infrastructureNode "Web Browser" "Loads and runs the React web application." {
+                            tags "ClientRuntime"
+                        }
+                        browserClient = containerInstance longevity.webapp
+                    }
+
+                    androidNode = deploymentNode "Android Phone" "Physical Android runtime using the staging build and the dedicated public HTTPS API hostname." {
+                        tags "ClientZone"
+                        androidClient = containerInstance longevity.android
+                        healthConnectRuntime = infrastructureNode "Health Connect" "Exposes user-permitted Weight and Steps records, stable record IDs, and provider modification timestamps." {
+                            tags "ClientRuntime"
+                        }
+                        samsungHealthRuntime = infrastructureNode "Samsung Health" "Writes Samsung-originated health records into Health Connect." {
+                            tags "ClientRuntime"
+                        }
+                    }
+                }
+
+                frontendHosting = deploymentNode "Frontend Hosting / CDN" "Provider-neutral staging browser origin. It serves React and reverse-proxies /api/* to the dedicated API hostname so browser API calls remain same-origin." {
+                    tags "EdgeZone"
+                    staticHost = infrastructureNode "React Static Host + /api Proxy" "Serves versioned React assets over HTTPS and forwards uncached /api/* requests to the ALB origin." {
+                        tags "EdgeService"
+                    }
+                }
+
+                aws = deploymentNode "AWS Account" "Manually provisioned learning environment, later reproduced with Terraform. Celery, Beat, and Redis remain absent." {
+                    tags "CloudZone"
+
+                    publicDns = infrastructureNode "Route 53 Public DNS" "Publishes api-staging.<domain> as an alias to the regional ALB; DNS locates the endpoint but does not terminate TLS." {
+                        tags "EdgeService"
+                    }
+
+                    region = deploymentNode "eu-central-1 (Frankfurt)" "One AWS Region containing the staging network and regional services." {
+                        tags "CloudZone"
+
+                        acmCertificate = infrastructureNode "ACM TLS Certificate" "Proves control of api-staging.<domain> and supplies the certificate used by the ALB HTTPS listener." {
+                            tags "SecurityService"
+                        }
+
+                        vpc = deploymentNode "Staging VPC 10.20.0.0/16" "Isolated regional network. The public ALB reaches private EC2 targets by private IP; security groups constrain each hop." {
+                            tags "NetworkZone"
+
+                            internetGateway = infrastructureNode "Internet Gateway" "Connects public-subnet routes to the internet." {
+                                tags "NetworkService"
+                            }
+
+                            publicTier = deploymentNode "Public Subnets" "Two public subnets are required for the internet-facing ALB and provide zonal outbound gateways." {
+                                tags "EdgeZone"
+
+                                publicSubnetA = deploymentNode "Public Subnet A 10.20.0.0/24 (AZ-a)" {
+                                    tags "EdgeZone"
+                                    natGatewayA = infrastructureNode "NAT Gateway A" "Provides outbound-only internet access for Private App Subnet A." {
+                                        tags "NetworkService"
+                                    }
+                                }
+
+                                publicSubnetB = deploymentNode "Public Subnet B 10.20.1.0/24 (AZ-b)" {
+                                    tags "EdgeZone"
+                                    natGatewayB = infrastructureNode "NAT Gateway B" "Provides outbound-only internet access for Private App Subnet B." {
+                                        tags "NetworkService"
+                                    }
+                                }
+
+                                alb = deploymentNode "Internet-facing Application Load Balancer" "AWS-managed reverse proxy spanning both public subnets." {
+                                    tags "EdgeZone"
+                                    httpsListener = infrastructureNode "HTTPS :443 Listener" "Accepts TCP, performs the TLS handshake with the ACM certificate, decrypts HTTP requests, and adds trusted forwarding metadata." {
+                                        tags "EdgeService"
+                                    }
+                                    targetGroup = infrastructureNode "Django Target Group" "Health-checks both EC2 targets and forwards application HTTP only to healthy targets." {
+                                        tags "EdgeService"
+                                    }
+                                }
+                            }
+
+                            privateTier = deploymentNode "Private Application Subnets" "EC2 has no public ingress or public SSH endpoint. Each host is reachable from the ALB security group and managed through Systems Manager." {
+                                tags "ComputeZone"
+
+                                privateSubnetA = deploymentNode "Private App Subnet A 10.20.10.0/24 (AZ-a)" {
+                                    tags "ComputeZone"
+                                    computeA = deploymentNode "EC2 App Host A" "First Docker host and the designated one-off migration runner." {
+                                        tags "ComputeZone"
+                                        dockerRuntimeA = infrastructureNode "Docker Engine + Compose" "Runs the immutable backend image." {
+                                            tags "ComputeZone"
+                                        }
+                                        ssmAgentA = infrastructureNode "SSM Agent A" "Maintains an authenticated outbound management channel; no inbound TCP 22 is required." {
+                                            tags "SecurityService"
+                                        }
+                                        apiNodeA = deploymentNode "Django API Container A" {
+                                            gunicornServerA = infrastructureNode "Gunicorn WSGI Server A" "Production application server that accepts restricted ALB HTTP traffic and invokes Django through config.wsgi:application." {
+                                                tags "ComputeZone"
+                                            }
+                                            apiInstanceA = containerInstance longevity.api
+                                        }
+                                        migrationNode = deploymentNode "One-off Migration Container" "Runs migrations once before both API containers are replaced." {
+                                            migrationInstance = containerInstance longevity.api
+                                        }
+                                    }
+                                }
+
+                                privateSubnetB = deploymentNode "Private App Subnet B 10.20.11.0/24 (AZ-b)" {
+                                    tags "ComputeZone"
+                                    computeB = deploymentNode "EC2 App Host B" "Second Docker host used to learn ALB health routing and tolerate one app-host or AZ failure." {
+                                        tags "ComputeZone"
+                                        dockerRuntimeB = infrastructureNode "Docker Engine + Compose" "Runs the same immutable backend image." {
+                                            tags "ComputeZone"
+                                        }
+                                        ssmAgentB = infrastructureNode "SSM Agent B" "Maintains an authenticated outbound management channel; no inbound TCP 22 is required." {
+                                            tags "SecurityService"
+                                        }
+                                        apiNodeB = deploymentNode "Django API Container B" {
+                                            gunicornServerB = infrastructureNode "Gunicorn WSGI Server B" "Production application server that accepts restricted ALB HTTP traffic and invokes Django through config.wsgi:application." {
+                                                tags "ComputeZone"
+                                            }
+                                            apiInstanceB = containerInstance longevity.api
+                                        }
+                                    }
+                                }
+                            }
+
+                            networkControls = deploymentNode "Security Groups" "Stateful least-privilege network boundaries; these are rules, not traffic-processing proxies." {
+                                tags "SecurityZone"
+                                albSecurityGroup = infrastructureNode "ALB Security Group" "Allows public TCP 443; no public application-container port." {
+                                    tags "SecurityService"
+                                }
+                                appSecurityGroup = infrastructureNode "App Security Group" "Allows the Gunicorn HTTP port only from the ALB security group; no inbound TCP 22." {
+                                    tags "SecurityService"
+                                }
+                            }
+                        }
+
+                        security = deploymentNode "Security & Management" {
+                            tags "SecurityZone"
+                            secretsNode = infrastructureNode "AWS Secrets Manager" "Stores Django, database, Stripe, and other server-side staging secrets." {
+                                tags "SecurityService"
+                            }
+                            systemsManager = infrastructureNode "AWS Systems Manager Session Manager" "Authorizes audited operator sessions through IAM and the SSM agents without public SSH." {
+                                tags "SecurityService"
+                            }
+                        }
+
+                        ops = deploymentNode "Operations" {
+                            tags "OpsZone"
+                            monitoringNode = infrastructureNode "CloudWatch" "Collects API and migration logs plus EC2, ALB, and target-health metrics." {
+                                tags "OpsService"
+                            }
+                        }
+                    }
+                }
+
+                managedDatabase = deploymentNode "Managed Database" "Provider-managed PostgreSQL boundary retained as Timescale Cloud unless staging cost requires an explicit alternative." {
+                    tags "ManagedZone"
+                    timescaleNode = infrastructureNode "Timescale Cloud" "Managed PostgreSQL plus TimescaleDB reached through an encrypted connection." {
+                        tags "ManagedDataService"
+                    }
+                    managedBackupsNode = infrastructureNode "Managed Automated Backups" "Provider-operated database backups with retention recorded when the service is provisioned." {
+                        tags "StorageService"
+                    }
+                }
+
+                mvpStaging.frontendHosting.staticHost -> mvpStaging.userDevices.browserNode.browserRuntime "Serves React assets over HTTPS" "" "ClientTraffic"
+                mvpStaging.userDevices.browserNode.browserRuntime -> mvpStaging.userDevices.browserNode.browserClient "Runs the downloaded React application" "" "ClientTraffic"
+                mvpStaging.userDevices.browserNode.browserClient -> mvpStaging.frontendHosting.staticHost "Calls relative /api/* on the same HTTPS browser origin" "" "ClientTraffic"
+                mvpStaging.frontendHosting.staticHost -> mvpStaging.aws.publicDns "Resolves api-staging.<domain> as its uncached /api/* origin" "" "EdgeTraffic"
+                mvpStaging.userDevices.androidNode.androidClient -> mvpStaging.aws.publicDns "Resolves its configured staging API hostname" "" "ClientTraffic"
+                uptimeMonitor -> mvpStaging.aws.publicDns "Resolves the public health-check hostname" "" "OpsTraffic"
+                stripe -> mvpStaging.aws.publicDns "Resolves the signed webhook destination" "" "EdgeTraffic"
+                mvpStaging.aws.publicDns -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "Aliases api-staging.<domain> to the ALB TLS endpoint" "" "EdgeTraffic"
+                mvpStaging.aws.region.acmCertificate -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "Supplies and renews the public TLS certificate" "" "SecurityTraffic"
+                mvpStaging.aws.region.vpc.networkControls.albSecurityGroup -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "Governs public inbound TCP 443" "" "SecurityTraffic"
+                mvpStaging.aws.region.vpc.networkControls.albSecurityGroup -> mvpStaging.aws.region.vpc.networkControls.appSecurityGroup "Is the only allowed application-port source" "" "SecurityTraffic"
+                mvpStaging.aws.region.vpc.networkControls.appSecurityGroup -> mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.gunicornServerA "Governs target A ingress; no TCP 22" "" "SecurityTraffic"
+                mvpStaging.aws.region.vpc.networkControls.appSecurityGroup -> mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.gunicornServerB "Governs target B ingress; no TCP 22" "" "SecurityTraffic"
+                mvpStaging.frontendHosting.staticHost -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "Forwards uncached /api/* over HTTPS" "" "EdgeTraffic"
+                mvpStaging.userDevices.androidNode.androidClient -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "Calls the dedicated API hostname over HTTPS" "" "ClientTraffic"
+                uptimeMonitor -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "GET /api/v1/health/live/ over HTTPS" "" "OpsTraffic"
+                stripe -> mvpStaging.aws.region.vpc.publicTier.alb.httpsListener "POSTs signed test-mode webhooks over HTTPS" "" "EdgeTraffic"
+                mvpStaging.aws.region.vpc.publicTier.alb.httpsListener -> mvpStaging.aws.region.vpc.publicTier.alb.targetGroup "Terminates TLS and forwards application HTTP inside the VPC" "" "EdgeTraffic"
+                mvpStaging.aws.region.vpc.publicTier.alb.targetGroup -> mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.gunicornServerA "Probes /api/v1/health/ready/ and routes to healthy target A over private IP" "" "EdgeTraffic"
+                mvpStaging.aws.region.vpc.publicTier.alb.targetGroup -> mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.gunicornServerB "Probes /api/v1/health/ready/ and routes to healthy target B over private IP" "" "EdgeTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.gunicornServerA -> mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA "Invokes Django through WSGI" "WSGI" "EdgeTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.gunicornServerB -> mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.apiInstanceB "Invokes Django through WSGI" "WSGI" "EdgeTraffic"
+                mvpStaging.userDevices.browserNode.browserClient -> stripe "Redirects to hosted Checkout and Customer Portal" "" "ClientTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA -> stripe "Creates Stripe test-mode Checkout and Portal Sessions" "" "EdgeTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.apiInstanceB -> stripe "Creates Stripe test-mode Checkout and Portal Sessions" "" "EdgeTraffic"
+                mvpStaging.userDevices.androidNode.samsungHealthRuntime -> mvpStaging.userDevices.androidNode.healthConnectRuntime "Writes Samsung-originated records on device" "" "ClientTraffic"
+                mvpStaging.userDevices.androidNode.androidClient -> mvpStaging.userDevices.androidNode.healthConnectRuntime "Reads permitted Weight and Steps records" "" "ClientTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA -> mvpStaging.managedDatabase.timescaleNode "Reads and writes over encrypted PostgreSQL" "" "DataTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.apiInstanceB -> mvpStaging.managedDatabase.timescaleNode "Reads and writes over encrypted PostgreSQL" "" "DataTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.migrationNode.migrationInstance -> mvpStaging.managedDatabase.timescaleNode "Applies schema migrations before service promotion" "" "DataTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA -> mvpStaging.aws.region.security.secretsNode "Reads secrets through the EC2 IAM role" "" "SecurityTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.apiInstanceB -> mvpStaging.aws.region.security.secretsNode "Reads secrets through the EC2 IAM role" "" "SecurityTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.migrationNode.migrationInstance -> mvpStaging.aws.region.security.secretsNode "Reads migration configuration" "" "SecurityTraffic"
+                mvpStaging.operatorAccess.awsAccessClient -> mvpStaging.aws.region.security.systemsManager "Starts IAM-authorized operator sessions" "" "OpsTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.ssmAgentA -> mvpStaging.aws.region.security.systemsManager "Maintains outbound management channel" "" "SecurityTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.ssmAgentB -> mvpStaging.aws.region.security.systemsManager "Maintains outbound management channel" "" "SecurityTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA -> mvpStaging.aws.region.ops.monitoringNode "Writes logs and metrics" "" "OpsTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.apiInstanceB -> mvpStaging.aws.region.ops.monitoringNode "Writes logs and metrics" "" "OpsTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.migrationNode.migrationInstance -> mvpStaging.aws.region.ops.monitoringNode "Writes migration logs and exit status" "" "OpsTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA -> mvpStaging.aws.region.vpc.publicTier.publicSubnetA.natGatewayA "Uses zonal outbound route for external services" "" "NetworkTraffic"
+                mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.apiNodeB.apiInstanceB -> mvpStaging.aws.region.vpc.publicTier.publicSubnetB.natGatewayB "Uses zonal outbound route for external services" "" "NetworkTraffic"
+                mvpStaging.aws.region.vpc.publicTier.publicSubnetA.natGatewayA -> mvpStaging.aws.region.vpc.internetGateway "Reaches approved internet services" "" "NetworkTraffic"
+                mvpStaging.aws.region.vpc.publicTier.publicSubnetB.natGatewayB -> mvpStaging.aws.region.vpc.internetGateway "Reaches approved internet services" "" "NetworkTraffic"
+                mvpStaging.managedDatabase.timescaleNode -> mvpStaging.managedDatabase.managedBackupsNode "Creates provider-managed automated backups" "" "StorageTraffic"
+            }
+
+            approvedInitialStaging = deploymentEnvironment "[LEGACY / SUPERSEDED] Initial Staging - ALB + One EC2 + Timescale Cloud" {
+                operatorAccess = deploymentNode "Operator Workstation" "Trusted administrator workstation. The operator authenticates with IAM and uses Systems Manager instead of public SSH." {
+                    tags "ClientZone"
+                    awsAccessClient = infrastructureNode "AWS Console / CLI Session Manager Client" "Starts authorized Systems Manager sessions and operational commands." {
+                        tags "ClientRuntime"
+                    }
+                }
+
+                userDevices = deploymentNode "User Devices" "Where staging users run the browser and internally distributed Android client." {
+                    tags "ClientZone"
+
+                    browserNode = deploymentNode "Browser" "Uses one public origin, staging.<domain>, for both React assets and relative /api/* requests." {
+                        tags "ClientZone"
+                        browserRuntime = infrastructureNode "Web Browser" "Loads and runs the React SPA." {
+                            tags "ClientRuntime"
+                        }
+                        browserClient = containerInstance longevity.webapp
+                    }
+
+                    androidNode = deploymentNode "Android Phone" "Uses the dedicated api-staging.<domain> HTTPS base URL." {
+                        tags "ClientZone"
+                        androidClient = containerInstance longevity.android
+                        healthConnectRuntime = infrastructureNode "Health Connect" "Exposes user-permitted Weight and Steps records." {
+                            tags "ClientRuntime"
+                        }
+                        samsungHealthRuntime = infrastructureNode "Samsung Health" "Writes Samsung-originated records into Health Connect." {
+                            tags "ClientRuntime"
+                        }
+                    }
+                }
+
+                aws = deploymentNode "AWS Account" "Approved manually provisioned initial staging environment. A second EC2 target is intentionally deferred." {
+                    tags "CloudZone"
+
+                    dns = deploymentNode "Route 53 Public DNS" "Publishes separate browser and direct API hostnames." {
+                        tags "EdgeZone"
+                        frontendDns = infrastructureNode "staging.<domain> Alias" "Points the single browser origin to CloudFront." {
+                            tags "EdgeService"
+                        }
+                        apiDns = infrastructureNode "api-staging.<domain> Alias" "Points CloudFront's API origin, Android, Stripe, and uptime monitoring to the ALB." {
+                            tags "EdgeService"
+                        }
+                    }
+
+                    globalEdge = deploymentNode "AWS Global Edge" "Global CloudFront and certificate boundary." {
+                        tags "EdgeZone"
+                        cloudFrontCertificate = infrastructureNode "ACM Certificate (us-east-1)" "CloudFront requires its viewer certificate in us-east-1." {
+                            tags "SecurityService"
+                        }
+                        cloudFront = deploymentNode "CloudFront Distribution" "Single public browser origin with two path behaviors." {
+                            tags "EdgeZone"
+                            distributionEndpoint = infrastructureNode "HTTPS Distribution Endpoint" "Terminates browser TLS for staging.<domain> and selects a cache behavior." {
+                                tags "EdgeService"
+                            }
+                            staticBehavior = infrastructureNode "Default Static Behavior" "Allows GET/HEAD, serves the React build from private S3, and caches content-hashed assets." {
+                                tags "EdgeService"
+                            }
+                            apiBehavior = infrastructureNode "/api/* API Behavior" "Allows required HTTP methods, disables caching, and forwards cookies, authorization, CSRF headers, query strings, and bodies to the ALB origin over HTTPS." {
+                                tags "EdgeService"
+                            }
+                            spaRewrite = infrastructureNode "SPA Route Rewrite" "Maps browser application routes to /index.html only within the static behavior; it does not mask /api/* errors." {
+                                tags "EdgeService"
+                            }
+                        }
+                    }
+
+                    region = deploymentNode "eu-central-1 (Frankfurt)" "Regional staging resources." {
+                        tags "CloudZone"
+
+                        frontendOrigin = deploymentNode "Frontend Origin" "Private regional origin for the compiled Vite application." {
+                            tags "StorageZone"
+                            s3Bucket = infrastructureNode "Private S3 Frontend Bucket" "Stores immutable React build artifacts with Block Public Access enabled." {
+                                tags "StorageService"
+                            }
+                            originAccessControl = infrastructureNode "CloudFront Origin Access Control" "Allows only the approved CloudFront distribution to read frontend objects." {
+                                tags "SecurityService"
+                            }
+                        }
+
+                        albCertificate = infrastructureNode "ACM ALB Certificate (eu-central-1)" "Regional certificate for api-staging.<domain> on the ALB HTTPS listener." {
+                            tags "SecurityService"
+                        }
+
+                        vpc = deploymentNode "Staging VPC 10.20.0.0/16" "Approved initial network: a two-subnet public ALB tier and one private application subnet with one EC2 target." {
+                            tags "NetworkZone"
+                            internetGateway = infrastructureNode "Internet Gateway" "Connects public-subnet routes to the internet." {
+                                tags "NetworkService"
+                            }
+
+                            publicTier = deploymentNode "Public Subnets" "The internet-facing ALB spans two Availability Zones as required; only AZ-a initially hosts a NAT Gateway." {
+                                tags "EdgeZone"
+                                publicSubnetA = deploymentNode "Public Subnet A 10.20.0.0/24 (AZ-a)" {
+                                    tags "EdgeZone"
+                                    natGatewayA = infrastructureNode "NAT Gateway A" "Provides outbound internet access for the initial private EC2 host." {
+                                        tags "NetworkService"
+                                    }
+                                }
+                                publicSubnetB = deploymentNode "Public Subnet B 10.20.1.0/24 (AZ-b)" "Second ALB subnet; no EC2 target or NAT Gateway is approved here initially." {
+                                    tags "EdgeZone"
+                                }
+                                alb = deploymentNode "Internet-facing Application Load Balancer" "Regional reverse proxy spanning both public subnets." {
+                                    tags "EdgeZone"
+                                    httpsListener = infrastructureNode "HTTPS :443 Listener" "Terminates API TLS with the regional ACM certificate and adds trusted forwarding metadata." {
+                                        tags "EdgeService"
+                                    }
+                                    targetGroup = infrastructureNode "Django Target Group" "Initially registers one EC2 target; a second target can be registered later without changing the API contract." {
+                                        tags "EdgeService"
+                                    }
+                                }
+                            }
+
+                            privateTier = deploymentNode "Private Application Subnet" "No public application ingress and no public SSH." {
+                                tags "ComputeZone"
+                                privateSubnetA = deploymentNode "Private App Subnet A 10.20.10.0/24 (AZ-a)" {
+                                    tags "ComputeZone"
+                                    computeA = deploymentNode "EC2 App Host A" "The only approved initial application target." {
+                                        tags "ComputeZone"
+                                        dockerRuntimeA = infrastructureNode "Docker Engine + Compose" "Runs the immutable backend image and one-off operational commands." {
+                                            tags "ComputeZone"
+                                        }
+                                        ssmAgentA = infrastructureNode "SSM Agent A" "Maintains an authenticated outbound management channel; inbound TCP 22 is unnecessary." {
+                                            tags "SecurityService"
+                                        }
+                                        apiNodeA = deploymentNode "Django API Container A" "Runs the long-lived staging API process." {
+                                            gunicornServerA = infrastructureNode "Gunicorn WSGI Server" "Production application server that accepts restricted ALB HTTP traffic and invokes Django through config.wsgi:application." {
+                                                tags "ComputeZone"
+                                            }
+                                            apiInstanceA = containerInstance longevity.api
+                                        }
+                                        migrationNode = deploymentNode "One-off Migration Container" "Runs migrations once before replacing the API container." {
+                                            migrationInstance = containerInstance longevity.api
+                                        }
+                                    }
+                                }
+                            }
+
+                            networkControls = deploymentNode "Security Groups" "Stateful least-privilege boundaries." {
+                                tags "SecurityZone"
+                                albSecurityGroup = infrastructureNode "ALB Security Group" "Allows public TCP 443." {
+                                    tags "SecurityService"
+                                }
+                                appSecurityGroup = infrastructureNode "App Security Group" "Allows the Gunicorn HTTP port only from the ALB security group; no inbound TCP 22." {
+                                    tags "SecurityService"
+                                }
+                            }
+                        }
+
+                        security = deploymentNode "Security & Management" {
+                            tags "SecurityZone"
+                            secretsNode = infrastructureNode "AWS Secrets Manager" "Stores Django, database, Stripe, and other server-side staging secrets." {
+                                tags "SecurityService"
+                            }
+                            systemsManager = infrastructureNode "AWS Systems Manager Session Manager" "Authorizes operator access through IAM and the SSM agent without public SSH." {
+                                tags "SecurityService"
+                            }
+                        }
+
+                        ops = deploymentNode "Operations" {
+                            tags "OpsZone"
+                            monitoringNode = infrastructureNode "CloudWatch" "Collects API, migration, EC2, ALB, target-health, S3, and CloudFront telemetry configured for staging." {
+                                tags "OpsService"
+                            }
+                        }
+                    }
+                }
+
+                managedDatabase = deploymentNode "Managed Database" "Provider-managed staging PostgreSQL boundary." {
+                    tags "ManagedZone"
+                    timescaleNode = infrastructureNode "Timescale Cloud" "Managed PostgreSQL plus TimescaleDB reached through an encrypted connection." {
+                        tags "ManagedDataService"
+                    }
+                    managedBackupsNode = infrastructureNode "Managed Automated Backups" "Provider-operated database backups." {
+                        tags "StorageService"
+                    }
+                }
+
+                approvedInitialStaging.userDevices.browserNode.browserRuntime -> approvedInitialStaging.userDevices.browserNode.browserClient "Runs the downloaded React application" "" "ClientTraffic"
+                approvedInitialStaging.userDevices.browserNode.browserClient -> approvedInitialStaging.aws.dns.frontendDns "Resolves the single staging browser origin" "" "ClientTraffic"
+                approvedInitialStaging.aws.dns.frontendDns -> approvedInitialStaging.aws.globalEdge.cloudFront.distributionEndpoint "Aliases staging.<domain> to CloudFront" "" "EdgeTraffic"
+                approvedInitialStaging.aws.globalEdge.cloudFrontCertificate -> approvedInitialStaging.aws.globalEdge.cloudFront.distributionEndpoint "Supplies and renews the viewer TLS certificate" "" "SecurityTraffic"
+                approvedInitialStaging.userDevices.browserNode.browserClient -> approvedInitialStaging.aws.globalEdge.cloudFront.distributionEndpoint "Requests React routes and relative /api/* over HTTPS" "" "ClientTraffic"
+                approvedInitialStaging.aws.globalEdge.cloudFront.distributionEndpoint -> approvedInitialStaging.aws.globalEdge.cloudFront.staticBehavior "Selects the default behavior for application routes and assets" "" "EdgeTraffic"
+                approvedInitialStaging.aws.globalEdge.cloudFront.distributionEndpoint -> approvedInitialStaging.aws.globalEdge.cloudFront.apiBehavior "Selects the /api/* behavior for API requests" "" "EdgeTraffic"
+                approvedInitialStaging.aws.globalEdge.cloudFront.spaRewrite -> approvedInitialStaging.aws.globalEdge.cloudFront.staticBehavior "Rewrites SPA routes to /index.html" "" "EdgeTraffic"
+                approvedInitialStaging.aws.globalEdge.cloudFront.staticBehavior -> approvedInitialStaging.aws.region.frontendOrigin.s3Bucket "Fetches React build artifacts using signed origin requests" "HTTPS" "StorageTraffic"
+                approvedInitialStaging.aws.region.frontendOrigin.originAccessControl -> approvedInitialStaging.aws.region.frontendOrigin.s3Bucket "Authorizes read access only from this distribution" "" "SecurityTraffic"
+                approvedInitialStaging.aws.globalEdge.cloudFront.apiBehavior -> approvedInitialStaging.aws.dns.apiDns "Resolves its HTTPS API origin" "" "EdgeTraffic"
+                approvedInitialStaging.userDevices.androidNode.androidClient -> approvedInitialStaging.aws.dns.apiDns "Resolves its configured API hostname" "" "ClientTraffic"
+                stripe -> approvedInitialStaging.aws.dns.apiDns "Resolves the signed webhook destination" "" "EdgeTraffic"
+                uptimeMonitor -> approvedInitialStaging.aws.dns.apiDns "Resolves the public health-check hostname" "" "OpsTraffic"
+                approvedInitialStaging.aws.dns.apiDns -> approvedInitialStaging.aws.region.vpc.publicTier.alb.httpsListener "Aliases api-staging.<domain> to the ALB" "" "EdgeTraffic"
+                approvedInitialStaging.aws.region.albCertificate -> approvedInitialStaging.aws.region.vpc.publicTier.alb.httpsListener "Supplies and renews the API TLS certificate" "" "SecurityTraffic"
+                approvedInitialStaging.aws.globalEdge.cloudFront.apiBehavior -> approvedInitialStaging.aws.region.vpc.publicTier.alb.httpsListener "Forwards uncached /api/* over HTTPS" "" "EdgeTraffic"
+                approvedInitialStaging.userDevices.androidNode.androidClient -> approvedInitialStaging.aws.region.vpc.publicTier.alb.httpsListener "Calls the API directly over HTTPS" "" "ClientTraffic"
+                stripe -> approvedInitialStaging.aws.region.vpc.publicTier.alb.httpsListener "POSTs signed test-mode webhooks over HTTPS" "" "EdgeTraffic"
+                uptimeMonitor -> approvedInitialStaging.aws.region.vpc.publicTier.alb.httpsListener "GET /api/v1/health/live/ over HTTPS" "" "OpsTraffic"
+                approvedInitialStaging.aws.region.vpc.networkControls.albSecurityGroup -> approvedInitialStaging.aws.region.vpc.publicTier.alb.httpsListener "Governs public inbound TCP 443" "" "SecurityTraffic"
+                approvedInitialStaging.aws.region.vpc.networkControls.albSecurityGroup -> approvedInitialStaging.aws.region.vpc.networkControls.appSecurityGroup "Is the only allowed application-port source" "" "SecurityTraffic"
+                approvedInitialStaging.aws.region.vpc.publicTier.alb.httpsListener -> approvedInitialStaging.aws.region.vpc.publicTier.alb.targetGroup "Terminates TLS and forwards application HTTP inside the VPC" "" "EdgeTraffic"
+                approvedInitialStaging.aws.region.vpc.publicTier.alb.targetGroup -> approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.gunicornServerA "Probes /api/v1/health/ready/ and routes to the initial healthy target over private IP" "HTTP" "EdgeTraffic"
+                approvedInitialStaging.aws.region.vpc.networkControls.appSecurityGroup -> approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.gunicornServerA "Governs target ingress; no TCP 22" "" "SecurityTraffic"
+                approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.gunicornServerA -> approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA "Invokes Django through WSGI" "WSGI" "EdgeTraffic"
+                approvedInitialStaging.userDevices.browserNode.browserClient -> stripe "Redirects to hosted Checkout and Customer Portal" "" "ClientTraffic"
+                approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA -> stripe "Creates Stripe test-mode Checkout and Portal Sessions" "" "EdgeTraffic"
+                approvedInitialStaging.userDevices.androidNode.samsungHealthRuntime -> approvedInitialStaging.userDevices.androidNode.healthConnectRuntime "Writes Samsung-originated records on device" "" "ClientTraffic"
+                approvedInitialStaging.userDevices.androidNode.androidClient -> approvedInitialStaging.userDevices.androidNode.healthConnectRuntime "Reads permitted Weight and Steps records" "" "ClientTraffic"
+                approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA -> approvedInitialStaging.managedDatabase.timescaleNode "Reads and writes over encrypted PostgreSQL" "" "DataTraffic"
+                approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.migrationNode.migrationInstance -> approvedInitialStaging.managedDatabase.timescaleNode "Applies schema migrations before service promotion" "" "DataTraffic"
+                approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA -> approvedInitialStaging.aws.region.security.secretsNode "Reads secrets through the EC2 IAM role" "" "SecurityTraffic"
+                approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.migrationNode.migrationInstance -> approvedInitialStaging.aws.region.security.secretsNode "Reads migration configuration" "" "SecurityTraffic"
+                approvedInitialStaging.operatorAccess.awsAccessClient -> approvedInitialStaging.aws.region.security.systemsManager "Starts IAM-authorized operator sessions" "" "OpsTraffic"
+                approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.ssmAgentA -> approvedInitialStaging.aws.region.security.systemsManager "Maintains an outbound management channel" "" "SecurityTraffic"
+                approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA -> approvedInitialStaging.aws.region.ops.monitoringNode "Writes logs and metrics" "" "OpsTraffic"
+                approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.migrationNode.migrationInstance -> approvedInitialStaging.aws.region.ops.monitoringNode "Writes migration logs and exit status" "" "OpsTraffic"
+                approvedInitialStaging.aws.globalEdge.cloudFront.distributionEndpoint -> approvedInitialStaging.aws.region.ops.monitoringNode "Publishes configured CDN telemetry" "" "OpsTraffic"
+                approvedInitialStaging.aws.region.frontendOrigin.s3Bucket -> approvedInitialStaging.aws.region.ops.monitoringNode "Publishes configured storage telemetry" "" "OpsTraffic"
+                approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA -> approvedInitialStaging.aws.region.vpc.publicTier.publicSubnetA.natGatewayA "Uses the zonal outbound route for external services" "" "NetworkTraffic"
+                approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.ssmAgentA -> approvedInitialStaging.aws.region.vpc.publicTier.publicSubnetA.natGatewayA "Uses outbound HTTPS for Systems Manager" "" "NetworkTraffic"
+                approvedInitialStaging.aws.region.vpc.publicTier.publicSubnetA.natGatewayA -> approvedInitialStaging.aws.region.vpc.internetGateway "Reaches approved internet services" "" "NetworkTraffic"
+                approvedInitialStaging.managedDatabase.timescaleNode -> approvedInitialStaging.managedDatabase.managedBackupsNode "Creates provider-managed automated backups" "" "StorageTraffic"
+            }
+
+            presentationStaging = deploymentEnvironment "[CURRENT] Presentation Staging - CloudFront + Nginx + One EC2" {
+                operatorAccess = deploymentNode "Operator Workstation" "Trusted administrator workstation using AWS IAM and Systems Manager; public SSH remains disabled." {
+                    tags "ClientZone"
+                    awsAccessClient = infrastructureNode "AWS CLI / Session Manager Client" "Starts authorized Systems Manager sessions and deployment commands." {
+                        tags "ClientRuntime"
+                    }
+                }
+
+                userDevices = deploymentNode "User Devices" "Presentation users run the browser or internally distributed Android client against one CloudFront hostname." {
+                    tags "ClientZone"
+                    browserNode = deploymentNode "Browser" "Uses staging.<domain> for both React assets and relative /api/* requests." {
+                        tags "ClientZone"
+                        browserClient = containerInstance longevity.webapp
+                    }
+                    androidNode = deploymentNode "Android Phone" "Uses https://staging.<domain>/ as the public API base so CloudFront remains the only application entry point." {
+                        tags "ClientZone"
+                        androidClient = containerInstance longevity.android
+                    }
+                }
+
+                aws = deploymentNode "AWS Account" "Current low-cost presentation staging architecture. ALB, NAT Gateway, Timescale Cloud, Redis, Celery Worker, and Celery Beat are intentionally absent." {
+                    tags "CloudZone"
+
+                    dns = deploymentNode "Route 53 Public DNS" {
+                        tags "EdgeZone"
+                        viewerDns = infrastructureNode "staging.<domain> Alias" "Points the public application hostname to CloudFront." {
+                            tags "EdgeService"
+                        }
+                        originDns = infrastructureNode "origin-staging.<domain> A Record" "Points CloudFront's HTTPS API origin to the EC2 Elastic IP; the security group still rejects non-CloudFront traffic." {
+                            tags "EdgeService"
+                        }
+                        acmeValidation = infrastructureNode "_acme-challenge DNS Record" "Short-lived TXT record managed by Certbot for automated Let's Encrypt DNS-01 validation." {
+                            tags "SecurityService"
+                        }
+                    }
+
+                    globalEdge = deploymentNode "AWS Global Edge" "CloudFront is the only public application entry point." {
+                        tags "EdgeZone"
+                        viewerCertificate = infrastructureNode "ACM Viewer Certificate (us-east-1)" "AWS-managed non-exportable certificate for staging.<domain>." {
+                            tags "SecurityService"
+                        }
+                        cloudFront = deploymentNode "CloudFront Distribution" "Selects the private S3 static origin or the Nginx API origin by request path." {
+                            tags "EdgeZone"
+                            endpoint = infrastructureNode "HTTPS Distribution Endpoint" "Terminates browser, Android, Stripe webhook, and monitoring TLS for staging.<domain>." {
+                                tags "EdgeService"
+                            }
+                            staticBehavior = infrastructureNode "Default Static / SPA Behavior" "Caches content-hashed assets and serves index.html without masking API failures." {
+                                tags "EdgeService"
+                            }
+                            apiBehavior = infrastructureNode "/api/* Behavior" "Disables caching and forwards methods, bodies, cookies, authorization, CSRF headers, and query strings to Nginx over HTTPS." {
+                                tags "EdgeService"
+                            }
+                            originHeader = infrastructureNode "Secret Origin Header" "Adds a secret value that Nginx requires in addition to the CloudFront origin-facing network restriction." {
+                                tags "SecurityService"
+                            }
+                        }
+                    }
+
+                    region = deploymentNode "eu-central-1 (Frankfurt)" "Regional storage, compute, security, and operations resources." {
+                        tags "CloudZone"
+
+                        frontendOrigin = deploymentNode "Private Frontend Origin" {
+                            tags "StorageZone"
+                            s3Bucket = infrastructureNode "Private S3 Frontend Bucket" "Stores Vite output with Block Public Access enabled; hashed assets are uploaded before index.html." {
+                                tags "StorageService"
+                            }
+                            originAccessControl = infrastructureNode "CloudFront Origin Access Control" "Allows only the approved CloudFront distribution to read frontend objects." {
+                                tags "SecurityService"
+                            }
+                        }
+
+                        backupStorage = deploymentNode "Database Backup Storage" {
+                            tags "StorageZone"
+                            backupBucket = infrastructureNode "Private Encrypted S3 Backup Bucket" "Stores scheduled PostgreSQL logical backups with retention and restore-test procedures." {
+                                tags "StorageService"
+                            }
+                        }
+
+                        vpc = deploymentNode "Default VPC 172.31.0.0/16" "Uses one existing public subnet for the presentation host; no private application subnet or NAT Gateway is provisioned." {
+                            tags "NetworkZone"
+                            internetGateway = infrastructureNode "Internet Gateway" "Provides EC2 outbound internet access through its public address." {
+                                tags "NetworkService"
+                            }
+                            originSecurityGroup = infrastructureNode "EC2 Origin Security Group" "Allows inbound TCP 443 only from the CloudFront managed origin-facing prefix list; allows no TCP 22, 8000, or 5432." {
+                                tags "SecurityService"
+                            }
+                            publicSubnet = deploymentNode "Existing Public Subnet (one AZ)" "Single-AZ presentation placement; the host remains a deliberate single point of failure." {
+                                tags "ComputeZone"
+                                elasticIp = infrastructureNode "Elastic IPv4 Address" "Stable address for origin-staging.<domain> and outbound connections." {
+                                    tags "NetworkService"
+                                }
+                                ec2 = deploymentNode "EC2 t4g.small Presentation Host" "One ARM64 Docker host running the proxy, API, migration, database, and backup workloads." {
+                                    tags "ComputeZone"
+                                    dockerRuntime = infrastructureNode "Docker Engine + Compose" "Runs immutable application containers and the stateful database container." {
+                                        tags "ComputeZone"
+                                    }
+                                    ssmAgent = infrastructureNode "SSM Agent" "Maintains the outbound Systems Manager channel; no public SSH endpoint exists." {
+                                        tags "SecurityService"
+                                    }
+                                    runtimeLoader = infrastructureNode "Staging Runtime Loader" "Retrieves and validates one Secrets Manager JSON snapshot, then injects the same snapshot into migration and API containers without a .env file." {
+                                        tags "SecurityService"
+                                    }
+                                    certbot = infrastructureNode "Certbot + systemd Renewal Timer" "Uses Route 53 DNS-01 validation, stores the private key locally, and reloads Nginx only after successful renewal." {
+                                        tags "SecurityService"
+                                    }
+                                    nginxNode = deploymentNode "Nginx TLS Reverse Proxy Container" "Terminates the trusted CloudFront-to-origin TLS connection, validates the secret origin header, and proxies only to Gunicorn on the private Docker network." {
+                                        tags "EdgeZone"
+                                        nginx = infrastructureNode "Nginx :443" "Public host port 443; no direct client access is allowed by the security group." {
+                                            tags "EdgeService"
+                                        }
+                                    }
+                                    apiNode = deploymentNode "Long-lived Django API Container" {
+                                        tags "ComputeZone"
+                                        gunicorn = infrastructureNode "Gunicorn WSGI Server :8000" "Listens only on the private Docker network and invokes config.wsgi:application." {
+                                            tags "ComputeZone"
+                                        }
+                                        apiInstance = containerInstance longevity.api
+                                    }
+                                    migrationNode = deploymentNode "One-off Migration Container" "Uses the same immutable backend image and configuration snapshot; API replacement begins only after migration success." {
+                                        tags "ComputeZone"
+                                        migrationInstance = containerInstance longevity.api
+                                    }
+                                    databaseNode = deploymentNode "PostgreSQL 16 Container" "Self-hosted plain PostgreSQL 16 on persistent encrypted EBS. TimescaleDB is deferred until measured query needs justify a tested migration." {
+                                        tags "DataZone"
+                                        dbInstance = containerInstance longevity.db
+                                    }
+                                    backupNode = deploymentNode "Scheduled Database Backup Container" "Runs pg_dump and uploads encrypted logical backups to private S3." {
+                                        tags "StorageZone"
+                                        backupRunner = infrastructureNode "pg_dump Backup Runner" "Produces restorable logical backups without exposing PostgreSQL publicly." {
+                                            tags "StorageService"
+                                        }
+                                    }
+                                    ebsVolume = infrastructureNode "Encrypted gp3 EBS Volume" "Persists PostgreSQL data and certificate state independently of disposable containers." {
+                                        tags "StorageService"
+                                    }
+                                }
+                            }
+                        }
+
+                        security = deploymentNode "Security & Management" {
+                            tags "SecurityZone"
+                            secretsNode = infrastructureNode "AWS Secrets Manager" "Stores the canonical staging backend runtime JSON and origin-header secret." {
+                                tags "SecurityService"
+                            }
+                            systemsManager = infrastructureNode "AWS Systems Manager" "Provides IAM-authorized administration and deployment without SSH." {
+                                tags "SecurityService"
+                            }
+                        }
+
+                        ops = deploymentNode "Operations" {
+                            tags "OpsZone"
+                            cloudWatch = infrastructureNode "CloudWatch" "Collects container logs, EC2 metrics, backup outcomes, and certificate-expiry alarms." {
+                                tags "OpsService"
+                            }
+                        }
+                    }
+                }
+
+                presentationStaging.aws.dns.viewerDns -> presentationStaging.aws.globalEdge.cloudFront.endpoint "Aliases staging.<domain> to CloudFront" "DNS" "EdgeTraffic"
+                presentationStaging.userDevices.browserNode.browserClient -> presentationStaging.aws.globalEdge.cloudFront.endpoint "Loads React and calls relative /api/* over HTTPS" "HTTPS" "ClientTraffic"
+                presentationStaging.userDevices.androidNode.androidClient -> presentationStaging.aws.globalEdge.cloudFront.endpoint "Calls the staging API through CloudFront" "HTTPS" "ClientTraffic"
+                stripe -> presentationStaging.aws.globalEdge.cloudFront.endpoint "POSTs signed test-mode webhooks through /api/*" "HTTPS" "EdgeTraffic"
+                uptimeMonitor -> presentationStaging.aws.globalEdge.cloudFront.endpoint "Checks /api/v1/health/live/" "HTTPS" "OpsTraffic"
+                presentationStaging.aws.globalEdge.viewerCertificate -> presentationStaging.aws.globalEdge.cloudFront.endpoint "Supplies and automatically renews viewer TLS" "TLS" "SecurityTraffic"
+                presentationStaging.aws.globalEdge.cloudFront.endpoint -> presentationStaging.aws.globalEdge.cloudFront.staticBehavior "Selects static and SPA requests" "HTTPS" "EdgeTraffic"
+                presentationStaging.aws.globalEdge.cloudFront.endpoint -> presentationStaging.aws.globalEdge.cloudFront.apiBehavior "Selects uncached /api/* requests" "HTTPS" "EdgeTraffic"
+                presentationStaging.aws.globalEdge.cloudFront.staticBehavior -> presentationStaging.aws.region.frontendOrigin.s3Bucket "Fetches React build artifacts" "Signed HTTPS" "StorageTraffic"
+                presentationStaging.aws.region.frontendOrigin.originAccessControl -> presentationStaging.aws.region.frontendOrigin.s3Bucket "Restricts reads to this CloudFront distribution" "OAC" "SecurityTraffic"
+                presentationStaging.aws.globalEdge.cloudFront.apiBehavior -> presentationStaging.aws.dns.originDns "Resolves origin-staging.<domain>" "DNS" "EdgeTraffic"
+                presentationStaging.aws.dns.originDns -> presentationStaging.aws.region.vpc.publicSubnet.elasticIp "Maps the origin hostname to the stable EC2 address" "DNS" "EdgeTraffic"
+                presentationStaging.aws.globalEdge.cloudFront.apiBehavior -> presentationStaging.aws.region.vpc.publicSubnet.ec2.nginxNode.nginx "Forwards uncached API traffic" "HTTPS" "EdgeTraffic"
+                presentationStaging.aws.globalEdge.cloudFront.originHeader -> presentationStaging.aws.region.vpc.publicSubnet.ec2.nginxNode.nginx "Adds the required secret origin header" "HTTPS header" "SecurityTraffic"
+                presentationStaging.aws.region.vpc.originSecurityGroup -> presentationStaging.aws.region.vpc.publicSubnet.ec2.nginxNode.nginx "Allows TCP 443 only from CloudFront origin-facing addresses" "Security group" "SecurityTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.nginxNode.nginx -> presentationStaging.aws.region.vpc.publicSubnet.ec2.apiNode.gunicorn "Proxies API requests on the private Docker network" "HTTP" "EdgeTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.apiNode.gunicorn -> presentationStaging.aws.region.vpc.publicSubnet.ec2.apiNode.apiInstance "Invokes Django through WSGI" "WSGI" "EdgeTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.databaseNode.dbInstance -> presentationStaging.aws.region.vpc.publicSubnet.ec2.ebsVolume "Persists database files" "Encrypted block storage" "StorageTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.backupNode.backupRunner -> presentationStaging.aws.region.vpc.publicSubnet.ec2.databaseNode.dbInstance "Creates a logical backup" "pg_dump" "DataTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.backupNode.backupRunner -> presentationStaging.aws.region.backupStorage.backupBucket "Uploads encrypted backup artifacts" "HTTPS" "StorageTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.runtimeLoader -> presentationStaging.aws.region.security.secretsNode "Retrieves one AWSCURRENT runtime JSON snapshot through the EC2 role" "HTTPS" "SecurityTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.runtimeLoader -> presentationStaging.aws.region.vpc.publicSubnet.ec2.migrationNode.migrationInstance "Injects the validated snapshot" "Process environment" "SecurityTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.runtimeLoader -> presentationStaging.aws.region.vpc.publicSubnet.ec2.apiNode.apiInstance "Injects the same validated snapshot" "Process environment" "SecurityTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.certbot -> presentationStaging.aws.dns.acmeValidation "Creates and removes the scoped DNS-01 TXT record" "Route 53 API" "SecurityTraffic"
+                letsEncrypt -> presentationStaging.aws.region.vpc.publicSubnet.ec2.certbot "Issues and renews the public origin certificate after DNS validation" "ACME" "SecurityTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.certbot -> presentationStaging.aws.region.vpc.publicSubnet.ec2.nginxNode.nginx "Deploys renewed certificate files and reloads Nginx" "TLS certificate" "SecurityTraffic"
+                presentationStaging.operatorAccess.awsAccessClient -> presentationStaging.aws.region.security.systemsManager "Starts audited operator sessions" "SSM" "OpsTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.ssmAgent -> presentationStaging.aws.region.security.systemsManager "Maintains the outbound management channel" "HTTPS" "SecurityTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.apiNode.apiInstance -> stripe "Creates Checkout and Customer Portal Sessions" "HTTPS" "EdgeTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.apiNode.apiInstance -> presentationStaging.aws.region.ops.cloudWatch "Writes application logs and metrics" "HTTPS" "OpsTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.migrationNode.migrationInstance -> presentationStaging.aws.region.ops.cloudWatch "Writes migration logs and exit status" "HTTPS" "OpsTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.ec2.backupNode.backupRunner -> presentationStaging.aws.region.ops.cloudWatch "Publishes backup success or failure" "HTTPS" "OpsTraffic"
+                presentationStaging.aws.region.vpc.publicSubnet.elasticIp -> presentationStaging.aws.region.vpc.internetGateway "Provides host outbound internet connectivity without NAT Gateway" "IPv4" "NetworkTraffic"
+            }
+
+            mvpCloud = deploymentEnvironment "[LEGACY / SUPERSEDED] Post-MVP Fargate + Redis + Timescale Cloud" {
+                userDevices = deploymentNode "User Devices" "Where end users run the browser and Android clients." {
+                    tags "ClientZone"
+
+                    browserNode = deploymentNode "Browser" "Web browser runtime that executes the deployed React client." {
+                        tags "ClientZone"
+                        browserRuntime = infrastructureNode "Web Browser" "Loads and runs the React web application." {
+                            tags "ClientRuntime"
+                        }
+                        browserClient = containerInstance longevity.webapp
+                    }
+
+                    androidNode = deploymentNode "Android Phone" "Android runtime for the companion app, Health Connect, and Samsung Health." {
+                        tags "ClientZone"
+
+                        androidClient = containerInstance longevity.android
+
+                        healthConnectRuntime = infrastructureNode "Health Connect" "On-device Android health data platform used by the companion app." {
+                            tags "ClientRuntime"
+                        }
+
+                        samsungHealthRuntime = infrastructureNode "Samsung Health" "On-device source application that writes health records into Health Connect." {
+                            tags "ClientRuntime"
+                        }
+                    }
+                }
+
+                frontendHosting = deploymentNode "Frontend Hosting / CDN" "Production React asset origin and global CDN, implemented with Vercel or S3 plus CloudFront." {
+                    tags "EdgeZone"
+                    staticHost = infrastructureNode "React Static Host" "Serves versioned production React assets over HTTPS." {
+                        tags "EdgeService"
+                    }
+                }
+
+            aws = deploymentNode "AWS" "Post-MVP container hosting environment introduced after the EC2 MVP and Terraform learning phases." {
+                tags "CloudZone"
+
+                edge = deploymentNode "Public Edge" {
+                    tags "EdgeZone"
+
+                    publicDns = infrastructureNode "Public DNS" "Resolves the production API hostname to the load balancer." {
+                        tags "EdgeService"
+                    }
+
+                    alb = infrastructureNode "HTTPS ALB" "Public API entrypoint that terminates TLS with an ACM certificate, routes requests, and checks Django health." {
+                        tags "EdgeService"
+                    }
+                }
+
+                compute = deploymentNode "Compute" {
+                    tags "ComputeZone"
+
+                    apiNode = deploymentNode "ECS Fargate API Service" {
+                        gunicornServer = infrastructureNode "Gunicorn WSGI Server" "Production application server that invokes Django through config.wsgi:application." {
+                            tags "ComputeZone"
+                        }
+                        apiInstance = containerInstance longevity.api
+                    }
+
+                    migrationNode = deploymentNode "One-off ECS Fargate Migration Task" "Runs the Django image with python manage.py migrate --no-input before service promotion." {
+                        migrationInstance = containerInstance longevity.api
+                    }
+
+                    workerNode = deploymentNode "ECS Fargate Worker Service" "Runs long-lived Celery consumers after durable asynchronous server work exists." {
+                        workerInstance = containerInstance longevity.worker
+                    }
+
+                    beatNode = deploymentNode "ECS Fargate Beat Service" "Runs exactly one Celery Beat scheduler unless a future distributed scheduling design replaces it." {
+                        beatInstance = containerInstance longevity.beat
+                    }
+                }
+
+                appData = deploymentNode "App Data" {
+                    tags "DataZone"
+                    redisNode = infrastructureNode "ElastiCache Redis" "Redis" {
+                        tags "DataService"
+                    }
+                }
+
+                security = deploymentNode "Security & Config" {
+                    tags "SecurityZone"
+                    secretsNode = infrastructureNode "AWS Secrets Manager" "Stores application secrets and configuration values." {
+                        tags "SecurityService"
+                    }
+                }
+
+                ops = deploymentNode "Ops" {
+                    tags "OpsZone"
+                    monitoringNode = infrastructureNode "CloudWatch" "Operational logs and metrics sink for the deployed MVP runtime." {
+                        tags "OpsService"
+                    }
+                }
+
+                storage = deploymentNode "Storage" {
+                    tags "StorageZone"
+                    backupsNode = infrastructureNode "S3 Bucket" "Stores application exports, logical backup artifacts, repair outputs, and static/media assets when required." {
+                        tags "StorageService"
+                    }
+                }
+            }
+
+            managedDatabase = deploymentNode "Managed Database" {
+                tags "ManagedZone"
+                timescaleNode = infrastructureNode "Timescale Cloud" "Managed PostgreSQL + TimescaleDB" {
+                    tags "ManagedDataService"
+                }
+
+                managedBackupsNode = infrastructureNode "Managed Automated Backups" "Provider-operated database backups with provisioned retention and restore procedures." {
+                    tags "StorageService"
+                }
+            }
+
+            mvpCloud.frontendHosting.staticHost -> mvpCloud.userDevices.browserNode.browserRuntime "Serves React assets over HTTPS" {
+                tags "ClientTraffic"
+            }
+
+            mvpCloud.userDevices.browserNode.browserRuntime -> mvpCloud.userDevices.browserNode.browserClient "Runs the React application" {
+                tags "ClientTraffic"
+            }
+
+            mvpCloud.userDevices.browserNode.browserClient -> mvpCloud.aws.edge.publicDns "Resolves the production API hostname" {
+                tags "ClientTraffic"
+            }
+
+            mvpCloud.userDevices.androidNode.androidClient -> mvpCloud.aws.edge.publicDns "Resolves its configured production API hostname" {
+                tags "ClientTraffic"
+            }
+
+            uptimeMonitor -> mvpCloud.aws.edge.publicDns "Resolves the public health-check hostname" {
+                tags "EdgeTraffic"
+            }
+
+            stripe -> mvpCloud.aws.edge.publicDns "Resolves the signed webhook destination" {
+                tags "EdgeTraffic"
+            }
+
+            mvpCloud.aws.edge.publicDns -> mvpCloud.aws.edge.alb "Maps the production API hostname to the TLS endpoint" {
+                tags "EdgeTraffic"
+            }
+
+            mvpCloud.userDevices.browserNode.browserClient -> mvpCloud.aws.edge.alb "Calls the API over HTTPS" {
+                tags "ClientTraffic"
+            }
+
+            mvpCloud.userDevices.androidNode.androidClient -> mvpCloud.aws.edge.alb "Uses its configured HTTPS base URL for mobile auth, subscription policy, wearable lifecycle, and Weight/Steps uploads" {
+                tags "ClientTraffic"
+            }
+
+            uptimeMonitor -> mvpCloud.aws.edge.alb "GET /api/v1/health/live/ over HTTPS" {
+                tags "OpsTraffic"
+            }
+
+            mvpCloud.userDevices.androidNode.samsungHealthRuntime -> mvpCloud.userDevices.androidNode.healthConnectRuntime "Writes Samsung-originated health records" {
+                tags "ClientTraffic"
+            }
+
+            mvpCloud.userDevices.androidNode.androidClient -> mvpCloud.userDevices.androidNode.healthConnectRuntime "Reads permitted Weight and Steps records with stable IDs and provider modification timestamps" {
+                tags "ClientTraffic"
+            }
+
+            mvpCloud.aws.edge.alb -> mvpCloud.aws.compute.apiNode.gunicornServer "Routes requests and probes /api/v1/health/ready/" {
+                tags "EdgeTraffic"
+            }
+
+            mvpCloud.aws.compute.apiNode.gunicornServer -> mvpCloud.aws.compute.apiNode.apiInstance "Invokes Django through WSGI" "WSGI" {
+                tags "EdgeTraffic"
+            }
+
+            mvpCloud.userDevices.browserNode.browserClient -> stripe "Redirects to hosted Checkout and Customer Portal" {
+                tags "ClientTraffic"
+            }
+
+            mvpCloud.aws.compute.apiNode.apiInstance -> stripe "Creates Checkout and Customer Portal Sessions" {
+                tags "EdgeTraffic"
+            }
+
+            stripe -> mvpCloud.aws.edge.alb "POSTs signed billing events to /api/v1/subscriptions/stripe/webhook/ over HTTPS" {
+                tags "EdgeTraffic"
+            }
+
+            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.managedDatabase.timescaleNode "Reads and writes application data over an encrypted PostgreSQL connection" {
+                tags "DataTraffic"
+            }
+
+            mvpCloud.aws.compute.migrationNode.migrationInstance -> mvpCloud.managedDatabase.timescaleNode "Applies schema migrations over an encrypted PostgreSQL connection before service promotion" {
+                tags "DataTraffic"
+            }
+
+            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.aws.appData.redisNode "Publishes asynchronous work after worker-backed features are enabled" {
+                tags "DataTraffic"
+            }
+
+            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.aws.security.secretsNode "Reads secrets and config" {
+                tags "SecurityTraffic"
+            }
+
+            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.aws.ops.monitoringNode "Writes logs and metrics" {
+                tags "OpsTraffic"
+            }
+
+            mvpCloud.aws.compute.migrationNode.migrationInstance -> mvpCloud.aws.security.secretsNode "Reads the same database and Django configuration as the API service" {
+                tags "SecurityTraffic"
+            }
+
+            mvpCloud.aws.compute.migrationNode.migrationInstance -> mvpCloud.aws.ops.monitoringNode "Writes migration logs and exit status" {
+                tags "OpsTraffic"
+            }
+
+            mvpCloud.aws.compute.apiNode.apiInstance -> mvpCloud.aws.storage.backupsNode "Uses for application exports and static/media artifacts when required" {
+                tags "StorageTraffic"
+            }
+
+            mvpCloud.aws.compute.workerNode.workerInstance -> mvpCloud.managedDatabase.timescaleNode "Reads and writes data" {
+                tags "DataTraffic"
+            }
+
+            mvpCloud.aws.compute.workerNode.workerInstance -> mvpCloud.aws.appData.redisNode "Uses as broker" {
+                tags "DataTraffic"
+            }
+
+            mvpCloud.aws.compute.workerNode.workerInstance -> mvpCloud.aws.ops.monitoringNode "Writes logs and metrics" {
+                tags "OpsTraffic"
+            }
+
+            mvpCloud.aws.compute.workerNode.workerInstance -> mvpCloud.aws.storage.backupsNode "Writes backups and repair outputs" {
+                tags "StorageTraffic"
+            }
+
+            mvpCloud.aws.compute.beatNode.beatInstance -> mvpCloud.aws.appData.redisNode "Publishes scheduled work" {
+                tags "DataTraffic"
+            }
+
+            mvpCloud.aws.compute.beatNode.beatInstance -> mvpCloud.aws.ops.monitoringNode "Writes logs and metrics" {
+                tags "OpsTraffic"
+            }
+
+            mvpCloud.managedDatabase.timescaleNode -> mvpCloud.managedDatabase.managedBackupsNode "Creates provider-managed automated backups" {
+                tags "StorageTraffic"
+            }
+        }
+
+            recommendedProduction = deploymentEnvironment "[RECOMMENDED] Production - CloudFront + ALB + Two Fargate Tasks + RDS Multi-AZ" {
+                userDevices = deploymentNode "User Devices" "Production users run the browser or Android client." {
+                    tags "ClientZone"
+                    browserNode = deploymentNode "Browser" "Uses production.<domain> as the single React and /api/* browser origin." {
+                        tags "ClientZone"
+                        browserClient = containerInstance longevity.webapp
+                    }
+                    androidNode = deploymentNode "Android Phone" "Uses the dedicated api.<domain> HTTPS API hostname." {
+                        tags "ClientZone"
+                        androidClient = containerInstance longevity.android
+                    }
+                }
+
+                aws = deploymentNode "AWS Account" "Recommended production architecture: managed edge, two replaceable API tasks, and a managed Multi-AZ relational database." {
+                    tags "CloudZone"
+
+                    dns = deploymentNode "Route 53 Public DNS" {
+                        tags "EdgeZone"
+                        viewerDns = infrastructureNode "production.<domain> Alias" "Points the browser origin to CloudFront." {
+                            tags "EdgeService"
+                        }
+                        apiDns = infrastructureNode "api.<domain> Alias" "Points Android, Stripe webhooks, uptime monitoring, and CloudFront's API origin to the ALB." {
+                            tags "EdgeService"
+                        }
+                    }
+
+                    globalEdge = deploymentNode "AWS Global Edge" {
+                        tags "EdgeZone"
+                        viewerCertificate = infrastructureNode "ACM Viewer Certificate (us-east-1)" "AWS-managed viewer certificate for production.<domain>." {
+                            tags "SecurityService"
+                        }
+                        webAcl = infrastructureNode "AWS WAF Web ACL" "Applies managed and application-specific edge protections before requests reach the distribution behaviors." {
+                            tags "SecurityService"
+                        }
+                        cloudFront = deploymentNode "CloudFront Distribution" "Production public browser edge with private static origin and uncached API origin." {
+                            tags "EdgeZone"
+                            endpoint = infrastructureNode "HTTPS Distribution Endpoint" "Terminates viewer TLS and selects a path behavior." {
+                                tags "EdgeService"
+                            }
+                            staticBehavior = infrastructureNode "Default Static / SPA Behavior" "Caches hashed assets and safely resolves React routes to index.html." {
+                                tags "EdgeService"
+                            }
+                            apiBehavior = infrastructureNode "/api/* Behavior" "Disables caching and forwards the complete authenticated request to the ALB over HTTPS." {
+                                tags "EdgeService"
+                            }
+                        }
+                    }
+
+                    region = deploymentNode "eu-central-1 (Frankfurt)" "Recommended regional production resources spanning two Availability Zones." {
+                        tags "CloudZone"
+
+                        frontendOrigin = deploymentNode "Private Frontend Origin" {
+                            tags "StorageZone"
+                            s3Bucket = infrastructureNode "Private S3 Frontend Bucket" "Stores immutable React build artifacts with Block Public Access enabled." {
+                                tags "StorageService"
+                            }
+                            originAccessControl = infrastructureNode "CloudFront Origin Access Control" "Restricts frontend reads to the production distribution." {
+                                tags "SecurityService"
+                            }
+                        }
+
+                        albCertificate = infrastructureNode "ACM ALB Certificate (eu-central-1)" "AWS-managed regional certificate for api.<domain>." {
+                            tags "SecurityService"
+                        }
+
+                        vpc = deploymentNode "Production VPC" "Separates public load-balancing, private application, and private database tiers across two Availability Zones." {
+                            tags "NetworkZone"
+                            internetGateway = infrastructureNode "Internet Gateway" "Connects the public ALB and NAT subnet routes to the internet." {
+                                tags "NetworkService"
+                            }
+
+                            publicTier = deploymentNode "Public Edge / NAT Subnets (AZ-a and AZ-b)" {
+                                tags "EdgeZone"
+                                publicSubnetA = deploymentNode "Public Subnet A" {
+                                    tags "EdgeZone"
+                                    natGatewayA = infrastructureNode "NAT Gateway A" "Provides zonal outbound connectivity for private application tasks in AZ-a." {
+                                        tags "NetworkService"
+                                    }
+                                }
+                                publicSubnetB = deploymentNode "Public Subnet B" {
+                                    tags "EdgeZone"
+                                    natGatewayB = infrastructureNode "NAT Gateway B" "Provides zonal outbound connectivity for private application tasks in AZ-b." {
+                                        tags "NetworkService"
+                                    }
+                                }
+                                alb = deploymentNode "Internet-facing Application Load Balancer" "AWS-managed multi-AZ API entry point." {
+                                    tags "EdgeZone"
+                                    httpsListener = infrastructureNode "HTTPS :443 Listener" "Terminates API TLS and adds trusted forwarding metadata." {
+                                        tags "EdgeService"
+                                    }
+                                    targetGroup = infrastructureNode "Fargate IP Target Group" "Checks /api/v1/health/ready/ and routes only to healthy task IPs." {
+                                        tags "EdgeService"
+                                    }
+                                }
+                            }
+
+                            privateAppTier = deploymentNode "Private Application Subnets" "Two stateless API tasks provide app-host and Availability Zone failure tolerance." {
+                                tags "ComputeZone"
+                                privateAppSubnetA = deploymentNode "Private App Subnet A" {
+                                    tags "ComputeZone"
+                                    apiTaskA = deploymentNode "ECS Fargate API Task A" "Replaceable ARM64 task in AZ-a." {
+                                        tags "ComputeZone"
+                                        gunicornA = infrastructureNode "Gunicorn WSGI Server A" "Invokes Django directly; Nginx is unnecessary behind the ALB." {
+                                            tags "ComputeZone"
+                                        }
+                                        apiInstanceA = containerInstance longevity.api
+                                    }
+                                    migrationTask = deploymentNode "One-off ECS Migration Task" "Runs the same immutable backend image and migrations before service promotion." {
+                                        tags "ComputeZone"
+                                        migrationInstance = containerInstance longevity.api
+                                    }
+                                }
+                                privateAppSubnetB = deploymentNode "Private App Subnet B" {
+                                    tags "ComputeZone"
+                                    apiTaskB = deploymentNode "ECS Fargate API Task B" "Replaceable ARM64 task in AZ-b." {
+                                        tags "ComputeZone"
+                                        gunicornB = infrastructureNode "Gunicorn WSGI Server B" "Invokes the same Django image in the second Availability Zone." {
+                                            tags "ComputeZone"
+                                        }
+                                        apiInstanceB = containerInstance longevity.api
+                                    }
+                                }
+                            }
+
+                            privateDataTier = deploymentNode "Private Database Subnets" "Database endpoints have no public route." {
+                                tags "DataZone"
+                                rdsCluster = deploymentNode "Amazon RDS PostgreSQL Multi-AZ" "Managed PostgreSQL with synchronous standby, automatic failover, encryption, backups, and point-in-time recovery." {
+                                    tags "ManagedZone"
+                                    dbInstance = containerInstance longevity.db
+                                    standby = infrastructureNode "Synchronous Standby + Automatic Failover" "Maintains a standby in the second Availability Zone and promotes it after primary failure." {
+                                        tags "ManagedDataService"
+                                    }
+                                    managedBackups = infrastructureNode "Automated Backups + Point-in-Time Recovery" "Provider-managed encrypted retention with restore drills." {
+                                        tags "StorageService"
+                                    }
+                                }
+                            }
+
+                            networkControls = deploymentNode "Security Groups" "Stateful least-privilege boundaries for each tier." {
+                                tags "SecurityZone"
+                                albSecurityGroup = infrastructureNode "ALB Security Group" "Allows public TCP 443." {
+                                    tags "SecurityService"
+                                }
+                                apiSecurityGroup = infrastructureNode "Fargate API Security Group" "Allows the Gunicorn application port only from the ALB security group." {
+                                    tags "SecurityService"
+                                }
+                                dbSecurityGroup = infrastructureNode "RDS Security Group" "Allows PostgreSQL only from the Fargate API security group." {
+                                    tags "SecurityService"
+                                }
+                            }
+                        }
+
+                        security = deploymentNode "Security & Configuration" {
+                            tags "SecurityZone"
+                            secretsNode = infrastructureNode "AWS Secrets Manager" "Injects scoped production configuration through the ECS task execution role." {
+                                tags "SecurityService"
+                            }
+                        }
+
+                        ops = deploymentNode "Operations" {
+                            tags "OpsZone"
+                            cloudWatch = infrastructureNode "CloudWatch Logs, Metrics, Alarms, and Deployment Rollback Signals" "Observes edge, target health, task, migration, and database behavior." {
+                                tags "OpsService"
+                            }
+                        }
+                    }
+                }
+
+                recommendedProduction.aws.dns.viewerDns -> recommendedProduction.aws.globalEdge.cloudFront.endpoint "Aliases production.<domain> to CloudFront" "DNS" "EdgeTraffic"
+                recommendedProduction.userDevices.browserNode.browserClient -> recommendedProduction.aws.globalEdge.cloudFront.endpoint "Loads React and calls relative /api/*" "HTTPS" "ClientTraffic"
+                recommendedProduction.aws.globalEdge.viewerCertificate -> recommendedProduction.aws.globalEdge.cloudFront.endpoint "Supplies and renews viewer TLS" "TLS" "SecurityTraffic"
+                recommendedProduction.aws.globalEdge.webAcl -> recommendedProduction.aws.globalEdge.cloudFront.endpoint "Filters malicious or disallowed requests" "WAF" "SecurityTraffic"
+                recommendedProduction.aws.globalEdge.cloudFront.endpoint -> recommendedProduction.aws.globalEdge.cloudFront.staticBehavior "Selects static and SPA requests" "HTTPS" "EdgeTraffic"
+                recommendedProduction.aws.globalEdge.cloudFront.endpoint -> recommendedProduction.aws.globalEdge.cloudFront.apiBehavior "Selects uncached /api/* requests" "HTTPS" "EdgeTraffic"
+                recommendedProduction.aws.globalEdge.cloudFront.staticBehavior -> recommendedProduction.aws.region.frontendOrigin.s3Bucket "Fetches immutable React artifacts" "Signed HTTPS" "StorageTraffic"
+                recommendedProduction.aws.region.frontendOrigin.originAccessControl -> recommendedProduction.aws.region.frontendOrigin.s3Bucket "Restricts reads to CloudFront" "OAC" "SecurityTraffic"
+                recommendedProduction.aws.globalEdge.cloudFront.apiBehavior -> recommendedProduction.aws.dns.apiDns "Resolves the regional API origin" "DNS" "EdgeTraffic"
+                recommendedProduction.userDevices.androidNode.androidClient -> recommendedProduction.aws.dns.apiDns "Resolves the production mobile API hostname" "DNS" "ClientTraffic"
+                stripe -> recommendedProduction.aws.dns.apiDns "Resolves the signed webhook destination" "DNS" "EdgeTraffic"
+                uptimeMonitor -> recommendedProduction.aws.dns.apiDns "Resolves the liveness endpoint" "DNS" "OpsTraffic"
+                recommendedProduction.aws.dns.apiDns -> recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener "Aliases api.<domain> to the ALB" "DNS" "EdgeTraffic"
+                recommendedProduction.aws.region.albCertificate -> recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener "Supplies and automatically renews ALB TLS" "TLS" "SecurityTraffic"
+                recommendedProduction.aws.globalEdge.cloudFront.apiBehavior -> recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener "Forwards uncached browser API requests" "HTTPS" "EdgeTraffic"
+                recommendedProduction.userDevices.androidNode.androidClient -> recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener "Calls the API directly" "HTTPS" "ClientTraffic"
+                stripe -> recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener "POSTs signed production webhooks" "HTTPS" "EdgeTraffic"
+                uptimeMonitor -> recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener "Checks /api/v1/health/live/" "HTTPS" "OpsTraffic"
+                recommendedProduction.aws.region.vpc.networkControls.albSecurityGroup -> recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener "Governs public TCP 443 ingress" "Security group" "SecurityTraffic"
+                recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener -> recommendedProduction.aws.region.vpc.publicTier.alb.targetGroup "Terminates TLS and selects a healthy task" "HTTP" "EdgeTraffic"
+                recommendedProduction.aws.region.vpc.networkControls.albSecurityGroup -> recommendedProduction.aws.region.vpc.networkControls.apiSecurityGroup "Is the only allowed application-port source" "Security group reference" "SecurityTraffic"
+                recommendedProduction.aws.region.vpc.publicTier.alb.targetGroup -> recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.gunicornA "Routes to healthy task A" "HTTP" "EdgeTraffic"
+                recommendedProduction.aws.region.vpc.publicTier.alb.targetGroup -> recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.gunicornB "Routes to healthy task B" "HTTP" "EdgeTraffic"
+                recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.gunicornA -> recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.apiInstanceA "Invokes Django through WSGI" "WSGI" "EdgeTraffic"
+                recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.gunicornB -> recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.apiInstanceB "Invokes Django through WSGI" "WSGI" "EdgeTraffic"
+                recommendedProduction.aws.region.vpc.networkControls.apiSecurityGroup -> recommendedProduction.aws.region.vpc.networkControls.dbSecurityGroup "Is the only allowed PostgreSQL source" "Security group reference" "SecurityTraffic"
+                recommendedProduction.aws.region.vpc.privateDataTier.rdsCluster.dbInstance -> recommendedProduction.aws.region.vpc.privateDataTier.rdsCluster.standby "Replicates synchronously across Availability Zones" "PostgreSQL replication" "DataTraffic"
+                recommendedProduction.aws.region.vpc.privateDataTier.rdsCluster.dbInstance -> recommendedProduction.aws.region.vpc.privateDataTier.rdsCluster.managedBackups "Creates encrypted backups and recovery points" "Managed backup" "StorageTraffic"
+                recommendedProduction.aws.region.security.secretsNode -> recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.apiInstanceA "Injects production secrets through the task execution role" "ECS secret injection" "SecurityTraffic"
+                recommendedProduction.aws.region.security.secretsNode -> recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.apiInstanceB "Injects the same production configuration" "ECS secret injection" "SecurityTraffic"
+                recommendedProduction.aws.region.security.secretsNode -> recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.migrationTask.migrationInstance "Injects migration configuration" "ECS secret injection" "SecurityTraffic"
+                recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.apiInstanceA -> stripe "Creates Checkout and Customer Portal Sessions" "HTTPS via NAT A" "EdgeTraffic"
+                recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.apiInstanceB -> stripe "Creates Checkout and Customer Portal Sessions" "HTTPS via NAT B" "EdgeTraffic"
+                recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.apiInstanceA -> recommendedProduction.aws.region.ops.cloudWatch "Writes logs and metrics" "awslogs" "OpsTraffic"
+                recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.apiInstanceB -> recommendedProduction.aws.region.ops.cloudWatch "Writes logs and metrics" "awslogs" "OpsTraffic"
+                recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.migrationTask.migrationInstance -> recommendedProduction.aws.region.ops.cloudWatch "Writes migration logs and exit status" "awslogs" "OpsTraffic"
+                recommendedProduction.aws.region.vpc.publicTier.publicSubnetA.natGatewayA -> recommendedProduction.aws.region.vpc.internetGateway "Provides AZ-a private-task egress" "IPv4" "NetworkTraffic"
+                recommendedProduction.aws.region.vpc.publicTier.publicSubnetB.natGatewayB -> recommendedProduction.aws.region.vpc.internetGateway "Provides AZ-b private-task egress" "IPv4" "NetworkTraffic"
+            }
+    }
+
+    views {
+        systemContext longevity "c4-context" "System context view for the Longevity platform." {
+            include user
+            include samsungHealth
+            include healthConnect
+            include stripe
+            include uptimeMonitor
+            include longevity
+            autolayout lr
+        }
+
+        container longevity "c4-container" "Container view of the current runtime building blocks." {
+            include *
+            exclude "element.tag==StagingOnly"
+            autolayout lr
+        }
+
+        component longevity.webapp "c4-web-components" "Implemented React web-client responsibilities and their external dependencies." {
+            include user
+            include longevity.webapp.webRoutes
+            include longevity.webapp.webAuth
+            include longevity.webapp.webServerState
+            include longevity.api
+            include stripe
+            autolayout lr
+        }
+
+        component longevity.android "c4-android-components" "Implemented Android authentication, secure storage, authenticated API, wearable connection, and Health Connect permission responsibilities." {
+            include user
+            include longevity.android.androidPresentation
+            include longevity.android.androidAuth
+            include longevity.android.androidTokenStore
+            include longevity.android.androidApiClient
+            include longevity.android.androidSyncPolicy
+            include longevity.android.androidWearables
+            include longevity.android.androidUploads
+            include longevity.android.androidHealthAccess
+            include longevity.android.androidWeightSyncPlanner
+            include longevity.android.androidWeightSyncCoordinator
+            include longevity.android.androidWeightSyncCursor
+            include longevity.android.androidWeightSyncScheduler
+            include longevity.android.androidWeightSyncWorker
+            include longevity.api
+            include healthConnect
+            autolayout lr
+        }
+
+        component longevity.api "c4-api-components" "Implemented Django domain boundaries and their principal dependencies." {
+            include longevity.webapp
+            include longevity.android
+            include longevity.stagingOriginProxy
+            include stripe
+            include longevity.api.gunicornRuntime
+            include longevity.api.healthApi
+            include longevity.api.authApi
+            include longevity.api.subscriptionsApi
+            include longevity.api.metricsApi
+            include longevity.api.wearablesApi
+            include longevity.db
+            autolayout lr
+        }
+
+        dynamic longevity.api "staging-android-metrics-request" "Numbered C4 dynamic view of one Android metric API request and JSON response through current presentation staging. TLS connections are bidirectional and normally reused; response steps use the same established connections." {
+            1: longevity.android -> publicDns "[DNS] Resolves staging.<domain>; DNS returns CloudFront addresses and does not receive the HTTP request"
+            2: longevity.android -> longevity.stagingEdgeGateway "[HTTPS / TLS connection 1] Opens viewer TLS and sends GET /api/v1/metrics/... or POST /api/v1/metrics/...; viewer TLS terminates at CloudFront"
+            3: longevity.stagingEdgeGateway -> longevity.stagingOriginProxy "[HTTPS / TLS connection 2] Selects uncached /api/*, opens separate origin TLS, and forwards the request with the secret origin header; origin TLS terminates at Nginx"
+            4: longevity.stagingOriginProxy -> longevity.api.gunicornRuntime "[HTTP] Forwards the decrypted request on the private Docker network; no TLS is required on this host-local hop"
+            5: longevity.api.gunicornRuntime -> longevity.api.metricsApi "[WSGI] Invokes Django; Django authenticates, authorizes, validates, and routes the metric request"
+            6: longevity.api.metricsApi -> longevity.db "[PostgreSQL protocol] Reads metric state or commits the validated metric write"
+            7: longevity.db -> longevity.api.metricsApi "[PostgreSQL protocol] Returns rows or confirms the committed write"
+            8: longevity.api.metricsApi -> longevity.api.gunicornRuntime "[WSGI] Builds the JSON HTTP response"
+            9: longevity.api.gunicornRuntime -> longevity.stagingOriginProxy "[HTTP] Returns the JSON response over private HTTP"
+            10: longevity.stagingOriginProxy -> longevity.stagingEdgeGateway "[HTTPS / TLS connection 2] Encrypts the origin response over the existing CloudFront-Nginx TLS connection"
+            11: longevity.stagingEdgeGateway -> longevity.android "[HTTPS / TLS connection 1] Encrypts and returns the JSON response over the existing Android-CloudFront TLS connection"
+            autolayout lr
+        }
+
+        dynamic longevity "staging-browser-page-load" "Numbered C4 dynamic view of a browser deep-link page load from private S3 through current presentation staging. Origin reads occur on a CloudFront cache miss; a cache hit skips the S3 interactions." {
+            1: user -> longevity.webapp "Enters https://staging.<domain>/metrics/resting_hr in the browser"
+            2: longevity.webapp -> publicDns "[DNS] Resolves staging.<domain> to CloudFront"
+            3: longevity.webapp -> longevity.stagingEdgeGateway "[Viewer HTTPS] Requests GET /metrics/resting_hr"
+            4: longevity.stagingEdgeGateway -> longevity.stagingFrontendStore "[Signed HTTPS on cache miss] Applies the SPA rewrite and fetches /index.html through Origin Access Control"
+            5: longevity.stagingFrontendStore -> longevity.stagingEdgeGateway "Returns non-immutable index.html referencing the current content-hashed assets"
+            6: longevity.stagingEdgeGateway -> longevity.webapp "Returns index.html over the viewer TLS connection"
+            7: longevity.webapp -> longevity.stagingEdgeGateway "Requests the referenced /assets/<content-hash>.js and CSS files"
+            8: longevity.stagingEdgeGateway -> longevity.stagingFrontendStore "[Signed HTTPS on cache miss] Fetches the exact immutable asset objects"
+            9: longevity.stagingFrontendStore -> longevity.stagingEdgeGateway "Returns immutable JavaScript and CSS assets"
+            10: longevity.stagingEdgeGateway -> longevity.webapp "Returns cached or origin-fetched assets over viewer TLS"
+            11: longevity.webapp -> user "Runs React and TanStack Router in the browser and renders /metrics/resting_hr; API data is fetched through a separate /api/* flow"
+            autolayout lr
+        }
+
+        dynamic longevity.api "staging-browser-metric-write" "Numbered C4 dynamic view of one authenticated React metric write and JSON response through current presentation staging." {
+            1: user -> longevity.webapp "Submits a metric value from the React page"
+            2: longevity.webapp -> longevity.stagingEdgeGateway "[Viewer HTTPS] POSTs /api/v1/metrics/entries/ with CSRF data, bearer access token, and JSON"
+            3: longevity.stagingEdgeGateway -> longevity.stagingOriginProxy "[Origin HTTPS] Selects uncached /api/* and forwards the complete request with the secret origin header"
+            4: longevity.stagingOriginProxy -> longevity.api.gunicornRuntime "[Private HTTP] Proxies the decrypted request over the Docker network"
+            5: longevity.api.gunicornRuntime -> longevity.api.metricsApi "[WSGI] Invokes Django authentication, authorization, validation, and metric-entry handling"
+            6: longevity.api.metricsApi -> longevity.db "[PostgreSQL protocol] Commits the caller-owned MetricEntry"
+            7: longevity.db -> longevity.api.metricsApi "Returns the committed entry"
+            8: longevity.api.metricsApi -> longevity.api.gunicornRuntime "Builds the 201 JSON response"
+            9: longevity.api.gunicornRuntime -> longevity.stagingOriginProxy "Returns JSON over private HTTP"
+            10: longevity.stagingOriginProxy -> longevity.stagingEdgeGateway "Encrypts the response over the existing origin TLS connection"
+            11: longevity.stagingEdgeGateway -> longevity.webapp "Encrypts the response over the existing viewer TLS connection"
+            12: longevity.webapp -> user "Invalidates relevant TanStack Query caches and renders the saved metric state"
+            autolayout lr
+        }
+
+        dynamic longevity.api "staging-stripe-webhook" "Numbered C4 dynamic view of one signed Stripe test-mode webhook reaching Django through current presentation staging and receiving its acknowledgment." {
+            1: stripe -> publicDns "[DNS] Resolves the configured staging webhook hostname to CloudFront"
+            2: stripe -> longevity.stagingEdgeGateway "[Viewer HTTPS] POSTs the signed event to /api/v1/subscriptions/stripe/webhook/"
+            3: longevity.stagingEdgeGateway -> longevity.stagingOriginProxy "[Origin HTTPS] Selects uncached /api/* and forwards the untouched body, signature header, and secret origin header"
+            4: longevity.stagingOriginProxy -> longevity.api.gunicornRuntime "[Private HTTP] Proxies the webhook request"
+            5: longevity.api.gunicornRuntime -> longevity.api.subscriptionsApi "[WSGI] Invokes Django; the subscription boundary verifies the Stripe signature before trusting the payload"
+            6: longevity.api.subscriptionsApi -> longevity.db "Inside a transaction, records the unique provider event and reconciles subscription state idempotently"
+            7: longevity.db -> longevity.api.subscriptionsApi "Commits the new state or identifies an already processed event"
+            8: longevity.api.subscriptionsApi -> longevity.api.gunicornRuntime "Builds the safe 200 acknowledgment"
+            9: longevity.api.gunicornRuntime -> longevity.stagingOriginProxy "Returns the acknowledgment over private HTTP"
+            10: longevity.stagingOriginProxy -> longevity.stagingEdgeGateway "Encrypts the acknowledgment over the existing origin TLS connection"
+            11: longevity.stagingEdgeGateway -> stripe "Encrypts and returns the acknowledgment over the existing viewer TLS connection"
+            autolayout lr
+        }
+
+        dynamic longevity.api "staging-api-deployment" "Numbered C4 dynamic view of the successful migration-first staging API deployment. A secret retrieval, validation, or migration failure stops before API replacement, leaving the old API running." {
+            1: deploymentOperator -> longevity.stagingDeploymentController "Starts deployment of one tested immutable backend image through the controlled host-side command"
+            2: longevity.stagingDeploymentController -> awsSecretsManager "Retrieves one AWSCURRENT staging runtime JSON through the EC2 instance role"
+            3: awsSecretsManager -> longevity.stagingDeploymentController "Returns the secret; the loader validates the complete allowlisted contract and freezes one process-environment snapshot"
+            4: longevity.stagingDeploymentController -> longevity.stagingMigrationTask "Starts the one-off migration container with the immutable image and frozen snapshot"
+            5: longevity.stagingMigrationTask -> longevity.db "Runs python manage.py migrate --no-input against PostgreSQL"
+            6: longevity.db -> longevity.stagingMigrationTask "Commits the schema migration; any failure stops the flow before replacement"
+            7: longevity.stagingMigrationTask -> longevity.stagingDeploymentController "Exits successfully and reports its observable status"
+            8: longevity.stagingDeploymentController -> longevity.api.gunicornRuntime "Replaces the single API container and starts Gunicorn with the same frozen snapshot"
+            9: longevity.api.gunicornRuntime -> longevity.api.healthApi "Invokes GET /api/v1/health/ready/ during the bounded readiness wait"
+            10: longevity.api.healthApi -> longevity.db "Executes the constant SELECT 1 PostgreSQL probe"
+            11: longevity.db -> longevity.api.healthApi "Returns database availability"
+            12: longevity.api.healthApi -> longevity.api.gunicornRuntime "Returns ready only after Django can query PostgreSQL"
+            13: longevity.api.gunicornRuntime -> longevity.stagingDeploymentController "Reports the API healthy; replacement may have caused the accepted brief maintenance interruption"
+            14: longevity.stagingDeploymentController -> deploymentOperator "Reports successful deployment without printing the runtime secret"
+            autolayout lr
+        }
+
+        dynamic longevity "web-auth-register" "Dynamic view of the current web registration flow." {
+            user -> longevity.webapp "Visits /register, enters email user@example.com and password Secret123!, then submits the form"
+            longevity.webapp -> longevity.api "POST /api/auth/register/ with JSON, e.g. {\"email\":\"user@example.com\",\"password\":\"Secret123!\"}; RegisterSerializer validates email format, checks email_lookup_hash uniqueness, and runs Django password validation"
+            longevity.api -> longevity.db "Inside one transaction, creates the user with encrypted normalized email, keyed email_lookup_hash, and hashed password, then creates the user's active default Free Subscription"
+            longevity.db -> longevity.api "Commits both records or rolls both back; returns created user, e.g. user id 42 -> user@example.com"
+            longevity.api -> longevity.webapp "Returns 201 JSON, e.g. {\"email\":\"user@example.com\"}"
+            user -> longevity.webapp "Is redirected to /login and can sign in with the newly created account"
+        }
+
+        dynamic longevity "web-auth-login" "Dynamic view of the current web login flow." {
+            user -> longevity.webapp "Enters credentials and starts sign in"
+            longevity.webapp -> longevity.api "GET /api/auth/csrf/ to bootstrap CSRF cookie"
+            longevity.api -> longevity.webapp "Returns CSRF cookie"
+            longevity.webapp -> longevity.api "POST /api/auth/web/login/ with email and password"
+            longevity.api -> longevity.db "Loads user record and verifies credentials"
+            longevity.db -> longevity.api "Returns user data"
+            longevity.api -> longevity.db "Registers the issued refresh JWT in SimpleJWT's OutstandingToken table"
+            longevity.api -> longevity.webapp "Returns only {\"access\":\"...\"} in JSON and sets refresh_token as an HttpOnly, Secure, SameSite=Lax cookie"
+            user -> longevity.webapp "Uses authenticated web session"
+        }
+
+        dynamic longevity "web-auth-refresh" "Dynamic view of concurrency-safe web refresh rotation and cookie-only refresh transport." {
+            user -> longevity.webapp "Continues an existing authenticated web session"
+            longevity.webapp -> longevity.api "After same-tab in-flight sharing and, when available, the cross-tab browser lock, POST /api/auth/web/refresh/ with X-CSRFToken and the browser-managed refresh_token cookie"
+            longevity.api -> longevity.db "Validates the signed refresh token type/JTI, starts a transaction, and SELECT FOR UPDATE locks its token_blacklist_outstandingtoken row"
+            longevity.db -> longevity.api "Returns the one outstanding-token row while holding its PostgreSQL row lock"
+            longevity.api -> longevity.db "TokenRefreshSerializer checks blacklist state, inserts BlacklistedToken for the old JTI, registers the rotated OutstandingToken, and commits"
+            longevity.api -> longevity.webapp "Returns 200 JSON containing only {\"access\":\"...\"}; transports the rotated refresh token exclusively in a new HttpOnly cookie"
+            user -> longevity.webapp "Continues authenticated session with refreshed access token"
+        }
+
+        dynamic longevity "web-auth-logout" "Dynamic view of the current web logout flow." {
+            user -> longevity.webapp "Chooses to sign out from an authenticated web session"
+            longevity.webapp -> longevity.api "POST /api/auth/web/logout/ with X-CSRFToken and the browser-managed refresh_token cookie"
+            longevity.api -> longevity.db "Validates the cookie refresh JWT and inserts a BlacklistedToken row for its OutstandingToken"
+            longevity.db -> longevity.api "Confirms the presented refresh token is revoked"
+            longevity.api -> longevity.webapp "Returns 204, expires the refresh_token cookie, and exposes no refresh token to JavaScript"
+            user -> longevity.webapp "Returns to an unauthenticated web state"
+        }
+
+        dynamic longevity "web-auth-current-user" "Dynamic view of current-user bootstrap and protected route access on the web app." {
+            user -> longevity.webapp "Navigates to a protected route such as / or /settings"
+            longevity.webapp -> longevity.api "GET /api/auth/me/ with Authorization: Bearer <access-token>, e.g. Bearer eyJhbGciOi..."
+            longevity.api -> longevity.db "Loads authenticated user for the token-backed request, e.g. user id 42 -> email user@example.com"
+            longevity.db -> longevity.api "Returns current user data, e.g. email user@example.com"
+            longevity.api -> longevity.webapp "Returns 200 JSON, e.g. {\"email\":\"user@example.com\"}"
+            user -> longevity.webapp "TanStack Router beforeLoad allows the protected route and the user sees Dashboard or Settings"
+        }
+
+        dynamic longevity "web-session-bootstrap" "Dynamic view of browser session restoration before protected route access." {
+            user -> longevity.webapp "Opens or reloads the web application"
+            user -> longevity.webapp "AuthBootstrapGate blocks route rendering while one shared restore operation runs"
+            longevity.webapp -> longevity.api "GET /api/auth/csrf/ to establish the CSRF cookie"
+            longevity.api -> longevity.webapp "Returns the CSRF cookie"
+            longevity.webapp -> longevity.api "After same-tab sharing and the browser lock when available, POST /api/auth/web/refresh/ with browser cookies and X-CSRFToken"
+            longevity.api -> longevity.db "Locks the OutstandingToken row and atomically validates, blacklists, and rotates the refresh token"
+            longevity.db -> longevity.api "Commits the blacklist row plus the new outstanding refresh-token row"
+            longevity.api -> longevity.webapp "Returns only the renewed access token in JSON and rotates the HttpOnly refresh_token cookie"
+            longevity.webapp -> longevity.api "GET /api/auth/me/ with Authorization: Bearer <renewed-access-token>"
+            longevity.api -> longevity.db "Loads the authenticated user"
+            longevity.db -> longevity.api "Returns current user data"
+            longevity.api -> longevity.webapp "Returns 200 current-user JSON"
+            user -> longevity.webapp "TanStack Router allows the protected route after session restoration succeeds"
+        }
+
+        dynamic longevity.android "mobile-auth-login" "Dynamic view of Android login and durable encrypted token storage." {
+            user -> longevity.android.androidPresentation "Enters email and password and chooses Sign in"
+            longevity.android.androidPresentation -> longevity.android.androidAuth "Calls login with the submitted credentials; JWTs never enter Compose or ViewModel state"
+            longevity.android.androidAuth -> longevity.api "POST /api/auth/mobile/login/ with JSON email and password"
+            longevity.api -> longevity.db "Loads the encrypted user identity through email_lookup_hash, verifies the Django password hash, and registers the issued refresh JWT in SimpleJWT's OutstandingToken table"
+            longevity.db -> longevity.api "Returns the authenticated user and committed outstanding-token state"
+            longevity.api -> longevity.android.androidAuth "Returns 200 JSON containing access and refresh JWTs"
+            longevity.android.androidAuth -> longevity.android.androidTokenStore "Encrypts each token with AES-GCM and synchronously commits both ciphertext values before reporting success"
+            longevity.android.androidAuth -> longevity.android.androidPresentation "Returns success without exposing token values"
+            user -> longevity.android.androidPresentation "Sees the authenticated mobile screen"
+        }
+
+        dynamic longevity.android "mobile-session-restore" "Dynamic view of Android cold-start session restoration without unnecessary refresh rotation." {
+            user -> longevity.android.androidPresentation "Cold-starts or reopens the Android app"
+            longevity.android.androidPresentation -> longevity.android.androidAuth "LoginViewModel asks whether a local session can be restored"
+            longevity.android.androidAuth -> longevity.android.androidTokenStore "Reads and decrypts the stored access/refresh pair"
+            longevity.android.androidTokenStore -> longevity.android.androidAuth "Returns a readable pair or no session"
+            longevity.android.androidAuth -> longevity.android.androidPresentation "Returns only a Boolean restoration result; no API request or token rotation occurs"
+            user -> longevity.android.androidPresentation "Sees the authenticated screen when the encrypted pair is readable"
+        }
+
+        dynamic longevity.android "mobile-auth-refresh-retry" "Dynamic view of Android on-demand refresh rotation after a protected product request receives 401." {
+            user -> longevity.android.androidPresentation "Starts an authenticated product action such as Health Connect registration"
+            longevity.android.androidPresentation -> longevity.android.androidWearables "Requests the wearable connection operation"
+            longevity.android.androidWearables -> longevity.android.androidApiClient "Builds the product request without handling JWT values"
+            longevity.android.androidApiClient -> longevity.android.androidTokenStore "Reads the stored access token"
+            longevity.android.androidApiClient -> longevity.api "Sends the protected wearable request with Authorization: Bearer <stored-access-token>"
+            longevity.api -> longevity.android.androidApiClient "Returns 401 because the access token is expired or otherwise rejected"
+            longevity.android.androidApiClient -> longevity.android.androidTokenStore "Inside a coroutine mutex, rereads storage and reuses a token already refreshed by another request when available"
+            longevity.android.androidApiClient -> longevity.android.androidAuth "Requests one refresh when the rejected access token is still current"
+            longevity.android.androidAuth -> longevity.android.androidTokenStore "Reads the stored refresh token"
+            longevity.android.androidAuth -> longevity.api "POST /api/auth/mobile/refresh/ with the refresh token in JSON"
+            longevity.api -> longevity.db "Validates type/JTI, SELECT FOR UPDATE locks the matching OutstandingToken row, blacklists the submitted token, registers the rotated token, and commits atomically"
+            longevity.db -> longevity.api "Returns committed refresh-rotation state"
+            longevity.api -> longevity.android.androidAuth "Returns replacement access and rotated refresh JWTs"
+            longevity.android.androidAuth -> longevity.android.androidTokenStore "Encrypts and synchronously commits the replacement pair"
+            longevity.android.androidAuth -> longevity.android.androidApiClient "Reports successful refresh without exposing token values"
+            longevity.android.androidApiClient -> longevity.api "Retries the original wearable request once with the replacement access token"
+            longevity.api -> longevity.android.androidApiClient "Returns the final product response"
+            longevity.android.androidApiClient -> longevity.android.androidWearables "Returns the buffered, closed response without logging health data"
+            longevity.android.androidWearables -> longevity.android.androidPresentation "Returns the connection result for UI state"
+        }
+
+        dynamic longevity.android "mobile-auth-logout" "Dynamic view of Android server-side refresh revocation followed by local credential deletion." {
+            user -> longevity.android.androidPresentation "Chooses Logout"
+            longevity.android.androidPresentation -> longevity.android.androidAuth "Requests logout without receiving JWT values"
+            longevity.android.androidAuth -> longevity.android.androidTokenStore "Reads the stored refresh token"
+            longevity.android.androidAuth -> longevity.api "POST /api/auth/mobile/logout/ with the refresh token in JSON"
+            longevity.api -> longevity.db "Validates the refresh JWT and inserts a BlacklistedToken row for its OutstandingToken"
+            longevity.db -> longevity.api "Confirms server-side revocation"
+            longevity.api -> longevity.android.androidAuth "Returns 204; unexpected server/network failure leaves local credentials available for an honest retry"
+            longevity.android.androidAuth -> longevity.android.androidTokenStore "Synchronously clears the encrypted local pair after accepted revocation"
+            longevity.android.androidAuth -> longevity.android.androidPresentation "Reports logout success"
+            user -> longevity.android.androidPresentation "Returns to the mobile login form"
+        }
+
+        dynamic longevity.android "mobile-pro-background-weight-sync" "Dynamic view of subscription-enabled Android periodic Weight and Steps sync with execution-time entitlement recheck. The view key retains its legacy name." {
+            user -> longevity.android.androidPresentation "Opens the authenticated Health Connect screen"
+            longevity.android.androidPresentation -> longevity.android.androidSyncPolicy "Loads the current wearable sync policy"
+            longevity.android.androidSyncPolicy -> longevity.android.androidApiClient "Builds an authenticated current-subscription request"
+            longevity.android.androidApiClient -> longevity.api.subscriptionsApi "GET /api/v1/subscriptions/current/ with the stored bearer access token"
+            longevity.api.subscriptionsApi -> longevity.db "Loads the current subscription and its server-owned plan entitlements"
+            longevity.android.androidPresentation -> longevity.android.androidWeightSyncScheduler "Schedules unique network-constrained periodic work at the server interval after background access is granted"
+            longevity.android.androidWeightSyncScheduler -> longevity.android.androidWeightSyncWorker "Starts an eligible periodic run with connection_id"
+            longevity.android.androidWeightSyncWorker -> longevity.android.androidSyncPolicy "Fetches current policy again before device access"
+            longevity.android.androidSyncPolicy -> longevity.android.androidApiClient "Builds the execution-time policy request"
+            longevity.android.androidApiClient -> longevity.api.subscriptionsApi "GET /api/v1/subscriptions/current/ before Health Connect access"
+            longevity.api.subscriptionsApi -> longevity.db "Rechecks the user's current automatic-sync entitlement"
+            longevity.android.androidWeightSyncWorker -> longevity.android.androidWeightSyncCoordinator "Runs the all-metric incremental sync; a disabled policy would stop before Health Connect access"
+        }
+
+        dynamic longevity "web-dashboard" "Dynamic view of the implemented protected Dashboard read and manual-entry flow." {
+            user -> longevity.webapp "Opens / after the protected-route current-user check succeeds"
+            longevity.webapp -> longevity.api "TanStack Query requests GET /api/v1/metrics/definitions/, GET /api/v1/metrics/entries/?limit=50, and GET /api/v1/subscriptions/current/ with the in-memory bearer access token"
+            longevity.api -> longevity.db "Loads visible metric definitions, the authenticated user's newest entries, and current plan entitlements"
+            longevity.db -> longevity.api "Returns metric catalog/history plus Free or Pro subscription state"
+            longevity.api -> longevity.webapp "Returns JSON used for latest-value cards, recent-entry filtering, and client-computed locked/unlocked Pro Insights"
+            user -> longevity.webapp "Submits a manual value from a metric card"
+            longevity.webapp -> longevity.api "POST /api/v1/metrics/entries/ with metric_definition, value, recorded_at, and optional context"
+            longevity.api -> longevity.db "Validates ownership/visibility and metric range, assigns source=manual server-side, then creates MetricEntry"
+            longevity.db -> longevity.api "Returns the saved entry"
+            longevity.api -> longevity.webapp "Returns 201; TanStack Query invalidates entry caches and the Dashboard renders the updated value/history"
+        }
+
+        dynamic longevity "metrics-definition-entry-api" "Dynamic view of the current metric definition and metric entry API slice." {
+            user -> longevity.webapp "Opens the authenticated dashboard"
+            longevity.webapp -> longevity.api "GET /api/v1/metrics/definitions/ with Authorization: Bearer <access-token>"
+            longevity.api -> longevity.db "Loads active default metric definitions plus the authenticated user's active custom definitions"
+            longevity.db -> longevity.api "Returns metric definitions, e.g. resting_hr, vo2_max, mood"
+            longevity.api -> longevity.webapp "Returns 200 JSON list of metric definitions for dashboard display"
+            longevity.webapp -> longevity.api "POST /api/v1/metrics/entries/ with metric_definition slug, value, recorded_at, and optional context"
+            longevity.api -> longevity.db "Validates auth, metric-definition scope, active status, min/max range, then writes a MetricEntry for the authenticated user"
+            longevity.db -> longevity.api "Returns the created metric entry"
+            longevity.api -> longevity.webapp "Returns 201 JSON with id, metric_definition slug, value, source manual, context, and created_at"
+            longevity.webapp -> longevity.api "GET /api/v1/metrics/entries/?metric=resting_hr&from=2026-03-01T00:00:00Z&to=2026-03-31T23:59:59Z"
+            longevity.api -> longevity.db "Reads only the authenticated user's entries, applies metric/from/to filters, and orders by recorded_at DESC, id DESC"
+            longevity.db -> longevity.api "Returns matching metric entries"
+            longevity.api -> longevity.webapp "Returns 200 JSON list of entries for display"
+        }
+
+        dynamic longevity "metrics-catalog-management" "Dynamic view of active and archived custom metric catalog management." {
+            user -> longevity.webapp "Opens /metrics"
+            longevity.webapp -> longevity.api "GET /api/v1/metrics/definitions/ and GET /api/v1/metrics/usage/"
+            longevity.api -> longevity.db "Loads active system/user definitions and counts the authenticated user's active custom metrics"
+            longevity.db -> longevity.api "Returns definitions and current entitlement usage"
+            longevity.api -> longevity.webapp "Returns the active catalog plus { used, limit } usage"
+            user -> longevity.webapp "Optionally reveals archived custom metrics"
+            longevity.webapp -> longevity.api "GET /api/v1/metrics/definitions/?include_inactive=true"
+            longevity.api -> longevity.db "Loads active defaults plus the authenticated user's active and inactive custom definitions"
+            longevity.db -> longevity.api "Returns visible active and archived definitions"
+            longevity.api -> longevity.webapp "Returns 200 JSON for separate active and archived catalog sections"
+            user -> longevity.webapp "Creates, edits, deactivates, or reactivates a custom metric"
+            longevity.webapp -> longevity.api "POST /api/v1/metrics/definitions/ or PATCH /api/v1/metrics/definitions/{id}/"
+            longevity.api -> longevity.db "Validates ownership, fields, active status, and entitlement rules, then persists the change"
+            longevity.db -> longevity.api "Returns the created or updated definition"
+            longevity.api -> longevity.webapp "Returns success; TanStack Query invalidates definition, entry, and usage caches as applicable"
+        }
+
+        dynamic longevity "metric-detail-history" "Dynamic view of metric detail, filtered history, chart rendering, and entry maintenance." {
+            user -> longevity.webapp "Opens /metrics/{slug} and selects an optional 7d, 30d, 90d, or all range"
+            longevity.webapp -> longevity.api "GET /api/v1/metrics/definitions/ and GET /api/v1/metrics/entries/?metric={slug}&from={timestamp}&limit=50"
+            longevity.api -> longevity.db "Loads the visible metric definition and the authenticated user's filtered entry history"
+            longevity.db -> longevity.api "Returns the definition and newest-first entries"
+            longevity.api -> longevity.webapp "Returns JSON used for the metric summary, entry history, and client-side daily-latest chart"
+            user -> longevity.webapp "Edits or deletes one historical metric entry"
+            longevity.webapp -> longevity.api "PATCH or DELETE /api/v1/metrics/entries/{id}/"
+            longevity.api -> longevity.db "Scopes the entry to the authenticated user, validates updates when applicable, and writes or deletes it"
+            longevity.db -> longevity.api "Returns the updated entry or confirms deletion"
+            longevity.api -> longevity.webapp "Returns 200 or 204; TanStack Query invalidates metric-entry history"
+        }
+
+        dynamic longevity "custom-metric-entitlement-write" "Dynamic view of concurrency-safe custom metric creation and reactivation." {
+            user -> longevity.webapp "Creates a custom metric or reactivates an archived custom metric"
+            longevity.webapp -> longevity.api "POST /api/v1/metrics/definitions/ or PATCH /api/v1/metrics/definitions/{id}/ with is_active=true"
+            longevity.api -> longevity.db "Starts an atomic write and issues SELECT FOR UPDATE for the authenticated user's row"
+            longevity.api -> longevity.db "Counts the user's active, non-default custom metric definitions"
+            longevity.db -> longevity.api "Returns current active custom metric usage"
+            longevity.api -> longevity.db "Creates or reactivates the metric when a slot is available, then commits and releases the user-row lock"
+            longevity.api -> longevity.webapp "Returns 201/200 on success, or 400 when the active custom metric limit is reached"
+        }
+
+        dynamic longevity.android "wearable-connection-register" "Dynamic view of the implemented Android Health Connect permission and backend connection-registration flow." {
+            user -> longevity.android.androidPresentation "Chooses Connect Health Connect"
+            longevity.android.androidPresentation -> longevity.android.androidHealthAccess "Checks SDK availability and the existing WeightRecord and StepsRecord read grants"
+            longevity.android.androidHealthAccess -> healthConnect "Queries Health Connect SDK status and granted permissions"
+            healthConnect -> longevity.android.androidHealthAccess "Returns available with permission granted, permission required, provider update required, or unavailable"
+            longevity.android.androidHealthAccess -> longevity.android.androidPresentation "Returns the typed access state"
+            longevity.android.androidPresentation -> healthConnect "When required, launches the official contract for both READ_WEIGHT and READ_STEPS"
+            healthConnect -> longevity.android.androidPresentation "Returns the user's grant or denial; denial stops without consuming a backend plan slot"
+            longevity.android.androidPresentation -> longevity.android.androidWearables "After an existing or new grant, resolves the backend Health Connect connection"
+            longevity.android.androidWearables -> longevity.android.androidApiClient "Builds GET /api/v1/wearables/connections/"
+            longevity.android.androidApiClient -> longevity.api "Sends owner-scoped GET /api/v1/wearables/connections/ with Authorization: Bearer <access-token>"
+            longevity.api -> longevity.db "Loads the authenticated user's connections"
+            longevity.db -> longevity.api "Returns current connection rows"
+            longevity.api -> longevity.android.androidApiClient "Returns 200 with the caller-owned connection list"
+            longevity.android.androidApiClient -> longevity.android.androidWearables "Returns the buffered response"
+            longevity.android.androidWearables -> longevity.android.androidApiClient "Only when health_connect is absent, builds POST with {\"provider\":\"health_connect\"}"
+            longevity.android.androidApiClient -> longevity.api "Sends POST /api/v1/wearables/connections/ with Authorization: Bearer <access-token>"
+            longevity.api -> longevity.db "Atomically locks the user, loads current plan entitlement, counts active connections, and creates or reactivates WearableConnection(status=pending) when a slot is available"
+            longevity.db -> longevity.api "Returns the stored caller-owned connection"
+            longevity.api -> longevity.android.androidApiClient "Returns 201, or 400 when the wearable_connection_limit is exhausted"
+            longevity.android.androidApiClient -> longevity.android.androidWearables "Returns the final connection response"
+            longevity.android.androidWearables -> longevity.android.androidPresentation "Publishes Ready, Rejected, NoSession, or Unavailable UI state"
+            longevity.android.androidPresentation -> longevity.android.androidHealthAccess "After Ready, checks the optional background-read feature and existing grant"
+            longevity.android.androidHealthAccess -> healthConnect "Queries FEATURE_READ_HEALTH_DATA_IN_BACKGROUND and granted permissions"
+            healthConnect -> longevity.android.androidHealthAccess "Returns supported/granted capability state"
+            user -> longevity.android.androidPresentation "When supported but ungranted, chooses Allow background sync"
+            longevity.android.androidPresentation -> healthConnect "Launches the official READ_HEALTH_DATA_IN_BACKGROUND permission contract"
+            healthConnect -> longevity.android.androidPresentation "Returns grant or denial without changing backend connection identity"
+        }
+
+        dynamic longevity.android "mobile-periodic-weight-sync" "Dynamic view of scheduling, executing, and cancelling the implemented periodic incremental Weight and Steps worker. The view key retains its legacy name." {
+            user -> longevity.android.androidPresentation "Grants supported background Health Connect access for a Ready Pro connection"
+            longevity.android.androidPresentation -> longevity.android.androidSyncPolicy "Uses the resolved server-owned automatic policy and interval"
+            longevity.android.androidPresentation -> longevity.android.androidWeightSyncScheduler "Requests scheduling with the caller-owned connection ID and validated interval"
+            longevity.android.androidWeightSyncScheduler -> longevity.android.androidWeightSyncWorker "Enqueues or updates the unique network-constrained periodic request at the validated server interval"
+            longevity.android.androidWeightSyncWorker -> longevity.android.androidSyncPolicy "Rechecks current automatic entitlement before device access"
+            longevity.android.androidWeightSyncWorker -> longevity.android.androidWeightSyncCoordinator "When Android confirms entitlement and runs eligible work, invokes the injected all-metric incremental runner"
+            longevity.android.androidWeightSyncCoordinator -> longevity.android.androidWeightSyncPlanner "Plans Weight and Steps records from the shared per-connection cursor with a 24-hour overlap"
+            longevity.android.androidWeightSyncPlanner -> longevity.android.androidHealthAccess "Reads the selected WeightRecord and StepsRecord windows"
+            longevity.android.androidHealthAccess -> healthConnect "Reads permitted on-device Weight and Steps records"
+            longevity.android.androidWeightSyncCoordinator -> longevity.android.androidUploads "Uploads ordered normalized batches with retry-stable identities"
+            longevity.android.androidUploads -> longevity.android.androidApiClient "Executes the authenticated upload request"
+            longevity.android.androidApiClient -> longevity.api "POST /api/v1/wearables/uploads/; refreshes and retries once after an access-token 401"
+            longevity.api -> longevity.db "Commits idempotent SyncRun state and inserts, skips, or newer-version updates MetricEntry rows"
+            user -> longevity.android.androidPresentation "Later completes logout successfully"
+            longevity.android.androidPresentation -> longevity.android.androidWeightSyncScheduler "Cancels all tagged metric-sync work; startup session checking never triggers cancellation"
+        }
+
+        dynamic longevity.android "mobile-manual-weight-sync-coordinator" "Dynamic view of implemented plan-cooled foreground incremental Weight and Steps sync from Compose through Django ingestion and React display. The view key retains its legacy name." {
+            user -> longevity.android.androidPresentation "Opens a resolved Health Connect connection after current subscription policy loads"
+            longevity.android.androidPresentation -> longevity.android.androidWeightSyncCursor "Compares the newest device/backend successful timestamp with the plan cooldown"
+            user -> longevity.android.androidPresentation "After cooldown availability, chooses Sync now"
+            longevity.android.androidPresentation -> longevity.android.androidWeightSyncCoordinator "InitialWeightSyncViewModel starts one non-overlapping sync with the caller-owned connection ID"
+            longevity.android.androidWeightSyncCoordinator -> longevity.android.androidWeightSyncPlanner "AllMetricsSyncRunner requests incremental Weight batches followed by Steps batches for one caller-owned connection"
+            longevity.android.androidWeightSyncPlanner -> longevity.android.androidWeightSyncCursor "Loads the per-connection cursor with a 24-hour overlap, or uses a 30-day first-run fallback"
+            longevity.android.androidWeightSyncPlanner -> longevity.android.androidHealthAccess "Requests the selected WeightRecord and StepsRecord windows"
+            longevity.android.androidHealthAccess -> healthConnect "Reads every page in ascending order"
+            healthConnect -> longevity.android.androidHealthAccess "Returns permitted records with stable IDs, timestamps, Weight mass or Steps interval/count, and data-origin package"
+            longevity.android.androidHealthAccess -> longevity.android.androidWeightSyncPlanner "Returns SDK-independent samples, permission-required, or retryable read-unavailable outcome"
+            longevity.android.androidWeightSyncPlanner -> longevity.android.androidWeightSyncCoordinator "Returns only Samsung-originated Weight or Steps samples in ordered batches of at most 100"
+            longevity.android.androidWeightSyncCoordinator -> longevity.android.androidUploads "Generates one upload UUID and submits each batch sequentially"
+            longevity.android.androidUploads -> longevity.android.androidApiClient "Serializes the normalized batch without handling JWT values"
+            longevity.android.androidApiClient -> longevity.api "POST /api/v1/wearables/uploads/ with the stored bearer access token"
+            longevity.api -> longevity.db "Validates caller ownership, locks the connection, enforces upload identity, inserts new records, applies only newer provider versions, and completes SyncRun counters"
+            longevity.db -> longevity.api "Commits metric records, connection sync state, and the terminal receipt"
+            longevity.api -> longevity.android.androidApiClient "Returns 201 for new work, 200 for an exact retry, or a safe rejection/conflict"
+            longevity.android.androidApiClient -> longevity.android.androidUploads "Returns the buffered response without logging health data"
+            longevity.android.androidUploads -> longevity.android.androidWeightSyncCoordinator "Returns a typed receipt or explicit conflict/rejection/session/unavailable outcome"
+            longevity.android.androidWeightSyncCoordinator -> longevity.android.androidWeightSyncCursor "After Completed or valid NoData, persists the pre-read watermark that starts the next cooldown"
+            longevity.android.androidWeightSyncCoordinator -> longevity.android.androidPresentation "Returns aggregate imported/updated/skipped counts, no-data, or a safe recovery outcome without records or receipt IDs"
+            user -> longevity.android.androidPresentation "Sees the completed or actionable sync state"
+        }
+
+        dynamic longevity.android "wearable-connection-disconnect" "Dynamic view of implemented Android Health Connect disconnect, backend soft deactivation, and connection-scoped device cleanup." {
+            user -> longevity.android.androidPresentation "Chooses Disconnect Health Connect from the Ready state"
+            longevity.android.androidPresentation -> longevity.android.androidWearables "Requests disconnect for the resolved caller-owned connection ID"
+            longevity.android.androidWearables -> longevity.android.androidApiClient "Builds DELETE /api/v1/wearables/connections/{id}/"
+            longevity.android.androidApiClient -> longevity.api.wearablesApi "Sends the authenticated DELETE with the stored bearer access token"
+            longevity.api.wearablesApi -> longevity.db "Owner-scopes and marks the connection inactive while preserving identity/history and releasing its plan slot"
+            longevity.api.wearablesApi -> longevity.android.androidApiClient "Returns 204, or stale 404 when the row is already inactive"
+            longevity.android.androidApiClient -> longevity.android.androidWearables "Returns terminal success, no-session, or retryable unavailable"
+            longevity.android.androidWearables -> longevity.android.androidWeightSyncScheduler "After terminal success, cancels only the connection-scoped unique periodic work"
+            longevity.android.androidWearables -> longevity.android.androidWeightSyncCursor "Removes only the disconnected connection's local cursor"
+            longevity.android.androidWearables -> longevity.android.androidPresentation "Publishes Idle after success or preserves Ready with a safe retry error after temporary failure"
+        }
+
+        dynamic longevity "wearable-connection-status-read" "Dynamic view of the implemented backend status-read boundary; the Android client call is planned." {
+            user -> longevity.android "Planned client action: views detailed Health Connect sync state"
+            longevity.android -> longevity.api "Planned client call to implemented GET /api/v1/wearables/connections/{id}/status/ with Authorization: Bearer <access-token>"
+            longevity.api -> longevity.db "Looks up the connection UUID only inside the authenticated user's connections"
+            longevity.db -> longevity.api "Returns provider, status, last_synced_at, and last_error when owned"
+            longevity.api -> longevity.android "Returns 200 with connection state, or 404 for an unknown or unowned UUID"
+        }
+
+        dynamic longevity "free-to-pro-health-connect" "End-to-end dynamic view of account registration, Stripe-backed Free-to-Pro transition, and pending Health Connect registration." {
+            user -> longevity.webapp "Registers an account"
+            longevity.webapp -> longevity.api "POST /api/auth/register/"
+            longevity.api -> longevity.db "Atomically creates the User and active Free Subscription"
+            longevity.api -> longevity.webapp "Returns 201 with the registered email"
+            user -> longevity.webapp "Signs in"
+            longevity.webapp -> longevity.api "POST /api/auth/web/login/"
+            longevity.api -> longevity.db "Authenticates the user"
+            longevity.api -> longevity.webapp "Returns an access token and sets the refresh token in an HttpOnly cookie"
+            user -> longevity.webapp "Selects the Pro monthly price in Settings"
+            longevity.webapp -> longevity.api "POST /api/v1/subscriptions/checkout/ with the internal Pro monthly SubscriptionPrice UUID"
+            longevity.api -> longevity.db "Creates CheckoutAttempt(pending, expected_subscription=current Free subscription)"
+            longevity.api -> stripe "Creates a hosted Checkout Session with server-owned Stripe price and attempt idempotency key"
+            stripe -> longevity.api "Returns cs_test session ID and hosted Checkout URL"
+            longevity.api -> longevity.db "Marks CheckoutAttempt completed and stores the Stripe session ID; Free remains current"
+            longevity.api -> longevity.webapp "Returns 201 with the hosted Checkout URL"
+            longevity.webapp -> stripe "Redirects the browser to hosted Checkout"
+            user -> stripe "Completes the Pro monthly payment"
+            stripe -> longevity.api "POSTs a signed checkout.session.completed webhook"
+            longevity.api -> longevity.db "Records the unique Stripe event, cancels the Free subscription into history, creates the active Pro subscription and BillingCustomer, and confirms the attempt"
+            stripe -> longevity.api "POSTs a signed customer.subscription.updated webhook"
+            longevity.api -> longevity.db "Records the unique Stripe event and refreshes the Pro price, billing-period dates, and cancellation state"
+            user -> longevity.android "Opens the Android app and completes mobile login or local session restoration"
+            user -> longevity.android "Chooses Connect Health Connect"
+            longevity.android -> healthConnect "Checks availability and existing READ_WEIGHT plus READ_STEPS permissions, launching the official permission UI when required"
+            healthConnect -> longevity.android "Returns the grant; denial stops before backend registration"
+            longevity.android -> longevity.api "GET /api/v1/wearables/connections/ with the stored bearer access token"
+            longevity.api -> longevity.db "Loads existing caller-owned wearable connections"
+            longevity.db -> longevity.api "Returns no Health Connect connection for this first registration"
+            longevity.api -> longevity.android "Returns 200 with the current connection list"
+            longevity.android -> longevity.api "POST /api/v1/wearables/connections/ with provider=health_connect and the stored bearer access token"
+            longevity.api -> longevity.db "Locks the user, loads active Pro entitlement, counts active connections, and creates WearableConnection(status=pending, is_active=true)"
+            longevity.api -> longevity.android "Returns 201 with the pending connection; no MetricEntry exists until ingestion succeeds"
+        }
+
+        dynamic longevity "subscription-checkout-create" "Dynamic view of the implemented Stripe Checkout creation flow from Settings." {
+            user -> longevity.webapp "Opens /settings and reviews Current Plan plus Available Plans"
+            longevity.webapp -> longevity.api "GET /api/v1/subscriptions/current/ with Authorization: Bearer <access-token>"
+            longevity.api -> longevity.db "Loads the authenticated user's current Subscription, related SubscriptionPlan, optional SubscriptionPrice, cancellation state, and BillingCustomer availability"
+            longevity.db -> longevity.api "Returns current subscription, e.g. Free plan with 3 custom metrics"
+            longevity.api -> longevity.webapp "Returns 200 JSON with id, status, billing_portal_available, period dates, cancel_at, cancel_at_period_end, price, and plan entitlement data"
+            longevity.webapp -> longevity.api "GET /api/v1/subscriptions/plans/"
+            longevity.api -> longevity.db "Loads active plans and prefetches active prices; Stripe provider_price_id values stay server-side"
+            longevity.db -> longevity.api "Returns catalog with internal SubscriptionPrice.id values, e.g. monthly-price-uuid"
+            longevity.api -> longevity.webapp "Returns 200 JSON catalog; the React app renders Upgrade buttons for paid prices"
+            user -> longevity.webapp "Clicks Upgrade to Pro monthly"
+            longevity.webapp -> longevity.api "POST /api/v1/subscriptions/checkout/ with {\"price_id\":\"monthly-price-uuid\"}"
+            longevity.api -> longevity.db "SubscriptionCheckoutSerializer validates the internal active price, current subscription, and non-default target plan"
+            longevity.api -> longevity.db "Creates CheckoutAttempt(status=pending, expected_subscription=current free subscription)"
+            longevity.api -> longevity.db "Loads the user's Stripe BillingCustomer when one exists"
+            longevity.api -> stripe "Creates Checkout Session with server-owned price, metadata, and idempotency key; sends stored customer ID or customer_email for first Checkout"
+            stripe -> longevity.api "Returns Checkout Session id cs_test_... and hosted url https://checkout.stripe.com/c/..."
+            longevity.api -> longevity.db "Marks CheckoutAttempt completed and stores provider_checkout_session_id; no entitlement change yet"
+            longevity.api -> longevity.webapp "Returns 201 JSON {\"url\":\"https://checkout.stripe.com/c/...\"}"
+            longevity.webapp -> stripe "Redirects browser with window.location.assign(checkout.url)"
+            user -> stripe "Sees hosted Stripe Checkout page and enters test payment details"
+            stripe -> longevity.webapp "Redirects to server-configured /settings?checkout=success or /settings?checkout=cancelled"
+            user -> longevity.webapp "Sees an informational result message; entitlement still changes only after the verified webhook is reconciled"
+        }
+
+        dynamic longevity "subscription-checkout-webhook" "Dynamic view of verified Stripe Checkout completion and local entitlement reconciliation." {
+            stripe -> longevity.api "POST /api/v1/subscriptions/stripe/webhook/ with signed checkout.session.completed event"
+            longevity.api -> longevity.db "Inserts unique StripeWebhookEvent provider_event_id; duplicate delivery stops here"
+            longevity.api -> longevity.db "Loads CheckoutAttempt, selected plan and price, expected subscription, and existing BillingCustomer"
+            longevity.db -> longevity.api "Returns correlated local state and provider ownership mapping"
+            longevity.api -> longevity.db "Rejects mismatched session, metadata, stale subscription, or conflicting Stripe customer without changing entitlements"
+            longevity.api -> longevity.db "For a valid event, atomically replaces the current subscription, creates BillingCustomer when first seen, and confirms CheckoutAttempt"
+            longevity.api -> stripe "Returns 200 acknowledgment; frontend redirect remains informational"
+        }
+
+        dynamic longevity "subscription-portal-create" "Dynamic view of the implemented Stripe Customer Portal creation flow from Settings." {
+            user -> longevity.webapp "Opens /settings as a Stripe-managed paid user and clicks Manage subscription"
+            longevity.webapp -> longevity.api "POST /api/v1/subscriptions/portal/ with Authorization: Bearer <access-token>; no client-supplied Stripe customer ID"
+            longevity.api -> longevity.db "Loads the authenticated user's BillingCustomer and current subscription state"
+            longevity.db -> longevity.api "Returns local Stripe customer mapping, e.g. cus_test_..."
+            longevity.api -> stripe "Creates a Customer Portal Session with the stored Stripe customer ID and server-controlled return URL"
+            stripe -> longevity.api "Returns short-lived billing.stripe.com portal URL"
+            longevity.api -> longevity.webapp "Returns 201 JSON {\"url\":\"https://billing.stripe.com/p/session/...\"}; provider details stay server-side on errors"
+            longevity.webapp -> stripe "Redirects browser to the hosted Customer Portal"
+            user -> stripe "Manages payment method, scheduled cancellation, or cancellation reversal in Stripe-hosted UI"
+            stripe -> longevity.webapp "Returns the browser to the server-controlled /settings URL"
+            user -> longevity.webapp "Settings refetches current local subscription state; webhook reconciliation remains authoritative"
+        }
+
+        dynamic longevity "subscription-portal-scheduled-cancellation" "Dynamic view of Customer Portal scheduled cancellation and local subscription preservation." {
+            user -> stripe "Clicks Cancel subscription in the hosted Customer Portal; Stripe schedules the subscription to end in the future by setting cancel_at and/or cancel_at_period_end"
+            stripe -> longevity.api "POST /api/v1/subscriptions/stripe/webhook/ with signed customer.subscription.updated event containing the scheduled cancellation state"
+            longevity.api -> longevity.db "Inserts unique StripeWebhookEvent provider_event_id; duplicate delivery stops here"
+            longevity.api -> longevity.db "Verifies the Stripe subscription ID and customer ID match the current local subscription and BillingCustomer"
+            longevity.api -> longevity.db "Stores Stripe cancel_at, normalizes local cancel_at_period_end when cancel_at_period_end=true or cancel_at equals current_period_end, refreshes period dates, and reconciles recognized Stripe price changes"
+            longevity.api -> stripe "Returns 200 acknowledgment"
+            longevity.webapp -> longevity.api "Later GET /api/v1/subscriptions/current/"
+            longevity.api -> longevity.webapp "Returns active Pro subscription with cancel_at and cancel_at_period_end=true"
+            user -> longevity.webapp "Sees Pro still active with a Cancels date because the paid period has not ended"
+        }
+
+        dynamic longevity "subscription-portal-cancellation-reversal" "Dynamic view of Customer Portal cancellation reversal before the paid period ends." {
+            user -> stripe "Clicks Don't cancel subscription in the hosted Customer Portal; Stripe removes the scheduled cancellation from the active subscription"
+            stripe -> longevity.api "POST /api/v1/subscriptions/stripe/webhook/ with signed customer.subscription.updated event showing no scheduled cancellation"
+            longevity.api -> longevity.db "Records the Stripe event idempotently and verifies subscription/customer ownership"
+            longevity.api -> longevity.db "Clears local cancel_at, stores cancel_at_period_end=false, refreshes current period dates, and keeps the paid subscription active"
+            longevity.api -> stripe "Returns 200 acknowledgment"
+            longevity.webapp -> longevity.api "Later GET /api/v1/subscriptions/current/"
+            longevity.api -> longevity.webapp "Returns active Pro subscription with no scheduled cancellation"
+            user -> longevity.webapp "Sees the plan as renewing again"
+        }
+
+        dynamic longevity "subscription-terminal-cancellation-downgrade" "Dynamic view of terminal Stripe cancellation and local downgrade to Free." {
+            stripe -> longevity.api "After the scheduled cancellation timestamp or another terminal cancellation, POST /api/v1/subscriptions/stripe/webhook/ with signed customer.subscription.deleted event"
+            longevity.api -> longevity.db "Inserts unique StripeWebhookEvent provider_event_id; duplicate delivery stops here"
+            longevity.api -> longevity.db "Verifies the Stripe subscription ID and customer ID match the user's current paid subscription and BillingCustomer"
+            longevity.api -> longevity.db "Marks the paid subscription row cancelled/history, clears current paid entitlement, and creates an active Free subscription"
+            longevity.api -> stripe "Returns 200 acknowledgment"
+            longevity.webapp -> longevity.api "Later GET /api/v1/subscriptions/current/"
+            longevity.api -> longevity.webapp "Returns the active Free subscription and Free entitlement limits"
+            user -> longevity.webapp "Sees Free plan state after the paid subscription has actually ended"
+        }
+
+        deployment * localDev "local-development-deployment" "Current local runtime: browser-executed React with Vite /api proxy, synchronous Django/PostgreSQL flows, Stripe CLI forwarding, and an adb-installed Android client with mobile auth, Health Connect consent, wearable registration, explicit Weight and Steps sync, and periodic incremental scheduling. Redis/Celery/Beat remain unused by product flows." {
+            include *
+            autolayout lr
+        }
+
+        deployment * presentationStaging "current-presentation-staging" "[CURRENT] Agreed low-cost presentation staging: one CloudFront entry point, private S3 React origin, uncached /api/* to Let's Encrypt-backed Nginx on one public EC2 host, Gunicorn/Django, self-hosted plain PostgreSQL 16 on encrypted EBS, S3 logical backups, Secrets Manager, Systems Manager, and CloudWatch. ALB, NAT Gateway, TimescaleDB/Timescale Cloud, Redis, Celery Worker, and Celery Beat are absent." {
+            include *
+            exclude webCallsApi
+            exclude androidCallsApi
+            autolayout tb
+        }
+
+        deployment * presentationStaging "current-presentation-staging-compact" "[CURRENT / COMPACT] Request and data path for the agreed presentation environment: browser or Android to CloudFront, private S3 for React, /api/* to Nginx, Gunicorn/Django, and the self-hosted plain PostgreSQL 16 container." {
+            include presentationStaging.userDevices.browserNode.browserClient
+            include presentationStaging.userDevices.androidNode.androidClient
+            include presentationStaging.aws.globalEdge.cloudFront.endpoint
+            include presentationStaging.aws.globalEdge.cloudFront.staticBehavior
+            include presentationStaging.aws.globalEdge.cloudFront.apiBehavior
+            include presentationStaging.aws.region.frontendOrigin.s3Bucket
+            include presentationStaging.aws.region.vpc.publicSubnet.ec2.nginxNode.nginx
+            include presentationStaging.aws.region.vpc.publicSubnet.ec2.apiNode.gunicorn
+            include presentationStaging.aws.region.vpc.publicSubnet.ec2.apiNode.apiInstance
+            include presentationStaging.aws.region.vpc.publicSubnet.ec2.databaseNode.dbInstance
+            include presentationStaging.aws.region.vpc.publicSubnet.ec2.ebsVolume
+            exclude webCallsApi
+            exclude androidCallsApi
+            autolayout tb
+        }
+
+        deployment * mvpStaging "mvp-staging-ec2-deployment" "[LEGACY / SUPERSEDED] Former proposed manually provisioned staging target: same-origin browser /api proxy, two-AZ ALB routing to two private EC2 Docker hosts, one-off migrations, Timescale Cloud, Stripe test webhooks, and remote Android sync. Retained only for architecture history and comparison." {
+            include *
+            exclude mvpStaging.aws.region.vpc.internetGateway
+            exclude mvpStaging.aws.region.vpc.publicTier.publicSubnetA.natGatewayA
+            exclude mvpStaging.aws.region.vpc.publicTier.publicSubnetB.natGatewayB
+            exclude mvpStaging.aws.region.vpc.networkControls
+            exclude mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.dockerRuntimeA
+            exclude mvpStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.ssmAgentA
+            exclude mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.dockerRuntimeB
+            exclude mvpStaging.aws.region.vpc.privateTier.privateSubnetB.computeB.ssmAgentB
+            autolayout tb
+        }
+
+        deployment * mvpStaging "mvp-staging-aws-infrastructure" "[LEGACY / SUPERSEDED] Former detailed learning view with two public ALB/NAT subnets and two private EC2 application subnets. Retained only for architecture history and comparison; do not provision it for current staging." {
+            include *
+            autolayout tb
+        }
+
+        deployment * approvedInitialStaging "approved-initial-staging" "[LEGACY / SUPERSEDED] Former approved first staging topology with CloudFront, private S3, ALB, NAT Gateway, one private EC2 target, and Timescale Cloud. Retained only for architecture history and comparison." {
+            include *
+            autolayout tb
+        }
+
+        deployment * approvedInitialStaging "approved-initial-staging-compact" "[LEGACY / SUPERSEDED / COMPACT] Former small-screen request path through CloudFront, ALB, one private EC2 target, and Timescale Cloud. Retained only for comparison." {
+            include approvedInitialStaging.userDevices.browserNode.browserClient
+            include approvedInitialStaging.userDevices.androidNode.androidClient
+            include approvedInitialStaging.aws.globalEdge.cloudFront.distributionEndpoint
+            include approvedInitialStaging.aws.globalEdge.cloudFront.staticBehavior
+            include approvedInitialStaging.aws.globalEdge.cloudFront.apiBehavior
+            include approvedInitialStaging.aws.region.frontendOrigin.s3Bucket
+            include approvedInitialStaging.aws.region.vpc.publicTier.alb.httpsListener
+            include approvedInitialStaging.aws.region.vpc.publicTier.alb.targetGroup
+            include approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.gunicornServerA
+            include approvedInitialStaging.aws.region.vpc.privateTier.privateSubnetA.computeA.apiNodeA.apiInstanceA
+            include approvedInitialStaging.managedDatabase.timescaleNode
+            exclude webCallsApi
+            exclude androidCallsApi
+            autolayout tb
+        }
+
+        deployment * mvpCloud "post-mvp-fargate-deployment" "[LEGACY / SUPERSEDED] Former broad post-MVP Fargate target with Celery Worker, Beat, Redis, and Timescale Cloud. It is not the current production recommendation and is retained only for architecture history." {
+            include *
+            autolayout tb
+        }
+
+        deployment * recommendedProduction "recommended-production" "[RECOMMENDED PRODUCTION] CloudFront and WAF, private S3, HTTPS ALB, two replaceable Gunicorn/Django Fargate tasks across two Availability Zones, one-off migration task, private RDS PostgreSQL Multi-AZ with automatic failover and point-in-time recovery, Secrets Manager, CloudWatch, and zonal NAT egress. Nginx and self-hosted PostgreSQL remain staging-only tradeoffs." {
+            include *
+            exclude webCallsApi
+            exclude androidCallsApi
+            autolayout tb
+        }
+
+        deployment * recommendedProduction "recommended-production-compact" "[RECOMMENDED PRODUCTION / COMPACT] Resilient request and data path: CloudFront/WAF to private S3 or ALB, ALB to two healthy Fargate API tasks, and both tasks to RDS PostgreSQL Multi-AZ." {
+            include recommendedProduction.userDevices.browserNode.browserClient
+            include recommendedProduction.userDevices.androidNode.androidClient
+            include recommendedProduction.aws.globalEdge.webAcl
+            include recommendedProduction.aws.globalEdge.cloudFront.endpoint
+            include recommendedProduction.aws.globalEdge.cloudFront.staticBehavior
+            include recommendedProduction.aws.globalEdge.cloudFront.apiBehavior
+            include recommendedProduction.aws.region.frontendOrigin.s3Bucket
+            include recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener
+            include recommendedProduction.aws.region.vpc.publicTier.alb.targetGroup
+            include recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.gunicornA
+            include recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.apiInstanceA
+            include recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.gunicornB
+            include recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.apiInstanceB
+            include recommendedProduction.aws.region.vpc.privateDataTier.rdsCluster.dbInstance
+            include recommendedProduction.aws.region.vpc.privateDataTier.rdsCluster.standby
+            exclude webCallsApi
+            exclude androidCallsApi
+            autolayout tb
+        }
+
+          styles {
+              element "Person" {
+                  shape Person
+                  background #d5f5d1
+                  color #111111
+                  stroke #2d7d2f
+              }
+
+              element "Software System" {
+                  background #1168bd
+                  color #ffffff
+              }
+
+              element "Container" {
+                  background #438dd5
+                  color #ffffff
+              }
+
+              element "Deployment Node" {
+                  background #f7f9fc
+                  color #243447
+                  stroke #8a9bad
+              }
+
+              element "Infrastructure Node" {
+                  background #fff8e8
+                  color #3b2f00
+                  stroke #d4a017
+              }
+
+              element "Container Instance" {
+                  background #2f6fb3
+                  color #ffffff
+                  stroke #1d4e80
+              }
+
+              element "ClientZone" {
+                  background #eef8ec
+                  color #1f3b22
+                  stroke #6ea36a
+              }
+
+              element "CloudZone" {
+                  background #f4f7fb
+                  color #243447
+                  stroke #6f8aa6
+              }
+
+              element "NetworkZone" {
+                  background #edf7f5
+                  color #173b36
+                  stroke #5c9b90
+              }
+
+              element "EdgeZone" {
+                  background #eaf3fb
+                  color #13324b
+                  stroke #5c92c7
+              }
+
+              element "ComputeZone" {
+                  background #edf2ff
+                  color #1b2f55
+                  stroke #6980c7
+              }
+
+              element "DataZone" {
+                  background #eef6fb
+                  color #163647
+                  stroke #5f95b5
+              }
+
+              element "SecurityZone" {
+                  background #fff1e6
+                  color #4a2a16
+                  stroke #d68a45
+              }
+
+              element "OpsZone" {
+                  background #fbeef2
+                  color #4a2030
+                  stroke #b86b84
+              }
+
+              element "StorageZone" {
+                  background #fff7df
+                  color #4c3a0b
+                  stroke #c9a227
+              }
+
+              element "ManagedZone" {
+                  background #eef8f7
+                  color #163b39
+                  stroke #63a39b
+              }
+
+              element "ClientRuntime" {
+                  background #dff1dc
+                  color #15301a
+                  stroke #5d9a61
+              }
+
+              element "EdgeService" {
+                  background #dcecff
+                  color #163a63
+                  stroke #4f83c2
+              }
+
+              element "NetworkService" {
+                  background #dff3ed
+                  color #173b36
+                  stroke #4f9789
+              }
+
+              element "DataService" {
+                  background #dff3f8
+                  color #123846
+                  stroke #4d91a7
+              }
+
+              element "SecurityService" {
+                  background #ffe6cc
+                  color #4a2b12
+                  stroke #d48733
+              }
+
+              element "OpsService" {
+                  background #f8dfe7
+                  color #471d2a
+                  stroke #b25d79
+              }
+
+              element "StorageService" {
+                  background #fff0b8
+                  color #49370b
+                  stroke #c49b1f
+              }
+
+              element "ManagedDataService" {
+                  background #d9f3ef
+                  color #12423f
+                  stroke #4d9f93
+              }
+
+              element "PreparedInfrastructure" {
+                  background #eceff3
+                  color #52606d
+                  stroke #9aa5b1
+              }
+
+              relationship "Relationship" {
+                  color #5b6770
+                  thickness 2
+                  routing Orthogonal
+                  fontSize 18
+              }
+
+              relationship "ClientTraffic" {
+                  color #4f8a4c
+                  thickness 3
+                  routing Orthogonal
+              }
+
+              relationship "EdgeTraffic" {
+                  color #3f74b5
+                  thickness 3
+                  routing Orthogonal
+              }
+
+              relationship "NetworkTraffic" {
+                  color #3f8f7c
+                  thickness 3
+                  routing Orthogonal
+              }
+
+              relationship "DataTraffic" {
+                  color #3f8c9d
+                  thickness 3
+                  routing Orthogonal
+              }
+
+              relationship "SecurityTraffic" {
+                  color #d07a1f
+                  thickness 3
+                  routing Orthogonal
+              }
+
+              relationship "OpsTraffic" {
+                  color #b04f74
+                  thickness 3
+                  routing Orthogonal
+              }
+
+              relationship "StorageTraffic" {
+                  color #c19a16
+                  thickness 3
+                  routing Orthogonal
+              }
+
+              relationship "PreparedTraffic" {
+                  color #9aa5b1
+                  thickness 2
+                  dashed true
+                  routing Orthogonal
+              }
+          }
+      }
+  }
