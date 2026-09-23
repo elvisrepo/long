@@ -109,6 +109,8 @@ depend on them.
 
 Current implemented state:
 - backend CI is now implemented in `.github/workflows/backend-ci.yml`
+- backend and frontend CI pin the GitHub-hosted runner to `ubuntu-24.04` rather
+  than inheriting future `ubuntu-latest` migrations
 - it uses:
   - `actions/checkout` v7.0.1;
   - `actions/setup-python` v7.0.0;
@@ -137,7 +139,7 @@ name: Backend CI
 on: [push, pull_request, workflow_dispatch]
 jobs:
   backend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16

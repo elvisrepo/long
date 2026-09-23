@@ -301,6 +301,7 @@ def test_backend_ci_runs_the_complete_production_deployment_smoke() -> None:
 def test_backend_ci_pins_actions_to_immutable_node_24_releases() -> None:
     workflow = BACKEND_CI_WORKFLOW.read_text()
 
+    assert "runs-on: ubuntu-24.04" in workflow
     assert (
         "uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
         " # v7.0.1"

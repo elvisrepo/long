@@ -709,6 +709,8 @@ Current CI quality gate for the frontend, established 2026-08-26 and
 reverified 2026-09-23:
 - `.github/workflows/frontend-ci.yml` runs for frontend-related pushes and pull
   requests
+- the workflow pins `ubuntu-24.04` rather than following the changing
+  `ubuntu-latest` image
 - `actions/checkout` v7.0.1 and `actions/setup-node` v7.0.0 are pinned to
   immutable full commit SHAs
 - the workflow uses Node.js 24 and executes the same deterministic gates used

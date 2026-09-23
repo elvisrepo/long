@@ -15,6 +15,7 @@ describe("frontend CI workflow", () => {
 
     expect(workflow).toContain("name: Frontend CI");
     expect(workflow).toContain('- "frontend/**"');
+    expect(workflow).toContain("runs-on: ubuntu-24.04");
     expect(workflow).toContain("working-directory: frontend");
     expect(workflow).toContain(
       "uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1",
