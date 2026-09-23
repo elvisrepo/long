@@ -110,9 +110,11 @@ depend on them.
 Current implemented state:
 - backend CI is now implemented in `.github/workflows/backend-ci.yml`
 - it uses:
-  - `actions/checkout`
-  - `actions/setup-python`
-  - `astral-sh/setup-uv`
+  - `actions/checkout` v7.0.1;
+  - `actions/setup-python` v7.0.0;
+  - `astral-sh/setup-uv` v10.2.0;
+  - immutable full commit SHAs, with release comments, rather than mutable
+    floating action tags
 - it currently runs:
   - `uv sync --group dev`
   - `uv run ruff check .`
@@ -122,8 +124,10 @@ Current implemented state:
   - `uv run python -m scripts.smoke_production_deployment` with a ten-minute
     timeout
 - PostgreSQL is required in CI because concurrency coverage depends on real
-  row locks; the 2026-08-26 gate passed all `340` backend tests and the complete
+  row locks; the 2026-09-23 gate passed all `462` backend tests and the complete
   migration/API smoke
+- frontend CI uses Node.js 24 and pins `actions/checkout` v7.0.1 and
+  `actions/setup-node` v7.0.0 to immutable full commit SHAs
 - this is CI only, not CD
 - no deployment pipeline is implemented yet
 
@@ -144,9 +148,9 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/longevity_ci
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-      - uses: astral-sh/setup-uv@v3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - run: uv sync --group dev
       - run: uv run ruff check .
       - run: uv run mypy

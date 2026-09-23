@@ -298,6 +298,26 @@ def test_backend_ci_runs_the_complete_production_deployment_smoke() -> None:
     )
 
 
+def test_backend_ci_pins_actions_to_immutable_node_24_releases() -> None:
+    workflow = BACKEND_CI_WORKFLOW.read_text()
+
+    assert (
+        "uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+        " # v7.0.1"
+        in workflow
+    )
+    assert (
+        "uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"
+        " # v7.0.0"
+        in workflow
+    )
+    assert (
+        "uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7"
+        " # v10.2.0"
+        in workflow
+    )
+
+
 def test_backend_ci_runs_database_tests_against_postgresql() -> None:
     workflow = BACKEND_CI_WORKFLOW.read_text()
 

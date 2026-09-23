@@ -16,6 +16,12 @@ describe("frontend CI workflow", () => {
     expect(workflow).toContain("name: Frontend CI");
     expect(workflow).toContain('- "frontend/**"');
     expect(workflow).toContain("working-directory: frontend");
+    expect(workflow).toContain(
+      "uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1",
+    );
+    expect(workflow).toContain(
+      "uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0",
+    );
     expect(workflow).toContain("node-version: 24");
     expect(workflow).toContain("run: npm ci");
     expect(workflow).toContain("run: npm audit --audit-level=high");

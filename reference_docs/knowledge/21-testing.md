@@ -703,11 +703,14 @@ Current CI quality gate for the backend:
   - the production-image smoke
   - the production-like migration/API deployment smoke
 - the workflow is triggered on backend-related pushes and pull requests
-- the current backend CI workflow is green as of 2026-08-26
+- the current backend CI workflow is green as of 2026-09-23
 
-Current CI quality gate for the frontend, established 2026-08-26:
+Current CI quality gate for the frontend, established 2026-08-26 and
+reverified 2026-09-23:
 - `.github/workflows/frontend-ci.yml` runs for frontend-related pushes and pull
   requests
+- `actions/checkout` v7.0.1 and `actions/setup-node` v7.0.0 are pinned to
+  immutable full commit SHAs
 - the workflow uses Node.js 24 and executes the same deterministic gates used
   locally:
   - `npm ci` installs exactly the versions recorded in `package-lock.json`
@@ -729,7 +732,7 @@ Current CI quality gate for the frontend, established 2026-08-26:
   authored-source formatting must not modify or reject that generated output
 - `src/test/frontend-ci-contract.test.ts` protects the workflow commands and
   the generated-route formatting exclusion
-- the completed local gate passed `177` Vitest tests, ESLint, Prettier, the
+- the completed local gate passed `306` Vitest tests, ESLint, Prettier, the
   production build, a clean lockfile install, and an npm audit with zero known
   vulnerabilities
 
