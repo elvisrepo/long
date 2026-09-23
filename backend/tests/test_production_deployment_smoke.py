@@ -319,6 +319,25 @@ def test_backend_ci_pins_actions_to_immutable_node_24_releases() -> None:
     )
 
 
+def test_backend_ci_runs_for_every_pull_request() -> None:
+    workflow = BACKEND_CI_WORKFLOW.read_text()
+
+    assert "  pull_request:\n  workflow_dispatch:\n" in workflow
+
+
+def test_backend_ci_keeps_backend_pushes_path_filtered() -> None:
+    workflow = BACKEND_CI_WORKFLOW.read_text()
+
+    assert (
+        '  push:\n'
+        '    paths:\n'
+        '      - "backend/**"\n'
+        '      - ".github/workflows/backend-ci.yml"\n'
+        '  pull_request:\n'
+        in workflow
+    )
+
+
 def test_backend_ci_runs_database_tests_against_postgresql() -> None:
     workflow = BACKEND_CI_WORKFLOW.read_text()
 

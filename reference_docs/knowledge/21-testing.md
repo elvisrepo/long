@@ -702,13 +702,16 @@ Current CI quality gate for the backend:
   - the complete `pytest` suite against a healthy PostgreSQL 16 service
   - the production-image smoke
   - the production-like migration/API deployment smoke
-- the workflow is triggered on backend-related pushes and pull requests
+- backend-related pushes remain path-filtered, while every pull request runs
+  backend CI so the `backend` check can be required without leaving any pull
+  request permanently pending
 - the current backend CI workflow is green as of 2026-09-23
 
 Current CI quality gate for the frontend, established 2026-08-26 and
 reverified 2026-09-23:
-- `.github/workflows/frontend-ci.yml` runs for frontend-related pushes and pull
-  requests
+- frontend-related pushes remain path-filtered, while every pull request runs
+  `.github/workflows/frontend-ci.yml` so the `frontend` check can be required
+  without leaving docs-only pull requests permanently pending
 - the workflow pins `ubuntu-24.04` rather than following the changing
   `ubuntu-latest` image
 - `actions/checkout` v7.0.1 and `actions/setup-node` v7.0.0 are pinned to
