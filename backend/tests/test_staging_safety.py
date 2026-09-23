@@ -40,7 +40,6 @@ def compose_model(filename: str) -> dict[str, Any]:
             "-f",
             str(BACKEND / filename),
             "config",
-            "--no-normalize",
             "--format",
             "json",
         ],
@@ -154,7 +153,13 @@ def test_staging_containers_have_bounded_log_storage() -> None:
 
 def test_database_mount_never_creates_a_missing_host_directory() -> None:
     database = compose_model("docker-compose.staging.yml")["services"]["database"]
-    assert database["volumes"][0].get("bind", {}).get("create_host_path") is False
+    mount = database["volumes"][0]
+    assert mount["type"] == "bind"
+    assert mount["source"] == "/srv/syncvitals/postgresql"
+    assert mount["target"] == "/var/lib/postgresql/data"
+
+    compose_source = (BACKEND / "docker-compose.staging.yml").read_text()
+    assert compose_source.count("create_host_path: false") == 1
 
 
 @pytest.mark.parametrize(
