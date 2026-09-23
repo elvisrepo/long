@@ -130,6 +130,10 @@ Current implemented state:
   migration/API smoke
 - frontend CI uses Node.js 24 and pins `actions/checkout` v7.0.1 and
   `actions/setup-node` v7.0.0 to immutable full commit SHAs
+- both workflows run on every pull request so `backend` and `frontend` can be
+  made required branch-protection checks without leaving docs-only pull
+  requests permanently pending; their push triggers remain path-filtered to
+  avoid unnecessary branch runs
 - this is CI only, not CD
 - no deployment pipeline is implemented yet
 

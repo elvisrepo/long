@@ -32,6 +32,12 @@ describe("frontend CI workflow", () => {
     expect(workflow).toContain("run: npm run build");
   });
 
+  it("runs for every pull request", () => {
+    const workflow = readFileSync(workflowPath, "utf8");
+
+    expect(workflow).toContain("  pull_request:\n  workflow_dispatch:\n");
+  });
+
   it("keeps generated router code outside the formatting gate", () => {
     const prettierIgnore = readFileSync(prettierIgnorePath, "utf8");
 
