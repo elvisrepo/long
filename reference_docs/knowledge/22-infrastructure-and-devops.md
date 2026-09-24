@@ -186,7 +186,8 @@ Current implemented state:
   first run reports that no earlier workflow rollback is available
 - verbose migration and Compose output stays in a temporary host log so SSM's
   bounded stdout contains the rollback/running-image markers; failures return
-  only a bounded 200-line diagnostic tail and the temporary log is removed
+  only the final 7,000 diagnostic bytes, below SSM's 8 KB stderr response
+  limit, and the temporary log is removed
 - automatic deployment on a `staging` push is intentionally absent until one
   reviewed manual dispatch succeeds; the first application deployment through
   this workflow remains pending

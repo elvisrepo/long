@@ -83,7 +83,7 @@ if ! python3 -m scripts.staging_runtime \\
   --compose-file docker-compose.staging.yml \\
   --project-name syncvitals-staging \\
   > "$deployment_log" 2>&1; then
-  tail --lines 200 "$deployment_log" >&2
+  tail --bytes 7000 "$deployment_log" >&2
   exit 1
 fi
 

@@ -793,7 +793,8 @@ The workflow:
    a host-level `flock` rejects overlapping deployment commands even if the
    runner loses contact. Verbose migration and Compose output stays in a
    temporary host log; SSM receives compact image markers, while failures emit
-   only a bounded 200-line tail before the temporary log is removed;
+   only the final 7,000 bytes (below SSM's 8 KB stderr response limit) before
+   the temporary log is removed;
 5. for a frontend release, reruns audit, tests, lint, formatting, and build,
    previews the version-preserving upload, then uploads immutable assets before
    the no-cache application shell without deleting old assets;

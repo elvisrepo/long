@@ -36,7 +36,7 @@ def test_deployment_command_captures_rollback_and_uses_host_guards() -> None:
     assert "write_image_pointer" in script
     assert 'deployment_log="$(mktemp /tmp/syncvitals-staging-deploy.XXXXXX.log)"' in script
     assert '> "$deployment_log" 2>&1' in script
-    assert 'tail --lines 200 "$deployment_log" >&2' in script
+    assert 'tail --bytes 7000 "$deployment_log" >&2' in script
     assert 'rm -f -- "$deployment_log"' in script
     assert 'if [[ "$backend_image" == "$verified_backend_image" ]]' in script
     assert "previous_backend_image=unavailable" in script
