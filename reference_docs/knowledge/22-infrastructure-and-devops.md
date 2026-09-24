@@ -157,9 +157,9 @@ Current implemented state:
   gate with `backend`, `frontend`, and `both` choices; it validates every
   deployment coordinate, uses the `staging` environment and short-lived OIDC
   credentials, and serializes releases so two staging deployments cannot race
-- GitHub concurrency preserves one running and only one pending run; a newer
-  dispatch replaces an older pending dispatch, so operators must wait until an
-  existing run starts or finishes before requesting another release
+- staging releases are operated one at a time: wait for the current run to
+  finish before dispatching another; the workflow concurrency lock remains a
+  backstop against accidental overlap
 - backend releases publish one full-commit-tagged Linux/ARM64 production image,
   reuse that immutable tag on a retry, scan its ARM64 child manifest, reject
   every critical and every unreviewed high finding, preserve the previous

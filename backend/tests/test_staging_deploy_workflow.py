@@ -27,8 +27,7 @@ def test_staging_deploy_is_manual_and_staging_only() -> None:
             "inputs": {
                 "component": {
                     "description": (
-                        "Choose only after prior runs finish; GitHub keeps one "
-                        "pending run"
+                        "Deploy only after the current staging run finishes"
                     ),
                     "required": "true",
                     "type": "choice",

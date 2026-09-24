@@ -777,10 +777,9 @@ The workflow:
    session bounded by the role maximum, validates the assumed role plus every
    fixed staging coordinate, and refreshes credentials immediately before each
    mutating deployment phase;
-2. serializes releases with a non-cancelling `staging-deployment` concurrency
-   lock. GitHub retains only one pending run and replaces it with a newer
-   dispatch, so do not dispatch another release until the existing run has
-   started or finished;
+2. runs staging releases one at a time: wait for the current run to finish
+   before dispatching another. The non-cancelling `staging-deployment`
+   concurrency lock remains a backstop against accidental overlap;
 3. for a backend release, reuses an existing full-commit-tagged image on retry
    or builds and publishes it once, resolves the immutable OCI index and ARM64
    child digests, waits for the ECR scan, and blocks all critical or unreviewed
