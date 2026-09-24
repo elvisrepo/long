@@ -782,8 +782,8 @@ The workflow:
    concurrency lock remains a backstop against accidental overlap;
 3. for a backend release, reuses an existing full-commit-tagged image on retry
    or builds and publishes it once, resolves the immutable OCI index and ARM64
-   child digests, waits for the ECR scan, and blocks all critical or unreviewed
-   high findings;
+   child digests, starts a basic scan only when the child has none, waits for
+   that scan, and blocks all critical or unreviewed high findings;
 4. sends the digest-qualified image to the one staging instance through
    `AWS-RunShellScript`; the host captures the previous digest, uses its instance
    role for ECR and Secrets Manager, invokes Bash explicitly, runs the existing
@@ -977,6 +977,11 @@ if len(matches) != 1:
 print(matches[0])
 ')"
 
+aws ecr start-image-scan \
+  --repository-name syncvitals/staging/backend \
+  --image-id "imageDigest=$arm64_digest" \
+  --region eu-central-1
+
 aws ecr wait image-scan-complete \
   --repository-name syncvitals/staging/backend \
   --image-id "imageDigest=$arm64_digest" \
@@ -988,10 +993,12 @@ aws ecr describe-image-scan-findings \
   --region eu-central-1
 ```
 
-The deployable reference uses the tagged OCI image-index digest. ECR attaches
-basic scan findings to its Linux/ARM64 child image manifest rather than the
-index or provenance/attestation manifest, so scan `arm64_digest` but deploy
-`index_digest`. Stop for an unreviewed critical or high finding. Any
+The deployable reference uses the tagged OCI image-index digest. Basic
+scan-on-push may not create a scan for Buildx's untagged Linux/ARM64 child
+manifest, so the workflow first checks for findings and calls
+`ecr:StartImageScan` only after `ScanNotFoundException`. It then scans
+`arm64_digest` but deploys `index_digest`. Stop for an unreviewed critical or
+high finding. Any
 staging-only acceptance must be explicit, dated, scoped, and must not silently
 become a production acceptance.
 

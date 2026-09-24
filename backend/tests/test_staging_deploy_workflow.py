@@ -142,9 +142,14 @@ def test_backend_scan_is_gated_before_deployment() -> None:
     assert "aws ecr describe-images" in scan_script
     assert "aws ecr batch-get-image" in scan_script
     assert "python3 scripts/staging_image.py arm64-digest" in scan_script
-    assert "aws ecr wait image-scan-complete" in scan_script
     assert "aws ecr describe-image-scan-findings" in scan_script
+    assert "ScanNotFoundException" in scan_script
+    assert "aws ecr start-image-scan" in scan_script
+    assert "aws ecr wait image-scan-complete" in scan_script
     assert "python3 scripts/staging_image.py review-scan" in scan_script
+    assert scan_script.index("aws ecr start-image-scan") < scan_script.index(
+        "aws ecr wait image-scan-complete"
+    )
     assert "printf 'BACKEND_IMAGE=%s\\n'" in scan_script
     assert '"$repository_uri@$index_digest" >> "$GITHUB_ENV"' in scan_script
     assert names.index("Resolve and approve backend image") < names.index(
