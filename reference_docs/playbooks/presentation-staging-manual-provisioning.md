@@ -788,8 +788,9 @@ The workflow:
    role for ECR and Secrets Manager, invokes Bash explicitly, runs the existing
    storage, secret, migration, promotion, and readiness guards, and removes
    temporary ECR auth. The remote command has a 900-second execution timeout,
-   and GitHub polls until terminal SSM status before releasing the deployment
-   concurrency lock;
+   GitHub retries transient status lookups through the safe command window, and
+   a host-level `flock` rejects overlapping deployment commands even if the
+   runner loses contact;
 5. for a frontend release, reruns audit, tests, lint, formatting, and build,
    previews the version-preserving upload, then uploads immutable assets before
    the no-cache application shell without deleting old assets;
@@ -802,6 +803,10 @@ The workflow:
 Rollback information is retained in the GitHub run summary: backend releases
 record the previous digest-qualified image, and frontend releases record the
 deployed Git commit while S3 Versioning retains overwritten object versions.
+The backend host also keeps a root-owned rollback pointer. It advances only
+when the running image differs from the candidate, so retrying a candidate that
+already reached the host does not replace the earlier rollback digest with
+itself.
 Frontend rollback still means rebuilding the previous known-good commit with
 the same uploader; do not delete newer versions during an incident.
 

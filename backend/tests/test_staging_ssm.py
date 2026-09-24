@@ -26,6 +26,11 @@ def test_deployment_command_captures_rollback_and_uses_host_guards() -> None:
     script = outer_command[2]
     assert "docker inspect --format '{{.Config.Image}}'" in script
     assert "previous_backend_image=" in script
+    assert "flock --nonblock 9" in script
+    assert "/run/lock/syncvitals-staging-deploy.lock" in script
+    assert "rollback_file=/opt/syncvitals/deployment/.previous_backend_image" in script
+    assert 'if [[ "$running_backend_image" != "$backend_image" ]]' in script
+    assert 'previous_backend_image="$(<"$rollback_file")"' in script
     expected_rollback_guard = (
         '[[ "$previous_backend_image" =~ ^173291122778\\.dkr\\.ecr\\.'
         "eu-central-1\\.amazonaws\\.com/syncvitals/staging/"

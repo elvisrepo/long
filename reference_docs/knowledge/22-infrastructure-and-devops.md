@@ -174,8 +174,12 @@ Current implemented state:
   byte-for-byte with the build output
 - credentials are refreshed immediately before backend review/deployment and
   frontend upload; the SSM payload invokes Bash explicitly, has a 900-second
-  remote execution timeout, and is polled to a terminal status so the workflow
-  concurrency lock cannot be released while a deployment is still running
+  remote execution timeout, retries transient status lookups through the safe
+  delivery/execution window, and also holds a host-level `flock` so another
+  command cannot overlap even if the runner loses contact
+- the host persists the prior digest in a root-owned rollback pointer only when
+  the running image differs from the candidate; retrying an already-deployed
+  candidate therefore continues to report the earlier usable rollback image
 - automatic deployment on a `staging` push is intentionally absent until one
   reviewed manual dispatch succeeds; the first application deployment through
   this workflow remains pending

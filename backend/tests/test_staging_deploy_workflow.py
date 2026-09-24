@@ -163,6 +163,9 @@ def test_backend_deployment_captures_rollback_and_uses_host_guards() -> None:
     assert '--instance-ids "$STAGING_INSTANCE_ID"' in deploy_script
     assert "aws ssm get-command-invocation" in deploy_script
     assert "aws ssm wait command-executed" not in deploy_script
+    assert "--timeout-seconds 60" in deploy_script
+    assert "poll_deadline=$((SECONDS + 1020))" in deploy_script
+    assert 'if (( SECONDS >= poll_deadline )); then' in deploy_script
     assert "while true" in deploy_script
     for terminal_status in (
         "Success",

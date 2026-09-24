@@ -27,7 +27,24 @@ def deployment_parameters(*, backend_image: str, region: str) -> dict[str, list[
     script = f"""set -euo pipefail
 registry={shlex.quote(registry)}
 backend_image={shlex.quote(backend_image)}
-previous_backend_image="$(docker inspect --format '{{{{.Config.Image}}}}' syncvitals-staging-api-1)"
+exec 9>/run/lock/syncvitals-staging-deploy.lock
+if ! flock --nonblock 9; then
+  printf 'error: another staging backend deployment is still running\\n' >&2
+  exit 1
+fi
+
+running_backend_image="$(docker inspect --format '{{{{.Config.Image}}}}' syncvitals-staging-api-1)"
+[[ "$running_backend_image" =~ ^173291122778\\.dkr\\.ecr\\.eu-central-1\\.amazonaws\\.com/syncvitals/staging/backend@sha256:[0-9a-f]{{64}}$ ]]
+rollback_file=/opt/syncvitals/deployment/.previous_backend_image
+if [[ "$running_backend_image" != "$backend_image" ]]; then
+  umask 077
+  printf '%s\\n' "$running_backend_image" > "${{rollback_file}}.new"
+  chmod 0600 "${{rollback_file}}.new"
+  mv -- "${{rollback_file}}.new" "$rollback_file"
+else
+  test -f "$rollback_file"
+fi
+previous_backend_image="$(<"$rollback_file")"
 [[ "$previous_backend_image" =~ ^173291122778\\.dkr\\.ecr\\.eu-central-1\\.amazonaws\\.com/syncvitals/staging/backend@sha256:[0-9a-f]{{64}}$ ]]
 printf 'previous_backend_image=%s\\n' "$previous_backend_image"
 

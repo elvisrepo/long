@@ -187,11 +187,13 @@ jobs:
             --instance-ids "$STAGING_INSTANCE_ID" \
             --comment "Deploy backend ${GITHUB_SHA}" \
             --parameters "file://$parameters_file" \
+            --timeout-seconds 60 \
             --region "$AWS_REGION" \
             --query 'Command.CommandId' \
             --output text)"
 
           invocation_error="$RUNNER_TEMP/ssm-invocation-error.txt"
+          poll_deadline=$((SECONDS + 1020))
           while true; do
             if invocation="$(aws ssm get-command-invocation \
               --command-id "$command_id" \
@@ -206,6 +208,10 @@ jobs:
                   break
                   ;;
                 Pending|InProgress|Delayed|Cancelling)
+                  if (( SECONDS >= poll_deadline )); then
+                    printf 'SSM command did not reach terminal status before the safety deadline.\n' >&2
+                    exit 1
+                  fi
                   sleep 5
                   ;;
                 Cancelled|Failed|TimedOut|Undeliverable|Terminated)
@@ -218,11 +224,13 @@ jobs:
                   exit 1
                   ;;
               esac
-            elif grep --quiet 'InvocationDoesNotExist' "$invocation_error"; then
-              sleep 5
             else
-              cat "$invocation_error" >&2
-              exit 1
+              if (( SECONDS >= poll_deadline )); then
+                cat "$invocation_error" >&2
+                printf 'Unable to confirm terminal SSM status before the safety deadline.\n' >&2
+                exit 1
+              fi
+              sleep 5
             fi
           done
           printf '%s\n' "$stdout"
