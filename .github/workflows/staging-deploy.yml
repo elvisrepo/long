@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       component:
-        description: Component to deploy
+        description: Choose only after prior runs finish; GitHub keeps one pending run
         required: true
         type: choice
         options:

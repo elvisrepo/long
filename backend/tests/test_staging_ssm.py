@@ -34,6 +34,10 @@ def test_deployment_command_captures_rollback_and_uses_host_guards() -> None:
         ".previous_verified_backend_image" in script
     )
     assert "write_image_pointer" in script
+    assert 'deployment_log="$(mktemp /tmp/syncvitals-staging-deploy.XXXXXX.log)"' in script
+    assert '> "$deployment_log" 2>&1' in script
+    assert 'tail --lines 200 "$deployment_log" >&2' in script
+    assert 'rm -f -- "$deployment_log"' in script
     assert 'if [[ "$backend_image" == "$verified_backend_image" ]]' in script
     assert "previous_backend_image=unavailable" in script
     assert "https://staging.syncvitals.space/api/v1/health/live/" in script
@@ -53,7 +57,7 @@ def test_deployment_command_captures_rollback_and_uses_host_guards() -> None:
     assert "http://127.0.0.1:18000/api/v1/health/ready/" in script
     assert "--header 'Host: staging.syncvitals.space'" in script
     assert "--header 'X-Forwarded-Proto: https'" in script
-    assert "trap cleanup_ecr_auth EXIT" in script
+    assert "trap cleanup_deployment EXIT" in script
 
 
 def test_deployment_command_rejects_a_tagged_image() -> None:

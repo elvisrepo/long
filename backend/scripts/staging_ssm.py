@@ -65,21 +65,27 @@ else
 fi
 printf 'previous_backend_image=%s\\n' "$previous_backend_image"
 
-cleanup_ecr_auth() {{
+deployment_log="$(mktemp /tmp/syncvitals-staging-deploy.XXXXXX.log)"
+cleanup_deployment() {{
   docker logout "$registry" >/dev/null 2>&1 || true
+  rm -f -- "$deployment_log"
 }}
-trap cleanup_ecr_auth EXIT
+trap cleanup_deployment EXIT
 
 aws ecr get-login-password --region {shlex.quote(region)} \\
   | docker login --username AWS --password-stdin "$registry"
 export BACKEND_IMAGE="$backend_image"
 cd /opt/syncvitals/deployment
-python3 -m scripts.staging_runtime \\
+if ! python3 -m scripts.staging_runtime \\
   --secret-id longevity/staging/backend-runtime \\
   --region {shlex.quote(region)} \\
   -- python3 -m scripts.production_deployment \\
   --compose-file docker-compose.staging.yml \\
-  --project-name syncvitals-staging
+  --project-name syncvitals-staging \\
+  > "$deployment_log" 2>&1; then
+  tail --lines 200 "$deployment_log" >&2
+  exit 1
+fi
 
 running_backend_image="$(docker inspect --format '{{{{.Config.Image}}}}' syncvitals-staging-api-1)"
 test "$running_backend_image" = "$backend_image"

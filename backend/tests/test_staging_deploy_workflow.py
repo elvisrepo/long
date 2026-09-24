@@ -26,7 +26,10 @@ def test_staging_deploy_is_manual_and_staging_only() -> None:
         "workflow_dispatch": {
             "inputs": {
                 "component": {
-                    "description": "Component to deploy",
+                    "description": (
+                        "Choose only after prior runs finish; GitHub keeps one "
+                        "pending run"
+                    ),
                     "required": "true",
                     "type": "choice",
                     "options": ["both", "backend", "frontend"],
