@@ -777,8 +777,9 @@ The workflow:
    session bounded by the role maximum, validates the assumed role plus every
    fixed staging coordinate, and refreshes credentials immediately before each
    mutating deployment phase;
-2. serializes releases with a non-cancelling `staging-deployment` concurrency
-   lock;
+2. runs staging releases one at a time: wait for the current run to finish
+   before dispatching another. The non-cancelling `staging-deployment`
+   concurrency lock remains a backstop against accidental overlap;
 3. for a backend release, reuses an existing full-commit-tagged image on retry
    or builds and publishes it once, resolves the immutable OCI index and ARM64
    child digests, waits for the ECR scan, and blocks all critical or unreviewed
@@ -790,7 +791,10 @@ The workflow:
    temporary ECR auth. The remote command has a 900-second execution timeout,
    GitHub retries transient status lookups through the safe command window, and
    a host-level `flock` rejects overlapping deployment commands even if the
-   runner loses contact;
+   runner loses contact. Verbose migration and Compose output stays in a
+   temporary host log; SSM receives compact image markers, while failures emit
+   only the final 7,000 bytes (below SSM's 8 KB stderr response limit) before
+   the temporary log is removed;
 5. for a frontend release, reruns audit, tests, lint, formatting, and build,
    previews the version-preserving upload, then uploads immutable assets before
    the no-cache application shell without deleting old assets;

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       component:
-        description: Component to deploy
+        description: Deploy only after the current staging run finishes
         required: true
         type: choice
         options:

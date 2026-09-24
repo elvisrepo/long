@@ -26,7 +26,9 @@ def test_staging_deploy_is_manual_and_staging_only() -> None:
         "workflow_dispatch": {
             "inputs": {
                 "component": {
-                    "description": "Component to deploy",
+                    "description": (
+                        "Deploy only after the current staging run finishes"
+                    ),
                     "required": "true",
                     "type": "choice",
                     "options": ["both", "backend", "frontend"],
