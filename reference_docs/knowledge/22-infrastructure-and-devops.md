@@ -126,7 +126,7 @@ Current implemented state:
   - `uv run python -m scripts.smoke_production_deployment` with a ten-minute
     timeout
 - PostgreSQL is required in CI because concurrency coverage depends on real
-  row locks; the 2026-09-23 gate passed all `462` backend tests and the complete
+  row locks; the 2026-09-23 gate passed all `467` backend tests and the complete
   migration/API smoke
 - frontend CI uses Node.js 24 and pins `actions/checkout` v7.0.1 and
   `actions/setup-node` v7.0.0 to immutable full commit SHAs
@@ -134,6 +134,25 @@ Current implemented state:
   made required branch-protection checks without leaving docs-only pull
   requests permanently pending; their push triggers remain path-filtered to
   avoid unnecessary branch runs
+- the active GitHub ruleset `Protect master and staging` requires pull requests,
+  current successful `backend` and `frontend` checks, and resolved review
+  threads on both branches; it blocks deletion and force-pushes and has no
+  bypass actors
+- the GitHub `staging` environment accepts deployments only from the protected
+  `staging` branch and stores non-secret deployment coordinates as environment
+  variables
+- AWS IAM now has the GitHub OIDC provider
+  `token.actions.githubusercontent.com` with audience `sts.amazonaws.com` and
+  the role `syncvitals-staging-github-deploy-role`; its trust requires the exact
+  `elvisrepo/long` staging-environment subject and `refs/heads/staging`
+- the role's inline `SyncVitalsStagingDeployment` policy is limited to the one
+  staging ECR repository, frontend S3 object uploads, and SSM Run Command on the
+  one staging instance; it cannot read runtime secrets or mutate IAM, EC2,
+  Route 53, or CloudFront
+- `.github/workflows/staging-oidc-smoke.yml` is the manual, non-mutating proof
+  for that identity boundary; merge it into default branch `master`, promote
+  that commit to `staging` through a second pull request, and only then dispatch
+  it from the `staging` ref; its first staging dispatch remains pending
 - this is CI only, not CD
 - no deployment pipeline is implemented yet
 

@@ -733,6 +733,35 @@ required tables, and migrations; it does not compare all data rows. See EC2-027
 and EC2-028 in the host change log for exact unit, marker, metric, and alarm
 names.
 
+## GitHub Delivery Identity Checkpoint — 2026-09-23
+
+The delivery control plane is prepared but application CD is not implemented:
+
+- permanent `master` and `staging` branches point to the same verified baseline;
+- GitHub ruleset `Protect master and staging` requires pull requests, current
+  successful `backend` and `frontend` checks, and resolved review threads, and
+  blocks deletion and force-pushes with no bypass actors;
+- the GitHub `staging` environment permits deployments only from branch
+  `staging` and holds non-secret resource identifiers as environment variables;
+- AWS IAM OIDC provider `token.actions.githubusercontent.com` trusts audience
+  `sts.amazonaws.com`;
+- `syncvitals-staging-github-deploy-role` trusts only subject
+  `repo:elvisrepo/long:environment:staging` on `refs/heads/staging`, with a
+  one-hour maximum role session;
+- inline policy `SyncVitalsStagingDeployment` grants only ECR publication and
+  scan inspection for `syncvitals/staging/backend`, S3 object uploads to the
+  staging frontend bucket, and SSM Run Command plus result inspection for the
+  one staging instance;
+- the GitHub role cannot read the runtime secret or mutate IAM, EC2, Route 53,
+  or CloudFront, and no long-lived AWS access key is stored in GitHub; and
+- `.github/workflows/staging-oidc-smoke.yml` provides a manual, non-mutating
+  authentication proof. Merge it into default branch `master`, promote that
+  commit to `staging` through a second pull request, and only then dispatch it
+  from the `staging` ref. Its first staging dispatch remains pending.
+
+Do not implement application deployment until the OIDC smoke proves the
+expected AWS account and assumed-role ARN.
+
 ## Repeatable Staging Application Release And Rollback
 
 Use this section after initial provisioning. An ordinary application release

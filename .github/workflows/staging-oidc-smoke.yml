@@ -1,0 +1,43 @@
+name: Staging OIDC Smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  oidc-smoke:
+    if: github.ref == 'refs/heads/staging'
+    environment: staging
+    runs-on: ubuntu-24.04
+    env:
+      EXPECTED_AWS_ACCOUNT_ID: "173291122778"
+      EXPECTED_AWS_ROLE_NAME: syncvitals-staging-github-deploy-role
+
+    steps:
+      - name: Configure short-lived AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          allowed-account-ids: "173291122778"
+          role-session-name: staging-oidc-smoke-${{ github.run_id }}
+          role-duration-seconds: 900
+          mask-aws-account-id: true
+          unset-current-credentials: true
+
+      - name: Verify assumed staging role
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          identity="$(aws sts get-caller-identity --output json)"
+          account_id="$(jq -r '.Account' <<<"$identity")"
+          assumed_role_arn="$(jq -r '.Arn' <<<"$identity")"
+          expected_prefix="arn:aws:sts::${EXPECTED_AWS_ACCOUNT_ID}:assumed-role/${EXPECTED_AWS_ROLE_NAME}/"
+
+          test "$account_id" = "$EXPECTED_AWS_ACCOUNT_ID"
+          [[ "$assumed_role_arn" == "$expected_prefix"* ]]
+          printf 'Authenticated with the expected staging deployment role.\n'
