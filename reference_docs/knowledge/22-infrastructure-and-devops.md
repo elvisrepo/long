@@ -126,7 +126,7 @@ Current implemented state:
   - `uv run python -m scripts.smoke_production_deployment` with a ten-minute
     timeout
 - PostgreSQL is required in CI because concurrency coverage depends on real
-  row locks; the 2026-09-23 gate passed all `465` backend tests and the complete
+  row locks; the 2026-09-23 gate passed all `467` backend tests and the complete
   migration/API smoke
 - frontend CI uses Node.js 24 and pins `actions/checkout` v7.0.1 and
   `actions/setup-node` v7.0.0 to immutable full commit SHAs
@@ -150,7 +150,9 @@ Current implemented state:
   one staging instance; it cannot read runtime secrets or mutate IAM, EC2,
   Route 53, or CloudFront
 - `.github/workflows/staging-oidc-smoke.yml` is the manual, non-mutating proof
-  for that identity boundary; its first staging dispatch remains pending
+  for that identity boundary; merge it into default branch `master`, promote
+  that commit to `staging` through a second pull request, and only then dispatch
+  it from the `staging` ref; its first staging dispatch remains pending
 - this is CI only, not CD
 - no deployment pipeline is implemented yet
 

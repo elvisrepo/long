@@ -755,7 +755,9 @@ The delivery control plane is prepared but application CD is not implemented:
 - the GitHub role cannot read the runtime secret or mutate IAM, EC2, Route 53,
   or CloudFront, and no long-lived AWS access key is stored in GitHub; and
 - `.github/workflows/staging-oidc-smoke.yml` provides a manual, non-mutating
-  authentication proof. Its first dispatch from `staging` remains pending.
+  authentication proof. Merge it into default branch `master`, promote that
+  commit to `staging` through a second pull request, and only then dispatch it
+  from the `staging` ref. Its first staging dispatch remains pending.
 
 Do not implement application deployment until the OIDC smoke proves the
 expected AWS account and assumed-role ARN.
