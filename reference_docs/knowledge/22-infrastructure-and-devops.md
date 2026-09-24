@@ -126,7 +126,7 @@ Current implemented state:
   - `uv run python -m scripts.smoke_production_deployment` with a ten-minute
     timeout
 - PostgreSQL is required in CI because concurrency coverage depends on real
-  row locks; the 2026-09-24 staging-CD verification passed all `483` backend
+  row locks; the 2026-09-24 staging-CD verification passed all `484` backend
   tests, and the existing CI gate also runs the complete migration/API smoke
 - frontend CI uses Node.js 24 and pins `actions/checkout` v7.0.1 and
   `actions/setup-node` v7.0.0 to immutable full commit SHAs
@@ -158,9 +158,10 @@ Current implemented state:
   deployment coordinate, uses the `staging` environment and short-lived OIDC
   credentials, and serializes releases so two staging deployments cannot race
 - backend releases publish one full-commit-tagged Linux/ARM64 production image,
-  scan its ARM64 child manifest, reject every critical and every unreviewed high
-  finding, preserve the previous running digest in the job summary, and invoke
-  the existing guarded migration-first deployment through SSM
+  reuse that immutable tag on a retry, scan its ARM64 child manifest, reject
+  every critical and every unreviewed high finding, preserve the previous
+  running digest in the job summary, and invoke the existing guarded
+  migration-first deployment through SSM
 - the sole staging-only high-severity exception is the dated, already-reviewed
   `CVE-2026-85091`; it is not a production acceptance and no other HIGH finding
   is silently allowed
@@ -171,6 +172,15 @@ Current implemented state:
   uploading the frontend; every release then checks the public root, Sleep deep
   link, liveness, and readiness, and frontend releases compare the public shell
   byte-for-byte with the build output
+- credentials are refreshed immediately before backend review/deployment and
+  frontend upload; the SSM payload invokes Bash explicitly, has a 900-second
+  remote execution timeout, retries transient status lookups through the safe
+  delivery/execution window, and also holds a host-level `flock` so another
+  command cannot overlap even if the runner loses contact
+- the host keeps root-owned current/previous verified-image pointers and
+  advances them only after local and public backend health pass; failed
+  candidates never replace the usable rollback target, while a same-image
+  first run reports that no earlier workflow rollback is available
 - automatic deployment on a `staging` push is intentionally absent until one
   reviewed manual dispatch succeeds; the first application deployment through
   this workflow remains pending

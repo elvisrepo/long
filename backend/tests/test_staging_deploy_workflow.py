@@ -116,6 +116,12 @@ def test_backend_publication_is_immutable_arm64_and_pinned() -> None:
     assert buildx["uses"] == (
         "docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069"
     )
+    assert "aws ecr describe-images" in publish_script
+    assert "ImageNotFoundException" in publish_script
+    assert "Reusing published backend image" in publish_script
+    assert publish_script.index("aws ecr describe-images") < publish_script.index(
+        "docker buildx build"
+    )
     assert "aws ecr get-login-password" in publish_script
     assert "--platform linux/arm64" in publish_script
     assert "--target production" in publish_script
@@ -155,9 +161,48 @@ def test_backend_deployment_captures_rollback_and_uses_host_guards() -> None:
     assert '--backend-image "$BACKEND_IMAGE"' in deploy_script
     assert "--document-name AWS-RunShellScript" in deploy_script
     assert '--instance-ids "$STAGING_INSTANCE_ID"' in deploy_script
-    assert "aws ssm wait command-executed" in deploy_script
     assert "aws ssm get-command-invocation" in deploy_script
+    assert "aws ssm wait command-executed" not in deploy_script
+    assert "--timeout-seconds 60" in deploy_script
+    assert "poll_deadline=$((SECONDS + 1020))" in deploy_script
+    assert 'if (( SECONDS >= poll_deadline )); then' in deploy_script
+    assert "while true" in deploy_script
+    for terminal_status in (
+        "Success",
+        "Cancelled",
+        "Failed",
+        "TimedOut",
+        "Undeliverable",
+        "Terminated",
+    ):
+        assert terminal_status in deploy_script
+    assert 'if [[ "$previous_backend_image" == "unavailable" ]]' in deploy_script
     assert "Previous backend rollback image" in deploy_script
+
+
+def test_mutating_stages_refresh_short_lived_credentials() -> None:
+    workflow = load_staging_deploy_workflow()
+    steps = workflow["jobs"]["deploy"]["steps"]
+    steps_by_name = {step["name"]: step for step in steps}
+    names = [step["name"] for step in steps]
+
+    for name in (
+        "Refresh backend deployment credentials",
+        "Refresh frontend deployment credentials",
+    ):
+        refresh = steps_by_name[name]
+        assert refresh["uses"] == (
+            "aws-actions/configure-aws-credentials@"
+            "e1253824e5c10ff9df46874f81ed3ec929e19cfd"
+        )
+        assert refresh["with"]["role-duration-seconds"] == "3600"
+
+    assert names.index("Build and publish backend image") < names.index(
+        "Refresh backend deployment credentials"
+    ) < names.index("Resolve and approve backend image")
+    assert names.index("Build frontend assets") < names.index(
+        "Refresh frontend deployment credentials"
+    ) < names.index("Upload frontend assets")
 
 
 def test_frontend_release_builds_then_uses_the_version_preserving_uploader() -> None:

@@ -774,17 +774,23 @@ automatic staging trigger until one reviewed manual deployment has passed.
 The workflow:
 
 1. enters the protected GitHub `staging` environment, obtains a one-hour OIDC
-   session bounded by the role maximum, and validates the assumed role plus
-   every fixed staging coordinate;
+   session bounded by the role maximum, validates the assumed role plus every
+   fixed staging coordinate, and refreshes credentials immediately before each
+   mutating deployment phase;
 2. serializes releases with a non-cancelling `staging-deployment` concurrency
    lock;
-3. for a backend release, builds and publishes a full-commit-tagged Linux/ARM64
-   production image, resolves the immutable OCI index and ARM64 child digests,
-   waits for the ECR scan, and blocks all critical or unreviewed high findings;
+3. for a backend release, reuses an existing full-commit-tagged image on retry
+   or builds and publishes it once, resolves the immutable OCI index and ARM64
+   child digests, waits for the ECR scan, and blocks all critical or unreviewed
+   high findings;
 4. sends the digest-qualified image to the one staging instance through
    `AWS-RunShellScript`; the host captures the previous digest, uses its instance
-   role for ECR and Secrets Manager, runs the existing storage, secret,
-   migration, promotion, and readiness guards, and removes temporary ECR auth;
+   role for ECR and Secrets Manager, invokes Bash explicitly, runs the existing
+   storage, secret, migration, promotion, and readiness guards, and removes
+   temporary ECR auth. The remote command has a 900-second execution timeout,
+   GitHub retries transient status lookups through the safe command window, and
+   a host-level `flock` rejects overlapping deployment commands even if the
+   runner loses contact;
 5. for a frontend release, reruns audit, tests, lint, formatting, and build,
    previews the version-preserving upload, then uploads immutable assets before
    the no-cache application shell without deleting old assets;
@@ -797,6 +803,12 @@ The workflow:
 Rollback information is retained in the GitHub run summary: backend releases
 record the previous digest-qualified image, and frontend releases record the
 deployed Git commit while S3 Versioning retains overwritten object versions.
+The backend host also keeps root-owned current and previous verified-image
+pointers. They advance only after the candidate passes local and public backend
+health checks. A failed candidate therefore never replaces the usable rollback
+target, and retrying an already verified candidate continues to report the
+previous verified digest. A first same-image run with no earlier workflow
+history proceeds but reports the rollback image as unavailable.
 Frontend rollback still means rebuilding the previous known-good commit with
 the same uploader; do not delete newer versions during an incident.
 
@@ -806,7 +818,7 @@ must follow the separate reviewed bundle procedure below before deploying an
 image that depends on them. The public smoke is automated, but authenticated
 browser acceptance remains manual because no user credentials belong in CD.
 
-The 2026-09-24 local verification passed `483` backend tests, all `307`
+The 2026-09-24 local verification passed `484` backend tests, all `307`
 frontend tests, backend lint and type checks, frontend dependency audit, lint,
 formatting, and production build. The first cloud deployment through this
 workflow remains pending.
