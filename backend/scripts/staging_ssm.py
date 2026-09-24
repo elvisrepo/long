@@ -24,7 +24,7 @@ def deployment_parameters(*, backend_image: str, region: str) -> dict[str, list[
         raise ValueError("staging deployment region must be eu-central-1")
 
     registry = "173291122778.dkr.ecr.eu-central-1.amazonaws.com"
-    command = f"""set -euo pipefail
+    script = f"""set -euo pipefail
 registry={shlex.quote(registry)}
 backend_image={shlex.quote(backend_image)}
 previous_backend_image="$(docker inspect --format '{{{{.Config.Image}}}}' syncvitals-staging-api-1)"
@@ -59,7 +59,11 @@ curl --fail --silent --show-error \\
   --header 'X-Forwarded-Proto: https' \\
   http://127.0.0.1:18000/api/v1/health/ready/ >/dev/null
 """
-    return {"commands": [command]}
+    command = f"bash -c {shlex.quote(script)}"
+    return {
+        "commands": [command],
+        "executionTimeout": ["900"],
+    }
 
 
 def main(argv: Sequence[str] | None = None) -> int:

@@ -774,17 +774,22 @@ automatic staging trigger until one reviewed manual deployment has passed.
 The workflow:
 
 1. enters the protected GitHub `staging` environment, obtains a one-hour OIDC
-   session bounded by the role maximum, and validates the assumed role plus
-   every fixed staging coordinate;
+   session bounded by the role maximum, validates the assumed role plus every
+   fixed staging coordinate, and refreshes credentials immediately before each
+   mutating deployment phase;
 2. serializes releases with a non-cancelling `staging-deployment` concurrency
    lock;
-3. for a backend release, builds and publishes a full-commit-tagged Linux/ARM64
-   production image, resolves the immutable OCI index and ARM64 child digests,
-   waits for the ECR scan, and blocks all critical or unreviewed high findings;
+3. for a backend release, reuses an existing full-commit-tagged image on retry
+   or builds and publishes it once, resolves the immutable OCI index and ARM64
+   child digests, waits for the ECR scan, and blocks all critical or unreviewed
+   high findings;
 4. sends the digest-qualified image to the one staging instance through
    `AWS-RunShellScript`; the host captures the previous digest, uses its instance
-   role for ECR and Secrets Manager, runs the existing storage, secret,
-   migration, promotion, and readiness guards, and removes temporary ECR auth;
+   role for ECR and Secrets Manager, invokes Bash explicitly, runs the existing
+   storage, secret, migration, promotion, and readiness guards, and removes
+   temporary ECR auth. The remote command has a 900-second execution timeout,
+   and GitHub polls until terminal SSM status before releasing the deployment
+   concurrency lock;
 5. for a frontend release, reruns audit, tests, lint, formatting, and build,
    previews the version-preserving upload, then uploads immutable assets before
    the no-cache application shell without deleting old assets;
@@ -806,7 +811,7 @@ must follow the separate reviewed bundle procedure below before deploying an
 image that depends on them. The public smoke is automated, but authenticated
 browser acceptance remains manual because no user credentials belong in CD.
 
-The 2026-09-24 local verification passed `483` backend tests, all `307`
+The 2026-09-24 local verification passed `484` backend tests, all `307`
 frontend tests, backend lint and type checks, frontend dependency audit, lint,
 formatting, and production build. The first cloud deployment through this
 workflow remains pending.
