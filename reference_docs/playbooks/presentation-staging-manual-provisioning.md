@@ -735,7 +735,8 @@ names.
 
 ## GitHub Delivery Identity Checkpoint — 2026-09-23
 
-The delivery control plane is prepared but application CD is not implemented:
+The delivery control plane is prepared; application CD is implemented but has
+not yet completed its first deployment:
 
 - permanent `master` and `staging` branches point to the same verified baseline;
 - GitHub ruleset `Protect master and staging` requires pull requests, current
@@ -755,12 +756,60 @@ The delivery control plane is prepared but application CD is not implemented:
 - the GitHub role cannot read the runtime secret or mutate IAM, EC2, Route 53,
   or CloudFront, and no long-lived AWS access key is stored in GitHub; and
 - `.github/workflows/staging-oidc-smoke.yml` provides a manual, non-mutating
-  authentication proof. Merge it into default branch `master`, promote that
-  commit to `staging` through a second pull request, and only then dispatch it
-  from the `staging` ref. Its first staging dispatch remains pending.
+  authentication proof. It was merged into default branch `master`, promoted
+  to `staging` through a second pull request, and run `35968414547` succeeded
+  from the protected `staging` ref with the expected account and assumed role.
 
-Do not implement application deployment until the OIDC smoke proves the
-expected AWS account and assumed-role ARN.
+The OIDC prerequisite is satisfied. The first application deployment remains a
+separate manual gate.
+
+## Manual Staging CD Workflow Prepared — 2026-09-24
+
+`.github/workflows/staging-deploy.yml` is the first application CD slice. It is
+manual-only and accepts `backend`, `frontend`, or `both`; it has no `push`
+trigger. Merge it into `master`, promote the same commit to `staging` through a
+second pull request, then dispatch it from the `staging` ref. Do not add an
+automatic staging trigger until one reviewed manual deployment has passed.
+
+The workflow:
+
+1. enters the protected GitHub `staging` environment, obtains a one-hour OIDC
+   session bounded by the role maximum, and validates the assumed role plus
+   every fixed staging coordinate;
+2. serializes releases with a non-cancelling `staging-deployment` concurrency
+   lock;
+3. for a backend release, builds and publishes a full-commit-tagged Linux/ARM64
+   production image, resolves the immutable OCI index and ARM64 child digests,
+   waits for the ECR scan, and blocks all critical or unreviewed high findings;
+4. sends the digest-qualified image to the one staging instance through
+   `AWS-RunShellScript`; the host captures the previous digest, uses its instance
+   role for ECR and Secrets Manager, runs the existing storage, secret,
+   migration, promotion, and readiness guards, and removes temporary ECR auth;
+5. for a frontend release, reruns audit, tests, lint, formatting, and build,
+   previews the version-preserving upload, then uploads immutable assets before
+   the no-cache application shell without deleting old assets;
+6. for `both`, completes and verifies the backend before uploading the
+   frontend; and
+7. checks the public root, `/metrics/sleep_duration` deep link, liveness, and
+   readiness. A frontend release also compares public `index.html` with the
+   local build byte-for-byte.
+
+Rollback information is retained in the GitHub run summary: backend releases
+record the previous digest-qualified image, and frontend releases record the
+deployed Git commit while S3 Versioning retains overwritten object versions.
+Frontend rollback still means rebuilding the previous known-good commit with
+the same uploader; do not delete newer versions during an incident.
+
+The workflow does not install a new EC2 deployment bundle. Changes to
+`docker-compose.staging.yml`, `runtime_contract.py`, or host deployment scripts
+must follow the separate reviewed bundle procedure below before deploying an
+image that depends on them. The public smoke is automated, but authenticated
+browser acceptance remains manual because no user credentials belong in CD.
+
+The 2026-09-24 local verification passed `483` backend tests, all `307`
+frontend tests, backend lint and type checks, frontend dependency audit, lint,
+formatting, and production build. The first cloud deployment through this
+workflow remains pending.
 
 ## Repeatable Staging Application Release And Rollback
 
