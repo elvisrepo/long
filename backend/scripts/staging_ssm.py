@@ -35,17 +35,34 @@ fi
 
 running_backend_image="$(docker inspect --format '{{{{.Config.Image}}}}' syncvitals-staging-api-1)"
 [[ "$running_backend_image" =~ ^173291122778\\.dkr\\.ecr\\.eu-central-1\\.amazonaws\\.com/syncvitals/staging/backend@sha256:[0-9a-f]{{64}}$ ]]
-rollback_file=/opt/syncvitals/deployment/.previous_backend_image
-if [[ "$running_backend_image" != "$backend_image" ]]; then
+verified_file=/opt/syncvitals/deployment/.verified_backend_image
+previous_verified_file=/opt/syncvitals/deployment/.previous_verified_backend_image
+
+write_image_pointer() {{
+  local target="$1"
+  local image="$2"
   umask 077
-  printf '%s\\n' "$running_backend_image" > "${{rollback_file}}.new"
-  chmod 0600 "${{rollback_file}}.new"
-  mv -- "${{rollback_file}}.new" "$rollback_file"
-else
-  test -f "$rollback_file"
+  printf '%s\\n' "$image" > "${{target}}.new"
+  chmod 0600 "${{target}}.new"
+  mv -- "${{target}}.new" "$target"
+}}
+
+if [[ ! -f "$verified_file" ]]; then
+  write_image_pointer "$verified_file" "$running_backend_image"
 fi
-previous_backend_image="$(<"$rollback_file")"
-[[ "$previous_backend_image" =~ ^173291122778\\.dkr\\.ecr\\.eu-central-1\\.amazonaws\\.com/syncvitals/staging/backend@sha256:[0-9a-f]{{64}}$ ]]
+verified_backend_image="$(<"$verified_file")"
+[[ "$verified_backend_image" =~ ^173291122778\\.dkr\\.ecr\\.eu-central-1\\.amazonaws\\.com/syncvitals/staging/backend@sha256:[0-9a-f]{{64}}$ ]]
+
+if [[ "$backend_image" == "$verified_backend_image" ]]; then
+  if [[ -f "$previous_verified_file" ]]; then
+    previous_backend_image="$(<"$previous_verified_file")"
+    [[ "$previous_backend_image" =~ ^173291122778\\.dkr\\.ecr\\.eu-central-1\\.amazonaws\\.com/syncvitals/staging/backend@sha256:[0-9a-f]{{64}}$ ]]
+  else
+    previous_backend_image=unavailable
+  fi
+else
+  previous_backend_image="$verified_backend_image"
+fi
 printf 'previous_backend_image=%s\\n' "$previous_backend_image"
 
 cleanup_ecr_auth() {{
@@ -75,6 +92,15 @@ curl --fail --silent --show-error \\
   --header 'Host: staging.syncvitals.space' \\
   --header 'X-Forwarded-Proto: https' \\
   http://127.0.0.1:18000/api/v1/health/ready/ >/dev/null
+curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors \\
+  https://staging.syncvitals.space/api/v1/health/live/ >/dev/null
+curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors \\
+  https://staging.syncvitals.space/api/v1/health/ready/ >/dev/null
+
+if [[ "$backend_image" != "$verified_backend_image" ]]; then
+  write_image_pointer "$previous_verified_file" "$verified_backend_image"
+  write_image_pointer "$verified_file" "$backend_image"
+fi
 """
     command = f"bash -c {shlex.quote(script)}"
     return {

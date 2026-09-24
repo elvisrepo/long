@@ -237,11 +237,15 @@ jobs:
 
           previous_backend_image="$(sed -n 's/^previous_backend_image=//p' <<<"$stdout")"
           running_backend_image="$(sed -n 's/^running_backend_image=//p' <<<"$stdout")"
-          [[ "$previous_backend_image" =~ ^[0-9a-zA-Z./:_-]+@sha256:[0-9a-f]{64}$ ]]
           test "$running_backend_image" = "$BACKEND_IMAGE"
           {
             printf '### Backend deployment\n\n'
-            printf -- '- Previous backend rollback image: `%s`\n' "$previous_backend_image"
+            if [[ "$previous_backend_image" == "unavailable" ]]; then
+              printf -- '- Previous backend rollback image: unavailable (no earlier verified workflow release)\n'
+            else
+              [[ "$previous_backend_image" =~ ^[0-9a-zA-Z./:_-]+@sha256:[0-9a-f]{64}$ ]]
+              printf -- '- Previous backend rollback image: `%s`\n' "$previous_backend_image"
+            fi
             printf -- '- Running backend image: `%s`\n' "$running_backend_image"
           } >> "$GITHUB_STEP_SUMMARY"
 

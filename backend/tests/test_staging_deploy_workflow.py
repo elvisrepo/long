@@ -176,6 +176,7 @@ def test_backend_deployment_captures_rollback_and_uses_host_guards() -> None:
         "Terminated",
     ):
         assert terminal_status in deploy_script
+    assert 'if [[ "$previous_backend_image" == "unavailable" ]]' in deploy_script
     assert "Previous backend rollback image" in deploy_script
 
 

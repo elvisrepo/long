@@ -177,9 +177,10 @@ Current implemented state:
   remote execution timeout, retries transient status lookups through the safe
   delivery/execution window, and also holds a host-level `flock` so another
   command cannot overlap even if the runner loses contact
-- the host persists the prior digest in a root-owned rollback pointer only when
-  the running image differs from the candidate; retrying an already-deployed
-  candidate therefore continues to report the earlier usable rollback image
+- the host keeps root-owned current/previous verified-image pointers and
+  advances them only after local and public backend health pass; failed
+  candidates never replace the usable rollback target, while a same-image
+  first run reports that no earlier workflow rollback is available
 - automatic deployment on a `staging` push is intentionally absent until one
   reviewed manual dispatch succeeds; the first application deployment through
   this workflow remains pending

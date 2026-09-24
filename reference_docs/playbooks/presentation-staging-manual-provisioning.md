@@ -803,10 +803,12 @@ The workflow:
 Rollback information is retained in the GitHub run summary: backend releases
 record the previous digest-qualified image, and frontend releases record the
 deployed Git commit while S3 Versioning retains overwritten object versions.
-The backend host also keeps a root-owned rollback pointer. It advances only
-when the running image differs from the candidate, so retrying a candidate that
-already reached the host does not replace the earlier rollback digest with
-itself.
+The backend host also keeps root-owned current and previous verified-image
+pointers. They advance only after the candidate passes local and public backend
+health checks. A failed candidate therefore never replaces the usable rollback
+target, and retrying an already verified candidate continues to report the
+previous verified digest. A first same-image run with no earlier workflow
+history proceeds but reports the rollback image as unavailable.
 Frontend rollback still means rebuilding the previous known-good commit with
 the same uploader; do not delete newer versions during an incident.
 

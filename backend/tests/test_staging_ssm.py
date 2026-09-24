@@ -28,9 +28,18 @@ def test_deployment_command_captures_rollback_and_uses_host_guards() -> None:
     assert "previous_backend_image=" in script
     assert "flock --nonblock 9" in script
     assert "/run/lock/syncvitals-staging-deploy.lock" in script
-    assert "rollback_file=/opt/syncvitals/deployment/.previous_backend_image" in script
-    assert 'if [[ "$running_backend_image" != "$backend_image" ]]' in script
-    assert 'previous_backend_image="$(<"$rollback_file")"' in script
+    assert "verified_file=/opt/syncvitals/deployment/.verified_backend_image" in script
+    assert (
+        "previous_verified_file=/opt/syncvitals/deployment/"
+        ".previous_verified_backend_image" in script
+    )
+    assert "write_image_pointer" in script
+    assert 'if [[ "$backend_image" == "$verified_backend_image" ]]' in script
+    assert "previous_backend_image=unavailable" in script
+    assert "https://staging.syncvitals.space/api/v1/health/live/" in script
+    assert "https://staging.syncvitals.space/api/v1/health/ready/" in script
+    assert 'write_image_pointer "$previous_verified_file"' in script
+    assert 'write_image_pointer "$verified_file" "$backend_image"' in script
     expected_rollback_guard = (
         '[[ "$previous_backend_image" =~ ^173291122778\\.dkr\\.ecr\\.'
         "eu-central-1\\.amazonaws\\.com/syncvitals/staging/"
