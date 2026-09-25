@@ -9,6 +9,10 @@ import yaml
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 STAGING_DEPLOY_WORKFLOW = REPOSITORY_ROOT / ".github/workflows/staging-deploy.yml"
+STAGING_PLAYBOOK = (
+    REPOSITORY_ROOT
+    / "reference_docs/playbooks/presentation-staging-manual-provisioning.md"
+)
 
 
 def load_staging_deploy_workflow() -> dict[str, Any]:
@@ -142,14 +146,35 @@ def test_backend_scan_is_gated_before_deployment() -> None:
     assert "aws ecr describe-images" in scan_script
     assert "aws ecr batch-get-image" in scan_script
     assert "python3 scripts/staging_image.py arm64-digest" in scan_script
-    assert "aws ecr wait image-scan-complete" in scan_script
     assert "aws ecr describe-image-scan-findings" in scan_script
+    assert "ScanNotFoundException" in scan_script
+    assert "aws ecr start-image-scan" in scan_script
+    assert "aws ecr wait image-scan-complete" in scan_script
     assert "python3 scripts/staging_image.py review-scan" in scan_script
+    assert scan_script.index("aws ecr start-image-scan") < scan_script.index(
+        "aws ecr wait image-scan-complete"
+    )
     assert "printf 'BACKEND_IMAGE=%s\\n'" in scan_script
     assert '"$repository_uri@$index_digest" >> "$GITHUB_ENV"' in scan_script
     assert names.index("Resolve and approve backend image") < names.index(
         "Deploy and verify backend"
     )
+
+
+def test_manual_scan_instructions_reuse_existing_findings() -> None:
+    playbook = STAGING_PLAYBOOK.read_text()
+    scan_section = playbook[playbook.index('arm64_digest="$(printf'):]
+
+    assert "aws ecr describe-image-scan-findings" in scan_section
+    assert "ScanNotFoundException" in scan_section
+    assert "aws ecr start-image-scan" in scan_section
+    assert scan_section.index("ScanNotFoundException") < scan_section.index(
+        "aws ecr start-image-scan"
+    )
+    assert (
+        'uv run python scripts/staging_image.py review-scan <"$scan_report" '
+        "|| exit 1"
+    ) in scan_section
 
 
 def test_backend_deployment_captures_rollback_and_uses_host_guards() -> None:
