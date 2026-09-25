@@ -77,14 +77,16 @@ def review_scan_findings(report: Mapping[str, object]) -> None:
                 attributes_by_key.get("package_name"),
                 attributes_by_key.get("package_version"),
             )
+        if severity == "CRITICAL":
+            raise StagingImageError(f"unapproved {severity} finding: {name}")
+        if severity != "HIGH":
+            continue
         accepted_package = (
             ACCEPTED_STAGING_HIGH_FINDINGS.get(name)
             if isinstance(name, str)
             else None
         )
-        if severity == "CRITICAL" or (
-            severity == "HIGH" and package != accepted_package
-        ):
+        if accepted_package is None or package != accepted_package:
             raise StagingImageError(f"unapproved {severity} finding: {name}")
 
 
