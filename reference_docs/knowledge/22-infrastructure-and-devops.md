@@ -193,11 +193,11 @@ Current implemented state:
   bounded stdout contains the rollback/running-image markers; failures return
   only the final 7,000 diagnostic bytes, below SSM's 8 KB stderr response
   limit, and the temporary log is removed
-- automatic deployment on a `staging` push is intentionally absent until one
-  reviewed manual dispatch succeeds; run `35991127520` safely stopped because
-  the Buildx ARM64 child had no scan, and corrected run `36106521741` started
-  the scan but safely stopped on the newly reported `CVE-2026-82560`; neither
-  run reached EC2 or frontend mutation
+- automatic deployment on a `staging` push remains intentionally absent after
+  the manual gate succeeded: runs `35991127520` and `36106521741` safely
+  stopped before EC2/frontend mutation, then run `36107967986` deployed both
+  components from staging commit `c8985ae8083247a0c8ee55e3d530ffcb0bb0d29a`
+  and passed scan, migration, rollback, upload, and public verification gates
 - authenticated browser journeys remain manual because the workflow receives
   no user credentials, and host deployment-bundle changes remain a separate
   reviewed manual procedure because the GitHub role cannot install host files
