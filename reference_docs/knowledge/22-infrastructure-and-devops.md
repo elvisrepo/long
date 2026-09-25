@@ -169,9 +169,10 @@ Current implemented state:
   ARM64 child manifest, the workflow explicitly starts a scan only when ECR
   returns `ScanNotFoundException`; retries reuse an existing scan and the role
   therefore also needs repository-scoped `ecr:StartImageScan`
-- the sole staging-only high-severity exception is the dated, already-reviewed
-  `CVE-2026-85091`; it is not a production acceptance and no other HIGH finding
-  is silently allowed
+- staging-only high-severity exceptions match the exact CVE, package, and
+  reviewed version: zlib `CVE-2026-85091` at `1.3.dfsg+really1.3.1-1`, plus
+  Perl `CVE-2026-82560` at `5.40.1-6+deb13u1`; neither is a production
+  acceptance and a different package or version fails closed
 - frontend releases rerun their complete quality gates and use the tested
   asset-first, application-shell-last uploader; they never delete superseded
   assets, while S3 Versioning retains overwritten object versions
@@ -193,9 +194,10 @@ Current implemented state:
   only the final 7,000 diagnostic bytes, below SSM's 8 KB stderr response
   limit, and the temporary log is removed
 - automatic deployment on a `staging` push is intentionally absent until one
-  reviewed manual dispatch succeeds; first run `35991127520` safely stopped at
-  the scan gate before EC2 or frontend mutation because the Buildx ARM64 child
-  had no scan, and the explicit scan-start remediation remains pending
+  reviewed manual dispatch succeeds; run `35991127520` safely stopped because
+  the Buildx ARM64 child had no scan, and corrected run `36106521741` started
+  the scan but safely stopped on the newly reported `CVE-2026-82560`; neither
+  run reached EC2 or frontend mutation
 - authenticated browser journeys remain manual because the workflow receives
   no user credentials, and host deployment-bundle changes remain a separate
   reviewed manual procedure because the GitHub role cannot install host files
