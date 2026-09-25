@@ -797,8 +797,9 @@ not yet completed its first deployment:
   to `staging` through a second pull request, and run `35968414547` succeeded
   from the protected `staging` ref with the expected account and assumed role.
 
-The OIDC prerequisite is satisfied. The first application deployment remains a
-separate manual gate.
+The OIDC prerequisite was satisfied at the 2026-09-24 checkpoint. The first
+application deployment was then a separate manual gate; it later succeeded in
+run `36107967986` on 2026-09-25 as recorded above.
 
 ## Manual Staging CD Workflow Prepared — 2026-09-24
 
@@ -861,8 +862,8 @@ browser acceptance remains manual because no user credentials belong in CD.
 
 The 2026-09-24 local verification passed `484` backend tests, all `307`
 frontend tests, backend lint and type checks, frontend dependency audit, lint,
-formatting, and production build. The first cloud deployment through this
-workflow remains pending.
+formatting, and production build. The first cloud deployment later succeeded
+in run `36107967986` on 2026-09-25; explicit dispatch remains required.
 
 ## Repeatable Staging Application Release And Rollback
 
