@@ -977,10 +977,28 @@ if len(matches) != 1:
 print(matches[0])
 ')"
 
-aws ecr start-image-scan \
+scan_report="$(mktemp /tmp/syncvitals-ecr-scan.XXXXXX.json)"
+scan_error="$(mktemp /tmp/syncvitals-ecr-scan.XXXXXX.err)"
+cleanup_scan_files() {
+  rm -f -- "$scan_report" "$scan_error"
+}
+trap cleanup_scan_files EXIT
+
+if ! aws ecr describe-image-scan-findings \
   --repository-name syncvitals/staging/backend \
   --image-id "imageDigest=$arm64_digest" \
-  --region eu-central-1
+  --region eu-central-1 \
+  --output json >"$scan_report" 2>"$scan_error"; then
+  if ! grep --quiet 'ScanNotFoundException' "$scan_error"; then
+    cat "$scan_error" >&2
+    exit 1
+  fi
+  aws ecr start-image-scan \
+    --repository-name syncvitals/staging/backend \
+    --image-id "imageDigest=$arm64_digest" \
+    --region eu-central-1 \
+    >/dev/null
+fi
 
 aws ecr wait image-scan-complete \
   --repository-name syncvitals/staging/backend \
@@ -990,7 +1008,10 @@ aws ecr wait image-scan-complete \
 aws ecr describe-image-scan-findings \
   --repository-name syncvitals/staging/backend \
   --image-id "imageDigest=$arm64_digest" \
-  --region eu-central-1
+  --region eu-central-1 \
+  --output json >"$scan_report"
+
+uv run python scripts/staging_image.py review-scan <"$scan_report"
 ```
 
 The deployable reference uses the tagged OCI image-index digest. Basic

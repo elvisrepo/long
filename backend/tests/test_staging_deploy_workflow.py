@@ -9,6 +9,10 @@ import yaml
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 STAGING_DEPLOY_WORKFLOW = REPOSITORY_ROOT / ".github/workflows/staging-deploy.yml"
+STAGING_PLAYBOOK = (
+    REPOSITORY_ROOT
+    / "reference_docs/playbooks/presentation-staging-manual-provisioning.md"
+)
 
 
 def load_staging_deploy_workflow() -> dict[str, Any]:
@@ -154,6 +158,18 @@ def test_backend_scan_is_gated_before_deployment() -> None:
     assert '"$repository_uri@$index_digest" >> "$GITHUB_ENV"' in scan_script
     assert names.index("Resolve and approve backend image") < names.index(
         "Deploy and verify backend"
+    )
+
+
+def test_manual_scan_instructions_reuse_existing_findings() -> None:
+    playbook = STAGING_PLAYBOOK.read_text()
+    scan_section = playbook[playbook.index('arm64_digest="$(printf'):]
+
+    assert "aws ecr describe-image-scan-findings" in scan_section
+    assert "ScanNotFoundException" in scan_section
+    assert "aws ecr start-image-scan" in scan_section
+    assert scan_section.index("ScanNotFoundException") < scan_section.index(
+        "aws ecr start-image-scan"
     )
 
 
