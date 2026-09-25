@@ -1,6 +1,9 @@
 name: Staging Deploy
 
 on:
+  push:
+    branches:
+      - staging
   workflow_dispatch:
     inputs:
       component:
@@ -18,11 +21,22 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
+  backend_ci:
+    uses: ./.github/workflows/backend-ci.yml
+
+  frontend_ci:
+    uses: ./.github/workflows/frontend-ci.yml
+
   deploy:
+    needs:
+      - backend_ci
+      - frontend_ci
     if: github.ref == 'refs/heads/staging'
+    permissions:
+      contents: read
+      id-token: write
     environment: staging
     runs-on: ubuntu-24.04
     env:
@@ -32,7 +46,7 @@ jobs:
       STAGING_INSTANCE_ID: ${{ vars.STAGING_INSTANCE_ID }}
       STAGING_FRONTEND_BUCKET: ${{ vars.STAGING_FRONTEND_BUCKET }}
       STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
-      DEPLOY_COMPONENT: ${{ inputs.component }}
+      DEPLOY_COMPONENT: ${{ github.event_name == 'push' && 'both' || inputs.component }}
     steps:
       - name: Checkout reviewed staging commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -68,18 +82,18 @@ jobs:
           [[ "$DEPLOY_COMPONENT" =~ ^(backend|frontend|both)$ ]]
 
       - name: Set up ARM64 emulation
-        if: inputs.component == 'backend' || inputs.component == 'both'
+        if: env.DEPLOY_COMPONENT == 'backend' || env.DEPLOY_COMPONENT == 'both'
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
         with:
           image: docker.io/tonistiigi/binfmt@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
           platforms: arm64
 
       - name: Set up Docker Buildx
-        if: inputs.component == 'backend' || inputs.component == 'both'
+        if: env.DEPLOY_COMPONENT == 'backend' || env.DEPLOY_COMPONENT == 'both'
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Build and publish backend image
-        if: inputs.component == 'backend' || inputs.component == 'both'
+        if: env.DEPLOY_COMPONENT == 'backend' || env.DEPLOY_COMPONENT == 'both'
         working-directory: backend
         shell: bash
         run: |
@@ -118,7 +132,7 @@ jobs:
           fi
 
       - name: Refresh backend deployment credentials
-        if: inputs.component == 'backend' || inputs.component == 'both'
+        if: env.DEPLOY_COMPONENT == 'backend' || env.DEPLOY_COMPONENT == 'both'
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
@@ -130,7 +144,7 @@ jobs:
           unset-current-credentials: true
 
       - name: Resolve and approve backend image
-        if: inputs.component == 'backend' || inputs.component == 'both'
+        if: env.DEPLOY_COMPONENT == 'backend' || env.DEPLOY_COMPONENT == 'both'
         working-directory: backend
         shell: bash
         run: |
@@ -188,7 +202,7 @@ jobs:
             >> "$GITHUB_STEP_SUMMARY"
 
       - name: Deploy and verify backend
-        if: inputs.component == 'backend' || inputs.component == 'both'
+        if: env.DEPLOY_COMPONENT == 'backend' || env.DEPLOY_COMPONENT == 'both'
         working-directory: backend
         shell: bash
         run: |
@@ -267,7 +281,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Set up Node.js
-        if: inputs.component == 'frontend' || inputs.component == 'both'
+        if: env.DEPLOY_COMPONENT == 'frontend' || env.DEPLOY_COMPONENT == 'both'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
@@ -275,7 +289,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Build frontend assets
-        if: inputs.component == 'frontend' || inputs.component == 'both'
+        if: env.DEPLOY_COMPONENT == 'frontend' || env.DEPLOY_COMPONENT == 'both'
         working-directory: frontend
         shell: bash
         run: |
@@ -292,7 +306,7 @@ jobs:
             --dry-run
 
       - name: Refresh frontend deployment credentials
-        if: inputs.component == 'frontend' || inputs.component == 'both'
+        if: env.DEPLOY_COMPONENT == 'frontend' || env.DEPLOY_COMPONENT == 'both'
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
@@ -304,7 +318,7 @@ jobs:
           unset-current-credentials: true
 
       - name: Upload frontend assets
-        if: inputs.component == 'frontend' || inputs.component == 'both'
+        if: env.DEPLOY_COMPONENT == 'frontend' || env.DEPLOY_COMPONENT == 'both'
         working-directory: frontend
         shell: bash
         run: |

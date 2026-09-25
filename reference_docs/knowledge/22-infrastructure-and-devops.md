@@ -155,13 +155,17 @@ Current implemented state:
   for that identity boundary; run `35968414547` succeeded from the protected
   `staging` ref and confirmed the expected account and assumed role without
   reading or changing application resources
-- `.github/workflows/staging-deploy.yml` implements the first manual-only CD
-  gate with `backend`, `frontend`, and `both` choices; it validates every
-  deployment coordinate, uses the `staging` environment and short-lived OIDC
-  credentials, and serializes releases so two staging deployments cannot race
-- staging releases are operated one at a time: wait for the current run to
-  finish before dispatching another; the workflow concurrency lock remains a
-  backstop against accidental overlap
+- `.github/workflows/staging-deploy.yml` automatically deploys `both` after a
+  protected push to `staging`; manual dispatch retains `backend`, `frontend`,
+  and `both` recovery choices
+- every automatic or manual run invokes the reusable backend and frontend CI
+  workflows first; the AWS deployment job declares both as dependencies, then
+  validates every deployment coordinate, enters the protected `staging`
+  environment, and uses short-lived OIDC credentials
+- the non-cancelling concurrency lock permits one running and one pending
+  release; newer automatic pushes may replace an older pending run safely
+  because the newer `staging` commit contains the earlier protected merges,
+  while manual operators still wait for the current run to finish
 - backend releases publish one full-commit-tagged Linux/ARM64 production image,
   reuse that immutable tag on a retry, scan its ARM64 child manifest, reject
   every critical and every unreviewed high finding, preserve the previous
@@ -195,11 +199,9 @@ Current implemented state:
   bounded stdout contains the rollback/running-image markers; failures return
   only the final 7,000 diagnostic bytes, below SSM's 8 KB stderr response
   limit, and the temporary log is removed
-- automatic deployment on a `staging` push remains intentionally absent after
-  the manual gate succeeded: runs `35991127520` and `36106521741` safely
-  stopped before EC2/frontend mutation, then run `36107967986` deployed both
-  components from staging commit `c8985ae8083247a0c8ee55e3d530ffcb0bb0d29a`
-  and passed scan, migration, rollback, upload, and public verification gates
+- the manual gate succeeded in run `36107967986` after two safely blocked
+  attempts; that proof enabled automatic deployment of protected `staging`
+  pushes, with `both` selected only after the embedded CI gates pass
 - authenticated browser journeys remain manual because the workflow receives
   no user credentials, and host deployment-bundle changes remain a separate
   reviewed manual procedure because the GitHub role cannot install host files
@@ -241,9 +243,9 @@ Practical note from the current project:
   does not require Redis/Celery; add one only with a real integration contract
 - PostgreSQL-specific concurrency tests must not fall back to SQLite because
   SQLite does not implement the row-lock semantics being asserted
-- manual staging CD is implemented and first succeeded in run `36107967986`;
-  automatic deployment on a `staging` push remains disabled pending a separate
-  reviewed decision
+- staging CD is implemented: manual run `36107967986` proved the full release,
+  and protected `staging` pushes now run both reusable CI gates before
+  automatically deploying backend and frontend
 - the EC2 staging pipeline authenticates through GitHub OIDC rather than
   long-lived AWS keys
 - Terraform provisions infrastructure; the deployment pipeline ships a tested application version onto that infrastructure

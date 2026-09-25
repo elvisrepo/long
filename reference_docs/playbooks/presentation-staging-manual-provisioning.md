@@ -169,8 +169,8 @@ First GitHub-managed staging release recorded on 2026-09-25:
   and readiness all passed;
 - short-lived OIDC credentials were refreshed before each mutating phase, and
   no personal AWS credentials or application user credentials entered GitHub;
-- automatic deployment on a `staging` push remains disabled pending a separate
-  reviewed decision; the proven workflow still requires explicit dispatch.
+- this first successful release was explicitly dispatched; the later reviewed
+  CD slice uses it as the gate for automatic protected-`staging` releases.
 
 At this 2026-09-13 checkpoint, CloudFront's S3 frontend and `/api/*` Django
 origin were deployed. Section 12 still needed Android and remaining Stripe
@@ -801,28 +801,32 @@ The OIDC prerequisite was satisfied at the 2026-09-24 checkpoint. The first
 application deployment was then a separate manual gate; it later succeeded in
 run `36107967986` on 2026-09-25 as recorded above.
 
-## Manual Staging CD Workflow Prepared — 2026-09-24
+## Staging CD Workflow — Prepared 2026-09-24, Automated 2026-09-25
 
-`.github/workflows/staging-deploy.yml` is the first application CD slice. It is
-manual-only and accepts `backend`, `frontend`, or `both`; it has no `push`
-trigger. Merge it into `master`, promote the same commit to `staging` through a
-second pull request, then dispatch it from the `staging` ref. Do not add an
-automatic staging trigger until one reviewed manual deployment has passed.
+`.github/workflows/staging-deploy.yml` automatically deploys `both` on a
+protected push to `staging`, after invoking the reusable backend and frontend
+CI workflows and requiring both to pass. Manual dispatch remains available
+with `backend`, `frontend`, or `both` for controlled retries and recovery.
+The automatic trigger was added only after reviewed manual run `36107967986`
+proved the full cloud path.
 
 The workflow:
 
-1. enters the protected GitHub `staging` environment, obtains a one-hour OIDC
+1. invokes the reusable backend and frontend CI workflows and blocks the
+   deployment job unless both succeed;
+2. enters the protected GitHub `staging` environment, obtains a one-hour OIDC
    session bounded by the role maximum, validates the assumed role plus every
    fixed staging coordinate, and refreshes credentials immediately before each
    mutating deployment phase;
-2. runs staging releases one at a time: wait for the current run to finish
-   before dispatching another. The non-cancelling `staging-deployment`
-   concurrency lock remains a backstop against accidental overlap;
-3. for a backend release, reuses an existing full-commit-tagged image on retry
+3. serializes releases with the non-cancelling `staging-deployment` concurrency
+   lock. Manual operators wait for the current run to finish; if protected
+   pushes arrive faster than releases complete, GitHub may coalesce the pending
+   run to the newest commit, which contains the earlier staging merges;
+4. for a backend release, reuses an existing full-commit-tagged image on retry
    or builds and publishes it once, resolves the immutable OCI index and ARM64
    child digests, starts a basic scan only when the child has none, waits for
    that scan, and blocks all critical or unreviewed high findings;
-4. sends the digest-qualified image to the one staging instance through
+5. sends the digest-qualified image to the one staging instance through
    `AWS-RunShellScript`; the host captures the previous digest, uses its instance
    role for ECR and Secrets Manager, invokes Bash explicitly, runs the existing
    storage, secret, migration, promotion, and readiness guards, and removes
@@ -833,12 +837,12 @@ The workflow:
    temporary host log; SSM receives compact image markers, while failures emit
    only the final 7,000 bytes (below SSM's 8 KB stderr response limit) before
    the temporary log is removed;
-5. for a frontend release, reruns audit, tests, lint, formatting, and build,
+6. for a frontend release, reruns audit, tests, lint, formatting, and build,
    previews the version-preserving upload, then uploads immutable assets before
    the no-cache application shell without deleting old assets;
-6. for `both`, completes and verifies the backend before uploading the
+7. for `both`, completes and verifies the backend before uploading the
    frontend; and
-7. checks the public root, `/metrics/sleep_duration` deep link, liveness, and
+8. checks the public root, `/metrics/sleep_duration` deep link, liveness, and
    readiness. A frontend release also compares public `index.html` with the
    local build byte-for-byte.
 
@@ -863,7 +867,9 @@ browser acceptance remains manual because no user credentials belong in CD.
 The 2026-09-24 local verification passed `484` backend tests, all `307`
 frontend tests, backend lint and type checks, frontend dependency audit, lint,
 formatting, and production build. The first cloud deployment later succeeded
-in run `36107967986` on 2026-09-25; explicit dispatch remains required.
+in run `36107967986` on 2026-09-25. Protected `staging` pushes now deploy both
+components automatically after the reusable CI gates pass; explicit dispatch
+remains available for component-scoped retries.
 
 ## Repeatable Staging Application Release And Rollback
 

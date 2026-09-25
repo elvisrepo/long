@@ -25,11 +25,12 @@ def load_staging_deploy_workflow() -> dict[str, Any]:
     )
 
 
-def test_staging_deploy_is_manual_and_staging_only() -> None:
+def test_staging_deploy_runs_after_ci_on_staging_push_or_manual_dispatch() -> None:
     workflow = load_staging_deploy_workflow()
     job = workflow["jobs"]["deploy"]
 
     assert workflow["on"] == {
+        "push": {"branches": ["staging"]},
         "workflow_dispatch": {
             "inputs": {
                 "component": {
@@ -43,6 +44,13 @@ def test_staging_deploy_is_manual_and_staging_only() -> None:
             }
         }
     }
+    assert workflow["jobs"]["backend_ci"] == {
+        "uses": "./.github/workflows/backend-ci.yml"
+    }
+    assert workflow["jobs"]["frontend_ci"] == {
+        "uses": "./.github/workflows/frontend-ci.yml"
+    }
+    assert job["needs"] == ["backend_ci", "frontend_ci"]
     assert job["if"] == "github.ref == 'refs/heads/staging'"
     assert job["environment"] == "staging"
     assert job["runs-on"] == "ubuntu-24.04"
@@ -56,7 +64,11 @@ def test_staging_deploy_uses_short_lived_least_privilege_identity() -> None:
     workflow = load_staging_deploy_workflow()
     steps = workflow["jobs"]["deploy"]["steps"]
 
-    assert workflow["permissions"] == {"contents": "read", "id-token": "write"}
+    assert workflow["permissions"] == {"contents": "read"}
+    assert workflow["jobs"]["deploy"]["permissions"] == {
+        "contents": "read",
+        "id-token": "write",
+    }
     assert steps[0] == {
         "name": "Checkout reviewed staging commit",
         "uses": (
@@ -84,15 +96,19 @@ def test_staging_deploy_uses_short_lived_least_privilege_identity() -> None:
 
 def test_staging_deploy_selects_components_and_orders_backend_first() -> None:
     workflow = load_staging_deploy_workflow()
-    steps = workflow["jobs"]["deploy"]["steps"]
+    job = workflow["jobs"]["deploy"]
+    steps = job["steps"]
     steps_by_name = {step["name"]: step for step in steps}
     names = [step["name"] for step in steps]
 
+    assert job["env"]["DEPLOY_COMPONENT"] == (
+        "${{ github.event_name == 'push' && 'both' || inputs.component }}"
+    )
     backend_condition = (
-        "inputs.component == 'backend' || inputs.component == 'both'"
+        "env.DEPLOY_COMPONENT == 'backend' || env.DEPLOY_COMPONENT == 'both'"
     )
     frontend_condition = (
-        "inputs.component == 'frontend' || inputs.component == 'both'"
+        "env.DEPLOY_COMPONENT == 'frontend' || env.DEPLOY_COMPONENT == 'both'"
     )
 
     assert steps_by_name["Build and publish backend image"]["if"] == backend_condition
@@ -188,6 +204,9 @@ def test_staging_docs_do_not_report_completed_cd_as_pending() -> None:
         "CD is still unimplemented",
         "The first application deployment remains a separate manual gate",
         "The first cloud deployment through this workflow remains pending",
+        "automatic deployment on a `staging` push remains disabled",
+        "the proven workflow still requires explicit dispatch",
+        "manual-only and accepts `backend`, `frontend`, or `both`",
     ):
         assert stale_statement not in current_guidance
 

@@ -325,15 +325,19 @@ def test_backend_ci_runs_for_every_pull_request() -> None:
     assert "  pull_request:\n  workflow_dispatch:\n" in workflow
 
 
-def test_backend_ci_keeps_backend_pushes_path_filtered() -> None:
+def test_backend_ci_is_reusable_without_duplicate_staging_push_run() -> None:
     workflow = BACKEND_CI_WORKFLOW.read_text()
 
     assert (
         '  push:\n'
+        '    branches-ignore:\n'
+        '      - staging\n'
         '    paths:\n'
         '      - "backend/**"\n'
         '      - ".github/workflows/backend-ci.yml"\n'
         '  pull_request:\n'
+        '  workflow_dispatch:\n'
+        '  workflow_call:\n'
         in workflow
     )
 

@@ -38,6 +38,22 @@ describe("frontend CI workflow", () => {
     expect(workflow).toContain("  pull_request:\n  workflow_dispatch:\n");
   });
 
+  it("is reusable without a duplicate standalone staging push run", () => {
+    const workflow = readFileSync(workflowPath, "utf8");
+
+    expect(workflow).toContain(
+      "  push:\n" +
+        "    branches-ignore:\n" +
+        "      - staging\n" +
+        "    paths:\n" +
+        '      - "frontend/**"\n' +
+        '      - ".github/workflows/frontend-ci.yml"\n' +
+        "  pull_request:\n" +
+        "  workflow_dispatch:\n" +
+        "  workflow_call:\n",
+    );
+  });
+
   it("keeps generated router code outside the formatting gate", () => {
     const prettierIgnore = readFileSync(prettierIgnorePath, "utf8");
 

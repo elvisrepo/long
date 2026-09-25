@@ -2,11 +2,14 @@ name: Backend CI
 
 on:
   push:
+    branches-ignore:
+      - staging
     paths:
       - "backend/**"
       - ".github/workflows/backend-ci.yml"
   pull_request:
   workflow_dispatch:
+  workflow_call:
 
 jobs:
   backend:
