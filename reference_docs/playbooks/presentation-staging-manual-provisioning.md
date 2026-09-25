@@ -1011,7 +1011,7 @@ aws ecr describe-image-scan-findings \
   --region eu-central-1 \
   --output json >"$scan_report"
 
-uv run python scripts/staging_image.py review-scan <"$scan_report"
+uv run python scripts/staging_image.py review-scan <"$scan_report" || exit 1
 ```
 
 The deployable reference uses the tagged OCI image-index digest. Basic

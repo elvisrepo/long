@@ -171,6 +171,10 @@ def test_manual_scan_instructions_reuse_existing_findings() -> None:
     assert scan_section.index("ScanNotFoundException") < scan_section.index(
         "aws ecr start-image-scan"
     )
+    assert (
+        'uv run python scripts/staging_image.py review-scan <"$scan_report" '
+        "|| exit 1"
+    ) in scan_section
 
 
 def test_backend_deployment_captures_rollback_and_uses_host_guards() -> None:
