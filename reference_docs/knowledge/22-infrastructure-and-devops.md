@@ -165,6 +165,10 @@ Current implemented state:
   every critical and every unreviewed high finding, preserve the previous
   running digest in the job summary, and invoke the existing guarded
   migration-first deployment through SSM
+- because ECR basic scan-on-push did not create a scan for Buildx's untagged
+  ARM64 child manifest, the workflow explicitly starts a scan only when ECR
+  returns `ScanNotFoundException`; retries reuse an existing scan and the role
+  therefore also needs repository-scoped `ecr:StartImageScan`
 - the sole staging-only high-severity exception is the dated, already-reviewed
   `CVE-2026-85091`; it is not a production acceptance and no other HIGH finding
   is silently allowed
@@ -189,8 +193,9 @@ Current implemented state:
   only the final 7,000 diagnostic bytes, below SSM's 8 KB stderr response
   limit, and the temporary log is removed
 - automatic deployment on a `staging` push is intentionally absent until one
-  reviewed manual dispatch succeeds; the first application deployment through
-  this workflow remains pending
+  reviewed manual dispatch succeeds; first run `35991127520` safely stopped at
+  the scan gate before EC2 or frontend mutation because the Buildx ARM64 child
+  had no scan, and the explicit scan-start remediation remains pending
 - authenticated browser journeys remain manual because the workflow receives
   no user credentials, and host deployment-bundle changes remain a separate
   reviewed manual procedure because the GitHub role cannot install host files
