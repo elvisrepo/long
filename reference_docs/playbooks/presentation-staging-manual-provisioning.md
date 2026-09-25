@@ -116,6 +116,25 @@ Image-scan acceptance recorded on 2026-09-12:
   is refreshed. The operator deleted the prior ECR images, so this checkpoint
   has no image rollback candidate.
 
+Additional staging-only scan acceptance recorded on 2026-09-25:
+
+- corrected workflow run `36106521741` explicitly started the missing ARM64
+  child scan and then stopped before EC2 or frontend mutation on HIGH
+  `CVE-2026-82560`;
+- ECR attributed the finding to Debian source package `perl` version
+  `5.40.1-6+deb13u1`; Debian Trixie still reported no fixed package at review
+  time;
+- the CVE affects `Pod::Text` before 6.1.1, but the final slim runtime contains
+  only essential `perl-base`; `Pod::Text`, full `perl`, and
+  `perl-modules-5.40` are absent, and the Dockerfile subsequently copies only
+  the Python virtual environment and application source;
+- this source-package scanner mismatch is accepted only for presentation
+  staging with demo/test data. The gate matches the exact CVE, package, and
+  version and must reject a changed package/version. Reassess and remove the
+  exception when Debian publishes a fix or the base image changes;
+- this acceptance does not apply to production or environments containing real
+  health or personal data.
+
 Release verification recorded on 2026-09-19:
 
 - the Sleep ingestion image and its corrective Gunicorn image were both

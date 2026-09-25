@@ -7,7 +7,10 @@ import sys
 from collections.abc import Mapping, Sequence
 
 
-ACCEPTED_STAGING_HIGH_FINDINGS = frozenset({"CVE-2026-85091"})
+ACCEPTED_STAGING_HIGH_FINDINGS = {
+    "CVE-2026-85091": ("zlib", "1.3.dfsg+really1.3.1-1"),
+    "CVE-2026-82560": ("perl", "5.40.1-6+deb13u1"),
+}
 
 
 class StagingImageError(ValueError):
@@ -62,8 +65,25 @@ def review_scan_findings(report: Mapping[str, object]) -> None:
             raise StagingImageError("image vulnerability finding is invalid")
         name = finding.get("name")
         severity = finding.get("severity")
+        attributes = finding.get("attributes")
+        package: tuple[object | None, object | None] = (None, None)
+        if isinstance(attributes, list):
+            attributes_by_key = {
+                attribute.get("key"): attribute.get("value")
+                for attribute in attributes
+                if isinstance(attribute, Mapping)
+            }
+            package = (
+                attributes_by_key.get("package_name"),
+                attributes_by_key.get("package_version"),
+            )
+        accepted_package = (
+            ACCEPTED_STAGING_HIGH_FINDINGS.get(name)
+            if isinstance(name, str)
+            else None
+        )
         if severity == "CRITICAL" or (
-            severity == "HIGH" and name not in ACCEPTED_STAGING_HIGH_FINDINGS
+            severity == "HIGH" and package != accepted_package
         ):
             raise StagingImageError(f"unapproved {severity} finding: {name}")
 
