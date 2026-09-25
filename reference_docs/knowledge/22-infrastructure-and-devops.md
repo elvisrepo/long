@@ -38,7 +38,9 @@ Identity boundaries are deliberately separate:
 
 - `longevity-staging` is only the local administrator profile alias; it is not an environment or permission boundary.
 - `longevity-agent-viewonly` assumes `LongevityAgentViewOnly` and is the profile bound to the AWS MCP.
-- a future GitHub Actions deployment identity must use GitHub OIDC and a narrowly scoped staging-deployment role.
+- GitHub Actions uses OIDC and the narrowly scoped
+  `syncvitals-staging-github-deploy-role` for staging deployments; it has no
+  long-lived AWS access key.
 - production deployment must have a separate role and approval boundary rather than reusing either `sevi-admin` or the staging role.
 
 The AWS MCP is currently configured in proxy `--read-only` mode. This permits
@@ -193,11 +195,11 @@ Current implemented state:
   bounded stdout contains the rollback/running-image markers; failures return
   only the final 7,000 diagnostic bytes, below SSM's 8 KB stderr response
   limit, and the temporary log is removed
-- automatic deployment on a `staging` push is intentionally absent until one
-  reviewed manual dispatch succeeds; run `35991127520` safely stopped because
-  the Buildx ARM64 child had no scan, and corrected run `36106521741` started
-  the scan but safely stopped on the newly reported `CVE-2026-82560`; neither
-  run reached EC2 or frontend mutation
+- automatic deployment on a `staging` push remains intentionally absent after
+  the manual gate succeeded: runs `35991127520` and `36106521741` safely
+  stopped before EC2/frontend mutation, then run `36107967986` deployed both
+  components from staging commit `c8985ae8083247a0c8ee55e3d530ffcb0bb0d29a`
+  and passed scan, migration, rollback, upload, and public verification gates
 - authenticated browser journeys remain manual because the workflow receives
   no user credentials, and host deployment-bundle changes remain a separate
   reviewed manual procedure because the GitHub role cannot install host files
@@ -239,8 +241,11 @@ Practical note from the current project:
   does not require Redis/Celery; add one only with a real integration contract
 - PostgreSQL-specific concurrency tests must not fall back to SQLite because
   SQLite does not implement the row-lock semantics being asserted
-- CD is still unimplemented; the first pipeline should target staging before production
-- the EC2 staging pipeline should authenticate to AWS through GitHub OIDC rather than long-lived AWS keys
+- manual staging CD is implemented and first succeeded in run `36107967986`;
+  automatic deployment on a `staging` push remains disabled pending a separate
+  reviewed decision
+- the EC2 staging pipeline authenticates through GitHub OIDC rather than
+  long-lived AWS keys
 - Terraform provisions infrastructure; the deployment pipeline ships a tested application version onto that infrastructure
 - deployment must stop when the one-off migration container fails
 - staging promotion should require the public liveness check and database readiness check to pass; production additionally requires the ALB health check

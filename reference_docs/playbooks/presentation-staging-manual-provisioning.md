@@ -154,6 +154,24 @@ Release verification recorded on 2026-09-19:
   `/metrics/sleep_duration` deep link, and both assets return `200`; missing
   assets remain static-origin errors.
 
+First GitHub-managed staging release recorded on 2026-09-25:
+
+- manual `both` workflow run `36107967986` succeeded from staging commit
+  `c8985ae8083247a0c8ee55e3d530ffcb0bb0d29a` after required CI and protected
+  promotion reviews passed;
+- the exact-match ECR policy accepted only the two reviewed staging HIGH
+  findings and deployed backend index digest
+  `sha256:ff25974750f22e1e22c93ca35ec4dc86714c9dd3816ae4cfef343ca94d83b804`;
+- the host retained verified rollback digest
+  `sha256:f2f0d6443cbfce30aa0497b70688768d30f002d18ae9b04942951412bc9318c8`;
+- guarded migrations, local backend verification, version-preserving frontend
+  upload, public root/deep-link equality, deployed-shell equality, liveness,
+  and readiness all passed;
+- short-lived OIDC credentials were refreshed before each mutating phase, and
+  no personal AWS credentials or application user credentials entered GitHub;
+- automatic deployment on a `staging` push remains disabled pending a separate
+  reviewed decision; the proven workflow still requires explicit dispatch.
+
 At this 2026-09-13 checkpoint, CloudFront's S3 frontend and `/api/*` Django
 origin were deployed. Section 12 still needed Android and remaining Stripe
 proof, and Section 13 backup/restore work had not started. Later checkpoints
@@ -779,8 +797,9 @@ not yet completed its first deployment:
   to `staging` through a second pull request, and run `35968414547` succeeded
   from the protected `staging` ref with the expected account and assumed role.
 
-The OIDC prerequisite is satisfied. The first application deployment remains a
-separate manual gate.
+The OIDC prerequisite was satisfied at the 2026-09-24 checkpoint. The first
+application deployment was then a separate manual gate; it later succeeded in
+run `36107967986` on 2026-09-25 as recorded above.
 
 ## Manual Staging CD Workflow Prepared — 2026-09-24
 
@@ -843,8 +862,8 @@ browser acceptance remains manual because no user credentials belong in CD.
 
 The 2026-09-24 local verification passed `484` backend tests, all `307`
 frontend tests, backend lint and type checks, frontend dependency audit, lint,
-formatting, and production build. The first cloud deployment through this
-workflow remains pending.
+formatting, and production build. The first cloud deployment later succeeded
+in run `36107967986` on 2026-09-25; explicit dispatch remains required.
 
 ## Repeatable Staging Application Release And Rollback
 

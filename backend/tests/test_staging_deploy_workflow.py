@@ -13,6 +13,9 @@ STAGING_PLAYBOOK = (
     REPOSITORY_ROOT
     / "reference_docs/playbooks/presentation-staging-manual-provisioning.md"
 )
+INFRASTRUCTURE_DOC = (
+    REPOSITORY_ROOT / "reference_docs/knowledge/22-infrastructure-and-devops.md"
+)
 
 
 def load_staging_deploy_workflow() -> dict[str, Any]:
@@ -175,6 +178,18 @@ def test_manual_scan_instructions_reuse_existing_findings() -> None:
         'uv run python scripts/staging_image.py review-scan <"$scan_report" '
         "|| exit 1"
     ) in scan_section
+
+
+def test_staging_docs_do_not_report_completed_cd_as_pending() -> None:
+    current_guidance = STAGING_PLAYBOOK.read_text() + INFRASTRUCTURE_DOC.read_text()
+
+    for stale_statement in (
+        "a future GitHub Actions deployment identity",
+        "CD is still unimplemented",
+        "The first application deployment remains a separate manual gate",
+        "The first cloud deployment through this workflow remains pending",
+    ):
+        assert stale_statement not in current_guidance
 
 
 def test_backend_deployment_captures_rollback_and_uses_host_guards() -> None:
