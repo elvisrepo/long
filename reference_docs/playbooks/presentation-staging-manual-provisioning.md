@@ -154,6 +154,24 @@ Release verification recorded on 2026-09-19:
   `/metrics/sleep_duration` deep link, and both assets return `200`; missing
   assets remain static-origin errors.
 
+First GitHub-managed staging release recorded on 2026-09-25:
+
+- manual `both` workflow run `36107967986` succeeded from staging commit
+  `c8985ae8083247a0c8ee55e3d530ffcb0bb0d29a` after required CI and protected
+  promotion reviews passed;
+- the exact-match ECR policy accepted only the two reviewed staging HIGH
+  findings and deployed backend index digest
+  `sha256:ff25974750f22e1e22c93ca35ec4dc86714c9dd3816ae4cfef343ca94d83b804`;
+- the host retained verified rollback digest
+  `sha256:f2f0d6443cbfce30aa0497b70688768d30f002d18ae9b04942951412bc9318c8`;
+- guarded migrations, local backend verification, version-preserving frontend
+  upload, public root/deep-link equality, deployed-shell equality, liveness,
+  and readiness all passed;
+- short-lived OIDC credentials were refreshed before each mutating phase, and
+  no personal AWS credentials or application user credentials entered GitHub;
+- this first successful release was explicitly dispatched; the later reviewed
+  CD slice uses it as the gate for automatic protected-`staging` releases.
+
 At this 2026-09-13 checkpoint, CloudFront's S3 frontend and `/api/*` Django
 origin were deployed. Section 12 still needed Android and remaining Stripe
 proof, and Section 13 backup/restore work had not started. Later checkpoints
@@ -413,8 +431,13 @@ docker-compose.staging.yml
 scripts/__init__.py
 scripts/staging_runtime.py
 scripts/production_deployment.py
+scripts/staging_db_restore_check.py
 scripts/staging_storage.py
 deploy/docker.service.d/10-staging-storage.conf
+deploy/systemd/syncvitals-staging-db-restore-check.service
+deploy/systemd/syncvitals-staging-db-restore-check.timer
+deploy/systemd/syncvitals-staging-db-restore-freshness.service
+deploy/systemd/syncvitals-staging-db-restore-freshness.timer
 ```
 
 No application tree, `.env`, AWS credentials, or Python dependencies are included.
@@ -779,31 +802,39 @@ not yet completed its first deployment:
   to `staging` through a second pull request, and run `35968414547` succeeded
   from the protected `staging` ref with the expected account and assumed role.
 
-The OIDC prerequisite is satisfied. The first application deployment remains a
-separate manual gate.
+The OIDC prerequisite was satisfied at the 2026-09-24 checkpoint. The first
+application deployment was then a separate manual gate; it later succeeded in
+run `36107967986` on 2026-09-25 as recorded above.
 
-## Manual Staging CD Workflow Prepared — 2026-09-24
+## Staging CD Workflow — Prepared 2026-09-24, Automated 2026-09-25
 
-`.github/workflows/staging-deploy.yml` is the first application CD slice. It is
-manual-only and accepts `backend`, `frontend`, or `both`; it has no `push`
-trigger. Merge it into `master`, promote the same commit to `staging` through a
-second pull request, then dispatch it from the `staging` ref. Do not add an
-automatic staging trigger until one reviewed manual deployment has passed.
+`.github/workflows/staging-deploy.yml` automatically deploys `both` on a
+protected push to `staging`, after invoking the reusable backend and frontend
+CI workflows and requiring both to pass. Manual dispatch remains available
+with `backend`, `frontend`, or `both` for controlled retries and recovery.
+The automatic trigger was added only after reviewed manual run `36107967986`
+proved the full cloud path.
 
 The workflow:
 
-1. enters the protected GitHub `staging` environment, obtains a one-hour OIDC
+1. invokes the reusable backend and frontend CI workflows and blocks the
+   deployment job unless both succeed;
+2. compares the host-bundle allowlist definition and every listed file with the
+   reviewed `INSTALLED_HOST_BUNDLE_COMMIT` and fails before AWS authentication
+   when any differ;
+3. enters the protected GitHub `staging` environment, obtains a one-hour OIDC
    session bounded by the role maximum, validates the assumed role plus every
    fixed staging coordinate, and refreshes credentials immediately before each
    mutating deployment phase;
-2. runs staging releases one at a time: wait for the current run to finish
-   before dispatching another. The non-cancelling `staging-deployment`
-   concurrency lock remains a backstop against accidental overlap;
-3. for a backend release, reuses an existing full-commit-tagged image on retry
+4. serializes releases with the non-cancelling `staging-deployment` concurrency
+   lock. Manual operators wait for the current run to finish; if protected
+   pushes arrive faster than releases complete, GitHub may coalesce the pending
+   run to the newest commit, which contains the earlier staging merges;
+5. for a backend release, reuses an existing full-commit-tagged image on retry
    or builds and publishes it once, resolves the immutable OCI index and ARM64
    child digests, starts a basic scan only when the child has none, waits for
    that scan, and blocks all critical or unreviewed high findings;
-4. sends the digest-qualified image to the one staging instance through
+6. sends the digest-qualified image to the one staging instance through
    `AWS-RunShellScript`; the host captures the previous digest, uses its instance
    role for ECR and Secrets Manager, invokes Bash explicitly, runs the existing
    storage, secret, migration, promotion, and readiness guards, and removes
@@ -814,12 +845,12 @@ The workflow:
    temporary host log; SSM receives compact image markers, while failures emit
    only the final 7,000 bytes (below SSM's 8 KB stderr response limit) before
    the temporary log is removed;
-5. for a frontend release, reruns audit, tests, lint, formatting, and build,
+7. for a frontend release, reruns audit, tests, lint, formatting, and build,
    previews the version-preserving upload, then uploads immutable assets before
    the no-cache application shell without deleting old assets;
-6. for `both`, completes and verifies the backend before uploading the
+8. for `both`, completes and verifies the backend before uploading the
    frontend; and
-7. checks the public root, `/metrics/sleep_duration` deep link, liveness, and
+9. checks the public root, `/metrics/sleep_duration` deep link, liveness, and
    readiness. A frontend release also compares public `index.html` with the
    local build byte-for-byte.
 
@@ -835,16 +866,22 @@ history proceeds but reports the rollback image as unavailable.
 Frontend rollback still means rebuilding the previous known-good commit with
 the same uploader; do not delete newer versions during an incident.
 
-The workflow does not install a new EC2 deployment bundle. Changes to
-`docker-compose.staging.yml`, `runtime_contract.py`, or host deployment scripts
-must follow the separate reviewed bundle procedure below before deploying an
-image that depends on them. The public smoke is automated, but authenticated
-browser acceptance remains manual because no user credentials belong in CD.
+The workflow does not install a new EC2 deployment bundle. It derives the exact
+allowlist from `scripts.build_staging_bundle.BUNDLE_FILES` and compares both its
+definition and every listed file with the pinned `INSTALLED_HOST_BUNDLE_COMMIT`
+before requesting AWS credentials. A mismatch blocks both automatic and manual
+deployment, including later commits that merely inherit an earlier bundle
+change. Follow the separate reviewed bundle procedure below, install and verify
+that bundle, then advance the pin through a reviewed workflow change. The public
+smoke is automated, but authenticated browser acceptance remains manual because
+no user credentials belong in CD.
 
 The 2026-09-24 local verification passed `484` backend tests, all `307`
 frontend tests, backend lint and type checks, frontend dependency audit, lint,
-formatting, and production build. The first cloud deployment through this
-workflow remains pending.
+formatting, and production build. The first cloud deployment later succeeded
+in run `36107967986` on 2026-09-25. Protected `staging` pushes now deploy both
+components automatically after the reusable CI gates pass; explicit dispatch
+remains available for component-scoped retries.
 
 ## Repeatable Staging Application Release And Rollback
 
@@ -1146,7 +1183,10 @@ uv run --no-sync python -m scripts.build_staging_bundle \
 
 Verify the printed SHA-256, transfer through the operator-controlled path,
 inspect the installed files before replacement, and retain a verified copy of
-the previous bundle for rollback. Bundle changes are host configuration changes
+the previous bundle for rollback. After the installed files and host guards pass,
+advance `INSTALLED_HOST_BUNDLE_COMMIT` in `.github/workflows/staging-deploy.yml`
+to that exact reviewed commit and promote the pin change normally. Until then,
+all workflow releases fail closed. Bundle changes are host configuration changes
 and must be recorded even when the application image does not change.
 
 ## Resume Checklist

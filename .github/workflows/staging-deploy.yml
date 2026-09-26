@@ -1,6 +1,9 @@
 name: Staging Deploy
 
 on:
+  push:
+    branches:
+      - staging
   workflow_dispatch:
     inputs:
       component:
@@ -18,11 +21,22 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
+  backend_ci:
+    uses: ./.github/workflows/backend-ci.yml
+
+  frontend_ci:
+    uses: ./.github/workflows/frontend-ci.yml
+
   deploy:
+    needs:
+      - backend_ci
+      - frontend_ci
     if: github.ref == 'refs/heads/staging'
+    permissions:
+      contents: read
+      id-token: write
     environment: staging
     runs-on: ubuntu-24.04
     env:
@@ -32,10 +46,35 @@ jobs:
       STAGING_INSTANCE_ID: ${{ vars.STAGING_INSTANCE_ID }}
       STAGING_FRONTEND_BUCKET: ${{ vars.STAGING_FRONTEND_BUCKET }}
       STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
-      DEPLOY_COMPONENT: ${{ inputs.component }}
+      DEPLOY_COMPONENT: ${{ github.event_name == 'push' && 'both' || inputs.component }}
     steps:
       - name: Checkout reviewed staging commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Require installed host bundle compatibility
+        working-directory: backend
+        shell: bash
+        env:
+          INSTALLED_HOST_BUNDLE_COMMIT: c8985ae8083247a0c8ee55e3d530ffcb0bb0d29a
+        run: |
+          set -euo pipefail
+          bundle_file_list="$(python3 -c \
+            'from scripts.build_staging_bundle import BUNDLE_FILES; print(*BUNDLE_FILES, sep="\n")' \
+          )"
+          [[ -n "$bundle_file_list" ]]
+          mapfile -t bundle_files <<< "$bundle_file_list"
+          bundle_files+=(scripts/build_staging_bundle.py)
+          if ! git diff --quiet \
+            "$INSTALLED_HOST_BUNDLE_COMMIT" "$GITHUB_SHA" \
+            -- "${bundle_files[@]}"; then
+            printf '%s\n' \
+              'error: the reviewed commit changes the EC2 host deployment bundle.' \
+              'Install and verify the matching EC2 host bundle first, then advance' \
+              'INSTALLED_HOST_BUNDLE_COMMIT in this workflow through review.' >&2
+            exit 1
+          fi
 
       - name: Configure short-lived AWS credentials
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
@@ -68,18 +107,18 @@ jobs:
           [[ "$DEPLOY_COMPONENT" =~ ^(backend|frontend|both)$ ]]
 
       - name: Set up ARM64 emulation
-        if: inputs.component == 'backend' || inputs.component == 'both'
+        if: env.DEPLOY_COMPONENT == 'backend' || env.DEPLOY_COMPONENT == 'both'
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
         with:
           image: docker.io/tonistiigi/binfmt@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
           platforms: arm64
 
       - name: Set up Docker Buildx
-        if: inputs.component == 'backend' || inputs.component == 'both'
+        if: env.DEPLOY_COMPONENT == 'backend' || env.DEPLOY_COMPONENT == 'both'
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Build and publish backend image
-        if: inputs.component == 'backend' || inputs.component == 'both'
+        if: env.DEPLOY_COMPONENT == 'backend' || env.DEPLOY_COMPONENT == 'both'
         working-directory: backend
         shell: bash
         run: |
@@ -118,7 +157,7 @@ jobs:
           fi
 
       - name: Refresh backend deployment credentials
-        if: inputs.component == 'backend' || inputs.component == 'both'
+        if: env.DEPLOY_COMPONENT == 'backend' || env.DEPLOY_COMPONENT == 'both'
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
@@ -130,7 +169,7 @@ jobs:
           unset-current-credentials: true
 
       - name: Resolve and approve backend image
-        if: inputs.component == 'backend' || inputs.component == 'both'
+        if: env.DEPLOY_COMPONENT == 'backend' || env.DEPLOY_COMPONENT == 'both'
         working-directory: backend
         shell: bash
         run: |
@@ -188,7 +227,7 @@ jobs:
             >> "$GITHUB_STEP_SUMMARY"
 
       - name: Deploy and verify backend
-        if: inputs.component == 'backend' || inputs.component == 'both'
+        if: env.DEPLOY_COMPONENT == 'backend' || env.DEPLOY_COMPONENT == 'both'
         working-directory: backend
         shell: bash
         run: |
@@ -267,7 +306,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Set up Node.js
-        if: inputs.component == 'frontend' || inputs.component == 'both'
+        if: env.DEPLOY_COMPONENT == 'frontend' || env.DEPLOY_COMPONENT == 'both'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
@@ -275,7 +314,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Build frontend assets
-        if: inputs.component == 'frontend' || inputs.component == 'both'
+        if: env.DEPLOY_COMPONENT == 'frontend' || env.DEPLOY_COMPONENT == 'both'
         working-directory: frontend
         shell: bash
         run: |
@@ -292,7 +331,7 @@ jobs:
             --dry-run
 
       - name: Refresh frontend deployment credentials
-        if: inputs.component == 'frontend' || inputs.component == 'both'
+        if: env.DEPLOY_COMPONENT == 'frontend' || env.DEPLOY_COMPONENT == 'both'
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
@@ -304,7 +343,7 @@ jobs:
           unset-current-credentials: true
 
       - name: Upload frontend assets
-        if: inputs.component == 'frontend' || inputs.component == 'both'
+        if: env.DEPLOY_COMPONENT == 'frontend' || env.DEPLOY_COMPONENT == 'both'
         working-directory: frontend
         shell: bash
         run: |

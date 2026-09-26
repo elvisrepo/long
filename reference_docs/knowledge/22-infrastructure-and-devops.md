@@ -38,7 +38,9 @@ Identity boundaries are deliberately separate:
 
 - `longevity-staging` is only the local administrator profile alias; it is not an environment or permission boundary.
 - `longevity-agent-viewonly` assumes `LongevityAgentViewOnly` and is the profile bound to the AWS MCP.
-- a future GitHub Actions deployment identity must use GitHub OIDC and a narrowly scoped staging-deployment role.
+- GitHub Actions uses OIDC and the narrowly scoped
+  `syncvitals-staging-github-deploy-role` for staging deployments; it has no
+  long-lived AWS access key.
 - production deployment must have a separate role and approval boundary rather than reusing either `sevi-admin` or the staging role.
 
 The AWS MCP is currently configured in proxy `--read-only` mode. This permits
@@ -153,13 +155,22 @@ Current implemented state:
   for that identity boundary; run `35968414547` succeeded from the protected
   `staging` ref and confirmed the expected account and assumed role without
   reading or changing application resources
-- `.github/workflows/staging-deploy.yml` implements the first manual-only CD
-  gate with `backend`, `frontend`, and `both` choices; it validates every
-  deployment coordinate, uses the `staging` environment and short-lived OIDC
-  credentials, and serializes releases so two staging deployments cannot race
-- staging releases are operated one at a time: wait for the current run to
-  finish before dispatching another; the workflow concurrency lock remains a
-  backstop against accidental overlap
+- `.github/workflows/staging-deploy.yml` automatically deploys `both` after a
+  protected push to `staging`; manual dispatch retains `backend`, `frontend`,
+  and `both` recovery choices
+- every automatic or manual run invokes the reusable backend and frontend CI
+  workflows first; the AWS deployment job declares both as dependencies, then
+  verifies the host-bundle allowlist definition and its files against the
+  reviewed `INSTALLED_HOST_BUNDLE_COMMIT`, validates every deployment coordinate, enters
+  the protected `staging` environment, and uses short-lived OIDC credentials
+- a host-bundle mismatch fails before AWS authentication and cannot be bypassed
+  by a later staging commit; install and verify the matching root-owned EC2
+  bundle first, then advance the pinned commit through a separate reviewed
+  change
+- the non-cancelling concurrency lock permits one running and one pending
+  release; newer automatic pushes may replace an older pending run safely
+  because the newer `staging` commit contains the earlier protected merges,
+  while manual operators still wait for the current run to finish
 - backend releases publish one full-commit-tagged Linux/ARM64 production image,
   reuse that immutable tag on a retry, scan its ARM64 child manifest, reject
   every critical and every unreviewed high finding, preserve the previous
@@ -193,11 +204,9 @@ Current implemented state:
   bounded stdout contains the rollback/running-image markers; failures return
   only the final 7,000 diagnostic bytes, below SSM's 8 KB stderr response
   limit, and the temporary log is removed
-- automatic deployment on a `staging` push is intentionally absent until one
-  reviewed manual dispatch succeeds; run `35991127520` safely stopped because
-  the Buildx ARM64 child had no scan, and corrected run `36106521741` started
-  the scan but safely stopped on the newly reported `CVE-2026-82560`; neither
-  run reached EC2 or frontend mutation
+- the manual gate succeeded in run `36107967986` after two safely blocked
+  attempts; that proof enabled automatic deployment of protected `staging`
+  pushes, with `both` selected only after the embedded CI gates pass
 - authenticated browser journeys remain manual because the workflow receives
   no user credentials, and host deployment-bundle changes remain a separate
   reviewed manual procedure because the GitHub role cannot install host files
@@ -239,8 +248,11 @@ Practical note from the current project:
   does not require Redis/Celery; add one only with a real integration contract
 - PostgreSQL-specific concurrency tests must not fall back to SQLite because
   SQLite does not implement the row-lock semantics being asserted
-- CD is still unimplemented; the first pipeline should target staging before production
-- the EC2 staging pipeline should authenticate to AWS through GitHub OIDC rather than long-lived AWS keys
+- staging CD is implemented: manual run `36107967986` proved the full release,
+  and protected `staging` pushes now run both reusable CI gates before
+  automatically deploying backend and frontend
+- the EC2 staging pipeline authenticates through GitHub OIDC rather than
+  long-lived AWS keys
 - Terraform provisions infrastructure; the deployment pipeline ships a tested application version onto that infrastructure
 - deployment must stop when the one-off migration container fails
 - staging promotion should require the public liveness check and database readiness check to pass; production additionally requires the ALB health check
