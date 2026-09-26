@@ -110,13 +110,18 @@ def test_staging_deploy_blocks_when_host_bundle_differs_from_installed_pin() -> 
     script = gate["run"]
     normalized_script = " ".join(script.replace("\\\n", " ").split())
     assert "from scripts.build_staging_bundle import BUNDLE_FILES" in script
-    assert 'mapfile -t bundle_files' in script
+    assert 'bundle_file_list="$(python3 -c' in script
+    assert '[[ -n "$bundle_file_list" ]]' in script
+    assert 'mapfile -t bundle_files <<< "$bundle_file_list"' in script
     assert 'bundle_files+=(scripts/build_staging_bundle.py)' in script
     assert (
         'git diff --quiet "$INSTALLED_HOST_BUNDLE_COMMIT" "$GITHUB_SHA" -- '
         '"${bundle_files[@]}"'
     ) in normalized_script
     assert "Install and verify the matching EC2 host bundle" in script
+    assert script.index('[[ -n "$bundle_file_list" ]]') < script.index(
+        "git diff --quiet"
+    )
     assert script.index("git diff --quiet") < script.index("exit 1")
 
 

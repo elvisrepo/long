@@ -60,10 +60,11 @@ jobs:
           INSTALLED_HOST_BUNDLE_COMMIT: c8985ae8083247a0c8ee55e3d530ffcb0bb0d29a
         run: |
           set -euo pipefail
-          mapfile -t bundle_files < <(
-            python3 -c \
-              'from scripts.build_staging_bundle import BUNDLE_FILES; print(*BUNDLE_FILES, sep="\n")'
-          )
+          bundle_file_list="$(python3 -c \
+            'from scripts.build_staging_bundle import BUNDLE_FILES; print(*BUNDLE_FILES, sep="\n")' \
+          )"
+          [[ -n "$bundle_file_list" ]]
+          mapfile -t bundle_files <<< "$bundle_file_list"
           bundle_files+=(scripts/build_staging_bundle.py)
           if ! git diff --quiet \
             "$INSTALLED_HOST_BUNDLE_COMMIT" "$GITHUB_SHA" \
