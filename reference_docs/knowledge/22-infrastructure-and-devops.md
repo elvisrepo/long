@@ -207,6 +207,17 @@ Current implemented state:
 - the manual gate succeeded in run `36107967986` after two safely blocked
   attempts; that proof enabled automatic deployment of protected `staging`
   pushes, with `both` selected only after the embedded CI gates pass
+- the first automatic attempt, run `36227855262`, passed both CI gates and then
+  failed closed before AWS authentication because the runner had not yet loaded
+  the repository's Python 3.14 runtime; the pinned project-Python setup fixed
+  that runner mismatch without changing the host bundle
+- automatic run `36228350062` then deployed protected staging commit
+  `e8131b0db0585169186fa8c3543a4366490e4a67`: backend image digest
+  `sha256:27ceca8ba7fb24c190e2bdfab1fee8be257f24d154aabce30eb23598a0822e24`
+  passed the scan and host deployment, previous digest
+  `sha256:ff25974750f22e1e22c93ca35ec4dc86714c9dd3816ae4cfef343ca94d83b804`
+  remained the rollback image, the frontend upload completed, and all public
+  root, deep-link, liveness, readiness, and byte-for-byte shell checks passed
 - authenticated browser journeys remain manual because the workflow receives
   no user credentials, and host deployment-bundle changes remain a separate
   reviewed manual procedure because the GitHub role cannot install host files
@@ -249,8 +260,8 @@ Practical note from the current project:
 - PostgreSQL-specific concurrency tests must not fall back to SQLite because
   SQLite does not implement the row-lock semantics being asserted
 - staging CD is implemented: manual run `36107967986` proved the full release,
-  and protected `staging` pushes now run both reusable CI gates before
-  automatically deploying backend and frontend
+  and automatic run `36228350062` proved that protected `staging` pushes run
+  both reusable CI gates before deploying backend and frontend
 - the EC2 staging pipeline authenticates through GitHub OIDC rather than
   long-lived AWS keys
 - Terraform provisions infrastructure; the deployment pipeline ships a tested application version onto that infrastructure

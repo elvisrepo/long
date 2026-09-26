@@ -172,6 +172,22 @@ First GitHub-managed staging release recorded on 2026-09-25:
 - this first successful release was explicitly dispatched; the later reviewed
   CD slice uses it as the gate for automatic protected-`staging` releases.
 
+First successful automatic staging release recorded on 2026-09-26:
+
+- run `36227855262` first demonstrated that bundle discovery fails closed: both
+  reusable CI gates passed, then the job stopped before AWS authentication when
+  the runner's default Python could not parse the project's Python 3.14 syntax;
+- the workflow now uses the pinned `actions/setup-python` action and
+  `backend/.python-version` before host-bundle compatibility checks;
+- run `36228350062` automatically deployed protected staging commit
+  `e8131b0db0585169186fa8c3543a4366490e4a67` after both CI gates passed;
+- the running backend digest became
+  `sha256:27ceca8ba7fb24c190e2bdfab1fee8be257f24d154aabce30eb23598a0822e24`,
+  while `sha256:ff25974750f22e1e22c93ca35ec4dc86714c9dd3816ae4cfef343ca94d83b804`
+  remained the recorded rollback digest; and
+- backend scan/deployment, frontend upload, root and deep-link shell equality,
+  byte-for-byte frontend shell comparison, liveness, and readiness all passed.
+
 At this 2026-09-13 checkpoint, CloudFront's S3 frontend and `/api/*` Django
 origin were deployed. Section 12 still needed Android and remaining Stripe
 proof, and Section 13 backup/restore work had not started. Later checkpoints
@@ -881,7 +897,8 @@ frontend tests, backend lint and type checks, frontend dependency audit, lint,
 formatting, and production build. The first cloud deployment later succeeded
 in run `36107967986` on 2026-09-25. Protected `staging` pushes now deploy both
 components automatically after the reusable CI gates pass; explicit dispatch
-remains available for component-scoped retries.
+remains available for component-scoped retries. Automatic run `36228350062`
+proved that path end to end on 2026-09-26.
 
 ## Repeatable Staging Application Release And Rollback
 
