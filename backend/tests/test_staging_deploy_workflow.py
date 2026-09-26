@@ -25,11 +25,12 @@ def load_staging_deploy_workflow() -> dict[str, Any]:
     )
 
 
-def test_staging_deploy_is_manual_and_staging_only() -> None:
+def test_staging_deploy_runs_after_ci_on_staging_push_or_manual_dispatch() -> None:
     workflow = load_staging_deploy_workflow()
     job = workflow["jobs"]["deploy"]
 
     assert workflow["on"] == {
+        "push": {"branches": ["staging"]},
         "workflow_dispatch": {
             "inputs": {
                 "component": {
@@ -43,6 +44,13 @@ def test_staging_deploy_is_manual_and_staging_only() -> None:
             }
         }
     }
+    assert workflow["jobs"]["backend_ci"] == {
+        "uses": "./.github/workflows/backend-ci.yml"
+    }
+    assert workflow["jobs"]["frontend_ci"] == {
+        "uses": "./.github/workflows/frontend-ci.yml"
+    }
+    assert job["needs"] == ["backend_ci", "frontend_ci"]
     assert job["if"] == "github.ref == 'refs/heads/staging'"
     assert job["environment"] == "staging"
     assert job["runs-on"] == "ubuntu-24.04"
@@ -56,18 +64,23 @@ def test_staging_deploy_uses_short_lived_least_privilege_identity() -> None:
     workflow = load_staging_deploy_workflow()
     steps = workflow["jobs"]["deploy"]["steps"]
 
-    assert workflow["permissions"] == {"contents": "read", "id-token": "write"}
+    assert workflow["permissions"] == {"contents": "read"}
+    assert workflow["jobs"]["deploy"]["permissions"] == {
+        "contents": "read",
+        "id-token": "write",
+    }
     assert steps[0] == {
         "name": "Checkout reviewed staging commit",
         "uses": (
             "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
         ),
+        "with": {"fetch-depth": "0"},
     }
-    assert steps[1]["uses"] == (
+    assert steps[2]["uses"] == (
         "aws-actions/configure-aws-credentials@"
         "e1253824e5c10ff9df46874f81ed3ec929e19cfd"
     )
-    assert steps[1]["with"] == {
+    assert steps[2]["with"] == {
         "role-to-assume": "${{ vars.AWS_ROLE_ARN }}",
         "aws-region": "${{ vars.AWS_REGION }}",
         "allowed-account-ids": "173291122778",
@@ -82,17 +95,46 @@ def test_staging_deploy_uses_short_lived_least_privilege_identity() -> None:
     assert "AWS_ACCESS_KEY_ID" not in workflow_text
 
 
-def test_staging_deploy_selects_components_and_orders_backend_first() -> None:
+def test_staging_deploy_blocks_when_host_bundle_differs_from_installed_pin() -> None:
     workflow = load_staging_deploy_workflow()
     steps = workflow["jobs"]["deploy"]["steps"]
+    gate = steps[1]
+
+    assert gate["name"] == "Require installed host bundle compatibility"
+    assert gate["working-directory"] == "backend"
+    assert gate["env"] == {
+        "INSTALLED_HOST_BUNDLE_COMMIT": (
+            "c8985ae8083247a0c8ee55e3d530ffcb0bb0d29a"
+        )
+    }
+    script = gate["run"]
+    normalized_script = " ".join(script.replace("\\\n", " ").split())
+    assert "from scripts.build_staging_bundle import BUNDLE_FILES" in script
+    assert 'mapfile -t bundle_files' in script
+    assert 'bundle_files+=(scripts/build_staging_bundle.py)' in script
+    assert (
+        'git diff --quiet "$INSTALLED_HOST_BUNDLE_COMMIT" "$GITHUB_SHA" -- '
+        '"${bundle_files[@]}"'
+    ) in normalized_script
+    assert "Install and verify the matching EC2 host bundle" in script
+    assert script.index("git diff --quiet") < script.index("exit 1")
+
+
+def test_staging_deploy_selects_components_and_orders_backend_first() -> None:
+    workflow = load_staging_deploy_workflow()
+    job = workflow["jobs"]["deploy"]
+    steps = job["steps"]
     steps_by_name = {step["name"]: step for step in steps}
     names = [step["name"] for step in steps]
 
+    assert job["env"]["DEPLOY_COMPONENT"] == (
+        "${{ github.event_name == 'push' && 'both' || inputs.component }}"
+    )
     backend_condition = (
-        "inputs.component == 'backend' || inputs.component == 'both'"
+        "env.DEPLOY_COMPONENT == 'backend' || env.DEPLOY_COMPONENT == 'both'"
     )
     frontend_condition = (
-        "inputs.component == 'frontend' || inputs.component == 'both'"
+        "env.DEPLOY_COMPONENT == 'frontend' || env.DEPLOY_COMPONENT == 'both'"
     )
 
     assert steps_by_name["Build and publish backend image"]["if"] == backend_condition
@@ -188,6 +230,9 @@ def test_staging_docs_do_not_report_completed_cd_as_pending() -> None:
         "CD is still unimplemented",
         "The first application deployment remains a separate manual gate",
         "The first cloud deployment through this workflow remains pending",
+        "automatic deployment on a `staging` push remains disabled",
+        "the proven workflow still requires explicit dispatch",
+        "manual-only and accepts `backend`, `frontend`, or `both`",
     ):
         assert stale_statement not in current_guidance
 
