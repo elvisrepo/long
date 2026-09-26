@@ -1,6 +1,7 @@
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -35,6 +36,32 @@ def test_password_reset_request_sends_link_for_existing_user(mailoutbox):
     assert mailoutbox[0].to == ["person@example.com"]
     assert "/reset-password?uid=" in mailoutbox[0].body
     assert "&token=" in mailoutbox[0].body
+
+
+@override_settings(
+    PASSWORD_RESET_URL=(
+        "http://localhost:5173/reset-password?source=email#reset-form"
+    )
+)
+def test_password_reset_link_preserves_configured_query_and_fragment(mailoutbox):
+    get_user_model().objects.create_user(
+        email="person@example.com",
+        password="old-strong-password-123",
+    )
+
+    response = APIClient().post(
+        "/api/auth/password/request/",
+        {"email": "person@example.com"},
+        format="json",
+    )
+
+    reset_url = urlparse(mailoutbox[0].body.splitlines()[2])
+    reset_query = parse_qs(reset_url.query)
+    assert response.status_code == status.HTTP_202_ACCEPTED
+    assert reset_query["source"] == ["email"]
+    assert reset_query["uid"]
+    assert reset_query["token"]
+    assert reset_url.fragment == "reset-form"
 
 
 def test_password_reset_request_does_not_reveal_unknown_email(mailoutbox):

@@ -1,4 +1,5 @@
 from typing import Any, cast
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
@@ -37,7 +38,16 @@ def send_password_reset_email(*, email: str, reset_url_root: str) -> None:
 
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
-    reset_url = f"{reset_url_root}?uid={uid}&token={token}"
+    reset_url_parts = urlsplit(reset_url_root)
+    reset_query = [
+        (key, value)
+        for key, value in parse_qsl(reset_url_parts.query, keep_blank_values=True)
+        if key not in {"uid", "token"}
+    ]
+    reset_query.extend((("uid", uid), ("token", token)))
+    reset_url = urlunsplit(
+        reset_url_parts._replace(query=urlencode(reset_query))
+    )
     try:
         send_mail(
             subject="Reset your Longevity password",
