@@ -952,16 +952,23 @@ no-cache application shell last.
 From `frontend/`:
 
 ```bash
+# 1. Install the exact locked frontend dependencies.
 npm ci
+
+# 2. Run the local quality and test gates.
 npm run format:check
 npm run lint
 npm test
+
+# 3. Build the production frontend assets.
 npm run build
 
+# 4. Preview the S3 changes without uploading anything.
 npm run deploy:static -- \
   --bucket syncvitals-staging-frontend-173291122778-eu-central-1-an \
   --dry-run
 
+# 5. Upload immutable assets first and the application shell last.
 npm run deploy:static -- \
   --bucket syncvitals-staging-frontend-173291122778-eu-central-1-an
 ```
@@ -1005,9 +1012,11 @@ Build and push one immutable ARM64 production image. Use a new release tag tied
 to the full Git commit SHA; never overwrite or rely on `latest`:
 
 ```bash
+# 1. Tie the image to the exact reviewed Git commit.
 release_sha="$(git rev-parse HEAD)"
 repository="173291122778.dkr.ecr.eu-central-1.amazonaws.com/syncvitals/staging/backend"
 
+# 2. Build and publish the immutable Linux/ARM64 image.
 docker buildx build \
   --platform linux/arm64 \
   --target production \
@@ -1015,6 +1024,7 @@ docker buildx build \
   --push \
   .
 
+# 3. Resolve the published OCI index to an immutable digest.
 index_digest="$(aws ecr describe-images \
   --repository-name syncvitals/staging/backend \
   --image-ids "imageTag=$release_sha" \
@@ -1025,6 +1035,7 @@ index_digest="$(aws ecr describe-images \
 backend_image="$repository@$index_digest"
 printf 'Candidate backend image: %s\n' "$backend_image"
 
+# 4. Resolve the Linux/ARM64 child image that ECR scans.
 index_manifest="$(aws ecr batch-get-image \
   --repository-name syncvitals/staging/backend \
   --image-ids "imageDigest=$index_digest" \
@@ -1050,6 +1061,7 @@ if len(matches) != 1:
 print(matches[0])
 ')"
 
+# 5. Create temporary files and guarantee their cleanup.
 scan_report="$(mktemp /tmp/syncvitals-ecr-scan.XXXXXX.json)"
 scan_error="$(mktemp /tmp/syncvitals-ecr-scan.XXXXXX.err)"
 cleanup_scan_files() {
@@ -1057,6 +1069,7 @@ cleanup_scan_files() {
 }
 trap cleanup_scan_files EXIT
 
+# 6. Reuse existing findings or start a scan only when none exists.
 if ! aws ecr describe-image-scan-findings \
   --repository-name syncvitals/staging/backend \
   --image-id "imageDigest=$arm64_digest" \
@@ -1073,6 +1086,7 @@ if ! aws ecr describe-image-scan-findings \
     >/dev/null
 fi
 
+# 7. Wait for the scan and download its final findings.
 aws ecr wait image-scan-complete \
   --repository-name syncvitals/staging/backend \
   --image-id "imageDigest=$arm64_digest" \
@@ -1084,6 +1098,7 @@ aws ecr describe-image-scan-findings \
   --region eu-central-1 \
   --output json >"$scan_report"
 
+# 8. Apply the reviewed vulnerability policy before deployment.
 uv run python scripts/staging_image.py review-scan <"$scan_report" || exit 1
 ```
 
@@ -1100,6 +1115,7 @@ In the root Session Manager shell on EC2, first preserve the current image
 reference:
 
 ```bash
+# 9. Record the currently running image as the rollback candidate.
 docker inspect \
   --format '{{.Config.Image}}' \
   syncvitals-staging-api-1
@@ -1110,20 +1126,26 @@ Docker to ECR with the instance role, set `BACKEND_IMAGE` to the reviewed new
 digest, and invoke the existing guarded deployment:
 
 ```bash
+# 10. Set the reviewed digest-qualified candidate image.
 registry="173291122778.dkr.ecr.eu-central-1.amazonaws.com"
 backend_image="REPLACE_WITH_REVIEWED_DIGEST_QUALIFIED_IMAGE"
 
+# 11. Guarantee that temporary ECR authentication is removed.
 cleanup_ecr_auth() {
   docker logout "$registry" >/dev/null 2>&1 || true
 }
 trap cleanup_ecr_auth EXIT
 
+# 12. Authenticate Docker to ECR with the EC2 instance role.
 aws ecr get-login-password --region eu-central-1 \
   | docker login --username AWS --password-stdin "$registry"
 
 export BACKEND_IMAGE="$backend_image"
+
+# 13. Enter the installed host deployment bundle.
 cd /opt/syncvitals/deployment
 
+# 14. Run the guarded migration and API replacement.
 python3 -m scripts.staging_runtime \
   --secret-id longevity/staging/backend-runtime \
   --region eu-central-1 \
@@ -1131,6 +1153,7 @@ python3 -m scripts.staging_runtime \
   --compose-file docker-compose.staging.yml \
   --project-name syncvitals-staging
 
+# 15. Remove ECR authentication after a successful deployment.
 cleanup_ecr_auth
 trap - EXIT
 ```
