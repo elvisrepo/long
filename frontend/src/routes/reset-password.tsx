@@ -109,7 +109,8 @@ function ResetPasswordRoute() {
             />
 
             <p className="auth-hint" id="password-guidance">
-              Use at least 8 characters. Avoid common or entirely numeric passwords.
+              Use at least 8 characters. Avoid common or entirely numeric
+              passwords.
             </p>
             {errorMessage ? (
               <p className="auth-error" role="alert">

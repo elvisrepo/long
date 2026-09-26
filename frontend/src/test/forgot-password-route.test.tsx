@@ -32,12 +32,17 @@ describe("forgot password route", () => {
     vi.mocked(requestPasswordReset).mockResolvedValue();
     renderRoute("/forgot-password");
 
-    await user.type(await screen.findByLabelText(/email/i), "person@example.com");
+    await user.type(
+      await screen.findByLabelText(/email/i),
+      "person@example.com",
+    );
     await user.click(screen.getByRole("button", { name: /send reset link/i }));
 
     expect(requestPasswordReset).toHaveBeenCalledWith("person@example.com");
     expect(
-      await screen.findByText(/if an account exists, a reset link has been sent/i),
+      await screen.findByText(
+        /if an account exists, a reset link has been sent/i,
+      ),
     ).toBeInTheDocument();
   });
 });

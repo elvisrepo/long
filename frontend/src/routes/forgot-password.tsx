@@ -21,7 +21,9 @@ function ForgotPasswordRoute() {
       setRequestComplete(true);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Password reset request failed",
+        error instanceof Error
+          ? error.message
+          : "Password reset request failed",
       );
     } finally {
       setIsSubmitting(false);

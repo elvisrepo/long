@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { confirmPasswordReset, requestPasswordReset } from "./password-reset-api";
+import {
+  confirmPasswordReset,
+  requestPasswordReset,
+} from "./password-reset-api";
 
 describe("requestPasswordReset", () => {
   afterEach(() => {
