@@ -22,7 +22,12 @@ function RootLayout() {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
-  const isPublicAuthRoute = pathname === "/login" || pathname === "/register";
+  const isPublicAuthRoute = [
+    "/login",
+    "/register",
+    "/forgot-password",
+    "/reset-password",
+  ].includes(pathname);
 
   return (
     <div className="app-shell">

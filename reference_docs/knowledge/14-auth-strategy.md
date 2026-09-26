@@ -392,14 +392,23 @@ Current implementation gap:
 - mobile login still returns refresh tokens in JSON by design for non-browser clients
 - the backend auth foundation is green across register, login, refresh, logout, and `me`
 - frontend CSRF bootstrap now exists through `/api/auth/csrf/`
+- password reset is implemented locally through generic account-enumeration-safe requests, Django signed reset tokens, password-policy validation, transactional password updates, and refresh-token revocation
+- the SPA exposes `/forgot-password` and `/reset-password`; local reset messages are printed to the backend console
+- public reset-email delivery is not configured yet and requires a verified outbound provider/sender before this feature can go to staging
 - the remaining auth transport decision is whether register should also be split explicitly by client type or stay shared
 
 Deferred user-backend scope:
-- password reset is not implemented yet
 - profile update and account deletion flows are not implemented yet
 - email verification is not implemented; add it later only if the product or abuse profile justifies it
 - richer user-profile domain behavior beyond auth basics is still deferred
 - this means the current backend user slice should be treated as an auth foundation, not a complete user-account system
+
+Password-reset security behavior:
+- request responses do not reveal whether an account exists
+- request attempts are limited to three per hour per client in the current DRF process-local throttle
+- the emailed `uid` identifies the user while Django's signed token proves authorization; the raw token is not stored in the database
+- reset confirmation locks the user row, rechecks the token, hashes the new password, and blacklists all outstanding refresh tokens atomically
+- changing the password makes the reset token unusable; already-issued access tokens can remain valid for at most their configured 15-minute lifetime
 
 Current proven SPA browser path:
 - frontend can call `GET /api/auth/csrf/` to bootstrap the CSRF cookie

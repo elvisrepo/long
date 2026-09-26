@@ -10,7 +10,7 @@
 
 **Versioning:** URL-based (`/api/v1/`). Explicit, easy to test, easy to route.
 
-**Auth:** The current backend auth implementation is split by client transport. Mobile auth uses explicit JWT token submission. Web auth uses JWT access tokens plus cookie-based refresh/logout with CSRF. Rate limiting should still be applied at the auth layer (5 login attempts/min, 3 password resets/hour).
+**Auth:** The current backend auth implementation is split by client transport. Mobile auth uses explicit JWT token submission. Web auth uses JWT access tokens plus cookie-based refresh/logout with CSRF. Password-reset requests are limited to 3/hour per client; login still needs its planned 5 attempts/minute limit.
 
 #### Operations (public — no JWT required)
 | Method | Endpoint | Description | Notes |
@@ -38,8 +38,13 @@ deployment checks.
 | POST | `/api/auth/mobile/login/` | Mobile login | Returns access + refresh tokens in JSON |
 | POST | `/api/auth/mobile/refresh/` | Mobile refresh | Refresh token supplied explicitly in request body |
 | POST | `/api/auth/mobile/logout/` | Mobile logout | Refresh token supplied explicitly in request body |
-| POST | `/api/auth/password/reset/` | Password reset email | Planned, rate limited: 3/hour |
-| POST | `/api/auth/password/confirm/` | Confirm password reset | Planned |
+| POST | `/api/auth/password/request/` | Request password-reset email | Implemented locally; always returns generic `202` for syntactically valid emails, sends only for an active matching account, and is limited to 3/hour per client |
+| POST | `/api/auth/password/confirm/` | Confirm password reset | Implemented locally; accepts `uid`, `token`, and `new_password`; returns `204`, applies Django password validation, and revokes outstanding refresh tokens |
+
+Password-reset links use Django's signed, expiring, password-state-bound token.
+They become invalid after a successful reset. Local development prints reset
+emails to the backend console. Public delivery remains blocked on configuring
+and verifying a real outbound email provider and sender identity.
 
 Refresh concurrency behavior:
 - web-cookie and mobile-body refresh use the same transactional rotation service;

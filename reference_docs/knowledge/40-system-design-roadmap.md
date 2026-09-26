@@ -135,7 +135,7 @@ Still missing:
   feedback shows a concrete need
 - account-wide GDPR archive and account deletion; metric-entry CSV export is
   implemented locally
-- password reset / stronger account lifecycle flows
+- production reset-email delivery plus stronger account lifecycle flows; the password-reset application flow is implemented locally
 - additional deliberately mapped Health Connect metrics, with Heart Rate the likely next candidate
 - richer sync history/repair UI
 - server-side asynchronous processing if synchronous ingestion becomes too slow or operationally expensive
@@ -383,8 +383,8 @@ Related docs:
 Next real product step:
 
 ```text
-Complete local acceptance of authenticated metric-entry CSV export, then add
-password reset as the next bounded account-lifecycle slice
+Complete local acceptance of the password-reset browser flow, then configure
+verified outbound email delivery before promoting that slice to staging
 ```
 
 Weight × Steps, seven-night Sleep Insights, the persisted user sleep target,

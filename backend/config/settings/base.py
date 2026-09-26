@@ -26,6 +26,20 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-insecure-secret-key")
 PII_ENCRYPTION_KEY = os.environ.get("PII_ENCRYPTION_KEY", "").strip()
 EMAIL_LOOKUP_KEY = os.environ.get("EMAIL_LOOKUP_KEY", "").strip()
 
+# Local reset emails are printed by the backend container for development.
+EMAIL_BACKEND = os.environ.get(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend",
+).strip()
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "DEFAULT_FROM_EMAIL",
+    "Longevity <no-reply@localhost>",
+).strip()
+PASSWORD_RESET_URL = os.environ.get(
+    "PASSWORD_RESET_URL",
+    "http://localhost:5173/reset-password",
+).strip()
+
 DEBUG = os.environ.get("DEBUG", "False").strip().lower() in {"1", "true", "yes", "on"}
 
 ALLOWED_HOSTS = [
