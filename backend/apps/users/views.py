@@ -4,21 +4,36 @@ from django.contrib.auth.base_user import AbstractBaseUser
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import status
 from rest_framework.authentication import CSRFCheck
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, throttle_classes
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.users.serializers import LoginSerializer, RegisterSerializer
-from apps.users.services import rotate_refresh_token
+from apps.users.serializers import (
+    LoginSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
+    RegisterSerializer,
+)
+from apps.users.services import (
+    PasswordResetEmailDeliveryError,
+    reset_user_password,
+    rotate_refresh_token,
+    send_password_reset_email,
+)
+from apps.users.throttles import PasswordResetRequestThrottle
 
 import logging
 
 REFRESH_TOKEN_COOKIE_NAME = "refresh_token"
 
 logger = logging.getLogger(__name__)
+
+PASSWORD_RESET_REQUESTED_MESSAGE = (
+    "If an account exists for that email, a reset link has been sent."
+)
 
 # run django's csrf checks, if they fail raise a permission error
 def enforce_csrf(request: Request) -> None:
@@ -81,6 +96,48 @@ def register_view(request: Request) -> Response:
           },
           status=status.HTTP_201_CREATED,
       )
+
+
+@api_view(["POST"])
+@throttle_classes([PasswordResetRequestThrottle])
+def password_reset_request_view(request: Request) -> Response:
+    serializer = PasswordResetRequestSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    try:
+        send_password_reset_email(
+            email=serializer.validated_data["email"],
+            reset_url_root=settings.PASSWORD_RESET_URL,
+        )
+    except PasswordResetEmailDeliveryError as exc:
+        # Keep the public response identical for known and unknown addresses.
+        # Record only the exception class; provider messages may contain PII.
+        logger.error(
+            "Password reset email delivery failed (%s)",
+            exc.provider_error_type,
+        )
+    return Response(
+        {"detail": PASSWORD_RESET_REQUESTED_MESSAGE},
+        status=status.HTTP_202_ACCEPTED,
+    )
+
+
+@api_view(["POST"])
+def password_reset_confirm_view(request: Request) -> Response:
+    serializer = PasswordResetConfirmSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    reset_succeeded = reset_user_password(
+        user_id=serializer.validated_data["user_id"],
+        token=serializer.validated_data["token"],
+        new_password=serializer.validated_data["new_password"],
+    )
+    if not reset_succeeded:
+        return Response(
+            {"token": ["Reset link is invalid or expired."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return Response(status=status.HTTP_204_NO_CONTENT)
 
 @api_view(["POST"])
 def mobile_login_view(request: Request) -> Response:

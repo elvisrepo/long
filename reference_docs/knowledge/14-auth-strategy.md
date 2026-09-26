@@ -392,14 +392,25 @@ Current implementation gap:
 - mobile login still returns refresh tokens in JSON by design for non-browser clients
 - the backend auth foundation is green across register, login, refresh, logout, and `me`
 - frontend CSRF bootstrap now exists through `/api/auth/csrf/`
+- password reset is implemented through generic account-enumeration-safe requests, Django signed reset tokens, password-policy validation, transactional password updates, and refresh-token revocation
+- the SPA exposes `/forgot-password` and `/reset-password`; local reset messages are printed to the backend console
+- production settings use the verified `syncvitals.space` Amazon SES identity in `eu-central-1`; staging sends as `no-reply@syncvitals.space` through the EC2 instance role, without SMTP credentials or static AWS keys
+- the SES application integration is implemented and tested locally but still requires the updated runtime secret and backend release before the public staging flow is live
 - the remaining auth transport decision is whether register should also be split explicitly by client type or stay shared
 
 Deferred user-backend scope:
-- password reset is not implemented yet
 - profile update and account deletion flows are not implemented yet
 - email verification is not implemented; add it later only if the product or abuse profile justifies it
 - richer user-profile domain behavior beyond auth basics is still deferred
 - this means the current backend user slice should be treated as an auth foundation, not a complete user-account system
+
+Password-reset security behavior:
+- request responses do not reveal whether an account exists
+- an outbound-provider failure is logged with a fixed non-identifying message and returns the same generic `202`, preventing response-based account disclosure
+- request attempts are limited to three per hour per client per worker in the current DRF process-local throttle; the two-worker staging API can allow up to six, so a shared-cache or database-backed limiter is required before claiming a strict global limit
+- the emailed `uid` identifies the user while Django's signed token proves authorization; the raw token is not stored in the database
+- reset confirmation locks the user row, rechecks the token, hashes the new password, and blacklists all outstanding refresh tokens atomically
+- changing the password makes the reset token unusable; already-issued access tokens can remain valid for at most their configured 15-minute lifetime
 
 Current proven SPA browser path:
 - frontend can call `GET /api/auth/csrf/` to bootstrap the CSRF cookie

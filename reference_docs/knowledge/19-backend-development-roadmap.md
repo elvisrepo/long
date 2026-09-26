@@ -37,7 +37,9 @@ Current checkpoint note:
 - custom metric-definition updates keep slugs immutable, reject default metrics, reject other users' metrics, and preserve min/max range validation
 - custom metric-definition deactivate/delete behavior is still not implemented
 - cursor pagination and analytics coverage should continue through TDD before analytics work
-- deferred user-backend scope still includes password reset, profile/account lifecycle work, and any optional email-verification flow
+- password reset is implemented locally with generic request responses, expiring signed tokens, password validation, refresh-token revocation, a three-per-hour request throttle, and SPA request/confirm routes
+- the Amazon SES provider, verified sender, and local application integration are complete; public staging delivery still requires the updated runtime-secret version and matching backend release
+- deferred user-backend scope still includes profile/account lifecycle work and any optional email-verification flow
 
 ### R2 — Samsung Validation Spike (Weeks 9-10)
 15. Expand `WearableConnection` model for device-bridge sync state

@@ -50,19 +50,23 @@ Already created and verified:
   `cf9627f7416cee7c33f2dbb7cf1d52d9883e658c`, pinned by index digest
   `sha256:4133797b381eedd384dead2c036f6749bfb35f80cfa0b1bfb215d9a2bb5217bb`;
 - Secrets Manager secret `longevity/staging/backend-runtime` in `eu-central-1`
-  with one `AWSCURRENT` version whose 15 required values passed the loader's
-  in-memory validation; automatic rotation is not configured;
+  with one deployed `AWSCURRENT` version whose pre-email contract passed the
+  loader's in-memory validation; the next backend release requires its updated
+  18-key staging contract; automatic rotation is not configured;
 - EC2 role and instance profile `syncvitals-staging-ec2-role`, trusted only by
   EC2, with `AmazonSSMManagedInstanceCore`, pull-only access to the one backend
-  ECR repository, read-only access to the one runtime secret, and Route 53
-  mutation limited to the origin certificate's ACME TXT record;
+  ECR repository, read-only access to the one runtime secret, Route 53 mutation
+  limited to the origin certificate's ACME TXT record, and SES send access
+  limited to the verified `syncvitals.space` identity and From address
+  `no-reply@syncvitals.space`;
 - origin security group `sg-0bb8f60ee0b21cb06` in the Frankfurt default VPC,
   with inbound TCP 443 restricted to AWS-managed CloudFront origin-facing
   prefix list `pl-a3a144ca`, no CIDR-based inbound rules, and default IPv4
   outbound access retained for required host dependencies;
 - running EC2 instance `i-08fbc9f0c53265b63` in `eu-central-1c`: `t4g.small`
   ARM64 on Canonical Ubuntu 24.04, using the intended instance profile and
-  origin security group, required IMDSv2, termination protection, both EC2
+  origin security group, required IMDSv2 with response hop limit `2`,
+  termination protection, both EC2
   health checks passing, an AWS-managed-key-encrypted 16 GiB gp3 root volume, and
   verified Session Manager access as `ssm-user` with passwordless `sudo`.
 
@@ -254,6 +258,15 @@ Create `longevity/staging/backend-runtime` in `eu-central-1` as JSON. Its keys
 are defined by `backend/runtime_contract.py` plus the
 database-container bootstrap key enforced by `backend/scripts/staging_runtime.py`.
 
+For the SES-backed password-reset release, add these non-credential values:
+
+- `SES_REGION`: `eu-central-1`;
+- `DEFAULT_FROM_EMAIL`: `Longevity <no-reply@syncvitals.space>`;
+- `PASSWORD_RESET_URL`: `https://staging.syncvitals.space/reset-password`.
+
+Do not add AWS access keys or SES SMTP credentials. The container uses the EC2
+instance role through IMDSv2.
+
 Important database invariant:
 
 - `POSTGRES_PASSWORD` is the raw database password used only by PostgreSQL;
@@ -269,9 +282,9 @@ HTTPS CSRF origin, Stripe test mode, and deliberate log levels.
 Gate: a Systems Manager session on the future host can invoke the loader and
 receive only a redacted success/failure result; no `.env` file exists.
 
-Current result: secret creation and contract validation passed on 2026-09-04.
-The instance-role retrieval and no-`.env` host checks remain deferred until the
-EC2 host exists.
+Current result: the deployed secret and instance-role retrieval path are
+verified. The three SES values above must still be added as a new secret
+version before installing and releasing the matching backend bundle.
 
 ### 4. Create the EC2 instance role
 
@@ -952,16 +965,23 @@ no-cache application shell last.
 From `frontend/`:
 
 ```bash
+# 1. Install the exact locked frontend dependencies.
 npm ci
+
+# 2. Run the local quality and test gates.
 npm run format:check
 npm run lint
 npm test
+
+# 3. Build the production frontend assets.
 npm run build
 
+# 4. Preview the S3 changes without uploading anything.
 npm run deploy:static -- \
   --bucket syncvitals-staging-frontend-173291122778-eu-central-1-an \
   --dry-run
 
+# 5. Upload immutable assets first and the application shell last.
 npm run deploy:static -- \
   --bucket syncvitals-staging-frontend-173291122778-eu-central-1-an
 ```
@@ -1005,9 +1025,11 @@ Build and push one immutable ARM64 production image. Use a new release tag tied
 to the full Git commit SHA; never overwrite or rely on `latest`:
 
 ```bash
+# 1. Tie the image to the exact reviewed Git commit.
 release_sha="$(git rev-parse HEAD)"
 repository="173291122778.dkr.ecr.eu-central-1.amazonaws.com/syncvitals/staging/backend"
 
+# 2. Build and publish the immutable Linux/ARM64 image.
 docker buildx build \
   --platform linux/arm64 \
   --target production \
@@ -1015,6 +1037,7 @@ docker buildx build \
   --push \
   .
 
+# 3. Resolve the published OCI index to an immutable digest.
 index_digest="$(aws ecr describe-images \
   --repository-name syncvitals/staging/backend \
   --image-ids "imageTag=$release_sha" \
@@ -1025,6 +1048,7 @@ index_digest="$(aws ecr describe-images \
 backend_image="$repository@$index_digest"
 printf 'Candidate backend image: %s\n' "$backend_image"
 
+# 4. Resolve the Linux/ARM64 child image that ECR scans.
 index_manifest="$(aws ecr batch-get-image \
   --repository-name syncvitals/staging/backend \
   --image-ids "imageDigest=$index_digest" \
@@ -1050,6 +1074,7 @@ if len(matches) != 1:
 print(matches[0])
 ')"
 
+# 5. Create temporary files and guarantee their cleanup.
 scan_report="$(mktemp /tmp/syncvitals-ecr-scan.XXXXXX.json)"
 scan_error="$(mktemp /tmp/syncvitals-ecr-scan.XXXXXX.err)"
 cleanup_scan_files() {
@@ -1057,6 +1082,7 @@ cleanup_scan_files() {
 }
 trap cleanup_scan_files EXIT
 
+# 6. Reuse existing findings or start a scan only when none exists.
 if ! aws ecr describe-image-scan-findings \
   --repository-name syncvitals/staging/backend \
   --image-id "imageDigest=$arm64_digest" \
@@ -1073,6 +1099,7 @@ if ! aws ecr describe-image-scan-findings \
     >/dev/null
 fi
 
+# 7. Wait for the scan and download its final findings.
 aws ecr wait image-scan-complete \
   --repository-name syncvitals/staging/backend \
   --image-id "imageDigest=$arm64_digest" \
@@ -1084,6 +1111,7 @@ aws ecr describe-image-scan-findings \
   --region eu-central-1 \
   --output json >"$scan_report"
 
+# 8. Apply the reviewed vulnerability policy before deployment.
 uv run python scripts/staging_image.py review-scan <"$scan_report" || exit 1
 ```
 
@@ -1100,6 +1128,7 @@ In the root Session Manager shell on EC2, first preserve the current image
 reference:
 
 ```bash
+# 9. Record the currently running image as the rollback candidate.
 docker inspect \
   --format '{{.Config.Image}}' \
   syncvitals-staging-api-1
@@ -1110,20 +1139,26 @@ Docker to ECR with the instance role, set `BACKEND_IMAGE` to the reviewed new
 digest, and invoke the existing guarded deployment:
 
 ```bash
+# 10. Set the reviewed digest-qualified candidate image.
 registry="173291122778.dkr.ecr.eu-central-1.amazonaws.com"
 backend_image="REPLACE_WITH_REVIEWED_DIGEST_QUALIFIED_IMAGE"
 
+# 11. Guarantee that temporary ECR authentication is removed.
 cleanup_ecr_auth() {
   docker logout "$registry" >/dev/null 2>&1 || true
 }
 trap cleanup_ecr_auth EXIT
 
+# 12. Authenticate Docker to ECR with the EC2 instance role.
 aws ecr get-login-password --region eu-central-1 \
   | docker login --username AWS --password-stdin "$registry"
 
 export BACKEND_IMAGE="$backend_image"
+
+# 13. Enter the installed host deployment bundle.
 cd /opt/syncvitals/deployment
 
+# 14. Run the guarded migration and API replacement.
 python3 -m scripts.staging_runtime \
   --secret-id longevity/staging/backend-runtime \
   --region eu-central-1 \
@@ -1131,6 +1166,7 @@ python3 -m scripts.staging_runtime \
   --compose-file docker-compose.staging.yml \
   --project-name syncvitals-staging
 
+# 15. Remove ECR authentication after a successful deployment.
 cleanup_ecr_auth
 trap - EXIT
 ```

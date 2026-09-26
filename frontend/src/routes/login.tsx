@@ -56,6 +56,9 @@ function LoginRoute() {
       ) : null}
       <LoginForm onSubmit={handleLogin} disabled={isSubmitting} />
       <p className="auth-footer">
+        <Link to="/forgot-password">Forgot password?</Link>
+      </p>
+      <p className="auth-footer">
         No account? <Link to="/register">Create an account →</Link>
       </p>
     </section>
