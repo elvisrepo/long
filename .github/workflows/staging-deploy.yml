@@ -50,6 +50,30 @@ jobs:
     steps:
       - name: Checkout reviewed staging commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Require installed host bundle compatibility
+        working-directory: backend
+        shell: bash
+        env:
+          INSTALLED_HOST_BUNDLE_COMMIT: c8985ae8083247a0c8ee55e3d530ffcb0bb0d29a
+        run: |
+          set -euo pipefail
+          mapfile -t bundle_files < <(
+            python3 -c \
+              'from scripts.build_staging_bundle import BUNDLE_FILES; print(*BUNDLE_FILES, sep="\n")'
+          )
+          bundle_files+=(scripts/build_staging_bundle.py)
+          if ! git diff --quiet \
+            "$INSTALLED_HOST_BUNDLE_COMMIT" "$GITHUB_SHA" \
+            -- "${bundle_files[@]}"; then
+            printf '%s\n' \
+              'error: the reviewed commit changes the EC2 host deployment bundle.' \
+              'Install and verify the matching EC2 host bundle first, then advance' \
+              'INSTALLED_HOST_BUNDLE_COMMIT in this workflow through review.' >&2
+            exit 1
+          fi
 
       - name: Configure short-lived AWS credentials
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0

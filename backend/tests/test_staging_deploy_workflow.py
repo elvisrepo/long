@@ -74,12 +74,13 @@ def test_staging_deploy_uses_short_lived_least_privilege_identity() -> None:
         "uses": (
             "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
         ),
+        "with": {"fetch-depth": "0"},
     }
-    assert steps[1]["uses"] == (
+    assert steps[2]["uses"] == (
         "aws-actions/configure-aws-credentials@"
         "e1253824e5c10ff9df46874f81ed3ec929e19cfd"
     )
-    assert steps[1]["with"] == {
+    assert steps[2]["with"] == {
         "role-to-assume": "${{ vars.AWS_ROLE_ARN }}",
         "aws-region": "${{ vars.AWS_REGION }}",
         "allowed-account-ids": "173291122778",
@@ -92,6 +93,31 @@ def test_staging_deploy_uses_short_lived_least_privilege_identity() -> None:
     workflow_text = STAGING_DEPLOY_WORKFLOW.read_text()
     assert "secrets." not in workflow_text
     assert "AWS_ACCESS_KEY_ID" not in workflow_text
+
+
+def test_staging_deploy_blocks_when_host_bundle_differs_from_installed_pin() -> None:
+    workflow = load_staging_deploy_workflow()
+    steps = workflow["jobs"]["deploy"]["steps"]
+    gate = steps[1]
+
+    assert gate["name"] == "Require installed host bundle compatibility"
+    assert gate["working-directory"] == "backend"
+    assert gate["env"] == {
+        "INSTALLED_HOST_BUNDLE_COMMIT": (
+            "c8985ae8083247a0c8ee55e3d530ffcb0bb0d29a"
+        )
+    }
+    script = gate["run"]
+    normalized_script = " ".join(script.replace("\\\n", " ").split())
+    assert "from scripts.build_staging_bundle import BUNDLE_FILES" in script
+    assert 'mapfile -t bundle_files' in script
+    assert 'bundle_files+=(scripts/build_staging_bundle.py)' in script
+    assert (
+        'git diff --quiet "$INSTALLED_HOST_BUNDLE_COMMIT" "$GITHUB_SHA" -- '
+        '"${bundle_files[@]}"'
+    ) in normalized_script
+    assert "Install and verify the matching EC2 host bundle" in script
+    assert script.index("git diff --quiet") < script.index("exit 1")
 
 
 def test_staging_deploy_selects_components_and_orders_backend_first() -> None:

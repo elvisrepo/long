@@ -160,8 +160,13 @@ Current implemented state:
   and `both` recovery choices
 - every automatic or manual run invokes the reusable backend and frontend CI
   workflows first; the AWS deployment job declares both as dependencies, then
-  validates every deployment coordinate, enters the protected `staging`
-  environment, and uses short-lived OIDC credentials
+  verifies the host-bundle allowlist definition and its files against the
+  reviewed `INSTALLED_HOST_BUNDLE_COMMIT`, validates every deployment coordinate, enters
+  the protected `staging` environment, and uses short-lived OIDC credentials
+- a host-bundle mismatch fails before AWS authentication and cannot be bypassed
+  by a later staging commit; install and verify the matching root-owned EC2
+  bundle first, then advance the pinned commit through a separate reviewed
+  change
 - the non-cancelling concurrency lock permits one running and one pending
   release; newer automatic pushes may replace an older pending run safely
   because the newer `staging` commit contains the earlier protected merges,
