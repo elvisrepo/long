@@ -76,11 +76,16 @@ def test_staging_deploy_uses_short_lived_least_privilege_identity() -> None:
         ),
         "with": {"fetch-depth": "0"},
     }
-    assert steps[2]["uses"] == (
+    assert steps[1] == {
+        "name": "Set up project Python",
+        "uses": "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "with": {"python-version-file": "backend/.python-version"},
+    }
+    assert steps[3]["uses"] == (
         "aws-actions/configure-aws-credentials@"
         "e1253824e5c10ff9df46874f81ed3ec929e19cfd"
     )
-    assert steps[2]["with"] == {
+    assert steps[3]["with"] == {
         "role-to-assume": "${{ vars.AWS_ROLE_ARN }}",
         "aws-region": "${{ vars.AWS_REGION }}",
         "allowed-account-ids": "173291122778",
@@ -98,7 +103,7 @@ def test_staging_deploy_uses_short_lived_least_privilege_identity() -> None:
 def test_staging_deploy_blocks_when_host_bundle_differs_from_installed_pin() -> None:
     workflow = load_staging_deploy_workflow()
     steps = workflow["jobs"]["deploy"]["steps"]
-    gate = steps[1]
+    gate = steps[2]
 
     assert gate["name"] == "Require installed host bundle compatibility"
     assert gate["working-directory"] == "backend"
