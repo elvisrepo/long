@@ -43,8 +43,11 @@ deployment checks.
 
 Password-reset links use Django's signed, expiring, password-state-bound token.
 They become invalid after a successful reset. Local development prints reset
-emails to the backend console. Public delivery remains blocked on configuring
-and verifying a real outbound email provider and sender identity.
+emails to the backend console. Production settings send through Amazon SES in
+`eu-central-1` as `no-reply@syncvitals.space`, using the EC2 instance role's
+short-lived credentials. A provider failure is logged without the recipient
+address and still returns the same generic `202` response used for an unknown
+account.
 
 Refresh concurrency behavior:
 - web-cookie and mobile-body refresh use the same transactional rotation service;

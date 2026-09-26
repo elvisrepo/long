@@ -39,6 +39,7 @@ PASSWORD_RESET_URL = os.environ.get(
     "PASSWORD_RESET_URL",
     "http://localhost:5173/reset-password",
 ).strip()
+SES_REGION = os.environ.get("SES_REGION", "").strip()
 
 DEBUG = os.environ.get("DEBUG", "False").strip().lower() in {"1", "true", "yes", "on"}
 
@@ -65,6 +66,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "anymail",
     "apps.users",
     "apps.metrics",
     "apps.subscriptions",

@@ -392,9 +392,10 @@ Current implementation gap:
 - mobile login still returns refresh tokens in JSON by design for non-browser clients
 - the backend auth foundation is green across register, login, refresh, logout, and `me`
 - frontend CSRF bootstrap now exists through `/api/auth/csrf/`
-- password reset is implemented locally through generic account-enumeration-safe requests, Django signed reset tokens, password-policy validation, transactional password updates, and refresh-token revocation
+- password reset is implemented through generic account-enumeration-safe requests, Django signed reset tokens, password-policy validation, transactional password updates, and refresh-token revocation
 - the SPA exposes `/forgot-password` and `/reset-password`; local reset messages are printed to the backend console
-- public reset-email delivery is not configured yet and requires a verified outbound provider/sender before this feature can go to staging
+- production settings use the verified `syncvitals.space` Amazon SES identity in `eu-central-1`; staging sends as `no-reply@syncvitals.space` through the EC2 instance role, without SMTP credentials or static AWS keys
+- the SES application integration is implemented and tested locally but still requires the updated runtime secret and backend release before the public staging flow is live
 - the remaining auth transport decision is whether register should also be split explicitly by client type or stay shared
 
 Deferred user-backend scope:
@@ -405,6 +406,7 @@ Deferred user-backend scope:
 
 Password-reset security behavior:
 - request responses do not reveal whether an account exists
+- an outbound-provider failure is logged with a fixed non-identifying message and returns the same generic `202`, preventing response-based account disclosure
 - request attempts are limited to three per hour per client in the current DRF process-local throttle
 - the emailed `uid` identifies the user while Django's signed token proves authorization; the raw token is not stored in the database
 - reset confirmation locks the user row, rechecks the token, hashes the new password, and blacklists all outstanding refresh tokens atomically

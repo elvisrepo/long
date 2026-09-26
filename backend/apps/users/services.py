@@ -19,6 +19,14 @@ from apps.subscriptions.models import Subscription, SubscriptionPlan
 from apps.users.models import User, build_email_lookup_hash
 
 
+class PasswordResetEmailDeliveryError(RuntimeError):
+    """Hide provider-specific failures behind the password-reset boundary."""
+
+    def __init__(self, provider_error_type: str) -> None:
+        super().__init__("Password reset email delivery failed")
+        self.provider_error_type = provider_error_type
+
+
 def send_password_reset_email(*, email: str, reset_url_root: str) -> None:
     user = User.objects.filter(
         email_lookup_hash=build_email_lookup_hash(email),
@@ -30,16 +38,19 @@ def send_password_reset_email(*, email: str, reset_url_root: str) -> None:
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
     reset_url = f"{reset_url_root}?uid={uid}&token={token}"
-    send_mail(
-        subject="Reset your Longevity password",
-        message=(
-            "Use the link below to reset your Longevity password.\n\n"
-            f"{reset_url}\n\n"
-            "If you did not request this, you can ignore this email."
-        ),
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[user.email],
-    )
+    try:
+        send_mail(
+            subject="Reset your Longevity password",
+            message=(
+                "Use the link below to reset your Longevity password.\n\n"
+                f"{reset_url}\n\n"
+                "If you did not request this, you can ignore this email."
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+        )
+    except Exception as exc:
+        raise PasswordResetEmailDeliveryError(type(exc).__name__) from None
 
 
 @transaction.atomic

@@ -52,6 +52,9 @@ EXPECTED_RUNTIME_KEYS = {
     "STRIPE_CHECKOUT_SUCCESS_URL",
     "STRIPE_CHECKOUT_CANCEL_URL",
     "STRIPE_CUSTOMER_PORTAL_RETURN_URL",
+    "SES_REGION",
+    "DEFAULT_FROM_EMAIL",
+    "PASSWORD_RESET_URL",
     "LOG_LEVEL",
     "DJANGO_LOG_LEVEL",
     "POSTGRES_PASSWORD",
@@ -79,6 +82,9 @@ def complete_secret_payload() -> dict[str, str]:
     payload["DATABASE_URL"] = (
         "postgresql://longevity:inert-database-password@database:5432/longevity"
     )
+    payload["SES_REGION"] = "eu-central-1"
+    payload["DEFAULT_FROM_EMAIL"] = "Longevity <no-reply@syncvitals.space>"
+    payload["PASSWORD_RESET_URL"] = "https://staging.example.com/reset-password"
     return payload
 
 

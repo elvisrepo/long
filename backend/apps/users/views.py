@@ -18,6 +18,7 @@ from apps.users.serializers import (
     RegisterSerializer,
 )
 from apps.users.services import (
+    PasswordResetEmailDeliveryError,
     reset_user_password,
     rotate_refresh_token,
     send_password_reset_email,
@@ -103,10 +104,18 @@ def password_reset_request_view(request: Request) -> Response:
     serializer = PasswordResetRequestSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
-    send_password_reset_email(
-        email=serializer.validated_data["email"],
-        reset_url_root=settings.PASSWORD_RESET_URL,
-    )
+    try:
+        send_password_reset_email(
+            email=serializer.validated_data["email"],
+            reset_url_root=settings.PASSWORD_RESET_URL,
+        )
+    except PasswordResetEmailDeliveryError as exc:
+        # Keep the public response identical for known and unknown addresses.
+        # Record only the exception class; provider messages may contain PII.
+        logger.error(
+            "Password reset email delivery failed (%s)",
+            exc.provider_error_type,
+        )
     return Response(
         {"detail": PASSWORD_RESET_REQUESTED_MESSAGE},
         status=status.HTTP_202_ACCEPTED,

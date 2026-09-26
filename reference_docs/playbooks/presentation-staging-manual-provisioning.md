@@ -50,19 +50,23 @@ Already created and verified:
   `cf9627f7416cee7c33f2dbb7cf1d52d9883e658c`, pinned by index digest
   `sha256:4133797b381eedd384dead2c036f6749bfb35f80cfa0b1bfb215d9a2bb5217bb`;
 - Secrets Manager secret `longevity/staging/backend-runtime` in `eu-central-1`
-  with one `AWSCURRENT` version whose 15 required values passed the loader's
-  in-memory validation; automatic rotation is not configured;
+  with one deployed `AWSCURRENT` version whose pre-email contract passed the
+  loader's in-memory validation; the next backend release requires its updated
+  18-key staging contract; automatic rotation is not configured;
 - EC2 role and instance profile `syncvitals-staging-ec2-role`, trusted only by
   EC2, with `AmazonSSMManagedInstanceCore`, pull-only access to the one backend
-  ECR repository, read-only access to the one runtime secret, and Route 53
-  mutation limited to the origin certificate's ACME TXT record;
+  ECR repository, read-only access to the one runtime secret, Route 53 mutation
+  limited to the origin certificate's ACME TXT record, and SES send access
+  limited to the verified `syncvitals.space` identity and From address
+  `no-reply@syncvitals.space`;
 - origin security group `sg-0bb8f60ee0b21cb06` in the Frankfurt default VPC,
   with inbound TCP 443 restricted to AWS-managed CloudFront origin-facing
   prefix list `pl-a3a144ca`, no CIDR-based inbound rules, and default IPv4
   outbound access retained for required host dependencies;
 - running EC2 instance `i-08fbc9f0c53265b63` in `eu-central-1c`: `t4g.small`
   ARM64 on Canonical Ubuntu 24.04, using the intended instance profile and
-  origin security group, required IMDSv2, termination protection, both EC2
+  origin security group, required IMDSv2 with response hop limit `2`,
+  termination protection, both EC2
   health checks passing, an AWS-managed-key-encrypted 16 GiB gp3 root volume, and
   verified Session Manager access as `ssm-user` with passwordless `sudo`.
 
@@ -254,6 +258,15 @@ Create `longevity/staging/backend-runtime` in `eu-central-1` as JSON. Its keys
 are defined by `backend/runtime_contract.py` plus the
 database-container bootstrap key enforced by `backend/scripts/staging_runtime.py`.
 
+For the SES-backed password-reset release, add these non-credential values:
+
+- `SES_REGION`: `eu-central-1`;
+- `DEFAULT_FROM_EMAIL`: `Longevity <no-reply@syncvitals.space>`;
+- `PASSWORD_RESET_URL`: `https://staging.syncvitals.space/reset-password`.
+
+Do not add AWS access keys or SES SMTP credentials. The container uses the EC2
+instance role through IMDSv2.
+
 Important database invariant:
 
 - `POSTGRES_PASSWORD` is the raw database password used only by PostgreSQL;
@@ -269,9 +282,9 @@ HTTPS CSRF origin, Stripe test mode, and deliberate log levels.
 Gate: a Systems Manager session on the future host can invoke the loader and
 receive only a redacted success/failure result; no `.env` file exists.
 
-Current result: secret creation and contract validation passed on 2026-09-04.
-The instance-role retrieval and no-`.env` host checks remain deferred until the
-EC2 host exists.
+Current result: the deployed secret and instance-role retrieval path are
+verified. The three SES values above must still be added as a new secret
+version before installing and releasing the matching backend bundle.
 
 ### 4. Create the EC2 instance role
 

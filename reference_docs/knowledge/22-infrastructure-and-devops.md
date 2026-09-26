@@ -57,6 +57,11 @@ Staging runtime identity and secret contract:
   `AmazonSSMManagedInstanceCore` and `secretsmanager:GetSecretValue` restricted
   to `longevity/staging/backend-runtime`; add `kms:Decrypt` only when a
   customer-managed KMS key encrypts that secret
+- that role also has send-only SES access for the verified
+  `syncvitals.space` identity, restricted to From address
+  `no-reply@syncvitals.space`; Django obtains short-lived role credentials
+  through required IMDSv2, whose response hop limit is `2` for Docker bridge
+  containers
 - the host-side loader explicitly ignores workstation profiles, shared AWS
   credential/config files, static/session credentials, web identity, and
   container credential endpoints; the EC2 metadata role is its credential path
@@ -65,8 +70,20 @@ Staging runtime identity and secret contract:
 - the secret values still exist in process/container memory and are visible to
   privileged host or Docker operators; restrict Systems Manager, sudo, and
   Docker access and never print the secret or unredacted Compose configuration
-- `longevity/staging/backend-runtime` is a defined future resource, not evidence
-  that Secrets Manager or EC2 has already been provisioned
+- `longevity/staging/backend-runtime`, the EC2 instance profile, and the staging
+  instance are provisioned; the local SES slice adds `SES_REGION`,
+  `DEFAULT_FROM_EMAIL`, and `PASSWORD_RESET_URL` to the next runtime snapshot
+  and must not be deployed before that secret version and host bundle match
+
+Staging transactional email:
+- Amazon SES production access is granted in `eu-central-1`
+- `syncvitals.space` is verified with DKIM; custom MAIL FROM
+  `bounce.syncvitals.space` has SPF and MX records, and DMARC currently uses
+  the monitoring policy `p=none`
+- account-level suppression covers bounces and complaints; an SES event
+  publishing destination is still recommended for operational alerting
+- application delivery uses the SES API through `django-anymail` and boto3's
+  default EC2 credential chain, never stored SMTP credentials or AWS keys
 
 Infrastructure progression:
 
