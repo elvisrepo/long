@@ -407,7 +407,7 @@ Deferred user-backend scope:
 Password-reset security behavior:
 - request responses do not reveal whether an account exists
 - an outbound-provider failure is logged with a fixed non-identifying message and returns the same generic `202`, preventing response-based account disclosure
-- request attempts are limited to three per hour per client in the current DRF process-local throttle
+- request attempts are limited to three per hour per client per worker in the current DRF process-local throttle; the two-worker staging API can allow up to six, so a shared-cache or database-backed limiter is required before claiming a strict global limit
 - the emailed `uid` identifies the user while Django's signed token proves authorization; the raw token is not stored in the database
 - reset confirmation locks the user row, rechecks the token, hashes the new password, and blacklists all outstanding refresh tokens atomically
 - changing the password makes the reset token unusable; already-issued access tokens can remain valid for at most their configured 15-minute lifetime

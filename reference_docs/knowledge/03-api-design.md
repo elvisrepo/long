@@ -10,7 +10,7 @@
 
 **Versioning:** URL-based (`/api/v1/`). Explicit, easy to test, easy to route.
 
-**Auth:** The current backend auth implementation is split by client transport. Mobile auth uses explicit JWT token submission. Web auth uses JWT access tokens plus cookie-based refresh/logout with CSRF. Password-reset requests are limited to 3/hour per client; login still needs its planned 5 attempts/minute limit.
+**Auth:** The current backend auth implementation is split by client transport. Mobile auth uses explicit JWT token submission. Web auth uses JWT access tokens plus cookie-based refresh/logout with CSRF. Password-reset requests are limited to 3/hour per client per application worker; presentation staging's two process-local workers can therefore allow up to 6/hour. Login still needs its planned 5 attempts/minute limit.
 
 #### Operations (public — no JWT required)
 | Method | Endpoint | Description | Notes |
@@ -38,7 +38,7 @@ deployment checks.
 | POST | `/api/auth/mobile/login/` | Mobile login | Returns access + refresh tokens in JSON |
 | POST | `/api/auth/mobile/refresh/` | Mobile refresh | Refresh token supplied explicitly in request body |
 | POST | `/api/auth/mobile/logout/` | Mobile logout | Refresh token supplied explicitly in request body |
-| POST | `/api/auth/password/request/` | Request password-reset email | Implemented locally; always returns generic `202` for syntactically valid emails, sends only for an active matching account, and is limited to 3/hour per client |
+| POST | `/api/auth/password/request/` | Request password-reset email | Always returns generic `202` for syntactically valid emails and sends only for an active matching account; current process-local throttle is 3/hour per client per worker |
 | POST | `/api/auth/password/confirm/` | Confirm password reset | Implemented locally; accepts `uid`, `token`, and `new_password`; returns `204`, applies Django password validation, and revokes outstanding refresh tokens |
 
 Password-reset links use Django's signed, expiring, password-state-bound token.
