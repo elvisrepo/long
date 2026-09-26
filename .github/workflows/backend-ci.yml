@@ -15,6 +15,7 @@ jobs:
   backend:
     runs-on: ubuntu-24.04
 
+    # Step 1. Start an isolated PostgreSQL service and wait until it is healthy.
     services:
       postgres:
         image: postgres:16
@@ -38,32 +39,42 @@ jobs:
         working-directory: backend
 
     steps:
+      # Step 2. Check out the exact commit or pull-request revision under test.
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Step 3. Load the Python version declared by the backend project.
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version-file: backend/.python-version
 
+      # Step 4. Install the pinned uv package and environment manager.
       - name: Set up uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
 
+      # Step 5. Recreate the locked backend environment with development tools.
       - name: Sync dependencies
         run: uv sync --group dev
 
+      # Step 6. Reject Python style, correctness, and import-order violations.
       - name: Lint
         run: uv run ruff check .
 
+      # Step 7. Verify static type contracts across the backend source tree.
       - name: Type check
         run: uv run mypy
 
+      # Step 8. Run the complete backend test suite against PostgreSQL.
       - name: Run tests
         run: uv run pytest tests
 
+      # Step 9. Build the production Docker target and smoke-test the image.
       - name: Smoke test production image
         run: ./scripts/smoke_prod_image.sh
 
+      # Step 10. Exercise migrations, startup, and health behavior in a
+      # disposable production-like deployment.
       - name: Production-like deployment smoke
         timeout-minutes: 10
         run: uv run python -m scripts.smoke_production_deployment

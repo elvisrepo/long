@@ -23,12 +23,15 @@ permissions:
   contents: read
 
 jobs:
+  # Step 1. Run the complete backend CI gate for the reviewed staging commit.
   backend_ci:
     uses: ./.github/workflows/backend-ci.yml
 
+  # Step 2. Run the complete frontend CI gate in parallel with backend CI.
   frontend_ci:
     uses: ./.github/workflows/frontend-ci.yml
 
+  # Step 3. Begin deployment only after both reusable CI gates succeed.
   deploy:
     needs:
       - backend_ci
@@ -48,16 +51,21 @@ jobs:
       STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
       DEPLOY_COMPONENT: ${{ github.event_name == 'push' && 'both' || inputs.component }}
     steps:
+      # Step 4. Check out the exact protected staging commit, including history
+      # needed to compare its host bundle with the installed baseline.
       - name: Checkout reviewed staging commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
+      # Step 5. Load the repository's pinned Python version for deployment tools.
       - name: Set up project Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version-file: backend/.python-version
 
+      # Step 6. Stop before AWS access if EC2 would use stale Compose, runtime,
+      # storage, restore-check, or systemd deployment files.
       - name: Require installed host bundle compatibility
         working-directory: backend
         shell: bash
@@ -81,6 +89,7 @@ jobs:
             exit 1
           fi
 
+      # Step 7. Exchange GitHub's OIDC token for short-lived staging AWS access.
       - name: Configure short-lived AWS credentials
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
@@ -92,6 +101,8 @@ jobs:
           mask-aws-account-id: true
           unset-current-credentials: true
 
+      # Step 8. Fail closed unless the AWS identity and every deployment target
+      # exactly match this staging environment.
       - name: Validate staging targets
         shell: bash
         run: |
@@ -111,6 +122,7 @@ jobs:
           test "$STAGING_BASE_URL" = "https://staging.syncvitals.space"
           [[ "$DEPLOY_COMPONENT" =~ ^(backend|frontend|both)$ ]]
 
+      # Step 9. Enable ARM64 container builds when the backend is selected.
       - name: Set up ARM64 emulation
         if: env.DEPLOY_COMPONENT == 'backend' || env.DEPLOY_COMPONENT == 'both'
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
@@ -118,10 +130,13 @@ jobs:
           image: docker.io/tonistiigi/binfmt@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
           platforms: arm64
 
+      # Step 10. Create the Docker builder used for the production image.
       - name: Set up Docker Buildx
         if: env.DEPLOY_COMPONENT == 'backend' || env.DEPLOY_COMPONENT == 'both'
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
+      # Step 11. Reuse the commit-tagged image on retry, or build and publish it
+      # once to the staging ECR repository.
       - name: Build and publish backend image
         if: env.DEPLOY_COMPONENT == 'backend' || env.DEPLOY_COMPONENT == 'both'
         working-directory: backend
@@ -161,6 +176,7 @@ jobs:
               .
           fi
 
+      # Step 12. Refresh temporary AWS credentials before the backend mutation.
       - name: Refresh backend deployment credentials
         if: env.DEPLOY_COMPONENT == 'backend' || env.DEPLOY_COMPONENT == 'both'
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
@@ -173,6 +189,8 @@ jobs:
           mask-aws-account-id: true
           unset-current-credentials: true
 
+      # Step 13. Resolve immutable index/ARM64 digests, obtain scan findings,
+      # and reject critical or unapproved high-severity vulnerabilities.
       - name: Resolve and approve backend image
         if: env.DEPLOY_COMPONENT == 'backend' || env.DEPLOY_COMPONENT == 'both'
         working-directory: backend
@@ -231,6 +249,8 @@ jobs:
           printf 'Candidate backend image: `%s`\n' "$repository_uri@$index_digest" \
             >> "$GITHUB_STEP_SUMMARY"
 
+      # Step 14. Send the guarded command through SSM, run migrations, replace
+      # the API, verify health, and retain the previous image for rollback.
       - name: Deploy and verify backend
         if: env.DEPLOY_COMPONENT == 'backend' || env.DEPLOY_COMPONENT == 'both'
         working-directory: backend
@@ -310,6 +330,7 @@ jobs:
             printf -- '- Running backend image: `%s`\n' "$running_backend_image"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # Step 15. Load the pinned Node.js runtime when the frontend is selected.
       - name: Set up Node.js
         if: env.DEPLOY_COMPONENT == 'frontend' || env.DEPLOY_COMPONENT == 'both'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -318,6 +339,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
+      # Step 16. Install exact dependencies, run every frontend quality gate,
+      # build production assets, and preview the S3 upload.
       - name: Build frontend assets
         if: env.DEPLOY_COMPONENT == 'frontend' || env.DEPLOY_COMPONENT == 'both'
         working-directory: frontend
@@ -335,6 +358,7 @@ jobs:
             --bucket "$STAGING_FRONTEND_BUCKET" \
             --dry-run
 
+      # Step 17. Refresh temporary AWS credentials before the S3 mutation.
       - name: Refresh frontend deployment credentials
         if: env.DEPLOY_COMPONENT == 'frontend' || env.DEPLOY_COMPONENT == 'both'
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
@@ -347,6 +371,8 @@ jobs:
           mask-aws-account-id: true
           unset-current-credentials: true
 
+      # Step 18. Upload immutable assets first and the no-cache shell last,
+      # while retaining S3 versions for recovery.
       - name: Upload frontend assets
         if: env.DEPLOY_COMPONENT == 'frontend' || env.DEPLOY_COMPONENT == 'both'
         working-directory: frontend
@@ -361,6 +387,8 @@ jobs:
             printf -- '- Rollback: rebuild the previous known-good commit; S3 Versioning retains overwritten object versions.\n'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # Step 19. Verify the public root, SPA deep link, deployed shell, backend
+      # liveness, and database-backed readiness through CloudFront.
       - name: Verify public staging application
         shell: bash
         run: |
