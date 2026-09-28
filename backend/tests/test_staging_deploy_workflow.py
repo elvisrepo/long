@@ -109,7 +109,7 @@ def test_staging_deploy_blocks_when_host_bundle_differs_from_installed_pin() -> 
     assert gate["working-directory"] == "backend"
     assert gate["env"] == {
         "INSTALLED_HOST_BUNDLE_COMMIT": (
-            "c8985ae8083247a0c8ee55e3d530ffcb0bb0d29a"
+            "5436f6edd27624fa4b59683be1f1712fbe711abf"
         )
     }
     script = gate["run"]
