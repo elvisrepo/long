@@ -16,6 +16,10 @@ STAGING_PLAYBOOK = (
 INFRASTRUCTURE_DOC = (
     REPOSITORY_ROOT / "reference_docs/knowledge/22-infrastructure-and-devops.md"
 )
+AUTH_STRATEGY_DOC = REPOSITORY_ROOT / "reference_docs/knowledge/14-auth-strategy.md"
+SYSTEM_ROADMAP_DOC = (
+    REPOSITORY_ROOT / "reference_docs/knowledge/40-system-design-roadmap.md"
+)
 
 
 def load_staging_deploy_workflow() -> dict[str, Any]:
@@ -233,7 +237,12 @@ def test_manual_scan_instructions_reuse_existing_findings() -> None:
 
 
 def test_staging_docs_do_not_report_completed_cd_as_pending() -> None:
-    current_guidance = STAGING_PLAYBOOK.read_text() + INFRASTRUCTURE_DOC.read_text()
+    current_guidance = (
+        STAGING_PLAYBOOK.read_text()
+        + INFRASTRUCTURE_DOC.read_text()
+        + AUTH_STRATEGY_DOC.read_text()
+        + SYSTEM_ROADMAP_DOC.read_text()
+    )
 
     for stale_statement in (
         "a future GitHub Actions deployment identity",
@@ -243,6 +252,8 @@ def test_staging_docs_do_not_report_completed_cd_as_pending() -> None:
         "automatic deployment on a `staging` push remains disabled",
         "the proven workflow still requires explicit dispatch",
         "manual-only and accepts `backend`, `frontend`, or `both`",
+        "still requires the updated runtime secret and backend release before the public staging flow is live",
+        "the password-reset application flow is implemented locally",
     ):
         assert stale_statement not in current_guidance
 
