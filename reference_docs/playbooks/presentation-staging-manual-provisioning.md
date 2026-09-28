@@ -192,6 +192,27 @@ First successful automatic staging release recorded on 2026-09-26:
 - backend scan/deployment, frontend upload, root and deep-link shell equality,
   byte-for-byte frontend shell comparison, liveness, and readiness all passed.
 
+SES-backed password-reset release and acceptance recorded on 2026-09-28:
+
+- protected `master` to `staging` promotion PR `#23` passed both backend checks,
+  frontend CI, and automated review; automatic run `36392136753` then deployed
+  staging commit `d2ad126ef3ae504ad9543e5df7468da21cce89de`;
+- host-bundle compatibility, short-lived OIDC authentication, target
+  validation, ARM64 image publication and scan approval, guarded backend
+  deployment, frontend build/upload, and public smoke checks all passed;
+- the first two real reset requests reached Django but SES rejected them. The
+  public endpoint correctly retained its enumeration-safe `202`, while the
+  sanitized application log recorded `AnymailAPIError`;
+- a controlled send to the SES mailbox simulator identified the exact denial:
+  the EC2 role allowed the `syncvitals.space` identity but not its default
+  configuration set `my-first-configuration-set`;
+- inline policy `SyncVitalsStagingTransactionalEmailSend` now grants only
+  `ses:SendEmail` and `ses:SendRawEmail` on those two exact ARNs, still
+  conditioned on From address `no-reply@syncvitals.space`; and
+- the owner then received a real reset link, changed the password through it,
+  and logged in with the new password. This is operator-observed authenticated
+  acceptance; failed requests were not retried automatically.
+
 At this 2026-09-13 checkpoint, CloudFront's S3 frontend and `/api/*` Django
 origin were deployed. Section 12 still needed Android and remaining Stripe
 proof, and Section 13 backup/restore work had not started. Later checkpoints

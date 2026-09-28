@@ -395,7 +395,8 @@ Current implementation gap:
 - password reset is implemented through generic account-enumeration-safe requests, Django signed reset tokens, password-policy validation, transactional password updates, and refresh-token revocation
 - the SPA exposes `/forgot-password` and `/reset-password`; local reset messages are printed to the backend console
 - production settings use the verified `syncvitals.space` Amazon SES identity in `eu-central-1`; staging sends as `no-reply@syncvitals.space` through the EC2 instance role, without SMTP credentials or static AWS keys
-- the SES application integration is implemented and tested locally but still requires the updated runtime secret and backend release before the public staging flow is live
+- the public staging SES flow is live: on 2026-09-28 the owner received a reset email, changed the password through the signed link, and logged in with the new password
+- because the verified identity uses the default SES configuration set `my-first-configuration-set`, the EC2 role's send-only policy authorizes both the exact domain identity ARN and that exact configuration-set ARN; omitting the latter causes SES to reject `SendRawEmail` even though the domain identity is permitted
 - the remaining auth transport decision is whether register should also be split explicitly by client type or stay shared
 
 Deferred user-backend scope:
