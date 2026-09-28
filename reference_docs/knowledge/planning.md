@@ -123,8 +123,8 @@ We derived entities from the functional requirements by asking: *"What data must
 | POST | `/api/auth/mobile/login/` | Mobile login | Returns access and refresh tokens in JSON |
 | POST | `/api/auth/mobile/refresh/` | Mobile refresh | Accepts refresh token explicitly in request JSON |
 | POST | `/api/auth/mobile/logout/` | Mobile logout | Accepts and blacklists the refresh token supplied in request JSON |
-| POST | `/api/auth/password/reset/` | Password reset email | Planned; rate limited |
-| POST | `/api/auth/password/confirm/` | Confirm password reset | Planned |
+| POST | `/api/auth/password/request/` | Request password-reset email | Implemented locally; generic `202`, limited to 3/hour per client; real outbound delivery is not configured yet |
+| POST | `/api/auth/password/confirm/` | Confirm password reset | Implemented locally; validates the signed token and new password, then revokes outstanding refresh tokens |
 
 #### User & Profile (JWT required)
 | Method | Endpoint | Description | Notes |

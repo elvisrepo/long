@@ -121,6 +121,14 @@ so restrict those privileges and never print unredacted Compose configuration.
 Docker may persist container environments in metadata; avoiding a persistent
 `.env` does not mean secrets never reach the host's encrypted disk.
 
+The production runtime contract also includes `SES_REGION`,
+`DEFAULT_FROM_EMAIL`, and `PASSWORD_RESET_URL`. Django uses Anymail's Amazon SES
+backend and boto3's EC2 instance-role credential chain; do not place AWS access
+keys or SMTP credentials in Secrets Manager. The staging role is restricted to
+the verified `syncvitals.space` identity and `no-reply@syncvitals.space`
+sender. Required IMDSv2 uses response hop limit `2` so Docker bridge containers
+can retrieve the role credentials.
+
 ### 8.4 Frontend and Request Routing
 
 CloudFront provides one browser origin because React uses relative `/api/...`

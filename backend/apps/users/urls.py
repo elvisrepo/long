@@ -6,6 +6,8 @@ from apps.users.views import (
     mobile_login_view,
     mobile_logout_view,
     mobile_refresh_view,
+    password_reset_confirm_view,
+    password_reset_request_view,
     register_view,
     web_login_view,
     web_logout_view,
@@ -14,6 +16,16 @@ from apps.users.views import (
 
 urlpatterns = [
     path("register/", register_view, name="auth-register"),
+    path(
+        "password/request/",
+        password_reset_request_view,
+        name="auth-password-reset-request",
+    ),
+    path(
+        "password/confirm/",
+        password_reset_confirm_view,
+        name="auth-password-reset-confirm",
+    ),
     path("mobile/login/", mobile_login_view, name="auth-mobile-login"),
     path("mobile/refresh/", mobile_refresh_view, name="auth-mobile-refresh"),
     path("mobile/logout/", mobile_logout_view, name="auth-mobile-logout"),

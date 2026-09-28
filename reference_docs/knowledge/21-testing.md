@@ -325,6 +325,11 @@ What the current frontend tests are proving:
   - route surfaces backend registration errors
   - route disables the register button while pending
   - route clears previous registration errors after a later successful submit
+- password-reset API helper tests prove the request and confirm endpoint paths, methods, and JSON field mapping
+- forgot-password route tests prove the email form submits through `requestPasswordReset(...)` and displays the same generic completion message regardless of account existence
+- reset-password route tests prove a link carrying `uid` and `token` renders both password fields, submits the link credentials plus the new password, and shows the completed state
+- backend password-reset integration tests prove existing-account delivery, unknown-account non-disclosure, provider-failure non-disclosure and redacted logging, one-use tokens, Django password-policy enforcement, refresh-token revocation, and the three-requests-per-hour per-worker throttle; they do not claim a cross-worker global limit
+- tests use Django's in-memory mailbox and simulated provider failures; production-setting contract tests separately prove the Amazon SES backend, Frankfurt region, verified sender, HTTPS reset URL, and absence of static AWS credentials
 - settings route tests now prove the first protected-route behavior:
   - unauthenticated/error state redirects to `/login`
   - authenticated state renders settings content and the current user email

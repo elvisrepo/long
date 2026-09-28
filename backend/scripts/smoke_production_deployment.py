@@ -38,6 +38,9 @@ INERT_RUNTIME_SECRET = {
     "STRIPE_CHECKOUT_SUCCESS_URL": "https://staging.example.com/billing/success",
     "STRIPE_CHECKOUT_CANCEL_URL": "https://staging.example.com/billing/cancel",
     "STRIPE_CUSTOMER_PORTAL_RETURN_URL": "https://staging.example.com/billing",
+    "SES_REGION": "eu-central-1",
+    "DEFAULT_FROM_EMAIL": "Longevity <no-reply@syncvitals.space>",
+    "PASSWORD_RESET_URL": "https://staging.example.com/reset-password",
     "LOG_LEVEL": "INFO",
     "DJANGO_LOG_LEVEL": "INFO",
 }

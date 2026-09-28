@@ -66,6 +66,9 @@ docker run --rm \
   --env "STRIPE_CHECKOUT_SUCCESS_URL=https://staging.example.com/settings?checkout=success" \
   --env "STRIPE_CHECKOUT_CANCEL_URL=https://staging.example.com/settings?checkout=cancelled" \
   --env "STRIPE_CUSTOMER_PORTAL_RETURN_URL=https://staging.example.com/settings" \
+  --env SES_REGION=eu-central-1 \
+  --env "DEFAULT_FROM_EMAIL=Longevity <no-reply@syncvitals.space>" \
+  --env PASSWORD_RESET_URL=https://staging.example.com/reset-password \
   --env LOG_LEVEL=INFO \
   --env DJANGO_LOG_LEVEL=INFO \
   "${image_tag}" \

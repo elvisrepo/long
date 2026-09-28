@@ -38,6 +38,9 @@ REQUIRED_ENVIRONMENT_VARIABLES = (
     "STRIPE_CHECKOUT_SUCCESS_URL",
     "STRIPE_CHECKOUT_CANCEL_URL",
     "STRIPE_CUSTOMER_PORTAL_RETURN_URL",
+    "SES_REGION",
+    "DEFAULT_FROM_EMAIL",
+    "PASSWORD_RESET_URL",
     "LOG_LEVEL",
     "DJANGO_LOG_LEVEL",
 )
@@ -66,6 +69,9 @@ def valid_prod_environment() -> dict[str, str]:
         "STRIPE_CUSTOMER_PORTAL_RETURN_URL": (
             "https://staging.example.com/settings"
         ),
+        "SES_REGION": "eu-central-1",
+        "DEFAULT_FROM_EMAIL": "Longevity <no-reply@syncvitals.space>",
+        "PASSWORD_RESET_URL": "https://staging.example.com/reset-password",
         "LOG_LEVEL": "INFO",
         "DJANGO_LOG_LEVEL": "INFO",
     }
@@ -141,6 +147,63 @@ def test_prod_settings_load_with_complete_environment() -> None:
     result = import_prod_settings(valid_prod_environment())
 
     assert result.returncode == 0, result.stderr
+
+
+def test_prod_settings_use_ses_with_instance_role_credentials() -> None:
+    environment = valid_prod_environment()
+
+    backend = read_prod_setting(environment, "EMAIL_BACKEND")
+    anymail = read_prod_setting(environment, "ANYMAIL")
+
+    assert backend.returncode == 0, backend.stderr
+    assert json.loads(backend.stdout) == "anymail.backends.amazon_ses.EmailBackend"
+    assert anymail.returncode == 0, anymail.stderr
+    assert json.loads(anymail.stdout) == {
+        "AMAZON_SES_CLIENT_PARAMS": {"region_name": "eu-central-1"}
+    }
+
+
+def test_prod_settings_reject_ses_region_without_verified_identity() -> None:
+    environment = valid_prod_environment()
+    environment["SES_REGION"] = "us-east-1"
+
+    result = import_prod_settings(environment)
+
+    assert result.returncode != 0
+    assert "SES_REGION must be eu-central-1" in result.stderr
+
+
+def test_prod_settings_reject_sender_not_allowed_by_instance_role() -> None:
+    environment = valid_prod_environment()
+    environment["DEFAULT_FROM_EMAIL"] = "support@syncvitals.space"
+
+    result = import_prod_settings(environment)
+
+    assert result.returncode != 0
+    assert (
+        "DEFAULT_FROM_EMAIL must use no-reply@syncvitals.space"
+        in result.stderr
+    )
+
+
+@pytest.mark.parametrize(
+    "invalid_url",
+    (
+        "http://staging.example.com/reset-password",
+        "http://localhost:5173/reset-password",
+    ),
+)
+def test_prod_settings_reject_unsafe_password_reset_url(invalid_url: str) -> None:
+    environment = valid_prod_environment()
+    environment["PASSWORD_RESET_URL"] = invalid_url
+
+    result = import_prod_settings(environment)
+
+    assert result.returncode != 0
+    assert (
+        "PASSWORD_RESET_URL must use a non-local HTTPS URL in production"
+        in result.stderr
+    )
 
 
 def test_prod_settings_reject_sqlite_database_url() -> None:

@@ -1,14 +1,83 @@
 from typing import Any, cast
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+from django.conf import settings
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
 from django.db import transaction
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.settings import api_settings
-from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
+from rest_framework_simplejwt.token_blacklist.models import (
+    BlacklistedToken,
+    OutstandingToken,
+)
 from rest_framework_simplejwt.tokens import RefreshToken, UntypedToken
 
 from apps.subscriptions.models import Subscription, SubscriptionPlan
-from apps.users.models import User
+from apps.users.models import User, build_email_lookup_hash
+
+
+class PasswordResetEmailDeliveryError(RuntimeError):
+    """Hide provider-specific failures behind the password-reset boundary."""
+
+    def __init__(self, provider_error_type: str) -> None:
+        super().__init__("Password reset email delivery failed")
+        self.provider_error_type = provider_error_type
+
+
+def send_password_reset_email(*, email: str, reset_url_root: str) -> None:
+    user = User.objects.filter(
+        email_lookup_hash=build_email_lookup_hash(email),
+        is_active=True,
+    ).first()
+    if user is None or not user.has_usable_password():
+        return
+
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    reset_url_parts = urlsplit(reset_url_root)
+    reset_query = [
+        (key, value)
+        for key, value in parse_qsl(reset_url_parts.query, keep_blank_values=True)
+        if key not in {"uid", "token"}
+    ]
+    reset_query.extend((("uid", uid), ("token", token)))
+    reset_url = urlunsplit(
+        reset_url_parts._replace(query=urlencode(reset_query))
+    )
+    try:
+        send_mail(
+            subject="Reset your Longevity password",
+            message=(
+                "Use the link below to reset your Longevity password.\n\n"
+                f"{reset_url}\n\n"
+                "If you did not request this, you can ignore this email."
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+        )
+    except Exception as exc:
+        raise PasswordResetEmailDeliveryError(type(exc).__name__) from None
+
+
+@transaction.atomic
+def reset_user_password(*, user_id: object, token: str, new_password: str) -> bool:
+    try:
+        user = User.objects.select_for_update().get(pk=user_id, is_active=True)
+    except User.DoesNotExist:
+        return False
+
+    if not default_token_generator.check_token(user, token):
+        return False
+
+    user.set_password(new_password)
+    user.save(update_fields=["password"])
+    for outstanding_token in OutstandingToken.objects.filter(user=user):
+        BlacklistedToken.objects.get_or_create(token=outstanding_token)
+    return True
 
 
 def _validated_refresh_jti(refresh_token: str) -> str:

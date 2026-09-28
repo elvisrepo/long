@@ -1,6 +1,7 @@
 """Fail-safe settings for public staging and production deployments."""
 
 import os
+from email.utils import parseaddr
 from urllib.parse import urlparse
 
 from django.core.exceptions import ImproperlyConfigured
@@ -31,6 +32,26 @@ for variable_name in REQUIRED_ENVIRONMENT_VARIABLES:
     if not os.environ.get(variable_name, "").strip():
         raise ImproperlyConfigured(f"{variable_name} is required in production")
 
+# Anymail uses boto3's default credential chain. On EC2 this resolves the
+# instance role's short-lived credentials; no SMTP or static AWS keys exist in
+# Django settings or the runtime secret.
+EMAIL_BACKEND = "anymail.backends.amazon_ses.EmailBackend"
+ANYMAIL = {
+    "AMAZON_SES_CLIENT_PARAMS": {
+        "region_name": SES_REGION,  # noqa: F405
+    },
+}
+
+# The SES identity and the instance-role condition are intentionally scoped to
+# this region and envelope sender. Fail during startup instead of discovering a
+# drifted value only after a user requests a password reset.
+if SES_REGION != "eu-central-1":  # noqa: F405
+    raise ImproperlyConfigured("SES_REGION must be eu-central-1")
+if parseaddr(DEFAULT_FROM_EMAIL)[1].lower() != "no-reply@syncvitals.space":  # noqa: F405
+    raise ImproperlyConfigured(
+        "DEFAULT_FROM_EMAIL must use no-reply@syncvitals.space"
+    )
+
 # The deployed data store is managed PostgreSQL; local SQLite is intentionally
 # supported only by non-production settings.
 if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":  # noqa: F405
@@ -57,3 +78,13 @@ for variable_name in STRIPE_RETURN_URL_VARIABLES:
         raise ImproperlyConfigured(
             f"{variable_name} must use a non-local HTTPS URL in production"
         )
+
+password_reset_url = urlparse(PASSWORD_RESET_URL)  # noqa: F405
+if (
+    password_reset_url.scheme != "https"
+    or not password_reset_url.hostname
+    or password_reset_url.hostname in LOCAL_HOSTNAMES
+):
+    raise ImproperlyConfigured(
+        "PASSWORD_RESET_URL must use a non-local HTTPS URL in production"
+    )
