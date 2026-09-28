@@ -1165,6 +1165,44 @@ captured.
   reversal is needed for this release.
 - Status: deployment and public/host smoke checks complete.
 
+### EC2-033 — SES/password-reset deployment bundle installed
+
+- Date: 2026-09-28.
+- Performed by: Codex through AWS CLI and Systems Manager Run Command under the
+  owner's explicit instruction to continue the reviewed staging release.
+- Execution path: read-only preflight command
+  `18e90854-060d-4ae8-a1c3-a9d715dc0d74`, installation command
+  `484912fa-7a19-4f2b-a6af-fa7306431e4d`, and redacted runtime validation
+  command `16e47521-7296-42e8-881a-b5ec0b604e59`.
+- Intent: install the host-side Compose and runtime contract required by merged
+  password-reset/SES commit `5436f6edd27624fa4b59683be1f1712fbe711abf`
+  before advancing the fail-closed CD workflow pin.
+- Pre-change evidence: the storage guard passed; Docker was active; the API and
+  PostgreSQL containers were healthy; root had 8.8 GiB available and the
+  database volume had 9.2 GiB available.
+- Files changed: the 12-file allowlisted deployment archive was extracted into
+  `/opt/syncvitals/deployment`. No application image, container, database,
+  package, Nginx configuration, active systemd unit, or persistent data changed.
+- Artifact verification: transferred archive SHA-256
+  `458b8d86090e05e7038d54727ec7c494ff387659fd41eb393a4601537bf572ab`;
+  every installed file matched the commit-addressed release directory
+  byte-for-byte. The installed marker contains the full merged commit above.
+- Runtime contract: the updated 18-key `AWSCURRENT` secret snapshot passed the
+  installed loader using the existing verified backend-image pointer and
+  `/usr/bin/true`; no secret value was printed and no deployment ran.
+- Recovery or rollback: the full prior deployment directory is retained at
+  `/opt/syncvitals/deployment-backups/before-5436f6edd27624fa4b59683be1f1712fbe711abf.tar.gz`
+  with SHA-256
+  `19addaf3d8f86880f08af0f7f980dc52b61ddeab7f4b9a062a70551292469f2d`.
+- Verification: Docker remained active and the existing API and PostgreSQL
+  containers remained healthy. No restart or application deployment occurred.
+- Non-mutating failures: preflight command
+  `cb3bbb30-3519-41aa-9edd-f5cb675ed10a` stopped on Bash-only `pipefail` under
+  `/bin/sh`; validation command `2f302130-21ee-4847-bb29-a56f52ac0a30`
+  stopped before secret retrieval because `BACKEND_IMAGE` was unset. Both were
+  corrected without changing services or data.
+- Status: host bundle and runtime secret verified; workflow pin review remains.
+
 ## Current Known Host-Software State
 
 | Component | State | Evidence |
@@ -1175,6 +1213,7 @@ captured.
 | Certbot and Route 53 DNS plugin | Origin certificate issued; renewal dry-run and Nginx deploy hook passed | EC2-010, EC2-015, and EC2-016 |
 | CloudWatch Agent | Installed and configured through console; memory and root-disk metric delivery verified | EC2-012 console status and graphs; installed version and boot enablement not yet inspected |
 | AWS CLI | Version-pinned native ARM64 v2 installed and signature-verified | EC2-019 |
+| Deployment bundle | Commit `5436f6edd27624fa4b59683be1f1712fbe711abf` installed and byte-verified; previous bundle retained | EC2-033 |
 | PostgreSQL and Django | Healthy containers; EBS persistence, loopback-only API, and image index `sha256:f2f0d6443cbfce30aa0497b70688768d30f002d18ae9b04942951412bc9318c8` verified | EC2-020 and EC2-032 |
 | Nginx origin proxy | TLS, root-only CloudFront header guard, and loopback proxy verified | EC2-021 |
 | Exact EC2-002 APT transaction | Reconciled | `/var/log/apt/history.log` |

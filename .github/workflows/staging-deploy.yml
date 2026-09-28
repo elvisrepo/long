@@ -70,7 +70,7 @@ jobs:
         working-directory: backend
         shell: bash
         env:
-          INSTALLED_HOST_BUNDLE_COMMIT: c8985ae8083247a0c8ee55e3d530ffcb0bb0d29a
+          INSTALLED_HOST_BUNDLE_COMMIT: 5436f6edd27624fa4b59683be1f1712fbe711abf
         run: |
           set -euo pipefail
           bundle_file_list="$(python3 -c \

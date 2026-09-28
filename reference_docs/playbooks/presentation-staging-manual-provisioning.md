@@ -50,9 +50,9 @@ Already created and verified:
   `cf9627f7416cee7c33f2dbb7cf1d52d9883e658c`, pinned by index digest
   `sha256:4133797b381eedd384dead2c036f6749bfb35f80cfa0b1bfb215d9a2bb5217bb`;
 - Secrets Manager secret `longevity/staging/backend-runtime` in `eu-central-1`
-  with one deployed `AWSCURRENT` version whose pre-email contract passed the
-  loader's in-memory validation; the next backend release requires its updated
-  18-key staging contract; automatic rotation is not configured;
+  with an `AWSCURRENT` version whose updated 18-key SES/password-reset contract
+  passed the installed loader's in-memory validation; automatic rotation is
+  not configured;
 - EC2 role and instance profile `syncvitals-staging-ec2-role`, trusted only by
   EC2, with `AmazonSSMManagedInstanceCore`, pull-only access to the one backend
   ECR repository, read-only access to the one runtime secret, Route 53 mutation
@@ -282,9 +282,9 @@ HTTPS CSRF origin, Stripe test mode, and deliberate log levels.
 Gate: a Systems Manager session on the future host can invoke the loader and
 receive only a redacted success/failure result; no `.env` file exists.
 
-Current result: the deployed secret and instance-role retrieval path are
-verified. The three SES values above must still be added as a new secret
-version before installing and releasing the matching backend bundle.
+Current result: the deployed secret, instance-role retrieval path, and all 18
+allowlisted values passed the installed loader on 2026-09-28. No value was
+printed and the validation child command was `/usr/bin/true`.
 
 ### 4. Create the EC2 instance role
 
