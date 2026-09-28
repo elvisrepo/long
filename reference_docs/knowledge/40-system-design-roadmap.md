@@ -384,9 +384,15 @@ Related docs:
 Next real product step:
 
 ```text
-Complete local acceptance of the password-reset browser flow, then configure
-verified outbound email delivery before promoting that slice to staging
+Implement account-wide data export and account deletion, then validate both
+authenticated lifecycle flows on staging
 ```
+
+SES-backed password reset is deployed and owner-verified on staging: a real
+reset email arrived, the signed link changed the password, and login with the
+replacement password succeeded. The next operational hardening step is SES
+event publishing plus retained application failure alerts; it should not block
+the next product slice for the current demo/test-data pilot.
 
 Weight × Steps, seven-night Sleep Insights, the persisted user sleep target,
 Consistency & Coverage, and authenticated metric-entry CSV export are now
