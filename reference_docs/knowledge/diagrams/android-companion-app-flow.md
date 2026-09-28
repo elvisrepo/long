@@ -101,7 +101,7 @@ flowchart TD
         ALL_METRICS --> COORDINATOR["Metric-specific coordinators"]
         COORDINATOR --> INCREMENTAL_PLANNER["Weight + Steps + Sleep incremental planners<br/>use 24-hour cursor overlap<br/>or 30-day first-run fallback"]
         INCREMENTAL_PLANNER --> HC_READ["AndroidHealthConnectAccess reads every<br/>WeightRecord + StepsRecord + SleepSessionRecord page"]
-        SAMSUNG["Samsung Health"] -->|Writes on-device records| HEALTH_CONNECT["Health Connect"]
+        FITBIT["Fitbit"] -->|Writes on-device records| HEALTH_CONNECT["Health Connect"]
         HEALTH_CONNECT -->|Returns permitted records| HC_READ
         HC_READ --> FILTER["Keep Samsung-originated samples<br/>Sort and batch at most 100 entries"]
         FILTER --> UPLOAD_ID["Generate one retry-stable upload_id<br/>for each batch attempt"]

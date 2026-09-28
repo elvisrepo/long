@@ -2,8 +2,10 @@ import csv
 import json
 from collections.abc import Iterable
 from datetime import UTC, datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from django.db.models import Q
+from django.db.models import Max, Min, Q, Sum
+from django.db.models.functions import TruncDate
 from django.http import StreamingHttpResponse
 from django.utils.dateparse import parse_datetime
 from rest_framework import generics
@@ -31,6 +33,8 @@ from apps.metrics.limits import get_active_custom_metric_usage
 from apps.subscriptions.services import get_current_subscription_plan
 
 DEFAULT_METRIC_ENTRY_LIMIT = 50
+DEFAULT_DAILY_STEPS_LIMIT = 30
+MAX_DAILY_STEPS_LIMIT = 366
 METRIC_EXPORT_COLUMNS = (
     "entry_id",
     "metric_slug",
@@ -171,6 +175,79 @@ class MetricEntryListCreateView(generics.ListCreateAPIView):
           '''
 
           return queryset
+
+
+class DailyStepsSummaryView(APIView):
+    """Return Fitbit Steps as one summed value per requested local date."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        timezone_name = request.query_params.get("timezone", "UTC")
+        try:
+            timezone = ZoneInfo(timezone_name)
+        except ZoneInfoNotFoundError as exc:
+            raise ValidationError(
+                {"timezone": ["Enter a valid IANA timezone."]}
+            ) from exc
+
+        limit = (
+            parse_positive_int(request.query_params.get("limit"))
+            or DEFAULT_DAILY_STEPS_LIMIT
+        )
+        if limit > MAX_DAILY_STEPS_LIMIT:
+            raise ValidationError(
+                {"limit": [f"Limit cannot exceed {MAX_DAILY_STEPS_LIMIT}."]}
+            )
+
+        entries = MetricEntry.objects.filter(
+            user=request.user,
+            metric_definition__slug="steps",
+            source=MetricEntry.Source.FITBIT,
+        )
+        recorded_from = request.query_params.get("from")
+        if recorded_from:
+            entries = entries.filter(recorded_at__gte=recorded_from)
+        recorded_to = request.query_params.get("to")
+        if recorded_to:
+            entries = entries.filter(recorded_at__lte=recorded_to)
+
+        summaries = (
+            entries.annotate(
+                local_date=TruncDate("recorded_at", tzinfo=timezone)
+            )
+            .values("local_date")
+            .annotate(
+                id=Max("id"),
+                value=Sum("value"),
+                period_start=Min("period_start"),
+                recorded_at=Max("recorded_at"),
+                created_at=Max("created_at"),
+            )
+            .order_by("-local_date")[:limit]
+        )
+
+        return Response(
+            [
+                {
+                    "id": summary["id"],
+                    "metric_definition": "steps",
+                    "value": float(summary["value"]),
+                    "period_start": format_export_timestamp(
+                        summary["period_start"]
+                    ),
+                    "recorded_at": format_export_timestamp(
+                        summary["recorded_at"]
+                    ),
+                    "source": MetricEntry.Source.FITBIT,
+                    "context": {"aggregation": "daily"},
+                    "created_at": format_export_timestamp(
+                        summary["created_at"]
+                    ),
+                }
+                for summary in summaries
+            ]
+        )
 
 
 class MetricEntryCsvExportView(APIView):

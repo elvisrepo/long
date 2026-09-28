@@ -193,7 +193,10 @@ class WearableUploadEntrySerializer(StrictFieldsSerializer):
     period_start = serializers.DateTimeField(required=False, allow_null=True)
     recorded_at = serializers.DateTimeField()
     source = serializers.ChoiceField(
-        choices=(MetricEntry.Source.SAMSUNG_HEALTH,),
+        choices=(
+            MetricEntry.Source.SAMSUNG_HEALTH,
+            MetricEntry.Source.FITBIT,
+        ),
     )
     external_source_id = serializers.CharField(
         max_length=255,

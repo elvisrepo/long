@@ -12,12 +12,16 @@ from apps.wearables.models import SyncRun, WearableConnection
 pytestmark = pytest.mark.django_db
 
 
-def _normalized_entry(external_source_id: str) -> dict[str, object]:
+def _normalized_entry(
+    external_source_id: str,
+    *,
+    source: str = "samsung_health",
+) -> dict[str, object]:
     return {
         "metric_definition": "body_weight",
         "value": 78.4,
         "recorded_at": "2026-07-29T08:00:00Z",
-        "source": "samsung_health",
+        "source": source,
         "external_source_id": external_source_id,
     }
 
@@ -45,7 +49,8 @@ def test_wearable_upload_processes_one_normalized_entry():
             "upload_id": str(upload_id),
             "entries": [
                 _normalized_entry(
-                    "health_connect:WeightRecord:record-api-123"
+                    "health_connect:WeightRecord:record-api-123",
+                    source="fitbit",
                 )
             ],
         },
@@ -68,6 +73,7 @@ def test_wearable_upload_processes_one_normalized_entry():
     assert metric_entry.user == user
     assert metric_entry.source_connection == connection
     assert metric_entry.value == 78.4
+    assert metric_entry.source == MetricEntry.Source.FITBIT
     assert (
         metric_entry.external_source_id
         == "health_connect:WeightRecord:record-api-123"

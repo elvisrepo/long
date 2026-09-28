@@ -64,7 +64,10 @@ class SharedPreferencesWeightSyncCursorStore(
     }
 
     private companion object {
-        const val DEFAULT_PREFERENCES_NAME = "longevity_weight_sync_cursors"
+        // A fresh namespace triggers a bounded initial read after switching the
+        // selected Health Connect origin from Samsung Health to Fitbit.
+        const val DEFAULT_PREFERENCES_NAME =
+            "longevity_health_connect_sync_cursors_fitbit_v1"
         const val CURSOR_KEY_PREFIX = "connection_cursor_"
     }
 }

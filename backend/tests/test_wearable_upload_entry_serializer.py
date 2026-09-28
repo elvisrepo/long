@@ -32,6 +32,23 @@ def test_wearable_upload_entry_accepts_normalized_body_weight():
     }
 
 
+def test_wearable_upload_entry_accepts_fitbit_body_weight():
+    body_weight = MetricDefinition.objects.get(slug="body_weight")
+    serializer = WearableUploadEntrySerializer(
+        data={
+            "metric_definition": "body_weight",
+            "value": 78.4,
+            "recorded_at": "2026-09-28T08:00:00Z",
+            "source": "fitbit",
+            "external_source_id": "health_connect:WeightRecord:fitbit-123",
+        }
+    )
+
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data["metric_definition"] == body_weight
+    assert serializer.validated_data["source"] == MetricEntry.Source.FITBIT
+
+
 def test_wearable_upload_entry_requires_period_start_for_steps():
     serializer = WearableUploadEntrySerializer(
         data={

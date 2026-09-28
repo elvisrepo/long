@@ -11,18 +11,18 @@ import java.time.ZoneOffset
 
 class InitialWeightSyncPlannerTest {
     @Test
-    fun initial_read_uses_thirty_day_window_and_keeps_only_samsung_health() = runTest {
+    fun initial_read_uses_thirty_day_window_and_keeps_only_fitbit() = runTest {
         val now = Instant.parse("2026-08-05T12:00:00Z")
+        val fitbitSample = weightSample(
+            id = "fitbit-record",
+            sourcePackageName = "com.fitbit.FitbitMobile",
+        )
         val samsungSample = weightSample(
             id = "samsung-record",
             sourcePackageName = "com.sec.android.app.shealth",
         )
-        val otherSample = weightSample(
-            id = "other-record",
-            sourcePackageName = "com.example.otherhealthapp",
-        )
         val reader = RecordingWeightReader(
-            samples = listOf(samsungSample, otherSample),
+            samples = listOf(fitbitSample, samsungSample),
         )
         val planner = InitialWeightSyncPlanner(
             reader = reader,
@@ -33,15 +33,15 @@ class InitialWeightSyncPlannerTest {
 
         assertEquals(Instant.parse("2026-07-06T12:00:00Z"), reader.startTime)
         assertEquals(now, reader.endTime)
-        assertEquals(listOf(listOf(samsungSample)), batches)
+        assertEquals(listOf(listOf(fitbitSample)), batches)
     }
 
     @Test
-    fun samsung_samples_are_split_into_backend_sized_batches_without_reordering() = runTest {
+    fun fitbit_samples_are_split_into_backend_sized_batches_without_reordering() = runTest {
         val samples = (1..101).map { index ->
             weightSample(
                 id = "record-$index",
-                sourcePackageName = "com.sec.android.app.shealth",
+                sourcePackageName = "com.fitbit.FitbitMobile",
             )
         }
         val planner = InitialWeightSyncPlanner(
@@ -61,7 +61,7 @@ class InitialWeightSyncPlannerTest {
     }
 
     @Test
-    fun no_samsung_samples_produce_no_upload_batches() = runTest {
+    fun no_fitbit_samples_produce_no_upload_batches() = runTest {
         val planner = InitialWeightSyncPlanner(
             reader = RecordingWeightReader(
                 samples = listOf(

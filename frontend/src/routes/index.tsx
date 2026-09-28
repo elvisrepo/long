@@ -13,6 +13,7 @@ import { MetricEntryDialog } from "../features/metrics/metric-entry-dialog";
 import type { MetricDefinition } from "../features/metrics/metric-definitions-api";
 import type { MetricEntry } from "../features/metrics/metric-entries-api";
 import { useCreateMetricEntryMutation } from "../features/metrics/use-create-metric-entry-mutation";
+import { useDashboardMetricEntriesQuery } from "../features/metrics/use-dashboard-metric-entries-query";
 import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
 import { useMetricEntriesQuery } from "../features/metrics/use-metric-entries-query";
 import { useCurrentSubscriptionQuery } from "../features/subscriptions/use-current-subscription-query";
@@ -23,7 +24,6 @@ export const Route = createFileRoute("/")({
 });
 
 const DASHBOARD_RECENT_ENTRY_LIMIT = 5;
-const DASHBOARD_CARD_ENTRY_LIMIT = 50;
 const DASHBOARD_METRICS_PER_PAGE = 6;
 const DASHBOARD_METRIC_ORDER = ["sleep_duration", "steps", "body_weight"];
 const DASHBOARD_PREVIEW_DAYS = 7;
@@ -40,11 +40,12 @@ function DashboardRoute() {
     isError,
   } = useMetricDefinitionsQuery();
   const currentSubscriptionQuery = useCurrentSubscriptionQuery();
+  const metricSlugs = metricDefinitions.map((definition) => definition.slug);
   const {
-    data: cardMetricEntries = [],
+    data: cardMetricEntries,
     isLoading: cardMetricEntriesAreLoading,
     isError: cardMetricEntriesFailed,
-  } = useMetricEntriesQuery({ limit: DASHBOARD_CARD_ENTRY_LIMIT });
+  } = useDashboardMetricEntriesQuery(metricSlugs);
   const {
     data: recentMetricEntries = [],
     isLoading: metricEntriesAreLoading,

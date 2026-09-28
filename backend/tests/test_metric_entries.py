@@ -324,6 +324,48 @@ def test_metric_entry_list_returns_sleep_interval_start():
     assert response.json()[0]["period_start"] == "2026-09-18T23:00:00Z"
     assert response.json()[0]["recorded_at"] == "2026-09-19T06:30:00Z"
 
+
+def test_daily_steps_summary_sums_fitbit_intervals_by_local_date():
+    client, user = authenticate_client_for("daily-steps@example.com")
+    steps = MetricDefinition.objects.get(slug="steps")
+    for value, recorded_at in (
+        (45, "2026-09-27T22:30:00Z"),
+        (55, "2026-09-28T10:00:00Z"),
+        (80, "2026-09-26T22:30:00Z"),
+    ):
+        MetricEntry.objects.create(
+            user=user,
+            metric_definition=steps,
+            value=value,
+            period_start=datetime.fromisoformat(recorded_at).replace(
+                minute=0
+            )
+            - timedelta(minutes=15),
+            recorded_at=recorded_at,
+            source=MetricEntry.Source.FITBIT,
+        )
+    MetricEntry.objects.create(
+        user=user,
+        metric_definition=steps,
+        value=999,
+        period_start="2026-09-28T11:45:00Z",
+        recorded_at="2026-09-28T12:00:00Z",
+        source=MetricEntry.Source.SAMSUNG_HEALTH,
+    )
+
+    response = client.get(
+        "/api/v1/metrics/entries/daily-steps/"
+        "?timezone=Europe%2FTirane&limit=7"
+    )
+
+    assert response.status_code == 200
+    assert [entry["value"] for entry in response.json()] == [100.0, 80.0]
+    assert [entry["source"] for entry in response.json()] == [
+        "fitbit",
+        "fitbit",
+    ]
+    assert MetricEntry.objects.filter(user=user, source="fitbit").count() == 3
+
 def test_metric_entry_list_only_returns_current_users_entries():
       alice_client, _alice = authenticate_client_for("alice@example.com")
       bob_client, _bob = authenticate_client_for("bob@example.com")

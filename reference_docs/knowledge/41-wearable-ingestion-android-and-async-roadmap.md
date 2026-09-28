@@ -4,7 +4,7 @@
 
 - Planning or implementing `SyncRun`, wearable upload idempotency, or normalized `MetricEntry` ingestion.
 - Deciding when to start the Android companion app.
-- Testing Health Connect and Samsung-originated data on a physical Android phone.
+- Testing Fitbit-originated Health Connect data on a physical Android phone.
 - Deciding when Celery, Redis, Celery Beat, or Android WorkManager should enter the flow.
 
 The maintained visual companion for this roadmap is
@@ -15,10 +15,10 @@ The maintained visual companion for this roadmap is
 The wearable connection foundation is implemented before ingestion:
 
 - Health Connect is the MVP connection provider.
-- Samsung Health is sample provenance because Samsung-originated records reach the companion app through Health Connect.
+- Fitbit is the active sample provenance because Fitbit-originated records reach the companion app through Health Connect; legacy Samsung Health provenance remains accepted by Django.
 - New and reactivated connections begin with `status=pending`.
 - Disconnect marks a connection inactive and releases its plan slot without erasing the durable connection identity.
-- The backend stores no raw Samsung Health or Health Connect tokens.
+- The backend stores no raw Fitbit, Samsung Health, or Health Connect tokens.
 
 The next path is:
 
@@ -39,7 +39,7 @@ Do not introduce Celery merely because it already exists in Docker Compose. Firs
 ## 2. End-to-End Boundary
 
 ```text
-Samsung Health
+Fitbit
     ↓ writes records on device
 Health Connect
     ↓ exposes user-permitted records
@@ -53,6 +53,11 @@ React web app
 ```
 
 The Android app is the device bridge. Django cannot directly read Health Connect and Celery cannot wake an offline phone to fetch on-device records.
+
+On 2026-09-28, a privacy-safe physical-device probe confirmed Fitbit-originated
+Weight, Steps, and Sleep records in Health Connect. Multiple other origins also
+supplied Steps, so the active planners deliberately filter to
+`com.fitbit.FitbitMobile` rather than merging origins and double-counting.
 
 ### 2.1 Local and Hosted Android Connectivity
 
@@ -310,16 +315,17 @@ Implemented:
 - `HealthConnectStepsSample` is the SDK-independent representation of one interval-based `StepsRecord`: stable record ID, `Long` count, period start/end, and source package. Its diagnostic string redacts every value, and `HealthConnectStepsReader` defines the same explicit read-window boundary without importing Health Connect SDK types into the sync domain.
 - `HealthConnectSleepSample` represents one `SleepSessionRecord`. It stores session bounds, stages, source identity, and provider modification time. Time asleep uses the full session when stages are absent and otherwise subtracts explicit awake, awake-in-bed, and out-of-bed intervals. Each session, including a nap, remains a separate `sleep_duration` entry.
 - `AndroidHealthConnectAccess` implements the reader through `HealthConnectClient.readRecords()`. The adapter queries the explicit window in ascending order, follows every Health Connect page token, converts mass to kilograms, and maps the SDK record ID, timestamp, and `dataOrigin.packageName` without exposing SDK types to higher layers. A permission race becomes `WeightReadPermissionRequiredException`; documented I/O, IPC, and unavailable-service failures become retryable `WeightReadUnavailableException`.
-- `WeightSyncBatchPlanner` is the shared policy boundary that supplies ordered, backend-sized weight batches. `InitialWeightSyncPlanner` implements it with an injected UTC clock: it requests the previous 30 days, keeps only records whose Health Connect data origin is Samsung Health (`com.sec.android.app.shealth`), preserves chronological order, and splits them into batches of at most 100 entries to match the live backend request limit. No Samsung records produces no upload batches.
-- Android upload request models serialize the live Django contract exactly: caller-owned connection UUID, retry-stable upload UUID, and normalized `body_weight` entries with kilograms, ISO-8601 timestamps, Samsung Health provenance, and `health_connect:WeightRecord:<record-id>` external identities. Their diagnostic strings redact health values and record identifiers.
-- Django seeds `steps` as a system activity metric (`0` through `200000` steps per entry) and the shared upload endpoint persists normalized Steps intervals. `MetricEntry.period_start` stores the interval beginning while `recorded_at` stores its end; instantaneous Weight leaves `period_start` null. Android maps every ascending Health Connect `StepsRecord` page through `AndroidHealthConnectAccess`, filters Samsung provenance, and serializes `steps` entries with `period_start`, interval-end `recorded_at`, and stable `health_connect:StepsRecord:<record-id>` identities.
-- The same endpoint now accepts `sleep_duration`. Android maps Samsung-originated `SleepSessionRecord` pages and uploads decimal hours asleep, session start in `period_start`, session end in `recorded_at`, and stable `health_connect:SleepSessionRecord:<record-id>` identities. The authenticated metric-entry response exposes nullable `period_start`. The web displays the numeric value as hours and minutes, for example `7h 30m`, and Sleep history shows the session's start/wake window plus wake date in the viewer's local timezone. Manual Sleep creation and editing use Bedtime/Wake time inputs; Django derives duration from those bounds because manual records have no provider sleep stages.
+- `WeightSyncBatchPlanner` is the shared policy boundary that supplies ordered, backend-sized weight batches. `InitialWeightSyncPlanner` implements it with an injected UTC clock: it requests the previous 30 days, keeps only records whose Health Connect data origin is Fitbit (`com.fitbit.FitbitMobile`), preserves chronological order, and splits them into batches of at most 100 entries to match the live backend request limit. No Fitbit records produces no upload batches.
+- Android upload request models serialize the live Django contract exactly: caller-owned connection UUID, retry-stable upload UUID, and normalized `body_weight` entries with kilograms, ISO-8601 timestamps, Fitbit provenance, and `health_connect:WeightRecord:<record-id>` external identities. Their diagnostic strings redact health values and record identifiers.
+- Django seeds `steps` as a system activity metric (`0` through `200000` steps per entry) and the shared upload endpoint persists normalized Steps intervals. `MetricEntry.period_start` stores the interval beginning while `recorded_at` stores its end; instantaneous Weight leaves `period_start` null. Android maps every ascending Health Connect `StepsRecord` page through `AndroidHealthConnectAccess`, filters Fitbit provenance, and serializes `steps` entries with `period_start`, interval-end `recorded_at`, and stable `health_connect:StepsRecord:<record-id>` identities.
+- Raw Fitbit Steps intervals remain the ingestion source of truth for idempotency and provider corrections. `GET /api/v1/metrics/entries/daily-steps/` sums those intervals by the authenticated user's requested IANA timezone for dashboard and metric-history presentation, returning one value per local date without deleting or rewriting raw records.
+- The same endpoint accepts `sleep_duration`. Android maps Fitbit-originated `SleepSessionRecord` pages and uploads decimal hours asleep, session start in `period_start`, session end in `recorded_at`, and stable `health_connect:SleepSessionRecord:<record-id>` identities. The authenticated metric-entry response exposes nullable `period_start`. The web displays the numeric value as hours and minutes, for example `7h 30m`, and Sleep history shows the session's start/wake window plus wake date in the viewer's local timezone. Manual Sleep creation and editing use Bedtime/Wake time inputs; Django derives duration from those bounds because manual records have no provider sleep stages.
 - `SyncRunResponse` decodes Django's read-only upload receipt, including imported/updated/skipped counters and nullable processing/finish timestamps so the Android boundary supports both today's synchronous terminal result and the planned asynchronous lifecycle.
 - `HttpWearableUploadRepository` maps planned samples into the normalized request and posts it through the shared authenticated client. New `201` and exact-retry `200` receipts are success; `409` content conflicts, `400`/`404` rejections, missing sessions, and retryable/malformed failures remain distinct. Its public receipt uses typed `Instant` values and does not expose transport DTOs.
 - `WeightSyncCoordinator`, `StepsSyncCoordinator`, and `SleepSyncCoordinator` connect their metric-specific planners to the shared upload repository through the existing `WeightSyncRunner`/`WeightSyncResult` boundary. Each creates one UUID per ordered batch, avoids empty requests, and stops on its first failure while preserving earlier committed receipts. `AllMetricsSyncRunner` runs Weight, Steps, then Sleep, combines their receipts, skips metric-specific no-data results, and stops before later metrics on an interruption. The type names remain Weight-specific legacy names, but the application-level behavior is multi-metric.
 - `IncrementalWeightSyncPlanner` and `WeightSyncCursorStore` now define the background read-window policy at the domain boundary. Cursor lookup is scoped by caller-owned connection ID; an existing watermark receives a 24-hour overlap, a missing watermark safely falls back to 30 days, and stable external record IDs make overlap duplicates harmless at ingestion.
 - `IncrementalWeightSyncRunner` wraps the complete `AllMetricsSyncRunner` and captures the conservative shared watermark before either metric is read. It persists that watermark only after every supported metric completes or has no data, never after an interruption, so a failed later metric remains inside the next retry window.
-- `SharedPreferencesWeightSyncCursorStore` persists epoch-millisecond watermarks in private application storage with one key per connection. Writes and connection-scoped removal use durable `commit()` on the I/O dispatcher; missing values return `null`, and wrong-typed corrupted values are removed before the planner falls back safely. Cursor preferences are excluded from cloud backup and device transfer so an old device watermark cannot skip Health Connect history on a different phone.
+- `SharedPreferencesWeightSyncCursorStore` persists epoch-millisecond watermarks in private application storage with one key per connection. The Fitbit source switch uses a new preference namespace so the first run safely performs the bounded 30-day fallback instead of inheriting a Samsung-era cursor. Writes and connection-scoped removal use durable `commit()` on the I/O dispatcher; missing values return `null`, and wrong-typed corrupted values are removed before the planner falls back safely. Cursor preferences are excluded from cloud backup and device transfer so an old device watermark cannot skip Health Connect history on a different phone.
 - Stable AndroidX WorkManager `2.11.2` and its `work-testing` artifact are configured. `WeightSyncResult.toWorkResult()` is the tested domain-to-scheduler boundary: `Completed`/`NoData` become success; `ReadUnavailable`/`Unavailable` become retry; permission, conflict, rejection, and missing-session outcomes become failure.
 - `IncrementalWeightSyncWorker` validates its input connection ID, calls the injected application-scoped all-metric incremental runner, and returns that mapping. `LongevityWorkerFactory` supplies the runner, and `LongevityApplication` implements `Configuration.Provider` so WorkManager uses that factory. The worker and scheduler retain their Weight-specific class names as naming debt; their live behavior now synchronizes Weight and Steps. The manifest removes WorkManager's default AndroidX Startup initializer while retaining Startup for other libraries.
 - `WorkManagerWeightSyncScheduler` now enqueues one connection-scoped unique periodic request using `ExistingPeriodicWorkPolicy.UPDATE`, a connected-network constraint, WorkManager's 15-minute minimum interval, and a stable tag. `MainActivity` schedules only after authentication, a Ready caller-owned connection, and granted background access. It deliberately does nothing during startup session checking, cancels one unique request after connection disconnect, and cancels all tagged weight work only after logout or a manual-only policy is confirmed.

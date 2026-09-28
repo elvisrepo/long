@@ -180,7 +180,7 @@ Public HTTPS staging deployment
     → record acceptance evidence and add application monitoring
 ```
 
-The Android project at `android/` implements mobile authentication, Keystore-backed JWT storage and rotation, Health Connect Weight and Steps permission/read, caller-owned connection registration, normalized incremental upload, subscription-aware manual cooldowns, Pro WorkManager scheduling, and connection disconnect. A physical phone has completed the Samsung Health → Health Connect → Android → Django → React path for both metrics. Live verification proved a newly added Weight record imports and an evolving Steps record updates through its newer Health Connect modification timestamp. Disconnect is covered on-device at the UI/cursor boundaries and cancels connection-scoped work after Django confirms the soft disconnect.
+The Android project at `android/` implements mobile authentication, Keystore-backed JWT storage and rotation, Health Connect Weight, Steps, and Sleep permission/read, caller-owned connection registration, normalized incremental upload, subscription-aware manual cooldowns, Pro WorkManager scheduling, and connection disconnect. Fitbit is the active Health Connect data origin; earlier physical Samsung Health acceptance remains historical evidence for the same device-bridge path. Live verification proved a newly added Weight record imports and an evolving Steps record updates through its newer Health Connect modification timestamp. Disconnect is covered on-device at the UI/cursor boundaries and cancels connection-scoped work after Django confirms the soft disconnect.
 
 Refactor trigger before ingestion grows:
 

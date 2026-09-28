@@ -11,12 +11,12 @@ import java.time.ZoneOffset
 
 class IncrementalSleepSyncPlannerTest {
     @Test
-    fun cursor_window_keeps_only_samsung_sleep_and_preserves_sessions() = runTest {
+    fun cursor_window_keeps_only_fitbit_sleep_and_preserves_sessions() = runTest {
         val now = Instant.parse("2026-09-19T12:00:00Z")
         val cursor = Instant.parse("2026-09-19T10:00:00Z")
-        val samsung = sleepSample("samsung", SAMSUNG_HEALTH_PACKAGE)
-        val other = sleepSample("other", "com.example.health")
-        val reader = RecordingSleepReader(listOf(samsung, other))
+        val fitbit = sleepSample("fitbit", FITBIT_PACKAGE)
+        val samsung = sleepSample("samsung", "com.sec.android.app.shealth")
+        val reader = RecordingSleepReader(listOf(fitbit, samsung))
         val planner = IncrementalSleepSyncPlanner(
             reader = reader,
             cursorStore = FixedSleepCursorStore(cursor),
@@ -27,7 +27,7 @@ class IncrementalSleepSyncPlannerTest {
 
         assertEquals(Instant.parse("2026-09-18T10:00:00Z"), reader.startTime)
         assertEquals(now, reader.endTime)
-        assertEquals(listOf(listOf(samsung)), batches)
+        assertEquals(listOf(listOf(fitbit)), batches)
     }
 
     private fun sleepSample(id: String, source: String) = HealthConnectSleepSample(
@@ -41,7 +41,7 @@ class IncrementalSleepSyncPlannerTest {
 
     private companion object {
         const val CONNECTION_ID = "7df7e4ab-7e6f-4558-b9be-17c824fbf54e"
-        const val SAMSUNG_HEALTH_PACKAGE = "com.sec.android.app.shealth"
+        const val FITBIT_PACKAGE = "com.fitbit.FitbitMobile"
     }
 }
 

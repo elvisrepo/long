@@ -9,7 +9,7 @@ Use this document when:
 - separating initial backfill from incremental background synchronization;
 - deciding when Android WorkManager, Django, Redis, Celery, or Celery Beat should run work.
 
-This document describes the implemented Android flow as of 2026-09-19 and the agreed next architecture. The current Android slice synchronizes Samsung-originated Weight, Steps, and Sleep records through one user action and one periodic worker path.
+This document describes the implemented Android flow and agreed next architecture. The current Android slice synchronizes Fitbit-originated Weight, Steps, and Sleep records through one user action and one periodic worker path. The 2026-09-19 Samsung Health acceptance notes below remain historical evidence for the same Health Connect bridge.
 
 Physical hosted-path acceptance on 2026-09-19 used signed pilot 1.2 on the
 authorized Xiaomi 17 Ultra. Health Connect returned the preceding night's
@@ -48,7 +48,7 @@ Path: `android/app/src/main/java/com/viridiandome/longevity/wearables/sync/Initi
 1. reads the per-connection successful cursor;
 2. uses a 24-hour overlap when the cursor exists, or the previous 30 days when absent;
 3. reads through `HealthConnectWeightReader`;
-4. keeps only Samsung Health records from `com.sec.android.app.shealth`;
+4. keeps only Fitbit records from `com.fitbit.FitbitMobile`;
 5. preserves chronological order and splits at 100 entries.
 
 The planner does not perform HTTP requests, generate upload IDs, or update Compose state.
@@ -218,7 +218,7 @@ AndroidHealthConnectAccess
     ↓
 Health Connect returns paginated WeightRecord values
     ↓
-Planner keeps Samsung Health records since cursor-overlap, or the previous 30 days on first run
+Planner keeps Fitbit records since cursor-overlap, or the previous 30 days on first run
     ↓
 Planner creates batches of at most 100
     ↓

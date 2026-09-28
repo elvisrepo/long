@@ -75,7 +75,7 @@ function MetricDetailRoute() {
   const [entryPendingDeletion, setEntryPendingDeletion] =
     useState<MetricEntry | null>(null);
   const [entryActionError, setEntryActionError] = useState<string | null>(null);
-  const metricEntryFilters: GetMetricEntriesFilters = selectedDate
+  const baseMetricEntryFilters: GetMetricEntriesFilters = selectedDate
     ? {
         metric: slug,
         from: `${selectedDate}T00:00:00.000Z`,
@@ -89,6 +89,15 @@ function MetricDetailRoute() {
           limit: METRIC_DETAIL_ENTRY_LIMIT,
         }
       : { metric: slug, limit: METRIC_DETAIL_ENTRY_LIMIT };
+  const metricEntryFilters: GetMetricEntriesFilters =
+    slug === "steps"
+      ? {
+          ...baseMetricEntryFilters,
+          daily: true,
+          timezone:
+            Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+        }
+      : baseMetricEntryFilters;
   const {
     data: metricDefinitions = [],
     isLoading: definitionsAreLoading,
