@@ -22,6 +22,7 @@ export function useUpdateMetricDefinitionMutation() {
     mutationFn: ({ id, input }) => updateMetricDefinition(id, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["metric-definitions"] });
+      queryClient.invalidateQueries({ queryKey: ["consistency-analytics"] });
     },
   });
 }

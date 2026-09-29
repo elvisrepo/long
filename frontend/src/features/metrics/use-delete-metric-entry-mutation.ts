@@ -8,9 +8,8 @@ export function useDeleteMetricEntryMutation() {
   return useMutation({
     mutationFn: (id: number) => deleteMetricEntry(id),
     onSuccess: () => {
-      return queryClient.invalidateQueries({
-        queryKey: ["metric-entries"],
-      });
+      queryClient.invalidateQueries({ queryKey: ["consistency-analytics"] });
+      return queryClient.invalidateQueries({ queryKey: ["metric-entries"] });
     },
   });
 }

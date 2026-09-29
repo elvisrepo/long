@@ -7,7 +7,7 @@ import {
   parseMetricEntryValue,
 } from "../features/metrics/metric-entry-input";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load";
@@ -69,6 +69,25 @@ function MetricDetailContent({ slug }: { slug: string }) {
   const [selectedRangeFrom, setSelectedRangeFrom] = useState<
     string | undefined
   >(() => (isDailyPresentationMetric ? getLocalRangeStartIso(366) : undefined));
+  useEffect(() => {
+    if (!isDailyPresentationMetric) return;
+
+    const refreshRange = () => {
+      setSelectedRangeFrom(getLocalRangeStartIso(selectedRange.days ?? 366));
+    };
+    const nextDay = new Date();
+    nextDay.setDate(nextDay.getDate() + 1);
+    nextDay.setHours(0, 0, 0, 0);
+    const timer = window.setTimeout(
+      refreshRange,
+      Math.max(1, nextDay.getTime() - Date.now()),
+    );
+    window.addEventListener("focus", refreshRange);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("focus", refreshRange);
+    };
+  }, [isDailyPresentationMetric, selectedRange.days, selectedRangeFrom]);
   const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
   const [isAddingMetricEntry, setIsAddingMetricEntry] = useState(false);
   // The expanded state is keyed by the active filter so changing the metric,
@@ -92,6 +111,14 @@ function MetricDetailContent({ slug }: { slug: string }) {
       ? {
           metric: slug,
           from: selectedRangeFrom,
+          ...(isDailyPresentationMetric
+            ? {
+                to: getLocalRangeEndIso(
+                  selectedRangeFrom,
+                  selectedRange.days ?? 366,
+                ),
+              }
+            : {}),
           limit: METRIC_DETAIL_ENTRY_LIMIT,
         }
       : { metric: slug, limit: METRIC_DETAIL_ENTRY_LIMIT };
@@ -788,4 +815,15 @@ function getLocalRangeStartIso(days: number) {
   rangeStart.setHours(0, 0, 0, 0);
   rangeStart.setDate(rangeStart.getDate() - (days - 1));
   return rangeStart.toISOString();
+}
+
+function getLocalRangeEndIso(from: string, days: number) {
+  const rangeStart = new Date(from);
+  const rangeEnd = new Date(
+    rangeStart.getFullYear(),
+    rangeStart.getMonth(),
+    rangeStart.getDate() + days,
+  );
+  rangeEnd.setTime(rangeEnd.getTime() - 1);
+  return rangeEnd.toISOString();
 }

@@ -140,6 +140,7 @@ describe("metric detail route", () => {
   afterEach(() => {
     vi.resetAllMocks();
     vi.unstubAllEnvs();
+    vi.useRealTimers();
   });
 
   it("leads with the trend and omits the summary section", async () => {
@@ -265,6 +266,7 @@ describe("metric detail route", () => {
     expect(useMetricEntriesQuery).toHaveBeenCalledWith({
       metric: "hrv",
       from: expect.any(String),
+      to: expect.any(String),
       limit: 366,
       daily: true,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
@@ -348,6 +350,7 @@ describe("metric detail route", () => {
     expect(useMetricEntriesQuery).toHaveBeenCalledWith({
       metric: "hrv",
       from: expect.any(String),
+      to: expect.any(String),
       limit: 50,
     });
   });
@@ -430,6 +433,9 @@ describe("metric detail route", () => {
     expectedStart.setHours(0, 0, 0, 0);
     expectedStart.setDate(expectedStart.getDate() - 6);
     expect(dailyFilters?.from).toBe(expectedStart.toISOString());
+    const expectedEnd = new Date();
+    expectedEnd.setHours(23, 59, 59, 999);
+    expect(dailyFilters?.to).toBe(expectedEnd.toISOString());
   });
 
   it("bounds the default and reselected one-year HRV trend to recent local dates", async () => {
@@ -462,6 +468,8 @@ describe("metric detail route", () => {
     const expectedStart = new Date();
     expectedStart.setHours(0, 0, 0, 0);
     expectedStart.setDate(expectedStart.getDate() - 365);
+    const expectedEnd = new Date();
+    expectedEnd.setHours(23, 59, 59, 999);
     const latestDailyFilters = () =>
       vi
         .mocked(useMetricEntriesQuery)
@@ -471,14 +479,149 @@ describe("metric detail route", () => {
 
     expect(latestDailyFilters()).toMatchObject({
       from: expectedStart.toISOString(),
+      to: expectedEnd.toISOString(),
       limit: 366,
     });
     await user.click(screen.getByRole("button", { name: "7d" }));
     await user.click(screen.getByRole("button", { name: "1y" }));
     expect(latestDailyFilters()).toMatchObject({
       from: expectedStart.toISOString(),
+      to: expectedEnd.toISOString(),
       limit: 366,
     });
+  });
+
+  it("ends a daily range before a midnight daylight-saving jump", async () => {
+    vi.stubEnv("TZ", "America/Santiago");
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-05T14:00:00.000Z"));
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "hrv-id",
+          name: "Heart Rate Variability",
+          slug: "hrv",
+          unit: "ms",
+          category: "cardiovascular",
+          min_value: 1,
+          max_value: 300,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/hrv");
+    await screen.findByRole("heading", {
+      level: 1,
+      name: /heart rate variability/i,
+    });
+    const dailyFilters = vi
+      .mocked(useMetricEntriesQuery)
+      .mock.calls.map(([filters]) => filters)
+      .find((filters) => filters.daily);
+    expect(dailyFilters?.to).toBe("2026-09-06T03:59:59.999Z");
+  });
+
+  it("does not carry a skipped start-midnight hour into the range end", async () => {
+    vi.stubEnv("TZ", "America/Santiago");
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-12T14:00:00.000Z"));
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "hrv-id",
+          name: "Heart Rate Variability",
+          slug: "hrv",
+          unit: "ms",
+          category: "cardiovascular",
+          min_value: 1,
+          max_value: 300,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/hrv");
+    await screen.findByRole("heading", {
+      level: 1,
+      name: /heart rate variability/i,
+    });
+    await userEvent.click(screen.getByRole("button", { name: "7d" }));
+    const filters = vi
+      .mocked(useMetricEntriesQuery)
+      .mock.calls.map(([query]) => query)
+      .filter((query) => query.metric === "hrv")
+      .slice(-2);
+    expect(filters).toHaveLength(2);
+    expect(filters[0]).toMatchObject({
+      from: "2026-09-06T04:00:00.000Z",
+      to: "2026-09-13T02:59:59.999Z",
+    });
+    expect(filters[1]).toMatchObject({
+      from: "2026-09-06T04:00:00.000Z",
+      to: "2026-09-13T02:59:59.999Z",
+    });
+  });
+
+  it("advances a daily range when the tab crosses local midnight", async () => {
+    vi.stubEnv("TZ", "UTC");
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-28T12:00:00.000Z"));
+    const timeoutSpy = vi.spyOn(window, "setTimeout");
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "hrv-id",
+          name: "Heart Rate Variability",
+          slug: "hrv",
+          unit: "ms",
+          category: "cardiovascular",
+          min_value: 1,
+          max_value: 300,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/hrv");
+    await screen.findByRole("heading", {
+      level: 1,
+      name: /heart rate variability/i,
+    });
+    const midnightCallback = timeoutSpy.mock.calls.find(
+      ([, delay]) => typeof delay === "number" && delay > 3_600_000,
+    )?.[0];
+    expect(typeof midnightCallback).toBe("function");
+
+    vi.setSystemTime(new Date("2026-09-29T00:00:01.000Z"));
+    act(() => {
+      (midnightCallback as () => void)();
+    });
+    const dailyFilters = vi
+      .mocked(useMetricEntriesQuery)
+      .mock.calls.map(([filters]) => filters)
+      .filter((filters) => filters.daily);
+    expect(dailyFilters.at(-1)).toMatchObject({
+      from: "2025-09-29T00:00:00.000Z",
+      to: "2026-09-29T23:59:59.999Z",
+      limit: 366,
+    });
+    timeoutSpy.mockRestore();
   });
 
   it("resets the date range when navigating between raw and daily metrics", async () => {
