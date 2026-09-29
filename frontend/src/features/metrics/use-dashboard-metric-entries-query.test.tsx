@@ -34,7 +34,7 @@ describe("useDashboardMetricEntriesQuery", () => {
     );
 
     const { result } = renderHook(
-      () => useDashboardMetricEntriesQuery(["steps", "body_weight"]),
+      () => useDashboardMetricEntriesQuery(["steps", "hrv", "body_weight"]),
       { wrapper },
     );
 
@@ -47,11 +47,18 @@ describe("useDashboardMetricEntriesQuery", () => {
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     });
     expect(getMetricEntries).toHaveBeenCalledWith({
+      metric: "hrv",
+      limit: 7,
+      daily: true,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    });
+    expect(getMetricEntries).toHaveBeenCalledWith({
       metric: "body_weight",
       limit: 7,
     });
     expect(result.current.data.map((entry) => entry.metric_definition)).toEqual([
       "steps",
+      "hrv",
       "body_weight",
     ]);
   });

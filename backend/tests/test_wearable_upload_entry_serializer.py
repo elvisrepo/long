@@ -165,25 +165,31 @@ def test_wearable_upload_entry_rejects_unsupported_source():
     }
 
 
-def test_wearable_upload_entry_rejects_unsupported_metric_definition():
+@pytest.mark.parametrize(
+    ("metric_slug", "value", "record_type"),
+    (
+        ("resting_hr", 58, "RestingHeartRateRecord"),
+        ("hrv", 42.5, "HeartRateVariabilityRmssdRecord"),
+    ),
+)
+def test_wearable_upload_entry_accepts_fitbit_cardiovascular_metric(
+    metric_slug: str,
+    value: float,
+    record_type: str,
+):
     serializer = WearableUploadEntrySerializer(
         data={
-            "metric_definition": "resting_hr",
-            "value": 58,
+            "metric_definition": metric_slug,
+            "value": value,
             "recorded_at": "2026-07-27T08:00:00Z",
-            "source": "samsung_health",
-            "external_source_id": (
-                "health_connect:HeartRateRecord:record-unsupported-metric"
-            ),
+            "source": "fitbit",
+            "external_source_id": f"health_connect:{record_type}:record-123",
         }
     )
 
-    assert serializer.is_valid() is False
-    assert serializer.errors == {
-        "metric_definition": [
-            "Object with slug=resting_hr does not exist."
-        ],
-    }
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data["metric_definition"].slug == metric_slug
+    assert serializer.validated_data["source"] == MetricEntry.Source.FITBIT
 
 
 def test_wearable_upload_entry_rejects_inactive_metric_definition():

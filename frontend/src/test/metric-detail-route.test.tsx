@@ -221,6 +221,54 @@ describe("metric detail route", () => {
     ).toBeInTheDocument();
   });
 
+  it("loads HRV history as daily medians in the viewer timezone", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "hrv-id",
+          name: "Heart Rate Variability",
+          slug: "hrv",
+          unit: "ms",
+          category: "cardiovascular",
+          min_value: 1,
+          max_value: 300,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([
+      {
+        id: 1,
+        metric_definition: "hrv",
+        value: 52.5,
+        period_start: null,
+        recorded_at: "2026-09-28T06:35:00Z",
+        source: "fitbit",
+        context: { aggregation: "daily_median" },
+        created_at: "2026-09-28T06:36:00Z",
+      },
+    ]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/hrv");
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: /heart rate variability/i,
+      }),
+    ).toBeInTheDocument();
+    expect(useMetricEntriesQuery).toHaveBeenCalledWith({
+      metric: "hrv",
+      limit: 50,
+      daily: true,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    });
+  });
+
   it("filters metric entries by the selected 30 day range", async () => {
     const user = userEvent.setup();
 

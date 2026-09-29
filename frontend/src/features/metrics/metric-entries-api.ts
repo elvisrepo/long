@@ -35,6 +35,11 @@ export interface GetMetricEntriesFilters {
   timezone?: string;
 }
 
+const DAILY_METRIC_ENDPOINTS: Record<string, string> = {
+  hrv: "/api/v1/metrics/entries/daily-hrv/",
+  steps: "/api/v1/metrics/entries/daily-steps/",
+};
+
 export async function createMetricEntry(
   input: CreateMetricEntryInput,
 ): Promise<MetricEntry> {
@@ -92,8 +97,12 @@ export async function getMetricEntries(
   }
 
   if (filters.daily) {
-    if (filters.metric !== "steps" || !filters.timezone) {
-      throw new Error("Daily Steps requests require a timezone");
+    if (
+      !filters.metric ||
+      !DAILY_METRIC_ENDPOINTS[filters.metric] ||
+      !filters.timezone
+    ) {
+      throw new Error("Daily metric requests require a supported metric and timezone");
     }
     searchParams.set("timezone", filters.timezone);
   }
@@ -112,7 +121,7 @@ export async function getMetricEntries(
 
   const queryString = searchParams.toString();
   const baseUrl = filters.daily
-    ? "/api/v1/metrics/entries/daily-steps/"
+    ? DAILY_METRIC_ENDPOINTS[filters.metric!]
     : "/api/v1/metrics/entries/";
   const url = queryString ? `${baseUrl}?${queryString}` : baseUrl;
 

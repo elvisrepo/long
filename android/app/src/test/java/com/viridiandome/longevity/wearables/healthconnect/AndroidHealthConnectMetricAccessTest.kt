@@ -26,6 +26,16 @@ class AndroidHealthConnectMetricAccessTest {
             ),
         )
         assertSame(
+            WeightReadAccess.PermissionRequired,
+            resolveSupportedMetricReadAccess(
+                grantedPermissions = setOf(
+                    WEIGHT_READ_PERMISSION,
+                    STEPS_READ_PERMISSION,
+                    SLEEP_READ_PERMISSION,
+                ),
+            ),
+        )
+        assertSame(
             WeightReadAccess.Granted,
             resolveSupportedMetricReadAccess(
                 grantedPermissions = SUPPORTED_METRIC_READ_PERMISSIONS,

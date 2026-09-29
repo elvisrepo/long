@@ -3,6 +3,7 @@ import { useQueries } from "@tanstack/react-query";
 import { getMetricEntries, type MetricEntry } from "./metric-entries-api";
 
 const DASHBOARD_ENTRIES_PER_METRIC = 7;
+const DAILY_PRESENTATION_METRICS = new Set(["hrv", "steps"]);
 
 export function useDashboardMetricEntriesQuery(metricSlugs: string[]) {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
@@ -11,7 +12,9 @@ export function useDashboardMetricEntriesQuery(metricSlugs: string[]) {
       const filters = {
         metric,
         limit: DASHBOARD_ENTRIES_PER_METRIC,
-        ...(metric === "steps" ? { daily: true, timezone } : {}),
+        ...(DAILY_PRESENTATION_METRICS.has(metric)
+          ? { daily: true, timezone }
+          : {}),
       };
       return {
         queryKey: ["metric-entries", filters],

@@ -5,6 +5,8 @@ import com.viridiandome.longevity.auth.network.AuthenticatedApiResult
 import com.viridiandome.longevity.wearables.HealthConnectStepsSample
 import com.viridiandome.longevity.wearables.HealthConnectSleepSample
 import com.viridiandome.longevity.wearables.HealthConnectWeightSample
+import com.viridiandome.longevity.wearables.HealthConnectInstantMetricSample
+import com.viridiandome.longevity.wearables.InstantMetricUploadRepository
 import com.viridiandome.longevity.wearables.WearableUploadReceipt
 import com.viridiandome.longevity.wearables.WearableUploadRepository
 import com.viridiandome.longevity.wearables.WearableUploadResult
@@ -24,7 +26,7 @@ class HttpWearableUploadRepository(
     private val authenticatedApiClient: AuthenticatedApiClient,
     baseUrl: String,
     private val json: Json = Json,
-) : WearableUploadRepository {
+) : WearableUploadRepository, InstantMetricUploadRepository {
     private val uploadsUrl = baseUrl
         .toHttpUrl()
         .newBuilder()
@@ -55,6 +57,16 @@ class HttpWearableUploadRepository(
         connectionId: String,
         uploadId: String,
         samples: List<HealthConnectSleepSample>,
+    ): WearableUploadResult = uploadEntries(
+        connectionId = connectionId,
+        uploadId = uploadId,
+        entries = samples.map(WearableUploadEntryRequest::from),
+    )
+
+    override suspend fun uploadInstantMetricBatch(
+        connectionId: String,
+        uploadId: String,
+        samples: List<HealthConnectInstantMetricSample>,
     ): WearableUploadResult = uploadEntries(
         connectionId = connectionId,
         uploadId = uploadId,

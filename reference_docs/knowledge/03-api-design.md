@@ -418,9 +418,10 @@ Current implementation status:
 - `GET /api/v1/wearables/connections/{id}/status/` returns the caller-owned connection's provider, status, last sync timestamp, and last error. Another user's or an unknown UUID returns `404`.
 - `POST /api/v1/wearables/uploads/` requires JWT authentication and a body containing `connection_id`, `upload_id`, and `1–100` normalized `entries`. It resolves only an active connection owned by the caller and processes the batch synchronously. A new batch returns `201` with a terminal successful `SyncRun`; an exact retry returns the unchanged run with `200`; conflicting upload or external-record identity reuse returns `409`. Missing, invalid, or undeclared fields return `400`.
 - `GET /api/v1/metrics/entries/daily-steps/` returns authenticated caller-owned Fitbit Steps as one summed value per local calendar date. It requires a valid IANA `timezone`, accepts the standard `from`, `to`, and positive `limit` filters, caps the limit at 366 days, and leaves raw interval rows unchanged for deduplication and export.
+- `GET /api/v1/metrics/entries/daily-hrv/` returns authenticated caller-owned Fitbit HRV as one median value per local calendar date. It uses PostgreSQL `PERCENTILE_CONT(0.5)`, requires a valid IANA `timezone`, accepts the standard `from`, `to`, and positive `limit` filters, caps the limit at 366 days, and leaves raw five-minute records unchanged for provenance, provider corrections, and export.
 - `MetricEntry` has nullable `source_connection`, `period_start`, and `source_record_modified_at` fields. Instantaneous metrics leave `period_start` null; interval metrics use `recorded_at` as the interval end. PostgreSQL requires a non-null period start to precede `recorded_at` and enforces at most one non-null `(source_connection, external_source_id)` pair. The ingestion service skips identical records, updates mutable content only when the provider timestamp is newer, permits one timestamped upgrade of a legacy null-version row, and rejects stale or inconsistent versions.
 - Metric history exposes each entry's trusted `source`. The web UI labels imported rows by source and withholds manual Edit/Delete controls; the backend independently rejects direct mutation attempts with `409`.
-- `WearableUploadEntrySerializer` is the live nested-entry boundary. It accepts active system `body_weight`, `steps`, and `sleep_duration` definitions, enforces each configured value range, rejects non-finite numbers, parses record and optional provider-modification timestamps, accepts Fitbit and legacy Samsung Health provenance, and requires a nonblank external source ID. Steps and Sleep require `period_start < recorded_at`; instantaneous Weight rejects a supplied period start. Current Android uploads always send Health Connect's `metadata.lastModifiedTime` as `source_record_modified_at`; omission remains accepted for backward compatibility but cannot authorize changed content.
+- `WearableUploadEntrySerializer` is the live nested-entry boundary. It accepts active system `body_weight`, `steps`, `sleep_duration`, `resting_hr`, and `hrv` definitions, enforces each configured value range, rejects non-finite numbers, parses record and optional provider-modification timestamps, accepts Fitbit and legacy Samsung Health provenance, and requires a nonblank external source ID. Steps and Sleep require `period_start < recorded_at`; instantaneous Weight, resting heart rate, and HRV reject a supplied period start. Current Android uploads always send Health Connect's `metadata.lastModifiedTime` as `source_record_modified_at`; omission remains accepted for backward compatibility but cannot authorize changed content.
 - `WearableUploadBatchSerializer` is the live request boundary. It composes `connection_id`, `upload_id`, and a required list of `1–100` normalized entries, rejects undeclared fields at both levels, and rejects repeated `external_source_id` values within one batch.
 - The server-side canonical payload-hash helper fingerprints validated entries with schema version `1`, stable external-record ordering, UTC timestamps, and SHA-256. The live ingestion service uses it to reuse exact retries and reject conflicting upload identity reuse.
 - Connection-state mutations will belong to trusted ingestion/resync services rather than a generic client `PATCH` endpoint.
@@ -433,6 +434,7 @@ Current implementation status:
 | GET | `/api/v1/wearables/connections/{id}/status/` | Fetch sync state for one connection | Implemented; JWT required and owner-scoped; includes `provider`, `status`, `last_synced_at`, and `last_error`; unowned or unknown UUIDs return `404` |
 | POST | `/api/v1/wearables/uploads/` | Process a normalized wearable batch | Implemented synchronously; JWT required; accepts `connection_id`, `upload_id`, and `1–100` entries; validates active caller ownership; returns terminal counters with `201` for new work, `200` for an exact retry, `409` for upload/record conflicts, and `400` for invalid input |
 | GET | `/api/v1/metrics/entries/daily-steps/` | Read daily Fitbit Steps totals | JWT required; groups caller-owned Fitbit intervals by the requested IANA timezone; supports `from`, `to`, and `limit`; preserves raw source rows |
+| GET | `/api/v1/metrics/entries/daily-hrv/` | Read daily Fitbit HRV medians | JWT required; groups caller-owned Fitbit HRV samples by the requested IANA timezone; supports `from`, `to`, and `limit`; preserves raw source rows |
 | DELETE | `/api/v1/wearables/connections/{id}/` | Disconnect provider | Implemented; JWT required; caller-owned active rows return `204` and become inactive; unknown, unowned, or already-inactive rows return `404`; repeated calls remain state-idempotent |
 | POST | `/api/v1/wearables/connections/{id}/resync/` | Request replay / resync from the client | Returns 202 Accepted — backend records replay intent and the Android client performs the upload |
 
@@ -464,7 +466,7 @@ First-slice non-goals:
 
 MVP Health Connect sync does **not** use provider webhooks or a hosted provider link flow. The Android companion app currently selects Fitbit-originated data on device, uploads batches to our API, and the backend handles validation, deduplication, and persistence. A future aggregator webhook receiver can be added later for providers with cloud-friendly APIs.
 
-**Implemented synchronous example: uploading normalized Weight, Steps, and Sleep records**
+**Implemented synchronous example: uploading normalized Weight, Steps, Sleep, resting-heart-rate, and HRV records**
 ```http
 POST /api/v1/wearables/uploads/
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
@@ -501,6 +503,22 @@ Content-Type: application/json
       "source": "fitbit",
       "external_source_id": "health_connect:SleepSessionRecord:record-123",
       "source_record_modified_at": "2026-07-29T05:35:00Z"
+    },
+    {
+      "metric_definition": "resting_hr",
+      "value": 58,
+      "recorded_at": "2026-07-29T06:00:00Z",
+      "source": "fitbit",
+      "external_source_id": "health_connect:RestingHeartRateRecord:record-123",
+      "source_record_modified_at": "2026-07-29T06:01:00Z"
+    },
+    {
+      "metric_definition": "hrv",
+      "value": 42.5,
+      "recorded_at": "2026-07-29T06:00:00Z",
+      "source": "fitbit",
+      "external_source_id": "health_connect:HeartRateVariabilityRmssdRecord:record-123",
+      "source_record_modified_at": "2026-07-29T06:01:00Z"
     }
   ]
 }

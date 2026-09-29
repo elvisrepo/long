@@ -211,6 +211,29 @@ describe("getMetricEntries", () => {
     );
   });
 
+  it("fetches daily HRV medians in the user's timezone", async () => {
+    setAccessToken("access-token");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    } as Response);
+
+    await getMetricEntries({
+      metric: "hrv",
+      daily: true,
+      timezone: "Europe/Tirane",
+      limit: 30,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/metrics/entries/daily-hrv/?timezone=Europe%2FTirane&limit=30",
+      {
+        method: "GET",
+        headers: { Authorization: "Bearer access-token" },
+      },
+    );
+  });
+
   it("rejects without an access token", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch");
 

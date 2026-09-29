@@ -51,6 +51,7 @@ const metricEntryRanges = [
 
 const METRIC_DETAIL_ENTRY_LIMIT = 50;
 const METRIC_DETAIL_HISTORY_PREVIEW_COUNT = 5;
+const DAILY_PRESENTATION_METRICS = new Set(["hrv", "steps"]);
 
 type MetricEntryRange = (typeof metricEntryRanges)[number];
 
@@ -90,7 +91,7 @@ function MetricDetailRoute() {
         }
       : { metric: slug, limit: METRIC_DETAIL_ENTRY_LIMIT };
   const metricEntryFilters: GetMetricEntriesFilters =
-    slug === "steps"
+    DAILY_PRESENTATION_METRICS.has(slug)
       ? {
           ...baseMetricEntryFilters,
           daily: true,
