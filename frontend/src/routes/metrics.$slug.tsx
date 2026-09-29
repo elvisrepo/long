@@ -58,12 +58,13 @@ type MetricEntryRange = (typeof metricEntryRanges)[number];
 function MetricDetailRoute() {
   const { slug } = Route.useParams();
   const { date: selectedDate } = Route.useSearch();
+  const isDailyPresentationMetric = DAILY_PRESENTATION_METRICS.has(slug);
   const [selectedRange, setSelectedRange] = useState<MetricEntryRange>(
     metricEntryRanges[3],
   );
   const [selectedRangeFrom, setSelectedRangeFrom] = useState<
     string | undefined
-  >(undefined);
+  >(() => (isDailyPresentationMetric ? getLocalRangeStartIso(366) : undefined));
   const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
   const [isAddingMetricEntry, setIsAddingMetricEntry] = useState(false);
   // The expanded state is keyed by the active filter so changing the metric,
@@ -76,16 +77,11 @@ function MetricDetailRoute() {
   const [entryPendingDeletion, setEntryPendingDeletion] =
     useState<MetricEntry | null>(null);
   const [entryActionError, setEntryActionError] = useState<string | null>(null);
-  const isDailyPresentationMetric = DAILY_PRESENTATION_METRICS.has(slug);
-  const selectedDateBounds =
-    selectedDate && isDailyPresentationMetric
-      ? getLocalDayBounds(selectedDate)
-      : undefined;
   const baseMetricEntryFilters: GetMetricEntriesFilters = selectedDate
     ? {
         metric: slug,
-        from: selectedDateBounds?.from ?? `${selectedDate}T00:00:00.000Z`,
-        to: selectedDateBounds?.to ?? `${selectedDate}T23:59:59.999Z`,
+        from: `${selectedDate}T00:00:00.000Z`,
+        to: `${selectedDate}T23:59:59.999Z`,
         limit: METRIC_DETAIL_ENTRY_LIMIT,
       }
     : selectedRangeFrom
@@ -101,7 +97,9 @@ function MetricDetailRoute() {
         ...baseMetricEntryFilters,
         limit: dailyPresentationLimit,
         daily: true,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+        timezone: selectedDate
+          ? "UTC"
+          : Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
       }
     : baseMetricEntryFilters;
   const {
@@ -158,7 +156,9 @@ function MetricDetailRoute() {
     setSelectedRange(range);
     setSelectedRangeFrom(
       range.days === null
-        ? undefined
+        ? isDailyPresentationMetric
+          ? getLocalRangeStartIso(366)
+          : undefined
         : isDailyPresentationMetric
           ? getLocalRangeStartIso(range.days)
           : getRangeStartIso(range.days),
@@ -247,10 +247,7 @@ function MetricDetailRoute() {
           </div>
           {selectedDate ? (
             <div className="metric-selected-date">
-              <span>
-                Entries for {formatUtcDate(selectedDate)} (
-                {isDailyPresentationMetric ? "local" : "UTC"})
-              </span>
+              <span>Entries for {formatUtcDate(selectedDate)} (UTC)</span>
               <Link
                 aria-label="Clear selected date"
                 params={{ slug }}
@@ -787,12 +784,4 @@ function getLocalRangeStartIso(days: number) {
   rangeStart.setHours(0, 0, 0, 0);
   rangeStart.setDate(rangeStart.getDate() - (days - 1));
   return rangeStart.toISOString();
-}
-
-function getLocalDayBounds(value: string): { from: string; to: string } {
-  const start = new Date(`${value}T00:00:00`);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
-  end.setMilliseconds(end.getMilliseconds() - 1);
-  return { from: start.toISOString(), to: end.toISOString() };
 }

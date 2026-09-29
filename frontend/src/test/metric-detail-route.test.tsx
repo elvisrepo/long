@@ -139,6 +139,7 @@ describe("metric detail route", () => {
 
   afterEach(() => {
     vi.resetAllMocks();
+    vi.unstubAllEnvs();
   });
 
   it("leads with the trend and omits the summary section", async () => {
@@ -263,6 +264,7 @@ describe("metric detail route", () => {
     ).toBeInTheDocument();
     expect(useMetricEntriesQuery).toHaveBeenCalledWith({
       metric: "hrv",
+      from: expect.any(String),
       limit: 366,
       daily: true,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
@@ -345,6 +347,7 @@ describe("metric detail route", () => {
     ).toHaveLength(2);
     expect(useMetricEntriesQuery).toHaveBeenCalledWith({
       metric: "hrv",
+      from: expect.any(String),
       limit: 50,
     });
   });
@@ -429,6 +432,55 @@ describe("metric detail route", () => {
     expect(dailyFilters?.from).toBe(expectedStart.toISOString());
   });
 
+  it("bounds the default and reselected one-year HRV trend to recent local dates", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "hrv-id",
+          name: "Heart Rate Variability",
+          slug: "hrv",
+          unit: "ms",
+          category: "cardiovascular",
+          min_value: 1,
+          max_value: 300,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/hrv");
+    await screen.findByRole("heading", {
+      level: 1,
+      name: /heart rate variability/i,
+    });
+    const expectedStart = new Date();
+    expectedStart.setHours(0, 0, 0, 0);
+    expectedStart.setDate(expectedStart.getDate() - 365);
+    const latestDailyFilters = () =>
+      vi
+        .mocked(useMetricEntriesQuery)
+        .mock.calls.map(([filters]) => filters)
+        .filter((filters) => filters.daily)
+        .at(-1);
+
+    expect(latestDailyFilters()).toMatchObject({
+      from: expectedStart.toISOString(),
+      limit: 366,
+    });
+    await user.click(screen.getByRole("button", { name: "7d" }));
+    await user.click(screen.getByRole("button", { name: "1y" }));
+    expect(latestDailyFilters()).toMatchObject({
+      from: expectedStart.toISOString(),
+      limit: 366,
+    });
+  });
+
   it("requests ninety daily HRV values for the ninety-day chart", async () => {
     const user = userEvent.setup();
     vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
@@ -495,7 +547,8 @@ describe("metric detail route", () => {
     expect((recordedAt as HTMLInputElement).value).toMatch(/^2026-09-16T/);
   });
 
-  it("uses complete local-day bounds for linked daily HRV dates", async () => {
+  it("uses the linked UTC day for daily HRV and raw records", async () => {
+    vi.stubEnv("TZ", "America/Los_Angeles");
     vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
     vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
       data: [
@@ -522,21 +575,22 @@ describe("metric detail route", () => {
       level: 1,
       name: /heart rate variability/i,
     });
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-    const expectedStart = new Date("2026-09-16T00:00:00").toISOString();
-    const expectedEndDate = new Date("2026-09-17T00:00:00");
-    expectedEndDate.setMilliseconds(expectedEndDate.getMilliseconds() - 1);
-    const expectedEnd = expectedEndDate.toISOString();
     expect(useMetricEntriesQuery).toHaveBeenCalledWith({
       metric: "hrv",
-      from: expectedStart,
-      to: expectedEnd,
+      from: "2026-09-16T00:00:00.000Z",
+      to: "2026-09-16T23:59:59.999Z",
       limit: 1,
       daily: true,
-      timezone,
+      timezone: "UTC",
+    });
+    expect(useMetricEntriesQuery).toHaveBeenCalledWith({
+      metric: "hrv",
+      from: "2026-09-16T00:00:00.000Z",
+      to: "2026-09-16T23:59:59.999Z",
+      limit: 50,
     });
     expect(
-      screen.getByText(/entries for sep 16, 2026 \(local\)/i),
+      screen.getByText(/entries for sep 16, 2026 \(utc\)/i),
     ).toBeInTheDocument();
   });
 
