@@ -1,10 +1,11 @@
 import csv
 import json
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
+from typing import NotRequired, TypedDict, cast
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from django.db.models import Aggregate, FloatField, Max, Min, Q, Sum
+from django.db.models import Aggregate, FloatField, Max, Min, Q, QuerySet, Sum
 from django.db.models.functions import TruncDate
 from django.http import StreamingHttpResponse
 from django.utils.dateparse import parse_datetime
@@ -25,6 +26,10 @@ from apps.metrics.serializers import (
       MetricEntrySerializer,
       SleepTargetPreferenceSerializer,
   )
+from apps.metrics.source_precedence import (
+    DAILY_SOURCE_PRECEDENCE,
+    preferred_metric_source,
+)
 
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -56,6 +61,73 @@ class Median(Aggregate):
     template = "%(function)s(0.5) WITHIN GROUP (ORDER BY %(expressions)s)"
     output_field = FloatField()
     window_compatible = False
+
+
+class DailyMetricSummary(TypedDict):
+    id: object
+    local_date: date
+    source: str
+    value: float
+    period_start: NotRequired[datetime | None]
+    recorded_at: datetime | None
+    created_at: datetime | None
+
+
+def daily_metric_summaries(
+    *,
+    entries: QuerySet[MetricEntry],
+    timezone: ZoneInfo,
+    limit: int,
+    value_aggregate: Aggregate,
+    include_period_start: bool,
+) -> list[DailyMetricSummary]:
+    """Aggregate one preferred source per local day without mixing providers."""
+
+    annotated_entries = entries.annotate(
+        local_date=TruncDate("recorded_at", tzinfo=timezone)
+    )
+    source_days = (
+        annotated_entries.values("local_date", "source")
+        .distinct()
+        .order_by("-local_date")[: limit * len(DAILY_SOURCE_PRECEDENCE)]
+    )
+    sources_by_date: dict[date, list[str]] = {}
+    for source_day in source_days:
+        sources_by_date.setdefault(source_day["local_date"], []).append(
+            source_day["source"]
+        )
+
+    chosen_sources = {
+        local_date: preferred_metric_source(sources)
+        for local_date, sources in sorted(
+            sources_by_date.items(), reverse=True
+        )[:limit]
+    }
+    if not chosen_sources:
+        return []
+
+    chosen_filter = Q(pk__in=[])
+    for local_date, source in chosen_sources.items():
+        chosen_filter |= Q(local_date=local_date, source=source)
+
+    annotations: dict[str, object] = {
+        "id": Max("id"),
+        "value": value_aggregate,
+        "recorded_at": Max("recorded_at"),
+        "created_at": Max("created_at"),
+    }
+    if include_period_start:
+        annotations["period_start"] = Min("period_start")
+
+    return cast(
+        list[DailyMetricSummary],
+        list(
+            annotated_entries.filter(chosen_filter)
+            .values("local_date", "source")
+            .annotate(**annotations)
+            .order_by("-local_date")
+        ),
+    )
 
 
 class CsvEcho:
@@ -187,7 +259,7 @@ class MetricEntryListCreateView(generics.ListCreateAPIView):
 
 
 class DailyStepsSummaryView(APIView):
-    """Return Fitbit Steps as one summed value per requested local date."""
+    """Return preferred-source Steps as one sum per requested local date."""
 
     permission_classes = [IsAuthenticated]
 
@@ -212,7 +284,6 @@ class DailyStepsSummaryView(APIView):
         entries = MetricEntry.objects.filter(
             user=request.user,
             metric_definition__slug="steps",
-            source=MetricEntry.Source.FITBIT,
         )
         recorded_from = request.query_params.get("from")
         if recorded_from:
@@ -221,19 +292,12 @@ class DailyStepsSummaryView(APIView):
         if recorded_to:
             entries = entries.filter(recorded_at__lte=recorded_to)
 
-        summaries = (
-            entries.annotate(
-                local_date=TruncDate("recorded_at", tzinfo=timezone)
-            )
-            .values("local_date")
-            .annotate(
-                id=Max("id"),
-                value=Sum("value"),
-                period_start=Min("period_start"),
-                recorded_at=Max("recorded_at"),
-                created_at=Max("created_at"),
-            )
-            .order_by("-local_date")[:limit]
+        summaries = daily_metric_summaries(
+            entries=entries,
+            timezone=timezone,
+            limit=limit,
+            value_aggregate=Sum("value"),
+            include_period_start=True,
         )
 
         return Response(
@@ -248,7 +312,7 @@ class DailyStepsSummaryView(APIView):
                     "recorded_at": format_export_timestamp(
                         summary["recorded_at"]
                     ),
-                    "source": MetricEntry.Source.FITBIT,
+                    "source": summary["source"],
                     "context": {"aggregation": "daily"},
                     "created_at": format_export_timestamp(
                         summary["created_at"]
@@ -260,7 +324,7 @@ class DailyStepsSummaryView(APIView):
 
 
 class DailyHrvSummaryView(APIView):
-    """Return Fitbit HRV samples as one median value per local date."""
+    """Return preferred-source HRV as one median value per local date."""
 
     permission_classes = [IsAuthenticated]
 
@@ -285,7 +349,6 @@ class DailyHrvSummaryView(APIView):
         entries = MetricEntry.objects.filter(
             user=request.user,
             metric_definition__slug="hrv",
-            source=MetricEntry.Source.FITBIT,
         )
         recorded_from = request.query_params.get("from")
         if recorded_from:
@@ -294,18 +357,12 @@ class DailyHrvSummaryView(APIView):
         if recorded_to:
             entries = entries.filter(recorded_at__lte=recorded_to)
 
-        summaries = (
-            entries.annotate(
-                local_date=TruncDate("recorded_at", tzinfo=timezone)
-            )
-            .values("local_date")
-            .annotate(
-                id=Max("id"),
-                value=Median("value"),
-                recorded_at=Max("recorded_at"),
-                created_at=Max("created_at"),
-            )
-            .order_by("-local_date")[:limit]
+        summaries = daily_metric_summaries(
+            entries=entries,
+            timezone=timezone,
+            limit=limit,
+            value_aggregate=Median("value"),
+            include_period_start=False,
         )
 
         return Response(
@@ -318,7 +375,7 @@ class DailyHrvSummaryView(APIView):
                     "recorded_at": format_export_timestamp(
                         summary["recorded_at"]
                     ),
-                    "source": MetricEntry.Source.FITBIT,
+                    "source": summary["source"],
                     "context": {"aggregation": "daily_median"},
                     "created_at": format_export_timestamp(
                         summary["created_at"]

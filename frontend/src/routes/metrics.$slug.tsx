@@ -76,11 +76,16 @@ function MetricDetailRoute() {
   const [entryPendingDeletion, setEntryPendingDeletion] =
     useState<MetricEntry | null>(null);
   const [entryActionError, setEntryActionError] = useState<string | null>(null);
+  const isDailyPresentationMetric = DAILY_PRESENTATION_METRICS.has(slug);
+  const selectedDateBounds =
+    selectedDate && isDailyPresentationMetric
+      ? getLocalDayBounds(selectedDate)
+      : undefined;
   const baseMetricEntryFilters: GetMetricEntriesFilters = selectedDate
     ? {
         metric: slug,
-        from: `${selectedDate}T00:00:00.000Z`,
-        to: `${selectedDate}T23:59:59.999Z`,
+        from: selectedDateBounds?.from ?? `${selectedDate}T00:00:00.000Z`,
+        to: selectedDateBounds?.to ?? `${selectedDate}T23:59:59.999Z`,
         limit: METRIC_DETAIL_ENTRY_LIMIT,
       }
     : selectedRangeFrom
@@ -90,14 +95,13 @@ function MetricDetailRoute() {
           limit: METRIC_DETAIL_ENTRY_LIMIT,
         }
       : { metric: slug, limit: METRIC_DETAIL_ENTRY_LIMIT };
-  const metricEntryFilters: GetMetricEntriesFilters =
-    DAILY_PRESENTATION_METRICS.has(slug)
-      ? {
-          ...baseMetricEntryFilters,
-          daily: true,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-        }
-      : baseMetricEntryFilters;
+  const metricEntryFilters: GetMetricEntriesFilters = isDailyPresentationMetric
+    ? {
+        ...baseMetricEntryFilters,
+        daily: true,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+      }
+    : baseMetricEntryFilters;
   const {
     data: metricDefinitions = [],
     isLoading: definitionsAreLoading,
@@ -232,7 +236,10 @@ function MetricDetailRoute() {
           </div>
           {selectedDate ? (
             <div className="metric-selected-date">
-              <span>Entries for {formatUtcDate(selectedDate)} (UTC)</span>
+              <span>
+                Entries for {formatUtcDate(selectedDate)} (
+                {isDailyPresentationMetric ? "local" : "UTC"})
+              </span>
               <Link
                 aria-label="Clear selected date"
                 params={{ slug }}
@@ -756,4 +763,12 @@ function getRangeStartIso(days: number) {
   const rangeStart = new Date();
   rangeStart.setUTCDate(rangeStart.getUTCDate() - days);
   return rangeStart.toISOString();
+}
+
+function getLocalDayBounds(value: string): { from: string; to: string } {
+  const start = new Date(`${value}T00:00:00`);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  end.setMilliseconds(end.getMilliseconds() - 1);
+  return { from: start.toISOString(), to: end.toISOString() };
 }

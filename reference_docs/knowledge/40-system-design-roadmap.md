@@ -137,7 +137,8 @@ Still missing:
   implemented locally
 - production reset-email hardening plus stronger account lifecycle flows;
   SES-backed password reset is deployed and owner-verified on staging
-- additional deliberately mapped Health Connect metrics, with Heart Rate the likely next candidate
+- additional deliberately mapped Health Connect metrics, with active calories or
+  exercise time the likely next candidates after validating the existing Fitbit set
 - richer sync history/repair UI
 - server-side asynchronous processing if synchronous ingestion becomes too slow or operationally expensive
 
@@ -242,12 +243,11 @@ Recommended order:
 
    Keep bounded uploads synchronous while they are fast and reliable. Introduce Redis and Celery when measured latency, larger backfills, analytics, repair jobs, exports, or maintenance work needs a durable server-side queue.
 
-14. Add another Health Connect metric — after staging
+14. Add another Health Connect metric — after validating current metrics
 
-   Sleep is now implemented and physically verified. Resting Heart Rate is the
-   strongest next ingestion candidate because it adds product value and
-   exercises higher-volume instantaneous time-series batching, but export and
-   account lifecycle work currently come first.
+   Sleep, Resting Heart Rate, and HRV/RMSSD are implemented and physically
+   verified from Fitbit through Health Connect. Validate their product value and
+   presentation before adding active calories, exercise time, or another metric.
 
 Related doc:
 
@@ -442,14 +442,13 @@ automatic-sync wording is already qualified: sync is approximate, and Android
 may delay it while the app is closed. On-screen automatic sync after reopening
 has been observed without a manual tap.
 
-Weight, Steps, and Sleep are implemented Health Connect imports. Sleep session
-bounds, awake-stage subtraction, normalized upload, backend ingestion, and
-frontend duration/window display are implemented and physically verified.
+Weight, Steps, Sleep, Resting Heart Rate, and HRV/RMSSD are implemented Health
+Connect imports. Their normalized upload, backend ingestion, and frontend
+presentation paths are implemented and physically verified with Fitbit data.
 
 The redesigned dashboard and analytics surfaces now prioritize Sleep Duration,
-Steps, and Body Weight. Resting Heart Rate remains the next candidate ingestion
-mapping after the current export and account-lifecycle priorities. HRV, VO2
-max, active calories, exercise time, body fat,
+Steps, and Body Weight, with Resting Heart Rate and daily-median HRV also
+available. VO2 max, active calories, exercise time, body fat,
 sleep stages, and sleep blood oxygen remain optional follow-ups based on actual
 device availability and user value. Blood pressure, blood glucose, skin
 temperature, and other medical-adjacent measurements are not core defaults.

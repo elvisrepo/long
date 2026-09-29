@@ -246,9 +246,10 @@ sync on 2026-09-19. Work proceeds one vertical slice at a time:
    display.~~ Completed on Xiaomi 17 Ultra with a Samsung Health `7h 50m` record.
 2. Record Samsung-specific stage behavior when a future diagnostic or UI exposes
    the source stage intervals; the current end-to-end result verifies duration.
-3. Design and review the new Today dashboard around Sleep Duration, Steps, Body
-   Weight, and Resting Heart Rate; and
-4. Add Resting Heart Rate ingestion as a later independent slice.
+3. ~~Add Resting Heart Rate and HRV/RMSSD as independent ingestion slices.~~
+   Completed and physically verified from Fitbit on 2026-09-28.
+4. Validate the current Today dashboard and metric trends before selecting the
+   next Health Connect metric.
 
 For Sleep, distinguish these values explicitly:
 
@@ -267,12 +268,13 @@ deletions, and multiple source apps. Preserve the Health Connect external
 record ID and modification time so a later Samsung correction updates the same
 entry instead of creating a duplicate.
 
-Samsung Health can expose additional records through Health Connect, including
+Health Connect source apps can expose additional records, including
 heart rate, exercise sessions, calories, distance, VO2 max, body fat, blood
 oxygen, blood pressure, blood glucose, and nutrition. Availability varies by
-device, Samsung Health version, permissions, and user behavior. After Sleep and
-Resting Heart Rate, consider HRV, active calories/exercise time, VO2 max, body
-fat, sleep stages, and sleep blood oxygen only as separate evidence-driven
+device, source-app version, permissions, and user behavior. After validating
+the implemented Resting Heart Rate and HRV paths, consider active
+calories/exercise time, VO2 max, body fat, sleep stages, and sleep blood oxygen
+only as separate evidence-driven
 slices. Do not make blood pressure, blood glucose, skin temperature, or other
 medical-adjacent measurements core defaults without a dedicated product,
 privacy, validation, and presentation review.
@@ -323,10 +325,10 @@ Implemented:
 - `WeightSyncBatchPlanner` is the shared policy boundary that supplies ordered, backend-sized weight batches. `InitialWeightSyncPlanner` implements it with an injected UTC clock: it requests the previous 30 days, keeps only records whose Health Connect data origin is Fitbit (`com.fitbit.FitbitMobile`), preserves chronological order, and splits them into batches of at most 100 entries to match the live backend request limit. No Fitbit records produces no upload batches.
 - Android upload request models serialize the live Django contract exactly: caller-owned connection UUID, retry-stable upload UUID, and normalized `body_weight` entries with kilograms, ISO-8601 timestamps, Fitbit provenance, and `health_connect:WeightRecord:<record-id>` external identities. Their diagnostic strings redact health values and record identifiers.
 - Django seeds `steps` as a system activity metric (`0` through `200000` steps per entry) and the shared upload endpoint persists normalized Steps intervals. `MetricEntry.period_start` stores the interval beginning while `recorded_at` stores its end; instantaneous Weight leaves `period_start` null. Android maps every ascending Health Connect `StepsRecord` page through `AndroidHealthConnectAccess`, filters Fitbit provenance, and serializes `steps` entries with `period_start`, interval-end `recorded_at`, and stable `health_connect:StepsRecord:<record-id>` identities.
-- Raw Fitbit Steps intervals remain the ingestion source of truth for idempotency and provider corrections. `GET /api/v1/metrics/entries/daily-steps/` sums those intervals by the authenticated user's requested IANA timezone for dashboard and metric-history presentation, returning one value per local date without deleting or rewriting raw records.
+- Raw Steps intervals remain the ingestion source of truth for idempotency and provider corrections. `GET /api/v1/metrics/entries/daily-steps/` returns one sum per requested local date and selects exactly one source per day—Fitbit before Samsung Health, then manual and other imports—so provider migrations neither double-count overlap nor hide legacy-only days.
 - The same endpoint accepts `sleep_duration`. Android maps Fitbit-originated `SleepSessionRecord` pages and uploads decimal hours asleep, session start in `period_start`, session end in `recorded_at`, and stable `health_connect:SleepSessionRecord:<record-id>` identities. The authenticated metric-entry response exposes nullable `period_start`. The web displays the numeric value as hours and minutes, for example `7h 30m`, and Sleep history shows the session's start/wake window plus wake date in the viewer's local timezone. Manual Sleep creation and editing use Bedtime/Wake time inputs; Django derives duration from those bounds because manual records have no provider sleep stages.
 - Android maps Fitbit-originated `RestingHeartRateRecord` values to `resting_hr` in bpm and `HeartRateVariabilityRmssdRecord` values to `hrv` in milliseconds. Both remain instantaneous entries and use stable record-type-specific Health Connect identities. Fitbit remains the only active Android source filter; Django continues to accept legacy Samsung Health provenance.
-- Fitbit can write HRV/RMSSD approximately every five minutes. Django retains those raw samples for idempotency, provider corrections, and export, while `GET /api/v1/metrics/entries/daily-hrv/` computes one PostgreSQL median per requested local date for dashboard and history presentation. At roughly 105,000 rows per user-year in the densest case, this is acceptable for the MVP but requires a measured retention/downsampling policy before material user growth.
+- Fitbit can write HRV/RMSSD approximately every five minutes. Django retains raw samples for idempotency, provider corrections, and export, while `GET /api/v1/metrics/entries/daily-hrv/` computes one PostgreSQL median per requested local date from the same single preferred source used by daily Steps. At roughly 105,000 rows per user-year in the densest case, this is acceptable for the MVP but requires a measured retention/downsampling policy before material user growth.
 - `SyncRunResponse` decodes Django's read-only upload receipt, including imported/updated/skipped counters and nullable processing/finish timestamps so the Android boundary supports both today's synchronous terminal result and the planned asynchronous lifecycle.
 - `HttpWearableUploadRepository` maps planned samples into the normalized request and posts it through the shared authenticated client. New `201` and exact-retry `200` receipts are success; `409` content conflicts, `400`/`404` rejections, missing sessions, and retryable/malformed failures remain distinct. Its public receipt uses typed `Instant` values and does not expose transport DTOs.
 - `WeightSyncCoordinator`, `StepsSyncCoordinator`, `SleepSyncCoordinator`, and the two `InstantMetricSyncCoordinator` instances connect their metric-specific planners to upload boundaries through the existing `WeightSyncRunner`/`WeightSyncResult` contract. Each creates one UUID per ordered batch, avoids empty requests, and stops on its first failure while preserving earlier committed receipts. `AllMetricsSyncRunner` runs Weight, Steps, Sleep, Resting Heart Rate, then HRV, combines their receipts, skips metric-specific no-data results, and stops before later metrics on an interruption. The type names remain Weight-specific legacy names, but the application-level behavior is multi-metric.

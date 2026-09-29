@@ -352,6 +352,20 @@ def test_daily_steps_summary_sums_fitbit_intervals_by_local_date():
         recorded_at="2026-09-28T12:00:00Z",
         source=MetricEntry.Source.SAMSUNG_HEALTH,
     )
+    MetricEntry.objects.create(
+        user=user,
+        metric_definition=steps,
+        value=7000,
+        recorded_at="2026-09-25T10:00:00Z",
+        source=MetricEntry.Source.SAMSUNG_HEALTH,
+    )
+    MetricEntry.objects.create(
+        user=user,
+        metric_definition=steps,
+        value=8000,
+        recorded_at="2026-09-24T10:00:00Z",
+        source=MetricEntry.Source.MANUAL,
+    )
 
     response = client.get(
         "/api/v1/metrics/entries/daily-steps/"
@@ -359,10 +373,17 @@ def test_daily_steps_summary_sums_fitbit_intervals_by_local_date():
     )
 
     assert response.status_code == 200
-    assert [entry["value"] for entry in response.json()] == [100.0, 80.0]
+    assert [entry["value"] for entry in response.json()] == [
+        100.0,
+        80.0,
+        7000.0,
+        8000.0,
+    ]
     assert [entry["source"] for entry in response.json()] == [
         "fitbit",
         "fitbit",
+        "samsung_health",
+        "manual",
     ]
     assert MetricEntry.objects.filter(user=user, source="fitbit").count() == 3
 
@@ -389,6 +410,20 @@ def test_daily_hrv_summary_returns_fitbit_median_by_local_date():
         recorded_at="2026-09-28T06:00:00Z",
         source=MetricEntry.Source.SAMSUNG_HEALTH,
     )
+    MetricEntry.objects.create(
+        user=user,
+        metric_definition=hrv,
+        value=48,
+        recorded_at="2026-09-25T06:00:00Z",
+        source=MetricEntry.Source.SAMSUNG_HEALTH,
+    )
+    MetricEntry.objects.create(
+        user=user,
+        metric_definition=hrv,
+        value=52,
+        recorded_at="2026-09-24T06:00:00Z",
+        source=MetricEntry.Source.MANUAL,
+    )
 
     response = client.get(
         "/api/v1/metrics/entries/daily-hrv/"
@@ -396,12 +431,21 @@ def test_daily_hrv_summary_returns_fitbit_median_by_local_date():
     )
 
     assert response.status_code == 200
-    assert [entry["value"] for entry in response.json()] == [45.0, 61.0]
+    assert [entry["value"] for entry in response.json()] == [
+        45.0,
+        61.0,
+        48.0,
+        52.0,
+    ]
     assert [entry["metric_definition"] for entry in response.json()] == [
+        "hrv",
+        "hrv",
         "hrv",
         "hrv",
     ]
     assert [entry["context"] for entry in response.json()] == [
+        {"aggregation": "daily_median"},
+        {"aggregation": "daily_median"},
         {"aggregation": "daily_median"},
         {"aggregation": "daily_median"},
     ]

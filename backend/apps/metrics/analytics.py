@@ -6,6 +6,7 @@ from django.db.models import Max, Q
 from django.utils import timezone
 
 from apps.metrics.models import MetricDefinition, MetricEntry
+from apps.metrics.source_precedence import preferred_metric_source
 
 
 class WeightStepsPoint(TypedDict):
@@ -185,13 +186,23 @@ def get_weight_steps_analytics(
     )
 
     daily_values: dict[date, dict[str, float]] = {}
+    steps_by_date_source: dict[date, dict[str, float]] = {}
     for entry in entries:
         entry_date = entry.recorded_at.astimezone(UTC).date()
         values = daily_values.setdefault(entry_date, {})
         if entry.metric_definition.slug == "body_weight":
             values["weight_kg"] = entry.value
         else:
-            values["steps"] = values.get("steps", 0) + entry.value
+            source_values = steps_by_date_source.setdefault(entry_date, {})
+            source_values[entry.source] = (
+                source_values.get(entry.source, 0) + entry.value
+            )
+
+    for entry_date, source_values in steps_by_date_source.items():
+        selected_source = preferred_metric_source(source_values)
+        daily_values.setdefault(entry_date, {})["steps"] = source_values[
+            selected_source
+        ]
 
     selected_dates = [
         period_start.date() + timedelta(days=day_offset) for day_offset in range(days)
