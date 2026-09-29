@@ -204,8 +204,8 @@
   stale or on-track label because expected tracking frequency varies by metric.
 - Every presence cell is a keyboard-accessible date deep link to
   `/metrics/$slug?date=YYYY-MM-DD`. Metric detail validates that search value,
-  requests raw metrics using exact UTC day bounds and daily Steps/HRV summaries
-  using the complete viewer-local date, replaces the range controls with a
+  requests raw metrics and daily Steps/HRV summaries using the same complete
+  UTC day as the consistency grid, replaces the range controls with a
   selected-date indicator, and seeds the manual-entry dialog from that date.
   This exposes every entry when a metric has multiple records on one date and
   gives missing dates a direct path to manual entry.
@@ -553,8 +553,8 @@ Current metric detail page checkpoint:
 - `updateMetricEntry()` preserves backend validation detail when available, for example metric range errors from the API.
 - Entry update/delete errors are shown on the metric detail page as visible form errors.
 - The detail route shows an explicit empty state when no entries exist, with a link back to the dashboard to log the first value.
-- The detail route includes `7d`, `30d`, `90d`, and `All` range controls for raw metrics. Daily Steps/HRV use the same first three controls and label their bounded 366-day option `1y`.
-- Range controls pass a stable `from` timestamp into `useMetricEntriesQuery({ metric, from, limit: 50 })`; compute date filters only when the user selects a range, not during render, because query filters are part of the TanStack Query cache key.
+- The detail route includes `7d`, `30d`, `90d`, and `All` range controls for raw metrics. Daily Steps/HRV use the same first three controls and label their 366-local-calendar-day window `1y`. Its default and reselected start date is the first local midnight in that window, so sparse older records do not appear.
+- Range controls pass a stable `from` timestamp into `useMetricEntriesQuery({ metric, from, limit: 50 })`; compute date filters once on route initialization or when the user selects a range, not during render, because query filters are part of the TanStack Query cache key.
 - Do not call `new Date()` while building render-time query filters. If the computed timestamp changes every render, the TanStack Query key changes every render, causing a request/render/request loop.
 - Dashboard metric cards and recent-entry metric names link to `/metrics/$slug`.
 - Metric detail data is currently fetched through TanStack Query hooks inside the route component, not through TanStack Router loaders.
