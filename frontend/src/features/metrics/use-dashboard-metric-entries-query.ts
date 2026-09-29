@@ -8,8 +8,9 @@ const DAILY_PRESENTATION_METRICS = new Set(["hrv", "steps"]);
 
 export function useDashboardMetricEntriesQuery(metricSlugs: string[]) {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const uniqueMetricSlugs = [...new Set(metricSlugs)];
   const queries = useQueries({
-    queries: metricSlugs.map((metric) => {
+    queries: uniqueMetricSlugs.map((metric) => {
       const filters = DAILY_PRESENTATION_METRICS.has(metric)
         ? {
             metric,

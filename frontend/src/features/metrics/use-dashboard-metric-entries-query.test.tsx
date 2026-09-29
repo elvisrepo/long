@@ -34,7 +34,13 @@ describe("useDashboardMetricEntriesQuery", () => {
     );
 
     const { result } = renderHook(
-      () => useDashboardMetricEntriesQuery(["steps", "hrv", "body_weight"]),
+      () =>
+        useDashboardMetricEntriesQuery([
+          "steps",
+          "steps",
+          "hrv",
+          "body_weight",
+        ]),
       { wrapper },
     );
 
@@ -59,5 +65,6 @@ describe("useDashboardMetricEntriesQuery", () => {
     expect(result.current.data.map((entry) => entry.metric_definition)).toEqual(
       ["steps", "hrv", "body_weight"],
     );
+    expect(getMetricEntries).toHaveBeenCalledTimes(3);
   });
 });

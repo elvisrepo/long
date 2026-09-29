@@ -269,7 +269,9 @@ function MetricDetailRoute() {
                   onClick={() => handleRangeSelect(range)}
                   type="button"
                 >
-                  {range.label}
+                  {range.days === null && isDailyPresentationMetric
+                    ? "1y"
+                    : range.label}
                 </button>
               ))}
             </div>

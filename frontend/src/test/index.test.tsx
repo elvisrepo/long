@@ -188,6 +188,14 @@ function utcDaysAgoIso(daysAgo: number): string {
   return date.toISOString();
 }
 
+function localDateKey(date: Date): string {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
 describe("dashboard route", () => {
   beforeEach(() => {
     mockFreeSubscription();
@@ -840,10 +848,11 @@ describe("dashboard route", () => {
           id: 4,
           metric_definition: "steps",
           value: 8000,
-          recorded_at: utcDaysAgoIso(0),
+          local_date: localDateKey(new Date()),
+          recorded_at: utcDaysAgoIso(10),
           source: "manual",
           context: {},
-          created_at: utcDaysAgoIso(0),
+          created_at: utcDaysAgoIso(10),
         },
       ],
       recentEntries: [],

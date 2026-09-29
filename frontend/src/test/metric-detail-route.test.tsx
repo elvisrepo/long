@@ -267,6 +267,7 @@ describe("metric detail route", () => {
       daily: true,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     });
+    expect(screen.getByRole("button", { name: "1y" })).toBeInTheDocument();
   });
 
   it("keeps raw manual HRV records editable while charting the daily summary", async () => {
