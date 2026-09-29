@@ -495,6 +495,29 @@ def test_daily_hrv_summary_returns_fitbit_median_by_local_date():
     ]
     assert MetricEntry.objects.filter(user=user, source="fitbit").count() == 4
 
+
+def test_daily_steps_attributes_a_midnight_crossing_interval_to_its_end_date():
+    client, user = authenticate_client_for("midnight-steps@example.com")
+    steps = MetricDefinition.objects.get(slug="steps")
+    MetricEntry.objects.create(
+        user=user,
+        metric_definition=steps,
+        value=120,
+        period_start="2026-09-28T21:55:00Z",
+        recorded_at="2026-09-28T22:05:00Z",
+        source=MetricEntry.Source.FITBIT,
+    )
+
+    response = client.get(
+        "/api/v1/metrics/entries/daily-steps/"
+        "?timezone=Europe%2FTirane&limit=7"
+    )
+
+    assert response.status_code == 200
+    assert [
+        (entry["local_date"], entry["value"]) for entry in response.json()
+    ] == [("2026-09-29", 120.0)]
+
 def test_metric_entry_list_only_returns_current_users_entries():
       alice_client, _alice = authenticate_client_for("alice@example.com")
       bob_client, _bob = authenticate_client_for("bob@example.com")
