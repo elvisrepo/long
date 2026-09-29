@@ -4,6 +4,7 @@ export interface MetricEntry {
   id: number;
   metric_definition: string;
   value: number;
+  local_date?: string;
   period_start: string | null;
   recorded_at: string;
   source: string;

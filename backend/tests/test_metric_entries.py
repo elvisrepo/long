@@ -328,6 +328,15 @@ def test_metric_entry_list_returns_sleep_interval_start():
 def test_daily_steps_summary_sums_fitbit_intervals_by_local_date():
     client, user = authenticate_client_for("daily-steps@example.com")
     steps = MetricDefinition.objects.get(slug="steps")
+    custom_steps = MetricDefinition.objects.create(
+        user=user,
+        name="Custom Steps",
+        slug="steps",
+        unit="steps",
+        category=MetricDefinition.Category.CUSTOM,
+        min_value=0,
+        max_value=200000,
+    )
     for value, recorded_at in (
         (45, "2026-09-27T22:30:00Z"),
         (55, "2026-09-28T10:00:00Z"),
@@ -366,6 +375,13 @@ def test_daily_steps_summary_sums_fitbit_intervals_by_local_date():
         recorded_at="2026-09-24T10:00:00Z",
         source=MetricEntry.Source.MANUAL,
     )
+    MetricEntry.objects.create(
+        user=user,
+        metric_definition=custom_steps,
+        value=1000,
+        recorded_at="2026-09-28T10:30:00Z",
+        source=MetricEntry.Source.FITBIT,
+    )
 
     response = client.get(
         "/api/v1/metrics/entries/daily-steps/"
@@ -385,12 +401,27 @@ def test_daily_steps_summary_sums_fitbit_intervals_by_local_date():
         "samsung_health",
         "manual",
     ]
-    assert MetricEntry.objects.filter(user=user, source="fitbit").count() == 3
+    assert [entry["local_date"] for entry in response.json()] == [
+        "2026-09-28",
+        "2026-09-27",
+        "2026-09-25",
+        "2026-09-24",
+    ]
+    assert MetricEntry.objects.filter(user=user, source="fitbit").count() == 4
 
 
 def test_daily_hrv_summary_returns_fitbit_median_by_local_date():
     client, user = authenticate_client_for("daily-hrv@example.com")
     hrv = MetricDefinition.objects.get(slug="hrv")
+    custom_hrv = MetricDefinition.objects.create(
+        user=user,
+        name="Custom HRV",
+        slug="hrv",
+        unit="ms",
+        category=MetricDefinition.Category.CUSTOM,
+        min_value=0,
+        max_value=1000,
+    )
     for value, recorded_at in (
         (40, "2026-09-27T22:30:00Z"),
         (50, "2026-09-28T05:30:00Z"),
@@ -424,6 +455,13 @@ def test_daily_hrv_summary_returns_fitbit_median_by_local_date():
         recorded_at="2026-09-24T06:00:00Z",
         source=MetricEntry.Source.MANUAL,
     )
+    MetricEntry.objects.create(
+        user=user,
+        metric_definition=custom_hrv,
+        value=200,
+        recorded_at="2026-09-28T06:15:00Z",
+        source=MetricEntry.Source.FITBIT,
+    )
 
     response = client.get(
         "/api/v1/metrics/entries/daily-hrv/"
@@ -449,7 +487,13 @@ def test_daily_hrv_summary_returns_fitbit_median_by_local_date():
         {"aggregation": "daily_median"},
         {"aggregation": "daily_median"},
     ]
-    assert MetricEntry.objects.filter(user=user, source="fitbit").count() == 3
+    assert [entry["local_date"] for entry in response.json()] == [
+        "2026-09-28",
+        "2026-09-27",
+        "2026-09-25",
+        "2026-09-24",
+    ]
+    assert MetricEntry.objects.filter(user=user, source="fitbit").count() == 4
 
 def test_metric_entry_list_only_returns_current_users_entries():
       alice_client, _alice = authenticate_client_for("alice@example.com")

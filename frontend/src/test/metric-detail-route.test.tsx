@@ -269,6 +269,85 @@ describe("metric detail route", () => {
     });
   });
 
+  it("keeps raw manual HRV records editable while charting the daily summary", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "hrv-id",
+          name: "Heart Rate Variability",
+          slug: "hrv",
+          unit: "ms",
+          category: "cardiovascular",
+          min_value: 1,
+          max_value: 300,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    vi.mocked(useMetricEntriesQuery).mockImplementation(
+      (filters) =>
+        ({
+          data: filters.daily
+            ? [
+                {
+                  id: 2,
+                  metric_definition: "hrv",
+                  value: 250,
+                  local_date: "2026-09-28",
+                  period_start: null,
+                  recorded_at: "2026-09-28T07:00:00Z",
+                  source: "manual",
+                  context: { aggregation: "daily_median" },
+                  created_at: "2026-09-28T07:00:01Z",
+                },
+              ]
+            : [
+                {
+                  id: 2,
+                  metric_definition: "hrv",
+                  value: 300,
+                  period_start: null,
+                  recorded_at: "2026-09-28T07:00:00Z",
+                  source: "manual",
+                  context: {},
+                  created_at: "2026-09-28T07:00:01Z",
+                },
+                {
+                  id: 1,
+                  metric_definition: "hrv",
+                  value: 200,
+                  period_start: null,
+                  recorded_at: "2026-09-28T06:00:00Z",
+                  source: "manual",
+                  context: {},
+                  created_at: "2026-09-28T06:00:01Z",
+                },
+              ],
+          isLoading: false,
+          isError: false,
+        }) as ReturnType<typeof useMetricEntriesQuery>,
+    );
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/hrv");
+
+    const history = await screen.findByRole("region", {
+      name: /metric entry history/i,
+    });
+    expect(within(history).getByText("300 ms")).toBeInTheDocument();
+    expect(within(history).getByText("200 ms")).toBeInTheDocument();
+    expect(
+      within(history).getAllByRole("button", { name: /edit.*entry/i }),
+    ).toHaveLength(2);
+    expect(useMetricEntriesQuery).toHaveBeenCalledWith({
+      metric: "hrv",
+      limit: 50,
+    });
+  });
+
   it("filters metric entries by the selected 30 day range", async () => {
     const user = userEvent.setup();
 
@@ -307,6 +386,46 @@ describe("metric detail route", () => {
     expect(new Date(lastFilters?.from ?? "").getTime()).toBeLessThanOrEqual(
       latestExpectedFrom.getTime() + 1000,
     );
+  });
+
+  it("starts a seven-day HRV range at the first local midnight", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "hrv-id",
+          name: "Heart Rate Variability",
+          slug: "hrv",
+          unit: "ms",
+          category: "cardiovascular",
+          min_value: 1,
+          max_value: 300,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/hrv");
+    await screen.findByRole("heading", {
+      level: 1,
+      name: /heart rate variability/i,
+    });
+    await user.click(screen.getByRole("button", { name: /7d/i }));
+
+    const dailyFilters = vi
+      .mocked(useMetricEntriesQuery)
+      .mock.calls.map(([filters]) => filters)
+      .filter((filters) => filters.daily)
+      .at(-1);
+    const expectedStart = new Date();
+    expectedStart.setHours(0, 0, 0, 0);
+    expectedStart.setDate(expectedStart.getDate() - 6);
+    expect(dailyFilters?.from).toBe(expectedStart.toISOString());
   });
 
   it("filters to a linked UTC date and prefills a manual entry on that date", async () => {

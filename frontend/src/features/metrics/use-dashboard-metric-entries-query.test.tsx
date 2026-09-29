@@ -54,8 +54,17 @@ describe("useDashboardMetricEntriesQuery", () => {
     });
     expect(getMetricEntries).toHaveBeenCalledWith({
       metric: "body_weight",
-      limit: 7,
+      from: expect.any(String),
+      limit: 50,
     });
+    const bodyWeightFilters = vi
+      .mocked(getMetricEntries)
+      .mock.calls.map(([filters]) => filters)
+      .find((filters) => filters.metric === "body_weight");
+    const expectedStart = new Date();
+    expectedStart.setUTCHours(0, 0, 0, 0);
+    expectedStart.setUTCDate(expectedStart.getUTCDate() - 6);
+    expect(bodyWeightFilters?.from).toBe(expectedStart.toISOString());
     expect(result.current.data.map((entry) => entry.metric_definition)).toEqual(
       ["steps", "hrv", "body_weight"],
     );

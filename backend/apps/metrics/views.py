@@ -284,6 +284,9 @@ class DailyStepsSummaryView(APIView):
         entries = MetricEntry.objects.filter(
             user=request.user,
             metric_definition__slug="steps",
+            metric_definition__user__isnull=True,
+            metric_definition__is_default=True,
+            metric_definition__is_active=True,
         )
         recorded_from = request.query_params.get("from")
         if recorded_from:
@@ -306,6 +309,7 @@ class DailyStepsSummaryView(APIView):
                     "id": summary["id"],
                     "metric_definition": "steps",
                     "value": float(summary["value"]),
+                    "local_date": summary["local_date"].isoformat(),
                     "period_start": format_export_timestamp(
                         summary["period_start"]
                     ),
@@ -349,6 +353,9 @@ class DailyHrvSummaryView(APIView):
         entries = MetricEntry.objects.filter(
             user=request.user,
             metric_definition__slug="hrv",
+            metric_definition__user__isnull=True,
+            metric_definition__is_default=True,
+            metric_definition__is_active=True,
         )
         recorded_from = request.query_params.get("from")
         if recorded_from:
@@ -371,6 +378,7 @@ class DailyHrvSummaryView(APIView):
                     "id": summary["id"],
                     "metric_definition": "hrv",
                     "value": summary["value"],
+                    "local_date": summary["local_date"].isoformat(),
                     "period_start": None,
                     "recorded_at": format_export_timestamp(
                         summary["recorded_at"]

@@ -108,10 +108,15 @@ function MetricDetailRoute() {
     isError: definitionsFailed,
   } = useMetricDefinitionsQuery();
   const {
-    data: metricEntries = [],
-    isLoading: entriesAreLoading,
-    isError: entriesFailed,
+    data: presentationEntries = [],
+    isLoading: presentationEntriesAreLoading,
+    isError: presentationEntriesFailed,
   } = useMetricEntriesQuery(metricEntryFilters);
+  const {
+    data: rawEntries = [],
+    isLoading: rawEntriesAreLoading,
+    isError: rawEntriesFailed,
+  } = useMetricEntriesQuery(baseMetricEntryFilters);
   const updateMetricEntryMutation = useUpdateMetricEntryMutation();
   const deleteMetricEntryMutation = useDeleteMetricEntryMutation();
   const createMetricEntryMutation = useCreateMetricEntryMutation();
@@ -132,8 +137,8 @@ function MetricDetailRoute() {
     return <PageState message="Metric not found" notFound />;
   }
 
-  const latestEntry = metricEntries[0];
-  const oldestEntry = metricEntries.at(-1);
+  const latestEntry = presentationEntries[0];
+  const oldestEntry = presentationEntries.at(-1);
   const trendDelta =
     latestEntry && oldestEntry
       ? latestEntry.value - oldestEntry.value
@@ -150,7 +155,11 @@ function MetricDetailRoute() {
 
     setSelectedRange(range);
     setSelectedRangeFrom(
-      range.days === null ? undefined : getRangeStartIso(range.days),
+      range.days === null
+        ? undefined
+        : isDailyPresentationMetric
+          ? getLocalRangeStartIso(range.days)
+          : getRangeStartIso(range.days),
     );
   }
 
@@ -222,7 +231,7 @@ function MetricDetailRoute() {
               <MetricAnalyticsLink metricSlug={metricDefinition.slug} />
             ) : null}
             <div className="status-pill">
-              {formatMetricEntryCount(metricEntries.length)}
+              {formatMetricEntryCount(rawEntries.length)}
             </div>
           </div>
         }
@@ -266,7 +275,7 @@ function MetricDetailRoute() {
         </div>
 
         <MetricTrendChart
-          entries={metricEntries}
+          entries={presentationEntries}
           metricName={metricDefinition.name}
           metricSlug={metricDefinition.slug}
           unit={metricDefinition.unit}
@@ -314,13 +323,17 @@ function MetricDetailRoute() {
           </div>
         </div>
 
-        {entriesAreLoading ? <p>Loading metric entries...</p> : null}
-        {entriesFailed ? <p>Metric entries failed to load</p> : null}
+        {presentationEntriesAreLoading || rawEntriesAreLoading ? (
+          <p>Loading metric entries...</p>
+        ) : null}
+        {presentationEntriesFailed || rawEntriesFailed ? (
+          <p>Metric entries failed to load</p>
+        ) : null}
         {entryActionError && !entryPendingDeletion ? (
           <p className="form-error">{entryActionError}</p>
         ) : null}
 
-        {metricEntries.length === 0 ? (
+        {rawEntries.length === 0 ? (
           <div className="empty-state">
             <h3>No entries recorded yet</h3>
             <p>
@@ -332,8 +345,8 @@ function MetricDetailRoute() {
           <>
             <div className="entry-list">
               {(historyExpanded
-                ? metricEntries
-                : metricEntries.slice(0, METRIC_DETAIL_HISTORY_PREVIEW_COUNT)
+                ? rawEntries
+                : rawEntries.slice(0, METRIC_DETAIL_HISTORY_PREVIEW_COUNT)
               ).map((entry) => (
                 <MetricEntryHistoryRow
                   entry={entry}
@@ -359,7 +372,7 @@ function MetricDetailRoute() {
                 />
               ))}
             </div>
-            {metricEntries.length > METRIC_DETAIL_HISTORY_PREVIEW_COUNT ? (
+            {rawEntries.length > METRIC_DETAIL_HISTORY_PREVIEW_COUNT ? (
               <button
                 aria-expanded={historyExpanded}
                 className="metrics-secondary-action entry-history-toggle"
@@ -372,7 +385,7 @@ function MetricDetailRoute() {
               >
                 {historyExpanded
                   ? "Show fewer"
-                  : `Show all ${formatMetricEntryCount(metricEntries.length)}`}
+                  : `Show all ${formatMetricEntryCount(rawEntries.length)}`}
               </button>
             ) : null}
           </>
@@ -762,6 +775,13 @@ function formatMetricEntryCount(count: number) {
 function getRangeStartIso(days: number) {
   const rangeStart = new Date();
   rangeStart.setUTCDate(rangeStart.getUTCDate() - days);
+  return rangeStart.toISOString();
+}
+
+function getLocalRangeStartIso(days: number) {
+  const rangeStart = new Date();
+  rangeStart.setHours(0, 0, 0, 0);
+  rangeStart.setDate(rangeStart.getDate() - (days - 1));
   return rangeStart.toISOString();
 }
 
