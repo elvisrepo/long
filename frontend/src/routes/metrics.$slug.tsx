@@ -57,6 +57,10 @@ type MetricEntryRange = (typeof metricEntryRanges)[number];
 
 function MetricDetailRoute() {
   const { slug } = Route.useParams();
+  return <MetricDetailContent key={slug} slug={slug} />;
+}
+
+function MetricDetailContent({ slug }: { slug: string }) {
   const { date: selectedDate } = Route.useSearch();
   const isDailyPresentationMetric = DAILY_PRESENTATION_METRICS.has(slug);
   const [selectedRange, setSelectedRange] = useState<MetricEntryRange>(

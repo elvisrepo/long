@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -479,6 +479,75 @@ describe("metric detail route", () => {
       from: expectedStart.toISOString(),
       limit: 366,
     });
+  });
+
+  it("resets the date range when navigating between raw and daily metrics", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "resting-hr-id",
+          name: "Resting Heart Rate",
+          slug: "resting_hr",
+          unit: "bpm",
+          category: "cardiovascular",
+          min_value: 20,
+          max_value: 220,
+          is_default: true,
+        },
+        {
+          id: "hrv-id",
+          name: "Heart Rate Variability",
+          slug: "hrv",
+          unit: "ms",
+          category: "cardiovascular",
+          min_value: 1,
+          max_value: 300,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([]);
+    mockMetricEntryMutations();
+
+    const { router } = renderRoute("/metrics/resting_hr");
+    await screen.findByRole("heading", {
+      level: 1,
+      name: "Resting Heart Rate",
+    });
+    await act(async () => {
+      await router.navigate({ to: "/metrics/$slug", params: { slug: "hrv" } });
+    });
+    await screen.findByRole("heading", {
+      level: 1,
+      name: "Heart Rate Variability",
+    });
+    const dailyFilters = vi
+      .mocked(useMetricEntriesQuery)
+      .mock.calls.map(([filters]) => filters)
+      .filter((filters) => filters.metric === "hrv" && filters.daily);
+    expect(dailyFilters.length).toBeGreaterThan(0);
+    expect(
+      dailyFilters.every((filters) => typeof filters.from === "string"),
+    ).toBe(true);
+
+    await act(async () => {
+      await router.navigate({
+        to: "/metrics/$slug",
+        params: { slug: "resting_hr" },
+      });
+    });
+    await screen.findByRole("heading", {
+      level: 1,
+      name: "Resting Heart Rate",
+    });
+    const rawFilters = vi
+      .mocked(useMetricEntriesQuery)
+      .mock.calls.map(([filters]) => filters)
+      .filter((filters) => filters.metric === "resting_hr");
+    expect(rawFilters.at(-1)).toEqual({ metric: "resting_hr", limit: 50 });
   });
 
   it("requests ninety daily HRV values for the ninety-day chart", async () => {

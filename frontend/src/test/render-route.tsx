@@ -23,11 +23,12 @@ export function renderRoute(path: string) {
     },
   });
 
-  return render(
+  const view = render(
     <QueryClientProvider client={queryClient}>
       <AuthBootstrapGate>
         <RouterProvider router={router} />
       </AuthBootstrapGate>
     </QueryClientProvider>,
   );
+  return { ...view, router };
 }
