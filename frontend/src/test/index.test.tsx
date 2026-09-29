@@ -6,6 +6,7 @@ import { restoreWebSession } from "../features/auth/auth-bootstrap";
 import { logoutWeb } from "../features/auth/auth-logout-api";
 import { getMe } from "../features/auth/auth-me-api";
 import { createMetricEntry } from "../features/metrics/metric-entries-api";
+import { useConsistencyAnalyticsQuery } from "../features/metrics/use-consistency-analytics-query";
 import { useDashboardMetricEntriesQuery } from "../features/metrics/use-dashboard-metric-entries-query";
 import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
 import { useMetricEntriesQuery } from "../features/metrics/use-metric-entries-query";
@@ -30,6 +31,10 @@ vi.mock("../features/metrics/use-metric-definitions-query", () => ({
 
 vi.mock("../features/metrics/use-dashboard-metric-entries-query", () => ({
   useDashboardMetricEntriesQuery: vi.fn(),
+}));
+
+vi.mock("../features/metrics/use-consistency-analytics-query", () => ({
+  useConsistencyAnalyticsQuery: vi.fn(),
 }));
 
 vi.mock("../features/metrics/use-metric-entries-query", () => ({
@@ -75,6 +80,20 @@ function mockFreeSubscription() {
 }
 
 function mockProSubscription() {
+  vi.mocked(useConsistencyAnalyticsQuery).mockReturnValue({
+    data: {
+      range_days: 7,
+      dates: [],
+      metrics: [],
+      summary: {
+        metrics_with_data: 0,
+        total_metrics: 0,
+        days_with_any_data: 0,
+      },
+    },
+    isLoading: false,
+    isError: false,
+  } as ReturnType<typeof useConsistencyAnalyticsQuery>);
   vi.mocked(useCurrentSubscriptionQuery).mockReturnValue({
     data: {
       id: "pro-subscription-id",
@@ -199,6 +218,11 @@ function localDateKey(date: Date): string {
 describe("dashboard route", () => {
   beforeEach(() => {
     mockFreeSubscription();
+    vi.mocked(useConsistencyAnalyticsQuery).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useConsistencyAnalyticsQuery>);
   });
 
   afterEach(() => {
@@ -776,6 +800,20 @@ describe("dashboard route", () => {
 
   it("shows Pro insight previews from loaded entries", async () => {
     mockProSubscription();
+    vi.mocked(useConsistencyAnalyticsQuery).mockReturnValue({
+      data: {
+        range_days: 7,
+        dates: [],
+        metrics: [],
+        summary: {
+          metrics_with_data: 2,
+          total_metrics: 3,
+          days_with_any_data: 2,
+        },
+      },
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useConsistencyAnalyticsQuery>);
     vi.mocked(getMe).mockResolvedValue({
       email: "user@example.com",
     });
@@ -874,7 +912,8 @@ describe("dashboard route", () => {
     const consistencyLink = within(insights).getByRole("link", {
       name: /consistency/i,
     });
-    expect(consistencyLink).toHaveTextContent("3 of 7 days with data");
+    expect(consistencyLink).toHaveTextContent("2 of 7 days with data");
+    expect(useConsistencyAnalyticsQuery).toHaveBeenCalledWith(true);
   });
 
   it("shows empty Pro insight previews when there is no data", async () => {

@@ -485,11 +485,12 @@ Current metrics API integration checkpoint:
 - The dashboard reads `useCurrentSubscriptionQuery()` so it can use `plan.analytics_enabled` for the first subscription-aware Pro value surface.
 - Free users see a locked **Pro Insights** card that explains trend summaries require Pro.
 - Pro users with `analytics_enabled=true` see a **Pro Insights** card where each
-  destination (Sleep, Weight × Steps, Consistency) carries a one-line preview
-  derived from the dashboard's existing bounded entry read: latest sleep plus
-  trailing-7-day night count, latest weight plus latest steps, and days with
-  any data in the trailing 7 UTC days. Empty states read “No sleep data yet”,
-  “No weight or steps yet”, and “No recent data”. No extra API request.
+  destination (Sleep, Weight × Steps, Consistency) carries a one-line preview.
+  Sleep and Weight × Steps derive from the dashboard's existing bounded entry
+  read. Consistency uses the same backend seven-day UTC summary and TanStack
+  Query cache as its linked report, so their day counts agree. Its query is
+  enabled only for Pro. Empty states read “No sleep data yet”, “No weight or
+  steps yet”, and “No recent data”.
 - This first **Pro Insights** card is intentionally a scaffold, not the final paid analytics value. Return to it later with useful per-metric trend direction, deltas over 7/30 days, averages, anomaly flags, or similar higher-value summaries.
 
 Current dashboard UI checkpoint:
@@ -553,7 +554,7 @@ Current metric detail page checkpoint:
 - `updateMetricEntry()` preserves backend validation detail when available, for example metric range errors from the API.
 - Entry update/delete errors are shown on the metric detail page as visible form errors.
 - The detail route shows an explicit empty state when no entries exist, with a link back to the dashboard to log the first value.
-- The detail route includes `7d`, `30d`, `90d`, and `All` range controls for raw metrics. Daily Steps/HRV use the same first three controls and label their 366-local-calendar-day window `1y`. Its default and reselected start date is the first local midnight in that window, so sparse older records do not appear.
+- The detail route includes `7d`, `30d`, `90d`, and `All` range controls for raw metrics. Daily Steps/HRV use the same first three controls and label their 366-local-calendar-day window `1y`. Each daily range has a stable start at its first local midnight and an end at the last millisecond of the selected local day, so sparse older and future-dated records do not displace in-range days.
 - Range controls pass a stable `from` timestamp into `useMetricEntriesQuery({ metric, from, limit: 50 })`; compute date filters once on route initialization or when the user selects a range, not during render, because query filters are part of the TanStack Query cache key.
 - Do not call `new Date()` while building render-time query filters. If the computed timestamp changes every render, the TanStack Query key changes every render, causing a request/render/request loop.
 - Dashboard metric cards and recent-entry metric names link to `/metrics/$slug`.

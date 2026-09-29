@@ -92,6 +92,14 @@ function MetricDetailContent({ slug }: { slug: string }) {
       ? {
           metric: slug,
           from: selectedRangeFrom,
+          ...(isDailyPresentationMetric
+            ? {
+                to: getLocalRangeEndIso(
+                  selectedRangeFrom,
+                  selectedRange.days ?? 366,
+                ),
+              }
+            : {}),
           limit: METRIC_DETAIL_ENTRY_LIMIT,
         }
       : { metric: slug, limit: METRIC_DETAIL_ENTRY_LIMIT };
@@ -788,4 +796,11 @@ function getLocalRangeStartIso(days: number) {
   rangeStart.setHours(0, 0, 0, 0);
   rangeStart.setDate(rangeStart.getDate() - (days - 1));
   return rangeStart.toISOString();
+}
+
+function getLocalRangeEndIso(from: string, days: number) {
+  const rangeEnd = new Date(from);
+  rangeEnd.setDate(rangeEnd.getDate() + days);
+  rangeEnd.setMilliseconds(rangeEnd.getMilliseconds() - 1);
+  return rangeEnd.toISOString();
 }

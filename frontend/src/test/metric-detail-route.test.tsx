@@ -265,6 +265,7 @@ describe("metric detail route", () => {
     expect(useMetricEntriesQuery).toHaveBeenCalledWith({
       metric: "hrv",
       from: expect.any(String),
+      to: expect.any(String),
       limit: 366,
       daily: true,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
@@ -348,6 +349,7 @@ describe("metric detail route", () => {
     expect(useMetricEntriesQuery).toHaveBeenCalledWith({
       metric: "hrv",
       from: expect.any(String),
+      to: expect.any(String),
       limit: 50,
     });
   });
@@ -430,6 +432,9 @@ describe("metric detail route", () => {
     expectedStart.setHours(0, 0, 0, 0);
     expectedStart.setDate(expectedStart.getDate() - 6);
     expect(dailyFilters?.from).toBe(expectedStart.toISOString());
+    const expectedEnd = new Date();
+    expectedEnd.setHours(23, 59, 59, 999);
+    expect(dailyFilters?.to).toBe(expectedEnd.toISOString());
   });
 
   it("bounds the default and reselected one-year HRV trend to recent local dates", async () => {
@@ -462,6 +467,8 @@ describe("metric detail route", () => {
     const expectedStart = new Date();
     expectedStart.setHours(0, 0, 0, 0);
     expectedStart.setDate(expectedStart.getDate() - 365);
+    const expectedEnd = new Date();
+    expectedEnd.setHours(23, 59, 59, 999);
     const latestDailyFilters = () =>
       vi
         .mocked(useMetricEntriesQuery)
@@ -471,12 +478,14 @@ describe("metric detail route", () => {
 
     expect(latestDailyFilters()).toMatchObject({
       from: expectedStart.toISOString(),
+      to: expectedEnd.toISOString(),
       limit: 366,
     });
     await user.click(screen.getByRole("button", { name: "7d" }));
     await user.click(screen.getByRole("button", { name: "1y" }));
     expect(latestDailyFilters()).toMatchObject({
       from: expectedStart.toISOString(),
+      to: expectedEnd.toISOString(),
       limit: 366,
     });
   });
