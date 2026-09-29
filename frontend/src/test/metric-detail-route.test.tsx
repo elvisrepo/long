@@ -263,7 +263,7 @@ describe("metric detail route", () => {
     ).toBeInTheDocument();
     expect(useMetricEntriesQuery).toHaveBeenCalledWith({
       metric: "hrv",
-      limit: 50,
+      limit: 366,
       daily: true,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     });
@@ -428,6 +428,43 @@ describe("metric detail route", () => {
     expect(dailyFilters?.from).toBe(expectedStart.toISOString());
   });
 
+  it("requests ninety daily HRV values for the ninety-day chart", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "hrv-id",
+          name: "Heart Rate Variability",
+          slug: "hrv",
+          unit: "ms",
+          category: "cardiovascular",
+          min_value: 1,
+          max_value: 300,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/hrv");
+    await screen.findByRole("heading", {
+      level: 1,
+      name: /heart rate variability/i,
+    });
+    await user.click(screen.getByRole("button", { name: /90d/i }));
+
+    const dailyFilters = vi
+      .mocked(useMetricEntriesQuery)
+      .mock.calls.map(([filters]) => filters)
+      .filter((filters) => filters.daily)
+      .at(-1);
+    expect(dailyFilters?.limit).toBe(90);
+  });
+
   it("filters to a linked UTC date and prefills a manual entry on that date", async () => {
     const user = userEvent.setup();
     vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
@@ -493,7 +530,7 @@ describe("metric detail route", () => {
       metric: "hrv",
       from: expectedStart,
       to: expectedEnd,
-      limit: 50,
+      limit: 1,
       daily: true,
       timezone,
     });

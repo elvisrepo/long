@@ -95,9 +95,11 @@ function MetricDetailRoute() {
           limit: METRIC_DETAIL_ENTRY_LIMIT,
         }
       : { metric: slug, limit: METRIC_DETAIL_ENTRY_LIMIT };
+  const dailyPresentationLimit = selectedDate ? 1 : (selectedRange.days ?? 366);
   const metricEntryFilters: GetMetricEntriesFilters = isDailyPresentationMetric
     ? {
         ...baseMetricEntryFilters,
+        limit: dailyPresentationLimit,
         daily: true,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
       }

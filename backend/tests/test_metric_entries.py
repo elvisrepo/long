@@ -518,6 +518,43 @@ def test_daily_steps_attributes_a_midnight_crossing_interval_to_its_end_date():
         (entry["local_date"], entry["value"]) for entry in response.json()
     ] == [("2026-09-29", 120.0)]
 
+
+def test_daily_steps_rejects_an_empty_timezone():
+    client, _user = authenticate_client_for("empty-timezone@example.com")
+
+    response = client.get("/api/v1/metrics/entries/daily-steps/?timezone=")
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "timezone": ["Enter a valid IANA timezone."]
+    }
+
+
+def test_daily_steps_timestamp_bound_selects_the_complete_local_date():
+    client, user = authenticate_client_for("complete-day-steps@example.com")
+    steps = MetricDefinition.objects.get(slug="steps")
+    for value, recorded_at in (
+        (400, "2026-09-28T08:00:00Z"),
+        (600, "2026-09-28T16:00:00Z"),
+    ):
+        MetricEntry.objects.create(
+            user=user,
+            metric_definition=steps,
+            value=value,
+            period_start=datetime.fromisoformat(recorded_at)
+            - timedelta(minutes=15),
+            recorded_at=recorded_at,
+            source=MetricEntry.Source.FITBIT,
+        )
+
+    response = client.get(
+        "/api/v1/metrics/entries/daily-steps/"
+        "?timezone=Europe%2FTirane&from=2026-09-28T12%3A00%3A00Z"
+    )
+
+    assert response.status_code == 200
+    assert response.json()[0]["value"] == 1000.0
+
 def test_metric_entry_list_only_returns_current_users_entries():
       alice_client, _alice = authenticate_client_for("alice@example.com")
       bob_client, _bob = authenticate_client_for("bob@example.com")

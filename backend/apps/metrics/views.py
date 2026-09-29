@@ -80,12 +80,22 @@ def daily_metric_summaries(
     limit: int,
     value_aggregate: Aggregate,
     include_period_start: bool,
+    local_date_from: date | None = None,
+    local_date_to: date | None = None,
 ) -> list[DailyMetricSummary]:
     """Aggregate one preferred source per local day without mixing providers."""
 
     annotated_entries = entries.annotate(
         local_date=TruncDate("recorded_at", tzinfo=timezone)
     )
+    if local_date_from is not None:
+        annotated_entries = annotated_entries.filter(
+            local_date__gte=local_date_from
+        )
+    if local_date_to is not None:
+        annotated_entries = annotated_entries.filter(
+            local_date__lte=local_date_to
+        )
     source_days = (
         annotated_entries.values("local_date", "source")
         .distinct()
@@ -128,6 +138,25 @@ def daily_metric_summaries(
             .order_by("-local_date")
         ),
     )
+
+
+def parse_local_date_bound(
+    value: str | None,
+    *,
+    field_name: str,
+    timezone: ZoneInfo,
+) -> date | None:
+    if value is None:
+        return None
+
+    parsed = parse_datetime(value)
+    if parsed is None:
+        raise ValidationError(
+            {field_name: ["Enter a valid ISO-8601 timestamp."]}
+        )
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone)
+    return parsed.astimezone(timezone).date()
 
 
 class CsvEcho:
@@ -267,7 +296,7 @@ class DailyStepsSummaryView(APIView):
         timezone_name = request.query_params.get("timezone", "UTC")
         try:
             timezone = ZoneInfo(timezone_name)
-        except ZoneInfoNotFoundError as exc:
+        except (ZoneInfoNotFoundError, ValueError) as exc:
             raise ValidationError(
                 {"timezone": ["Enter a valid IANA timezone."]}
             ) from exc
@@ -288,12 +317,16 @@ class DailyStepsSummaryView(APIView):
             metric_definition__is_default=True,
             metric_definition__is_active=True,
         )
-        recorded_from = request.query_params.get("from")
-        if recorded_from:
-            entries = entries.filter(recorded_at__gte=recorded_from)
-        recorded_to = request.query_params.get("to")
-        if recorded_to:
-            entries = entries.filter(recorded_at__lte=recorded_to)
+        local_date_from = parse_local_date_bound(
+            request.query_params.get("from"),
+            field_name="from",
+            timezone=timezone,
+        )
+        local_date_to = parse_local_date_bound(
+            request.query_params.get("to"),
+            field_name="to",
+            timezone=timezone,
+        )
 
         summaries = daily_metric_summaries(
             entries=entries,
@@ -301,6 +334,8 @@ class DailyStepsSummaryView(APIView):
             limit=limit,
             value_aggregate=Sum("value"),
             include_period_start=True,
+            local_date_from=local_date_from,
+            local_date_to=local_date_to,
         )
 
         return Response(
@@ -336,7 +371,7 @@ class DailyHrvSummaryView(APIView):
         timezone_name = request.query_params.get("timezone", "UTC")
         try:
             timezone = ZoneInfo(timezone_name)
-        except ZoneInfoNotFoundError as exc:
+        except (ZoneInfoNotFoundError, ValueError) as exc:
             raise ValidationError(
                 {"timezone": ["Enter a valid IANA timezone."]}
             ) from exc
@@ -357,12 +392,16 @@ class DailyHrvSummaryView(APIView):
             metric_definition__is_default=True,
             metric_definition__is_active=True,
         )
-        recorded_from = request.query_params.get("from")
-        if recorded_from:
-            entries = entries.filter(recorded_at__gte=recorded_from)
-        recorded_to = request.query_params.get("to")
-        if recorded_to:
-            entries = entries.filter(recorded_at__lte=recorded_to)
+        local_date_from = parse_local_date_bound(
+            request.query_params.get("from"),
+            field_name="from",
+            timezone=timezone,
+        )
+        local_date_to = parse_local_date_bound(
+            request.query_params.get("to"),
+            field_name="to",
+            timezone=timezone,
+        )
 
         summaries = daily_metric_summaries(
             entries=entries,
@@ -370,6 +409,8 @@ class DailyHrvSummaryView(APIView):
             limit=limit,
             value_aggregate=Median("value"),
             include_period_start=False,
+            local_date_from=local_date_from,
+            local_date_to=local_date_to,
         )
 
         return Response(
