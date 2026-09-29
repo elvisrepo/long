@@ -818,8 +818,12 @@ function getLocalRangeStartIso(days: number) {
 }
 
 function getLocalRangeEndIso(from: string, days: number) {
-  const rangeEnd = new Date(from);
-  rangeEnd.setDate(rangeEnd.getDate() + days);
+  const rangeStart = new Date(from);
+  const rangeEnd = new Date(
+    rangeStart.getFullYear(),
+    rangeStart.getMonth(),
+    rangeStart.getDate() + days,
+  );
   rangeEnd.setTime(rangeEnd.getTime() - 1);
   return rangeEnd.toISOString();
 }

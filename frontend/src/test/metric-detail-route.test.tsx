@@ -527,6 +527,52 @@ describe("metric detail route", () => {
     expect(dailyFilters?.to).toBe("2026-09-06T03:59:59.999Z");
   });
 
+  it("does not carry a skipped start-midnight hour into the range end", async () => {
+    vi.stubEnv("TZ", "America/Santiago");
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-12T14:00:00.000Z"));
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "hrv-id",
+          name: "Heart Rate Variability",
+          slug: "hrv",
+          unit: "ms",
+          category: "cardiovascular",
+          min_value: 1,
+          max_value: 300,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/hrv");
+    await screen.findByRole("heading", {
+      level: 1,
+      name: /heart rate variability/i,
+    });
+    await userEvent.click(screen.getByRole("button", { name: "7d" }));
+    const filters = vi
+      .mocked(useMetricEntriesQuery)
+      .mock.calls.map(([query]) => query)
+      .filter((query) => query.metric === "hrv")
+      .slice(-2);
+    expect(filters).toHaveLength(2);
+    expect(filters[0]).toMatchObject({
+      from: "2026-09-06T04:00:00.000Z",
+      to: "2026-09-13T02:59:59.999Z",
+    });
+    expect(filters[1]).toMatchObject({
+      from: "2026-09-06T04:00:00.000Z",
+      to: "2026-09-13T02:59:59.999Z",
+    });
+  });
+
   it("advances a daily range when the tab crosses local midnight", async () => {
     vi.stubEnv("TZ", "UTC");
     vi.useFakeTimers({ toFake: ["Date"] });
