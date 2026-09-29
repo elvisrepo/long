@@ -102,7 +102,9 @@ export async function getMetricEntries(
       !DAILY_METRIC_ENDPOINTS[filters.metric] ||
       !filters.timezone
     ) {
-      throw new Error("Daily metric requests require a supported metric and timezone");
+      throw new Error(
+        "Daily metric requests require a supported metric and timezone",
+      );
     }
     searchParams.set("timezone", filters.timezone);
   }

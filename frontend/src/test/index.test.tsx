@@ -902,9 +902,7 @@ describe("dashboard route", () => {
 
     await screen.findByRole("heading", { name: /dashboard/i });
 
-    expect(useDashboardMetricEntriesQuery).toHaveBeenCalledWith([
-      "resting_hr",
-    ]);
+    expect(useDashboardMetricEntriesQuery).toHaveBeenCalledWith(["resting_hr"]);
     expect(useMetricEntriesQuery).toHaveBeenCalledWith({ limit: 5 });
   });
 

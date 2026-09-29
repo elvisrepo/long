@@ -56,10 +56,8 @@ describe("useDashboardMetricEntriesQuery", () => {
       metric: "body_weight",
       limit: 7,
     });
-    expect(result.current.data.map((entry) => entry.metric_definition)).toEqual([
-      "steps",
-      "hrv",
-      "body_weight",
-    ]);
+    expect(result.current.data.map((entry) => entry.metric_definition)).toEqual(
+      ["steps", "hrv", "body_weight"],
+    );
   });
 });

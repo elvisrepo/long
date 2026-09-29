@@ -95,8 +95,7 @@ function MetricDetailRoute() {
       ? {
           ...baseMetricEntryFilters,
           daily: true,
-          timezone:
-            Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
         }
       : baseMetricEntryFilters;
   const {
