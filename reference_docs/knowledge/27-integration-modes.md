@@ -9,7 +9,7 @@
 | Mode | How data reaches our backend | Best fit | Backend implications |
 |---|---|---|---|
 | **Manual entry** | User types values into our UI | Any metric, fallback for all users | Standard authenticated metrics endpoints |
-| **Device bridge** | Mobile app reads on-device health data and uploads it | Samsung Health via Health Connect, Apple Health / HealthKit, other device-only sources | Requires companion app, on-device permissions, upload idempotency, sync cursor handling |
+| **Device bridge** | Mobile app reads on-device health data and uploads it | Fitbit or Samsung Health via Health Connect, Apple Health / HealthKit, other device-only sources | Requires companion app, on-device permissions, upload idempotency, sync cursor handling |
 | **Direct cloud API** | Our backend talks directly to the provider's API | Providers with stable official server-side APIs | Requires provider OAuth/token storage, backfill jobs, provider-specific normalization |
 | **Aggregator** | Our backend integrates with a third-party integration platform | Multiple cloud-friendly providers where aggregator cost/abstraction is worth it | Hosted link flow, signed webhooks, aggregator IDs, normalized upstream payloads |
 
@@ -23,5 +23,5 @@
 ### Project Decision
 
 - **Foundation phase:** manual entry only.
-- **MVP:** Samsung Health writes records into Health Connect; the Android companion app reads permitted Health Connect records and uploads normalized samples through the **device bridge**. The Django backend does not connect directly to either on-device system.
+- **MVP:** Fitbit currently writes records into Health Connect; the Android companion app reads permitted Fitbit-originated Health Connect records and uploads normalized samples through the **device bridge**. The Django backend does not connect directly to Fitbit or Health Connect. Legacy Samsung-originated records remain supported by the backend.
 - **Full requirements:** hybrid model, combining **device bridge** for device-bound ecosystems and **aggregator/direct cloud API** for providers with server-side integrations.

@@ -324,6 +324,237 @@ def test_metric_entry_list_returns_sleep_interval_start():
     assert response.json()[0]["period_start"] == "2026-09-18T23:00:00Z"
     assert response.json()[0]["recorded_at"] == "2026-09-19T06:30:00Z"
 
+
+def test_daily_steps_summary_sums_fitbit_intervals_by_local_date():
+    client, user = authenticate_client_for("daily-steps@example.com")
+    steps = MetricDefinition.objects.get(slug="steps")
+    custom_steps = MetricDefinition.objects.create(
+        user=user,
+        name="Custom Steps",
+        slug="steps",
+        unit="steps",
+        category=MetricDefinition.Category.CUSTOM,
+        min_value=0,
+        max_value=200000,
+    )
+    for value, recorded_at in (
+        (45, "2026-09-27T22:30:00Z"),
+        (55, "2026-09-28T10:00:00Z"),
+        (80, "2026-09-26T22:30:00Z"),
+    ):
+        MetricEntry.objects.create(
+            user=user,
+            metric_definition=steps,
+            value=value,
+            period_start=datetime.fromisoformat(recorded_at).replace(
+                minute=0
+            )
+            - timedelta(minutes=15),
+            recorded_at=recorded_at,
+            source=MetricEntry.Source.FITBIT,
+        )
+    MetricEntry.objects.create(
+        user=user,
+        metric_definition=steps,
+        value=999,
+        period_start="2026-09-28T11:45:00Z",
+        recorded_at="2026-09-28T12:00:00Z",
+        source=MetricEntry.Source.SAMSUNG_HEALTH,
+    )
+    MetricEntry.objects.create(
+        user=user,
+        metric_definition=steps,
+        value=7000,
+        recorded_at="2026-09-25T10:00:00Z",
+        source=MetricEntry.Source.SAMSUNG_HEALTH,
+    )
+    MetricEntry.objects.create(
+        user=user,
+        metric_definition=steps,
+        value=8000,
+        recorded_at="2026-09-24T10:00:00Z",
+        source=MetricEntry.Source.MANUAL,
+    )
+    MetricEntry.objects.create(
+        user=user,
+        metric_definition=custom_steps,
+        value=1000,
+        recorded_at="2026-09-28T10:30:00Z",
+        source=MetricEntry.Source.FITBIT,
+    )
+
+    response = client.get(
+        "/api/v1/metrics/entries/daily-steps/"
+        "?timezone=Europe%2FTirane&limit=7"
+    )
+
+    assert response.status_code == 200
+    assert [entry["value"] for entry in response.json()] == [
+        100.0,
+        80.0,
+        7000.0,
+        8000.0,
+    ]
+    assert [entry["source"] for entry in response.json()] == [
+        "fitbit",
+        "fitbit",
+        "samsung_health",
+        "manual",
+    ]
+    assert [entry["local_date"] for entry in response.json()] == [
+        "2026-09-28",
+        "2026-09-27",
+        "2026-09-25",
+        "2026-09-24",
+    ]
+    assert MetricEntry.objects.filter(user=user, source="fitbit").count() == 4
+
+
+def test_daily_hrv_summary_returns_fitbit_median_by_local_date():
+    client, user = authenticate_client_for("daily-hrv@example.com")
+    hrv = MetricDefinition.objects.get(slug="hrv")
+    custom_hrv = MetricDefinition.objects.create(
+        user=user,
+        name="Custom HRV",
+        slug="hrv",
+        unit="ms",
+        category=MetricDefinition.Category.CUSTOM,
+        min_value=0,
+        max_value=1000,
+    )
+    for value, recorded_at in (
+        (40, "2026-09-27T22:30:00Z"),
+        (50, "2026-09-28T05:30:00Z"),
+        (61, "2026-09-26T22:30:00Z"),
+    ):
+        MetricEntry.objects.create(
+            user=user,
+            metric_definition=hrv,
+            value=value,
+            recorded_at=recorded_at,
+            source=MetricEntry.Source.FITBIT,
+        )
+    MetricEntry.objects.create(
+        user=user,
+        metric_definition=hrv,
+        value=999,
+        recorded_at="2026-09-28T06:00:00Z",
+        source=MetricEntry.Source.SAMSUNG_HEALTH,
+    )
+    MetricEntry.objects.create(
+        user=user,
+        metric_definition=hrv,
+        value=48,
+        recorded_at="2026-09-25T06:00:00Z",
+        source=MetricEntry.Source.SAMSUNG_HEALTH,
+    )
+    MetricEntry.objects.create(
+        user=user,
+        metric_definition=hrv,
+        value=52,
+        recorded_at="2026-09-24T06:00:00Z",
+        source=MetricEntry.Source.MANUAL,
+    )
+    MetricEntry.objects.create(
+        user=user,
+        metric_definition=custom_hrv,
+        value=200,
+        recorded_at="2026-09-28T06:15:00Z",
+        source=MetricEntry.Source.FITBIT,
+    )
+
+    response = client.get(
+        "/api/v1/metrics/entries/daily-hrv/"
+        "?timezone=Europe%2FTirane&limit=7"
+    )
+
+    assert response.status_code == 200
+    assert [entry["value"] for entry in response.json()] == [
+        45.0,
+        61.0,
+        48.0,
+        52.0,
+    ]
+    assert [entry["metric_definition"] for entry in response.json()] == [
+        "hrv",
+        "hrv",
+        "hrv",
+        "hrv",
+    ]
+    assert [entry["context"] for entry in response.json()] == [
+        {"aggregation": "daily_median"},
+        {"aggregation": "daily_median"},
+        {"aggregation": "daily_median"},
+        {"aggregation": "daily_median"},
+    ]
+    assert [entry["local_date"] for entry in response.json()] == [
+        "2026-09-28",
+        "2026-09-27",
+        "2026-09-25",
+        "2026-09-24",
+    ]
+    assert MetricEntry.objects.filter(user=user, source="fitbit").count() == 4
+
+
+def test_daily_steps_attributes_a_midnight_crossing_interval_to_its_end_date():
+    client, user = authenticate_client_for("midnight-steps@example.com")
+    steps = MetricDefinition.objects.get(slug="steps")
+    MetricEntry.objects.create(
+        user=user,
+        metric_definition=steps,
+        value=120,
+        period_start="2026-09-28T21:55:00Z",
+        recorded_at="2026-09-28T22:05:00Z",
+        source=MetricEntry.Source.FITBIT,
+    )
+
+    response = client.get(
+        "/api/v1/metrics/entries/daily-steps/"
+        "?timezone=Europe%2FTirane&limit=7"
+    )
+
+    assert response.status_code == 200
+    assert [
+        (entry["local_date"], entry["value"]) for entry in response.json()
+    ] == [("2026-09-29", 120.0)]
+
+
+def test_daily_steps_rejects_an_empty_timezone():
+    client, _user = authenticate_client_for("empty-timezone@example.com")
+
+    response = client.get("/api/v1/metrics/entries/daily-steps/?timezone=")
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "timezone": ["Enter a valid IANA timezone."]
+    }
+
+
+def test_daily_steps_timestamp_bound_selects_the_complete_local_date():
+    client, user = authenticate_client_for("complete-day-steps@example.com")
+    steps = MetricDefinition.objects.get(slug="steps")
+    for value, recorded_at in (
+        (400, "2026-09-28T08:00:00Z"),
+        (600, "2026-09-28T16:00:00Z"),
+    ):
+        MetricEntry.objects.create(
+            user=user,
+            metric_definition=steps,
+            value=value,
+            period_start=datetime.fromisoformat(recorded_at)
+            - timedelta(minutes=15),
+            recorded_at=recorded_at,
+            source=MetricEntry.Source.FITBIT,
+        )
+
+    response = client.get(
+        "/api/v1/metrics/entries/daily-steps/"
+        "?timezone=Europe%2FTirane&from=2026-09-28T12%3A00%3A00Z"
+    )
+
+    assert response.status_code == 200
+    assert response.json()[0]["value"] == 1000.0
+
 def test_metric_entry_list_only_returns_current_users_entries():
       alice_client, _alice = authenticate_client_for("alice@example.com")
       bob_client, _bob = authenticate_client_for("bob@example.com")

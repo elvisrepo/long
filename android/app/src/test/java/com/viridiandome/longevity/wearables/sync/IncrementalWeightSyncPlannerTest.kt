@@ -48,14 +48,14 @@ class IncrementalWeightSyncPlannerTest {
     }
 
     @Test
-    fun only_samsung_samples_are_batched_without_reordering() = runTest {
-        val samsungSamples = (1..101).map { index ->
-            weightSample("samsung-$index", "com.sec.android.app.shealth")
+    fun only_fitbit_samples_are_batched_without_reordering() = runTest {
+        val fitbitSamples = (1..101).map { index ->
+            weightSample("fitbit-$index", "com.fitbit.FitbitMobile")
         }
-        val otherSample = weightSample("other-1", "com.example.otherhealthapp")
+        val samsungSample = weightSample("samsung-1", "com.sec.android.app.shealth")
         val planner = IncrementalWeightSyncPlanner(
             reader = RecordingIncrementalWeightReader(
-                samples = samsungSamples + otherSample,
+                samples = fitbitSamples + samsungSample,
             ),
             cursorStore = RecordingWeightSyncCursorStore(emptyMap()),
             clock = Clock.fixed(
@@ -67,8 +67,8 @@ class IncrementalWeightSyncPlannerTest {
         val batches = planner.readBatches(CONNECTION_ID)
 
         assertEquals(listOf(100, 1), batches.map { it.size })
-        assertEquals("samsung-1", batches.first().first().recordId)
-        assertEquals("samsung-101", batches.last().single().recordId)
+        assertEquals("fitbit-1", batches.first().first().recordId)
+        assertEquals("fitbit-101", batches.last().single().recordId)
     }
 
     private fun weightSample(

@@ -11,23 +11,23 @@ import java.time.ZoneOffset
 
 class IncrementalStepsSyncPlannerTest {
     @Test
-    fun cursor_window_keeps_only_samsung_steps_and_preserves_order() = runTest {
+    fun cursor_window_keeps_only_fitbit_steps_and_preserves_order() = runTest {
         val now = Instant.parse("2026-08-05T12:00:00Z")
         val cursor = Instant.parse("2026-08-05T10:00:00Z")
-        val firstSamsung = stepsSample(
-            id = "samsung-1",
-            sourcePackageName = SAMSUNG_HEALTH_PACKAGE,
+        val firstFitbit = stepsSample(
+            id = "fitbit-1",
+            sourcePackageName = FITBIT_PACKAGE,
         )
         val other = stepsSample(
             id = "other",
             sourcePackageName = "com.example.otherhealthapp",
         )
-        val secondSamsung = stepsSample(
-            id = "samsung-2",
-            sourcePackageName = SAMSUNG_HEALTH_PACKAGE,
+        val secondFitbit = stepsSample(
+            id = "fitbit-2",
+            sourcePackageName = FITBIT_PACKAGE,
         )
         val reader = RecordingStepsReader(
-            listOf(firstSamsung, other, secondSamsung),
+            listOf(firstFitbit, other, secondFitbit),
         )
         val planner = IncrementalStepsSyncPlanner(
             reader = reader,
@@ -39,7 +39,7 @@ class IncrementalStepsSyncPlannerTest {
 
         assertEquals(Instant.parse("2026-08-04T10:00:00Z"), reader.startTime)
         assertEquals(now, reader.endTime)
-        assertEquals(listOf(listOf(firstSamsung, secondSamsung)), batches)
+        assertEquals(listOf(listOf(firstFitbit, secondFitbit)), batches)
     }
 
     @Test
@@ -47,7 +47,7 @@ class IncrementalStepsSyncPlannerTest {
         val samples = (1..101).map { index ->
             stepsSample(
                 id = "record-$index",
-                sourcePackageName = SAMSUNG_HEALTH_PACKAGE,
+                sourcePackageName = FITBIT_PACKAGE,
             )
         }
         val planner = IncrementalStepsSyncPlanner(
@@ -80,7 +80,7 @@ class IncrementalStepsSyncPlannerTest {
 
     private companion object {
         const val CONNECTION_ID = "7df7e4ab-7e6f-4558-b9be-17c824fbf54e"
-        const val SAMSUNG_HEALTH_PACKAGE = "com.sec.android.app.shealth"
+        const val FITBIT_PACKAGE = "com.fitbit.FitbitMobile"
     }
 }
 

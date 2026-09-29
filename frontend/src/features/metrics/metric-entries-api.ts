@@ -4,6 +4,7 @@ export interface MetricEntry {
   id: number;
   metric_definition: string;
   value: number;
+  local_date?: string;
   period_start: string | null;
   recorded_at: string;
   source: string;
@@ -31,7 +32,14 @@ export interface GetMetricEntriesFilters {
   from?: string;
   to?: string;
   limit?: number;
+  daily?: boolean;
+  timezone?: string;
 }
+
+const DAILY_METRIC_ENDPOINTS: Record<string, string> = {
+  hrv: "/api/v1/metrics/entries/daily-hrv/",
+  steps: "/api/v1/metrics/entries/daily-steps/",
+};
 
 export async function createMetricEntry(
   input: CreateMetricEntryInput,
@@ -85,8 +93,21 @@ export async function getMetricEntries(
 
   const searchParams = new URLSearchParams();
 
-  if (filters.metric) {
+  if (filters.metric && !filters.daily) {
     searchParams.set("metric", filters.metric);
+  }
+
+  if (filters.daily) {
+    if (
+      !filters.metric ||
+      !DAILY_METRIC_ENDPOINTS[filters.metric] ||
+      !filters.timezone
+    ) {
+      throw new Error(
+        "Daily metric requests require a supported metric and timezone",
+      );
+    }
+    searchParams.set("timezone", filters.timezone);
   }
 
   if (filters.from) {
@@ -102,9 +123,10 @@ export async function getMetricEntries(
   }
 
   const queryString = searchParams.toString();
-  const url = queryString
-    ? `/api/v1/metrics/entries/?${queryString}`
+  const baseUrl = filters.daily
+    ? DAILY_METRIC_ENDPOINTS[filters.metric!]
     : "/api/v1/metrics/entries/";
+  const url = queryString ? `${baseUrl}?${queryString}` : baseUrl;
 
   const response = await fetch(url, {
     method: "GET",

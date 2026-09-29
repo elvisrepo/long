@@ -2,7 +2,7 @@
 
 ## Use When
 
-- You need the complete Android lifecycle from application launch through authentication, Health Connect registration, Weight, Steps, and Sleep synchronization, token refresh, and logout.
+- You need the complete Android lifecycle from application launch through authentication, Health Connect registration, Weight, Steps, Sleep, Resting Heart Rate, and HRV synchronization, token refresh, and logout.
 - You need to distinguish explicit plan-cooled foreground sync from subscription-enabled WorkManager sync.
 - You need to see which responsibilities belong to Compose, Android domain services, Health Connect, Django, and PostgreSQL.
 
@@ -64,7 +64,7 @@ flowchart TD
 
     subgraph CONNECTION["Health Connect connection"]
         AUTHENTICATED --> CONNECT_ACTION["User chooses Connect Health Connect"]
-        CONNECT_ACTION --> SDK_CHECK["Check Health Connect SDK availability<br/>and READ_WEIGHT + READ_STEPS + READ_SLEEP grants"]
+        CONNECT_ACTION --> SDK_CHECK["Check Health Connect SDK availability<br/>and all five metric grants"]
         SDK_CHECK --> SDK_READY{"Available and<br/>permission granted?"}
         SDK_READY -->|Unavailable| CONNECT_RECOVERY["Show unsupported, update-required,<br/>or retryable-unavailable state"]
         SDK_READY -->|Permission needed| PERMISSION["MainActivity launches official<br/>Health Connect permission contract"]
@@ -97,13 +97,13 @@ flowchart TD
         COOLDOWN --> MANUAL_GATE
         MANUAL_GATE -->|Yes| SYNC_ACTION["User chooses Sync now"]
         SYNC_ACTION --> INITIAL_VM["InitialWeightSyncViewModel<br/>prevents overlapping visible syncs"]
-        INITIAL_VM --> ALL_METRICS["AllMetricsSyncRunner<br/>runs Weight, Steps, then Sleep"]
+        INITIAL_VM --> ALL_METRICS["AllMetricsSyncRunner<br/>runs Weight, Steps, Sleep, RHR, then HRV"]
         ALL_METRICS --> COORDINATOR["Metric-specific coordinators"]
-        COORDINATOR --> INCREMENTAL_PLANNER["Weight + Steps + Sleep incremental planners<br/>use 24-hour cursor overlap<br/>or 30-day first-run fallback"]
-        INCREMENTAL_PLANNER --> HC_READ["AndroidHealthConnectAccess reads every<br/>WeightRecord + StepsRecord + SleepSessionRecord page"]
-        SAMSUNG["Samsung Health"] -->|Writes on-device records| HEALTH_CONNECT["Health Connect"]
+        COORDINATOR --> INCREMENTAL_PLANNER["Five metric planners use<br/>24-hour cursor overlap<br/>or 30-day first-run fallback"]
+        INCREMENTAL_PLANNER --> HC_READ["AndroidHealthConnectAccess reads all pages<br/>for Weight, Steps, Sleep, RHR, and HRV"]
+        FITBIT["Fitbit"] -->|Writes on-device records| HEALTH_CONNECT["Health Connect"]
         HEALTH_CONNECT -->|Returns permitted records| HC_READ
-        HC_READ --> FILTER["Keep Samsung-originated samples<br/>Sort and batch at most 100 entries"]
+        HC_READ --> FILTER["Keep Fitbit-originated samples<br/>Preserve order and batch at most 100 entries"]
         FILTER --> UPLOAD_ID["Generate one retry-stable upload_id<br/>for each batch attempt"]
         UPLOAD_ID --> UPLOAD["HttpWearableUploadRepository<br/>POST /api/v1/wearables/uploads/"]
         UPLOAD --> AUTH_CLIENT["AuthenticatedApiClient<br/>adds stored Bearer access token"]
@@ -194,7 +194,7 @@ flowchart TD
 - Passwords are used only for login and are never persisted by the Android app.
 - Access and refresh JWTs are encrypted through Android Keystore before durable storage.
 - Refresh happens only after a protected API request receives `401`; ordinary app startup reuses a readable local session without rotating it.
-- Weight, Steps, and Sleep permissions are requested before backend connection registration, so denial does not consume a plan slot. Background permission is separate and optional after the connection is ready.
+- Weight, Steps, Sleep, Resting Heart Rate, and HRV permissions are requested before backend connection registration, so denial does not consume a plan slot. Background permission is separate and optional after the connection is ready.
 - The Android app reads Health Connect. Django and Celery cannot directly access on-device records.
 - `SyncRun` records an upload attempt; `MetricEntry` remains the canonical metric store.
 - Foreground sync uses the incremental cursor with a 30-day first-run fallback. The official client disables its action until the server-owned cooldown has elapsed, including after a successful no-data run.

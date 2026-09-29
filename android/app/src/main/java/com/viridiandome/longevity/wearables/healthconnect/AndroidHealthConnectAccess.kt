@@ -7,8 +7,12 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.WeightRecord
+import androidx.health.connect.client.records.RestingHeartRateRecord
+import androidx.health.connect.client.records.HeartRateVariabilityRmssdRecord
 import com.viridiandome.longevity.wearables.BackgroundReadAccess
 import com.viridiandome.longevity.wearables.HealthConnectAccess
+import com.viridiandome.longevity.wearables.HealthConnectInstantMetricReader
+import com.viridiandome.longevity.wearables.HealthConnectInstantMetricSample
 import com.viridiandome.longevity.wearables.HealthConnectSleepReader
 import com.viridiandome.longevity.wearables.HealthConnectSleepSample
 import com.viridiandome.longevity.wearables.HealthConnectStepsReader
@@ -27,10 +31,18 @@ val STEPS_READ_PERMISSION: String =
 val SLEEP_READ_PERMISSION: String =
     HealthPermission.getReadPermission(SleepSessionRecord::class)
 
+val RESTING_HEART_RATE_READ_PERMISSION: String =
+    HealthPermission.getReadPermission(RestingHeartRateRecord::class)
+
+val HEART_RATE_VARIABILITY_READ_PERMISSION: String =
+    HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class)
+
 val SUPPORTED_METRIC_READ_PERMISSIONS: Set<String> = setOf(
     WEIGHT_READ_PERMISSION,
     STEPS_READ_PERMISSION,
     SLEEP_READ_PERMISSION,
+    RESTING_HEART_RATE_READ_PERMISSION,
+    HEART_RATE_VARIABILITY_READ_PERMISSION,
 )
 
 val BACKGROUND_READ_PERMISSION: String =
@@ -44,7 +56,8 @@ class AndroidHealthConnectAccess(
 ) : HealthConnectAccess,
     HealthConnectWeightReader,
     HealthConnectStepsReader,
-    HealthConnectSleepReader {
+    HealthConnectSleepReader,
+    HealthConnectInstantMetricReader {
     private val client: HealthConnectClient by lazy {
         HealthConnectClient.getOrCreate(context)
     }
@@ -104,6 +117,26 @@ class AndroidHealthConnectAccess(
         endTime: Instant,
     ): List<HealthConnectSleepSample> =
         readHealthConnectSleepSamples(
+            startTime = startTime,
+            endTime = endTime,
+            readPage = client::readRecords,
+        )
+
+    override suspend fun readRestingHeartRateSamples(
+        startTime: Instant,
+        endTime: Instant,
+    ): List<HealthConnectInstantMetricSample> =
+        readHealthConnectRestingHeartRateSamples(
+            startTime = startTime,
+            endTime = endTime,
+            readPage = client::readRecords,
+        )
+
+    override suspend fun readHrvSamples(
+        startTime: Instant,
+        endTime: Instant,
+    ): List<HealthConnectInstantMetricSample> =
+        readHealthConnectHrvSamples(
             startTime = startTime,
             endTime = endTime,
             readPage = client::readRecords,

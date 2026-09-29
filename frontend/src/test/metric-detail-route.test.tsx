@@ -221,6 +221,134 @@ describe("metric detail route", () => {
     ).toBeInTheDocument();
   });
 
+  it("loads HRV history as daily medians in the viewer timezone", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "hrv-id",
+          name: "Heart Rate Variability",
+          slug: "hrv",
+          unit: "ms",
+          category: "cardiovascular",
+          min_value: 1,
+          max_value: 300,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([
+      {
+        id: 1,
+        metric_definition: "hrv",
+        value: 52.5,
+        period_start: null,
+        recorded_at: "2026-09-28T06:35:00Z",
+        source: "fitbit",
+        context: { aggregation: "daily_median" },
+        created_at: "2026-09-28T06:36:00Z",
+      },
+    ]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/hrv");
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: /heart rate variability/i,
+      }),
+    ).toBeInTheDocument();
+    expect(useMetricEntriesQuery).toHaveBeenCalledWith({
+      metric: "hrv",
+      limit: 366,
+      daily: true,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    });
+    expect(screen.getByRole("button", { name: "1y" })).toBeInTheDocument();
+  });
+
+  it("keeps raw manual HRV records editable while charting the daily summary", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "hrv-id",
+          name: "Heart Rate Variability",
+          slug: "hrv",
+          unit: "ms",
+          category: "cardiovascular",
+          min_value: 1,
+          max_value: 300,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    vi.mocked(useMetricEntriesQuery).mockImplementation(
+      (filters) =>
+        ({
+          data: filters.daily
+            ? [
+                {
+                  id: 2,
+                  metric_definition: "hrv",
+                  value: 250,
+                  local_date: "2026-09-28",
+                  period_start: null,
+                  recorded_at: "2026-09-28T07:00:00Z",
+                  source: "manual",
+                  context: { aggregation: "daily_median" },
+                  created_at: "2026-09-28T07:00:01Z",
+                },
+              ]
+            : [
+                {
+                  id: 2,
+                  metric_definition: "hrv",
+                  value: 300,
+                  period_start: null,
+                  recorded_at: "2026-09-28T07:00:00Z",
+                  source: "manual",
+                  context: {},
+                  created_at: "2026-09-28T07:00:01Z",
+                },
+                {
+                  id: 1,
+                  metric_definition: "hrv",
+                  value: 200,
+                  period_start: null,
+                  recorded_at: "2026-09-28T06:00:00Z",
+                  source: "manual",
+                  context: {},
+                  created_at: "2026-09-28T06:00:01Z",
+                },
+              ],
+          isLoading: false,
+          isError: false,
+        }) as ReturnType<typeof useMetricEntriesQuery>,
+    );
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/hrv");
+
+    const history = await screen.findByRole("region", {
+      name: /metric entry history/i,
+    });
+    expect(within(history).getByText("300 ms")).toBeInTheDocument();
+    expect(within(history).getByText("200 ms")).toBeInTheDocument();
+    expect(
+      within(history).getAllByRole("button", { name: /edit.*entry/i }),
+    ).toHaveLength(2);
+    expect(useMetricEntriesQuery).toHaveBeenCalledWith({
+      metric: "hrv",
+      limit: 50,
+    });
+  });
+
   it("filters metric entries by the selected 30 day range", async () => {
     const user = userEvent.setup();
 
@@ -261,6 +389,83 @@ describe("metric detail route", () => {
     );
   });
 
+  it("starts a seven-day HRV range at the first local midnight", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "hrv-id",
+          name: "Heart Rate Variability",
+          slug: "hrv",
+          unit: "ms",
+          category: "cardiovascular",
+          min_value: 1,
+          max_value: 300,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/hrv");
+    await screen.findByRole("heading", {
+      level: 1,
+      name: /heart rate variability/i,
+    });
+    await user.click(screen.getByRole("button", { name: /7d/i }));
+
+    const dailyFilters = vi
+      .mocked(useMetricEntriesQuery)
+      .mock.calls.map(([filters]) => filters)
+      .filter((filters) => filters.daily)
+      .at(-1);
+    const expectedStart = new Date();
+    expectedStart.setHours(0, 0, 0, 0);
+    expectedStart.setDate(expectedStart.getDate() - 6);
+    expect(dailyFilters?.from).toBe(expectedStart.toISOString());
+  });
+
+  it("requests ninety daily HRV values for the ninety-day chart", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "hrv-id",
+          name: "Heart Rate Variability",
+          slug: "hrv",
+          unit: "ms",
+          category: "cardiovascular",
+          min_value: 1,
+          max_value: 300,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/hrv");
+    await screen.findByRole("heading", {
+      level: 1,
+      name: /heart rate variability/i,
+    });
+    await user.click(screen.getByRole("button", { name: /90d/i }));
+
+    const dailyFilters = vi
+      .mocked(useMetricEntriesQuery)
+      .mock.calls.map(([filters]) => filters)
+      .filter((filters) => filters.daily)
+      .at(-1);
+    expect(dailyFilters?.limit).toBe(90);
+  });
+
   it("filters to a linked UTC date and prefills a manual entry on that date", async () => {
     const user = userEvent.setup();
     vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
@@ -288,6 +493,51 @@ describe("metric detail route", () => {
     );
     const recordedAt = screen.getByLabelText(/recorded at/i);
     expect((recordedAt as HTMLInputElement).value).toMatch(/^2026-09-16T/);
+  });
+
+  it("uses complete local-day bounds for linked daily HRV dates", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "hrv-id",
+          name: "Heart Rate Variability",
+          slug: "hrv",
+          unit: "ms",
+          category: "cardiovascular",
+          min_value: 1,
+          max_value: 300,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([]);
+    mockMetricEntryMutations();
+
+    renderRoute("/metrics/hrv?date=2026-09-16");
+
+    await screen.findByRole("heading", {
+      level: 1,
+      name: /heart rate variability/i,
+    });
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    const expectedStart = new Date("2026-09-16T00:00:00").toISOString();
+    const expectedEndDate = new Date("2026-09-17T00:00:00");
+    expectedEndDate.setMilliseconds(expectedEndDate.getMilliseconds() - 1);
+    const expectedEnd = expectedEndDate.toISOString();
+    expect(useMetricEntriesQuery).toHaveBeenCalledWith({
+      metric: "hrv",
+      from: expectedStart,
+      to: expectedEnd,
+      limit: 1,
+      daily: true,
+      timezone,
+    });
+    expect(
+      screen.getByText(/entries for sep 16, 2026 \(local\)/i),
+    ).toBeInTheDocument();
   });
 
   it("keeps the selected range filter stable across rerenders", async () => {

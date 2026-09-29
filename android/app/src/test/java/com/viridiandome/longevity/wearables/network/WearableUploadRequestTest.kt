@@ -2,6 +2,9 @@ package com.viridiandome.longevity.wearables.network
 
 import com.viridiandome.longevity.wearables.HealthConnectWeightSample
 import com.viridiandome.longevity.wearables.HealthConnectStepsSample
+import com.viridiandome.longevity.wearables.HealthConnectSleepSample
+import com.viridiandome.longevity.wearables.HealthConnectInstantMetric
+import com.viridiandome.longevity.wearables.HealthConnectInstantMetricSample
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -17,7 +20,7 @@ class WearableUploadRequestTest {
             recordId = "record-123",
             kilograms = 78.4,
             recordedAt = Instant.parse("2026-08-05T08:00:00Z"),
-            sourcePackageName = "com.sec.android.app.shealth",
+            sourcePackageName = "com.fitbit.FitbitMobile",
             sourceRecordModifiedAt = Instant.parse("2026-08-05T08:01:00Z"),
         )
         val request = WearableUploadRequest(
@@ -39,7 +42,7 @@ class WearableUploadRequestTest {
                   "metric_definition": "body_weight",
                   "value": 78.4,
                   "recorded_at": "2026-08-05T08:00:00Z",
-                  "source": "samsung_health",
+                  "source": "fitbit",
                   "external_source_id": "health_connect:WeightRecord:record-123",
                   "source_record_modified_at": "2026-08-05T08:01:00Z"
                 }
@@ -58,7 +61,7 @@ class WearableUploadRequestTest {
             count = 420,
             periodStart = Instant.parse("2026-08-05T07:45:00Z"),
             periodEnd = Instant.parse("2026-08-05T08:00:00Z"),
-            sourcePackageName = "com.sec.android.app.shealth",
+            sourcePackageName = "com.fitbit.FitbitMobile",
             sourceRecordModifiedAt = Instant.parse("2026-08-05T08:02:00Z"),
         )
         val request = WearableUploadRequest(
@@ -81,7 +84,7 @@ class WearableUploadRequestTest {
                   "value": 420.0,
                   "period_start": "2026-08-05T07:45:00Z",
                   "recorded_at": "2026-08-05T08:00:00Z",
-                  "source": "samsung_health",
+                  "source": "fitbit",
                   "external_source_id": "health_connect:StepsRecord:record-steps-123",
                   "source_record_modified_at": "2026-08-05T08:02:00Z"
                 }
@@ -91,6 +94,65 @@ class WearableUploadRequestTest {
         ).jsonObject
 
         assertEquals(expected, actual)
+    }
+
+    @Test
+    fun sleep_sample_serializes_interval_with_fitbit_provenance() {
+        val sample = HealthConnectSleepSample(
+            recordId = "record-sleep-123",
+            periodStart = Instant.parse("2026-09-18T21:30:00Z"),
+            periodEnd = Instant.parse("2026-09-19T05:30:00Z"),
+            stages = emptyList(),
+            sourcePackageName = "com.fitbit.FitbitMobile",
+            sourceRecordModifiedAt = Instant.parse("2026-09-19T05:31:00Z"),
+        )
+
+        val entry = WearableUploadEntryRequest.from(sample)
+
+        assertEquals("sleep_duration", entry.metricDefinition)
+        assertEquals("fitbit", entry.source)
+        assertEquals("2026-09-18T21:30:00Z", entry.periodStart)
+        assertEquals("2026-09-19T05:30:00Z", entry.recordedAt)
+    }
+
+    @Test
+    fun cardiovascular_samples_keep_their_metric_and_record_type_identity() {
+        val recordedAt = Instant.parse("2026-09-28T08:00:00Z")
+        val modifiedAt = Instant.parse("2026-09-28T08:01:00Z")
+
+        val restingHeartRate = WearableUploadEntryRequest.from(
+            HealthConnectInstantMetricSample(
+                metric = HealthConnectInstantMetric.RESTING_HEART_RATE,
+                recordId = "rhr-123",
+                value = 58.0,
+                recordedAt = recordedAt,
+                sourcePackageName = "com.fitbit.FitbitMobile",
+                sourceRecordModifiedAt = modifiedAt,
+            ),
+        )
+        val hrv = WearableUploadEntryRequest.from(
+            HealthConnectInstantMetricSample(
+                metric = HealthConnectInstantMetric.HRV_RMSSD,
+                recordId = "hrv-123",
+                value = 42.5,
+                recordedAt = recordedAt,
+                sourcePackageName = "com.fitbit.FitbitMobile",
+                sourceRecordModifiedAt = modifiedAt,
+            ),
+        )
+
+        assertEquals("resting_hr", restingHeartRate.metricDefinition)
+        assertEquals("fitbit", restingHeartRate.source)
+        assertEquals(
+            "health_connect:RestingHeartRateRecord:rhr-123",
+            restingHeartRate.externalSourceId,
+        )
+        assertEquals("hrv", hrv.metricDefinition)
+        assertEquals("fitbit", hrv.source)
+        assertEquals(
+            "health_connect:HeartRateVariabilityRmssdRecord:hrv-123",
+            hrv.externalSourceId,
+        )
     }
 
     @Test

@@ -160,6 +160,39 @@ describe("MetricTrendChart", () => {
     getContextMock.mockRestore();
   });
 
+  it("uses an explicit daily-summary local date for its chart label", () => {
+    ChartMock.create.mockClear();
+    const getContextMock = vi
+      .spyOn(HTMLCanvasElement.prototype, "getContext")
+      .mockReturnValue({} as CanvasRenderingContext2D);
+
+    render(
+      <MetricTrendChart
+        entries={[
+          {
+            id: 1,
+            metric_definition: "hrv",
+            value: 52,
+            local_date: "2026-09-28",
+            period_start: null,
+            recorded_at: "2026-09-30T22:30:00Z",
+            source: "fitbit",
+            context: { aggregation: "daily_median" },
+            created_at: "2026-09-30T22:30:01Z",
+          },
+        ]}
+        metricName="Heart Rate Variability"
+        metricSlug="hrv"
+        unit="ms"
+      />,
+    );
+
+    expect(ChartMock.create.mock.calls.at(-1)?.[0].data.labels).toEqual([
+      "Sep 28",
+    ]);
+    getContextMock.mockRestore();
+  });
+
   it("renders an empty state when there is no chart data", () => {
     render(
       <MetricTrendChart

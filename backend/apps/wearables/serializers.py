@@ -35,7 +35,7 @@ SERVER_MANAGED_FIELD_MESSAGE = "This field is server-managed."
 # Every supported record type uses the shared ingestion path, while retaining
 # metric-specific time semantics during normalization.
 SUPPORTED_WEARABLE_METRIC_SLUGS = frozenset(
-    {"body_weight", "sleep_duration", "steps"}
+    {"body_weight", "hrv", "resting_hr", "sleep_duration", "steps"}
 )
 INTERVAL_WEARABLE_METRIC_SLUGS = frozenset({"sleep_duration", "steps"})
 
@@ -193,7 +193,10 @@ class WearableUploadEntrySerializer(StrictFieldsSerializer):
     period_start = serializers.DateTimeField(required=False, allow_null=True)
     recorded_at = serializers.DateTimeField()
     source = serializers.ChoiceField(
-        choices=(MetricEntry.Source.SAMSUNG_HEALTH,),
+        choices=(
+            MetricEntry.Source.SAMSUNG_HEALTH,
+            MetricEntry.Source.FITBIT,
+        ),
     )
     external_source_id = serializers.CharField(
         max_length=255,

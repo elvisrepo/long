@@ -5,7 +5,7 @@ import com.viridiandome.longevity.wearables.HealthConnectSleepSample
 import java.time.Clock
 import java.time.Duration
 
-/** Selects recent Samsung Health sleep sessions using the shared sync cursor. */
+/** Selects recent Fitbit sleep sessions using the shared sync cursor. */
 class IncrementalSleepSyncPlanner(
     private val reader: HealthConnectSleepReader,
     private val cursorStore: WeightSyncCursorStore,
@@ -16,7 +16,9 @@ class IncrementalSleepSyncPlanner(
         val startTime = cursorStore.read(connectionId)?.minus(SAFETY_OVERLAP)
             ?: endTime.minus(FALLBACK_LOOKBACK)
         return reader.readSleepSamples(startTime, endTime)
-            .filter { it.sourcePackageName == SAMSUNG_HEALTH_PACKAGE_NAME }
+            .filter {
+                it.sourcePackageName == HealthConnectDataOrigin.FITBIT_PACKAGE_NAME
+            }
             .chunked(MAX_UPLOAD_ENTRIES)
     }
 
@@ -24,6 +26,5 @@ class IncrementalSleepSyncPlanner(
         val SAFETY_OVERLAP: Duration = Duration.ofHours(24)
         val FALLBACK_LOOKBACK: Duration = Duration.ofDays(30)
         const val MAX_UPLOAD_ENTRIES = 100
-        const val SAMSUNG_HEALTH_PACKAGE_NAME = "com.sec.android.app.shealth"
     }
 }

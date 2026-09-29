@@ -77,7 +77,7 @@ class WeightSyncCoordinatorTest {
     }
 
     @Test
-    fun no_samsung_samples_create_no_identity_and_no_upload() = runTest {
+    fun no_fitbit_samples_create_no_identity_and_no_upload() = runTest {
         val planner = InitialWeightSyncPlanner(
             reader = CoordinatorWeightReader(emptyList()),
             clock = fixedClock(),
@@ -226,7 +226,7 @@ class WeightSyncCoordinatorTest {
             recordId = id,
             kilograms = 78.4,
             recordedAt = Instant.parse("2026-08-04T07:30:00Z"),
-            sourcePackageName = "com.sec.android.app.shealth",
+            sourcePackageName = "com.fitbit.FitbitMobile",
             sourceRecordModifiedAt = Instant.parse("2026-08-04T07:31:00Z"),
         )
 

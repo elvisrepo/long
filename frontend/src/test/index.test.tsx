@@ -6,6 +6,7 @@ import { restoreWebSession } from "../features/auth/auth-bootstrap";
 import { logoutWeb } from "../features/auth/auth-logout-api";
 import { getMe } from "../features/auth/auth-me-api";
 import { createMetricEntry } from "../features/metrics/metric-entries-api";
+import { useDashboardMetricEntriesQuery } from "../features/metrics/use-dashboard-metric-entries-query";
 import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
 import { useMetricEntriesQuery } from "../features/metrics/use-metric-entries-query";
 import { useCurrentSubscriptionQuery } from "../features/subscriptions/use-current-subscription-query";
@@ -25,6 +26,10 @@ vi.mock("../features/auth/auth-bootstrap", () => ({
 
 vi.mock("../features/metrics/use-metric-definitions-query", () => ({
   useMetricDefinitionsQuery: vi.fn(),
+}));
+
+vi.mock("../features/metrics/use-dashboard-metric-entries-query", () => ({
+  useDashboardMetricEntriesQuery: vi.fn(),
 }));
 
 vi.mock("../features/metrics/use-metric-entries-query", () => ({
@@ -164,16 +169,16 @@ function mockMetricEntriesByFilters({
   cardEntries?: NonNullable<ReturnType<typeof useMetricEntriesQuery>["data"]>;
   recentEntries?: NonNullable<ReturnType<typeof useMetricEntriesQuery>["data"]>;
 }) {
-  vi.mocked(useMetricEntriesQuery).mockImplementation((filters) => {
-    const entries =
-      filters?.limit === 50 && !filters.metric ? cardEntries : recentEntries;
-
-    return {
-      data: entries,
-      isLoading: false,
-      isError: false,
-    } as ReturnType<typeof useMetricEntriesQuery>;
+  vi.mocked(useDashboardMetricEntriesQuery).mockReturnValue({
+    data: cardEntries,
+    isLoading: false,
+    isError: false,
   });
+  vi.mocked(useMetricEntriesQuery).mockReturnValue({
+    data: recentEntries,
+    isLoading: false,
+    isError: false,
+  } as ReturnType<typeof useMetricEntriesQuery>);
 }
 
 function utcDaysAgoIso(daysAgo: number): string {
@@ -181,6 +186,14 @@ function utcDaysAgoIso(daysAgo: number): string {
   date.setUTCDate(date.getUTCDate() - daysAgo);
   date.setUTCHours(7, 15, 0, 0);
   return date.toISOString();
+}
+
+function localDateKey(date: Date): string {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
 }
 
 describe("dashboard route", () => {
@@ -835,10 +848,11 @@ describe("dashboard route", () => {
           id: 4,
           metric_definition: "steps",
           value: 8000,
-          recorded_at: utcDaysAgoIso(0),
+          local_date: localDateKey(new Date()),
+          recorded_at: utcDaysAgoIso(10),
           source: "manual",
           context: {},
-          created_at: utcDaysAgoIso(0),
+          created_at: utcDaysAgoIso(10),
         },
       ],
       recentEntries: [],
@@ -897,7 +911,7 @@ describe("dashboard route", () => {
 
     await screen.findByRole("heading", { name: /dashboard/i });
 
-    expect(useMetricEntriesQuery).toHaveBeenCalledWith({ limit: 50 });
+    expect(useDashboardMetricEntriesQuery).toHaveBeenCalledWith(["resting_hr"]);
     expect(useMetricEntriesQuery).toHaveBeenCalledWith({ limit: 5 });
   });
 
@@ -1058,7 +1072,10 @@ describe("dashboard route", () => {
       .getByRole("heading", { name: /resting heart rate/i })
       .closest(".metric-card") as HTMLElement;
 
-    expect(useMetricEntriesQuery).toHaveBeenCalledWith({ limit: 50 });
+    expect(useDashboardMetricEntriesQuery).toHaveBeenCalledWith([
+      "resting_hr",
+      "body_weight",
+    ]);
     expect(useMetricEntriesQuery).toHaveBeenLastCalledWith({
       metric: "body_weight",
       limit: 5,

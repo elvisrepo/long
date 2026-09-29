@@ -204,8 +204,9 @@
   stale or on-track label because expected tracking frequency varies by metric.
 - Every presence cell is a keyboard-accessible date deep link to
   `/metrics/$slug?date=YYYY-MM-DD`. Metric detail validates that search value,
-  requests entries using exact UTC day bounds, replaces the range controls with
-  a selected-date indicator, and seeds the manual-entry dialog from that date.
+  requests raw metrics using exact UTC day bounds and daily Steps/HRV summaries
+  using the complete viewer-local date, replaces the range controls with a
+  selected-date indicator, and seeds the manual-entry dialog from that date.
   This exposes every entry when a metric has multiple records on one date and
   gives missing dates a direct path to manual entry.
 - Consistency also shows a factual **Needs attention** section. Steps and Sleep
@@ -531,7 +532,7 @@ Current metric detail page checkpoint:
   for every other count.
 - The detail route shows a Chart.js line chart in the trend overview, plus oldest value, latest value, and delta for the selected result set.
 - The trend chart is a daily trend, not a raw event plot. It collapses multiple entries on the same local calendar day to the latest `recorded_at` value for that day.
-- Entry History remains event-level and continues to show every raw manual log, including multiple logs from the same day.
+- Entry History remains event-level and shows the latest 50 raw logs, including multiple logs from the same day.
 - Current chart aggregation is intentionally simple for the manual-tracking MVP. Future wearable/sync work should revisit metric-specific aggregation, for example heart-rate average/min/max ranges, weight latest value, and sleep nightly session totals.
 - The detail route shows an entry-history section using the same dark card language as the dashboard.
 - Entry History previews the 5 latest records with a “Show all N entries” /
@@ -552,7 +553,7 @@ Current metric detail page checkpoint:
 - `updateMetricEntry()` preserves backend validation detail when available, for example metric range errors from the API.
 - Entry update/delete errors are shown on the metric detail page as visible form errors.
 - The detail route shows an explicit empty state when no entries exist, with a link back to the dashboard to log the first value.
-- The detail route includes `7d`, `30d`, `90d`, and `All` range controls for entry history.
+- The detail route includes `7d`, `30d`, `90d`, and `All` range controls for raw metrics. Daily Steps/HRV use the same first three controls and label their bounded 366-day option `1y`.
 - Range controls pass a stable `from` timestamp into `useMetricEntriesQuery({ metric, from, limit: 50 })`; compute date filters only when the user selects a range, not during render, because query filters are part of the TanStack Query cache key.
 - Do not call `new Date()` while building render-time query filters. If the computed timestamp changes every render, the TanStack Query key changes every render, causing a request/render/request loop.
 - Dashboard metric cards and recent-entry metric names link to `/metrics/$slug`.

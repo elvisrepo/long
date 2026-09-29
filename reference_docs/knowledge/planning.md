@@ -45,7 +45,7 @@
 - Receive alerts on anomalous values
 - Receive live dashboard updates when new wearable data lands (WebSocket)
 
-**Provider scope note:** The current foundation phase is manual-entry only. The MVP adds Samsung Health-originated sync on Android through the decided device-bridge flow: Samsung Health → Health Connect → Android app → backend. Health Connect is the connection provider; Samsung Health is sample provenance. Aggregator-backed providers such as Garmin, Fitbit, Oura, and Withings are full-requirements work, not MVP.
+**Provider scope note:** The implemented Android device bridge reads Fitbit-originated Weight, Steps, and Sleep through Fitbit → Health Connect → Android app → backend. Health Connect is the connection provider; Fitbit is record provenance. Direct cloud/aggregator connections for providers such as Garmin, Oura, and Withings remain full-requirements work, not MVP.
 
 ### 1.3 Non-Functional Requirements
 
@@ -209,7 +209,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 | DELETE | `/api/v1/wearables/connections/{id}/` | Disconnect provider | Implemented; JWT required; marks only a caller-owned active row inactive and releases its plan slot while preserving history; returns `204` when disconnected and `404` for unknown, unowned, or already-inactive rows |
 | POST | `/api/v1/wearables/connections/{id}/resync/` | Request replay / resync from the client | Returns 202 Accepted — backend records replay intent and the Android client performs the upload |
 
-MVP Samsung sync does **not** use provider webhooks or a hosted provider link flow. The Android companion app reads Samsung-originated data on device, uploads batches to our API, and the backend handles validation, deduplication, and persistence. A future aggregator webhook receiver can be added later for providers with cloud-friendly APIs.
+MVP Health Connect sync does **not** use provider webhooks or a hosted provider link flow. The Android companion app currently reads Fitbit-originated data on device, uploads batches to our API, and the backend handles validation, deduplication, and persistence. A future aggregator webhook receiver can be added later for providers with cloud-friendly APIs.
 
 **Implemented synchronous normalized upload example**
 ```http

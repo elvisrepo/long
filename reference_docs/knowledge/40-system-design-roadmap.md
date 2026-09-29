@@ -137,7 +137,8 @@ Still missing:
   implemented locally
 - production reset-email hardening plus stronger account lifecycle flows;
   SES-backed password reset is deployed and owner-verified on staging
-- additional deliberately mapped Health Connect metrics, with Heart Rate the likely next candidate
+- additional deliberately mapped Health Connect metrics, with active calories or
+  exercise time the likely next candidates after validating the existing Fitbit set
 - richer sync history/repair UI
 - server-side asynchronous processing if synchronous ingestion becomes too slow or operationally expensive
 
@@ -180,7 +181,7 @@ Public HTTPS staging deployment
     → record acceptance evidence and add application monitoring
 ```
 
-The Android project at `android/` implements mobile authentication, Keystore-backed JWT storage and rotation, Health Connect Weight and Steps permission/read, caller-owned connection registration, normalized incremental upload, subscription-aware manual cooldowns, Pro WorkManager scheduling, and connection disconnect. A physical phone has completed the Samsung Health → Health Connect → Android → Django → React path for both metrics. Live verification proved a newly added Weight record imports and an evolving Steps record updates through its newer Health Connect modification timestamp. Disconnect is covered on-device at the UI/cursor boundaries and cancels connection-scoped work after Django confirms the soft disconnect.
+The Android project at `android/` implements mobile authentication, Keystore-backed JWT storage and rotation, Health Connect Weight, Steps, and Sleep permission/read, caller-owned connection registration, normalized incremental upload, subscription-aware manual cooldowns, Pro WorkManager scheduling, and connection disconnect. Fitbit is the active Health Connect data origin; earlier physical Samsung Health acceptance remains historical evidence for the same device-bridge path. Live verification proved a newly added Weight record imports and an evolving Steps record updates through its newer Health Connect modification timestamp. Disconnect is covered on-device at the UI/cursor boundaries and cancels connection-scoped work after Django confirms the soft disconnect.
 
 Refactor trigger before ingestion grows:
 
@@ -242,12 +243,11 @@ Recommended order:
 
    Keep bounded uploads synchronous while they are fast and reliable. Introduce Redis and Celery when measured latency, larger backfills, analytics, repair jobs, exports, or maintenance work needs a durable server-side queue.
 
-14. Add another Health Connect metric — after staging
+14. Add another Health Connect metric — after validating current metrics
 
-   Sleep is now implemented and physically verified. Resting Heart Rate is the
-   strongest next ingestion candidate because it adds product value and
-   exercises higher-volume instantaneous time-series batching, but export and
-   account lifecycle work currently come first.
+   Sleep, Resting Heart Rate, and HRV/RMSSD are implemented and physically
+   verified from Fitbit through Health Connect. Validate their product value and
+   presentation before adding active calories, exercise time, or another metric.
 
 Related doc:
 
@@ -384,9 +384,15 @@ Related docs:
 Next real product step:
 
 ```text
-Complete local acceptance of the password-reset browser flow, then configure
-verified outbound email delivery before promoting that slice to staging
+Implement account-wide data export and account deletion, then validate both
+authenticated lifecycle flows on staging
 ```
+
+SES-backed password reset is deployed and owner-verified on staging: a real
+reset email arrived, the signed link changed the password, and login with the
+replacement password succeeded. The next operational hardening step is SES
+event publishing plus retained application failure alerts; it should not block
+the next product slice for the current demo/test-data pilot.
 
 Weight × Steps, seven-night Sleep Insights, the persisted user sleep target,
 Consistency & Coverage, and authenticated metric-entry CSV export are now
@@ -436,14 +442,13 @@ automatic-sync wording is already qualified: sync is approximate, and Android
 may delay it while the app is closed. On-screen automatic sync after reopening
 has been observed without a manual tap.
 
-Weight, Steps, and Sleep are implemented Health Connect imports. Sleep session
-bounds, awake-stage subtraction, normalized upload, backend ingestion, and
-frontend duration/window display are implemented and physically verified.
+Weight, Steps, Sleep, Resting Heart Rate, and HRV/RMSSD are implemented Health
+Connect imports. Their normalized upload, backend ingestion, and frontend
+presentation paths are implemented and physically verified with Fitbit data.
 
 The redesigned dashboard and analytics surfaces now prioritize Sleep Duration,
-Steps, and Body Weight. Resting Heart Rate remains the next candidate ingestion
-mapping after the current export and account-lifecycle priorities. HRV, VO2
-max, active calories, exercise time, body fat,
+Steps, and Body Weight, with Resting Heart Rate and daily-median HRV also
+available. VO2 max, active calories, exercise time, body fat,
 sleep stages, and sleep blood oxygen remain optional follow-ups based on actual
 device availability and user value. Blood pressure, blood glucose, skin
 temperature, and other medical-adjacent measurements are not core defaults.
