@@ -95,6 +95,34 @@ def test_pro_user_receives_daily_latest_weight_and_summed_steps() -> None:
     }
 
 
+def test_weight_steps_analytics_prefers_fitbit_over_legacy_samsung_steps() -> None:
+    client, user = authenticate_pro_user()
+    steps = MetricDefinition.objects.get(slug="steps", user=None)
+    today = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    yesterday = today - timedelta(days=1)
+    for source, value in (
+        (MetricEntry.Source.SAMSUNG_HEALTH, 6000),
+        (MetricEntry.Source.FITBIT, 6200),
+    ):
+        MetricEntry.objects.create(
+            user=user,
+            metric_definition=steps,
+            value=value,
+            recorded_at=yesterday + timedelta(hours=12),
+            source=source,
+        )
+
+    response = client.get("/api/v1/metrics/analytics/weight-steps/?days=7")
+
+    assert response.status_code == 200
+    yesterday_point = next(
+        point
+        for point in response.json()["series"]
+        if point["date"] == yesterday.date().isoformat()
+    )
+    assert yesterday_point["steps"] == 6200
+
+
 def test_free_user_cannot_read_weight_steps_analytics() -> None:
     user = get_user_model().objects.create_user(
         email="analytics-free@example.com",

@@ -2,6 +2,8 @@ from django.urls import path
 
 from apps.metrics.views import (
     ConsistencyAnalyticsView,
+    DailyHrvSummaryView,
+    DailyStepsSummaryView,
     MetricDefinitionDetailView,
     MetricDefinitionListView,
     MetricEntryCsvExportView,
@@ -44,6 +46,16 @@ urlpatterns = [
           "entries/",
           MetricEntryListCreateView.as_view(),
           name="metric-entries",
+      ),
+      path(
+          "entries/daily-steps/",
+          DailyStepsSummaryView.as_view(),
+          name="daily-steps-summaries",
+      ),
+      path(
+          "entries/daily-hrv/",
+          DailyHrvSummaryView.as_view(),
+          name="daily-hrv-summaries",
       ),
       path(
           "entries/export/",

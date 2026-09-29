@@ -13,6 +13,8 @@ import { MetricEntryDialog } from "../features/metrics/metric-entry-dialog";
 import type { MetricDefinition } from "../features/metrics/metric-definitions-api";
 import type { MetricEntry } from "../features/metrics/metric-entries-api";
 import { useCreateMetricEntryMutation } from "../features/metrics/use-create-metric-entry-mutation";
+import { useConsistencyAnalyticsQuery } from "../features/metrics/use-consistency-analytics-query";
+import { useDashboardMetricEntriesQuery } from "../features/metrics/use-dashboard-metric-entries-query";
 import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
 import { useMetricEntriesQuery } from "../features/metrics/use-metric-entries-query";
 import { useCurrentSubscriptionQuery } from "../features/subscriptions/use-current-subscription-query";
@@ -23,7 +25,6 @@ export const Route = createFileRoute("/")({
 });
 
 const DASHBOARD_RECENT_ENTRY_LIMIT = 5;
-const DASHBOARD_CARD_ENTRY_LIMIT = 50;
 const DASHBOARD_METRICS_PER_PAGE = 6;
 const DASHBOARD_METRIC_ORDER = ["sleep_duration", "steps", "body_weight"];
 const DASHBOARD_PREVIEW_DAYS = 7;
@@ -40,11 +41,12 @@ function DashboardRoute() {
     isError,
   } = useMetricDefinitionsQuery();
   const currentSubscriptionQuery = useCurrentSubscriptionQuery();
+  const metricSlugs = metricDefinitions.map((definition) => definition.slug);
   const {
-    data: cardMetricEntries = [],
+    data: cardMetricEntries,
     isLoading: cardMetricEntriesAreLoading,
     isError: cardMetricEntriesFailed,
-  } = useMetricEntriesQuery({ limit: DASHBOARD_CARD_ENTRY_LIMIT });
+  } = useDashboardMetricEntriesQuery(metricSlugs);
   const {
     data: recentMetricEntries = [],
     isLoading: metricEntriesAreLoading,
@@ -70,10 +72,18 @@ function DashboardRoute() {
 
   const analyticsEnabled =
     currentSubscriptionQuery.data?.plan.analytics_enabled === true;
+  const consistencyQuery = useConsistencyAnalyticsQuery(analyticsEnabled);
   const insightPreviews = getInsightPreviews(
     cardMetricEntries,
     metricDefinitionsBySlug,
   );
+  const consistencyPreview = consistencyQuery.isError
+    ? "Coverage unavailable"
+    : consistencyQuery.data
+      ? consistencyQuery.data.summary.days_with_any_data === 0
+        ? "No recent data"
+        : `${consistencyQuery.data.summary.days_with_any_data} of ${consistencyQuery.data.range_days} days with data`
+      : "Loading coverage...";
   const orderedDefinitions = [...metricDefinitions].sort((left, right) => {
     const leftIndex = DASHBOARD_METRIC_ORDER.indexOf(left.slug);
     const rightIndex = DASHBOARD_METRIC_ORDER.indexOf(right.slug);
@@ -196,9 +206,7 @@ function DashboardRoute() {
               </Link>
               <Link className="insight-destination" to="/analytics/consistency">
                 <strong>Consistency →</strong>
-                <span className="insight-preview">
-                  {insightPreviews.consistency}
-                </span>
+                <span className="insight-preview">{consistencyPreview}</span>
               </Link>
             </div>
           </>
@@ -332,16 +340,15 @@ function formatDashboardDate() {
 interface InsightPreviews {
   sleep: string;
   weightSteps: string;
-  consistency: string;
 }
 
 // Previews derive from the dashboard's existing bounded entry read so they
-// add no API requests. Counts use UTC calendar days like the backend views.
+// add no API requests. Consistency uses the report's shared query above.
 function getInsightPreviews(
   entries: MetricEntry[],
   definitionsBySlug: Map<string, MetricDefinition>,
 ): InsightPreviews {
-  const previewWeek = trailingUtcDayKeys(DASHBOARD_PREVIEW_DAYS);
+  const previewWeek = trailingLocalDayKeys(DASHBOARD_PREVIEW_DAYS);
   const latestBySlug = new Map<string, MetricEntry>();
   for (const entry of entries) {
     if (!latestBySlug.has(entry.metric_definition)) {
@@ -352,7 +359,7 @@ function getInsightPreviews(
   const sleepNights = new Set(
     entries
       .filter((entry) => entry.metric_definition === "sleep_duration")
-      .map((entry) => utcDayKey(entry.recorded_at))
+      .map(metricEntryDayKey)
       .filter((day) => previewWeek.has(day)),
   );
   const latestSleep = latestBySlug.get("sleep_duration");
@@ -384,30 +391,28 @@ function getInsightPreviews(
   const weightSteps =
     weightParts.length > 0 ? weightParts.join(" · ") : "No weight or steps yet";
 
-  const activeDays = new Set(
-    entries
-      .map((entry) => utcDayKey(entry.recorded_at))
-      .filter((day) => previewWeek.has(day)),
-  );
-  const consistency =
-    entries.length === 0
-      ? "No recent data"
-      : `${activeDays.size} of ${DASHBOARD_PREVIEW_DAYS} days with data`;
-
-  return { sleep, weightSteps, consistency };
+  return { sleep, weightSteps };
 }
 
-function utcDayKey(recordedAt: string): string {
-  return new Date(recordedAt).toISOString().slice(0, 10);
+function metricEntryDayKey(entry: MetricEntry): string {
+  return entry.local_date ?? localDayKey(new Date(entry.recorded_at));
 }
 
-function trailingUtcDayKeys(days: number): Set<string> {
+function localDayKey(date: Date): string {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+function trailingLocalDayKeys(days: number): Set<string> {
   const keys = new Set<string>();
   const today = new Date();
   for (let offset = 0; offset < days; offset += 1) {
     const day = new Date(today);
-    day.setUTCDate(day.getUTCDate() - offset);
-    keys.add(day.toISOString().slice(0, 10));
+    day.setDate(day.getDate() - offset);
+    keys.add(localDayKey(day));
   }
   return keys;
 }

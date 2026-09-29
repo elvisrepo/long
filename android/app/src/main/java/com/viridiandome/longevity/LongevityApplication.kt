@@ -11,15 +11,16 @@ import com.viridiandome.longevity.auth.network.HttpAuthRepository
 import com.viridiandome.longevity.subscriptions.SyncPolicyRepository
 import com.viridiandome.longevity.subscriptions.network.HttpSyncPolicyRepository
 import com.viridiandome.longevity.wearables.DisconnectingWearableConnectionRepository
+import com.viridiandome.longevity.wearables.HealthConnectInstantMetric
 import com.viridiandome.longevity.wearables.HealthConnectAccess
 import com.viridiandome.longevity.wearables.WearableConnectionRepository
-import com.viridiandome.longevity.wearables.WearableUploadRepository
 import com.viridiandome.longevity.wearables.healthconnect.AndroidHealthConnectAccess
 import com.viridiandome.longevity.wearables.network.HttpWearableConnectionRepository
 import com.viridiandome.longevity.wearables.network.HttpWearableUploadRepository
 import com.viridiandome.longevity.wearables.sync.AllMetricsSyncRunner
 import com.viridiandome.longevity.wearables.sync.AutomaticSyncDiagnostics
 import com.viridiandome.longevity.wearables.sync.IncrementalStepsSyncPlanner
+import com.viridiandome.longevity.wearables.sync.IncrementalInstantMetricSyncPlanner
 import com.viridiandome.longevity.wearables.sync.IncrementalSleepSyncPlanner
 import com.viridiandome.longevity.wearables.sync.IncrementalWeightSyncPlanner
 import com.viridiandome.longevity.wearables.sync.IncrementalWeightSyncRunner
@@ -27,6 +28,7 @@ import com.viridiandome.longevity.wearables.sync.LongevityWorkerFactory
 import com.viridiandome.longevity.wearables.sync.SharedPreferencesWeightSyncCursorStore
 import com.viridiandome.longevity.wearables.sync.SharedPreferencesDiagnosticStore
 import com.viridiandome.longevity.wearables.sync.StepsSyncCoordinator
+import com.viridiandome.longevity.wearables.sync.InstantMetricSyncCoordinator
 import com.viridiandome.longevity.wearables.sync.SleepSyncCoordinator
 import com.viridiandome.longevity.wearables.sync.SubscriptionAwareWeightSyncRunner
 import com.viridiandome.longevity.wearables.sync.WeightSyncCoordinator
@@ -93,7 +95,7 @@ class LongevityApplication : Application(), Configuration.Provider {
         )
     }
 
-    val wearableUploadRepository: WearableUploadRepository by lazy {
+    val wearableUploadRepository: HttpWearableUploadRepository by lazy {
         HttpWearableUploadRepository(
             authenticatedApiClient = authenticatedApiClient,
             baseUrl = BuildConfig.API_BASE_URL,
@@ -141,9 +143,31 @@ class LongevityApplication : Application(), Configuration.Provider {
             ),
             uploadRepository = wearableUploadRepository,
         )
+        val restingHeartRateCoordinator = InstantMetricSyncCoordinator(
+            planner = IncrementalInstantMetricSyncPlanner(
+                reader = androidHealthConnectAccess,
+                metric = HealthConnectInstantMetric.RESTING_HEART_RATE,
+                cursorStore = weightSyncCursorStore,
+            ),
+            uploadRepository = wearableUploadRepository,
+        )
+        val hrvCoordinator = InstantMetricSyncCoordinator(
+            planner = IncrementalInstantMetricSyncPlanner(
+                reader = androidHealthConnectAccess,
+                metric = HealthConnectInstantMetric.HRV_RMSSD,
+                cursorStore = weightSyncCursorStore,
+            ),
+            uploadRepository = wearableUploadRepository,
+        )
         IncrementalWeightSyncRunner(
             delegate = AllMetricsSyncRunner(
-                runners = listOf(weightCoordinator, stepsCoordinator, sleepCoordinator),
+                runners = listOf(
+                    weightCoordinator,
+                    stepsCoordinator,
+                    sleepCoordinator,
+                    restingHeartRateCoordinator,
+                    hrvCoordinator,
+                ),
             ),
             cursorStore = weightSyncCursorStore,
         )

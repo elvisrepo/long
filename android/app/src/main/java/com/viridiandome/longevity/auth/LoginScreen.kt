@@ -128,7 +128,7 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Sign in to sync Samsung Health.",
+            text = "Sign in to sync Fitbit through Health Connect.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -677,7 +677,7 @@ private fun InitialWeightSyncContent(
         }
 
         InitialWeightSyncUiState.NoData -> {
-            Text(text = "No new Samsung Health records found in the last 30 days.")
+            Text(text = "No new Fitbit records found in the last 30 days.")
             Button(
                 onClick = onSync,
                 enabled = canSync,

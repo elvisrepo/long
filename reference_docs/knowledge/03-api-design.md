@@ -404,22 +404,24 @@ Subscription transition contract:
 - Trusted webhook processing must return or record a conflict when the expected subscription was already replaced.
 - Stripe webhook handlers use provider event idempotency in addition to this local stale-write guard.
 
-#### Health Connect / Samsung-originated Wearables (R2 internal spike, R3 MVP, JWT required)
+#### Health Connect Wearables (R2 internal spike, R3 MVP, JWT required)
 
 Current implementation status:
 - The `WearableConnection` model exists and `GET /api/v1/wearables/connections/` returns the authenticated caller's connections.
 - `POST /api/v1/wearables/connections/` accepts only `provider=health_connect`, assigns ownership from the authenticated caller, and enforces the current plan's `wearable_connection_limit`. Client-supplied ownership, activation, status, sync/error, ID, or timestamp fields are rejected with `400` rather than silently ignored.
 - Users who have consumed every connection slot receive `400`. Only active connection rows consume slots.
-- The canonical MVP Free and Pro plans each permit one Health Connect bridge. Free permits explicit manual sync only; Pro additionally permits automatic scheduling. `samsung_health` is rejected as a connection provider because Samsung-originated records reach the app through Health Connect.
+- The canonical MVP Free and Pro plans each permit one Health Connect bridge. Free permits explicit manual sync only; Pro additionally permits automatic scheduling. Source apps such as Fitbit and Samsung Health are record provenance, not connection providers, because their records reach the app through Health Connect.
 - The official Android client reads the current subscription before scheduling or enabling manual sync. Free cancels stale periodic work and permits a new foreground tap only after the persisted 30-minute cooldown; Pro schedules the server-provided 15-minute interval and rechecks automatic entitlement inside each worker execution.
 - A user cannot register the same active provider twice. Duplicate active `health_connect` creation returns `400` with `provider: ["This provider is already registered."]`. The database enforces one durable row per `(user, provider)`, and registration after disconnect reactivates that row with the same UUID. New and reactivated rows enter `status=pending` until trusted ingestion proves the bridge is working.
 - `DELETE /api/v1/wearables/connections/{id}/` marks only a caller-owned active connection inactive and immediately releases its plan slot while preserving identity/history. A successful disconnect returns `204`; another user's, unknown, or already-inactive UUID returns `404` without changing data.
 - The Android client now exposes this disconnect action from its Ready state. A confirmed `204`, or a `404` from stale already-inactive local state, cancels only that connection's unique WorkManager request and removes only that connection's device cursor. Authentication, transport, and server failures keep the Ready state retryable and do not perform local cleanup.
 - `GET /api/v1/wearables/connections/{id}/status/` returns the caller-owned connection's provider, status, last sync timestamp, and last error. Another user's or an unknown UUID returns `404`.
 - `POST /api/v1/wearables/uploads/` requires JWT authentication and a body containing `connection_id`, `upload_id`, and `1–100` normalized `entries`. It resolves only an active connection owned by the caller and processes the batch synchronously. A new batch returns `201` with a terminal successful `SyncRun`; an exact retry returns the unchanged run with `200`; conflicting upload or external-record identity reuse returns `409`. Missing, invalid, or undeclared fields return `400`.
+- `GET /api/v1/metrics/entries/daily-steps/` returns authenticated caller-owned Steps as one summed value per local calendar date. To prevent double-counting during provider migrations, each day uses exactly one available source in this order: Fitbit, Samsung Health, manual, CSV import, Garmin, Oura, Withings. Only the active default system `steps` definition participates. A Steps interval is attributed in full to the requested local date containing its `recorded_at` end timestamp; it is not proportionally split when it crosses midnight because the aggregate record does not reveal when individual steps occurred. Each result includes its `local_date`; the endpoint requires a valid IANA `timezone`, returns `400` for malformed timezone or timestamp input, interprets `from` and `to` as selectors for complete local dates rather than partial-day cutoffs, caps the positive `limit` at 366 days, and leaves raw interval rows unchanged for deduplication and export.
+- `GET /api/v1/metrics/entries/daily-hrv/` returns authenticated caller-owned HRV as one median value per local calendar date, using the same one-source-per-day precedence, active-default-definition boundary, input validation, and whole-local-date filter semantics. Each result includes its `local_date`. The endpoint uses PostgreSQL `PERCENTILE_CONT(0.5)`, caps the positive `limit` at 366 days, and leaves raw samples unchanged for provenance, provider corrections, and export.
 - `MetricEntry` has nullable `source_connection`, `period_start`, and `source_record_modified_at` fields. Instantaneous metrics leave `period_start` null; interval metrics use `recorded_at` as the interval end. PostgreSQL requires a non-null period start to precede `recorded_at` and enforces at most one non-null `(source_connection, external_source_id)` pair. The ingestion service skips identical records, updates mutable content only when the provider timestamp is newer, permits one timestamped upgrade of a legacy null-version row, and rejects stale or inconsistent versions.
-- Metric history exposes each entry's trusted `source`. The web UI labels Samsung-originated rows as `Samsung Health` and withholds manual Edit/Delete controls; the backend independently rejects direct mutation attempts with `409`.
-- `WearableUploadEntrySerializer` is the live nested-entry boundary. It accepts active system `body_weight`, `steps`, and `sleep_duration` definitions, enforces each configured value range, rejects non-finite numbers, parses record and optional provider-modification timestamps, accepts Samsung Health provenance only, and requires a nonblank external source ID. Steps and Sleep require `period_start < recorded_at`; instantaneous Weight rejects a supplied period start. Current Android uploads always send Health Connect's `metadata.lastModifiedTime` as `source_record_modified_at`; omission remains accepted for backward compatibility but cannot authorize changed content.
+- Metric history exposes each entry's trusted `source`. The web UI labels imported rows by source and withholds manual Edit/Delete controls; the backend independently rejects direct mutation attempts with `409`.
+- `WearableUploadEntrySerializer` is the live nested-entry boundary. It accepts active system `body_weight`, `steps`, `sleep_duration`, `resting_hr`, and `hrv` definitions, enforces each configured value range, rejects non-finite numbers, parses record and optional provider-modification timestamps, accepts Fitbit and legacy Samsung Health provenance, and requires a nonblank external source ID. Steps and Sleep require `period_start < recorded_at`; instantaneous Weight, resting heart rate, and HRV reject a supplied period start. Current Android uploads always send Health Connect's `metadata.lastModifiedTime` as `source_record_modified_at`; omission remains accepted for backward compatibility but cannot authorize changed content.
 - `WearableUploadBatchSerializer` is the live request boundary. It composes `connection_id`, `upload_id`, and a required list of `1–100` normalized entries, rejects undeclared fields at both levels, and rejects repeated `external_source_id` values within one batch.
 - The server-side canonical payload-hash helper fingerprints validated entries with schema version `1`, stable external-record ordering, UTC timestamps, and SHA-256. The live ingestion service uses it to reuse exact retries and reject conflicting upload identity reuse.
 - Connection-state mutations will belong to trusted ingestion/resync services rather than a generic client `PATCH` endpoint.
@@ -431,6 +433,8 @@ Current implementation status:
 | POST | `/api/v1/wearables/connections/` | Register a wearable connection | Accepts only `provider=health_connect`; ownership and activation are server-managed; new/reactivated rows use `status=pending`; current-plan connection limit enforced; reactivates the preserved provider row after disconnect |
 | GET | `/api/v1/wearables/connections/{id}/status/` | Fetch sync state for one connection | Implemented; JWT required and owner-scoped; includes `provider`, `status`, `last_synced_at`, and `last_error`; unowned or unknown UUIDs return `404` |
 | POST | `/api/v1/wearables/uploads/` | Process a normalized wearable batch | Implemented synchronously; JWT required; accepts `connection_id`, `upload_id`, and `1–100` entries; validates active caller ownership; returns terminal counters with `201` for new work, `200` for an exact retry, `409` for upload/record conflicts, and `400` for invalid input |
+| GET | `/api/v1/metrics/entries/daily-steps/` | Read daily Steps totals | JWT required; selects one preferred source per requested local date, sums its caller-owned intervals, supports `from`, `to`, and `limit`, and preserves raw rows |
+| GET | `/api/v1/metrics/entries/daily-hrv/` | Read daily HRV medians | JWT required; selects one preferred source per requested local date, calculates its caller-owned median, supports `from`, `to`, and `limit`, and preserves raw rows |
 | DELETE | `/api/v1/wearables/connections/{id}/` | Disconnect provider | Implemented; JWT required; caller-owned active rows return `204` and become inactive; unknown, unowned, or already-inactive rows return `404`; repeated calls remain state-idempotent |
 | POST | `/api/v1/wearables/connections/{id}/resync/` | Request replay / resync from the client | Returns 202 Accepted — backend records replay intent and the Android client performs the upload |
 
@@ -460,9 +464,9 @@ First-slice non-goals:
 - No TimescaleDB-specific optimization yet.
 - No frontend device authorization flow yet.
 
-MVP Samsung sync does **not** use provider webhooks or a hosted provider link flow. The Android companion app reads Samsung-originated data on device, uploads batches to our API, and the backend handles validation, deduplication, and persistence. A future aggregator webhook receiver can be added later for providers with cloud-friendly APIs.
+MVP Health Connect sync does **not** use provider webhooks or a hosted provider link flow. The Android companion app currently selects Fitbit-originated data on device, uploads batches to our API, and the backend handles validation, deduplication, and persistence. A future aggregator webhook receiver can be added later for providers with cloud-friendly APIs.
 
-**Implemented synchronous example: uploading normalized Weight, Steps, and Sleep records**
+**Implemented synchronous example: uploading normalized Weight, Steps, Sleep, resting-heart-rate, and HRV records**
 ```http
 POST /api/v1/wearables/uploads/
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
@@ -478,7 +482,7 @@ Content-Type: application/json
       "metric_definition": "body_weight",
       "value": 78.4,
       "recorded_at": "2026-07-29T08:00:00Z",
-      "source": "samsung_health",
+      "source": "fitbit",
       "external_source_id": "health_connect:WeightRecord:record-123",
       "source_record_modified_at": "2026-07-29T08:01:00Z"
     },
@@ -487,7 +491,7 @@ Content-Type: application/json
       "value": 420,
       "period_start": "2026-07-29T07:45:00Z",
       "recorded_at": "2026-07-29T08:00:00Z",
-      "source": "samsung_health",
+      "source": "fitbit",
       "external_source_id": "health_connect:StepsRecord:record-123",
       "source_record_modified_at": "2026-07-29T08:02:00Z"
     },
@@ -496,9 +500,25 @@ Content-Type: application/json
       "value": 7.5,
       "period_start": "2026-07-28T21:30:00Z",
       "recorded_at": "2026-07-29T05:30:00Z",
-      "source": "samsung_health",
+      "source": "fitbit",
       "external_source_id": "health_connect:SleepSessionRecord:record-123",
       "source_record_modified_at": "2026-07-29T05:35:00Z"
+    },
+    {
+      "metric_definition": "resting_hr",
+      "value": 58,
+      "recorded_at": "2026-07-29T06:00:00Z",
+      "source": "fitbit",
+      "external_source_id": "health_connect:RestingHeartRateRecord:record-123",
+      "source_record_modified_at": "2026-07-29T06:01:00Z"
+    },
+    {
+      "metric_definition": "hrv",
+      "value": 42.5,
+      "recorded_at": "2026-07-29T06:00:00Z",
+      "source": "fitbit",
+      "external_source_id": "health_connect:HeartRateVariabilityRmssdRecord:record-123",
+      "source_record_modified_at": "2026-07-29T06:01:00Z"
     }
   ]
 }

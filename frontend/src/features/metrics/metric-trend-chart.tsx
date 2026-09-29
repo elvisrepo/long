@@ -92,7 +92,13 @@ export function MetricTrendChart({
           new Intl.DateTimeFormat("en", {
             month: "short",
             day: "numeric",
-          }).format(new Date(entry.recorded_at)),
+          }).format(
+            new Date(
+              entry.local_date
+                ? `${entry.local_date}T00:00:00`
+                : entry.recorded_at,
+            ),
+          ),
         ),
         datasets: [
           {
@@ -188,7 +194,7 @@ function getLatestEntriesByDay(entries: MetricEntry[]) {
   const latestEntriesByDate = new Map<string, MetricEntry>();
 
   for (const entry of entries) {
-    const dateKey = getLocalDateKey(entry.recorded_at);
+    const dateKey = getMetricEntryDateKey(entry);
     const existingEntry = latestEntriesByDate.get(dateKey);
 
     if (
@@ -200,11 +206,13 @@ function getLatestEntriesByDay(entries: MetricEntry[]) {
     }
   }
 
-  return [...latestEntriesByDate.values()].sort(
-    (left, right) =>
-      new Date(left.recorded_at).getTime() -
-      new Date(right.recorded_at).getTime(),
+  return [...latestEntriesByDate.values()].sort((left, right) =>
+    getMetricEntryDateKey(left).localeCompare(getMetricEntryDateKey(right)),
   );
+}
+
+function getMetricEntryDateKey(entry: MetricEntry): string {
+  return entry.local_date ?? getLocalDateKey(entry.recorded_at);
 }
 
 function getLocalDateKey(isoDateTime: string) {

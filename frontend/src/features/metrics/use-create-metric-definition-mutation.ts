@@ -13,6 +13,7 @@ export function useCreateMetricDefinitionMutation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["metric-definitions"] });
       queryClient.invalidateQueries({ queryKey: ["metric-usage"] });
+      queryClient.invalidateQueries({ queryKey: ["consistency-analytics"] });
     },
   });
 }

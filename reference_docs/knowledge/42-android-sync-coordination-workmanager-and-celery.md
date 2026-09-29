@@ -9,7 +9,7 @@ Use this document when:
 - separating initial backfill from incremental background synchronization;
 - deciding when Android WorkManager, Django, Redis, Celery, or Celery Beat should run work.
 
-This document describes the implemented Android flow as of 2026-09-19 and the agreed next architecture. The current Android slice synchronizes Samsung-originated Weight, Steps, and Sleep records through one user action and one periodic worker path.
+This document describes the implemented Android flow and agreed next architecture. The current Android slice synchronizes Fitbit-originated Weight, Steps, Sleep, Resting Heart Rate, and HRV/RMSSD records through one user action and one periodic worker path. The 2026-09-19 Samsung Health acceptance notes below remain historical evidence for the same Health Connect bridge.
 
 Physical hosted-path acceptance on 2026-09-19 used signed pilot 1.2 on the
 authorized Xiaomi 17 Ultra. Health Connect returned the preceding night's
@@ -31,7 +31,7 @@ Paths:
 - `android/app/src/main/java/com/viridiandome/longevity/wearables/sync/StepsSyncCoordinator.kt`
 - `android/app/src/main/java/com/viridiandome/longevity/wearables/sync/IncrementalStepsSyncPlanner.kt`
 
-`LongevityApplication` composes Weight, Steps, and Sleep coordinators behind `AllMetricsSyncRunner`. It runs them in that deterministic order, combines terminal receipts, ignores per-metric no-data outcomes, and stops before later metrics on the first interruption. The outer `IncrementalWeightSyncRunner` owns the shared cursor and advances it only if the complete multi-metric run completes or has no data. This prevents an earlier successful metric from advancing past data when a later metric fails.
+`LongevityApplication` composes Weight, Steps, Sleep, Resting Heart Rate, and HRV coordinators behind `AllMetricsSyncRunner`. It runs them in that deterministic order, combines terminal receipts, ignores per-metric no-data outcomes, and stops before later metrics on the first interruption. The outer `IncrementalWeightSyncRunner` owns the shared cursor and advances it only if the complete multi-metric run completes or has no data. This prevents an earlier successful metric from advancing past data when a later metric fails.
 
 ### `WeightSyncBatchPlanner`
 
@@ -48,7 +48,7 @@ Path: `android/app/src/main/java/com/viridiandome/longevity/wearables/sync/Initi
 1. reads the per-connection successful cursor;
 2. uses a 24-hour overlap when the cursor exists, or the previous 30 days when absent;
 3. reads through `HealthConnectWeightReader`;
-4. keeps only Samsung Health records from `com.sec.android.app.shealth`;
+4. keeps only Fitbit records from `com.fitbit.FitbitMobile`;
 5. preserves chronological order and splits at 100 entries.
 
 The planner does not perform HTTP requests, generate upload IDs, or update Compose state.
@@ -142,7 +142,7 @@ Path: `android/app/src/main/java/com/viridiandome/longevity/LongevityApplication
 - current-subscription sync-policy repository;
 - Health Connect adapter;
 - durable per-connection cursor store;
-- Weight, Steps, and Sleep coordinators configured with their incremental planners and combined by `AllMetricsSyncRunner`;
+- Weight, Steps, Sleep, Resting Heart Rate, and HRV coordinators configured with their incremental planners and combined by `AllMetricsSyncRunner`;
 - `SubscriptionAwareWeightSyncRunner` used only by WorkManager.
 
 This keeps dependencies out of Compose recomposition without introducing a dependency-injection framework before the MVP needs one.
@@ -174,7 +174,7 @@ User chooses Connect Health Connect
     ↓
 WearableConnectionViewModel checks Health Connect availability
     ↓
-Checks READ_WEIGHT, READ_STEPS, and READ_SLEEP permissions
+Checks READ_WEIGHT, READ_STEPS, READ_SLEEP, READ_RESTING_HEART_RATE, and READ_HEART_RATE_VARIABILITY permissions
     ↓
 MainActivity launches Android's system permission contract if required
     ↓
@@ -218,7 +218,7 @@ AndroidHealthConnectAccess
     ↓
 Health Connect returns paginated WeightRecord values
     ↓
-Planner keeps Samsung Health records since cursor-overlap, or the previous 30 days on first run
+Planner keeps Fitbit records since cursor-overlap, or the previous 30 days on first run
     ↓
 Planner creates batches of at most 100
     ↓
@@ -332,7 +332,7 @@ Stable WorkManager `2.11.2` and `work-testing` are now configured. The implement
 
 `MainActivity` applies a pure, tested scheduling decision. It schedules only when the local session is authenticated, the caller-owned connection is Ready, background access is granted, and server policy enables automatic sync. A manual-only policy cancels tagged work, closing the normal downgrade path. It does nothing during startup session or policy checking because WorkManager state survives process restarts; treating temporary unresolved state as logout would incorrectly erase valid work. A confirmed successful logout cancels every tagged weight-sync request. Connection-disconnect cancellation remains pending until the Android disconnect action exists.
 
-The worker receives a `SubscriptionAwareWeightSyncRunner` whose wrapped application runner now synchronizes both supported metrics. It fetches the current policy again immediately before device access. Therefore stale queued work that races with a downgrade stops before reading Health Connect. A transient policy failure maps to retry; a manual-only policy maps to permanent failure for that execution.
+The worker receives a `SubscriptionAwareWeightSyncRunner` whose wrapped application runner synchronizes all five supported metrics. It fetches the current policy again immediately before device access. Therefore stale queued work that races with a downgrade stops before reading Health Connect. A transient policy failure maps to retry; a manual-only policy maps to permanent failure for that execution.
 
 Periodic WorkManager execution is inexact. Android may delay work because of Doze, battery optimization, and other constraints. The platform has a 15-minute minimum periodic interval, but a 15-minute request is not a guarantee that work runs exactly every 15 minutes.
 
@@ -350,7 +350,7 @@ On the physical Honor test phone on 2026-08-17, foreground periodic sync complet
 
 Background Health Connect reads also require:
 
-- the ordinary record permissions: `READ_WEIGHT`, `READ_STEPS`, and `READ_SLEEP`;
+- the ordinary record permissions: `READ_WEIGHT`, `READ_STEPS`, `READ_SLEEP`, `READ_RESTING_HEART_RATE`, and `READ_HEART_RATE_VARIABILITY`;
 - `READ_HEALTH_DATA_IN_BACKGROUND`;
 - a feature-availability check;
 - explicit permission granted while the app is in the foreground.

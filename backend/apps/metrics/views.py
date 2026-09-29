@@ -1,9 +1,12 @@
 import csv
 import json
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
+from typing import NotRequired, TypedDict, cast
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from django.db.models import Q
+from django.db.models import Aggregate, FloatField, Max, Min, Q, QuerySet, Sum
+from django.db.models.functions import TruncDate
 from django.http import StreamingHttpResponse
 from django.utils.dateparse import parse_datetime
 from rest_framework import generics
@@ -23,6 +26,10 @@ from apps.metrics.serializers import (
       MetricEntrySerializer,
       SleepTargetPreferenceSerializer,
   )
+from apps.metrics.source_precedence import (
+    DAILY_SOURCE_PRECEDENCE,
+    preferred_metric_source,
+)
 
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -31,6 +38,8 @@ from apps.metrics.limits import get_active_custom_metric_usage
 from apps.subscriptions.services import get_current_subscription_plan
 
 DEFAULT_METRIC_ENTRY_LIMIT = 50
+DEFAULT_DAILY_STEPS_LIMIT = 30
+MAX_DAILY_STEPS_LIMIT = 366
 METRIC_EXPORT_COLUMNS = (
     "entry_id",
     "metric_slug",
@@ -43,6 +52,111 @@ METRIC_EXPORT_COLUMNS = (
     "context",
     "created_at",
 )
+
+
+class Median(Aggregate):
+    """PostgreSQL continuous median for grouped numeric metric values."""
+
+    function = "PERCENTILE_CONT"
+    template = "%(function)s(0.5) WITHIN GROUP (ORDER BY %(expressions)s)"
+    output_field = FloatField()
+    window_compatible = False
+
+
+class DailyMetricSummary(TypedDict):
+    id: object
+    local_date: date
+    source: str
+    value: float
+    period_start: NotRequired[datetime | None]
+    recorded_at: datetime | None
+    created_at: datetime | None
+
+
+def daily_metric_summaries(
+    *,
+    entries: QuerySet[MetricEntry],
+    timezone: ZoneInfo,
+    limit: int,
+    value_aggregate: Aggregate,
+    include_period_start: bool,
+    local_date_from: date | None = None,
+    local_date_to: date | None = None,
+) -> list[DailyMetricSummary]:
+    """Aggregate one preferred source per local day without mixing providers."""
+
+    annotated_entries = entries.annotate(
+        local_date=TruncDate("recorded_at", tzinfo=timezone)
+    )
+    if local_date_from is not None:
+        annotated_entries = annotated_entries.filter(
+            local_date__gte=local_date_from
+        )
+    if local_date_to is not None:
+        annotated_entries = annotated_entries.filter(
+            local_date__lte=local_date_to
+        )
+    source_days = (
+        annotated_entries.values("local_date", "source")
+        .distinct()
+        .order_by("-local_date")[: limit * len(DAILY_SOURCE_PRECEDENCE)]
+    )
+    sources_by_date: dict[date, list[str]] = {}
+    for source_day in source_days:
+        sources_by_date.setdefault(source_day["local_date"], []).append(
+            source_day["source"]
+        )
+
+    chosen_sources = {
+        local_date: preferred_metric_source(sources)
+        for local_date, sources in sorted(
+            sources_by_date.items(), reverse=True
+        )[:limit]
+    }
+    if not chosen_sources:
+        return []
+
+    chosen_filter = Q(pk__in=[])
+    for local_date, source in chosen_sources.items():
+        chosen_filter |= Q(local_date=local_date, source=source)
+
+    annotations: dict[str, object] = {
+        "id": Max("id"),
+        "value": value_aggregate,
+        "recorded_at": Max("recorded_at"),
+        "created_at": Max("created_at"),
+    }
+    if include_period_start:
+        annotations["period_start"] = Min("period_start")
+
+    return cast(
+        list[DailyMetricSummary],
+        list(
+            annotated_entries.filter(chosen_filter)
+            .values("local_date", "source")
+            .annotate(**annotations)
+            .order_by("-local_date")
+        ),
+    )
+
+
+def parse_local_date_bound(
+    value: str | None,
+    *,
+    field_name: str,
+    timezone: ZoneInfo,
+) -> date | None:
+    if value is None:
+        return None
+
+    parsed = parse_datetime(value)
+    if parsed is None:
+        raise ValidationError(
+            {field_name: ["Enter a valid ISO-8601 timestamp."]}
+        )
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone)
+    return parsed.astimezone(timezone).date()
 
 
 class CsvEcho:
@@ -171,6 +285,154 @@ class MetricEntryListCreateView(generics.ListCreateAPIView):
           '''
 
           return queryset
+
+
+class DailyStepsSummaryView(APIView):
+    """Return preferred-source Steps as one sum per requested local date."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        timezone_name = request.query_params.get("timezone", "UTC")
+        try:
+            timezone = ZoneInfo(timezone_name)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValidationError(
+                {"timezone": ["Enter a valid IANA timezone."]}
+            ) from exc
+
+        limit = (
+            parse_positive_int(request.query_params.get("limit"))
+            or DEFAULT_DAILY_STEPS_LIMIT
+        )
+        if limit > MAX_DAILY_STEPS_LIMIT:
+            raise ValidationError(
+                {"limit": [f"Limit cannot exceed {MAX_DAILY_STEPS_LIMIT}."]}
+            )
+
+        entries = MetricEntry.objects.filter(
+            user=request.user,
+            metric_definition__slug="steps",
+            metric_definition__user__isnull=True,
+            metric_definition__is_default=True,
+            metric_definition__is_active=True,
+        )
+        local_date_from = parse_local_date_bound(
+            request.query_params.get("from"),
+            field_name="from",
+            timezone=timezone,
+        )
+        local_date_to = parse_local_date_bound(
+            request.query_params.get("to"),
+            field_name="to",
+            timezone=timezone,
+        )
+
+        summaries = daily_metric_summaries(
+            entries=entries,
+            timezone=timezone,
+            limit=limit,
+            value_aggregate=Sum("value"),
+            include_period_start=True,
+            local_date_from=local_date_from,
+            local_date_to=local_date_to,
+        )
+
+        return Response(
+            [
+                {
+                    "id": summary["id"],
+                    "metric_definition": "steps",
+                    "value": float(summary["value"]),
+                    "local_date": summary["local_date"].isoformat(),
+                    "period_start": format_export_timestamp(
+                        summary["period_start"]
+                    ),
+                    "recorded_at": format_export_timestamp(
+                        summary["recorded_at"]
+                    ),
+                    "source": summary["source"],
+                    "context": {"aggregation": "daily"},
+                    "created_at": format_export_timestamp(
+                        summary["created_at"]
+                    ),
+                }
+                for summary in summaries
+            ]
+        )
+
+
+class DailyHrvSummaryView(APIView):
+    """Return preferred-source HRV as one median value per local date."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        timezone_name = request.query_params.get("timezone", "UTC")
+        try:
+            timezone = ZoneInfo(timezone_name)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValidationError(
+                {"timezone": ["Enter a valid IANA timezone."]}
+            ) from exc
+
+        limit = (
+            parse_positive_int(request.query_params.get("limit"))
+            or DEFAULT_DAILY_STEPS_LIMIT
+        )
+        if limit > MAX_DAILY_STEPS_LIMIT:
+            raise ValidationError(
+                {"limit": [f"Limit cannot exceed {MAX_DAILY_STEPS_LIMIT}."]}
+            )
+
+        entries = MetricEntry.objects.filter(
+            user=request.user,
+            metric_definition__slug="hrv",
+            metric_definition__user__isnull=True,
+            metric_definition__is_default=True,
+            metric_definition__is_active=True,
+        )
+        local_date_from = parse_local_date_bound(
+            request.query_params.get("from"),
+            field_name="from",
+            timezone=timezone,
+        )
+        local_date_to = parse_local_date_bound(
+            request.query_params.get("to"),
+            field_name="to",
+            timezone=timezone,
+        )
+
+        summaries = daily_metric_summaries(
+            entries=entries,
+            timezone=timezone,
+            limit=limit,
+            value_aggregate=Median("value"),
+            include_period_start=False,
+            local_date_from=local_date_from,
+            local_date_to=local_date_to,
+        )
+
+        return Response(
+            [
+                {
+                    "id": summary["id"],
+                    "metric_definition": "hrv",
+                    "value": summary["value"],
+                    "local_date": summary["local_date"].isoformat(),
+                    "period_start": None,
+                    "recorded_at": format_export_timestamp(
+                        summary["recorded_at"]
+                    ),
+                    "source": summary["source"],
+                    "context": {"aggregation": "daily_median"},
+                    "created_at": format_export_timestamp(
+                        summary["created_at"]
+                    ),
+                }
+                for summary in summaries
+            ]
+        )
 
 
 class MetricEntryCsvExportView(APIView):

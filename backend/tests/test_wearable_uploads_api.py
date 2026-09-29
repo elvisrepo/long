@@ -12,12 +12,16 @@ from apps.wearables.models import SyncRun, WearableConnection
 pytestmark = pytest.mark.django_db
 
 
-def _normalized_entry(external_source_id: str) -> dict[str, object]:
+def _normalized_entry(
+    external_source_id: str,
+    *,
+    source: str = "samsung_health",
+) -> dict[str, object]:
     return {
         "metric_definition": "body_weight",
         "value": 78.4,
         "recorded_at": "2026-07-29T08:00:00Z",
-        "source": "samsung_health",
+        "source": source,
         "external_source_id": external_source_id,
     }
 
@@ -45,7 +49,8 @@ def test_wearable_upload_processes_one_normalized_entry():
             "upload_id": str(upload_id),
             "entries": [
                 _normalized_entry(
-                    "health_connect:WeightRecord:record-api-123"
+                    "health_connect:WeightRecord:record-api-123",
+                    source="fitbit",
                 )
             ],
         },
@@ -68,6 +73,7 @@ def test_wearable_upload_processes_one_normalized_entry():
     assert metric_entry.user == user
     assert metric_entry.source_connection == connection
     assert metric_entry.value == 78.4
+    assert metric_entry.source == MetricEntry.Source.FITBIT
     assert (
         metric_entry.external_source_id
         == "health_connect:WeightRecord:record-api-123"
@@ -199,6 +205,66 @@ def test_wearable_upload_processes_one_normalized_sleep_session():
     )
     assert metric_entry.recorded_at == datetime(
         2026, 9, 19, 5, 30, tzinfo=UTC
+    )
+
+
+@pytest.mark.parametrize(
+    ("metric_slug", "value", "record_type"),
+    [
+        ("resting_hr", 58.0, "RestingHeartRateRecord"),
+        ("hrv", 42.5, "HeartRateVariabilityRmssdRecord"),
+    ],
+)
+def test_wearable_upload_processes_fitbit_cardiovascular_record(
+    metric_slug: str,
+    value: float,
+    record_type: str,
+):
+    user = User.objects.create_user(
+        email=f"{metric_slug}-upload@example.com",
+        password="strong-password-123",
+    )
+    connection = WearableConnection.objects.create(
+        user=user,
+        provider=WearableConnection.Provider.HEALTH_CONNECT,
+    )
+    client = APIClient()
+    client.credentials(
+        HTTP_AUTHORIZATION=(
+            f"Bearer {RefreshToken.for_user(user).access_token}"
+        )
+    )
+
+    response = client.post(
+        "/api/v1/wearables/uploads/",
+        {
+            "connection_id": str(connection.id),
+            "upload_id": str(uuid.uuid4()),
+            "entries": [
+                {
+                    "metric_definition": metric_slug,
+                    "value": value,
+                    "recorded_at": "2026-09-28T08:00:00Z",
+                    "source": "fitbit",
+                    "external_source_id": (
+                        f"health_connect:{record_type}:record-api-123"
+                    ),
+                    "source_record_modified_at": (
+                        "2026-09-28T08:01:00Z"
+                    ),
+                }
+            ],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    metric_entry = MetricEntry.objects.get()
+    assert metric_entry.metric_definition.slug == metric_slug
+    assert metric_entry.value == value
+    assert metric_entry.source == MetricEntry.Source.FITBIT
+    assert metric_entry.external_source_id == (
+        f"health_connect:{record_type}:record-api-123"
     )
 
 

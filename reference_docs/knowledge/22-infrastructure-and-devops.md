@@ -80,10 +80,26 @@ Staging transactional email:
 - `syncvitals.space` is verified with DKIM; custom MAIL FROM
   `bounce.syncvitals.space` has SPF and MX records, and DMARC currently uses
   the monitoring policy `p=none`
+- the identity's default configuration set is `my-first-configuration-set`,
+  with reputation metrics enabled; SES authorizes a send against both the
+  domain identity and configuration-set resources
+- the EC2 role's `SyncVitalsStagingTransactionalEmailSend` policy permits only
+  `ses:SendEmail` and `ses:SendRawEmail` on the exact domain identity and exact
+  configuration-set ARNs, conditioned on From address
+  `no-reply@syncvitals.space`
 - account-level suppression covers bounces and complaints; an SES event
   publishing destination is still recommended for operational alerting
 - application delivery uses the SES API through `django-anymail` and boto3's
   default EC2 credential chain, never stored SMTP credentials or AWS keys
+- automatic workflow run `36392136753` deployed staging commit
+  `d2ad126ef3ae504ad9543e5df7468da21cce89de` on 2026-09-28 after both CI
+  gates, ECR approval, backend deployment, frontend upload, and public smoke
+  checks passed
+- two initial live reset requests returned the deliberately generic `202` but
+  logged `AnymailAPIError`; a mailbox-simulator diagnostic exposed the missing
+  configuration-set permission. After the policy was corrected, the owner
+  received a real reset link, changed the password, and logged in with the new
+  password, completing manual authenticated acceptance
 
 Infrastructure progression:
 
@@ -235,6 +251,10 @@ Current implemented state:
   `sha256:ff25974750f22e1e22c93ca35ec4dc86714c9dd3816ae4cfef343ca94d83b804`
   remained the rollback image, the frontend upload completed, and all public
   root, deep-link, liveness, readiness, and byte-for-byte shell checks passed
+- automatic run `36392136753` later deployed protected staging commit
+  `d2ad126ef3ae504ad9543e5df7468da21cce89de` with the SES-backed password
+  reset flow; every workflow phase passed, and the owner then completed the
+  real email, password-change, and new-password login journey
 - authenticated browser journeys remain manual because the workflow receives
   no user credentials, and host deployment-bundle changes remain a separate
   reviewed manual procedure because the GitHub role cannot install host files

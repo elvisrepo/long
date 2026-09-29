@@ -17,6 +17,7 @@ export function useDeactivateMetricDefinitionMutation() {
       queryClient.invalidateQueries({ queryKey: ["metric-definitions"] });
       queryClient.invalidateQueries({ queryKey: ["metric-entries"] });
       queryClient.invalidateQueries({ queryKey: ["metric-usage"] });
+      queryClient.invalidateQueries({ queryKey: ["consistency-analytics"] });
     },
   });
 }
