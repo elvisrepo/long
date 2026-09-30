@@ -5,7 +5,8 @@
 - Use the target-state ERD separately for planned Stripe, wearable-sync, and audit tables.
 
 ## Scope
-- `User`, `MetricDefinition`, `MetricEntry`, `WearableConnection`, `SyncRun`, `SubscriptionPlan`, `SubscriptionPrice`, `BillingCustomer`, `Subscription`, `CheckoutAttempt`, and `StripeWebhookEvent` are implemented domain tables.
+- `User`, `MetricDefinition`, `MetricEntry`, `WearableConnection`, `SyncRun`, `SubscriptionPlan`, `SubscriptionPrice`, `BillingCustomer`, `Subscription`, `CheckoutAttempt`, `StripeWebhookEvent`, `RecoveryTool`, and `RecoveryEntry` are implemented domain tables.
+- See [recovery before/after ERD comparison](recovery-erd-comparison.md) for model-derived field maps, with the two new recovery tables highlighted green.
 - Registration creates an explicit active free subscription, and metric limits resolve through the current subscription's plan.
 - Django framework tables such as auth groups, permissions, sessions, admin logs, and JWT token blacklist tables are intentionally omitted.
 
@@ -18,6 +19,28 @@ erDiagram
     USER ||--o{ WEARABLE_CONNECTION : connects
     METRIC_DEFINITION ||--o{ METRIC_ENTRY : classifies
     WEARABLE_CONNECTION ||--o{ SYNC_RUN : receives
+    WEARABLE_CONNECTION o|--o{ METRIC_ENTRY : "source connection"
+    USER o|--o{ RECOVERY_TOOL : "owns custom tools"
+    USER ||--o{ RECOVERY_ENTRY : "checks off"
+    RECOVERY_TOOL ||--o{ RECOVERY_ENTRY : "tracked daily"
+
+    RECOVERY_TOOL {
+        uuid id PK
+        uuid user_id FK "nullable for shared tools"
+        string slug "unique for shared tools"
+        string name
+        string description
+        integer display_order
+        boolean is_active
+    }
+
+    RECOVERY_ENTRY {
+        bigint id PK
+        uuid user_id FK
+        uuid tool_id FK
+        date performed_on "unique per user and tool"
+        datetime created_at
+    }
 
     USER {
         uuid id PK
@@ -28,6 +51,7 @@ erDiagram
         boolean is_active
         boolean is_staff
         boolean is_superuser
+        integer sleep_target_minutes
     }
 
     METRIC_DEFINITION {
@@ -49,10 +73,12 @@ erDiagram
         uuid user_id FK
         uuid metric_definition_id FK
         float value
+        datetime period_start "nullable"
         datetime recorded_at
         string source
         uuid source_connection_id FK "nullable"
         string external_source_id "nullable, unique per source connection"
+        datetime source_record_modified_at "nullable"
         json context
         datetime created_at
     }
@@ -79,6 +105,7 @@ erDiagram
         datetime processing_started_at "nullable"
         datetime finished_at "nullable"
         integer entries_imported
+        integer entries_updated
         integer entries_skipped
         string error_code
         json error_detail
@@ -101,10 +128,12 @@ erDiagram
         string code UK "free|pro|premium"
         string name
         integer active_custom_metric_limit
+        boolean automatic_sync_enabled
         integer sync_interval_minutes
         integer wearable_connection_limit
         boolean analytics_enabled
         boolean csv_import_enabled
+        boolean csv_export_enabled
         boolean is_default
         boolean is_active
         datetime created_at
@@ -131,6 +160,7 @@ erDiagram
         string provider_subscription_id UK "nullable"
         datetime current_period_start "nullable"
         datetime current_period_end "nullable"
+        datetime cancel_at "nullable"
         boolean cancel_at_period_end
         datetime cancelled_at "nullable"
         datetime created_at

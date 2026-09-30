@@ -1,5 +1,25 @@
 ### 1.7 API Design
 
+## Recovery tracking (implemented locally, 2026-09-30)
+
+All routes require JWT; see `45-recovery-tracking.md` for evidence and access rules.
+
+| Method | Endpoint | Contract |
+|---|---|---|
+| GET | `/api/v1/recovery/tools/` | `{tools: [...], can_create_custom: bool}`; shared and own tools, including archived; custom evidence is null |
+| POST | `/api/v1/recovery/tools/` | Pro only; `{name, description?}`; `201` private tool; `403` for Free |
+| PATCH | `/api/v1/recovery/tools/{uuid}/` | Owner-only custom tool; name, description, is_active; archive/restore retains history |
+| GET | `/api/v1/recovery/entries/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD` | Own entries, inclusive 1–366-day range; `400` for missing/invalid bounds |
+| PUT | `/api/v1/recovery/entries/{tool_uuid}/{YYYY-MM-DD}/` | Empty body; idempotent daily check-off, `200`; archived tool `400`, inaccessible tool `404` |
+| DELETE | `/api/v1/recovery/entries/{tool_uuid}/{YYYY-MM-DD}/` | Idempotent undo, `204`; inaccessible tool `404` |
+
+Entry JSON: `{id, tool_id, performed_on, created_at}`. Tool JSON:
+`{id, name, description, is_active, is_custom, evidence}`; shared evidence includes
+`outcome, smd, ci_lower, ci_upper, subjects, experimental_groups, citation, source_url`.
+Ownership, slug, order and evidence are not client-writable. Existing custom tools
+remain usable after downgrade. Full account JSON export adds recovery sections;
+account deletion removes owned recovery data through database cascades.
+
 ## Use When
 - Load this when you need the api design.
 

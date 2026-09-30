@@ -219,3 +219,11 @@ Notice row 1: Alice's resting HR of 58 bpm was *auto-synced* from Samsung Health
 |---|---|---|---|---|
 | 1 | `a1b2c3d4-...` | create | MetricEntry | `{"value": 42.5, "metric": "vo2_max"}` |
 | 2 | `a1b2c3d4-...` | update | User | `{"timezone": ["UTC", "Europe/Berlin"]}` |
+# Recovery ERD update — 2026-09-30 local slice
+
+The implemented domain schema now has 13 tables (excluding Django/framework
+tables). Recovery adds `RecoveryTool` and `RecoveryEntry` without adding columns
+to existing tables. See [before/after diagrams](diagrams/recovery-erd-comparison.md)
+for the previous 11-table schema and updated schema with the two additions green.
+The diagrams are generated from model metadata; they do not read personal data
+or establish cloud deployment. See `45-recovery-tracking.md` for constraints.

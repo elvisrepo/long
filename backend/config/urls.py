@@ -32,6 +32,7 @@ urlpatterns = [
     path("api/v1/me/export/", AccountExportView.as_view(), name="account-export"),
     path("api/v1/me/", AccountDeleteView.as_view(), name="account-delete"),
     path("api/v1/metrics/", include("apps.metrics.urls")),
+    path("api/v1/recovery/", include("apps.recovery.urls")),
     path("api/v1/subscriptions/", include("apps.subscriptions.urls")),
     path("api/v1/wearables/", include("apps.wearables.urls")),
 ]

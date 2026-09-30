@@ -69,7 +69,8 @@ function AppNavigation() {
       setLogoutError("");
       setIsLoggingOut(true);
       await logoutWeb();
-      queryClient.removeQueries({ queryKey: ["me"] });
+      await queryClient.cancelQueries();
+      queryClient.clear();
       await navigate({ to: "/login" });
     } catch (error) {
       setLogoutError(error instanceof Error ? error.message : "Logout failed");
@@ -168,6 +169,9 @@ function AuthenticatedNavigation({
         </Link>
         <Link to="/metrics" className="app-nav-link">
           Metrics
+        </Link>
+        <Link to="/recovery" className="app-nav-link">
+          Recovery
         </Link>
         <Link to="/settings" search={{}} className="app-nav-link">
           Settings

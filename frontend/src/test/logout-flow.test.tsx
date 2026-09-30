@@ -60,6 +60,7 @@ function renderLogoutFlow({
       </AuthBootstrapGate>
     </QueryClientProvider>,
   );
+  return queryClient;
 }
 
 describe("logout flow", () => {
@@ -86,6 +87,24 @@ describe("logout flow", () => {
     expect(
       await screen.findByRole("heading", { name: /login/i }),
     ).toBeInTheDocument();
+  });
+
+  it("removes private metric, subscription and recovery caches on logout", async () => {
+    vi.mocked(logoutWeb).mockResolvedValue();
+    vi.mocked(getMe).mockRejectedValue(new Error("Authentication required"));
+    const queryClient = renderLogoutFlow({ path: "/unknown-page" });
+    const keys = [
+      ["metric-entries", {}],
+      ["current-subscription"],
+      ["recovery", "user@example.com", "tools"],
+    ];
+    for (const key of keys) queryClient.setQueryData(key, { private: true });
+    await userEvent.click(
+      await screen.findByRole("button", { name: /logout/i }),
+    );
+    await screen.findByRole("heading", { name: /login/i });
+    for (const key of keys)
+      expect(queryClient.getQueryData(key)).toBeUndefined();
   });
 
   it("shows an error and stays on settings when logout fails", async () => {

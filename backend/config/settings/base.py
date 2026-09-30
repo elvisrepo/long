@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     "anymail",
     "apps.users",
     "apps.metrics",
+    "apps.recovery",
     "apps.subscriptions",
     "apps.wearables",
     "common",

@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MetricsRouteImport } from './routes/metrics'
+import { Route as RecoveryRouteImport } from './routes/recovery'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -39,6 +40,11 @@ const LoginRoute = LoginRouteImport.update({
 const MetricsRoute = MetricsRouteImport.update({
   id: '/metrics',
   path: '/metrics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecoveryRoute = RecoveryRouteImport.update({
+  id: '/recovery',
+  path: '/recovery',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RegisterRoute = RegisterRouteImport.update({
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/metrics': typeof MetricsRouteWithChildren
+  '/recovery': typeof RecoveryRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
@@ -95,6 +102,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/metrics': typeof MetricsRouteWithChildren
+  '/recovery': typeof RecoveryRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
@@ -109,6 +117,7 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/metrics': typeof MetricsRouteWithChildren
+  '/recovery': typeof RecoveryRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
@@ -124,6 +133,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/metrics'
+    | '/recovery'
     | '/register'
     | '/reset-password'
     | '/settings'
@@ -137,6 +147,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/metrics'
+    | '/recovery'
     | '/register'
     | '/reset-password'
     | '/settings'
@@ -150,6 +161,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/metrics'
+    | '/recovery'
     | '/register'
     | '/reset-password'
     | '/settings'
@@ -164,6 +176,7 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   MetricsRoute: typeof MetricsRouteWithChildren
+  RecoveryRoute: typeof RecoveryRoute
   RegisterRoute: typeof RegisterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SettingsRoute: typeof SettingsRoute
@@ -200,6 +213,13 @@ declare module '@tanstack/react-router' {
       path: '/metrics'
       fullPath: '/metrics'
       preLoaderRoute: typeof MetricsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recovery': {
+      id: '/recovery'
+      path: '/recovery'
+      fullPath: '/recovery'
+      preLoaderRoute: typeof RecoveryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/register': {
@@ -270,6 +290,7 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   MetricsRoute: MetricsRouteWithChildren,
+  RecoveryRoute: RecoveryRoute,
   RegisterRoute: RegisterRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SettingsRoute: SettingsRoute,

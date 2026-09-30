@@ -6,6 +6,19 @@
 ## Source
 - Derived from `reference_docs/knowledge/planning.md` section 5.
 
+### Recovery tracking (September 30, 2026, local)
+
+- The authenticated `/recovery` route is reachable from the shared navigation.
+- Shared tools show Table 1 soreness-effect bars and confidence intervals;
+  private custom tools are not research-rated. See `45-recovery-tracking.md`.
+- A local-calendar date selector loads that day and six preceding days. Daily
+  checkboxes save/undo through the backend; failed saves leave their state unchanged.
+- Pro can add custom tools. Existing tools remain usable after downgrade; owners
+  can archive/restore without losing history. Server permissions are authoritative.
+- The page uses existing Dark/Light/Sand tokens and collapses to one column on
+  narrow screens. Owner-scoped React Query caches are invalidated after writes
+  and removed on logout. The local migration is applied; staging is untouched.
+
 ### Checkout confirmation UX (September 30, 2026, local)
 
 - Settings with `checkout=success` refreshes the current-subscription query on

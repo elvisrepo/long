@@ -1,5 +1,19 @@
 ## 6. Testing
 
+## Recovery tracking — 2026-09-30 local slice
+
+- `backend/tests/test_recovery.py`: JWT, exact Table 1 estimates, private-tool
+  ownership, Pro-only creation, idempotent daily save/undo, bounded date ranges,
+  archive/history, downgrade preservation and account export/deletion cascades.
+- `frontend/src/features/recovery/*.test.*`: API bearer/body/error contracts,
+  research labels, selected calendar dates, saved/failed check-offs, Pro creation
+  and custom-tool archiving. Tests do not equate activity counts with recovery.
+- Browser layout fixtures exercise recovery at phone and desktop widths.
+  Isolated E2E resets restore all six shared recovery tools after flush.
+- Logout regression coverage confirms metric, subscription and recovery caches
+  are erased after successful logout; failed logout still preserves the session.
+- See `45-recovery-tracking.md`; local verification is not staging acceptance.
+
 ## Account lifecycle — 2026-09-30 local slice
 
 - `backend/tests/test_account_lifecycle.py` covers Free-plan full JSON export,

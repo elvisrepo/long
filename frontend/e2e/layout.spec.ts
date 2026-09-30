@@ -61,31 +61,57 @@ const entries = definitions.map((definition, index) => ({
 }));
 
 for (const width of [320, 1440]) {
-  test(`checkout confirmation updates automatically at ${width}px`, async ({ page }) => {
+  test(`checkout confirmation updates automatically at ${width}px`, async ({
+    page,
+  }) => {
     await page.setViewportSize({ width, height: 900 });
     await mockApi(page);
     let reads = 0;
     await page.route("**/api/v1/subscriptions/current/", async (route) => {
       reads += 1;
       const paid = reads > 1;
-      await route.fulfill({ json: {
-        id: "checkout-plan", status: "active", billing_portal_available: paid,
-        current_period_start: null, current_period_end: null,
-        cancel_at: null, cancel_at_period_end: false, price: null,
-        plan: {
-          code: paid ? "pro" : "free", name: paid ? "Pro" : "Free",
-          active_custom_metric_limit: paid ? 10 : 3, wearable_connection_limit: paid ? 2 : 1,
-          automatic_sync_enabled: paid, sync_interval_minutes: paid ? 15 : 30,
-          analytics_enabled: paid, csv_import_enabled: paid, csv_export_enabled: paid,
+      await route.fulfill({
+        json: {
+          id: "checkout-plan",
+          status: "active",
+          billing_portal_available: paid,
+          current_period_start: null,
+          current_period_end: null,
+          cancel_at: null,
+          cancel_at_period_end: false,
+          price: null,
+          plan: {
+            code: paid ? "pro" : "free",
+            name: paid ? "Pro" : "Free",
+            active_custom_metric_limit: paid ? 10 : 3,
+            wearable_connection_limit: paid ? 2 : 1,
+            automatic_sync_enabled: paid,
+            sync_interval_minutes: paid ? 15 : 30,
+            analytics_enabled: paid,
+            csv_import_enabled: paid,
+            csv_export_enabled: paid,
+          },
         },
-      } });
+      });
     });
     await page.goto("/settings?checkout=success");
-    await expect(page.getByRole("status")).toContainText("Checking automatically");
-    await expect(page.getByRole("status")).toHaveText("Pro is active.");
-    await expect(page.getByRole("region", { name: "Current subscription" }).getByRole("heading", { name: "Pro" })).toBeVisible();
+    await expect(
+      page.getByRole("status").filter({ hasText: "Checking automatically" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("status").filter({ hasText: "Pro is active." }),
+    ).toHaveText("Pro is active.");
+    await expect(
+      page
+        .getByRole("region", { name: "Current subscription" })
+        .getByRole("heading", { name: "Pro" }),
+    ).toBeVisible();
     expect(reads).toBe(2);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
   });
 }
 
@@ -193,6 +219,132 @@ async function mockApi(page: Page) {
         json: { detail: "Unexpected fixture request" },
       });
     await route.fulfill({ json });
+  });
+}
+
+for (const width of [320, 1440]) {
+  test(`recovery tracking and custom tools at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    let checked = false;
+    let archived = false;
+    let custom = false;
+    const standard = {
+      id: "massage-id",
+      name: "Massage",
+      description: "Post-exercise massage.",
+      is_active: true,
+      is_custom: false,
+      evidence: {
+        outcome: "doms",
+        smd: -2.26,
+        ci_lower: -3.05,
+        ci_upper: -1.47,
+        subjects: 158,
+        experimental_groups: 14,
+        citation: "Dupuy et al. (2018), Table 1",
+        source_url:
+          "https://www.frontiersin.org/journals/physiology/articles/10.3389/fphys.2018.00403/full",
+      },
+    };
+    const standards = [
+      standard,
+      ...(
+        [
+          ["Active recovery", -0.94, -1.61, -0.28],
+          ["Compression garments", -0.92, -1.34, -0.5],
+          ["Cryotherapy / cryostimulation", -0.53, -1.04, -0.03],
+          ["Water immersion", -0.47, -0.77, -0.18],
+          ["Contrast water therapy", -0.4, -0.73, -0.07],
+        ] as const
+      ).map(([name, smd, ci_lower, ci_upper], index) => ({
+        ...standard,
+        id: `standard-${index}`,
+        name,
+        description: "",
+        evidence: { ...standard.evidence, smd, ci_lower, ci_upper },
+      })),
+    ];
+    const customTool = () => ({
+      ...standard,
+      id: "custom-id",
+      name: "Sauna",
+      description: "",
+      is_custom: true,
+      evidence: null,
+      is_active: !archived,
+    });
+    await page.route("**/api/v1/recovery/**", async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (url.pathname.endsWith("tools/") && request.method() === "POST") {
+        custom = true;
+        return route.fulfill({ status: 201, json: customTool() });
+      }
+      if (url.pathname.endsWith("tools/"))
+        return route.fulfill({
+          json: {
+            tools: custom ? [...standards, customTool()] : standards,
+            can_create_custom: true,
+          },
+        });
+      if (url.pathname.includes("tools/custom-id/")) {
+        archived =
+          !!request.postDataJSON() && !request.postDataJSON().is_active;
+        return route.fulfill({ json: customTool() });
+      }
+      if (url.pathname.endsWith("entries/"))
+        return route.fulfill({
+          json: checked
+            ? [
+                {
+                  id: 1,
+                  tool_id: standard.id,
+                  performed_on: url.searchParams.get("date_to"),
+                  created_at: recordedAt,
+                },
+              ]
+            : [],
+        });
+      checked = request.method() === "PUT";
+      return route.fulfill({
+        status: checked ? 200 : 204,
+        ...(checked ? { json: {} } : {}),
+      });
+    });
+    await page.goto("/recovery");
+    const checkbox = page.getByRole("checkbox", { name: "Massage" });
+    await expect(checkbox).not.toBeChecked();
+    await checkbox.click();
+    await expect(checkbox).toBeChecked();
+    await expect(page.getByRole("status")).toHaveText(
+      "1 of 6 tools checked off",
+    );
+    await page.reload();
+    await expect(checkbox).toBeChecked();
+    await checkbox.click();
+    await expect(checkbox).not.toBeChecked();
+    await page.getByRole("textbox", { name: "Tool name" }).fill("Sauna");
+    await page.getByRole("button", { name: "Add tool", exact: true }).click();
+    await expect(page.getByRole("checkbox", { name: "Sauna" })).toBeVisible();
+    await expect(
+      page.getByText("Not research-rated", { exact: true }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Archive Sauna" }).click();
+    await expect(
+      page.getByRole("button", { name: "Restore Sauna" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Restore Sauna" }).click();
+    await expect(page.getByRole("checkbox", { name: "Sauna" })).toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({
+      path: `test-results/layout/recovery-${width}.png`,
+      fullPage: true,
+    });
   });
 }
 

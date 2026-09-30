@@ -90,6 +90,7 @@ def test_e2e_compose_process_receives_only_inert_stripe_values() -> None:
 def test_e2e_reset_endpoint_flushes_database_and_restores_seed_data():
     from common.testing_views import reset_e2e_database_view
     from apps.metrics.models import MetricDefinition
+    from apps.recovery.models import RecoveryTool
     from apps.subscriptions.models import SubscriptionPlan, SubscriptionPrice
 
     User = get_user_model()
@@ -105,6 +106,7 @@ def test_e2e_reset_endpoint_flushes_database_and_restores_seed_data():
 
     assert response.status_code == 204
     assert User.objects.count() == 0
+    assert RecoveryTool.objects.filter(user=None, is_active=True).count() == 6
     # The reset endpoint uses flush, which also deletes seed rows; restore the
     # baseline metrics so browser tests see the same app state after each reset.
     assert MetricDefinition.objects.filter(

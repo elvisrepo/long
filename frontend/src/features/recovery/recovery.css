@@ -1,0 +1,123 @@
+.recovery-screen {
+  display: grid;
+  gap: var(--page-section-gap);
+}
+.recovery-tools {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  min-width: 0;
+}
+.recovery-tool,
+.recovery-panel {
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--panel-bg);
+  padding: 1.25rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.recovery-tool p,
+.recovery-panel p {
+  color: var(--text-dim);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+.recovery-tool label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.recovery-tool input[type="checkbox"] {
+  width: 1.2rem;
+  height: 1.2rem;
+  accent-color: var(--accent);
+}
+.recovery-evidence-bar {
+  height: 0.5rem;
+  background: var(--surface-high);
+  border-radius: 1rem;
+  margin-top: 1rem;
+}
+.recovery-evidence-bar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: inherit;
+}
+.recovery-panel summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.recovery-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 1.5rem;
+}
+.recovery-sidebar {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+  min-width: 0;
+}
+.recovery-panel h2 {
+  font-size: 1.1rem;
+}
+.recovery-history {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+.recovery-history li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+.recovery-date {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+.recovery-date input {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 0.6rem;
+  border-radius: 0.5rem;
+}
+.recovery-action {
+  padding: 0.6rem 0.85rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  margin: 0.3rem 0.5rem 0.3rem 0;
+}
+.recovery-action:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.recovery-custom-form label {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 30rem;
+}
+.recovery-custom-form input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.7rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+@media (max-width: 760px) {
+  .recovery-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

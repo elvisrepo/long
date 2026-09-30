@@ -10,6 +10,7 @@ from rest_framework.exceptions import APIException, ValidationError
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 
 from apps.metrics.models import MetricDefinition, MetricEntry
+from apps.recovery.models import RecoveryEntry, RecoveryTool
 from apps.subscriptions.models import BillingCustomer, CheckoutAttempt, Subscription
 from apps.subscriptions.services import UnresolvedCheckoutError, cancel_account_billing
 from apps.users.models import User
@@ -45,6 +46,11 @@ def account_export(user: User) -> Iterator[str]:
     # Avoid a single enormous line that text editors struggle to render.
     yield encoder.encode(header).removesuffix("\n}")
     sections: dict[str, QuerySet[Any]] = {
+        "recovery_tools": RecoveryTool.objects.filter(Q(user=user) | Q(entries__user=user))
+        .distinct().order_by("id")
+        .values("id", "user_id", "slug", "name", "description", "is_active", "display_order"),
+        "recovery_entries": RecoveryEntry.objects.filter(user=user).order_by("id")
+        .values("id", "tool_id", "performed_on", "created_at"),
         "metric_definitions": MetricDefinition.objects.filter(
             Q(user=user) | Q(entries__user=user)
         )

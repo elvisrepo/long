@@ -73,3 +73,11 @@ We derived entities from the functional requirements by asking: *"What data must
 - A Stripe `customer.subscription.updated` event synchronizes the current paid subscription's `cancel_at_period_end`, `current_period_start`, and `current_period_end`. Scheduling cancellation does not revoke paid entitlements.
 - The paid subscription remains current until Stripe reports that it has actually ended through `customer.subscription.deleted`.
 - A verified deletion event cancels the paid local subscription and creates a new active Free subscription. The cancelled paid row remains as subscription history.
+# Recovery domain additions — 2026-09-30 local slice
+
+`RecoveryTool` holds shared tools (nullable user FK) and private custom tools.
+`RecoveryEntry` belongs to a user and tool and records a calendar-day check-off;
+`(user, tool, performed_on)` is unique. These are separate from numeric
+`MetricEntry` and wearable sync. Pro can create custom tools; existing tools and
+history survive downgrade and archive. See `45-recovery-tracking.md` and
+`diagrams/recovery-erd-comparison.md` for the updated domain ERD.

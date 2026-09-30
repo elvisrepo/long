@@ -192,3 +192,16 @@ Current Stripe credential and traffic boundary:
 | Stripe API rate or concurrency limits | Checkout or subscription operations receive `429` or object lock timeouts | Use idempotency keys, exponential backoff with jitter, inspect Stripe's rate-limit reason, serialize mutations to the same provider object, and never load test against sandbox. |
 | WebSocket connection memory (1000+ concurrent) | OOM on app instance | Token-bucket backpressure. Max 3 connections per user. Separate WS instances from REST API at scale. |
 | Large GDPR export (user with 100K+ entries) | Request timeout | Async export via Celery. Return 202 Accepted + poll endpoint. Stream results to S3, send download link via email. |
+# Recovery tracking boundary — 2026-09-30
+
+- Recovery routes require JWT and expose only shared tools plus the requesting
+  user's tools and entries. Writes to another user's tools return 404.
+- Pro custom-tool creation is checked against the current server-side plan.
+  Shared tools and research scores cannot be modified through these endpoints.
+- Names/descriptions have bounded lengths; entry ranges are limited to 366 days.
+- Mutations lock the user row to serialize with subscription changes/deletion;
+  `(user, tool, performed_on)` is unique. PUT/DELETE are retry-safe.
+- Archived history and downgrade data are retained. Export includes owned
+  recovery data; account deletion cascades it without deleting shared defaults.
+- Recovery query keys include the owner. Successful logout cancels outstanding
+  requests and clears all query caches, including metric/subscription state.
