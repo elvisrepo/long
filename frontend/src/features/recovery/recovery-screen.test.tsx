@@ -7,7 +7,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   createRecoveryTool,
@@ -57,6 +57,7 @@ function renderRecovery() {
 
 describe("Recovery", () => {
   beforeEach(() => {
+    vi.setSystemTime(new Date("2026-09-30T12:00:00"));
     vi.resetAllMocks();
     vi.mocked(getRecoveryTools).mockResolvedValue({
       tools: [massage],
@@ -64,6 +65,7 @@ describe("Recovery", () => {
     });
     vi.mocked(getRecoveryEntries).mockResolvedValue([]);
   });
+  afterEach(() => vi.useRealTimers());
 
   it("shows soreness evidence, the source and Free custom-tool restriction", async () => {
     renderRecovery();
@@ -184,21 +186,32 @@ describe("Recovery", () => {
     expect(checkbox).not.toBeChecked();
   });
 
-  it("loads the selected calendar date and its seven-day window", async () => {
+  it("loads an older tracking date without shifting the today-based history", async () => {
     renderRecovery();
     await screen.findByRole("checkbox", { name: "Massage" });
     fireEvent.change(screen.getByLabelText("Tracking date"), {
       target: { value: "2026-09-20" },
     });
     await waitFor(() =>
-      expect(getRecoveryEntries).toHaveBeenLastCalledWith(
-        "2026-09-14",
+      expect(getRecoveryEntries).toHaveBeenCalledWith(
+        "2026-09-20",
         "2026-09-20",
       ),
     );
     expect(
       await screen.findByRole("heading", { name: "On 2026-09-20" }),
     ).toBeInTheDocument();
+    const historyDays = screen.getAllByRole("button", {
+      name: /activities recorded/,
+    });
+    expect(historyDays).toHaveLength(7);
+    expect(historyDays[0]).toHaveAccessibleName(
+      "2026-09-24: 0 activities recorded",
+    );
+    expect(historyDays[6]).toHaveAccessibleName(
+      "2026-09-30: 0 activities recorded",
+    );
+    expect(getRecoveryEntries).toHaveBeenCalledWith("2026-09-24", "2026-09-30");
   });
 
   it("moves between days, selects history, and returns to today", async () => {
@@ -214,10 +227,39 @@ describe("Recovery", () => {
     await waitFor(() => expect(input).toHaveValue("2026-09-19"));
     await user.click(screen.getByRole("button", { name: "Next day" }));
     await waitFor(() => expect(input).toHaveValue("2026-09-20"));
-    await user.click(screen.getByRole("button", { name: /2026-09-18:/ }));
-    await waitFor(() => expect(input).toHaveValue("2026-09-18"));
+    await user.click(screen.getByRole("button", { name: /2026-09-25:/ }));
+    await waitFor(() => expect(input).toHaveValue("2026-09-25"));
+    expect(
+      screen.getAllByRole("button", { name: /activities recorded/ })[6],
+    ).toHaveAccessibleName("2026-09-30: 0 activities recorded");
     await user.click(screen.getByRole("button", { name: "Today" }));
     await waitFor(() => expect(input).toHaveValue(today));
+  });
+
+  it("keeps history counts when tracking an older day", async () => {
+    vi.mocked(getRecoveryEntries).mockImplementation(async (from, to) =>
+      from <= "2026-09-28" && to >= "2026-09-28"
+        ? [
+            {
+              id: 1,
+              tool_id: massage.id,
+              performed_on: "2026-09-28",
+              created_at: "2026-09-28T12:00:00Z",
+            },
+          ]
+        : [],
+    );
+    renderRecovery();
+    await screen.findByRole("checkbox", { name: "Massage" });
+    fireEvent.change(screen.getByLabelText("Tracking date"), {
+      target: { value: "2026-09-20" },
+    });
+    expect(
+      await screen.findByRole("button", {
+        name: "2026-09-28: 1 activities recorded",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("No activities recorded")).toBeInTheDocument();
   });
 
   it("preserves the name when custom creation is refused", async () => {

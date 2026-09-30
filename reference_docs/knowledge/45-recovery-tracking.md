@@ -10,7 +10,11 @@ record does not establish staging deployment or live acceptance.
 
 The page separates research-based tools from private custom tools. Compact
 previous/next-day controls, a date picker and Today shortcut select the calendar
-date; seven clickable history tiles select earlier days. The daily summary counts
+date; seven clickable history tiles select earlier days. History is anchored to
+the browser's current local day (rightmost) and its six preceding days, independent
+of the selected tracking date. Its query is separate from the selected-day query,
+so picking an older date never shifts the tiles or loses their activity counts.
+The daily summary counts
 recorded activities without a completion target. On mobile it appears before tools.
 Research bars retain the same DOMS scaling; SMD and confidence intervals are under
 each tool's Research details disclosure. Pro creation uses the shared accessible
@@ -48,8 +52,8 @@ with subscription transitions and account deletion. The database uniqueness
 constraint is the final duplicate guard.
 
 `performed_on` is a calendar date supplied by the client, not a UTC timestamp.
-The browser initializes it from the local calendar and displays a selected date
-plus its preceding six days. History counts include archived tools; the selected
+The browser initializes it from the local calendar. The history window always
+ends today, not on the selected tracking date. History counts include archived tools; the selected
 date count describes active-tool check-offs, not recovery progress. A change in
 timezone does not reinterpret an existing date. Failed writes do not optimistically
 change the checkbox. Queries are scoped by authenticated owner. Successful logout

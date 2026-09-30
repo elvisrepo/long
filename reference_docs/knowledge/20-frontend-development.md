@@ -11,7 +11,9 @@
 - The authenticated `/recovery` route is reachable from the shared navigation.
 - Shared tools show Table 1 soreness-effect bars and confidence intervals;
   private custom tools are not research-rated. See `45-recovery-tracking.md`.
-- A local-calendar date selector loads that day and six preceding days. Daily
+- A local-calendar date selector loads the selected day's activities. A separate
+  history query always covers today and its six preceding days, regardless of
+  which tracking date is selected. Daily
   checkboxes save/undo through the backend; failed saves leave their state unchanged.
 - Pro can add custom tools. Existing tools remain usable after downgrade; owners
   can archive/restore without losing history. Server permissions are authoritative.

@@ -1088,6 +1088,8 @@ Recovery UI regression coverage:
 - Component tests cover daily save/undo, date arrows/history/Today navigation,
   separate custom tools, expandable evidence, modal cancellation/focus restoration,
   creation errors retaining input, and load errors.
+- Regression tests keep history anchored to today after selecting older dates
+  and preserve its counts independently of the selected day's entries.
 - Phone/desktop browser checks cover persistence, custom creation/archive/restore
   and horizontal overflow. API permissions and research estimates are unchanged.
 

@@ -32,6 +32,7 @@ function shiftDay(day: string, offset: number): string {
 export function RecoveryScreen() {
   const queryClient = useQueryClient();
   const owner = useMeQuery().data?.email;
+  const today = localDay(new Date());
   const [day, setDay] = useState(() => localDay(new Date()));
   const [toolName, setToolName] = useState("");
   const [addingTool, setAddingTool] = useState(false);
@@ -40,7 +41,7 @@ export function RecoveryScreen() {
     checkoff.reset();
   }
   const days = Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(`${day}T12:00:00`);
+    const date = new Date(`${today}T12:00:00`);
     date.setDate(date.getDate() - 6 + index);
     return localDay(date);
   });
@@ -51,8 +52,13 @@ export function RecoveryScreen() {
   });
   const entries = useQuery({
     queryKey: ["recovery", owner, "entries", day],
-    queryFn: () => getRecoveryEntries(days[0], day),
+    queryFn: () => getRecoveryEntries(day, day),
     placeholderData: keepPreviousData,
+    enabled: !!owner,
+  });
+  const history = useQuery({
+    queryKey: ["recovery", owner, "entries", "history", today],
+    queryFn: () => getRecoveryEntries(days[0], today),
     enabled: !!owner,
   });
   const checkoff = useMutation({
@@ -86,9 +92,9 @@ export function RecoveryScreen() {
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["recovery", owner, "tools"] }),
   });
-  if (catalog.isPending || entries.isPending)
+  if (catalog.isPending || entries.isPending || history.isPending)
     return <PageState message="Loading recovery tools…" />;
-  if (catalog.isError || entries.isError)
+  if (catalog.isError || entries.isError || history.isError)
     return (
       <PageState message="Recovery failed to load. Please try again." error />
     );
@@ -275,7 +281,7 @@ export function RecoveryScreen() {
                 <li key={date}>
                   <button
                     aria-pressed={date === day}
-                    aria-label={`${date}: ${entries.data.filter((entry) => entry.performed_on === date).length} activities recorded`}
+                    aria-label={`${date}: ${history.data.filter((entry) => entry.performed_on === date).length} activities recorded`}
                     onClick={() => selectDay(date)}
                   >
                     <span>
@@ -287,7 +293,7 @@ export function RecoveryScreen() {
                     <span>{new Date(`${date}T12:00:00`).getDate()}</span>
                     <strong>
                       {
-                        entries.data.filter(
+                        history.data.filter(
                           (entry) => entry.performed_on === date,
                         ).length
                       }
