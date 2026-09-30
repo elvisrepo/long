@@ -2944,6 +2944,20 @@ body:has(dialog[open]) {
   display: grid;
   gap: 18px;
 }
+.account-delete-confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.5;
+}
+.account-delete-confirmation input {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  padding: 0;
+  accent-color: var(--accent);
+}
 .export-dates {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

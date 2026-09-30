@@ -600,7 +600,7 @@ def test_create_checkout_session_rejects_missing_redirect_url():
     attempt = CheckoutAttempt.objects.get(user=user, price=price)
 
     assert attempt.status == CheckoutAttempt.Status.FAILED
-    assert attempt.provider_checkout_session_id == ""
+    assert attempt.provider_checkout_session_id == "cs_test_missing_url"
 
 
 def test_create_checkout_session_reuses_existing_billing_customer():

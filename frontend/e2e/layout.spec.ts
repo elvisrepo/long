@@ -393,6 +393,71 @@ for (const { width, theme } of [
   });
 }
 
+for (const width of [320, 1440]) {
+  test(`account export and deletion confirmation work at ${width}px`, async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width, height: 800 });
+    await mockApi(page);
+    await page.route("**/api/v1/me/export/", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        headers: {
+          "Content-Disposition":
+            'attachment; filename="longevity-account.json"',
+        },
+        body: JSON.stringify({ schema_version: 1, profile: {} }),
+      }),
+    );
+    let deletionAttempts = 0;
+    await page.route("**/api/v1/me/", (route) => {
+      expect(route.request().method()).toBe("DELETE");
+      expect(route.request().postDataJSON()).toEqual({
+        password: "test-password",
+      });
+      deletionAttempts++;
+      return deletionAttempts === 1
+        ? route.fulfill({
+            status: 400,
+            json: { password: ["Password is incorrect."] },
+          })
+        : route.fulfill({ status: 204 });
+    });
+    await page.goto("/settings");
+    const downloading = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Download account data" }).click();
+    expect((await downloading).suggestedFilename()).toBe(
+      "longevity-account.json",
+    );
+    await page
+      .getByRole("button", { name: "Delete account", exact: true })
+      .click();
+    const dialog = page.getByRole("dialog", { name: "Delete your account?" });
+    await expect(dialog).toBeVisible();
+    expect(
+      await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth),
+    ).toBe(true);
+    const confirm = dialog.getByRole("button", {
+      name: "Delete account permanently",
+    });
+    await expect(confirm).toBeDisabled();
+    await dialog.getByLabel("Current password").fill("test-password");
+    await dialog.getByRole("checkbox").check();
+    await page.screenshot({
+      path: testInfo.outputPath("account-deletion.png"),
+      fullPage: true,
+    });
+    await confirm.click();
+    await expect(dialog.getByRole("alert")).toHaveText(
+      "Password is incorrect.",
+    );
+    await expect(dialog.getByLabel("Current password")).toHaveValue("");
+    await dialog.getByLabel("Current password").fill("test-password");
+    await confirm.click();
+    await expect(page).toHaveURL(/\/login$/);
+  });
+}
+
 test("unknown pages offer navigation within the shared page layout", async ({
   page,
 }) => {

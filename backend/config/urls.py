@@ -17,6 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.conf import settings
 from django.urls import include, path
+from apps.users.account_views import AccountDeleteView, AccountExportView
 
 from common.views import (
     liveness_view,
@@ -28,6 +29,8 @@ urlpatterns = [
     path("api/v1/health/live/", liveness_view, name="health-live"),
     path("api/v1/health/ready/", readiness_view, name="health-ready"),
     path("api/auth/", include("apps.users.urls")),
+    path("api/v1/me/export/", AccountExportView.as_view(), name="account-export"),
+    path("api/v1/me/", AccountDeleteView.as_view(), name="account-delete"),
     path("api/v1/metrics/", include("apps.metrics.urls")),
     path("api/v1/subscriptions/", include("apps.subscriptions.urls")),
     path("api/v1/wearables/", include("apps.wearables.urls")),

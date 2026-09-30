@@ -1,8 +1,14 @@
 import { PageHeader } from "../components/page-header";
 import { PageState } from "../components/page-state";
+import { useQueryClient } from "@tanstack/react-query";
+import { AccountPanel } from "../features/auth/account-panel";
 import { useState } from "react";
 import { MetricExportPanel } from "../features/metrics/metric-export-panel";
-import { createFileRoute, useRouterState } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  useNavigate,
+  useRouterState,
+} from "@tanstack/react-router";
 import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load";
 import { useMeQuery } from "../features/auth/use-me-query";
 import { redirectToCheckout } from "../features/subscriptions/checkout-redirect";
@@ -40,6 +46,8 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsRoute() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const checkoutStatus = useRouterState({
     select: (state) => state.location.search.checkout,
   });
@@ -214,6 +222,14 @@ function SettingsRoute() {
         }
         pending={currentSubscriptionQuery.isPending}
         failed={currentSubscriptionQuery.isError}
+      />
+
+      <AccountPanel
+        onDeleted={async () => {
+          await queryClient.cancelQueries();
+          queryClient.clear();
+          await navigate({ to: "/login", replace: true });
+        }}
       />
 
       <section

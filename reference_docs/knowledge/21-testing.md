@@ -1,5 +1,34 @@
 ## 6. Testing
 
+## Account lifecycle — 2026-09-30 local slice
+
+- `backend/tests/test_account_lifecycle.py` covers Free-plan full JSON export,
+  owner isolation including archived definitions, sync and billing history,
+  credential exclusion, authentication, and independent per-user export limits.
+- Deletion coverage proves password-required validation preserves the account on
+  failure, explicit handling of protected metric/checkout dependents, user/metric/
+  connection/receipt/subscription/refresh-token removal, preservation of other
+  users and shared defaults, cleared web refresh cookie, and `401` for old access
+  and refresh tokens. Paid-account cases prove confirmed immediate cancellation,
+  open checkout expiration, subscriptions created before webhook delivery,
+  redacted provider failures, partial-failure retries, and fail-closed ownership
+  and missing-receipt handling. No test performs live Stripe cancellations.
+- Regression coverage includes multiple historical customers from owned
+  checkouts before webhook delivery, plus rejection of a different session owner,
+  another account's customer mapping, and a mismatched subscription customer.
+- `test_account_deletion_concurrency.py` uses committed PostgreSQL transactions
+  and separate thread connections to prove deletion waits for an in-flight
+  checkout to save its receipt, then expires the resulting link. Checkout tests
+  preserve failed-attempt rows and session IDs returned without redirect URLs.
+- `account-api.test.ts` covers bearer transport, password body, authenticated JSON
+  download and object-URL cleanup, and preservation of the session on failure.
+  `account-panel.test.tsx` covers password plus checkbox confirmation, download
+  completion, and failure/cancel behavior. Settings route coverage proves Free
+  export, successful deletion navigation to Login, and cleared private query data.
+- These tests do not call live Stripe, erase a real account, or establish staging
+  acceptance. The local feature is not yet deployed; broader provider/backup
+  erasure and live staging acceptance remain outstanding.
+
 ## Responsive frontend layout checks
 
 - Run from `frontend`: `npm run test:e2e -- --config playwright.layout.config.ts`.

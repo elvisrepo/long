@@ -63,10 +63,65 @@ Refresh concurrency behavior:
 #### User & Profile (JWT required)
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
-| GET | `/api/v1/me/` | Current user profile | |
-| PATCH | `/api/v1/me/` | Update profile (partial) | PATCH not PUT — only send fields to change |
-| GET | `/api/v1/me/export/` | GDPR data export | Returns 202 Accepted, async job |
-| DELETE | `/api/v1/me/` | GDPR account deletion | Idempotent — repeated calls return 204 |
+| GET | `/api/auth/me/` | Current user email | Implemented; the previously planned `GET /api/v1/me/` is not mounted |
+| PATCH | `/api/v1/me/` | Update profile (partial) | Planned, not implemented |
+| GET | `/api/v1/me/export/` | Account-wide app data export | Implemented locally; streams a `200` JSON attachment on every plan, not an asynchronous job |
+| DELETE | `/api/v1/me/` | Delete account and live app data | Implemented locally; confirms immediate Stripe cancellation first; requires current password; returns `204` and invalidates sessions |
+
+Account lifecycle checkpoint — 2026-09-30 (local, not deployed):
+- Settings offers **Download account data** independently of the Pro CSV export.
+  `longevity-account.json` has `schema_version=1`, an export timestamp, profile
+  and sleep preference, owned custom definitions (including archived ones),
+  definitions referenced by owned entries, full raw metric history and provenance,
+  wearable connections, sync receipts, local billing and checkout history, and
+  session creation/expiration dates. Every section is caller-scoped; query-string
+  user IDs cannot select another account. Password hashes, lookup hashes,
+  JWT credentials, and global webhook receipts are excluded.
+- JSON is formatted with indentation and line breaks so editors do not have to
+  render the entire archive as one enormous line. Raw readings remain complete;
+  dashboard daily aggregation does not discard samples from this archive.
+- Export uses bounded database iteration and `Cache-Control: no-store`; it has
+  a per-user limit of three requests/hour in each worker's local cache. It is
+  a live streamed read, not a transactionally frozen snapshot. Avoid simultaneous
+  edits/sync during export when an exact point-in-time copy is needed. Large
+  asynchronous archive generation remains a later measured need.
+- `DELETE` accepts JSON `{"password":"current password"}` with bearer auth.
+  Password validation happens under the user-row lock; missing/incorrect passwords
+  return `400` without deleting data. The UI also requires an explicit checkbox.
+  Deletion erases owned metric entries before protected custom definitions,
+  checkout attempts before protected subscriptions, and outstanding refresh tokens
+  before deleting the user and cascading remaining owned data. It clears the web
+  refresh cookie; subsequent access/refresh requests fail with `401`. A repeated
+  request using the deleted account's token therefore returns `401`, not `204`.
+- Account deletion expires open Stripe checkout links and cancels all nonterminal
+  subscriptions immediately. It resolves locally known subscription IDs and
+  completed checkouts whose webhooks have not arrived, then checks every page of
+  customer subscriptions with `status=all`. Ownership and terminal provider
+  responses are checked before any local data is deleted. Cancellation sends
+  `invoice_now=false` and `prorate=false`; it does not issue a refund automatically.
+  Ordinary subscription cancellation through the Portal remains a separate flow.
+- Historical customer IDs are accepted only from saved Checkout sessions whose
+  `client_reference_id` matches the deleting user. This handles repeated paid
+  checkouts before webhook delivery persisted a customer mapping. A customer
+  mapped to another local user is rejected, and each checkout's subscription
+  must belong to that exact customer. Every proven customer is scanned for all
+  subscriptions; the current `BillingCustomer` mapping is not replaced.
+- Provider failure, mismatched ownership, or unconfirmed cancellation returns a
+  redacted `502` and rolls back local deletion. Stripe mutations already completed
+  cannot be rolled back: a retry reads current remote state and skips canceled or
+  incomplete-expired subscriptions rather than cancelling them twice. A pending,
+  failed, or completed checkout without a saved Stripe receipt returns `409` and
+  requires billing verification; an active Stripe row without a subscription ID
+  also prevents deletion. Deletion attempts retain the per-user five/hour limit.
+- Checkout creation shares the user-row lock with deletion until its receipt is
+  saved. Failed attempts commit before the provider exception is re-raised, and
+  a session ID is saved even when Stripe returns no redirect URL. Webhooks ignore
+  deleted owners, and subscription-update handlers re-read under that same lock
+  so delayed events cannot recreate account data.
+- These endpoints operate on the live application database. Existing backups,
+  source-app/Health Connect records, and external Stripe records are not erased.
+  Provider archives and deletion-aware backup restoration need
+  separate handling before describing this slice as a complete privacy lifecycle.
 
 #### Metrics (JWT required)
 | Method | Endpoint | Description | Notes |

@@ -1,4 +1,8 @@
 import { downloadMetricEntriesCsv } from "../features/metrics/metric-entry-export-api";
+import {
+  deleteAccount,
+  downloadAccountData,
+} from "../features/auth/account-api";
 import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -41,6 +45,10 @@ import { renderRoute } from "./render-route";
 
 vi.mock("../features/metrics/metric-entry-export-api", () => ({
   downloadMetricEntriesCsv: vi.fn(),
+}));
+vi.mock("../features/auth/account-api", () => ({
+  deleteAccount: vi.fn(),
+  downloadAccountData: vi.fn(),
 }));
 vi.mock("../features/metrics/use-metric-definitions-query", () => ({
   useMetricDefinitionsQuery: vi.fn(),
@@ -109,6 +117,37 @@ function proSubscription(): CurrentSubscription {
 describe("settings route", () => {
   afterEach(() => {
     vi.resetAllMocks();
+  });
+
+  it("exports account data on Free and clears cached account data after confirmed deletion", async () => {
+    const user = userEvent.setup();
+    getMeMock.mockResolvedValue({ email: "user@example.com" });
+    getCurrentSubscriptionMock.mockResolvedValue(freeSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([]);
+    vi.mocked(deleteAccount).mockResolvedValue();
+    vi.mocked(downloadAccountData).mockResolvedValue();
+    const { router } = renderRoute("/settings");
+    await user.click(
+      await screen.findByRole("button", { name: "Download account data" }),
+    );
+    expect(downloadAccountData).toHaveBeenCalledOnce();
+    const queryClient = router.options.context!.queryClient;
+    queryClient.setQueryData(["private-health-data"], [{ value: 80 }]);
+    await user.click(screen.getByRole("button", { name: "Delete account" }));
+    await user.type(screen.getByLabelText("Current password"), "password");
+    await user.click(
+      screen.getByLabelText(
+        "I understand this permanently deletes my account.",
+      ),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Delete account permanently" }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Login" }),
+    ).toBeInTheDocument();
+    expect(queryClient.getQueryData(["private-health-data"])).toBeUndefined();
+    expect(queryClient.getQueryData(["me"])).toBeUndefined();
   });
 
   it("opens export from Data & Privacy and exports the selected metric and dates", async () => {
