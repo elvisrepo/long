@@ -6,6 +6,20 @@
 ## Source
 - Derived from `reference_docs/knowledge/planning.md` section 5.
 
+### Checkout confirmation UX (September 30, 2026, local)
+
+- Settings with `checkout=success` refreshes the current-subscription query on
+  mount and polls every two seconds while awaiting a paid active/trialing plan.
+  The redirect itself never grants entitlements; the backend remains authoritative.
+- A confirmed plan replaces the pending banner with `<plan name> is active` and
+  stops polling. Ordinary Settings and cancelled-checkout visits do not poll.
+- After sixty seconds, automatic polling stops and the banner warns against
+  another payment. `Check again` fetches current state and restarts the bounded
+  wait; upgrade buttons stay disabled while confirmation is unresolved.
+- Polling reads our existing API only, not Stripe. The shared query cache updates
+  the Current Plan card and entitlement consumers without a manual page refresh.
+- This is local-only behavior; no staging validation or deployment was performed.
+
 ### Dark, Light and Sand appearance (September 21, 2026)
 
 - The shared header has a compact theme selector with Dark, Light and Sand;

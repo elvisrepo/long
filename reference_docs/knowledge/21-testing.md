@@ -619,6 +619,11 @@ Current frontend subscription Checkout and Portal testing checkpoint:
 - `use-create-subscription-checkout-mutation.test.tsx` proves the mutation forwards the selected internal price ID to the checkout API helper.
 - `use-create-subscription-portal-mutation.test.tsx` proves the portal mutation delegates to the authenticated portal API helper.
 - `settings-route.test.tsx` proves Settings renders current plan state, hides billing management without a Stripe customer, handles portal pending and error states, and redirects successful Checkout and Portal responses without contacting Stripe.
+- Checkout-return tests prove two-second polling promotes the banner and plan to
+  confirmed Pro, stops on confirmation or after sixty seconds, offers a safe
+  retry, and disables repeat upgrades while unresolved. Ordinary/cancelled visits
+  do not poll. Mocked layout browser tests cover Free-to-Pro confirmation at
+  320px and 1440px without real payments or database changes.
 - `settings-route.test.tsx` also proves Settings renders paid subscription billing amount/interval plus renewal and scheduled-cancellation dates from the current-subscription response, and labels Free as manual 30-minute sync versus Pro automatic 15-minute sync.
 - `settings-route.test.tsx` proves Stripe-managed subscriptions hide Checkout upgrade buttons and direct billing changes through **Manage subscription** instead.
 

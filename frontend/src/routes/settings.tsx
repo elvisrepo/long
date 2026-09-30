@@ -2,7 +2,7 @@ import { PageHeader } from "../components/page-header";
 import { PageState } from "../components/page-state";
 import { useQueryClient } from "@tanstack/react-query";
 import { AccountPanel } from "../features/auth/account-panel";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MetricExportPanel } from "../features/metrics/metric-export-panel";
 import {
   createFileRoute,
@@ -19,7 +19,10 @@ import type {
 } from "../features/subscriptions/subscriptions-api";
 import { useCreateSubscriptionCheckoutMutation } from "../features/subscriptions/use-create-subscription-checkout-mutation";
 import { useCreateSubscriptionPortalMutation } from "../features/subscriptions/use-create-subscription-portal-mutation";
-import { useCurrentSubscriptionQuery } from "../features/subscriptions/use-current-subscription-query";
+import {
+  hasPaidPlan,
+  useCurrentSubscriptionQuery,
+} from "../features/subscriptions/use-current-subscription-query";
 import { useSubscriptionPlansQuery } from "../features/subscriptions/use-subscription-plans-query";
 
 interface SettingsSearch {
@@ -52,7 +55,18 @@ function SettingsRoute() {
     select: (state) => state.location.search.checkout,
   });
   const meQuery = useMeQuery();
-  const currentSubscriptionQuery = useCurrentSubscriptionQuery();
+  const [confirmationExpired, setConfirmationExpired] = useState(false);
+  const currentSubscriptionQuery = useCurrentSubscriptionQuery({
+    confirmCheckout: checkoutStatus === "success" && !confirmationExpired,
+  });
+  const paidConfirmed = hasPaidPlan(currentSubscriptionQuery.data);
+  useEffect(() => {
+    if (checkoutStatus !== "success" || paidConfirmed || confirmationExpired) {
+      return;
+    }
+    const timer = window.setTimeout(() => setConfirmationExpired(true), 60_000);
+    return () => window.clearTimeout(timer);
+  }, [checkoutStatus, paidConfirmed, confirmationExpired]);
   const subscriptionPlansQuery = useSubscriptionPlansQuery();
   const checkoutMutation = useCreateSubscriptionCheckoutMutation();
   const portalMutation = useCreateSubscriptionPortalMutation();
@@ -109,7 +123,25 @@ function SettingsRoute() {
 
       {checkoutStatus === "success" ? (
         <p className="settings-alert" role="status">
-          Checkout completed. Your plan will update after payment confirmation.
+          {paidConfirmed
+            ? `${currentSubscriptionQuery.data!.plan.name} is active.`
+            : confirmationExpired
+              ? "Payment confirmation is taking longer than expected. Please do not pay again. Check again shortly; if your plan stays Free, contact support."
+              : "Checkout completed. Your plan will update after payment confirmation. Checking automatically; please do not pay again."}
+          {confirmationExpired && !paidConfirmed ? (
+            <>{" "}
+              <button
+                type="button"
+                disabled={currentSubscriptionQuery.isFetching}
+                onClick={() => {
+                  setConfirmationExpired(false);
+                  void currentSubscriptionQuery.refetch();
+                }}
+              >
+                Check again
+              </button>
+            </>
+          ) : null}
         </p>
       ) : null}
       {checkoutStatus === "cancelled" ? (
@@ -278,7 +310,10 @@ function SettingsRoute() {
                       </span>
                       <button
                         type="button"
-                        disabled={checkoutMutation.isPending}
+                        disabled={
+                          checkoutMutation.isPending ||
+                          (checkoutStatus === "success" && !paidConfirmed)
+                        }
                         onClick={() => void handleCheckout(price.id)}
                       >
                         Upgrade to {plan.name} {price.billing_interval}ly

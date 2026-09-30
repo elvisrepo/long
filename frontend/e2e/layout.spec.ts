@@ -60,6 +60,35 @@ const entries = definitions.map((definition, index) => ({
   context: {},
 }));
 
+for (const width of [320, 1440]) {
+  test(`checkout confirmation updates automatically at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await mockApi(page);
+    let reads = 0;
+    await page.route("**/api/v1/subscriptions/current/", async (route) => {
+      reads += 1;
+      const paid = reads > 1;
+      await route.fulfill({ json: {
+        id: "checkout-plan", status: "active", billing_portal_available: paid,
+        current_period_start: null, current_period_end: null,
+        cancel_at: null, cancel_at_period_end: false, price: null,
+        plan: {
+          code: paid ? "pro" : "free", name: paid ? "Pro" : "Free",
+          active_custom_metric_limit: paid ? 10 : 3, wearable_connection_limit: paid ? 2 : 1,
+          automatic_sync_enabled: paid, sync_interval_minutes: paid ? 15 : 30,
+          analytics_enabled: paid, csv_import_enabled: paid, csv_export_enabled: paid,
+        },
+      } });
+    });
+    await page.goto("/settings?checkout=success");
+    await expect(page.getByRole("status")).toContainText("Checking automatically");
+    await expect(page.getByRole("status")).toHaveText("Pro is active.");
+    await expect(page.getByRole("region", { name: "Current subscription" }).getByRole("heading", { name: "Pro" })).toBeVisible();
+    expect(reads).toBe(2);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+}
+
 async function mockApi(page: Page) {
   await page.route("**/api/**", async (route) => {
     const url = new URL(route.request().url());

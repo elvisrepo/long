@@ -4,7 +4,7 @@ import {
   downloadAccountData,
 } from "../features/auth/account-api";
 import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -116,6 +116,7 @@ function proSubscription(): CurrentSubscription {
 
 describe("settings route", () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.resetAllMocks();
   });
 
@@ -754,6 +755,65 @@ describe("settings route", () => {
         /checkout completed\. your plan will update after payment confirmation/i,
       ),
     ).toBeInTheDocument();
+  });
+
+  it("confirms the paid plan instead of leaving the checkout pending message", async () => {
+    getMeMock.mockResolvedValue({ email: "user@example.com" });
+    getCurrentSubscriptionMock.mockResolvedValue(proSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([]);
+
+    renderRoute("/settings?checkout=success");
+    expect(await screen.findByText("Pro is active.")).toBeInTheDocument();
+    expect(screen.queryByText(/your plan will update/i)).not.toBeInTheDocument();
+  });
+
+  it("polls for confirmation and stops when Pro becomes active", async () => {
+    vi.useFakeTimers();
+    getMeMock.mockResolvedValue({ email: "user@example.com" });
+    getCurrentSubscriptionMock.mockResolvedValueOnce(freeSubscription()).mockResolvedValue(proSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([]);
+    renderRoute("/settings?checkout=success");
+    await vi.waitFor(() => expect(screen.getByText(/checking automatically/i)).toBeInTheDocument());
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+    await vi.waitFor(() => expect(screen.getByText("Pro is active.")).toBeInTheDocument());
+    const calls = getCurrentSubscriptionMock.mock.calls.length;
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    expect(getCurrentSubscriptionMock).toHaveBeenCalledTimes(calls);
+    expect(screen.queryByRole("button", { name: "Check again" })).not.toBeInTheDocument();
+    expect(createSubscriptionCheckoutMock).not.toHaveBeenCalled();
+  });
+
+  it("times out safely, blocks another payment, and lets the user check again", async () => {
+    vi.useFakeTimers();
+    getMeMock.mockResolvedValue({ email: "user@example.com" });
+    getCurrentSubscriptionMock.mockResolvedValue(freeSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([{ ...proSubscription().plan, is_default: false, prices: [{ id: "monthly-price", currency: "usd", unit_amount: 1000, billing_interval: "month" }] }]);
+    renderRoute("/settings?checkout=success");
+    await vi.waitFor(() => expect(screen.getByText(/checking automatically/i)).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /Upgrade to Pro monthly/i })).toBeDisabled();
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    await vi.waitFor(() => expect(screen.getByText(/taking longer than expected/i)).toBeInTheDocument());
+    const calls = getCurrentSubscriptionMock.mock.calls.length;
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(getCurrentSubscriptionMock).toHaveBeenCalledTimes(calls);
+    expect(screen.getByRole("button", { name: /Upgrade to Pro monthly/i })).toBeDisabled();
+    getCurrentSubscriptionMock.mockResolvedValue(proSubscription());
+    fireEvent.click(screen.getByRole("button", { name: "Check again" }));
+    await vi.waitFor(() => expect(screen.getByText("Pro is active.")).toBeInTheDocument());
+    expect(createSubscriptionCheckoutMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["/settings", "/settings?checkout=cancelled"])("does not poll on %s", async (path) => {
+    vi.useFakeTimers();
+    getMeMock.mockResolvedValue({ email: "user@example.com" });
+    getCurrentSubscriptionMock.mockResolvedValue(freeSubscription());
+    getSubscriptionPlansMock.mockResolvedValue([]);
+    renderRoute(path);
+    await vi.waitFor(() => expect(screen.getByRole("heading", { name: "Free" })).toBeInTheDocument());
+    const calls = getCurrentSubscriptionMock.mock.calls.length;
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    expect(getCurrentSubscriptionMock).toHaveBeenCalledTimes(calls);
+    expect(screen.queryByRole("button", { name: "Check again" })).not.toBeInTheDocument();
   });
 
   it("shows an informational message after returning from cancelled checkout", async () => {
