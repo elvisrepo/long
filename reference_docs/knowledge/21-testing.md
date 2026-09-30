@@ -1073,6 +1073,24 @@ Frontend test harness note:
 - route tests use `window.history.pushState(...)` to set the active URL before mounting `RouterProvider`
 - `render(...)` from React Testing Library mounts the routed React tree into jsdom so assertions can target user-visible DOM output
 
+Settings re-subscription regression coverage:
+- Backend tests cover missing confirmed receipts and old completed sandbox
+  receipts: replacement only after saved-customer subscription verification.
+  Active subscriptions, missing customers, recent/failed attempts, live legacy
+  receipts, ownership mismatches, provider outages and unrelated errors block
+  replacement without retiring the receipt.
+- New Free accounts and former-Pro Free accounts with a retained Stripe customer
+  can start checkout. Former customers retain portal access for billing history.
+- Active, trialing, past-due and incomplete Stripe-managed Pro plans hide checkout
+  upgrades and use the portal. Portal availability alone is not a paid entitlement.
+
+Recovery UI regression coverage:
+- Component tests cover daily save/undo, date arrows/history/Today navigation,
+  separate custom tools, expandable evidence, modal cancellation/focus restoration,
+  creation errors retaining input, and load errors.
+- Phone/desktop browser checks cover persistence, custom creation/archive/restore
+  and horizontal overflow. API permissions and research estimates are unchanged.
+
 Logging visibility note during tests:
 - normal pytest output captures logs by default
 - to see logs live during a focused run, use `-s --log-cli-level=INFO`

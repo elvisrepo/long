@@ -316,13 +316,14 @@ for (const width of [320, 1440]) {
     await expect(checkbox).not.toBeChecked();
     await checkbox.click();
     await expect(checkbox).toBeChecked();
-    await expect(page.getByRole("status")).toHaveText(
-      "1 of 6 tools checked off",
-    );
+    await expect(
+      page.getByRole("status").filter({ hasText: "activity recorded" }),
+    ).toHaveText("1 activity recorded");
     await page.reload();
     await expect(checkbox).toBeChecked();
     await checkbox.click();
     await expect(checkbox).not.toBeChecked();
+    await page.getByRole("button", { name: "Add custom tool" }).click();
     await page.getByRole("textbox", { name: "Tool name" }).fill("Sauna");
     await page.getByRole("button", { name: "Add tool", exact: true }).click();
     await expect(page.getByRole("checkbox", { name: "Sauna" })).toBeVisible();

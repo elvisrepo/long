@@ -6,6 +6,18 @@ Read when changing recovery tools, daily check-offs, Pro access, research bars,
 or recovery account export/deletion. Implemented locally on 2026-09-30; this
 record does not establish staging deployment or live acceptance.
 
+## Daily tracking UX (September 30, 2026)
+
+The page separates research-based tools from private custom tools. Compact
+previous/next-day controls, a date picker and Today shortcut select the calendar
+date; seven clickable history tiles select earlier days. The daily summary counts
+recorded activities without a completion target. On mobile it appears before tools.
+Research bars retain the same DOMS scaling; SMD and confidence intervals are under
+each tool's Research details disclosure. Pro creation uses the shared accessible
+modal, with cancellation, retained input on failure and focus restored on close.
+Saving/Saved feedback follows server confirmation. Previous history stays visible
+while a new day loads, but checkboxes are disabled until its data arrives.
+
 ## Storage and access
 
 Recovery is a separate Django app, not a numeric metric or wearable sample.

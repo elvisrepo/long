@@ -2,6 +2,73 @@
   display: grid;
   gap: var(--page-section-gap);
 }
+.recovery-add {
+  justify-self: start;
+}
+.recovery-tool-groups {
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+  align-content: start;
+}
+.recovery-tools h2 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+.recovery-section-copy {
+  color: var(--text-dim);
+  margin: 0;
+}
+.recovery-date-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.5rem;
+}
+.recovery-date-navigation .recovery-action {
+  margin: 0;
+  min-height: 2.75rem;
+}
+.recovery-date-navigation .recovery-date {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+}
+.recovery-evidence-details {
+  margin-top: 0.6rem;
+  font-size: 0.85rem;
+}
+.recovery-evidence-details summary {
+  cursor: pointer;
+  color: var(--text-dim);
+}
+.recovery-save-status {
+  min-height: 1.4em;
+}
+.recovery-history button {
+  display: grid;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 0.6rem 0.15rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+.recovery-history button[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.recovery-history button span {
+  white-space: nowrap;
+}
+.recovery-action:focus-visible,
+.recovery-history button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
 .recovery-tools {
   display: grid;
   align-content: start;
@@ -67,7 +134,8 @@
   list-style: none;
   padding: 0;
   display: grid;
-  gap: 0.75rem;
+  gap: 0.25rem;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 .recovery-history li {
   display: flex;
@@ -119,5 +187,15 @@
 @media (max-width: 760px) {
   .recovery-layout {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .recovery-sidebar {
+    display: contents;
+  }
+  .recovery-tool-groups {
+    grid-row: 2;
+  }
+  .recovery-custom-form {
+    padding: 0;
+    border: 0;
   }
 }

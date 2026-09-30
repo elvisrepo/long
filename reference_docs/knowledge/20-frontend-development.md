@@ -15,6 +15,9 @@
   checkboxes save/undo through the backend; failed saves leave their state unchanged.
 - Pro can add custom tools. Existing tools remain usable after downgrade; owners
   can archive/restore without losing history. Server permissions are authoritative.
+- Daily tracking uses compact date navigation, clickable history tiles, and a
+  target-free activity count. Custom tools have their own section; Pro creation
+  opens the shared modal. Research details expand on demand; bars are unchanged.
 - The page uses existing Dark/Light/Sand tokens and collapses to one column on
   narrow screens. Owner-scoped React Query caches are invalidated after writes
   and removed on logout. The local migration is applied; staging is untouched.
@@ -633,7 +636,7 @@ Current Settings subscription UI checkpoint:
 - `getSubscriptionPlans()` fetches the public `GET /api/v1/subscriptions/plans/` catalog.
 - `useSubscriptionPlansQuery()` caches the active plan catalog under `['subscription-plans']`.
 - Settings renders subscription information in card-style panels: current plan name with a muted renewal line (`Renews <date>`, `Cancels <date>`, or a quiet empty-state note), active custom metric limit, sync interval, and the current billing price when present (the redundant separate interval tile was removed since the price already carries `/ month`).
-- Settings renders Checkout upgrade options only for users who are not already managed through Stripe Customer Portal. When `billing_portal_available=true`, Settings hides Checkout upgrade buttons and tells the user to use **Manage subscription** for billing changes.
+- Settings keeps **Manage subscription** available when `billing_portal_available=true`, including former paid customers viewing billing history. Checkout upgrade options are hidden only when that flag is true and the current plan is not Free. Free accounts can subscribe again without losing portal access; an ongoing Stripe paid plan uses the portal rather than a second checkout.
 - The plan catalog exposes internal `SubscriptionPrice.id` values to the frontend; Stripe `provider_price_id` values remain server-side.
 - `createSubscriptionCheckout()` posts `POST /api/v1/subscriptions/checkout/` with `{ price_id: <internal SubscriptionPrice.id> }`.
 - `useCreateSubscriptionCheckoutMutation()` wraps Checkout creation in TanStack Query mutation state.

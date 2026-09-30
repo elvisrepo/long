@@ -1,4 +1,6 @@
 from unittest.mock import MagicMock, patch
+from datetime import timedelta
+from django.utils import timezone
 
 import pytest
 from django.conf import settings
@@ -230,6 +232,134 @@ def test_checkout_expiration_failure_never_creates_replacement() -> None:
         pytest.raises(RuntimeError, match="expiration not confirmed"),
     ):
         create_checkout_session(user=user, price=price)
+    sdk.v1.checkout.sessions.create.assert_not_called()
+
+
+@pytest.mark.parametrize("old_status", ["confirmed", "completed"])
+def test_missing_confirmed_checkout_allows_repurchase_after_customer_verification(
+    old_status: str,
+) -> None:
+    from apps.subscriptions.services import create_checkout_session
+
+    user, current, price = checkout_fixture()
+    attempt = CheckoutAttempt.objects.create(
+        user=user,
+        price=price,
+        expected_subscription=current,
+        status=old_status,
+        provider_checkout_session_id="cs_deleted",
+    )
+    CheckoutAttempt.objects.filter(pk=attempt.pk).update(
+        created_at=timezone.now() - timedelta(days=91)
+    )
+    BillingCustomer.objects.create(
+        user=user, provider="stripe", provider_customer_id="cus_old"
+    )
+    sdk = MagicMock()
+    sdk.v1.checkout.sessions.retrieve.side_effect = stripe.InvalidRequestError(
+        "No such checkout.session",
+        param=None,
+        code="resource_missing",
+        http_status=404,
+    )
+    sdk.v1.subscriptions.list.return_value.auto_paging_iter.return_value = iter(
+        [
+            stripe.Subscription.construct_from(
+                {"id": "sub_old", "customer": "cus_old", "status": "canceled"}, key=None
+            )
+        ]
+    )
+    sdk.v1.checkout.sessions.create.return_value = (
+        stripe.checkout.Session.construct_from(
+            {"id": "cs_new", "url": "https://checkout.stripe.com/new"},
+            key=None,
+        )
+    )
+    with patch("apps.subscriptions.services._stripe_client", return_value=sdk):
+        assert (
+            create_checkout_session(user=user, price=price)
+            == "https://checkout.stripe.com/new"
+        )
+    attempt.refresh_from_db()
+    assert attempt.status == "expired"
+    sdk.v1.subscriptions.list.assert_called_once_with(
+        {"customer": "cus_old", "status": "all", "limit": 100}
+    )
+    sdk.v1.checkout.sessions.create.assert_called_once()
+    sdk.v1.checkout.sessions.expire.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "problem",
+    [
+        "active",
+        "no_customer",
+        "recent_completed",
+        "failed",
+        "unavailable",
+        "wrong_customer",
+        "other_404",
+        "live_legacy",
+    ],
+)
+def test_missing_checkout_does_not_bypass_billing_safety(problem: str) -> None:
+    from apps.subscriptions.services import CheckoutConflict, create_checkout_session
+
+    user, current, price = checkout_fixture()
+    attempt = CheckoutAttempt.objects.create(
+        user=user,
+        price=price,
+        expected_subscription=current,
+        status="completed"
+        if problem in {"recent_completed", "live_legacy"}
+        else "failed"
+        if problem == "failed"
+        else "confirmed",
+        provider_checkout_session_id="cs_deleted",
+    )
+    if problem == "live_legacy":
+        CheckoutAttempt.objects.filter(pk=attempt.pk).update(
+            created_at=timezone.now() - timedelta(days=91)
+        )
+    if problem != "no_customer":
+        BillingCustomer.objects.create(
+            user=user, provider="stripe", provider_customer_id="cus_old"
+        )
+    sdk = MagicMock()
+    sdk.v1.checkout.sessions.retrieve.side_effect = stripe.InvalidRequestError(
+        "Missing",
+        param=None,
+        code="resource_missing" if problem != "other_404" else "different_error",
+        http_status=404,
+    )
+    sdk.v1.subscriptions.list.return_value.auto_paging_iter.return_value = iter(
+        [
+            stripe.Subscription.construct_from(
+                {
+                    "id": "sub_old",
+                    "customer": "cus_other"
+                    if problem == "wrong_customer"
+                    else "cus_old",
+                    "status": "active" if problem == "active" else "canceled",
+                },
+                key=None,
+            )
+        ]
+    )
+    if problem == "unavailable":
+        sdk.v1.subscriptions.list.side_effect = stripe.APIConnectionError("Unavailable")
+    with (
+        override_settings(
+            STRIPE_SECRET_KEY="sk_live_fake"
+            if problem == "live_legacy"
+            else "sk_test_fake"
+        ),
+        patch("apps.subscriptions.services._stripe_client", return_value=sdk),
+    ):
+        with pytest.raises((CheckoutConflict, stripe.StripeError, RuntimeError)):
+            create_checkout_session(user=user, price=price)
+    attempt.refresh_from_db()
+    assert attempt.status != "expired"
     sdk.v1.checkout.sessions.create.assert_not_called()
 
 

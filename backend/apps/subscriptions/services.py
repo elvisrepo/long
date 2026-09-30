@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 import logging
 from typing import Any
 from uuid import UUID
@@ -366,6 +366,8 @@ def _check_existing_checkouts(
     """Reconcile receipts under the user lock before allowing another purchase."""
     reusable: stripe.checkout.Session | None = None
     open_sessions: list[stripe.checkout.Session] = []
+    missing_historical_attempts: list[CheckoutAttempt] = []
+    customer = BillingCustomer.objects.filter(user=user, provider="stripe").first()
     for attempt in (
         CheckoutAttempt.objects.filter(user=user)
         .exclude(status="expired")
@@ -375,9 +377,29 @@ def _check_existing_checkouts(
             raise CheckoutConflict(
                 "An earlier checkout needs billing verification. Please do not pay again."
             )
-        session = client.v1.checkout.sessions.retrieve(
-            attempt.provider_checkout_session_id
-        )
+        try:
+            session = client.v1.checkout.sessions.retrieve(
+                attempt.provider_checkout_session_id
+            )
+        except stripe.InvalidRequestError as exc:
+            if exc.http_status != 404 or exc.code != "resource_missing":
+                raise
+            # Sandbox retention may delete old receipts. Only confirmed history
+            # or legacy sandbox receipts older than its retention window can be
+            # reconciled via the saved customer's subscription list below.
+            legacy_receipt = (
+                attempt.status == CheckoutAttempt.Status.COMPLETED
+                and settings.STRIPE_SECRET_KEY.startswith(("sk_test_", "rk_test_"))
+                and attempt.created_at <= timezone.now() - timedelta(days=90)
+            )
+            if customer is None or (
+                attempt.status != CheckoutAttempt.Status.CONFIRMED and not legacy_receipt
+            ):
+                raise CheckoutConflict(
+                    "An earlier checkout needs billing verification. Please do not pay again."
+                ) from exc
+            missing_historical_attempts.append(attempt)
+            continue
         if (
             session.id != attempt.provider_checkout_session_id
             or session.client_reference_id != str(user.pk)
@@ -410,7 +432,6 @@ def _check_existing_checkouts(
             attempt.save(update_fields=["status", "updated_at"])
         else:
             raise RuntimeError("Unknown checkout status")
-    customer = BillingCustomer.objects.filter(user=user, provider="stripe").first()
     if customer is not None:
         for subscription in client.v1.subscriptions.list(
             {"customer": customer.provider_customer_id, "status": "all", "limit": 100}
@@ -430,6 +451,10 @@ def _check_existing_checkouts(
         CheckoutAttempt.objects.filter(
             user=user, provider_checkout_session_id=session.id
         ).update(status=CheckoutAttempt.Status.EXPIRED, updated_at=timezone.now())
+    # Retire missing history only after all provider verification succeeded.
+    for attempt in missing_historical_attempts:
+        attempt.status = CheckoutAttempt.Status.EXPIRED
+        attempt.save(update_fields=["status", "updated_at"])
     return reusable.url if reusable is not None else None
 
 

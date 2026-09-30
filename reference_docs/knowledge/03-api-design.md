@@ -440,6 +440,11 @@ Checkout behavior:
   `409` and needs billing verification: an ambiguous provider failure is not proof
   that no checkout was created. Provider reads, ownership checks, and expiration
   failures return generic `502` without creating another session.
+- A missing historical session (`404 resource_missing`) can be retired only with
+  a saved Stripe customer and a confirmed receipt, or a completed sandbox receipt
+  at least 90 days old. All other attempts and the customer's paginated subscription
+  history must pass verification first. Missing recent/unresolved receipts or a
+  missing customer return `409`; other provider errors still return `502`.
 - After these checks, the service creates a local `CheckoutAttempt` before
   requesting a new Stripe session. Cancelled/incomplete-expired subscriptions
   permit a new purchase; no subscriptions are cancelled by this checkout guard.

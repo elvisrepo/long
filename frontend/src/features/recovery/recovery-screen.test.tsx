@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -102,7 +108,7 @@ describe("Recovery", () => {
     const checkbox = await screen.findByRole("checkbox", { name: "Massage" });
     await user.click(checkbox);
     await waitFor(() => expect(checkbox).toBeChecked());
-    expect(screen.getByText(/1 of 1 tools checked off/)).toBeInTheDocument();
+    expect(screen.getByText(/1 activity recorded/)).toBeInTheDocument();
     await user.click(checkbox);
     await waitFor(() => expect(checkbox).not.toBeChecked());
     expect(setRecoveryCheckoff).toHaveBeenLastCalledWith(
@@ -135,6 +141,11 @@ describe("Recovery", () => {
       return { ...custom, is_active: false };
     });
     renderRecovery();
+    await screen.findByRole("button", { name: "Add custom tool" });
+    expect(
+      screen.queryByRole("textbox", { name: "Tool name" }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Add custom tool" }));
     await user.type(
       await screen.findByRole("textbox", { name: "Tool name" }),
       "Sauna",
@@ -144,6 +155,12 @@ describe("Recovery", () => {
       await screen.findByRole("checkbox", { name: "Sauna" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Not research-rated")).toBeInTheDocument();
+    expect(
+      within(
+        screen.getByRole("region", { name: "Your custom tools" }),
+      ).getByRole("checkbox", { name: "Sauna" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(createRecoveryTool).toHaveBeenCalledWith("Sauna");
     await user.click(screen.getByRole("button", { name: "Archive Sauna" }));
     expect(
@@ -184,6 +201,25 @@ describe("Recovery", () => {
     ).toBeInTheDocument();
   });
 
+  it("moves between days, selects history, and returns to today", async () => {
+    const user = userEvent.setup();
+    renderRecovery();
+    await screen.findByRole("checkbox", { name: "Massage" });
+    const input = screen.getByLabelText("Tracking date");
+    const today = (input as HTMLInputElement).value;
+    fireEvent.change(input, { target: { value: "2026-09-20" } });
+    await user.click(
+      await screen.findByRole("button", { name: "Previous day" }),
+    );
+    await waitFor(() => expect(input).toHaveValue("2026-09-19"));
+    await user.click(screen.getByRole("button", { name: "Next day" }));
+    await waitFor(() => expect(input).toHaveValue("2026-09-20"));
+    await user.click(screen.getByRole("button", { name: /2026-09-18:/ }));
+    await waitFor(() => expect(input).toHaveValue("2026-09-18"));
+    await user.click(screen.getByRole("button", { name: "Today" }));
+    await waitFor(() => expect(input).toHaveValue(today));
+  });
+
   it("preserves the name when custom creation is refused", async () => {
     vi.mocked(getRecoveryTools).mockResolvedValue({
       tools: [massage],
@@ -193,6 +229,9 @@ describe("Recovery", () => {
       new Error("Pro is required to add custom recovery tools."),
     );
     renderRecovery();
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Add custom tool" }),
+    );
     const input = await screen.findByRole("textbox", { name: "Tool name" });
     await userEvent.type(input, "Sauna");
     await userEvent.click(screen.getByRole("button", { name: "Add tool" }));
@@ -208,5 +247,30 @@ describe("Recovery", () => {
     expect(
       await screen.findByText("Recovery failed to load. Please try again."),
     ).toBeInTheDocument();
+  });
+
+  it("keeps evidence expandable and lets Pro cancel without creating a tool", async () => {
+    vi.mocked(getRecoveryTools).mockResolvedValue({
+      tools: [massage],
+      can_create_custom: true,
+    });
+    const user = userEvent.setup();
+    renderRecovery();
+    await screen.findByRole("checkbox", { name: "Massage" });
+    const details = screen.getByText("Research details").closest("details");
+    expect(details).not.toHaveAttribute("open");
+    await user.click(screen.getByText("Research details"));
+    expect(details).toHaveAttribute("open");
+    await user.click(screen.getByRole("button", { name: "Add custom tool" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "Tool name" }),
+      "Sauna",
+    );
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(createRecoveryTool).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Add custom tool" }),
+    ).toHaveFocus();
   });
 });

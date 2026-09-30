@@ -76,8 +76,10 @@ function SettingsRoute() {
     subscriptionPlansQuery.data?.filter(
       (plan) => !plan.is_default && plan.prices.length > 0,
     ) ?? [];
-  const usesStripePortal =
-    currentSubscriptionQuery.data?.billing_portal_available === true;
+  // A retained Stripe customer grants billing-history access, not a paid plan.
+  const managesPaidPlanInPortal =
+    currentSubscriptionQuery.data?.billing_portal_available === true &&
+    currentSubscriptionQuery.data.plan.code !== "free";
 
   async function handleCheckout(priceId: string) {
     try {
@@ -129,7 +131,8 @@ function SettingsRoute() {
               ? "Payment confirmation is taking longer than expected. Please do not pay again. Check again shortly; if your plan stays Free, contact support."
               : "Checkout completed. Your plan will update after payment confirmation. Checking automatically; please do not pay again."}
           {confirmationExpired && !paidConfirmed ? (
-            <>{" "}
+            <>
+              {" "}
               <button
                 type="button"
                 disabled={currentSubscriptionQuery.isFetching}
@@ -283,12 +286,12 @@ function SettingsRoute() {
             Available plans failed to load.
           </p>
         ) : null}
-        {usesStripePortal ? (
+        {managesPaidPlanInPortal ? (
           <p className="subscription-help-text">
             Use Manage subscription to change billing details.
           </p>
         ) : null}
-        {usesStripePortal
+        {managesPaidPlanInPortal
           ? null
           : paidPlans.map((plan) => (
               <article className="subscription-plan-card" key={plan.code}>

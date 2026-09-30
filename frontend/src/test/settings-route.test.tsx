@@ -4,7 +4,13 @@ import {
   downloadAccountData,
 } from "../features/auth/account-api";
 import { useMetricDefinitionsQuery } from "../features/metrics/use-metric-definitions-query";
-import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -558,103 +564,120 @@ describe("settings route", () => {
     ).toBeInTheDocument();
   });
 
-  it("hides checkout upgrades for Stripe-managed subscriptions", async () => {
-    getMeMock.mockResolvedValue({
-      email: "user@example.com",
-    });
-    getCurrentSubscriptionMock.mockResolvedValue(proSubscription());
-    getSubscriptionPlansMock.mockResolvedValue([
-      {
-        code: "pro",
-        name: "Pro",
-        active_custom_metric_limit: 10,
-        wearable_connection_limit: 2,
-        automatic_sync_enabled: true,
-        sync_interval_minutes: 15,
-        analytics_enabled: true,
-        csv_import_enabled: true,
-        csv_export_enabled: true,
-        is_default: false,
-        prices: [
-          {
-            id: "monthly-price-id",
-            currency: "usd",
-            unit_amount: 1000,
-            billing_interval: "month",
-          },
-          {
-            id: "yearly-price-id",
-            currency: "usd",
-            unit_amount: 10000,
-            billing_interval: "year",
-          },
-        ],
-      },
-    ]);
+  it.each(["active", "trialing", "past_due", "incomplete"])(
+    "hides checkout upgrades for %s Stripe-managed subscriptions",
+    async (status) => {
+      getMeMock.mockResolvedValue({
+        email: "user@example.com",
+      });
+      getCurrentSubscriptionMock.mockResolvedValue({
+        ...proSubscription(),
+        status,
+      });
+      getSubscriptionPlansMock.mockResolvedValue([
+        {
+          code: "pro",
+          name: "Pro",
+          active_custom_metric_limit: 10,
+          wearable_connection_limit: 2,
+          automatic_sync_enabled: true,
+          sync_interval_minutes: 15,
+          analytics_enabled: true,
+          csv_import_enabled: true,
+          csv_export_enabled: true,
+          is_default: false,
+          prices: [
+            {
+              id: "monthly-price-id",
+              currency: "usd",
+              unit_amount: 1000,
+              billing_interval: "month",
+            },
+            {
+              id: "yearly-price-id",
+              currency: "usd",
+              unit_amount: 10000,
+              billing_interval: "year",
+            },
+          ],
+        },
+      ]);
 
-    renderRoute("/settings");
+      renderRoute("/settings");
 
-    expect(
-      await screen.findByText(
-        /use manage subscription to change billing details/i,
-      ),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /upgrade to pro monthly/i }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /upgrade to pro yearly/i }),
-    ).not.toBeInTheDocument();
-  });
+      expect(
+        await screen.findByText(
+          /use manage subscription to change billing details/i,
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /upgrade to pro monthly/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /upgrade to pro yearly/i }),
+      ).not.toBeInTheDocument();
+    },
+  );
 
-  it("starts checkout for a selected paid price and redirects to Stripe", async () => {
-    const user = userEvent.setup();
+  it.each([false, true])(
+    "starts checkout for Free accounts with billing history=%s",
+    async (hasBillingHistory) => {
+      const user = userEvent.setup();
 
-    getMeMock.mockResolvedValue({
-      email: "user@example.com",
-    });
-    getCurrentSubscriptionMock.mockResolvedValue(freeSubscription());
-    getSubscriptionPlansMock.mockResolvedValue([
-      {
-        code: "pro",
-        name: "Pro",
-        active_custom_metric_limit: 10,
-        wearable_connection_limit: 2,
-        automatic_sync_enabled: true,
-        sync_interval_minutes: 15,
-        analytics_enabled: true,
-        csv_import_enabled: true,
-        csv_export_enabled: true,
-        is_default: false,
-        prices: [
-          {
-            id: "monthly-price-id",
-            currency: "usd",
-            unit_amount: 1000,
-            billing_interval: "month",
-          },
-        ],
-      },
-    ]);
-    createSubscriptionCheckoutMock.mockResolvedValue({
-      url: "https://checkout.stripe.com/c/test-session",
-    });
+      getMeMock.mockResolvedValue({
+        email: "user@example.com",
+      });
+      getCurrentSubscriptionMock.mockResolvedValue({
+        ...freeSubscription(),
+        billing_portal_available: hasBillingHistory,
+      });
+      getSubscriptionPlansMock.mockResolvedValue([
+        {
+          code: "pro",
+          name: "Pro",
+          active_custom_metric_limit: 10,
+          wearable_connection_limit: 2,
+          automatic_sync_enabled: true,
+          sync_interval_minutes: 15,
+          analytics_enabled: true,
+          csv_import_enabled: true,
+          csv_export_enabled: true,
+          is_default: false,
+          prices: [
+            {
+              id: "monthly-price-id",
+              currency: "usd",
+              unit_amount: 1000,
+              billing_interval: "month",
+            },
+          ],
+        },
+      ]);
+      createSubscriptionCheckoutMock.mockResolvedValue({
+        url: "https://checkout.stripe.com/c/test-session",
+      });
 
-    renderRoute("/settings");
+      renderRoute("/settings");
 
-    await user.click(
-      await screen.findByRole("button", {
-        name: /upgrade to pro monthly/i,
-      }),
-    );
+      await user.click(
+        await screen.findByRole("button", {
+          name: /upgrade to pro monthly/i,
+        }),
+      );
 
-    expect(createSubscriptionCheckoutMock).toHaveBeenCalledWith({
-      priceId: "monthly-price-id",
-    });
-    expect(redirectToCheckoutMock).toHaveBeenCalledWith(
-      "https://checkout.stripe.com/c/test-session",
-    );
-  });
+      expect(createSubscriptionCheckoutMock).toHaveBeenCalledWith({
+        priceId: "monthly-price-id",
+      });
+      expect(redirectToCheckoutMock).toHaveBeenCalledWith(
+        "https://checkout.stripe.com/c/test-session",
+      );
+      if (hasBillingHistory) {
+        expect(
+          screen.getByRole("button", { name: "Manage subscription" }),
+        ).toBeInTheDocument();
+      }
+    },
+  );
 
   it("opens the Stripe Customer Portal", async () => {
     const user = userEvent.setup();
@@ -764,22 +787,36 @@ describe("settings route", () => {
 
     renderRoute("/settings?checkout=success");
     expect(await screen.findByText("Pro is active.")).toBeInTheDocument();
-    expect(screen.queryByText(/your plan will update/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/your plan will update/i),
+    ).not.toBeInTheDocument();
   });
 
   it("polls for confirmation and stops when Pro becomes active", async () => {
     vi.useFakeTimers();
     getMeMock.mockResolvedValue({ email: "user@example.com" });
-    getCurrentSubscriptionMock.mockResolvedValueOnce(freeSubscription()).mockResolvedValue(proSubscription());
+    getCurrentSubscriptionMock
+      .mockResolvedValueOnce(freeSubscription())
+      .mockResolvedValue(proSubscription());
     getSubscriptionPlansMock.mockResolvedValue([]);
     renderRoute("/settings?checkout=success");
-    await vi.waitFor(() => expect(screen.getByText(/checking automatically/i)).toBeInTheDocument());
-    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
-    await vi.waitFor(() => expect(screen.getByText("Pro is active.")).toBeInTheDocument());
+    await vi.waitFor(() =>
+      expect(screen.getByText(/checking automatically/i)).toBeInTheDocument(),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await vi.waitFor(() =>
+      expect(screen.getByText("Pro is active.")).toBeInTheDocument(),
+    );
     const calls = getCurrentSubscriptionMock.mock.calls.length;
-    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
     expect(getCurrentSubscriptionMock).toHaveBeenCalledTimes(calls);
-    expect(screen.queryByRole("button", { name: "Check again" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Check again" }),
+    ).not.toBeInTheDocument();
     expect(createSubscriptionCheckoutMock).not.toHaveBeenCalled();
   });
 
@@ -787,34 +824,74 @@ describe("settings route", () => {
     vi.useFakeTimers();
     getMeMock.mockResolvedValue({ email: "user@example.com" });
     getCurrentSubscriptionMock.mockResolvedValue(freeSubscription());
-    getSubscriptionPlansMock.mockResolvedValue([{ ...proSubscription().plan, is_default: false, prices: [{ id: "monthly-price", currency: "usd", unit_amount: 1000, billing_interval: "month" }] }]);
+    getSubscriptionPlansMock.mockResolvedValue([
+      {
+        ...proSubscription().plan,
+        is_default: false,
+        prices: [
+          {
+            id: "monthly-price",
+            currency: "usd",
+            unit_amount: 1000,
+            billing_interval: "month",
+          },
+        ],
+      },
+    ]);
     renderRoute("/settings?checkout=success");
-    await vi.waitFor(() => expect(screen.getByText(/checking automatically/i)).toBeInTheDocument());
-    expect(screen.getByRole("button", { name: /Upgrade to Pro monthly/i })).toBeDisabled();
-    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
-    await vi.waitFor(() => expect(screen.getByText(/taking longer than expected/i)).toBeInTheDocument());
+    await vi.waitFor(() =>
+      expect(screen.getByText(/checking automatically/i)).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByRole("button", { name: /Upgrade to Pro monthly/i }),
+    ).toBeDisabled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    await vi.waitFor(() =>
+      expect(
+        screen.getByText(/taking longer than expected/i),
+      ).toBeInTheDocument(),
+    );
     const calls = getCurrentSubscriptionMock.mock.calls.length;
-    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
     expect(getCurrentSubscriptionMock).toHaveBeenCalledTimes(calls);
-    expect(screen.getByRole("button", { name: /Upgrade to Pro monthly/i })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /Upgrade to Pro monthly/i }),
+    ).toBeDisabled();
     getCurrentSubscriptionMock.mockResolvedValue(proSubscription());
     fireEvent.click(screen.getByRole("button", { name: "Check again" }));
-    await vi.waitFor(() => expect(screen.getByText("Pro is active.")).toBeInTheDocument());
+    await vi.waitFor(() =>
+      expect(screen.getByText("Pro is active.")).toBeInTheDocument(),
+    );
     expect(createSubscriptionCheckoutMock).not.toHaveBeenCalled();
   });
 
-  it.each(["/settings", "/settings?checkout=cancelled"])("does not poll on %s", async (path) => {
-    vi.useFakeTimers();
-    getMeMock.mockResolvedValue({ email: "user@example.com" });
-    getCurrentSubscriptionMock.mockResolvedValue(freeSubscription());
-    getSubscriptionPlansMock.mockResolvedValue([]);
-    renderRoute(path);
-    await vi.waitFor(() => expect(screen.getByRole("heading", { name: "Free" })).toBeInTheDocument());
-    const calls = getCurrentSubscriptionMock.mock.calls.length;
-    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
-    expect(getCurrentSubscriptionMock).toHaveBeenCalledTimes(calls);
-    expect(screen.queryByRole("button", { name: "Check again" })).not.toBeInTheDocument();
-  });
+  it.each(["/settings", "/settings?checkout=cancelled"])(
+    "does not poll on %s",
+    async (path) => {
+      vi.useFakeTimers();
+      getMeMock.mockResolvedValue({ email: "user@example.com" });
+      getCurrentSubscriptionMock.mockResolvedValue(freeSubscription());
+      getSubscriptionPlansMock.mockResolvedValue([]);
+      renderRoute(path);
+      await vi.waitFor(() =>
+        expect(
+          screen.getByRole("heading", { name: "Free" }),
+        ).toBeInTheDocument(),
+      );
+      const calls = getCurrentSubscriptionMock.mock.calls.length;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000);
+      });
+      expect(getCurrentSubscriptionMock).toHaveBeenCalledTimes(calls);
+      expect(
+        screen.queryByRole("button", { name: "Check again" }),
+      ).not.toBeInTheDocument();
+    },
+  );
 
   it("shows an informational message after returning from cancelled checkout", async () => {
     getMeMock.mockResolvedValue({
