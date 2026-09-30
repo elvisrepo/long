@@ -22,6 +22,7 @@ from apps.subscriptions.serializers import (
 )
 from apps.subscriptions.services import (
     CURRENT_SUBSCRIPTION_STATUSES,
+    CheckoutConflict,
     create_checkout_session,
     create_customer_portal_session,
     process_stripe_webhook_event,
@@ -84,6 +85,8 @@ class SubscriptionCheckoutView(APIView):
                 user=request.user,
                 price=serializer.validated_data["price"],
             )
+        except CheckoutConflict as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
         except Exception:
             logger.exception("Stripe checkout session creation failed")
             return Response(

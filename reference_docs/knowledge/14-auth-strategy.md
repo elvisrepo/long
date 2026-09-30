@@ -416,6 +416,11 @@ Deferred user-backend scope:
 - multiple historical Stripe customers can be proven by saved, user-owned
   checkouts; cleanup includes them without changing the current billing mapping.
   Cross-account customer mappings and checkout/subscription mismatches fail closed
+- checkout creation reuses a matching open session under the user lock, expires
+  other open links before replacement, and blocks repeat payment after a completed
+  purchase or while a paid subscription exists. Missing provider receipts require
+  billing verification rather than risking another charge; webhooks still grant
+  entitlements, not the checkout redirect
 - Stripe mutations can already have succeeded when another cleanup step fails;
   retries inspect current remote state. Checkout creation and delayed webhook
   updates coordinate with deletion through the user-row lock

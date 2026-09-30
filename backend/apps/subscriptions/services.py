@@ -50,6 +50,10 @@ class UnresolvedCheckoutError(RuntimeError):
     """A provider request may have succeeded without a saved session receipt."""
 
 
+class CheckoutConflict(RuntimeError):
+    """Another checkout or paid subscription prevents a new purchase."""
+
+
 def cancel_account_billing(*, user: AbstractBaseUser) -> None:
     """Close checkout links and confirm cancellation before account erasure.
 
@@ -268,6 +272,18 @@ def _create_checkout_session(
         user=user,
         status__in=CURRENT_SUBSCRIPTION_STATUSES,
     )
+    if (
+        not current_subscription.plan.is_default
+        or current_subscription.provider == "stripe"
+    ):
+        raise CheckoutConflict(
+            "You already have a paid subscription. Manage it through billing settings."
+        )
+    reusable_url = _check_existing_checkouts(
+        client=client, user=user, price=price, current=current_subscription
+    )
+    if reusable_url is not None:
+        return reusable_url
     attempt = CheckoutAttempt.objects.create(
         user=user,
         price=price,
@@ -338,6 +354,83 @@ def _create_checkout_session(
     )
 
     return session.url
+
+
+def _check_existing_checkouts(
+    *,
+    client: StripeClient,
+    user: AbstractBaseUser,
+    price: SubscriptionPrice,
+    current: Subscription,
+) -> str | None:
+    """Reconcile receipts under the user lock before allowing another purchase."""
+    reusable: stripe.checkout.Session | None = None
+    open_sessions: list[stripe.checkout.Session] = []
+    for attempt in (
+        CheckoutAttempt.objects.filter(user=user)
+        .exclude(status="expired")
+        .order_by("created_at")
+    ):
+        if not attempt.provider_checkout_session_id:
+            raise CheckoutConflict(
+                "An earlier checkout needs billing verification. Please do not pay again."
+            )
+        session = client.v1.checkout.sessions.retrieve(
+            attempt.provider_checkout_session_id
+        )
+        if (
+            session.id != attempt.provider_checkout_session_id
+            or session.client_reference_id != str(user.pk)
+        ):
+            raise RuntimeError("Checkout ownership mismatch")
+        if session.status == "complete":
+            if not isinstance(session.subscription, str) or not session.subscription:
+                raise RuntimeError("Completed checkout has no subscription")
+            subscription = client.v1.subscriptions.retrieve(session.subscription)
+            if (
+                subscription.id != session.subscription
+                or subscription.customer != session.customer
+            ):
+                raise RuntimeError("Checkout subscription ownership mismatch")
+            if subscription.status not in {"canceled", "incomplete_expired"}:
+                raise CheckoutConflict(
+                    "A payment is already awaiting confirmation or a subscription exists. Please do not pay again."
+                )
+        elif session.status == "open":
+            open_sessions.append(session)
+            if (
+                reusable is None
+                and attempt.price_id == price.pk
+                and attempt.expected_subscription_id == current.pk
+                and session.url
+            ):
+                reusable = session
+        elif session.status == "expired":
+            attempt.status = CheckoutAttempt.Status.EXPIRED
+            attempt.save(update_fields=["status", "updated_at"])
+        else:
+            raise RuntimeError("Unknown checkout status")
+    customer = BillingCustomer.objects.filter(user=user, provider="stripe").first()
+    if customer is not None:
+        for subscription in client.v1.subscriptions.list(
+            {"customer": customer.provider_customer_id, "status": "all", "limit": 100}
+        ).auto_paging_iter():
+            if subscription.customer != customer.provider_customer_id:
+                raise RuntimeError("Subscription customer mismatch")
+            if subscription.status not in {"canceled", "incomplete_expired"}:
+                raise CheckoutConflict(
+                    "A Stripe subscription already exists. Manage it through billing settings."
+                )
+    for session in open_sessions:
+        if reusable is not None and session.id == reusable.id:
+            continue
+        expired = client.v1.checkout.sessions.expire(session.id)
+        if expired.id != session.id or expired.status != "expired":
+            raise RuntimeError("Checkout expiration not confirmed")
+        CheckoutAttempt.objects.filter(
+            user=user, provider_checkout_session_id=session.id
+        ).update(status=CheckoutAttempt.Status.EXPIRED, updated_at=timezone.now())
+    return reusable.url if reusable is not None else None
 
 
 def create_customer_portal_session(

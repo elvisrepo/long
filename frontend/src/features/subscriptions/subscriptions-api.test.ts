@@ -168,6 +168,19 @@ describe("createSubscriptionCheckout", () => {
       }),
     ).rejects.toThrow("You are already subscribed to this price.");
   });
+
+  it("shows a duplicate-payment conflict without starting another checkout", async () => {
+    setAccessToken("access-token");
+    const message = "A payment is already awaiting confirmation. Please do not pay again.";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => ({ detail: message }),
+    } as Response);
+
+    await expect(createSubscriptionCheckout({ priceId: "price-id" })).rejects.toThrow(message);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("createSubscriptionPortal", () => {

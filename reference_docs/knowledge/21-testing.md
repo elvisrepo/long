@@ -589,6 +589,12 @@ Current Stripe testing boundary:
 - See `reference_docs/knowledge/38-stripe-testing-and-load-testing.md` for the complete policy and official Stripe references.
 
 Current Stripe Checkout testing checkpoint:
+- Duplicate-purchase regression tests cover open-session reuse, completed but
+  unconfirmed payments, existing paid plans/remote subscriptions, missing receipts,
+  expired-session replacement, price switching, unconfirmed expiration, ownership
+  failures, and repurchase after cancellation. All provider calls are mocked.
+- `test_checkout_concurrency.py` uses separate PostgreSQL connections to prove
+  simultaneous requests serialize and return one provider session with one receipt.
 - `tests/test_subscription_checkout.py` proves Checkout requires authentication and rejects missing, inactive, default-plan, duplicate-current-price, active-Stripe-subscription plan changes, and no-current-subscription inputs.
 - The same suite proves successful Checkout calls the service and returns only the hosted Stripe URL.
 - Service-level Checkout tests mock `StripeClient`, assert subscription mode, server-owned Stripe price IDs, metadata, and `CheckoutAttempt.id` as the Stripe idempotency key.

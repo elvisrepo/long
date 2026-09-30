@@ -407,7 +407,22 @@ Checkout behavior:
 - The authenticated user must already have one current subscription row. Registration creates a Free current subscription, so a missing current subscription is treated as inconsistent local state and returns `400`.
 - Checkout rejects the exact current subscription price so repeated checkout for the same active price does not create a new Stripe session.
 - If the current subscription already has a Stripe provider subscription ID, Checkout rejects selecting a different price with `400`. Paid plan changes remain unsupported until Customer Portal price-change reconciliation is implemented, preventing a second concurrently billed Stripe subscription or provider/local state drift.
-- The service creates a local `CheckoutAttempt` before calling Stripe.
+- Under the user-row lock, the service reconciles saved checkout receipts before
+  allowing a new purchase. It reuses an open session for the same price/current
+  subscription (`201` with its existing URL), and confirms expiration of other
+  open links before creating a replacement for a different price.
+- A completed session with a nonterminal Stripe subscription, an existing paid
+  local plan, or any nonterminal subscription found across the known customer's
+  paginated Stripe history blocks another purchase. New service conflicts return
+  `409 {"detail": "..."}` instructing the user not to pay again or to manage billing.
+  Existing serializer-level `400` validation remains unchanged.
+- A previous pending/failed attempt without a saved provider receipt also returns
+  `409` and needs billing verification: an ambiguous provider failure is not proof
+  that no checkout was created. Provider reads, ownership checks, and expiration
+  failures return generic `502` without creating another session.
+- After these checks, the service creates a local `CheckoutAttempt` before
+  requesting a new Stripe session. Cancelled/incomplete-expired subscriptions
+  permit a new purchase; no subscriptions are cancelled by this checkout guard.
 - `CheckoutAttempt.expected_subscription` stores the user's current subscription at checkout creation time; this is the subscription state the later Stripe webhook is allowed to replace.
 - `CheckoutAttempt.id` is used as the Stripe idempotency key, so retries of the same local attempt use the same provider retry identity.
 - Stripe Checkout receives the server-owned `SubscriptionPrice.provider_price_id` in `line_items`; clients cannot submit provider price IDs or amounts.
@@ -416,7 +431,9 @@ Checkout behavior:
 - The Stripe metadata includes `user_id`, `checkout_attempt_id`, `subscription_price_id`, and `subscription_plan_id` for later webhook reconciliation.
 - If Stripe creates the Checkout Session, the attempt is marked `completed` and stores `provider_checkout_session_id`; this means only that the provider session exists.
 - If Stripe creation fails, the attempt is marked `failed`, the view logs the exception, and the API returns `502` with a generic public error.
-- Successful response shape is `201 {"url": "https://checkout.stripe.com/..."}`.
+- Successful response shape is `201 {"url": "https://checkout.stripe.com/..."}`,
+  including a safely reused session. Concurrent clicks share the same user lock
+  and receipt, so a second request cannot create a parallel checkout.
 - Checkout creation does **not** grant paid entitlements. Entitlements change only after a trusted Stripe webhook confirms payment/subscription state.
 
 Customer Portal behavior:
