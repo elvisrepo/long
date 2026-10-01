@@ -1,0 +1,153 @@
+# Workout tracking — decisions and implementation plan (2026-10-01)
+
+## Use When
+
+Read before implementing Workouts: product scope, FitNotes references, starter
+catalog ownership, session/set semantics, history preservation, and phased delivery.
+
+## Status and agreed product direction
+
+This is a planning record, not an implemented API or migration. No workout
+endpoint paths or schema contracts are finalized here.
+
+- Add an authenticated Workouts tab, using Longevity's existing visual system.
+- Every account gets the complete basic workout log. Advanced Pro analysis is a
+  possible future addition, not a committed entitlement or current restriction.
+- Include a small editable sample catalog of categories and exercises, unlike
+  Diet's empty catalog. Samples are starting points, not prescribed training.
+- Workouts record sessions and individual sets, not daily checklist check-offs.
+  Support multiple sessions on one calendar date.
+- Cover strength, bodyweight and cardio: relevant combinations of weight, reps,
+  distance and duration. Do not force irrelevant fields into every exercise.
+- Existing Metrics remains the home for bodyweight and other body measurements;
+  do not add a duplicate Body Tracker or store workout sets as MetricEntry rows.
+
+## Reference review
+
+All ten pages below were read, including their embedded screenshots. Adopt useful
+interaction concepts, not FitNotes branding, images, native Android chrome or
+Supporter-tier restrictions.
+
+| Reference | Relevant concepts |
+| --- | --- |
+| [Quick Start](https://www.fitnotesapp.com/quick_start/) | Start session, choose exercise, enter sets, review workout. |
+| [Home Screen](https://www.fitnotesapp.com/home_screen/) | Date navigation, compact exercise/set cards, workout notes, copying and ordering. |
+| [Workout Tracking](https://www.fitnotesapp.com/workout_tracking/) | Fast entry, set editing/comments, completion, exercise notes, supersets. |
+| [Exercises](https://www.fitnotesapp.com/exercises/) | Editable samples, categories, search, exercise types and unit preferences. |
+| [Progress Tracking](https://www.fitnotesapp.com/progress_tracking/) | Exercise history, charts, records and goals; observed records versus estimates. |
+| [Routines](https://www.fitnotesapp.com/routines/) | Reusable plans, named routine days, ordered exercises and planned sets. |
+| [Calendar](https://www.fitnotesapp.com/calendar/) | Month/list history with drill-down to workouts; richer filters later. |
+| [Body Tracker](https://www.fitnotesapp.com/body_tracker/) | Measurement history/graphs overlap with existing Metrics. |
+| [Settings](https://www.fitnotesapp.com/settings/) | Units, increments, completion preferences, exports and preservation of data. |
+| [Workout Tools](https://www.fitnotesapp.com/workout_tools/) | Rest timer, estimated 1RM, percentage-based sets and equipment-aware plates. |
+
+## Data and behavior safeguards
+
+- Seed independent owner-editable catalog rows once per user, including existing
+  accounts. Seeding must be transactional/idempotent, and not recreate samples
+  the user has deliberately archived. Exact seeding mechanism is an implementation
+  choice to resolve and test in the first slice.
+- Derive ownership from authentication. Scope every catalog, session, exercise
+  occurrence and set lookup to that owner; reject cross-owner nested references.
+- Distinguish planned sets from performed/completed sets. Normal logging records
+  completed work; copying or planning produces uncompleted sets. Only completed
+  sets contribute to activity summaries, volume or personal records.
+- Missing quantities are unknown, not fabricated zero values. Bodyweight work
+  may omit external load; explicitly entered zero load is not the same as missing.
+- A copied workout is an independent instance. Routine edits must never rewrite
+  past sessions. Changing catalog defaults must not reinterpret historical units
+  or field types. Resolve which labels/settings are snapshotted in the model slice.
+- Archive categories/exercises rather than cascading away historical training.
+  Unit conversions must preserve physical quantities; never silently relabel
+  numeric values or erase old fields when changing an exercise type.
+- Record separate rows for repeated sets so each can have its own values,
+  completion state and comment. Keep explicit exercise and set ordering.
+- Use local-calendar dates consistently with Diet/Recovery. A seven-day dashboard
+  window ends today, independent of the selected workout date.
+- Keep training summaries descriptive, not longevity, health or recovery scores.
+  Clearly distinguish estimated 1RM from an observed lift; do not treat planned
+  sets as records or promise estimates as lifting prescriptions.
+- Include owner-scoped workout data and archives in full account export/deletion.
+
+## Proposed first-version entities
+
+These responsibilities are provisional; constraints and exact fields are to be
+finalized against existing repository conventions before migrations are written.
+
+- `ExerciseCategory`: owner, name, order, archive state.
+- `Exercise`: category, name, tracking type, notes and applicable entry defaults.
+  Ownership follows the category; category changes must remain within one owner.
+- `Workout`: owner, calendar date, optional name/notes and session state.
+- `WorkoutExercise`: workout, exercise reference, order and historical settings
+  needed to prevent later catalog edits from reinterpreting recorded sets.
+- `WorkoutSet`: workout exercise, order, applicable quantities/units, comment
+  and planned/completed state.
+
+Foreign keys alone do not establish that all nested references belong to the
+same user. Enforce that invariant in validated owner-scoped mutation logic and
+test it explicitly. Avoid speculative routine/group/calculator tables in the
+basic logging migration; introduce them with their corresponding behavior.
+
+## Phased implementation plan
+
+### 1. Models, starter catalog and ownership
+
+Finalize field types, unit semantics, snapshots and completion validation. Write
+failing model/API ownership tests, then migrations and idempotent starter seeding.
+Verify existing users, repeat initialization, archive preservation, multiple daily
+sessions, valid exercise types and rejection of cross-user relationships.
+
+### 2. Catalog and workout logging API
+
+Implement category/exercise creation, editing, ordering, archive/restore and
+search; session and exercise-occurrence management; set create/edit/delete,
+comments and completion; bounded date/history reads; transactional workout copy
+with completion reset. Add full account export/deletion coverage. Decide public
+endpoint contracts in this slice and document them alongside the API tests.
+
+### 3. Workouts tab and fast set entry
+
+Add date controls, start/resume session, exercise search/selection, compact cards
+and a prominent set-entry form. Include previous recorded values as editable
+suggestions, quick repeat entry, per-set editing/comments, planned/completed
+indicators and workout notes. Avoid hidden gesture-only controls; make ordering
+and actions keyboard accessible. Test pending/error states, mobile layouts and
+existing themes without fabricating successful saves.
+
+### 4. History, copying and dashboard
+
+Expose session and per-exercise history with copy-to-date workflows. Add a small
+dashboard summary of completed training and a Workouts link, consistent with the
+compact Diet/Recovery summaries. Confirm planned-only sessions do not inflate
+activity counts, archived exercises remain readable, and the history window is
+anchored to today. Basic logging is usable at the end of this phase.
+
+### 5. Planning and convenience
+
+Add routines with named days, independent planned-session copies, supersets or
+circuits, optional next-exercise navigation, rest timer and month-calendar view.
+Deliver as small tested slices rather than one large expansion. For a web timer,
+calculate remaining time from a deadline; evaluate actual background-tab/mobile
+behavior before promising native-like sound, vibration or background alerts.
+
+### 6. Analysis and calculators
+
+Add exercise-specific progress charts and observed personal records, then clearly
+labelled estimated 1RM, goals, percentage-based set calculations and configurable
+plate/bar inventory. Recompute or invalidate derived records after corrections
+and deletions. Calculator output added to a session is planned, not completed.
+Decide any advanced Pro boundary separately; do not gate the basic log retroactively.
+
+## Delivery and documentation gates
+
+Use the repository's [TDD playbook](../playbooks/TTD.process.md): test list, one
+concrete failing test, pass, refactor, repeat. Run focused tests before broader
+relevant suites; include API owner-isolation and browser workflow tests.
+
+When implementation changes public contracts, update
+[API design](03-api-design.md), this domain document, relevant
+[security guidance](08-security-owasp-top10-and-bottlenecks.md) and
+[testing](21-testing.md) in the same slice. Update entity/ERD and frontend docs
+as their implementation lands; clearly separate planned from implemented tables.
+Search for stale route references before broad tests. No deployment or database
+migration is implied by this planning record.
