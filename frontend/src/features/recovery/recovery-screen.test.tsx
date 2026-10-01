@@ -145,6 +145,11 @@ describe("Recovery", () => {
     renderRecovery();
     await screen.findByRole("button", { name: "Add custom tool" });
     expect(
+      within(
+        screen.getByRole("region", { name: "Your custom tools" }),
+      ).getByRole("button", { name: "Add custom tool" }),
+    ).toBeInTheDocument();
+    expect(
       screen.queryByRole("textbox", { name: "Tool name" }),
     ).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Add custom tool" }));
@@ -199,7 +204,7 @@ describe("Recovery", () => {
       ),
     );
     expect(
-      await screen.findByRole("heading", { name: "On 2026-09-20" }),
+      await screen.findByRole("heading", { name: "Sunday, 20 September" }),
     ).toBeInTheDocument();
     const historyDays = screen.getAllByRole("button", {
       name: /activities recorded/,

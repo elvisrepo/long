@@ -18,16 +18,7 @@ import {
   updateRecoveryTool,
 } from "./recovery-api";
 import "./recovery.css";
-
-function localDay(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
-function shiftDay(day: string, offset: number): string {
-  const date = new Date(`${day}T12:00:00`);
-  date.setDate(date.getDate() + offset);
-  return localDay(date);
-}
+import { localDay, shiftDay, trackingDateLabel } from "./recovery-dates";
 
 export function RecoveryScreen() {
   const queryClient = useQueryClient();
@@ -113,20 +104,6 @@ export function RecoveryScreen() {
         title="Recovery"
         eyebrow="Recover thoughtfully"
         description="Track what you did. Research bars describe estimated muscle soreness relief, not overall recovery."
-        actions={
-          catalog.data.can_create_custom && (
-            <button
-              aria-label="Add custom tool"
-              className="recovery-action recovery-add"
-              onClick={() => {
-                createTool.reset();
-                setAddingTool(true);
-              }}
-            >
-              + Add custom tool
-            </button>
-          )
-        }
       />
       <div className="recovery-date-navigation">
         <button
@@ -177,7 +154,27 @@ export function RecoveryScreen() {
               key={String(custom)}
               aria-label={custom ? "Your custom tools" : "Research-based tools"}
             >
-              <h2>{custom ? "Your custom tools" : "Research-based tools"}</h2>
+              <div className="recovery-section-heading">
+                <h2>{custom ? "Your custom tools" : "Research-based tools"}</h2>
+                {custom && catalog.data.can_create_custom && (
+                  <button
+                    aria-label="Add custom tool"
+                    className="recovery-action"
+                    onClick={() => {
+                      createTool.reset();
+                      setAddingTool(true);
+                    }}
+                  >
+                    + Add custom tool
+                  </button>
+                )}
+              </div>
+              {!custom && (
+                <p className="recovery-section-copy">
+                  Bars show research estimates of muscle soreness relief, not
+                  your recovery score.
+                </p>
+              )}
               {custom && (
                 <p className="recovery-section-copy">
                   Private activities, without research scores.
@@ -186,7 +183,10 @@ export function RecoveryScreen() {
               {activeTools
                 .filter((tool) => tool.is_custom === custom)
                 .map((tool) => (
-                  <article className="recovery-tool" key={tool.id}>
+                  <article
+                    className={`recovery-tool${checkedTools.has(tool.id) ? " recovery-tool-checked" : ""}`}
+                    key={tool.id}
+                  >
                     <label>
                       <input
                         type="checkbox"
@@ -206,7 +206,6 @@ export function RecoveryScreen() {
                     <p>{tool.description}</p>
                     {tool.evidence ? (
                       <>
-                        <p>Estimated soreness relief</p>
                         <div
                           className="recovery-evidence-bar"
                           aria-hidden="true"
@@ -256,7 +255,7 @@ export function RecoveryScreen() {
         </div>
         <aside className="recovery-sidebar">
           <section className="recovery-panel" aria-label="Daily tracking">
-            <h2>On {day}</h2>
+            <h2>{trackingDateLabel(day, today)}</h2>
             <p role="status">
               {checkedCount === 0
                 ? "No activities recorded"

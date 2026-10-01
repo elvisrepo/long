@@ -125,6 +125,9 @@ async function mockApi(page: Page) {
     else if (url.pathname.endsWith("/me/"))
       json = { email: "layout@example.test" };
     else if (url.pathname.endsWith("/definitions/")) json = definitions;
+    else if (url.pathname === "/api/v1/recovery/tools/")
+      json = { tools: [], can_create_custom: false };
+    else if (url.pathname === "/api/v1/recovery/entries/") json = [];
     else if (url.pathname.endsWith("/entries/"))
       json = entries.filter(
         (entry) =>
@@ -327,6 +330,26 @@ for (const width of [320, 1440]) {
     await page.getByRole("textbox", { name: "Tool name" }).fill("Sauna");
     await page.getByRole("button", { name: "Add tool", exact: true }).click();
     await expect(page.getByRole("checkbox", { name: "Sauna" })).toBeVisible();
+    await checkbox.click();
+    await expect(checkbox).toBeChecked();
+    await page.goto("/");
+    const recoveryPanel = page.getByRole("region", {
+      name: "Recovery activities",
+    });
+    await expect(
+      recoveryPanel.getByText("Today: Massage", { exact: true }),
+    ).toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path: `test-results/layout/dashboard-recovery-${width}.png`,
+      fullPage: true,
+    });
+    await recoveryPanel.getByRole("link", { name: "Track recovery →" }).click();
+    await expect(checkbox).toBeChecked();
     await expect(
       page.getByText("Not research-rated", { exact: true }),
     ).toBeVisible();

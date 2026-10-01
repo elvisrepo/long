@@ -22,6 +22,22 @@ modal, with cancellation, retained input on failure and focus restored on close.
 Saving/Saved feedback follows server confirmation. Previous history stays visible
 while a new day loads, but checkboxes are disabled until its data arrives.
 
+## Dashboard and tracking hierarchy (October 1, 2026)
+
+The dashboard includes a read-only Recovery activities panel between metrics and
+analytics, available to every account. It lists today's recorded tool names and
+distinct days with records in the today-anchored seven-day window (including
+archived activities), with a Track recovery link. Loading/error states never
+pretend the user has recorded zero activities. It shares owner-scoped catalog and
+history query keys with Recovery, so successful check-offs refresh both views.
+It is not a readiness score, streak goal, or recommendation to perform every tool.
+
+Custom-tool creation sits beside Your custom tools, not the page heading. Tracking
+dates use Today or weekday plus day/month, with a year when outside the current
+year. Checked cards have a subtle theme-aware tint and larger label click targets.
+The research-bar explanation appears once above researched tools; per-tool
+effect estimates and confidence intervals remain available in Research details.
+
 ## Storage and access
 
 Recovery is a separate Django app, not a numeric metric or wearable sample.

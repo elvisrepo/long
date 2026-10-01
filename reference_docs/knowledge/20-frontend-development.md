@@ -8,6 +8,12 @@
 
 ### Recovery tracking (September 30, 2026, local)
 
+- October 1 UI update: dashboard metrics are followed by a read-only Recovery
+  activities panel (today's tools, distinct recorded days over seven days, and
+  a link to tracking). The summary is available on every plan, not a Pro insight.
+  Custom creation is placed in Your custom tools; dates are human-readable and
+  checked cards receive a subtle tint. Evidence explanation is not repeated per card.
+
 - The authenticated `/recovery` route is reachable from the shared navigation.
 - Shared tools show Table 1 soreness-effect bars and confidence intervals;
   private custom tools are not research-rated. See `45-recovery-tracking.md`.

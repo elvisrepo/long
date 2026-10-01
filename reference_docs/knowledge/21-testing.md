@@ -1085,6 +1085,9 @@ Settings re-subscription regression coverage:
   upgrades and use the portal. Portal availability alone is not a paid entitlement.
 
 Recovery UI regression coverage:
+- Dashboard component tests cover today's tool names, distinct recorded days,
+  empty/loading/error states and the tracking link. Phone/desktop checks save on
+  Recovery, inspect the dashboard summary, then navigate back to tracking.
 - Component tests cover daily save/undo, date arrows/history/Today navigation,
   separate custom tools, expandable evidence, modal cancellation/focus restoration,
   creation errors retaining input, and load errors.
