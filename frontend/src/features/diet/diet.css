@@ -127,9 +127,6 @@
 .diet-summary li button {
   margin-left: 0.5rem;
 }
-.dashboard-diet {
-  margin-top: 1.25rem;
-}
 @media (max-width: 760px) {
   .diet-layout {
     grid-template-columns: minmax(0, 1fr);

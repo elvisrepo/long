@@ -36,12 +36,8 @@ afterEach(() => vi.useRealTimers());
 
 it("shows an honest empty state for all accounts", async () => {
   showPanel();
-  expect(
-    await screen.findByText("No recovery activities recorded today."),
-  ).toBeInTheDocument();
-  expect(
-    screen.getByText("Activities recorded on 0 days in the last 7 days."),
-  ).toBeInTheDocument();
+  expect(await screen.findByText("0 activities today")).toBeInTheDocument();
+  expect(screen.getByText("0 of 7 days recorded")).toBeInTheDocument();
 });
 
 it("does not present unavailable data as zero activity", async () => {
@@ -52,9 +48,7 @@ it("does not present unavailable data as zero activity", async () => {
       "Recovery activities couldn't load. Open Recovery to retry.",
     ),
   ).toBeInTheDocument();
-  expect(
-    screen.queryByText("No recovery activities recorded today."),
-  ).not.toBeInTheDocument();
+  expect(screen.queryByText("0 activities today")).not.toBeInTheDocument();
 });
 
 it("shows loading while activity data is unresolved", () => {
@@ -81,10 +75,8 @@ it("shows today's tools and distinct recorded days without a recovery score", as
     { id: 3, tool_id: "archived", performed_on: "2026-09-30", created_at: "" },
   ]);
   showPanel();
-  expect(await screen.findByText("Today: Massage")).toBeInTheDocument();
-  expect(
-    screen.getByText("Activities recorded on 2 days in the last 7 days."),
-  ).toBeInTheDocument();
+  expect(await screen.findByText("1 activity today")).toBeInTheDocument();
+  expect(screen.getByText("2 of 7 days recorded")).toBeInTheDocument();
   expect(
     screen.getByRole("link", { name: "Track recovery →" }),
   ).toHaveAttribute("href", "/recovery");

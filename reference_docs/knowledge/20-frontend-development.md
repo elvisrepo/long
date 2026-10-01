@@ -9,8 +9,9 @@ Management provides rename, numeric order and archive/restore in shared modals.
 Selected-day controls are independent of a today-anchored seven-day history;
 archived history remains visible. Owner-scoped queries invalidate after writes;
 pending saves disable check-offs and failures do not claim success.
-The dashboard has a Diet panel with today's food names, distinct recorded days
-and a tracking link. Dark/Light/Sand tokens and mobile stacking follow the app.
+The dashboard places Diet and Recovery summaries in one equal-width row, stacking
+below 681px. Each shows today's count, days recorded out of seven, and a tracking
+link. Dark/Light/Sand tokens follow the app; long food/tool lists stay on their tabs.
 See `46-diet-tracking.md` for contracts and data lifecycle.
 
 ## Use When
@@ -22,7 +23,7 @@ See `46-diet-tracking.md` for contracts and data lifecycle.
 ### Recovery tracking (September 30, 2026, local)
 
 - October 1 UI update: dashboard metrics are followed by a read-only Recovery
-  activities panel (today's tools, distinct recorded days over seven days, and
+  activities panel (today's activity count, distinct recorded days over seven days, and
   a link to tracking). The summary is available on every plan, not a Pro insight.
   Custom creation is placed in Your custom tools; dates are human-readable and
   checked cards receive a subtle tint. Evidence explanation is not repeated per card.

@@ -43,9 +43,7 @@ function mount() {
 }
 it("shows a useful empty summary on every plan", async () => {
   mount();
-  expect(
-    await screen.findByText("No foods recorded today."),
-  ).toBeInTheDocument();
+  expect(await screen.findByText("0 foods today")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Track foods →" })).toHaveAttribute(
     "href",
     "/diet",
@@ -57,8 +55,8 @@ it("includes archived foods and counts distinct recorded days", async () => {
     { id: 2, food_id: "f", performed_on: "2026-09-30", created_at: "" },
   ]);
   mount();
-  expect(await screen.findByText("Today: Chicken")).toBeInTheDocument();
-  expect(screen.getByText(/Foods recorded on 2 of/)).toBeInTheDocument();
+  expect(await screen.findByText("1 food today")).toBeInTheDocument();
+  expect(screen.getByText("2 of 7 days recorded")).toBeInTheDocument();
   expect(getDietEntries).toHaveBeenCalledWith("2026-09-25", "2026-10-01");
 });
 it("does not turn a loading error into a zero summary", async () => {
@@ -67,7 +65,5 @@ it("does not turn a loading error into a zero summary", async () => {
   expect(
     await screen.findByText("Diet couldn't load. Open Diet to retry."),
   ).toBeInTheDocument();
-  expect(
-    screen.queryByText("No foods recorded today."),
-  ).not.toBeInTheDocument();
+  expect(screen.queryByText("0 foods today")).not.toBeInTheDocument();
 });

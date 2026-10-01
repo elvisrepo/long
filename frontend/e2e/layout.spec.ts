@@ -60,6 +60,41 @@ const entries = definitions.map((definition, index) => ({
   context: {},
 }));
 
+test("dashboard tracking summaries share one row on desktop", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  const recovery = page.getByRole("region", { name: "Recovery activities" });
+  const diet = page.getByRole("region", { name: "Diet checklist" });
+  await expect(recovery).toBeVisible();
+  await expect(diet).toBeVisible();
+  await expect(recovery.getByText("0 activities today")).toBeVisible();
+  await expect(diet.getByText("0 foods today")).toBeVisible();
+  const recoveryBox = (await recovery.boundingBox())!;
+  const dietBox = (await diet.boundingBox())!;
+  expect(dietBox.y).toBeCloseTo(recoveryBox.y, 0);
+  expect(dietBox.x).toBeGreaterThan(recoveryBox.x + recoveryBox.width);
+  expect((await diet.locator("p").first().boundingBox())!.y).toBeCloseTo(
+    (await recovery.locator("p").first().boundingBox())!.y,
+    0,
+  );
+  await page
+    .locator(".dashboard-tracking-summaries")
+    .screenshot({ path: "test-results/layout/dashboard-tracking-desktop.png" });
+  await page.setViewportSize({ width: 320, height: 900 });
+  const mobileRecovery = (await recovery.boundingBox())!;
+  const mobileDiet = (await diet.boundingBox())!;
+  expect(mobileDiet.y).toBeGreaterThanOrEqual(
+    mobileRecovery.y + mobileRecovery.height,
+  );
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
+
 for (const width of [320, 1440]) {
   test(`checkout confirmation updates automatically at ${width}px`, async ({
     page,
@@ -340,7 +375,7 @@ for (const width of [320, 1440]) {
       name: "Recovery activities",
     });
     await expect(
-      recoveryPanel.getByText("Today: Massage", { exact: true }),
+      recoveryPanel.getByText("1 activity today", { exact: true }),
     ).toBeVisible();
     expect(
       await page.evaluate(
@@ -522,8 +557,10 @@ for (const width of [320, 1440]) {
     });
     await page.goto("/");
     const panel = page.getByRole("region", { name: "Diet checklist" });
-    await expect(panel.getByText("Today: Eggs", { exact: true })).toBeVisible();
-    await expect(panel.getByText(/Foods recorded on 1 of/)).toBeVisible();
+    await expect(
+      panel.getByText("1 food today", { exact: true }),
+    ).toBeVisible();
+    await expect(panel.getByText("1 of 7 days recorded")).toBeVisible();
     await panel.getByRole("link", { name: "Track foods →" }).click();
     await page.getByRole("checkbox", { name: "Eggs", exact: true }).click();
     await expect(

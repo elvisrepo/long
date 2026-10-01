@@ -25,11 +25,14 @@ while a new day loads, but checkboxes are disabled until its data arrives.
 ## Dashboard and tracking hierarchy (October 1, 2026)
 
 The dashboard includes a read-only Recovery activities panel between metrics and
-analytics, available to every account. It lists today's recorded tool names and
+analytics, available to every account. It shows today's recorded activity count and
 distinct days with records in the today-anchored seven-day window (including
 archived activities), with a Track recovery link. Loading/error states never
-pretend the user has recorded zero activities. It shares owner-scoped catalog and
-history query keys with Recovery, so successful check-offs refresh both views.
+pretend the user has recorded zero activities. It shares owner-scoped history
+query keys with Recovery, so successful check-offs refresh both views. Recovery
+and Diet share one equal-width desktop row and stack at widths of 680px or less.
+Only two short summary lines and a tracking link are shown; no catalog fetch is
+needed for dashboard counts.
 It is not a readiness score, streak goal, or recommendation to perform every tool.
 
 Custom-tool creation sits beside Your custom tools, not the page heading. Tracking

@@ -59,8 +59,10 @@ See [canonical endpoints](03-api-design.md).
   reads/writes disable check-offs; errors do not fabricate successful or empty data.
 - Owner-scoped query keys isolate catalogs and entries; successful logout clears
   all query caches. Dark/Light/Sand use existing application tokens.
-- Dashboard shows today's foods, distinct recorded days in seven days, and a
-  link to Diet. Its loading/error state does not block the metrics dashboard.
+- Dashboard shows today's food count, distinct recorded days out of seven, and a
+  link to Diet. It shares an equal-width desktop row with Recovery, stacking at
+  680px or less. Two short summary lines replace food lists/explanatory paragraphs;
+  only history is fetched. Its loading/error state does not block the dashboard.
 
 ## Account lifecycle and verification
 

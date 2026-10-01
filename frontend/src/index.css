@@ -800,6 +800,35 @@ button {
   gap: 28px;
 }
 
+.dashboard-tracking-summaries {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.dashboard-tracking-summaries > section {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0;
+}
+.dashboard-tracking-summaries > section h2,
+.dashboard-tracking-summaries > section p {
+  margin: 0;
+}
+.dashboard-tracking-summaries > section p {
+  line-height: 1.5;
+}
+.dashboard-tracking-summaries a {
+  color: var(--accent);
+  justify-self: start;
+}
+@media (max-width: 680px) {
+  .dashboard-tracking-summaries {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .dashboard-hero {
   display: flex;
   align-items: start;

@@ -181,8 +181,10 @@ function DashboardRoute() {
         </div>
       </section>
 
-      <DashboardRecoveryPanel />
-      <DashboardDietPanel />
+      <div className="dashboard-tracking-summaries">
+        <DashboardRecoveryPanel />
+        <DashboardDietPanel />
+      </div>
 
       <section className="insights-card" aria-label="Pro insights">
         <div className="entries-toolbar">
