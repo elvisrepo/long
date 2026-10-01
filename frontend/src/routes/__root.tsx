@@ -173,6 +173,9 @@ function AuthenticatedNavigation({
         <Link to="/recovery" className="app-nav-link">
           Recovery
         </Link>
+        <Link to="/diet" className="app-nav-link">
+          Diet
+        </Link>
         <Link to="/settings" search={{}} className="app-nav-link">
           Settings
         </Link>

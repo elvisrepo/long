@@ -1,5 +1,18 @@
 ## 5. Frontend Development (Parallel from R1)
 
+### Diet checklist (October 1, 2026, local)
+
+Authenticated `/diet` is available to every account through shared navigation.
+There are no seeded foods: start by adding a section and foods. Compact cards
+track eaten/not-recorded only, with no nutrient quantities or completion targets.
+Management provides rename, numeric order and archive/restore in shared modals.
+Selected-day controls are independent of a today-anchored seven-day history;
+archived history remains visible. Owner-scoped queries invalidate after writes;
+pending saves disable check-offs and failures do not claim success.
+The dashboard has a Diet panel with today's food names, distinct recorded days
+and a tracking link. Dark/Light/Sand tokens and mobile stacking follow the app.
+See `46-diet-tracking.md` for contracts and data lifecycle.
+
 ## Use When
 - Load this when you need the planned frontend stack, component direction, routes, API integration approach, state management, or responsive behavior.
 

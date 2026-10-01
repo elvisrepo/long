@@ -53,15 +53,17 @@ def field_line(field: Any) -> str:
     return f"{field.column}: {kind}{flags}" + (" (nullable)" if field.null else "")
 
 
-def schema_svg(models: list[Any], title: str) -> str:
+def schema_svg(models: list[Any], title: str, highlighted_app: str = "recovery") -> str:
     width = 1410
     cards: list[str] = []
     y = 110
-    existing = [model for model in models if model._meta.app_label != "recovery"]
-    additions = [model for model in models if model._meta.app_label == "recovery"]
+    existing = [model for model in models if model._meta.app_label != highlighted_app]
+    additions = [model for model in models if model._meta.app_label == highlighted_app]
     rows = [existing[offset : offset + 3] for offset in range(0, len(existing), 3)]
     if additions:
-        rows.append(additions)
+        rows.extend(
+            additions[offset : offset + 3] for offset in range(0, len(additions), 3)
+        )
     for row in rows:
         row_height = max(
             75
@@ -73,7 +75,7 @@ def schema_svg(models: list[Any], title: str) -> str:
         )
         for column, model in enumerate(row):
             x = 25 + column * 460
-            added = model._meta.app_label == "recovery"
+            added = model._meta.app_label == highlighted_app
             fill, border = ("#e6f7ec", "#22854f") if added else ("#eef4fc", "#4475ab")
             name = model.__name__ + (" · NEW" if added else "")
             card = [
@@ -97,11 +99,11 @@ def schema_svg(models: list[Any], title: str) -> str:
         y += row_height + 30
     return f'''<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{y + 15}" viewBox="0 0 {width} {y + 15}" role="img" aria-labelledby="title desc">
 <title id="title">{escape(title)}</title>
-<desc id="desc">Domain entity relationship schema map. FK arrows name the referenced parent. Each parent can have zero or many children. Nullable foreign keys allow zero or one parent. New recovery tables are green.</desc>
+<desc id="desc">Domain entity relationship schema map. FK arrows name the referenced parent. Each parent can have zero or many children. Nullable foreign keys allow zero or one parent. New {escape(highlighted_app)} tables are green.</desc>
 <style>text{{font-family:Arial,sans-serif;fill:#1b2b34}}.name{{font-size:19px;font-weight:bold}}.table{{font-size:12px;fill:#50636f}}.field{{font-family:Consolas,monospace;font-size:13px}}a:hover text{{fill:#00795e}}</style>
 <rect width="100%" height="100%" fill="#ffffff"/>
 <text x="25" y="36" class="name">{escape(title)}</text>
-<text x="25" y="64" class="field">Blue: existing tables · Green: new recovery tables · PK: primary key · FK → parent · UK: unique field</text>
+<text x="25" y="64" class="field">Blue: existing tables · Green: new {escape(highlighted_app)} tables · PK: primary key · FK → parent · UK: unique field</text>
 {"".join(cards)}
 </svg>'''
 

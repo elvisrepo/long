@@ -1,5 +1,20 @@
 #### Security (OWASP Top 10 addressed)
 
+## Diet tracking boundary — 2026-10-01
+
+- JWT is required; catalogs and histories are private. Food ownership follows
+  `food.section.user`. Entry writes bind the authenticated user and require that
+  owner; entry reads filter both owner paths. Foreign edits/check-offs return 404.
+- All mutations lock the user row in a transaction, serializing with deletion;
+  SQL uniqueness protects scoped names and one daily check-off per food/user.
+- Name length is bounded to 120, order is nonnegative, and history ranges cap at
+  366 days. Archive retains history; undo works even after archive.
+- DietEntry.clean validates matching owners for explicit full_clean callers;
+  ordinary foreign keys do not enforce this cross-table invariant for raw writes.
+- Export is owner-scoped; deletion cascades owned sections/foods/entries. Cache
+  keys include the owner and successful logout clears private query state.
+- No Pro gate or nutrient/medical recommendations. See `46-diet-tracking.md`.
+
 ## Use When
 - Load this when you need to work on security prevention and Bottlenecks & Mitigations .
 

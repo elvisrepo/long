@@ -1,5 +1,24 @@
 ## 6. Testing
 
+## Diet tracking — 2026-10-01 local slice
+
+- `backend/tests/test_diet.py`: empty catalog, unrestricted creation, JWT,
+  cross-owner isolation/validation, scoped case-insensitive names, immutable food
+  section, archive/restore, bounded history, retry-safe check-offs, export/deletion.
+- `frontend/src/features/diet/*.test.*`: bearer/body/error contracts, empty state,
+  section creation, selected-day saves, today-anchored seven-day history, failed
+  save behavior and dashboard counts (including archived foods).
+- `e2e/layout.spec.ts`: isolated API fixtures at 320/1440px verify creating a
+  section/food, daily save/undo, dates, rename/order, archive/restore, reload,
+  dashboard integration and horizontal containment. These do not prove live API
+  integration or physical-device behavior.
+- See `46-diet-tracking.md`; local verification is not staging acceptance.
+- Verification for this slice: **604 backend tests**, **380 frontend tests**, and
+  **17 selected Chromium checks** passed (Diet/Recovery flows and shared responsive
+  pages). Ruff, mypy (125 source files), ESLint, frontend build, migration-drift
+  detection and `git diff --check` passed. Diet ERD rendering verified 13/16 cards,
+  exactly three new green tables, and no clipped field labels. No staging writes.
+
 ## Recovery tracking — 2026-09-30 local slice
 
 - `backend/tests/test_recovery.py`: JWT, exact Table 1 estimates, private-tool

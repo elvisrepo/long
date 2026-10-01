@@ -1,5 +1,28 @@
 ### 1.7 API Design
 
+## Diet tracking (implemented locally, 2026-10-01)
+
+All routes require JWT and are available on every plan. No seeded sections/foods.
+See `46-diet-tracking.md` for ownership, archive and calendar-day rules.
+
+| Method | Endpoint | Contract |
+|---|---|---|
+| GET | `/api/v1/diet/catalog/` | `{sections: [...], foods: [...]}`; own catalog including archives |
+| POST | `/api/v1/diet/sections/` | `{name, display_order?}`; `201` owned active section |
+| PATCH | `/api/v1/diet/sections/{uuid}/` | Own section: name, display_order, is_active |
+| POST | `/api/v1/diet/foods/` | `{section_id, name, display_order?}`; `201` food under own active section |
+| PATCH | `/api/v1/diet/foods/{uuid}/` | Own food: name, display_order, is_active; section cannot change |
+| GET | `/api/v1/diet/entries/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD` | Own entries, inclusive 1–366-day range; invalid/missing bounds `400` |
+| PUT | `/api/v1/diet/entries/{food_uuid}/{YYYY-MM-DD}/` | Empty body; idempotent check-off `200`; archived food/section `400`, inaccessible food `404` |
+| DELETE | `/api/v1/diet/entries/{food_uuid}/{YYYY-MM-DD}/` | Idempotent undo including archived foods, `204`; inaccessible food `404` |
+
+Section JSON: `{id, name, display_order, is_active}`. Food adds `section_id`.
+Entry JSON: `{id, food_id, performed_on, created_at}`. Names max 120 characters;
+nonnegative order; case-insensitive scoped duplicates return `400`, including
+archived rows. Foreign-section creation returns `400`; foreign detail edits `404`.
+Authenticated ownership is not client-writable. Account JSON export includes
+Diet archives/history; user deletion cascades owned Diet data.
+
 ## Recovery tracking (implemented locally, 2026-09-30)
 
 All routes require JWT; see `45-recovery-tracking.md` for evidence and access rules.

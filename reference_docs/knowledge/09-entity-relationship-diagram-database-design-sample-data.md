@@ -1,5 +1,14 @@
 ### ERD
 
+## Current Diet ERD update — 2026-10-01 local slice
+
+The implemented domain schema has **16 tables**, excluding framework tables.
+Diet adds `DietSection`, `DietFood` and `DietEntry`; see the model-derived
+[13→16-table comparison](diagrams/diet-erd-comparison.md), with additions green.
+The original schema below and the Recovery 13-table checkpoint are historical.
+For current ownership/constraints, see `46-diet-tracking.md` and
+`diagrams/current-plus-subscription-plan-erd.md`. No cloud deployment is implied.
+
 
 ## Use When
 - Load this when you need the entity relationship diagram, the entities and their relationships in our database. When you need to review database design and Sample Data Across All Tables.
@@ -221,7 +230,7 @@ Notice row 1: Alice's resting HR of 58 bpm was *auto-synced* from Samsung Health
 | 2 | `a1b2c3d4-...` | update | User | `{"timezone": ["UTC", "Europe/Berlin"]}` |
 # Recovery ERD update — 2026-09-30 local slice
 
-The implemented domain schema now has 13 tables (excluding Django/framework
+At that checkpoint the domain schema had 13 tables (excluding Django/framework
 tables). Recovery adds `RecoveryTool` and `RecoveryEntry` without adding columns
 to existing tables. See [before/after diagrams](diagrams/recovery-erd-comparison.md)
 for the previous 11-table schema and updated schema with the two additions green.

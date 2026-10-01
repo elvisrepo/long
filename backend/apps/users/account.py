@@ -10,6 +10,7 @@ from rest_framework.exceptions import APIException, ValidationError
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 
 from apps.metrics.models import MetricDefinition, MetricEntry
+from apps.diet.models import DietEntry, DietFood, DietSection
 from apps.recovery.models import RecoveryEntry, RecoveryTool
 from apps.subscriptions.models import BillingCustomer, CheckoutAttempt, Subscription
 from apps.subscriptions.services import UnresolvedCheckoutError, cancel_account_billing
@@ -46,6 +47,12 @@ def account_export(user: User) -> Iterator[str]:
     # Avoid a single enormous line that text editors struggle to render.
     yield encoder.encode(header).removesuffix("\n}")
     sections: dict[str, QuerySet[Any]] = {
+        "diet_sections": DietSection.objects.filter(user=user).order_by("id")
+        .values("id", "name", "display_order", "is_active"),
+        "diet_foods": DietFood.objects.filter(section__user=user).order_by("id")
+        .values("id", "section_id", "name", "display_order", "is_active"),
+        "diet_entries": DietEntry.objects.filter(user=user, food__section__user=user).order_by("id")
+        .values("id", "food_id", "performed_on", "created_at"),
         "recovery_tools": RecoveryTool.objects.filter(Q(user=user) | Q(entries__user=user))
         .distinct().order_by("id")
         .values("id", "user_id", "slug", "name", "description", "is_active", "display_order"),

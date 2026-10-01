@@ -128,6 +128,9 @@ async function mockApi(page: Page) {
     else if (url.pathname === "/api/v1/recovery/tools/")
       json = { tools: [], can_create_custom: false };
     else if (url.pathname === "/api/v1/recovery/entries/") json = [];
+    else if (url.pathname === "/api/v1/diet/catalog/")
+      json = { sections: [], foods: [] };
+    else if (url.pathname === "/api/v1/diet/entries/") json = [];
     else if (url.pathname.endsWith("/entries/"))
       json = entries.filter(
         (entry) =>
@@ -369,6 +372,163 @@ for (const width of [320, 1440]) {
       path: `test-results/layout/recovery-${width}.png`,
       fullPage: true,
     });
+  });
+}
+
+for (const width of [320, 1440]) {
+  test(`diet creation, management, history and dashboard at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.clock.install({ time: new Date("2026-10-01T12:00:00") });
+    const sections: {
+      id: string;
+      name: string;
+      display_order: number;
+      is_active: boolean;
+    }[] = [];
+    const foods: {
+      id: string;
+      section_id: string;
+      name: string;
+      display_order: number;
+      is_active: boolean;
+    }[] = [];
+    const dietEntries: {
+      id: number;
+      food_id: string;
+      performed_on: string;
+      created_at: string;
+    }[] = [];
+    await page.route("**/api/v1/diet/**", async (route) => {
+      const url = new URL(route.request().url());
+      const method = route.request().method();
+      let json: unknown = {};
+      if (url.pathname.endsWith("catalog/")) json = { sections, foods };
+      else if (url.pathname.endsWith("entries/"))
+        json = dietEntries.filter(
+          (e) =>
+            e.performed_on >= url.searchParams.get("date_from")! &&
+            e.performed_on <= url.searchParams.get("date_to")!,
+        );
+      else if (url.pathname.includes("entries/")) {
+        const day = url.pathname.split("/").at(-2)!;
+        if (method === "PUT") {
+          const entry = {
+            id: 1,
+            food_id: "f",
+            performed_on: day,
+            created_at: "",
+          };
+          dietEntries.push(entry);
+          json = entry;
+        } else {
+          const i = dietEntries.findIndex((e) => e.performed_on === day);
+          if (i >= 0) dietEntries.splice(i, 1);
+          await route.fulfill({ status: 204 });
+          return;
+        }
+      } else {
+        const data = route.request().postDataJSON();
+        if (url.pathname.includes("sections/")) {
+          if (method === "POST")
+            sections.push({
+              id: "s",
+              display_order: 10,
+              is_active: true,
+              ...data,
+            });
+          else Object.assign(sections[0], data);
+          json = sections[0];
+        } else {
+          if (method === "POST")
+            foods.push({
+              id: "f",
+              display_order: 10,
+              is_active: true,
+              ...data,
+            });
+          else Object.assign(foods[0], data);
+          json = foods[0];
+        }
+      }
+      await route.fulfill({ status: method === "POST" ? 201 : 200, json });
+    });
+    await page.goto("/diet");
+    await expect(page.getByText("Build your food checklist")).toBeVisible();
+    await page
+      .getByRole("button", { name: "Add section", exact: true })
+      .click();
+    await page.getByLabel("Section name").fill("Protein");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByRole("button", { name: "Add food to Protein" }).click();
+    await page.getByLabel("Food name").fill("Chicken");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    const chicken = page.getByRole("checkbox", {
+      name: "Chicken",
+      exact: true,
+    });
+    // Controlled checkboxes update only after the server-confirmed save/refetch.
+    await chicken.click();
+    await expect(chicken).toBeChecked();
+    await page.getByLabel("Tracking date").fill("2026-09-20");
+    await expect(chicken).not.toBeChecked();
+    await expect(page.locator(".diet-week button").last()).toHaveAttribute(
+      "aria-label",
+      "Thursday 1 October",
+    );
+    await page.getByRole("button", { name: "Today", exact: true }).click();
+    await expect(chicken).toBeChecked();
+    await page
+      .getByRole("button", { name: "Manage checklist", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Edit Chicken", exact: true })
+      .click();
+    await page.getByLabel("Food name").fill("Eggs");
+    await page.getByLabel("Display order").fill("0");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Archive Eggs", exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", { name: "Restore Eggs", exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Restore Eggs", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Archive Protein", exact: true })
+      .click();
+    await expect(
+      page.getByRole("checkbox", { name: "Eggs", exact: true }),
+    ).toBeDisabled();
+    await page
+      .getByRole("button", { name: "Restore Protein", exact: true })
+      .click();
+    await page.getByRole("button", { name: "Done managing" }).click();
+    await page.reload();
+    await expect(
+      page.getByRole("checkbox", { name: "Eggs", exact: true }),
+    ).toBeChecked();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path: `test-results/layout/diet-${width}.png`,
+      fullPage: true,
+    });
+    await page.goto("/");
+    const panel = page.getByRole("region", { name: "Diet checklist" });
+    await expect(panel.getByText("Today: Eggs", { exact: true })).toBeVisible();
+    await expect(panel.getByText(/Foods recorded on 1 of/)).toBeVisible();
+    await panel.getByRole("link", { name: "Track foods →" }).click();
+    await page.getByRole("checkbox", { name: "Eggs", exact: true }).click();
+    await expect(
+      page.getByText("0 foods recorded · 0 sections represented"),
+    ).toBeVisible();
   });
 }
 

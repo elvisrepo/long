@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DietRouteImport } from './routes/diet'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MetricsRouteImport } from './routes/metrics'
@@ -25,6 +26,11 @@ import { Route as MetricsSlugRouteImport } from './routes/metrics.$slug'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DietRoute = DietRouteImport.update({
+  id: '/diet',
+  path: '/diet',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -85,6 +91,7 @@ const MetricsSlugRoute = MetricsSlugRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/diet': typeof DietRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/metrics': typeof MetricsRouteWithChildren
@@ -99,6 +106,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/diet': typeof DietRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/metrics': typeof MetricsRouteWithChildren
@@ -114,6 +122,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/diet': typeof DietRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/metrics': typeof MetricsRouteWithChildren
@@ -130,6 +139,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/diet'
     | '/forgot-password'
     | '/login'
     | '/metrics'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/diet'
     | '/forgot-password'
     | '/login'
     | '/metrics'
@@ -158,6 +169,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/diet'
     | '/forgot-password'
     | '/login'
     | '/metrics'
@@ -173,6 +185,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DietRoute: typeof DietRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   MetricsRoute: typeof MetricsRouteWithChildren
@@ -192,6 +205,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/diet': {
+      id: '/diet'
+      path: '/diet'
+      fullPath: '/diet'
+      preLoaderRoute: typeof DietRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -287,6 +307,7 @@ const MetricsRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DietRoute: DietRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   MetricsRoute: MetricsRouteWithChildren,

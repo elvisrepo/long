@@ -5,6 +5,7 @@
 - Use the target-state ERD separately for planned Stripe, wearable-sync, and audit tables.
 
 ## Scope
+- As of 2026-10-01, the local domain schema has 16 tables, including `DietSection`, `DietFood` and `DietEntry`. See [Diet before/after comparison](diet-erd-comparison.md) with the three additions green; ownership/archive rules are in [Diet tracking](../46-diet-tracking.md).
 - `User`, `MetricDefinition`, `MetricEntry`, `WearableConnection`, `SyncRun`, `SubscriptionPlan`, `SubscriptionPrice`, `BillingCustomer`, `Subscription`, `CheckoutAttempt`, `StripeWebhookEvent`, `RecoveryTool`, and `RecoveryEntry` are implemented domain tables.
 - See [recovery before/after ERD comparison](recovery-erd-comparison.md) for model-derived field maps, with the two new recovery tables highlighted green.
 - Registration creates an explicit active free subscription, and metric limits resolve through the current subscription's plan.
@@ -23,6 +24,34 @@ erDiagram
     USER o|--o{ RECOVERY_TOOL : "owns custom tools"
     USER ||--o{ RECOVERY_ENTRY : "checks off"
     RECOVERY_TOOL ||--o{ RECOVERY_ENTRY : "tracked daily"
+    USER ||--o{ DIET_SECTION : "owns sections"
+    DIET_SECTION ||--o{ DIET_FOOD : "contains foods"
+    USER ||--o{ DIET_ENTRY : "records eating"
+    DIET_FOOD ||--o{ DIET_ENTRY : "checked daily"
+
+    DIET_SECTION {
+        uuid id PK
+        uuid user_id FK
+        string name "case-insensitive unique per user"
+        integer display_order
+        boolean is_active
+    }
+
+    DIET_FOOD {
+        uuid id PK
+        uuid section_id FK
+        string name "case-insensitive unique per section"
+        integer display_order
+        boolean is_active
+    }
+
+    DIET_ENTRY {
+        bigint id PK
+        uuid user_id FK
+        uuid food_id FK
+        date performed_on "unique per user and food"
+        datetime created_at
+    }
 
     RECOVERY_TOOL {
         uuid id PK

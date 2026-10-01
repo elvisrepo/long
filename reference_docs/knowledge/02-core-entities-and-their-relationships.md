@@ -1,5 +1,13 @@
 ### 1.4 Core Entities
 
+## Diet additions — 2026-10-01
+
+`User → DietSection → DietFood` are one-to-many relationships. `DietEntry`
+references both User and DietFood and records a calendar-date check-off, unique
+per `(user, food, performed_on)`. Food ownership is derived through its section;
+the API enforces that the entry owner matches. Every plan can create the catalog.
+See `46-diet-tracking.md` and `diagrams/diet-erd-comparison.md`.
+
 ## Use When
 - Load this when you need the core entities, and their relationships.
 
