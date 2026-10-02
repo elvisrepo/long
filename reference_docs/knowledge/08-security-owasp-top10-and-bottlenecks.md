@@ -35,6 +35,20 @@
   errors visible in the dialog, and cannot edit finished sessions without reopening.
   The existing owner-scoped occurrence DELETE still deletes its sets permanently.
 
+### All-time exercise summary boundary — 2026-10-02
+
+All-time progress/records are private read-only summary endpoints, not unbounded
+raw session exports. Exercise ownership and workout ownership are both filtered,
+including protection against inconsistent cross-owner raw ORM links. Completed-only
+SQL aggregates and window functions preserve frozen type/unit partitions; archived
+exercises remain readable. Required date, metric/rep/unit validation and strict
+1–500 pagination bounds reject malformed requests. Frontend pagination builds
+same-origin paths and owner-scoped query keys; no arbitrary `next` URL is fetched.
+Source navigation still uses authenticated detail routes. These queries scan the
+selected exercise's history through the cutoff; bounded response pages do not
+bound total database aggregation cost. No cached PR table, public analytics,
+notes fetch, new index or migration is introduced.
+
 ### Routine template boundary — 2026-10-02
 
 - All plans can use private routines with JWT; never accept client ownership or

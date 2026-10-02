@@ -2,6 +2,24 @@
 
 ## Workout tracking — 2026-10-01 backend slice
 
+### All-time exercise summaries — 2026-10-02
+
+- `test_workout_progress.py` covers old dates, inclusive cutoff, planned exclusion,
+  JWT/owner isolation (including inconsistent raw ORM cross-owner links), archives,
+  frozen type/unit partitions, every metric, same-day session totals, duplicate
+  occurrences, estimated-1RM eligibility/source, ties, bests per rep count, strict
+  improvement history, pagination, validation, and recomputation after edits/deletes.
+- Frontend coverage checks summary pagination without following arbitrary URLs or
+  downloading raw workouts, unit-separated records, records-only reads, incomplete
+  page errors, all-time selection, PR-history pagination/error/retry and source navigation.
+- Real-Django responsive flows at 320/390/1440px switch to All time, inspect the
+  records dialog/source and graph, and check viewport containment. Only isolated
+  E2E fixtures are written; existing account workouts are not changed.
+- Verification: 689 backend tests, 468 frontend tests (88 focused workout checks),
+  and three real-Django browser flows pass.
+  No schema migration required. Ruff, mypy, ESLint, TypeScript/Vite and whitespace
+  checks pass; phone/desktop screenshots inspected. No commit or deployment.
+
 - `backend/tests/test_workouts.py` covers private once-only samples, concurrent
   PostgreSQL row-lock seeding, catalog search/management/archive, owner isolation,
   multiple sessions/day, immutable snapshots, type-specific set fields, partial

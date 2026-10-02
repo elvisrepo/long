@@ -1,4 +1,9 @@
-import type { Workout, WorkoutExercise, WorkoutSet } from "./workout-api";
+import type {
+  RecordSource,
+  Workout,
+  WorkoutExercise,
+  WorkoutSet,
+} from "./workout-api";
 import { estimatedMax } from "./workout-calculators";
 
 export type ProgressMetric =
@@ -62,7 +67,13 @@ export interface ProgressSeries {
     session?: string;
     source?: { weight: string; reps: number };
   }[];
-  records: { label: string; value: number; unit: string; date: string }[];
+  records: {
+    label: string;
+    value: number;
+    unit: string;
+    date: string;
+    source?: RecordSource;
+  }[];
 }
 
 // Recomputed from completed snapshots; never mix types/units or cache stale PRs.

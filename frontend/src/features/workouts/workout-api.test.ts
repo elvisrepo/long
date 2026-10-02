@@ -5,11 +5,33 @@ import {
   getWorkoutRange,
   saveWorkoutSet,
   deleteWorkoutItem,
+  getProgressPage,
 } from "./workout-api";
 
 afterEach(() => {
   clearAccessToken();
   vi.unstubAllGlobals();
+});
+it("requests all-time summaries through an owned same-origin exercise path", async () => {
+  setAccessToken("workout-token");
+  const fetcher = vi
+    .fn()
+    .mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          count: 0,
+          next: null,
+          previous: null,
+          results: [],
+          types: [],
+        }),
+      ),
+    );
+  vi.stubGlobal("fetch", fetcher);
+  await getProgressPage("exercise", "2026-10-02", "estimated_1rm", 5, 500);
+  expect(fetcher.mock.calls[0][0]).toBe(
+    "/api/v1/workouts/exercises/exercise/progress/?date_to=2026-10-02&metric=estimated_1rm&reps=5&limit=500&offset=500",
+  );
 });
 
 it("paginates its own API path rather than following arbitrary next URLs", async () => {

@@ -9,6 +9,8 @@ import {
   type ProgressSeries,
 } from "./workout-analysis";
 import { shiftDay, type NavigateWorkout } from "./workout-navigation";
+import { getAllTimeProgress } from "./workout-all-time";
+import { RecordHistory } from "./record-history";
 
 export function WorkoutProgress({
   owner,
@@ -26,17 +28,22 @@ export function WorkoutProgress({
   const [days, setDays] = useState(90);
   const [metric, setMetric] = useState<ProgressMetric | null>(null);
   const [reps, setReps] = useState(5);
-  const from = shiftDay(date, 1 - days);
-  const query = useQuery({
+  const [history, setHistory] = useState<{
+    reps: number;
+    weight_unit: string;
+    distance_unit: string;
+  } | null>(null);
+  const from = days === 0 ? "" : shiftDay(date, 1 - days);
+  const windowQuery = useQuery({
     queryKey: ["workouts", owner, "progress", exerciseId, from, date],
     queryFn: () => api.getWorkoutRange(from, date, exerciseId),
-    enabled: !!exerciseId,
+    enabled: !!exerciseId && days !== 0,
   });
   const libraryType = catalog.exercises.find(
     (exercise) => exercise.id === exerciseId,
   )?.tracking_type;
   const savedTypes =
-    query.data?.flatMap((workout) =>
+    windowQuery.data?.flatMap((workout) =>
       workout.exercises
         .filter((item) => item.exercise_id === exerciseId)
         .map((item) => item.tracking_type),
@@ -44,15 +51,35 @@ export function WorkoutProgress({
   const types = savedTypes.length ? savedTypes : [libraryType ?? "strength"];
   const options = progressMetrics(types);
   const selectedMetric =
-    metric && options.some((option) => option.value === metric)
+    metric && (days === 0 || options.some((option) => option.value === metric))
       ? metric
       : defaultMetric(types[0]);
+  const allTimeQuery = useQuery({
+    queryKey: [
+      "workouts",
+      owner,
+      "all-time-progress",
+      exerciseId,
+      date,
+      selectedMetric,
+      reps,
+    ],
+    queryFn: () => getAllTimeProgress(exerciseId!, date, selectedMetric, reps),
+    enabled: !!exerciseId && days === 0,
+  });
+  const query = days === 0 ? allTimeQuery : windowQuery;
+  const displayedOptions =
+    days === 0
+      ? progressMetrics([...types, ...(allTimeQuery.data?.types ?? [])])
+      : options;
   const series =
-    query.data && exerciseId
-      ? progressSeries(query.data, exerciseId, selectedMetric, reps)
-      : [];
+    days === 0
+      ? (allTimeQuery.data?.series ?? [])
+      : windowQuery.data && exerciseId
+        ? progressSeries(windowQuery.data, exerciseId, selectedMetric, reps)
+        : [];
   const completedDates = new Set(
-    query.data
+    windowQuery.data
       ?.filter((w) =>
         w.exercises.some(
           (i) =>
@@ -63,7 +90,7 @@ export function WorkoutProgress({
   );
   const plannedDates = [
     ...new Set(
-      query.data
+      windowQuery.data
         ?.filter(
           (w) =>
             !completedDates.has(w.performed_on) &&
@@ -109,7 +136,7 @@ export function WorkoutProgress({
               setMetric(event.target.value as ProgressMetric)
             }
           >
-            {options.map((option) => (
+            {displayedOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
@@ -139,12 +166,14 @@ export function WorkoutProgress({
             <option value={90}>90 days</option>
             <option value={180}>180 days</option>
             <option value={365}>365 days</option>
+            <option value={0}>All time</option>
           </select>
         </label>
       </div>
       <p>
-        {from} – {date}. Completed sets only; saved types and units stay
-        separate. These are records within this window, not all-time records.
+        {days === 0
+          ? `All recorded training through ${date}. Completed sets only; saved types and units stay separate.`
+          : `${from} – ${date}. Completed sets only; saved types and units stay separate. These are records within this window, not all-time records.`}
       </p>
       {selectedMetric === "estimated_1rm" && (
         <p className="workout-note">
@@ -169,7 +198,7 @@ export function WorkoutProgress({
           workout. Same-day sessions stay separate.
         </p>
       )}
-      {query.isSuccess && plannedDates.length > 0 && (
+      {days !== 0 && query.isSuccess && plannedDates.length > 0 && (
         <p className="workout-note">
           Not plotted: {plannedDates.join(", ")} — only planned sets for this
           exercise. Mark performed sets completed to include them.
@@ -186,9 +215,11 @@ export function WorkoutProgress({
         </>
       ) : !series.length ? (
         <p>
-          {completedDates.size === 0
-            ? "No completed sets recorded in this window."
-            : `No eligible completed sets for this graph${selectedMetric === "max_weight_reps" ? ` at ${reps} reps` : ""} in this window.`}
+          {days === 0
+            ? `No eligible completed sets for this graph through ${date}.`
+            : completedDates.size === 0
+              ? "No completed sets recorded in this window."
+              : `No eligible completed sets for this graph${selectedMetric === "max_weight_reps" ? ` at ${reps} reps` : ""} in this window.`}
         </p>
       ) : (
         <div className="workout-stack">
@@ -197,10 +228,37 @@ export function WorkoutProgress({
               key={`${exerciseId}:${from}:${date}:${selectedMetric}:${reps}:${s.key}`}
               series={s}
               recordsOnly={selectedMetric === "personal_records"}
+              allTime={days === 0}
+              onHistory={(reps) =>
+                setHistory({
+                  reps,
+                  weight_unit: s.key.split(":")[1],
+                  distance_unit: s.key.split(":")[2],
+                })
+              }
+              onOpenSource={(record) =>
+                record.source &&
+                navigate({
+                  view: "training",
+                  date: record.date,
+                  session: record.source.workout_id,
+                  exercise: record.source.item_id,
+                })
+              }
               onOpenDate={(date) => navigate({ view: "home", date })}
             />
           ))}
         </div>
+      )}
+      {history && exerciseId && (
+        <RecordHistory
+          owner={owner}
+          exerciseId={exerciseId}
+          date={date}
+          filter={history}
+          navigate={navigate}
+          onClose={() => setHistory(null)}
+        />
       )}
     </section>
   );
@@ -208,10 +266,16 @@ export function WorkoutProgress({
 function ProgressCard({
   series,
   recordsOnly,
+  allTime = false,
+  onHistory,
+  onOpenSource,
   onOpenDate,
 }: {
   series: ProgressSeries;
   recordsOnly: boolean;
+  allTime?: boolean;
+  onHistory?: (reps: number) => void;
+  onOpenSource?: (record: ProgressSeries["records"][number]) => void;
   onOpenDate: (date: string) => void;
 }) {
   const [selectedPoint, setSelectedPoint] = useState<number | null>(null);
@@ -243,8 +307,8 @@ function ProgressCard({
   const ticks = Array.from({ length: tickCount + 1 }, (_, i) =>
     Number((i * step).toPrecision(12)),
   );
-  const xMin = Date.parse(series.points[0].date),
-    xMax = Date.parse(series.points.at(-1)!.date);
+  const xMin = series.points.length ? Date.parse(series.points[0].date) : 0,
+    xMax = series.points.length ? Date.parse(series.points.at(-1)!.date) : 0;
   const xRight = chartWidth - 20;
   const dateLabel = (date: string) =>
     chartWidth < 400
@@ -389,7 +453,11 @@ function ProgressCard({
           )}
         </>
       )}
-      <h4>Observed records in this window</h4>
+      <h4>
+        {allTime
+          ? "All-time bests through the selected date"
+          : "Observed records in this window"}
+      </h4>
       <div className="workout-table-wrap">
         <table>
           <thead>
@@ -397,6 +465,9 @@ function ProgressCard({
               <th scope="col">Measure</th>
               <th scope="col">Value</th>
               <th scope="col">Recorded on</th>
+              {allTime && series.records.some((record) => record.source) && (
+                <th scope="col">Source / History</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -407,6 +478,27 @@ function ProgressCard({
                   {r.value} {r.unit}
                 </td>
                 <td>{r.date}</td>
+                {allTime && series.records.some((record) => record.source) && (
+                  <td>
+                    {r.source && (
+                      <>
+                        <p>
+                          {Number(r.source.weight)} {r.unit} × {r.source.reps}{" "}
+                          reps
+                        </p>
+                        <button onClick={() => onOpenSource?.(r)}>
+                          Open source exercise
+                        </button>
+                        <button
+                          aria-label={`PR history for ${r.label} (${r.unit})`}
+                          onClick={() => onHistory?.(r.source!.reps!)}
+                        >
+                          PR history
+                        </button>
+                      </>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

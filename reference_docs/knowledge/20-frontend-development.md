@@ -74,8 +74,15 @@ other graphs. Point details retain the source weight/reps of the winning daily
 estimate (ties keep the first source). The note explains higher-rep exclusion and
 that reps left in reserve are not accounted for; estimates are not measured maxes.
 The standalone calculator still supports 1–30 reps with its uncertainty note.
-Personal records shows a per-rep table for this window,
-not an all-time chart. Single-point graphs are visible. Tap a point or use the
+Personal records shows a per-rep table. All time reads paginated server summaries
+through the selected date, not all raw workouts. All-time bests expose source
+weight/reps and Open source exercise navigation. PR history opens a read-only native
+dialog with strict improvement rows, 25-row pagination, loading/error/retry states,
+and source-workout navigation. Ties do not add records; edits/deletes recompute
+history rather than preserve an immutable audit trail. Query keys include owner,
+exercise, date, graph, rep count and history filter/page; existing workout write
+invalidation refreshes these summaries. Frozen types/units remain separate.
+Single-point graphs are visible. Tap a point or use the
 keyboard-accessible point selector for exact values and a link to that day's Home.
 SVG coordinates follow the measured container width via ResizeObserver, retaining
 readable axis text on narrow screens; compact date labels retain full dates in

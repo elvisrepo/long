@@ -75,6 +75,118 @@ it("labels the weight axis from zero through 80 kg in 10 kg increments", async (
       within(chart).getByText(`${weight} kg`, { exact: true }),
     ).toBeInTheDocument();
 });
+it("offers all-time progress from summary endpoints without widening raw workout reads", async () => {
+  mount([70, 80]);
+  await screen.findByRole("img");
+  const source: api.RecordSource = {
+    workout_id: "old",
+    item_id: "old-item",
+    set_id: "old-set",
+    weight: "50.000",
+    reps: 5,
+  };
+  vi.mocked(api.getProgressPage).mockResolvedValue({
+    count: 1,
+    next: null,
+    previous: null,
+    types: ["strength"],
+    results: [
+      {
+        date: "2023-01-01",
+        value: "50.000",
+        tracking_type: "strength",
+        weight_unit: "kg",
+        distance_unit: "km",
+        source,
+      },
+    ],
+  });
+  vi.mocked(api.getRecordPage).mockResolvedValue({
+    count: 1,
+    next: null,
+    previous: null,
+    results: [
+      {
+        date: "2023-01-01",
+        value: "50.000",
+        reps: 5,
+        tracking_type: "strength",
+        weight_unit: "kg",
+        distance_unit: "km",
+        source,
+      },
+    ],
+  });
+  const rawReads = vi.mocked(api.getWorkoutRange).mock.calls.length;
+  await userEvent.selectOptions(screen.getByLabelText("Progress window"), "0");
+  await screen.findByRole("row", { name: /5 reps.*50 kg.*2023-01-01/ });
+  expect(
+    screen.getByText(/All recorded training through 2026-10-03/),
+  ).toBeInTheDocument();
+  expect(api.getProgressPage).toHaveBeenCalledWith(
+    "bench",
+    "2026-10-03",
+    "max_weight",
+    5,
+    0,
+  );
+  expect(api.getWorkoutRange).toHaveBeenCalledTimes(rawReads);
+});
+it("opens all-time PR improvements and drills into the original exercise", async () => {
+  const navigate = mount([70, 80]);
+  await screen.findByRole("img");
+  const source: api.RecordSource = {
+    workout_id: "old",
+    item_id: "old-item",
+    set_id: "old-set",
+    weight: "50.000",
+    reps: 5,
+  };
+  vi.mocked(api.getRecordPage).mockResolvedValue({
+    count: 1,
+    next: null,
+    previous: null,
+    results: [
+      {
+        date: "2023-01-01",
+        value: "50.000",
+        reps: 5,
+        tracking_type: "strength",
+        weight_unit: "kg",
+        distance_unit: "km",
+        source,
+      },
+    ],
+  });
+  await userEvent.selectOptions(
+    screen.getByLabelText("Graph"),
+    "personal_records",
+  );
+  await userEvent.selectOptions(screen.getByLabelText("Progress window"), "0");
+  await userEvent.click(
+    await screen.findByRole("button", { name: "PR history for 5 reps (kg)" }),
+  );
+  const dialog = screen.getByRole("dialog", {
+    name: "PR history · 5 reps · kg",
+  });
+  await within(dialog).findByText("50 kg × 5 reps");
+  expect(api.getRecordPage).toHaveBeenLastCalledWith("bench", "2026-10-03", 0, {
+    reps: 5,
+    weight_unit: "kg",
+    distance_unit: "km",
+  });
+  await userEvent.click(
+    within(dialog).getByRole("button", {
+      name: "Open source set from 2023-01-01",
+    }),
+  );
+  expect(navigate).toHaveBeenCalledWith({
+    view: "training",
+    date: "2023-01-01",
+    session: "old",
+    exercise: "old-item",
+  });
+});
 it("offers the strength graph choices and switches to calculated estimated 1RM", async () => {
   mount([60, 90]);
   await screen.findByRole("img");

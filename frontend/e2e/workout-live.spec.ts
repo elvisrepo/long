@@ -297,6 +297,36 @@ for (const width of [320, 390, 1440]) {
     ).toHaveCount(0);
     await capture("progress-personal-records");
     await page
+      .getByRole("combobox", { name: "Progress window", exact: true })
+      .selectOption("0");
+    await expect(
+      page.getByRole("heading", { name: "All-time personal records · kg" }),
+    ).toBeVisible();
+    await expect(page.getByText(/All recorded training through/)).toBeVisible();
+    await page
+      .getByRole("button", { name: "PR history for 5 reps (kg)", exact: true })
+      .click();
+    const recordsDialog = page.getByRole("dialog", {
+      name: "PR history · 5 reps · kg",
+    });
+    await expect(
+      recordsDialog.getByText("45 kg × 5 reps", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      recordsDialog.getByRole("button", { name: /Open source set from/ }),
+    ).toBeVisible();
+    await capture("all-time-record-history");
+    await recordsDialog
+      .getByRole("button", { name: "Close PR history" })
+      .click();
+    await page
+      .getByRole("combobox", { name: "Graph", exact: true })
+      .selectOption("max_weight");
+    await expect(
+      page.getByRole("img", { name: /Highest logged load/ }),
+    ).toBeVisible();
+    await capture("all-time-progress");
+    await page
       .getByRole("combobox", { name: "Graph", exact: true })
       .selectOption("max_weight");
     await page.getByRole("button", { name: "Home", exact: true }).click();

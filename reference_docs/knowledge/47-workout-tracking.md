@@ -41,6 +41,20 @@ states and pending-control guards are covered; no optimistic success is shown.
 Browser checks use isolated API fixtures, not users' live workouts. No cloud
 deployment or native background-timer behavior is implied.
 
+### All-time progress and personal records — 2026-10-02
+
+The Progress window selector now includes All time, meaning completed history
+through the selected tracking date. New owner-scoped progress/records endpoints
+aggregate in PostgreSQL and paginate summaries, rather than downloading all raw
+workouts. Frozen types/units stay separate; estimates retain the existing Epley
+1–10-rep eligibility. All-time strongest loads per rep count expose the actual
+source set and its exercise/workout. PR history lists the first qualifying set and
+strict improvements with 25-row pagination and source navigation. Ties retain the
+earliest source. This history is derived from current saved sets and recomputes on
+edit/deletion/uncompletion, not an immutable record audit. Available on all plans;
+no schema migration, Pro gate, automatic conversion or edits to existing user data.
+See API contracts in `03-api-design.md` and coverage in `21-testing.md`.
+
 ### Browsing/removal/history UX correction — 2026-10-02
 
 - Exercise progress now offers graph selection: estimated 1RM, max load/reps/set
@@ -59,8 +73,8 @@ deployment or native background-timer behavior is implied.
   changes or edits to users' saved workouts; not committed or deployed.
   Cardio/duration expose their measures; bodyweight never fabricates mass-based
   estimates. Point details support tap or keyboard selection and date drill-down.
-  Personal records remains a selected-window table, not all-time history. No new
-  API/schema or Pro entitlement is needed. All-time aggregation is still future work.
+  The initial Personal records graph was a selected-window table; the follow-up
+  above adds all-time server summaries without a schema or Pro entitlement change.
   Graph-selector verification: 76 focused workout checks, 456 frontend checks,
   three fixture workout flows and three real-Django flows at 320/390/1440px pass.
   Lint/typecheck/build, format and whitespace checks pass. Inspected screenshots

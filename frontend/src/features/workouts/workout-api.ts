@@ -59,6 +59,34 @@ export interface WorkoutPage {
   previous: string | null;
   results: Workout[];
 }
+export interface RecordSource {
+  workout_id: string;
+  item_id: string;
+  set_id: string;
+  weight: string | null;
+  reps: number | null;
+}
+export interface ProgressPointRow {
+  date: string;
+  value: string;
+  tracking_type: TrackingType;
+  weight_unit: "kg" | "lb";
+  distance_unit: "km" | "mi";
+  source: RecordSource | null;
+  session?: string;
+  workout_id?: string;
+}
+export interface PersonalRecordRow extends ProgressPointRow {
+  reps: number;
+  source: RecordSource;
+}
+export interface SummaryPage<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+  types?: TrackingType[];
+}
 export type RoutineSet = Omit<WorkoutSet, "comment" | "is_completed">;
 export interface RoutineExercise extends Omit<WorkoutExercise, "sets"> {
   sets: RoutineSet[];
@@ -114,6 +142,43 @@ async function request<T>(
 }
 export const getWorkoutCatalog = (): Promise<WorkoutCatalog> =>
   request("catalog/");
+export function getProgressPage(
+  exercise: string,
+  date: string,
+  metric: string,
+  reps = 5,
+  offset = 0,
+): Promise<SummaryPage<ProgressPointRow>> {
+  const query = new URLSearchParams({
+    date_to: date,
+    metric,
+    reps: String(reps),
+    limit: "500",
+    offset: String(offset),
+  });
+  return request(
+    `exercises/${encodeURIComponent(exercise)}/progress/?${query}`,
+  );
+}
+export function getRecordPage(
+  exercise: string,
+  date: string,
+  offset = 0,
+  history?: { reps: number; weight_unit: string; distance_unit: string },
+): Promise<SummaryPage<PersonalRecordRow>> {
+  const query = new URLSearchParams({
+    date_to: date,
+    limit: history ? "25" : "500",
+    offset: String(offset),
+  });
+  if (history) {
+    query.set("history", "true");
+    query.set("reps", String(history.reps));
+    query.set("weight_unit", history.weight_unit);
+    query.set("distance_unit", history.distance_unit);
+  }
+  return request(`exercises/${encodeURIComponent(exercise)}/records/?${query}`);
+}
 export const initializeWorkoutCatalog = (): Promise<WorkoutCatalog> =>
   request("catalog/initialize/", "POST", {});
 export function getWorkoutPage(

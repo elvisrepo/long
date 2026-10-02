@@ -4,7 +4,7 @@
 
 All routes require JWT and work on every plan. Basic UI integration is implemented
 locally (2026-10-02), including direct routines, groups, rest timer, month calendar,
-windowed progress/observed records and calculators. Advanced analysis remains future work.
+windowed/all-time progress, personal records and calculators. Advanced analysis remains future work.
 See `47-workout-tracking.md`.
 
 Frontend `/workouts` uses validated optional search fields: `view=home|exercises|
@@ -154,12 +154,48 @@ or null; weight/distance have 3 decimal places. Duration is integer seconds.
 - Full account JSON includes `workout_catalog_state`, `exercise_categories`,
   `exercises`, `workouts`, `workout_exercises`, `workout_sets`, including archives.
 
+### All-time exercise summaries — 2026-10-02
+
+| Method | Endpoint | Contract |
+|---|---|---|
+| GET | `/api/v1/workouts/exercises/{uuid}/progress/` | Required `date_to`; optional `metric` (default `max_weight`), `reps` (default 5), `limit`, `offset`; paginated aggregate points and `types` |
+| GET | `/api/v1/workouts/exercises/{uuid}/records/` | Required `date_to`; optional `history` (default false), `reps`, `weight_unit`, `distance_unit`, `limit`, `offset`; paginated best records or strict improvement history |
+
+Both are authenticated, owner-only and available on every plan. Foreign/unknown
+exercise UUIDs return `404`, unauthenticated reads `401`, invalid parameters `400`.
+`date_to` is inclusive; there is no lower date bound. Only completed sets count,
+including archived catalog history, partitioned by frozen tracking type and units.
+Pagination defaults to 100 rows, allows 1–500, and requires nonnegative offset.
+The UI requests summary pages of 500 and record-history pages of 25, constructing
+its own same-origin paths instead of following response URLs.
+
+Metrics: `max_weight`, `estimated_1rm`, `max_reps`, `max_volume`,
+`max_weight_reps`, `workout_volume`, `workout_reps`, `max_distance`, `max_duration`.
+`reps` accepts 1–10000 and only affects `max_weight_reps`. Daily maxima select one
+source set per date/type/unit partition; workout totals retain separate sessions
+and sum this exercise's occurrences. Estimated 1RM uses Epley, positive load up to
+10000 and 1–10 reps, rounded to three decimals; a one-rep set returns its load.
+The `types` list includes all completed saved types through that date, independent
+of the selected metric. The Personal records graph uses the records endpoint.
+
+Progress rows: `{date, tracking_type, weight_unit, distance_unit, value, source}`;
+`value` is a decimal string. Source is `{workout_id, item_id, set_id, weight, reps}`;
+totals have `source:null` plus `workout_id` and `session` name. Record rows add `reps`
+and always carry the source set. Bests are strongest recorded load per strength
+rep count/type/unit partition, retaining the earliest source on ties. `history=true`
+returns the first qualifying set and subsequent strictly higher loads in stable
+date/session-creation/exercise/set order; ties are not improvements. Optional
+rep/unit filters narrow the records. Editing, deleting, or uncompleting sets
+recomputes records/history: this is not an immutable audit trail or a cached PR model.
+SQL aggregation/window functions avoid loading raw workout histories in Python or
+the browser. No migration or automatic unit conversion is introduced.
+
 Calendar reads the displayed month through the existing bounded, safely paginated
-session API. Progress reads 30/90/365 days ending on the selected date with the
-owned library `exercise_id` filter. The browser derives daily maxima/observed
-records from completed sets only and partitions frozen type/unit combinations;
-no analytics endpoint, cached PR model or all-time claim. Writes invalidate these
-owner-scoped reads. Calculators run locally: Epley estimated max, percentage/nearest
+session API. Windowed progress reads 30/90/180/365 days ending on the selected date
+with the owned library `exercise_id` filter. The browser derives daily maxima/
+observed records from completed sets only and partitions frozen type/unit
+combinations. All time uses the summary endpoints above, not expanded raw session
+reads. Writes invalidate these owner-scoped reads. Calculators run locally: Epley estimated max, percentage/nearest
 increment, and exact balanced plates from explicit finite inventory. Adding a
 percentage result uses the existing set POST with `is_completed:false`, unknown
 reps, and saved units. Calculator inputs/equipment inventory are temporary, not

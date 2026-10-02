@@ -2,8 +2,19 @@ from django.urls import path
 
 from . import views
 from . import routine_views
+from .progress_views import ExerciseProgressView, ExerciseRecordsView
 
 urlpatterns = [
+    path(
+        "exercises/<uuid:exercise_id>/records/",
+        ExerciseRecordsView.as_view(),
+        name="workout-exercise-records",
+    ),
+    path(
+        "exercises/<uuid:exercise_id>/progress/",
+        ExerciseProgressView.as_view(),
+        name="workout-exercise-progress",
+    ),
     path(
         "sessions/<uuid:workout_id>/groups/",
         views.SessionGroupsView.as_view(),
