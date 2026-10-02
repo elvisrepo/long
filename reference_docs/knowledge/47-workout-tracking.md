@@ -21,7 +21,7 @@ The separate `.lavish/workout-prototype.html` is a sample-only
 review prototype, not the real Workouts tab. No cloud deployment is implied.
 Normal local and isolated E2E PostgreSQL have all six workout migrations applied.
 The full backend suite passes 672 tests (42 original workout, 17 routine and nine
-group checks); 424 frontend tests, 35 fixture browser checks and three real Django browser flows
+group checks); 438 frontend tests, 35 fixture browser checks and three real Django browser flows
 at 320/390/1440px pass. Type checks, lint, build and migration drift pass. Live
 flows cover direct editing, independent starts, groups, timer, calculator plans,
 windowed records, two-date charts, compact calendar cells and reload. Screenshots
@@ -40,6 +40,36 @@ Planned-only sessions do not count as training. Server-confirmed queries, error
 states and pending-control guards are covered; no optimistic success is shown.
 Browser checks use isolated API fixtures, not users' live workouts. No cloud
 deployment or native background-timer behavior is implied.
+
+### Browsing/removal/history UX correction — 2026-10-02
+
+- All exercises opens library details/history/progress, never starts a workout
+  implicitly. The navigation tab clears session context; Home Start is explicit.
+- Session Add exercise opens an existing occurrence if present, preferring one
+  with sets. Existing duplicate blocks are retained, not merged/deleted automatically.
+  Backend still permits multiple occurrences; no schema/REST contract changed.
+- Overview cards and Training expose confirmed Remove exercise. It permanently
+  removes only this occurrence and its sets, not the library or other workouts.
+  Finished sessions require reopening; failed deletion stays visible in the modal.
+- Training history now includes and labels the current session, with Back to Track.
+  Other sessions have one Open exercise link despite duplicate entries. Full
+  pagination is still available. Previous-set suggestions still exclude current work.
+- Progress continues to count completed sets only. It explicitly lists dates
+  with only planned sets for the chosen exercise, aggregating across sessions so
+  a date with any completed work is not falsely labelled excluded.
+- Progress charts now label a zero-based numeric/unit axis and horizontal
+  gridlines, with adaptive 1/2/5 tick spacing. Decimal, large and all-zero load
+  ranges remain finite; exact recorded values/units and completed-only aggregation
+  are unchanged. The 70/75/80 kg example shows 0, 10, 20 through 80 kg.
+  Axis follow-up: 58 focused workout checks, 438 frontend checks, and three
+  real-Django responsive flows pass; lint/build/whitespace checks pass. Desktop
+  and phone screenshots were inspected. No backend/schema or record changes.
+- Follow-up verification: 54 focused workout checks, 434 total frontend tests,
+  35 fixture browser checks and three real-Django flows at 320/390/1440px pass.
+  Lint, TypeScript/Vite build, formatting and whitespace checks pass; responsive
+  history/removal screenshots were inspected. Backend/schema unchanged, no new
+  migration and no user-data cleanup. The recorded 672 backend checks belong to
+  the preceding backend/group slice, not a backend rerun for this UI-only change.
 
 - Add an authenticated Workouts tab, using Longevity's existing visual system.
 - Every account gets the complete basic workout log. Advanced Pro analysis is a

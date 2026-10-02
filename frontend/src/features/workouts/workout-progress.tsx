@@ -26,6 +26,31 @@ export function WorkoutProgress({
   });
   const series =
     query.data && exerciseId ? progressSeries(query.data, exerciseId) : [];
+  const completedDates = new Set(
+    query.data
+      ?.filter((w) =>
+        w.exercises.some(
+          (i) =>
+            i.exercise_id === exerciseId && i.sets.some((s) => s.is_completed),
+        ),
+      )
+      .map((w) => w.performed_on),
+  );
+  const plannedDates = [
+    ...new Set(
+      query.data
+        ?.filter(
+          (w) =>
+            !completedDates.has(w.performed_on) &&
+            w.exercises.some(
+              (i) =>
+                i.exercise_id === exerciseId &&
+                i.sets.some((s) => !s.is_completed),
+            ),
+        )
+        .map((w) => w.performed_on),
+    ),
+  ].sort();
   return (
     <section className="workout-card">
       <div className="workout-filters">
@@ -66,6 +91,12 @@ export function WorkoutProgress({
         {from} – {date}. Completed sets only; saved types and units stay
         separate. These are records within this window, not all-time records.
       </p>
+      {query.isSuccess && plannedDates.length > 0 && (
+        <p className="workout-note">
+          Not plotted: {plannedDates.join(", ")} — only planned sets for this
+          exercise. Mark performed sets completed to include them.
+        </p>
+      )}
       {!exerciseId ? (
         <p>Select an exercise to review its progress.</p>
       ) : query.isPending ? (
@@ -89,14 +120,22 @@ export function WorkoutProgress({
 }
 function ProgressCard({ series }: { series: ProgressSeries }) {
   const values = series.points.map((p) => p.value);
-  const min = Math.min(...values),
-    max = Math.max(...values);
+  const max = Math.max(...values, 0) || 10;
+  const roughStep = max / 8;
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+  const step =
+    [1, 2, 5, 10].find((n) => n * magnitude >= roughStep)! * magnitude;
+  const tickCount = Math.ceil(max / step);
+  const axisMax = tickCount * step;
+  const ticks = Array.from({ length: tickCount + 1 }, (_, i) =>
+    Number((i * step).toPrecision(12)),
+  );
   const xMin = Date.parse(series.points[0].date),
     xMax = Date.parse(series.points.at(-1)!.date);
   const points = series.points
     .map(
       (p) =>
-        `${20 + ((Date.parse(p.date) - xMin) / (xMax - xMin || 1)) * 560},${160 - ((p.value - min) / (max - min || 1)) * 130}`,
+        `${80 + ((Date.parse(p.date) - xMin) / (xMax - xMin || 1)) * 500},${160 - (p.value / axisMax) * 140}`,
     )
     .join(" ");
   return (
@@ -111,7 +150,25 @@ function ProgressCard({ series }: { series: ProgressSeries }) {
           role="img"
           aria-label={`${series.title} by training date; exact values in table below`}
         >
-          <path d="M20 15V170H580" fill="none" stroke="var(--border)" />
+          {ticks.map((tick) => {
+            const y = 160 - (tick / axisMax) * 140;
+            return (
+              <g key={tick}>
+                <line x1="80" x2="580" y1={y} y2={y} stroke="var(--border)" />
+                <text
+                  x="70"
+                  y={y + 4}
+                  textAnchor="end"
+                  fill="var(--text-dim)"
+                  fontSize="11"
+                >
+                  {tick.toLocaleString("en-GB", { maximumFractionDigits: 6 })}{" "}
+                  {series.unit}
+                </text>
+              </g>
+            );
+          })}
+          <path d="M80 20V160H580" fill="none" stroke="var(--border)" />
           <polyline
             points={points}
             fill="none"
@@ -128,7 +185,7 @@ function ProgressCard({ series }: { series: ProgressSeries }) {
               </circle>
             );
           })}
-          <text x="20" y="187" fill="var(--text-dim)" fontSize="11">
+          <text x="80" y="187" fill="var(--text-dim)" fontSize="11">
             {series.points[0].date}
           </text>
           <text

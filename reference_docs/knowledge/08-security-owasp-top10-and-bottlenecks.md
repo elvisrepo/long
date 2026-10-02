@@ -29,6 +29,11 @@
   trusting arbitrary provider `next` URLs. Notes/comments are rendered as text,
   not HTML. Windowed progress now derives from authenticated bounded session reads,
   never public/private cross-owner analytics. See `47-workout-tracking.md`.
+- Library browsing never creates workouts; choosing an existing occurrence avoids
+  a duplicate UI write. This does not replace backend ownership validation or
+  introduce SQL uniqueness. Direct removal requires explicit confirmation, keeps
+  errors visible in the dialog, and cannot edit finished sessions without reopening.
+  The existing owner-scoped occurrence DELETE still deletes its sets permanently.
 
 ### Routine template boundary — 2026-10-02
 

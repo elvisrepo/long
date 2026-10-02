@@ -81,7 +81,24 @@ beforeEach(() => {
   vi.mocked(api.createWorkout).mockResolvedValue({ ...workout, exercises: [] });
   vi.mocked(api.addWorkoutExercise).mockResolvedValue(item);
 });
+it("browses library details without creating or changing a workout", async () => {
+  mount({ view: "exercises", date: "2026-10-02" });
+  await userEvent.click(
+    await screen.findByRole("button", { name: "View Barbell bench press" }),
+  );
+  expect(screen.getByRole("dialog")).toHaveTextContent("Barbell bench press");
+  expect(
+    screen.getByRole("button", { name: "View exercise history" }),
+  ).toBeInTheDocument();
+  expect(api.createWorkout).not.toHaveBeenCalled();
+  expect(api.addWorkoutExercise).not.toHaveBeenCalled();
+});
 it("starts on the chosen date, selects an exercise and opens its training screen", async () => {
+  vi.mocked(api.getWorkout).mockResolvedValue({ ...workout, exercises: [] });
+  vi.mocked(api.addWorkoutExercise).mockImplementation(async () => {
+    vi.mocked(api.getWorkout).mockResolvedValue(workout);
+    return item;
+  });
   mount({ date: "2026-10-02" });
   await userEvent.click(
     await screen.findByRole("button", { name: "Start new workout" }),
@@ -106,8 +123,12 @@ it("starts on the chosen date, selects an exercise and opens its training screen
 it("reuses a newly created session if adding its first exercise fails", async () => {
   vi.mocked(api.addWorkoutExercise)
     .mockRejectedValueOnce(new Error("Temporary failure"))
-    .mockResolvedValue(item);
-  mount({ view: "exercises", date: "2026-10-02" });
+    .mockImplementation(async () => {
+      vi.mocked(api.getWorkout).mockResolvedValue(workout);
+      return item;
+    });
+  vi.mocked(api.getWorkout).mockResolvedValue({ ...workout, exercises: [] });
+  mount({ view: "exercises", date: "2026-10-02", session: "w" });
   await userEvent.click(
     await screen.findByRole("button", { name: "Add Barbell bench press" }),
   );
@@ -116,7 +137,196 @@ it("reuses a newly created session if adding its first exercise fails", async ()
     screen.getByRole("button", { name: "Add Barbell bench press" }),
   );
   await screen.findByRole("heading", { name: "Barbell bench press", level: 1 });
-  expect(api.createWorkout).toHaveBeenCalledTimes(1);
+  expect(api.createWorkout).not.toHaveBeenCalled();
+});
+
+it("opens an existing exercise rather than adding another occurrence", async () => {
+  mount({ view: "exercises", date: "2026-10-02", session: "w" });
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Open Barbell bench press" }),
+  );
+  expect(
+    await screen.findByRole("heading", {
+      name: "Barbell bench press",
+      level: 1,
+    }),
+  ).toBeInTheDocument();
+  expect(api.addWorkoutExercise).not.toHaveBeenCalled();
+  expect(api.createWorkout).not.toHaveBeenCalled();
+});
+
+it("offers confirmed exercise removal on the workout overview", async () => {
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
+  mount({ date: "2026-10-02" });
+  await userEvent.click(
+    await screen.findByRole("button", {
+      name: "Remove Barbell bench press from workout",
+    }),
+  );
+  expect(screen.getByRole("dialog")).toHaveTextContent("sets");
+  expect(api.deleteWorkoutItem).not.toHaveBeenCalled();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Confirm exercise removal" }),
+  );
+  await waitFor(() =>
+    expect(api.deleteWorkoutItem).toHaveBeenCalledWith(
+      "session-exercises",
+      "i",
+    ),
+  );
+});
+
+it("cancels removal without deleting data", async () => {
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
+  mount({ date: workout.performed_on });
+  await userEvent.click(
+    await screen.findByRole("button", {
+      name: "Remove Barbell bench press from workout",
+    }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Cancel", exact: true }),
+  );
+  expect(api.deleteWorkoutItem).not.toHaveBeenCalled();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
+it("keeps the confirmation and error visible if removal fails", async () => {
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
+  vi.mocked(api.deleteWorkoutItem).mockRejectedValue(
+    new Error("Removal failed"),
+  );
+  mount({ date: workout.performed_on });
+  await userEvent.click(
+    await screen.findByRole("button", {
+      name: "Remove Barbell bench press from workout",
+    }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Confirm exercise removal" }),
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent("Removal failed");
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
+});
+
+it("requires reopening a finished workout before removing an exercise", async () => {
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([
+    { ...workout, is_finished: true },
+  ]);
+  mount({ date: workout.performed_on });
+  expect(
+    await screen.findByRole("button", {
+      name: "Remove Barbell bench press from workout",
+    }),
+  ).toBeDisabled();
+});
+
+it("includes the current session in exercise history", async () => {
+  mount({ view: "training", date: "2026-10-02", session: "w", exercise: "i" });
+  await userEvent.click(
+    await screen.findByRole("button", {
+      name: "Exercise history",
+      exact: true,
+    }),
+  );
+  expect(await screen.findByText("Current session")).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Back to Track" }),
+  ).toBeInTheDocument();
+});
+
+it("shows one history link per session and prefers an entry with sets", async () => {
+  const completed: api.WorkoutSet = {
+    id: "s",
+    display_order: 10,
+    weight: "70",
+    reps: 5,
+    distance: null,
+    duration_seconds: null,
+    comment: "",
+    is_completed: true,
+  };
+  vi.mocked(api.getWorkoutPage).mockResolvedValue({
+    count: 1,
+    next: null,
+    previous: null,
+    results: [
+      {
+        ...workout,
+        id: "old",
+        performed_on: "2026-10-01",
+        exercises: [item, { ...item, id: "logged", sets: [completed] }],
+      },
+    ],
+  });
+  mount({
+    view: "training",
+    date: workout.performed_on,
+    session: "w",
+    exercise: "i",
+  });
+  await userEvent.click(
+    await screen.findByRole("button", {
+      name: "Exercise history",
+      exact: true,
+    }),
+  );
+  expect(
+    await screen.findAllByRole("button", {
+      name: "Open exercise",
+      exact: true,
+    }),
+  ).toHaveLength(1);
+  expect(screen.getByText("70 kg · 5 reps · Completed")).toBeInTheDocument();
+});
+
+it("switching to All exercises clears the workout selection context", async () => {
+  mount({
+    view: "training",
+    date: workout.performed_on,
+    session: "w",
+    exercise: "i",
+  });
+  await screen.findByRole("heading", { name: "Barbell bench press", level: 1 });
+  await userEvent.click(
+    screen.getByRole("button", { name: "All exercises", exact: true }),
+  );
+  expect(
+    await screen.findByRole("button", { name: "View Barbell bench press" }),
+  ).toBeInTheDocument();
+  expect(screen.queryByText(/Adding to/)).not.toBeInTheDocument();
+});
+
+it("explains when planned-only exercise dates are excluded from progress", async () => {
+  const plan = {
+    ...workout,
+    performed_on: "2026-10-01",
+    exercises: [
+      {
+        ...item,
+        sets: [
+          {
+            id: "planned",
+            display_order: 10,
+            weight: "75",
+            reps: 5,
+            distance: null,
+            duration_seconds: null,
+            comment: "",
+            is_completed: false,
+          },
+        ],
+      },
+    ],
+  };
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([plan]);
+  mount({ view: "progress", date: "2026-10-02", exercise: "e" });
+  expect(
+    await screen.findByText(/2026-10-01.*only planned sets/),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText("No completed sets recorded in this window."),
+  ).toBeInTheDocument();
 });
 
 it("saves a completed set with snapshot units and shows server-confirmed values", async () => {

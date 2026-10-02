@@ -11,7 +11,19 @@ not current library defaults; it supports planned/completed sets, comments,
 edit/delete, repeat entry and an explicit previous-set suggestion when available.
 Finished sessions must reopen before edits. Session name/date/notes and copying
 are available from Home; History browses a paginated 90-day window and filters by
-exercise. Exercise history offers a link to the fully paginated view.
+exercise. Exercise history includes the current session with Back to Track and
+one Open exercise button per other workout, plus a fully paginated history link.
+
+All exercises is now browsing-only: clicking a row opens notes/type/units and
+History/Progress links. The tab clears prior workout context. Start new workout
+on Home explicitly creates a session; Add exercise on a session enters selection
+mode. An already-present exercise is labelled Open and reuses its entry, preferring
+one with logged sets. Existing duplicates are never automatically deleted.
+Overview exercise cards and the Training sidebar expose Remove exercise with a
+confirmation explaining permanent set deletion and retained catalog/other sessions.
+Finished sessions must reopen first; failed removal retains its dialog and error.
+Progress keeps completed-only calculations and explicitly names planned-only dates
+for the selected exercise that are not plotted.
 
 The seven-day strip always ends today, independently of the selected tracking
 date. Dashboard Recovery/Diet/Workouts summaries share a compact three-column row,
@@ -47,6 +59,9 @@ training and plans are distinct. `view=progress` uses the owned library `exercis
 UUID, a 30/90/365-day window ending on the selected date, and safely paginated
 session reads. Completed sets derive windowed records/charts, separated by frozen
 type/units and recomputed after writes. Tables expose exact chart/record values.
+Charts show a zero-based numeric axis with saved-unit labels and horizontal
+gridlines. Tick spacing uses bounded 1/2/5 multiples (0–80 kg uses 10 kg ticks),
+with decimal/large/all-zero ranges handled without changing saved quantities.
 Training provides collapsible calculators and a compact visual deadline timer;
 auto-start/next-group navigation occurs only on confirmed new completion. Percentage
 calculator results are planned sets, not performed work. No background alert promise.

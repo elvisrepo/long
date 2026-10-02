@@ -5,6 +5,7 @@ import { Modal } from "../../components/modal";
 import * as api from "./workout-api";
 import { WorkoutTools } from "./workout-tools";
 import { WorkoutGroups } from "./workout-groups";
+import { RemoveWorkoutExercise } from "./remove-workout-exercise";
 import {
   dayLabel,
   setLabel,
@@ -264,6 +265,15 @@ export function WorkoutTraining({
           <button disabled={disabled} onClick={() => setDialog("groups")}>
             {item.group_name ? "Edit group" : "Add to group"}
           </button>
+          <RemoveWorkoutExercise
+            item={item}
+            finished={workout.is_finished}
+            busy={busy}
+            run={run}
+            onRemoved={() =>
+              navigate({ view: "home", date: workout.performed_on })
+            }
+          />
         </aside>
         <section className="workout-card">
           <WorkoutTools
@@ -504,7 +514,7 @@ export function WorkoutTraining({
             </>
           ) : (
             <>
-              <h2>Previous sessions</h2>
+              <h2>Recorded sessions</h2>
               <p className="workout-note">
                 Last 90 days ending {dayLabel(workout.performed_on)}. Each entry
                 keeps its original units.
@@ -520,44 +530,64 @@ export function WorkoutTraining({
                 </div>
               ) : (
                 <>
-                  {history.data.results
-                    .filter((w) => w.id !== workout.id)
-                    .map((w) => (
+                  {[
+                    workout,
+                    ...history.data.results.filter((w) => w.id !== workout.id),
+                  ].map((w) => {
+                    const matches = w.exercises.filter(
+                      (i) => i.exercise_id === item.exercise_id,
+                    );
+                    const target =
+                      matches.find((i) => i.sets.length > 0) ?? matches[0];
+                    return (
                       <div className="workout-inset" key={w.id}>
                         <h3>
                           {dayLabel(w.performed_on)} · {w.name}
                         </h3>
-                        {w.exercises
-                          .filter((i) => i.exercise_id === item.exercise_id)
-                          .map((i) => (
-                            <div key={i.id}>
-                              {i.sets.map((s) => (
-                                <p key={s.id}>
-                                  {setLabel(i, s)} ·{" "}
-                                  {s.is_completed ? "Completed" : "Planned"}
-                                  {s.comment && ` · ${s.comment}`}
-                                </p>
-                              ))}
-                              <button
-                                disabled={busy}
-                                onClick={() =>
-                                  navigate({
-                                    view: "training",
-                                    date: w.performed_on,
-                                    session: w.id,
-                                    exercise: i.id,
-                                  })
-                                }
-                              >
-                                Open exercise
-                              </button>
-                            </div>
-                          ))}
+                        {w.id === workout.id && (
+                          <span className="workout-badge">Current session</span>
+                        )}
+                        {matches.map((i) => (
+                          <div key={i.id}>
+                            {i.sets.map((s) => (
+                              <p key={s.id}>
+                                {setLabel(i, s)} ·{" "}
+                                {s.is_completed ? "Completed" : "Planned"}
+                                {s.comment && ` · ${s.comment}`}
+                              </p>
+                            ))}
+                          </div>
+                        ))}
+                        {!matches.some((i) => i.sets.length) && (
+                          <p>No sets recorded for this exercise.</p>
+                        )}
+                        {w.id === workout.id ? (
+                          <button
+                            disabled={busy}
+                            onClick={() => setTab("track")}
+                          >
+                            Back to Track
+                          </button>
+                        ) : (
+                          target && (
+                            <button
+                              disabled={busy}
+                              onClick={() =>
+                                navigate({
+                                  view: "training",
+                                  date: w.performed_on,
+                                  session: w.id,
+                                  exercise: target.id,
+                                })
+                              }
+                            >
+                              Open exercise
+                            </button>
+                          )
+                        )}
                       </div>
-                    ))}
-                  {!history.data.results.some((w) => w.id !== workout.id) && (
-                    <p>No previous sessions in this range.</p>
-                  )}
+                    );
+                  })}
                   {history.data.next && (
                     <button
                       onClick={() =>

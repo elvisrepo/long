@@ -15,6 +15,7 @@ import {
   type WorkoutSearch,
 } from "./workout-navigation";
 import { WorkoutLibrary } from "./workout-library";
+import { RemoveWorkoutExercise } from "./remove-workout-exercise";
 import { WorkoutTraining } from "./workout-training";
 import { RestTimer, type RestTimerHandle } from "./rest-timer";
 import { WorkoutCalendar } from "./workout-calendar";
@@ -82,17 +83,13 @@ export function WorkoutScreen({
     );
   const selectExercise = (id: string) =>
     run(async () => {
-      const session = search.session
-        ? await api.getWorkout(search.session)
-        : await api.createWorkout(day);
-      // Preserve a confirmed session even if the subsequent exercise write fails.
-      if (!search.session)
-        onNavigate({
-          view: "exercises",
-          date: session.performed_on,
-          session: session.id,
-        });
-      const item = await api.addWorkoutExercise(session.id, id);
+      if (!search.session) return;
+      const session = await api.getWorkout(search.session);
+      const matches = session.exercises.filter((i) => i.exercise_id === id);
+      const item =
+        matches.find((i) => i.sets.length > 0) ??
+        matches[0] ??
+        (await api.addWorkoutExercise(session.id, id));
       onNavigate({
         view: "training",
         date: session.performed_on,
@@ -135,9 +132,6 @@ export function WorkoutScreen({
               navigate({
                 view: target,
                 date: day,
-                ...(target === "exercises" && search.session
-                  ? { session: search.session }
-                  : {}),
               })
             }
           >
@@ -184,7 +178,9 @@ export function WorkoutScreen({
           }
           description={
             view === "exercises"
-              ? "Your editable exercises. Select one to add it to a workout."
+              ? search.session
+                ? "Select an exercise to add to this workout, or open one already included."
+                : "Browse your exercise library, history and progress. No workout is created here."
               : view === "routines"
                 ? "Reusable named days. Start each as an independent planned workout."
                 : view === "calendar"
@@ -290,6 +286,14 @@ export function WorkoutScreen({
             busy={busy}
             run={run}
             onSelect={selectExercise}
+            selectingWorkout={!!search.session}
+            existingExercises={detail.data?.exercises}
+            onHistory={(exercise) =>
+              navigate({ view: "history", date: day, exercise })
+            }
+            onProgress={(exercise) =>
+              navigate({ view: "progress", date: day, exercise })
+            }
             selectionDisabled={
               !!search.session &&
               (detail.isPending ||
@@ -566,6 +570,12 @@ function SessionCard({
               </div>
             ))}
             {!item.sets.length && <p>No sets yet</p>}
+            <RemoveWorkoutExercise
+              item={item}
+              finished={w.is_finished}
+              busy={busy}
+              run={run}
+            />
           </div>
         ))}
       </div>

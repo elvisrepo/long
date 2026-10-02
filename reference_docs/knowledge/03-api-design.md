@@ -14,6 +14,19 @@ whereas History/Progress's optional exercise parameter identifies a library exer
 These are UI state, not new REST contracts. Invalid training links fall back Home;
 foreign/deleted UUIDs still rely on backend authorization and show read errors.
 Date controls preserve the selected library exercise in History/Progress.
+`view=exercises` without `session` is read-only browsing: exercise clicks open
+library details with History/Progress links, never create a Workout. The All
+exercises navigation tab clears session context. Start new workout explicitly
+creates a session; session Add exercise passes its UUID to selection mode.
+Selection reloads that owner-scoped session and opens a matching occurrence
+(preferring one with sets), rather than POSTing a duplicate. Existing duplicate
+rows are preserved; this is a frontend flow rule, not a new database uniqueness
+constraint or a change to the occurrence-creation REST contract.
+Overview and Training offer confirmed removal using the existing occurrence DELETE:
+it removes that occurrence's sets, not the catalog exercise or other workouts.
+Finished sessions must reopen first. Exercise history includes the current session,
+marked explicitly, with one navigation link per other workout. Progress lists
+exercise-specific planned-only dates excluded from its completed-only series.
 
 ### Routine templates — 2026-10-02
 

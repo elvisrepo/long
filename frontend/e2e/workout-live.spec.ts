@@ -117,7 +117,7 @@ for (const width of [320, 390, 1440]) {
     ).toHaveCSS("border-left-color", "rgb(219, 39, 119)");
     await page
       .getByRole("complementary")
-      .getByRole("button", { name: /Barbell bench press/ })
+      .getByRole("button", { name: /^Barbell bench press/ })
       .click();
     await page.getByRole("timer").click();
     await page.getByLabel("Auto-start after completed set").check();
@@ -211,11 +211,109 @@ for (const width of [320, 390, 1440]) {
       page.getByRole("img", { name: /Highest logged load by training date/ }),
     ).toBeVisible();
     await capture("progress");
+    const progressChart = page.getByRole("img", {
+      name: /Highest logged load by training date/,
+    });
+    await expect(
+      progressChart.getByText("0 kg", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      progressChart.getByText("10 kg", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      progressChart.getByText("40 kg", { exact: true }),
+    ).toBeVisible();
     await page.getByRole("button", { name: "Home", exact: true }).click();
     await page.reload();
     await expect(
       page.getByRole("heading", { name: "Weekly plan · Push" }),
     ).toBeVisible();
     await expect(page.getByText(/40 kg/)).toBeVisible();
+    let accidentalWrites = 0;
+    page.on("request", (outgoing) => {
+      if (
+        outgoing.method() === "POST" &&
+        /\/api\/v1\/workouts\/sessions\/(?:[^/]+\/exercises\/)?$/.test(
+          new URL(outgoing.url()).pathname,
+        )
+      )
+        accidentalWrites++;
+    });
+    await page
+      .getByRole("button", { name: "All exercises", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "View Barbell bench press", exact: true })
+      .click();
+    await expect(page.getByRole("dialog")).toContainText("Barbell bench press");
+    await page.getByRole("button", { name: "Close", exact: true }).click();
+    expect(accidentalWrites).toBe(0);
+    await page.getByRole("button", { name: "Home", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Barbell bench press →", exact: true })
+      .first()
+      .click();
+    await page
+      .getByRole("button", { name: "Exercise history", exact: true })
+      .click();
+    await expect(
+      page.getByText("Current session", { exact: true }),
+    ).toBeVisible();
+    await capture("exercise-history");
+    await page
+      .getByRole("button", { name: "Back to Track", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Add exercise", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Open Barbell bench press", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Barbell bench press", level: 1 }),
+    ).toBeVisible();
+    expect(accidentalWrites).toBe(0);
+    await page
+      .getByRole("button", { name: "Workout overview", exact: true })
+      .click();
+    await page
+      .getByRole("button", {
+        name: "Remove Dumbbell incline press from workout",
+        exact: true,
+      })
+      .click();
+    await expect(page.getByRole("dialog")).toContainText("sets");
+    await capture("exercise-removal");
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(
+      page.getByRole("button", {
+        name: "Dumbbell incline press →",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", {
+        name: "Remove Dumbbell incline press from workout",
+        exact: true,
+      })
+      .click();
+    await page
+      .getByRole("button", { name: "Confirm exercise removal", exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", {
+        name: "Dumbbell incline press →",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    await page
+      .getByRole("button", { name: "All exercises", exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", {
+        name: "View Dumbbell incline press",
+        exact: true,
+      }),
+    ).toBeVisible();
   });
 }

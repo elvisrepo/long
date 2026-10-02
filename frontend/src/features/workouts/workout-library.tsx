@@ -18,17 +18,26 @@ export function WorkoutLibrary({
   run,
   onSelect,
   selectionDisabled,
+  selectingWorkout,
+  existingExercises = [],
+  onHistory,
+  onProgress,
 }: {
   catalog: api.WorkoutCatalog;
   busy: boolean;
   run: RunAction;
   onSelect: (id: string) => void;
   selectionDisabled: boolean;
+  selectingWorkout: boolean;
+  existingExercises?: api.WorkoutExercise[];
+  onHistory: (id: string) => void;
+  onProgress: (id: string) => void;
 }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [archives, setArchives] = useState(false);
   const [editor, setEditor] = useState<Editor | null>(null);
+  const [detail, setDetail] = useState<api.Exercise | null>(null);
   const categories = catalog.categories.filter((c) => archives || c.is_active);
   return (
     <>
@@ -131,12 +140,13 @@ export function WorkoutLibrary({
                         className="workout-exercise-choice"
                         disabled={
                           busy ||
-                          selectionDisabled ||
-                          !c.is_active ||
-                          !e.is_active
+                          (selectingWorkout &&
+                            (selectionDisabled || !c.is_active || !e.is_active))
                         }
-                        aria-label={`Add ${e.name}`}
-                        onClick={() => onSelect(e.id)}
+                        aria-label={`${selectingWorkout ? (existingExercises.some((i) => i.exercise_id === e.id) ? "Open" : "Add") : "View"} ${e.name}`}
+                        onClick={() =>
+                          selectingWorkout ? onSelect(e.id) : setDetail(e)
+                        }
                       >
                         <span>
                           {e.name}
@@ -145,7 +155,12 @@ export function WorkoutLibrary({
                             {!e.is_active ? " · Archived" : ""}
                           </small>
                         </span>
-                        <span aria-hidden="true">＋</span>
+                        <span aria-hidden="true">
+                          {selectingWorkout &&
+                          !existingExercises.some((i) => i.exercise_id === e.id)
+                            ? "＋"
+                            : "→"}
+                        </span>
                       </button>
                       <button
                         disabled={busy}
@@ -168,6 +183,48 @@ export function WorkoutLibrary({
             );
           })}
       </div>
+      {detail && (
+        <Modal
+          labelledBy="library-exercise-detail"
+          busy={busy}
+          onClose={() => setDetail(null)}
+        >
+          <h2 id="library-exercise-detail">{detail.name}</h2>
+          <p>
+            {labels[detail.tracking_type]}
+            {detail.tracking_type === "cardio"
+              ? ` · ${detail.distance_unit}`
+              : detail.tracking_type === "duration"
+                ? " · seconds"
+                : ` · ${detail.weight_unit}`}
+          </p>
+          {detail.notes && <p>{detail.notes}</p>}
+          <div className="workout-actions">
+            <button disabled={busy} onClick={() => onHistory(detail.id)}>
+              View exercise history
+            </button>
+            <button disabled={busy} onClick={() => onProgress(detail.id)}>
+              View exercise progress
+            </button>
+            <button
+              disabled={busy}
+              onClick={() => {
+                setDetail(null);
+                setEditor({ kind: "exercise", item: detail });
+              }}
+            >
+              Edit exercise
+            </button>
+            <button disabled={busy} onClick={() => setDetail(null)}>
+              Close
+            </button>
+          </div>
+          <p className="workout-note">
+            To log sets, start a workout from Home or use Add exercise in an
+            existing workout.
+          </p>
+        </Modal>
+      )}
       {editor && (
         <Modal
           labelledBy="workout-library-editor"

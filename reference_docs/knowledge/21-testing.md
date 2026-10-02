@@ -26,6 +26,31 @@
 
 ### Workout frontend basic slice — 2026-10-02
 
+#### Browsing, removal and history UX follow-up
+
+- Screen tests cover read-only library details, explicit session creation,
+  failed-add retries without creating another session, opening existing occurrences,
+  clearing context via All exercises, confirmed/cancelled/failed removal and
+  finished-session protection. History includes current data and collapses navigation
+  to one link per workout; progress explains exercise-specific planned-only dates.
+- Real-Django responsive flows additionally assert zero session/occurrence POSTs
+  while browsing or reopening an existing exercise, current-session history, and
+  cancelled/confirmed removal retaining the library exercise. Only the isolated
+  E2E user's fixtures are removed. Existing real account rows are not cleaned up.
+- Exercise-name selectors are anchored to avoid matching new accessible Remove
+  controls. REST routes/backend/schema are unchanged; no migration required.
+- `workout-progress.test.tsx` checks zero-based 10 kg tick labels for 70/75/80 kg,
+  decimal/large/all-zero ranges, bounded tick counts and finite plotted coordinates.
+  Live responsive flows assert visible kg tick labels on the real chart.
+  Axis verification: 58 focused workout checks, 438 total frontend checks,
+  three live responsive flows, lint and production build pass; inspected desktop/
+  phone screenshots. The 35 fixture checks belong to the preceding UX run.
+- Verified: 54 focused workout and 434 full frontend checks, 35 fixture browser
+  checks and three real-Django responsive flows at 320/390/1440px. Lint,
+  TypeScript/Vite build, formatting and whitespace pass. Screenshots were inspected.
+  An initially misplaced removal check ran before creating its exercise; moving
+  it to the end fixed test sequencing. No production/user data was removed.
+
 - API/navigation tests cover bearer auth, partial updates, nested errors, 204
   deletion, safe pagination, invalid date/UUID links and month boundaries.
 - Component tests cover start → selection → training, saved snapshot fields,

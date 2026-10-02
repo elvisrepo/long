@@ -166,7 +166,7 @@ it("edits membership and colour and preserves the existing group identity", asyn
   mount(grouped);
   const sidebar = screen.getByRole("complementary");
   expect(
-    within(sidebar).getByRole("button", { name: /Barbell row/ }),
+    within(sidebar).getByRole("button", { name: /^Barbell row/ }),
   ).toHaveStyle({ borderInlineStartColor: "#db2777" });
   await userEvent.click(
     screen.getByRole("button", { name: "Edit group", exact: true }),
