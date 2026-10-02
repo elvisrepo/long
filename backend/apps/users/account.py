@@ -18,6 +18,7 @@ from apps.users.models import User
 from apps.wearables.models import SyncRun, WearableConnection
 from apps.workouts.models import (
     Exercise,
+    ExerciseGoal,
     ExerciseCategory,
     Workout,
     WorkoutCatalogState,
@@ -107,6 +108,18 @@ def account_export(user: User) -> Iterator[str]:
             "bar_lb",
             "plates_kg",
             "plates_lb",
+        ),
+        "exercise_goals": ExerciseGoal.objects.filter(exercise__category__user=user)
+        .order_by("id")
+        .values(
+            "id",
+            "exercise_id",
+            "target_weight",
+            "target_reps",
+            "rep_rule",
+            "weight_unit",
+            "distance_unit",
+            "created_at",
         ),
         "exercise_categories": ExerciseCategory.objects.filter(user=user)
         .order_by("id")

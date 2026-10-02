@@ -7,27 +7,42 @@ catalog ownership, session/set semantics, history preservation, and phased deliv
 
 ## Status and agreed product direction
 
-Daily-use follow-up: account-owned persisted auto-start rest, group auto-advance and separate metric/imperial equipment defaults; editable exercise favorites and preferred graphs; completed-only last-used/session-count hints; multi-word library search. Migration 0007 adds preferences and library metadata only. Equipment saving is explicit and cannot create workout sets; GET remains read-only. All tiers retain these basic controls. Accessible ordering, exercise overview/statistics and goals, selective copy/routine carry-forward, cardio metrics and calendar filters remain the next implementation slices. Export/sharing UI, session timing, offline logging and background alerts are separate follow-ups.
+Exercise overview and strength goals follow-up: `view=overview` brings Statistics,
+History, Graphs, Records and Goals together, reachable from library/training.
+Completed-only statistics aggregate distinct sessions, sets, reps, recorded
+volume, distance/time and first/last training dates per frozen type/unit partition.
+Goals target actual strength weight/reps, with explicit at-least/exact rep rules,
+frozen units, supporting-lift navigation and recalculation after corrections.
+Creation requires active strength entries and is capped at 20 targets per exercise;
+timed/cardio/bodyweight goals remain future work. Migration 0008 adds ExerciseGoal;
+no existing logged set snapshot changes. Goal export/deletion follows account
+lifecycle. See API/testing docs for exact contracts and verification.
+
+Daily-use follow-up: account-owned persisted auto-start rest, group auto-advance and separate metric/imperial equipment defaults; editable exercise favorites and preferred graphs; completed-only last-used/session-count hints; multi-word library search. Migration 0007 adds preferences and library metadata only. Equipment saving is explicit and cannot create workout sets; GET remains read-only. All tiers retain these basic controls. Accessible ordering, selective copy/routine carry-forward, cardio metrics and calendar filters remain the next implementation slices. Export/sharing UI, session timing, offline logging and background alerts are separate follow-ups.
 
 The first backend slice now implements the catalog, sessions, ordered exercise
 occurrences, set logging, copying/history and account lifecycle. The routines
 slice adds four template models in migration `0004_routines`; `0005_exercise_groups`
 adds group labels to template/session occurrences; `0006_group_colours` adds
 colours to both; `0007_workout_preferences` adds account preferences and exercise
-favorites/preferred graphs (eleven models, seven migrations).
+favorites/preferred graphs; `0008_exercise_goals` adds actual strength targets
+(twelve models, eight migrations).
 The canonical contracts are in
 [API design](03-api-design.md). The basic frontend, history/copy and dashboard
 slice is now implemented locally (2026-10-02). Phase 5's first routine workflow
 and the remaining phase 5 conveniences are implemented. Phase 6 now includes
-windowed charts/records and calculators; goals and advanced analysis remain future work.
+windowed charts/records, calculators, exercise statistics and strength goals;
+other goal types and advanced analysis remain future work.
 The separate `.lavish/workout-prototype.html` is a sample-only
 review prototype, not the real Workouts tab. No cloud deployment is implied.
-Normal local and isolated E2E PostgreSQL have all seven workout migrations applied.
-Latest verification: 699 backend tests and 474 frontend tests pass; three real Django browser flows
+Normal local and isolated E2E PostgreSQL have all eight workout migrations applied.
+Latest verification: 716 backend tests and 482 frontend tests pass.
+Three real Django browser flows
 at 320/390/1440px pass. Type checks, lint, build and migration drift pass. Live
 flows cover direct editing, independent starts, groups, timer, calculator plans,
 windowed records, two-date charts, compact calendar cells, calendar-source copying,
-preference/favorite persistence after reload, and browsing without workout creation. Screenshots
+preference/favorite persistence after reload, exercise overview/statistics,
+goal create/edit/reload/source/removal, and browsing without workout creation. Screenshots
 were inspected. This is local verification, not staging acceptance or cloud deployment.
 
 The real authenticated `/workouts` tab provides Home, All exercises, Training,

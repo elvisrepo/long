@@ -8,12 +8,12 @@ windowed/all-time progress, personal records and calculators. Advanced analysis 
 See `47-workout-tracking.md`.
 
 Frontend `/workouts` uses validated optional search fields: `view=home|exercises|
-training|history|routines|calendar|progress`, real calendar `date=YYYY-MM-DD`, UUID `session` and `exercise`.
+training|history|routines|calendar|progress|overview`, real calendar `date=YYYY-MM-DD`, UUID `session` and `exercise`.
 Training needs both UUIDs; its exercise parameter identifies a session occurrence,
-whereas History/Progress's optional exercise parameter identifies a library exercise.
+whereas History/Progress/Overview's optional exercise parameter identifies a library exercise.
 These are UI state, not new REST contracts. Invalid training links fall back Home;
 foreign/deleted UUIDs still rely on backend authorization and show read errors.
-Date controls preserve the selected library exercise in History/Progress.
+Date controls preserve the selected library exercise in History/Progress/Overview.
 `view=exercises` without `session` is read-only browsing: exercise clicks open
 library details with History/Progress links, never create a Workout. The All
 exercises navigation tab clears session context. Start new workout explicitly
@@ -111,7 +111,7 @@ Catalog responses additionally include `preferences`. Exercises accept `is_favor
 
 | Method | Endpoint | Contract |
 |---|---|---|
-| GET | `/api/v1/workouts/catalog/` | `{categories, exercises}`, own catalog including archives; optional case-insensitive `search` (max 120 chars); does not seed |
+| GET | `/api/v1/workouts/catalog/` | `{categories, exercises, preferences}`, own catalog including archives; optional case-insensitive `search` (max 120 chars); does not seed |
 | POST | `/api/v1/workouts/catalog/initialize/` | Empty body; owner-locked, once-only starter samples; returns catalog `200` |
 | POST | `/api/v1/workouts/categories/` | `{name, display_order?}`; `201` active private category |
 | PATCH | `/api/v1/workouts/categories/{uuid}/` | `{name?, display_order?, is_active?}`; own category |
@@ -159,6 +159,21 @@ or null; weight/distance have 3 decimal places. Duration is integer seconds.
   `exercises`, `workouts`, `workout_exercises`, `workout_sets`, including archives.
 
 ### All-time exercise summaries — 2026-10-02
+
+Exercise overview statistics: `GET /api/v1/workouts/exercises/{uuid}/stats/?date_to=YYYY-MM-DD` returns `{exercise_id,date_to,groups}`. Each frozen type/weight-unit/distance-unit group contains `session_count` (distinct workouts), `set_count`, `first_date`, `last_date`, `reps_total`, `volume_total`, `distance_total`, `duration_seconds_total`. Only completed sets through the inclusive cutoff count; unsupported totals are null. Volume means recorded load × reps (strength only), not body mass; decimal totals are strings with three places. SQL aggregates keep the raw history off the client. First/last dates are training dates, not catalog creation dates. No lower date bound or automatic conversion.
+
+Strength goals (migration `0008_exercise_goals`):
+
+| Method | Endpoint | Contract |
+|---|---|---|
+| GET/POST | `/api/v1/workouts/exercises/{uuid}/goals/` | GET requires `date_to`, returns up to 20 saved targets with derived progress; POST `{target_weight,target_reps,rep_rule?}` creates `201` on active strength exercise/category |
+| PATCH/DELETE | `/api/v1/workouts/goals/{uuid}/` | PATCH weight/reps/rep rule with at least one field; DELETE target only `204`, not recorded sets |
+
+Weights accept .001–10000 (3 decimals), reps 1–10000. `rep_rule=at_least` (default) means target reps or more; `exact` means exactly that count. Saved weight/distance units come from the library at creation and cannot be patched; unknown input fields reject. At most 20 goals per exercise, enforced inside the owner-locked creation transaction. Existing goals remain editable/readable after catalog archive/type/unit changes, but creation requires an active strength exercise. All routes require authentication and work on every tier; foreign IDs `404`, invalid input `400`.
+
+Goal JSON: `{id,target_weight,target_reps,rep_rule,weight_unit,distance_unit,created_at}`. GET adds `achieved,best_weight,progress_percent,source,source_date`. Among completed strength sets through `date_to` matching the frozen units and rep rule, the highest actual load is the supporting lift (earliest stable source on ties). Achieved means that load meets/exceeds the target. `progress_percent` is qualifying load/target load capped at 100, not a fitness score or combined rep/weight percentage; without a qualifying lift best/source are null and percentage zero. It includes existing history, not only sets logged after goal creation. Changes/uncompletion/deletion of sets immediately recompute progress; achievement is not a permanent badge or immutable audit trail. GET is read-only. Account export includes `exercise_goals`; account deletion cascades owned goals.
+
+Frontend Overview groups Statistics, bounded 90-day paginated History (including plans/comments), Graphs, all-time Records and Goals. Library/training provide Exercise overview buttons. The selected tracking date is the cutoff. History/source navigation uses the actual saved workout/occurrence UUIDs. Goals for bodyweight/timed/cardio exercises are not implemented in this slice.
 
 | Method | Endpoint | Contract |
 |---|---|---|

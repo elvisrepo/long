@@ -2,6 +2,12 @@
 
 ## Workout additions — 2026-10-01 backend slice
 
+`workouts.0008_exercise_goals` adds `Exercise → ExerciseGoal` (twelve workout
+tables total). Ownership follows the private category. Goal quantities/rep rule
+are editable, units are frozen, and actual achievement/supporting lifts are
+derived from completed strength sets rather than stored status. Account export
+includes goals; account deletion cascades them. Goal deletion never deletes sets.
+
 `workouts.0007_workout_preferences` adds `User → WorkoutPreferences` as an owned
 one-to-one primary-key relationship (eleven workout tables total). It stores
 rest auto-start, group auto-advance and separate metric/imperial bar and plate

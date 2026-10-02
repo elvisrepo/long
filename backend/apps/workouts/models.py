@@ -123,6 +123,39 @@ class Exercise(models.Model):
         ]
 
 
+class ExerciseGoal(models.Model):
+    """An actual strength lift target; units remain frozen after catalog edits."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    exercise = models.ForeignKey(
+        Exercise, on_delete=models.CASCADE, related_name="goals"
+    )
+    target_weight = models.DecimalField(max_digits=8, decimal_places=3)
+    target_reps = models.PositiveIntegerField()
+    weight_unit = models.CharField(max_length=3, choices=[("kg", "kg"), ("lb", "lb")])
+    distance_unit = models.CharField(max_length=3, choices=[("km", "km"), ("mi", "mi")])
+    rep_rule = models.CharField(
+        max_length=8,
+        choices=[("at_least", "At least"), ("exact", "Exactly")],
+        default="at_least",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(
+                    target_weight__gt=0,
+                    target_weight__lte=10000,
+                    target_reps__gte=1,
+                    target_reps__lte=10000,
+                ),
+                name="valid_exercise_goal_target",
+            )
+        ]
+
+
 class Workout(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(

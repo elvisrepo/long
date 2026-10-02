@@ -155,6 +155,71 @@ async function request<T>(
 }
 export const getWorkoutCatalog = (): Promise<WorkoutCatalog> =>
   request("catalog/");
+export interface ExerciseStatistics {
+  exercise_id: string;
+  date_to: string;
+  groups: {
+    tracking_type: TrackingType;
+    weight_unit: "kg" | "lb";
+    distance_unit: "km" | "mi";
+    session_count: number;
+    set_count: number;
+    reps_total: number | null;
+    volume_total: string | null;
+    distance_total: string | null;
+    duration_seconds_total: number | null;
+    first_date: string;
+    last_date: string;
+  }[];
+}
+export interface GoalDefinition {
+  id: string;
+  target_weight: string;
+  target_reps: number;
+  rep_rule: "at_least" | "exact";
+  weight_unit: "kg" | "lb";
+  distance_unit: "km" | "mi";
+  created_at: string;
+}
+export interface ExerciseGoal extends GoalDefinition {
+  achieved: boolean;
+  best_weight: string | null;
+  progress_percent: string;
+  source: RecordSource | null;
+  source_date: string | null;
+}
+export const getExerciseGoals = (
+  exercise: string,
+  date: string,
+): Promise<ExerciseGoal[]> =>
+  request(
+    `exercises/${encodeURIComponent(exercise)}/goals/?${new URLSearchParams({ date_to: date })}`,
+  );
+export type GoalInput = Pick<
+  GoalDefinition,
+  "target_weight" | "target_reps" | "rep_rule"
+>;
+export const saveExerciseGoal = (
+  exercise: string,
+  id: string | undefined,
+  data: GoalInput,
+): Promise<GoalDefinition> =>
+  request(
+    id
+      ? `goals/${encodeURIComponent(id)}/`
+      : `exercises/${encodeURIComponent(exercise)}/goals/`,
+    id ? "PATCH" : "POST",
+    data,
+  );
+export const deleteExerciseGoal = (id: string): Promise<void> =>
+  request(`goals/${encodeURIComponent(id)}/`, "DELETE");
+export const getExerciseStats = (
+  exercise: string,
+  date: string,
+): Promise<ExerciseStatistics> =>
+  request(
+    `exercises/${encodeURIComponent(exercise)}/stats/?${new URLSearchParams({ date_to: date })}`,
+  );
 export const saveWorkoutPreferences = (
   data: WorkoutPreferences,
 ): Promise<WorkoutPreferences> => request("preferences/", "PATCH", data);

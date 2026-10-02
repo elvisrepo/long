@@ -2,9 +2,29 @@ from django.urls import path
 
 from . import views
 from . import routine_views
-from .progress_views import ExerciseProgressView, ExerciseRecordsView
+from .goal_views import ExerciseGoalsView, ExerciseGoalDetailView
+from .progress_views import (
+    ExerciseProgressView,
+    ExerciseRecordsView,
+    ExerciseStatisticsView,
+)
 
 urlpatterns = [
+    path(
+        "exercises/<uuid:exercise_id>/goals/",
+        ExerciseGoalsView.as_view(),
+        name="workout-exercise-goals",
+    ),
+    path(
+        "goals/<uuid:goal_id>/",
+        ExerciseGoalDetailView.as_view(),
+        name="workout-goal-detail",
+    ),
+    path(
+        "exercises/<uuid:exercise_id>/stats/",
+        ExerciseStatisticsView.as_view(),
+        name="workout-exercise-statistics",
+    ),
     path("preferences/", views.PreferencesView.as_view(), name="workout-preferences"),
     path(
         "exercises/<uuid:exercise_id>/records/",

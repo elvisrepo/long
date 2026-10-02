@@ -198,6 +198,18 @@ export function WorkoutTraining({
         >
           Exercise progress
         </button>
+        <button
+          disabled={busy}
+          onClick={() =>
+            navigate({
+              view: "overview",
+              date: workout.performed_on,
+              exercise: item.exercise_id,
+            })
+          }
+        >
+          Exercise overview
+        </button>
       </div>
       {workout.is_finished && (
         <div className="workout-context">

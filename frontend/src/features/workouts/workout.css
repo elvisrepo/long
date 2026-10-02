@@ -151,6 +151,24 @@
   gap: 1rem;
   min-width: 0;
 }
+.workout-statistics {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 0.75rem;
+}
+.workout-statistics dt {
+  color: var(--text-dim);
+}
+.workout-statistics dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: end;
+}
+.workout-goal-progress {
+  width: 100%;
+  max-width: 20rem;
+  accent-color: var(--accent);
+}
 .workout-card {
   min-width: 0;
   border: 1px solid var(--border);

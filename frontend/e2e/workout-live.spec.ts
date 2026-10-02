@@ -7,7 +7,7 @@ for (const width of [320, 390, 1440]) {
     page,
     request,
   }) => {
-    test.setTimeout(60_000);
+    test.setTimeout(120_000);
     await page.setViewportSize({ width, height: 900 });
     const capture = async (name: string) => {
       await expect
@@ -403,8 +403,101 @@ for (const width of [320, 390, 1440]) {
       page.getByRole("button", { name: "View Goblet squat", exact: true }),
     ).toHaveCount(0);
     await capture("favorite-library");
+    await page
+      .getByRole("button", { name: "View Barbell bench press", exact: true })
+      .click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Exercise overview", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Exercise overview", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByText("Total reps", { exact: true })).toBeVisible();
+    await capture("exercise-statistics");
+    const overviewTabs = page.getByRole("navigation", {
+      name: "Exercise overview sections",
+    });
+    await overviewTabs
+      .getByRole("button", { name: "History", exact: true })
+      .click();
+    await expect(
+      page.getByText("40 kg · 5 reps · Completed", { exact: true }).first(),
+    ).toBeVisible();
+    await overviewTabs
+      .getByRole("button", { name: "Graphs", exact: true })
+      .click();
+    await expect(
+      page.getByRole("combobox", { name: "Graph", exact: true }),
+    ).toBeVisible();
+    await overviewTabs
+      .getByRole("button", { name: "Records", exact: true })
+      .click();
+    await expect(
+      page.getByRole("combobox", { name: "Graph", exact: true }),
+    ).toHaveValue("personal_records");
+    await expect(page.getByLabel("Progress window")).toHaveValue("0");
+    await overviewTabs
+      .getByRole("button", { name: "Goals", exact: true })
+      .click();
+    await page.getByRole("button", { name: "New goal", exact: true }).click();
+    await page.getByLabel("Target weight (kg)").fill("45");
+    await page
+      .getByRole("spinbutton", { name: "Target reps", exact: true })
+      .fill("5");
+    await capture("goal-editor");
+    await page.getByRole("button", { name: "Save goal", exact: true }).click();
+    await expect(page.getByText("Achieved", { exact: true })).toBeVisible();
+    await page
+      .getByRole("button", { name: "Edit goal 45 kg for 5 reps", exact: true })
+      .click();
+    await page.getByLabel("Target weight (kg)").fill("50");
+    await page
+      .getByRole("combobox", { name: "Rep rule", exact: true })
+      .selectOption("exact");
+    await page.getByRole("button", { name: "Save goal", exact: true }).click();
+    await expect(page.getByText("Not achieved", { exact: true })).toBeVisible();
+    await page.reload();
+    await overviewTabs
+      .getByRole("button", { name: "Goals", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", {
+        name: "50 kg × exactly 5 reps",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await capture("exercise-goals");
+    await page
+      .getByRole("button", { name: "Open supporting lift", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Barbell bench press", level: 1 }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("45 kg · 5 reps", { exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Exercise overview", exact: true })
+      .click();
+    await overviewTabs
+      .getByRole("button", { name: "Goals", exact: true })
+      .click();
+    await page
+      .getByRole("button", {
+        name: "Remove goal 50 kg for 5 reps",
+        exact: true,
+      })
+      .click();
+    await page
+      .getByRole("button", { name: "Confirm remove goal", exact: true })
+      .click();
+    await expect(
+      page.getByText("No goals yet.", { exact: true }),
+    ).toBeVisible();
     expect(accidentalWrites).toBe(0);
     await page.getByRole("button", { name: "Home", exact: true }).click();
+    await page.getByLabel("Tracking date").fill(currentDate);
     await page
       .getByRole("button", { name: "Barbell bench press →", exact: true })
       .first()

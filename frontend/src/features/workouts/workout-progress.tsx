@@ -18,15 +18,19 @@ export function WorkoutProgress({
   exerciseId,
   catalog,
   navigate,
+  initialMetric = null,
+  initialDays = 90,
 }: {
   owner: string;
   date: string;
   exerciseId?: string;
   catalog: api.WorkoutCatalog;
   navigate: NavigateWorkout;
+  initialMetric?: ProgressMetric | null;
+  initialDays?: number;
 }) {
-  const [days, setDays] = useState(90);
-  const [metric, setMetric] = useState<ProgressMetric | null>(null);
+  const [days, setDays] = useState(initialDays);
+  const [metric, setMetric] = useState<ProgressMetric | null>(initialMetric);
   const [reps, setReps] = useState(5);
   const [history, setHistory] = useState<{
     reps: number;
@@ -142,6 +146,14 @@ export function WorkoutProgress({
               setMetric(event.target.value as ProgressMetric)
             }
           >
+            {selectedMetric === "personal_records" &&
+              !displayedOptions.some(
+                (option) => option.value === "personal_records",
+              ) && (
+                <option value="personal_records">
+                  Personal records (saved strength sets)
+                </option>
+              )}
             {displayedOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -181,6 +193,13 @@ export function WorkoutProgress({
           ? `All recorded training through ${date}. Completed sets only; saved types and units stay separate.`
           : `${from} – ${date}. Completed sets only; saved types and units stay separate. These are records within this window, not all-time records.`}
       </p>
+      {selectedMetric === "personal_records" && (
+        <p className="workout-note">
+          Personal records here are actual strength loads by rep count. Cardio
+          and timed exercise bests are available through their distance and
+          duration graphs.
+        </p>
+      )}
       {selectedMetric === "estimated_1rm" && (
         <p className="workout-note">
           Estimate only: Epley load × (1 + reps / 30); one rep uses the recorded

@@ -21,6 +21,7 @@ import { RestTimer, type RestTimerHandle } from "./rest-timer";
 import { WorkoutCalendar } from "./workout-calendar";
 import { CopyWorkoutPicker } from "./copy-workout-picker";
 import { WorkoutProgress } from "./workout-progress";
+import { WorkoutOverview } from "./workout-overview";
 import { WorkoutRoutines, SaveRoutineDayDialog } from "./workout-routines";
 import "./workout.css";
 
@@ -107,7 +108,8 @@ export function WorkoutScreen({
     navigate({
       view,
       date,
-      ...((view === "progress" || view === "history") && search.exercise
+      ...((view === "progress" || view === "history" || view === "overview") &&
+      search.exercise
         ? { exercise: search.exercise }
         : {}),
     });
@@ -168,35 +170,39 @@ export function WorkoutScreen({
       {view !== "training" && (
         <PageHeader
           title={
-            view === "exercises"
-              ? "All exercises"
-              : view === "routines"
-                ? "Routines"
-                : view === "calendar"
-                  ? "Workout calendar"
-                  : view === "progress"
-                    ? "Workout progress"
-                    : view === "history"
-                      ? "Workout history"
-                      : "Workouts"
+            view === "overview"
+              ? "Exercise overview"
+              : view === "exercises"
+                ? "All exercises"
+                : view === "routines"
+                  ? "Routines"
+                  : view === "calendar"
+                    ? "Workout calendar"
+                    : view === "progress"
+                      ? "Workout progress"
+                      : view === "history"
+                        ? "Workout history"
+                        : "Workouts"
           }
           eyebrow={
             view === "exercises" ? "PERSONAL LIBRARY" : "TRAIN THOUGHTFULLY"
           }
           description={
-            view === "exercises"
-              ? search.session
-                ? "Select an exercise to add to this workout, or open one already included."
-                : "Browse your exercise library, history and progress. No workout is created here."
-              : view === "routines"
-                ? "Reusable named days. Start each as an independent planned workout."
-                : view === "calendar"
-                  ? "Browse training and plans by month."
-                  : view === "progress"
-                    ? "Review completed training without mixing saved units."
-                    : view === "history"
-                      ? "Review recorded sessions or copy one as a new plan."
-                      : "Record your training, one set at a time."
+            view === "overview"
+              ? "History, graphs, records, statistics and goals for one exercise."
+              : view === "exercises"
+                ? search.session
+                  ? "Select an exercise to add to this workout, or open one already included."
+                  : "Browse your exercise library, history and progress. No workout is created here."
+                : view === "routines"
+                  ? "Reusable named days. Start each as an independent planned workout."
+                  : view === "calendar"
+                    ? "Browse training and plans by month."
+                    : view === "progress"
+                      ? "Review completed training without mixing saved units."
+                      : view === "history"
+                        ? "Review recorded sessions or copy one as a new plan."
+                        : "Record your training, one set at a time."
           }
         />
       )}
@@ -298,6 +304,9 @@ export function WorkoutScreen({
             onHistory={(exercise) =>
               navigate({ view: "history", date: day, exercise })
             }
+            onOverview={(exercise) =>
+              navigate({ view: "overview", date: day, exercise })
+            }
             onProgress={(exercise) =>
               navigate({ view: "progress", date: day, exercise })
             }
@@ -377,6 +386,16 @@ export function WorkoutScreen({
           owner={owner}
           date={day}
           busy={busy}
+          navigate={navigate}
+        />
+      )}
+      {view === "overview" && (
+        <WorkoutOverview
+          key={search.exercise ?? "choose"}
+          owner={owner}
+          date={day}
+          exerciseId={search.exercise}
+          catalog={catalog.data}
           navigate={navigate}
         />
       )}

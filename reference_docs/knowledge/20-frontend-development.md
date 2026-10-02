@@ -2,6 +2,18 @@
 
 ### Workout log (October 2, 2026, local)
 
+`view=overview` uses a library exercise UUID. Library details and Training offer
+Exercise overview buttons. Statistics, History, Graphs, Records and Goals tabs
+reuse existing query/graph/source flows. Statistics use a completed-only SQL
+summary through the tracking date; History shows a paginated 90-day window,
+including plans and comments for only the selected exercise. Records start in
+all-time mode. Goal creation supports active strength entries; targets have an
+explicit at-least/exact rep rule and retain saved units. Progress uses actual
+completed lifts, and supporting-lift buttons open their saved workout occurrence.
+Goal save/remove dialogs retain failed input/errors and wait for server confirmation.
+All overview/goal caches use the owner-scoped workouts prefix and invalidate on
+workout/goal writes. Date controls preserve the chosen library exercise.
+
 Daily-use preferences now persist per account: automatic rest start, group auto-advance and explicit unit-specific bar/plate defaults. Saving equipment does not create sets; pending saves disable inventory editing and failures remain visible. Library favorites and multi-word search coexist with category/archive filters; usage hints count completed sessions. Exercise editing offers a default graph; an incompatible default falls back safely to the current exercise's graph options. Browser-side countdowns still do not provide background notifications.
 
 Authenticated `/workouts` now connects to the real backend on every plan. Home,

@@ -37,6 +37,8 @@
 
 ### All-time exercise summary boundary — 2026-10-02
 
+Exercise statistics and goals use authenticated owner-scoped library lookups, and completed-set queries independently check workout ownership. SQL statistics preserve frozen type/unit partitions. Goal creation/edit/deletion locks the user row, sharing account-deletion serialization. Inputs are bounded, unknown goal input fields reject, and saved goal units cannot be patched. Creation is capped at 20 goals per exercise and requires active strength library entries; old goals remain readable/editable after library changes. Goal reads derive actual source lifts, not estimates or permanent achievement records; editing/deleting/uncompleting a source changes the result. The 20-target response bound limits per-goal queries, not the cost of scanning a long exercise history. Goals participate in account export/cascade deletion. No public sharing or paid-plan gate.
+
 Workout preference reads and patches are authenticated and owner-scoped, available to every account tier. Reads do not seed data; patches share the owner lock used by account deletion. Inventories are bounded (20 sizes, 0–100 plates per size, weights ≤1000), duplicate sizes rejected. Favorites and graph defaults never change historical exercise snapshots. Catalog usage hints include only that owner's completed sets; preference export/deletion follows the existing account lifecycle.
 
 All-time progress/records are private read-only summary endpoints, not unbounded
@@ -85,7 +87,8 @@ notes fetch, new index or migration is introduced.
   Missing original names reject stale edits. Finished workouts require reopening.
 - Calculator output is never accepted as proof of completion or a record. Percentage
   outputs use ordinary planned-set validation; plate search validates finite inventory
-  and bounds computation. Local calculator/timer inputs are temporary, not persisted.
+  and bounds computation. Calculation drafts and running countdowns are temporary;
+  explicitly saved equipment and auto-start/advance preferences persist per account.
   Timer updates/advancement fire only after server-confirmed new completion.
 
 ## Diet tracking boundary — 2026-10-01

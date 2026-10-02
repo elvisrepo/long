@@ -23,6 +23,7 @@ export function WorkoutLibrary({
   existingExercises = [],
   onHistory,
   onProgress,
+  onOverview,
 }: {
   catalog: api.WorkoutCatalog;
   busy: boolean;
@@ -33,6 +34,7 @@ export function WorkoutLibrary({
   existingExercises?: api.WorkoutExercise[];
   onHistory: (id: string) => void;
   onProgress: (id: string) => void;
+  onOverview?: (id: string) => void;
 }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
@@ -244,6 +246,11 @@ export function WorkoutLibrary({
           </p>
           {detail.notes && <p>{detail.notes}</p>}
           <div className="workout-actions">
+            {onOverview && (
+              <button disabled={busy} onClick={() => onOverview(detail.id)}>
+                Exercise overview
+              </button>
+            )}
             <button disabled={busy} onClick={() => onHistory(detail.id)}>
               View exercise history
             </button>

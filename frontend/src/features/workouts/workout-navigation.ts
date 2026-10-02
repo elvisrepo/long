@@ -7,7 +7,9 @@ export type WorkoutView =
   | "history"
   | "routines"
   | "calendar"
-  | "progress";
+  | "progress"
+  | "overview";
+// Exercise overview also uses the owned library UUID, never a session occurrence.
 // Calendar is a month read; Progress uses the owned library exercise parameter.
 export interface WorkoutSearch {
   view?: WorkoutView;
@@ -55,6 +57,7 @@ export function parseWorkoutSearch(
       "routines",
       "calendar",
       "progress",
+      "overview",
     ].includes(String(raw.view))
   )
     result.view = raw.view as WorkoutView;

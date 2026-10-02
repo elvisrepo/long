@@ -20,6 +20,13 @@ it("rejects invalid dates and incomplete training links", () => {
   expect(shiftDay("2026-10-01", -1)).toBe("2026-09-30");
 });
 
+it("accepts exercise overview links with a library UUID", () => {
+  const exercise = "12345678-1234-1234-1234-123456789abc";
+  expect(
+    parseWorkoutSearch({ view: "overview", date: "2026-10-02", exercise }),
+  ).toEqual({ view: "overview", date: "2026-10-02", exercise });
+});
+
 it("cycles only within the current group and skips ungrouped exercises", () => {
   const items = [
     { id: "a", group_name: "Circuit" },

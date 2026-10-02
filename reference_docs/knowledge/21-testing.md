@@ -2,6 +2,27 @@
 
 ## Workout tracking — 2026-10-01 backend slice
 
+Exercise overview/goal scenarios: completed-only distinct-session totals, inclusive
+cutoff and old history, frozen types/units, foreign/unauthorized access, actual
+strength goals with at-least/exact rep rules, immutable units after catalog
+changes, uncompletion/deletion recomputation, target validation and account
+export/cascade isolation. Frontend checks cover the overview link parser,
+statistics and first/last navigation without writes, selected-exercise history,
+all-time records without raw history loading, goal supporting lifts, failed-save
+input retention, and confirmed goal deletion. Start with `test_workout_overview.py`
+and overview/goals component tests before broader workout coverage.
+
+Overview/goals verification: 17 focused backend cases, 716 full backend tests,
+482 frontend tests, lint, mypy (22 source files), production build and migration
+drift checks pass. Normal local and isolated E2E databases apply migration 0008.
+Three live browser flows at 320/390/1440px cover overview navigation/statistics,
+history/graphs/records, goal create/edit/reload/source navigation/removal, and
+no accidental workout creation. Screenshots were inspected. Browser goal-form
+and graph selectors use accessible roles to avoid option-text label collisions;
+an ignored isolated browser probe confirmed the issue. Cardio Records tests
+ensure the strength-only personal-record selector stays explicit rather than
+silently showing a different metric.
+
 Daily-use preferences coverage: default reads without row creation, authenticated account-isolated persistence, bounded inventories and duplicate-size rejection, favorites/default-graph validation, completed-only session hints, unchanged logged sets, account export and deletion isolation. Frontend tests cover saved equipment loading and explicit save (without set creation), blank-bar rejection, favorite filtering, tokenized search and library hints. Run focused `test_workout_preferences.py` plus catalog regression tests before the wider workout suite.
 
 Verification: 699 backend tests, 474 frontend tests, lint, mypy, production build,
