@@ -60,6 +60,7 @@ def copy_workout(source: Workout, performed_on: date) -> Workout:
             workout=copied,
             exercise=item.exercise,
             exercise_name=item.exercise_name,
+            group_name=item.group_name,
             category_name=item.category_name,
             tracking_type=item.tracking_type,
             weight_unit=item.weight_unit,

@@ -3,6 +3,41 @@
   gap: 1rem;
   min-width: 0;
 }
+.workout-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.3rem;
+  text-align: center;
+}
+.workout-progress-chart {
+  width: 100%;
+  display: block;
+}
+.workout-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.workout-table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.workout-table-wrap th,
+.workout-table-wrap td {
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.workout-screen .workout-calendar-grid button {
+  min-width: 0;
+  padding: 0.4rem 0.15rem;
+  display: grid;
+  gap: 0.15rem;
+  overflow-wrap: anywhere;
+}
+.workout-calendar-grid button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
 .workout-screen button {
   border: 1px solid var(--border);
   border-radius: 10px;

@@ -67,6 +67,7 @@ erDiagram
         uuid day_id FK
         uuid exercise_id FK "RESTRICT; owner must match"
         string exercise_name "snapshot"
+        string group_name "local day label; blank means ungrouped"
         string category_name "snapshot"
         string tracking_type "snapshot"
         string weight_unit "snapshot"
@@ -125,6 +126,7 @@ erDiagram
         uuid workout_id FK
         uuid exercise_id FK "RESTRICT; owner must match"
         string exercise_name "snapshot"
+        string group_name "local session label; blank means ungrouped"
         string category_name "snapshot"
         string tracking_type "snapshot"
         string weight_unit "snapshot"

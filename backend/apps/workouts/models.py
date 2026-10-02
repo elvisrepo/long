@@ -122,6 +122,7 @@ class WorkoutExercise(models.Model):
         Exercise, on_delete=models.RESTRICT, related_name="workout_exercises"
     )
     exercise_name = models.CharField(max_length=120)
+    group_name = models.CharField(max_length=120, blank=True)
     category_name = models.CharField(max_length=120)
     tracking_type = models.CharField(max_length=16, choices=TrackingType.choices)
     weight_unit = models.CharField(max_length=3, choices=[("kg", "kg"), ("lb", "lb")])
@@ -240,6 +241,7 @@ class RoutineExercise(models.Model):
         Exercise, on_delete=models.RESTRICT, related_name="routine_exercises"
     )
     exercise_name = models.CharField(max_length=120)
+    group_name = models.CharField(max_length=120, blank=True)
     category_name = models.CharField(max_length=120)
     tracking_type = models.CharField(max_length=16, choices=TrackingType.choices)
     weight_unit = models.CharField(max_length=3, choices=[("kg", "kg"), ("lb", "lb")])

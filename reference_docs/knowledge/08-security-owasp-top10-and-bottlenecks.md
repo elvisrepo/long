@@ -27,7 +27,8 @@
   disable duplicate submission while pending; results are server-confirmed, not
   optimistic completion. Pagination constructs same-origin API paths rather than
   trusting arbitrary provider `next` URLs. Notes/comments are rendered as text,
-  not HTML. Analytics remains pending. See `47-workout-tracking.md`.
+  not HTML. Windowed progress now derives from authenticated bounded session reads,
+  never public/private cross-owner analytics. See `47-workout-tracking.md`.
 
 ### Routine template boundary — 2026-10-02
 
@@ -47,6 +48,18 @@
   deletion cascades them. Frontend routine caches use the existing private owner
   prefix and logout clearing. Modal write errors remain visible inside the dialog;
   a confirmed routine creation is reused when a subsequent day write fails.
+- Direct template editing uses owner-locked transactions and owner-scoped nested
+  exercise/set lookups. Only active own catalog exercises may be added; frozen
+  snapshots/reference cannot be patched. Existing archived library snapshots may
+  be edited, but archived routines must restore. Planned quantity validation is
+  shared with the workout validator; template sets never store completion/comments.
+- Group labels are bounded text on owner-scoped occurrences, not cross-user
+  references. Group mutations require an open session or active routine and serialize
+  with copying/start/deletion. Export includes labels; no new table/cascade behavior.
+- Calculator output is never accepted as proof of completion or a record. Percentage
+  outputs use ordinary planned-set validation; plate search validates finite inventory
+  and bounds computation. Local calculator/timer inputs are temporary, not persisted.
+  Timer updates/advancement fire only after server-confirmed new completion.
 
 ## Diet tracking boundary — 2026-10-01
 

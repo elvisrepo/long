@@ -3,10 +3,12 @@ import { useRef, useState } from "react";
 import { PageHeader } from "../../components/page-header";
 import { Modal } from "../../components/modal";
 import * as api from "./workout-api";
+import { WorkoutTools } from "./workout-tools";
 import {
   dayLabel,
   setLabel,
   shiftDay,
+  nextGroupedExercise,
   type NavigateWorkout,
   type RunAction,
 } from "./workout-navigation";
@@ -19,6 +21,10 @@ export function WorkoutTraining({
   navigate,
   busy,
   run,
+  onCompleted,
+  autoAdvance,
+  onAutoAdvance,
+  savePlanned,
 }: {
   workout: api.Workout;
   itemId: string;
@@ -27,6 +33,10 @@ export function WorkoutTraining({
   busy: boolean;
   run: RunAction;
   navigate: NavigateWorkout;
+  onCompleted: () => void;
+  autoAdvance: boolean;
+  onAutoAdvance: (enabled: boolean) => void;
+  savePlanned: (itemId: string, data: api.SetInput) => Promise<void>;
 }) {
   const item = workout.exercises.find((i) => i.id === itemId);
   const [tab, setTab] = useState<"track" | "history">("track");
@@ -67,6 +77,17 @@ export function WorkoutTraining({
     );
   const editing = item.sets.find((s) => s.id === editingId);
   const library = catalog.exercises.find((e) => e.id === item.exercise_id);
+  const advance = () => {
+    onCompleted();
+    const next = nextGroupedExercise(workout.exercises, item.id);
+    if (autoAdvance && next)
+      navigate({
+        view: "training",
+        date: workout.performed_on,
+        session: workout.id,
+        exercise: next.id,
+      });
+  };
   const disabled = busy || workout.is_finished;
   const source = editing || draft || item.sets.at(-1);
   const previous = history.data?.results
@@ -136,6 +157,19 @@ export function WorkoutTraining({
         description={`${dayLabel(workout.performed_on)} · ${workout.name}`}
       />
       <div className="workout-actions">
+        {item.group_name && (
+          <>
+            <span className="workout-badge">{item.group_name}</span>
+            <label className="workout-check">
+              <input
+                type="checkbox"
+                checked={autoAdvance}
+                onChange={(e) => onAutoAdvance(e.target.checked)}
+              />
+              Advance within group after completion
+            </label>
+          </>
+        )}
         <button
           disabled={busy}
           onClick={() => navigate({ view: "home", date: workout.performed_on })}
@@ -147,6 +181,18 @@ export function WorkoutTraining({
         </button>
         <button disabled={disabled} onClick={() => setDialog("manage")}>
           Manage exercise
+        </button>
+        <button
+          disabled={busy}
+          onClick={() =>
+            navigate({
+              view: "progress",
+              date: workout.performed_on,
+              exercise: item.exercise_id,
+            })
+          }
+        >
+          Exercise progress
         </button>
       </div>
       {workout.is_finished && (
@@ -184,6 +230,9 @@ export function WorkoutTraining({
               >
                 <span>
                   {i.exercise_name}
+                  {i.group_name && (
+                    <small style={{ display: "block" }}>{i.group_name}</small>
+                  )}
                   <small style={{ display: "block" }}>
                     {i.sets.filter((s) => s.is_completed).length}/
                     {i.sets.length} sets completed
@@ -207,6 +256,11 @@ export function WorkoutTraining({
           </button>
         </aside>
         <section className="workout-card">
+          <WorkoutTools
+            item={item}
+            busy={disabled}
+            onAdd={(data) => savePlanned(item.id, data)}
+          />
           <div className="workout-subtabs">
             <button
               disabled={busy}
@@ -273,6 +327,8 @@ export function WorkoutTraining({
                       data,
                     );
                     setDraft(saved);
+                    if (completed && (!editing || !editing.is_completed))
+                      advance();
                     setEditingId(null);
                     setVersion((v) => v + 1);
                   });
@@ -404,6 +460,7 @@ export function WorkoutTraining({
                             await api.saveWorkoutSet(item.id, s.id, {
                               is_completed: completed,
                             });
+                            if (completed) advance();
                           });
                         }}
                       />
@@ -426,6 +483,7 @@ export function WorkoutTraining({
                           comment: "",
                           is_completed: true,
                         });
+                        advance();
                       });
                     }}
                   >
@@ -608,11 +666,14 @@ export function WorkoutTraining({
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  const order = Number(
-                    new FormData(e.currentTarget).get("order"),
-                  );
+                  const fd = new FormData(e.currentTarget);
+                  const order = Number(fd.get("order"));
                   run(async () => {
-                    await api.reorderWorkoutExercise(item.id, order);
+                    await api.reorderWorkoutExercise(
+                      item.id,
+                      order,
+                      String(fd.get("group")),
+                    );
                     setDialog(null);
                   });
                 }}
@@ -630,7 +691,20 @@ export function WorkoutTraining({
                     disabled={busy}
                   />
                 </label>
-                <button disabled={busy}>Save order</button>
+                <label>
+                  Superset / circuit name
+                  <input
+                    name="group"
+                    maxLength={120}
+                    defaultValue={item.group_name ?? ""}
+                    disabled={busy}
+                  />
+                </label>
+                <p>
+                  Use the same name on each linked exercise. Leave blank to
+                  ungroup.
+                </p>
+                <button disabled={busy}>Save order & group</button>
               </form>
               <p>
                 This removes the exercise and all of its sets from this session

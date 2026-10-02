@@ -9,19 +9,22 @@ catalog ownership, session/set semantics, history preservation, and phased deliv
 
 The first backend slice now implements the catalog, sessions, ordered exercise
 occurrences, set logging, copying/history and account lifecycle. The routines
-slice adds four template models in migration `0004_routines` (ten workout models
-in four migrations); the canonical contracts are in
+slice adds four template models in migration `0004_routines`; `0005_exercise_groups`
+adds group labels to template/session occurrences (ten models, five migrations).
+The canonical contracts are in
 [API design](03-api-design.md). The basic frontend, history/copy and dashboard
 slice is now implemented locally (2026-10-02). Phase 5's first routine workflow
-is implemented; its other conveniences and phase 6 remain unimplemented.
+and the remaining phase 5 conveniences are implemented. Phase 6 now includes
+windowed charts/records and calculators; goals and advanced analysis remain future work.
 The separate `.lavish/workout-prototype.html` is a sample-only
 review prototype, not the real Workouts tab. No cloud deployment is implied.
-Local PostgreSQL now has all four workout migrations applied, including routine
-tables. The full backend suite passes 660 tests (42 original workout and 14 routine
-checks); 402 frontend tests, three updated workout/routine browser fixture flows,
-type checks, lint, build and migration drift checks pass. The running local routine
-endpoint returns `401` without authentication. This is local verification, not
-staging acceptance or live browser-to-Django E2E coverage.
+Normal local and isolated E2E PostgreSQL have all five workout migrations applied.
+The full backend suite passes 663 tests (42 original workout and 17 routine checks);
+415 frontend tests, 35 fixture browser checks and three real Django browser flows
+at 320/390/1440px pass. Type checks, lint, build and migration drift pass. Live
+flows cover direct editing, independent starts, groups, timer, calculator plans,
+windowed records, two-date charts, compact calendar cells and reload. Screenshots
+were inspected. This is local verification, not staging acceptance or cloud deployment.
 
 The real authenticated `/workouts` tab provides Home, All exercises, Training,
 and History. Start explicitly initializes samples and creates a selected-day
@@ -101,7 +104,7 @@ Supporter-tier restrictions.
 
 ## Implemented backend entities
 
-UUIDs identify the five domain resources; the initialization marker uses its
+UUIDs identify the nine domain resources; the initialization marker uses its
 user one-to-one FK as primary key. See the current ERD for fields.
 
 - `ExerciseCategory`: owner, name, order, archive state.
@@ -158,10 +161,11 @@ are copied into the planned session. Its combined routine/day name is capped at
 change already-created sessions. No source-workout or routine FK is stored on
 generated Workout rows. Export/deletion includes all four new tables.
 
-The first editor reuses the existing training flow: start a planned workout,
-change exercises/sets, then Save as routine day → explicitly replace the template.
-This leaves a real planned session, not a temporary draft; planned-only sessions
-do not count as training. Direct template set editing is still future work.
+The direct editor now creates empty days and manages their exercises, ordering
+and planned quantities without generating a Workout. Edit day includes the
+template builder. Removing an exercise/set requires confirmation and never
+changes existing sessions. Capture/replacement from a saved workout remains an
+alternative. Empty days cannot start. No schema change is needed for this editor.
 
 ### 1. Models, starter catalog and ownership
 
@@ -230,4 +234,51 @@ Search for stale route references before broad tests. No deployment or database
 migration to a cloud environment is implied by this record. The checked-in
 migrations are `workouts.0001` (catalog), `0002` (sessions/snapshots), and `0003`
 (sets), plus `0004_routines` (four template tables). Check the actual environment's
-migration status before claiming deployment.
+migration status before claiming deployment. `0005_exercise_groups` adds blank
+group labels to both occurrence models without a new group table.
+
+### Convenience and analysis checkpoint — 2026-10-02
+
+- Direct routine editing now supports empty days, exercise/set management and
+  numeric ordering without creating a session.
+- `group_name` links exact matching labels within a session/day; blank ungroups.
+  Copies/capture/start retain labels independently. Optional UI advancement cycles
+  after confirmed new completion, including planned-set completion and repeat.
+  It never advances on failure, plans or editing already-completed work.
+- Rest defaults come from the current library exercise. A deadline-based visual
+  timer catches up after delayed ticks/visibility changes; optional auto-start
+  shares the confirmed-completion event. It survives internal workout navigation,
+  but leaving Workouts/reloading clears it. No guaranteed background sound,
+  vibration, notification or native alarm behavior is promised.
+- Calendar uses bounded month reads and separates sessions with completed sets
+  from planned-only sessions (empty sessions also appear as plans). Date selection
+  opens Home without shifting the today-anchored seven-day strip.
+- Progress reads 30/90/365-day windows with an owned exercise filter and safe
+  pagination. Completed rows alone form daily maximum charts and observed records.
+  Frozen type/unit combinations are separate; no implicit conversion. Strength
+  records are maximum load per rep-count; other types show highest logged reps,
+  distance or duration, not fitness scores. Records are windowed, not all-time,
+  and recompute after corrections/deletions through query invalidation. Chart
+  values and exact record dates have accessible tables.
+- Strength calculators provide estimated 1RM and derived 2–15-rep estimates,
+  percentage/nearest-increment loads, and balanced plates with configurable bar,
+  sizes and finite counts. The plate search is exact (not greedy) and bounded;
+  it reports no combination or a complexity-limit error rather than fabricated
+  loading. Calculator inputs/inventory are temporary. Percentage output is added
+  only as a planned set with unknown reps and the occurrence's saved unit.
+- Estimated max uses conventional Epley `load × (1 + reps / 30)` (one entered
+  rep returns its load), bounded to 1–30 reps with a high-rep uncertainty note.
+  Formula/limitations were checked against the published research discussion in
+  [Macarilla et al. (2022)](https://pmc.ncbi.nlm.nih.gov/articles/PMC9465738/).
+  An estimate is not an observed lift or lifting prescription.
+- Isolated E2E containers were recreated against the current Docker network,
+  retaining `backend_pgdata_e2e`. Normal development services/volumes were not
+  replaced. Workout live tests use a dedicated :5176 Vite proxy to :8001 Django;
+  only E2E settings trust the additional origin. No Stripe outbound calls.
+- Live artifacts use ignored `playground/workout-live-results` and screenshots
+  use `playground/workout-live-screenshots`, separate from fixture output to avoid
+  trace cleanup collisions. A browser probe reproduced the non-toggling native
+  `<output>` inside a summary; countdown now uses non-interactive `span role=timer`.
+  Visual review also caught generic button padding overriding mobile calendar
+  padding; a cell-height regression guards it. Date changes preserve History/
+  Progress exercise selection, and confirmed template set saves reset the draft.

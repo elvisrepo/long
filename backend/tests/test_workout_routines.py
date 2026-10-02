@@ -15,6 +15,70 @@ def owner(email: str = "routine@example.test") -> tuple[APIClient, User]:
     return client, user
 
 
+def test_direct_template_editing_does_not_create_sessions_or_change_started_work() -> (
+    None
+):
+    from apps.workouts.models import Workout
+
+    client, _ = owner()
+    catalog = client.post(BASE + "catalog/initialize/", {}, format="json").json()
+    exercise = catalog["exercises"][0]
+    routine = client.post(BASE + "routines/", {"name": "Plan"}, format="json").json()
+    response = client.post(
+        BASE + f"routines/{routine['id']}/days/", {"name": "A"}, format="json"
+    )
+    assert response.status_code == 201
+    day = response.json()
+    assert day["exercises"] == [] and Workout.objects.count() == 0
+    response = client.post(
+        BASE + f"routine-days/{day['id']}/exercises/",
+        {"exercise_id": exercise["id"]},
+        format="json",
+    )
+    assert response.status_code == 201
+    item = response.json()
+    assert item["exercise_name"] == exercise["name"]
+    response = client.post(
+        BASE + f"routine-exercises/{item['id']}/sets/",
+        {"weight": 40, "reps": 5},
+        format="json",
+    )
+    assert response.status_code == 201
+    planned_set = response.json()
+    assert "is_completed" not in planned_set and "comment" not in planned_set
+    assert Workout.objects.count() == 0
+    started = client.post(
+        BASE + f"routine-days/{day['id']}/start/",
+        {"performed_on": "2026-10-03"},
+        format="json",
+    ).json()
+    assert (
+        client.patch(
+            BASE + f"routine-sets/{planned_set['id']}/",
+            {"weight": 55, "display_order": 0},
+            format="json",
+        ).status_code
+        == 200
+    )
+    assert (
+        client.patch(
+            BASE + f"routine-exercises/{item['id']}/",
+            {"display_order": 0},
+            format="json",
+        ).status_code
+        == 200
+    )
+    assert (
+        client.get(BASE + f"sessions/{started['id']}/").json()["exercises"][0]["sets"][
+            0
+        ]["weight"]
+        == "40.000"
+    )
+    assert client.delete(BASE + f"routine-sets/{planned_set['id']}/").status_code == 204
+    assert client.delete(BASE + f"routine-exercises/{item['id']}/").status_code == 204
+    assert client.get(BASE + "routines/").json()[0]["days"][0]["exercises"] == []
+
+
 def test_routines_are_private_editable_and_archive_instead_of_deleting() -> None:
     client, _ = owner()
     other, _ = owner("other@example.test")
@@ -320,7 +384,7 @@ def test_day_inputs_are_bounded_and_snapshot_fields_are_server_managed() -> None
     ).json()
     assert routine["is_active"]
     create = BASE + f"routines/{routine['id']}/days/"
-    assert client.post(create, {"name": "A"}, format="json").status_code == 400
+    assert client.post(create, {"name": "Empty"}, format="json").status_code == 201
     empty = client.post(
         BASE + "sessions/", {"performed_on": "2026-10-02"}, format="json"
     ).json()
@@ -362,3 +426,110 @@ def test_day_inputs_are_bounded_and_snapshot_fields_are_server_managed() -> None
         client.post(start, {"performed_on": "2026-02-30"}, format="json").status_code
         == 400
     )
+
+
+def test_direct_template_routes_enforce_owners_archives_and_planned_validation() -> (
+    None
+):
+    client, _ = owner()
+    other, _ = owner("foreign@example.test")
+    source, exercise_id = saved_workout(client)
+    _, foreign_id = saved_workout(other)
+    routine = client.post(BASE + "routines/", {"name": "Plan"}, format="json").json()
+    day = client.post(
+        BASE + f"routines/{routine['id']}/days/",
+        {"name": "A", "source_workout_id": source},
+        format="json",
+    ).json()
+    item = day["exercises"][0]
+    add = BASE + f"routine-days/{day['id']}/exercises/"
+    detail = BASE + f"routine-exercises/{item['id']}/"
+    sets = detail + "sets/"
+    row = BASE + f"routine-sets/{item['sets'][0]['id']}/"
+    assert (
+        client.post(add, {"exercise_id": foreign_id}, format="json").status_code == 400
+    )
+    for method, path, data in [
+        ("post", add, {"exercise_id": exercise_id}),
+        ("patch", detail, {"display_order": 1}),
+        ("delete", detail, {}),
+        ("post", sets, {}),
+        ("patch", row, {"reps": 3}),
+        ("delete", row, {}),
+    ]:
+        assert (
+            getattr(APIClient(), method)(path, data, format="json").status_code == 401
+        )
+        assert getattr(other, method)(path, data, format="json").status_code == 404
+    assert client.post(sets, {}, format="json").status_code == 201
+    for data in [{"distance": 1}, {"reps": 0}, {"weight": -1}, {"duration_seconds": 1}]:
+        assert client.patch(row, data, format="json").status_code == 400
+    unchanged = client.patch(
+        row, {"reps": 4, "comment": "Not allowed", "is_completed": True}, format="json"
+    ).json()
+    assert "comment" not in unchanged and "is_completed" not in unchanged
+    assert unchanged["weight"] == "60.000"
+    client.patch(
+        BASE + f"exercises/{exercise_id}/",
+        {"weight_unit": "lb", "is_active": False},
+        format="json",
+    )
+    assert (
+        client.post(add, {"exercise_id": exercise_id}, format="json").status_code == 400
+    )
+    assert client.patch(row, {"weight": 65}, format="json").status_code == 200
+    changed = client.patch(
+        detail,
+        {"display_order": 2, "weight_unit": "lb", "exercise_id": foreign_id},
+        format="json",
+    ).json()
+    assert changed["weight_unit"] == "kg" and changed["exercise_id"] == exercise_id
+    client.patch(
+        BASE + f"routines/{routine['id']}/", {"is_active": False}, format="json"
+    )
+    for method, path, data in [
+        ("post", add, {"exercise_id": foreign_id}),
+        ("patch", detail, {"display_order": 1}),
+        ("delete", detail, {}),
+        ("post", sets, {}),
+        ("patch", row, {"reps": 3}),
+        ("delete", row, {}),
+    ]:
+        assert getattr(client, method)(path, data, format="json").status_code == 400
+
+
+def test_group_labels_are_scoped_snapshots_copied_through_routines() -> None:
+    client, _ = owner()
+    source, _ = saved_workout(client)
+    item = client.get(BASE + f"sessions/{source}/").json()["exercises"][0]
+    detail = BASE + f"session-exercises/{item['id']}/"
+    response = client.patch(detail, {"group_name": "Circuit A"}, format="json")
+    assert response.status_code == 200
+    assert response.json()["group_name"] == "Circuit A"
+    assert (
+        client.patch(detail, {"group_name": "x" * 121}, format="json").status_code
+        == 400
+    )
+    routine = client.post(BASE + "routines/", {"name": "Plan"}, format="json").json()
+    day = client.post(
+        BASE + f"routines/{routine['id']}/days/",
+        {"name": "A", "source_workout_id": source},
+        format="json",
+    ).json()
+    assert day["exercises"][0]["group_name"] == "Circuit A"
+    planned = client.post(
+        BASE + f"routine-days/{day['id']}/start/",
+        {"performed_on": "2026-10-03"},
+        format="json",
+    ).json()
+    assert planned["exercises"][0]["group_name"] == "Circuit A"
+    changed = client.patch(
+        BASE + f"routine-exercises/{day['exercises'][0]['id']}/",
+        {"group_name": ""},
+        format="json",
+    )
+    assert changed.status_code == 200 and changed.json()["group_name"] == ""
+    copied = client.post(
+        BASE + f"sessions/{source}/copy/", {"performed_on": "2026-10-04"}, format="json"
+    ).json()
+    assert copied["exercises"][0]["group_name"] == "Circuit A"

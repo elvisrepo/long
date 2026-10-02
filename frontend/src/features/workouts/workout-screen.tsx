@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { PageHeader } from "../../components/page-header";
 import { PageState } from "../../components/page-state";
 import { Modal } from "../../components/modal";
@@ -16,6 +16,9 @@ import {
 } from "./workout-navigation";
 import { WorkoutLibrary } from "./workout-library";
 import { WorkoutTraining } from "./workout-training";
+import { RestTimer, type RestTimerHandle } from "./rest-timer";
+import { WorkoutCalendar } from "./workout-calendar";
+import { WorkoutProgress } from "./workout-progress";
 import { WorkoutRoutines, SaveRoutineDayDialog } from "./workout-routines";
 import "./workout.css";
 
@@ -30,6 +33,8 @@ export function WorkoutScreen({
   const client = useQueryClient();
   const day = search.date || localDay(new Date());
   const view = search.view || "home";
+  const restTimer = useRef<RestTimerHandle>(null);
+  const [autoAdvance, setAutoAdvance] = useState(false);
   const catalog = useQuery({
     queryKey: ["workouts", owner, "catalog"],
     queryFn: api.getWorkoutCatalog,
@@ -101,6 +106,14 @@ export function WorkoutScreen({
       const session = await api.createWorkout(day);
       onNavigate({ view: "exercises", date: day, session: session.id });
     });
+  const selectDate = (date: string) =>
+    navigate({
+      view,
+      date,
+      ...((view === "progress" || view === "history") && search.exercise
+        ? { exercise: search.exercise }
+        : {}),
+    });
   return (
     <div className="workout-screen">
       <nav className="workout-tabs" aria-label="Workout navigation">
@@ -110,6 +123,8 @@ export function WorkoutScreen({
             ["exercises", "All exercises"],
             ["history", "History"],
             ["routines", "Routines"],
+            ["calendar", "Calendar"],
+            ["progress", "Progress"],
           ] as const
         ).map(([target, label]) => (
           <button
@@ -135,6 +150,20 @@ export function WorkoutScreen({
           {mutation.error.message}
         </p>
       )}
+      <div hidden={view !== "training"}>
+        <RestTimer
+          ref={restTimer}
+          seconds={
+            catalog.data.exercises.find(
+              (e) =>
+                e.id ===
+                detail.data?.exercises.find((i) => i.id === search.exercise)
+                  ?.exercise_id,
+            )?.rest_seconds ?? 90
+          }
+          context={search.exercise ?? ""}
+        />
+      </div>
       {view !== "training" && (
         <PageHeader
           title={
@@ -142,9 +171,13 @@ export function WorkoutScreen({
               ? "All exercises"
               : view === "routines"
                 ? "Routines"
-                : view === "history"
-                  ? "Workout history"
-                  : "Workouts"
+                : view === "calendar"
+                  ? "Workout calendar"
+                  : view === "progress"
+                    ? "Workout progress"
+                    : view === "history"
+                      ? "Workout history"
+                      : "Workouts"
           }
           eyebrow={
             view === "exercises" ? "PERSONAL LIBRARY" : "TRAIN THOUGHTFULLY"
@@ -154,9 +187,13 @@ export function WorkoutScreen({
               ? "Your editable exercises. Select one to add it to a workout."
               : view === "routines"
                 ? "Reusable named days. Start each as an independent planned workout."
-                : view === "history"
-                  ? "Review recorded sessions or copy one as a new plan."
-                  : "Record your training, one set at a time."
+                : view === "calendar"
+                  ? "Browse training and plans by month."
+                  : view === "progress"
+                    ? "Review completed training without mixing saved units."
+                    : view === "history"
+                      ? "Review recorded sessions or copy one as a new plan."
+                      : "Record your training, one set at a time."
           }
         />
       )}
@@ -165,7 +202,7 @@ export function WorkoutScreen({
           <button
             aria-label="Previous day"
             disabled={busy}
-            onClick={() => navigate({ view, date: shiftDay(day, -1) })}
+            onClick={() => selectDate(shiftDay(day, -1))}
           >
             ←
           </button>
@@ -176,20 +213,20 @@ export function WorkoutScreen({
               value={day}
               disabled={busy}
               onChange={(e) => {
-                if (e.target.value) navigate({ view, date: e.target.value });
+                if (e.target.value) selectDate(e.target.value);
               }}
             />
           </label>
           <button
             aria-label="Next day"
             disabled={busy}
-            onClick={() => navigate({ view, date: shiftDay(day, 1) })}
+            onClick={() => selectDate(shiftDay(day, 1))}
           >
             →
           </button>
           <button
             disabled={busy}
-            onClick={() => navigate({ view, date: localDay(new Date()) })}
+            onClick={() => selectDate(localDay(new Date()))}
           >
             Today
           </button>
@@ -276,6 +313,14 @@ export function WorkoutScreen({
         ) : detail.data ? (
           <WorkoutTraining
             key={`${detail.data.id}:${search.exercise}`}
+            onCompleted={() => restTimer.current?.completed()}
+            autoAdvance={autoAdvance}
+            onAutoAdvance={setAutoAdvance}
+            savePlanned={async (itemId, data) => {
+              await mutation.mutateAsync(async () => {
+                await api.saveWorkoutSet(itemId, undefined, data);
+              });
+            }}
             workout={detail.data}
             itemId={search.exercise || ""}
             catalog={catalog.data}
@@ -302,6 +347,23 @@ export function WorkoutScreen({
           day={day}
           busy={busy}
           run={run}
+          navigate={navigate}
+        />
+      )}
+      {view === "calendar" && (
+        <WorkoutCalendar
+          owner={owner}
+          date={day}
+          busy={busy}
+          navigate={navigate}
+        />
+      )}
+      {view === "progress" && (
+        <WorkoutProgress
+          owner={owner}
+          date={day}
+          exerciseId={search.exercise}
+          catalog={catalog.data}
           navigate={navigate}
         />
       )}
@@ -480,6 +542,9 @@ function SessionCard({
             >
               {item.exercise_name} →
             </button>
+            {item.group_name && (
+              <span className="workout-badge">{item.group_name}</span>
+            )}
             {item.sets.map((s, i) => (
               <div className="workout-summary-row" key={s.id}>
                 <span>

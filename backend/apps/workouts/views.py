@@ -20,7 +20,7 @@ from .serializers import (
     WorkoutSerializer,
     WorkoutRangeSerializer,
     CopySerializer,
-    OrderSerializer,
+    ExerciseSettingsSerializer,
 )
 from .services import initialize_catalog, copy_workout
 
@@ -321,10 +321,11 @@ class SessionExerciseDetailView(APIView):
             exercise__category__user=request.user,
         )
         require_open(item.workout)
-        serializer = OrderSerializer(data=request.data)
+        serializer = ExerciseSettingsSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        item.display_order = serializer.validated_data["display_order"]
-        item.save(update_fields=["display_order"])
+        for field, value in serializer.validated_data.items():
+            setattr(item, field, value)
+        item.save(update_fields=list(serializer.validated_data))
         return Response(WorkoutExerciseSerializer(item).data)
 
     @transaction.atomic

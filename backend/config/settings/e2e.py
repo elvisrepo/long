@@ -36,12 +36,8 @@ JWT_SIGNING_KEY = os.environ.get(
 STRIPE_OUTBOUND_API_ENABLED = False
 STRIPE_SECRET_KEY = "e2e-stripe-api-disabled"
 STRIPE_WEBHOOK_SECRET = "e2e-webhook-disabled"
-STRIPE_CHECKOUT_SUCCESS_URL = (
-    "http://127.0.0.1:5173/settings?checkout=success"
-)
-STRIPE_CHECKOUT_CANCEL_URL = (
-    "http://127.0.0.1:5173/settings?checkout=cancelled"
-)
+STRIPE_CHECKOUT_SUCCESS_URL = "http://127.0.0.1:5173/settings?checkout=success"
+STRIPE_CHECKOUT_CANCEL_URL = "http://127.0.0.1:5173/settings?checkout=cancelled"
 STRIPE_CUSTOMER_PORTAL_RETURN_URL = "http://127.0.0.1:5173/settings"
 
 DATABASES = {
@@ -68,7 +64,7 @@ CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in os.environ.get(
         "E2E_CSRF_TRUSTED_ORIGINS",
-        "http://127.0.0.1:5173,http://localhost:5173",
+        "http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:5176",
     ).split(",")
     if origin.strip()
 ]

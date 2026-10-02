@@ -6,7 +6,9 @@ Workout migrations add six tables to the prior 16-table domain schema (22 model
 tables total, excluding Django framework tables). Basic frontend integration is
 implemented. `workouts.0004` adds four routine template tables, bringing the domain
 model count to **26**: WorkoutRoutine, RoutineDay, RoutineExercise, RoutineSet.
-Advanced planning/analysis remain planned. See the current model ERD in
+`workouts.0005` adds group labels to both occurrence models without extra tables.
+Direct routine editing, groups, calendar and windowed records are implemented;
+timer/calculator inputs are temporary browser state. See the current model ERD in
 `diagrams/current-plus-subscription-plan-erd.md` and the scope/ownership record
 in `47-workout-tracking.md`. This does not establish a cloud deployment.
 

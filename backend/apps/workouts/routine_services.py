@@ -11,6 +11,7 @@ from .models import (
 SNAPSHOT_FIELDS = (
     "exercise_id",
     "exercise_name",
+    "group_name",
     "category_name",
     "tracking_type",
     "weight_unit",

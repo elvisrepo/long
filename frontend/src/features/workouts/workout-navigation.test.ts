@@ -1,5 +1,9 @@
 import { expect, it } from "vitest";
-import { parseWorkoutSearch, shiftDay } from "./workout-navigation";
+import {
+  nextGroupedExercise,
+  parseWorkoutSearch,
+  shiftDay,
+} from "./workout-navigation";
 
 it("rejects invalid dates and incomplete training links", () => {
   expect(
@@ -14,4 +18,18 @@ it("rejects invalid dates and incomplete training links", () => {
     view: "history",
   });
   expect(shiftDay("2026-10-01", -1)).toBe("2026-09-30");
+});
+
+it("cycles only within the current group and skips ungrouped exercises", () => {
+  const items = [
+    { id: "a", group_name: "Circuit" },
+    { id: "b", group_name: "" },
+    { id: "c", group_name: "Circuit" },
+  ];
+  expect(nextGroupedExercise(items, "a")?.id).toBe("c");
+  expect(nextGroupedExercise(items, "c")?.id).toBe("a");
+  expect(nextGroupedExercise(items, "b")).toBeUndefined();
+  expect(
+    nextGroupedExercise([{ id: "a", group_name: "Solo" }], "a"),
+  ).toBeUndefined();
 });

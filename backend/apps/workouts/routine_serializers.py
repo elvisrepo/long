@@ -1,6 +1,45 @@
 from typing import Any
+from django.core.exceptions import ValidationError as ModelValidationError
 from rest_framework import serializers
 from .models import Workout, WorkoutRoutine, RoutineDay, RoutineExercise, RoutineSet
+from .serializers import SetSerializer, WorkoutExerciseSerializer
+
+
+class RoutineExerciseInputSerializer(WorkoutExerciseSerializer):
+    class Meta(WorkoutExerciseSerializer.Meta):
+        model = RoutineExercise
+
+
+class RoutineSetInputSerializer(SetSerializer):
+    class Meta:
+        model = RoutineSet
+        fields = [
+            "id",
+            "display_order",
+            "weight",
+            "reps",
+            "distance",
+            "duration_seconds",
+        ]
+        read_only_fields = ["id"]
+
+    def validate(self, data: dict[str, Any]) -> dict[str, Any]:
+        item = (
+            self.instance.routine_exercise
+            if self.instance
+            else self.context["routine_exercise"]
+        )
+        combined = {
+            field: data.get(
+                field, getattr(self.instance, field) if self.instance else None
+            )
+            for field in ["weight", "reps", "distance", "duration_seconds"]
+        }
+        try:
+            RoutineSet(routine_exercise=item, **combined).clean()
+        except ModelValidationError as error:
+            raise serializers.ValidationError(error.message_dict) from error
+        return data
 
 
 class RoutineSetSerializer(serializers.ModelSerializer):
@@ -27,6 +66,7 @@ class RoutineExerciseSerializer(serializers.ModelSerializer):
             "id",
             "exercise_id",
             "exercise_name",
+            "group_name",
             "category_name",
             "tracking_type",
             "weight_unit",
@@ -77,10 +117,6 @@ class RoutineDaySerializer(serializers.ModelSerializer):
 
     def validate(self, data: dict[str, Any]) -> dict[str, Any]:
         source = data.get("source_workout")
-        if not self.instance and source is None:
-            raise serializers.ValidationError(
-                {"source_workout_id": "Select a saved workout."}
-            )
         if source:
             items = list(source.exercises.all())
             if not items:

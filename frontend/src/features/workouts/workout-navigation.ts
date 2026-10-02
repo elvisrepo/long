@@ -5,7 +5,10 @@ export type WorkoutView =
   | "exercises"
   | "training"
   | "history"
-  | "routines";
+  | "routines"
+  | "calendar"
+  | "progress";
+// Calendar is a month read; Progress uses the owned library exercise parameter.
 export interface WorkoutSearch {
   view?: WorkoutView;
   date?: string;
@@ -14,6 +17,15 @@ export interface WorkoutSearch {
 }
 export type RunAction = (action: () => Promise<void>) => void;
 export type NavigateWorkout = (search: WorkoutSearch) => void;
+export function nextGroupedExercise<
+  T extends { id: string; group_name?: string },
+>(items: T[], currentId: string): T | undefined {
+  const current = items.find((i) => i.id === currentId);
+  if (!current?.group_name) return;
+  const group = items.filter((i) => i.group_name === current.group_name);
+  if (group.length < 2) return;
+  return group[(group.findIndex((i) => i.id === currentId) + 1) % group.length];
+}
 export function localDay(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
@@ -35,9 +47,15 @@ export function parseWorkoutSearch(
 ): WorkoutSearch {
   const result: WorkoutSearch = {};
   if (
-    ["home", "exercises", "training", "history", "routines"].includes(
-      String(raw.view),
-    )
+    [
+      "home",
+      "exercises",
+      "training",
+      "history",
+      "routines",
+      "calendar",
+      "progress",
+    ].includes(String(raw.view))
   )
     result.view = raw.view as WorkoutView;
   if (

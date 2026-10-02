@@ -169,6 +169,7 @@ class WorkoutExerciseSerializer(serializers.ModelSerializer):
             "id",
             "exercise_id",
             "exercise_name",
+            "group_name",
             "category_name",
             "tracking_type",
             "weight_unit",
@@ -232,5 +233,13 @@ class CopySerializer(serializers.Serializer):
     performed_on = serializers.DateField()
 
 
-class OrderSerializer(serializers.Serializer):
-    display_order = serializers.IntegerField(min_value=0, max_value=2147483647)
+class ExerciseSettingsSerializer(serializers.Serializer):
+    display_order = serializers.IntegerField(
+        min_value=0, max_value=2147483647, required=False
+    )
+    group_name = serializers.CharField(max_length=120, allow_blank=True, required=False)
+
+    def validate(self, data: dict[str, Any]) -> dict[str, Any]:
+        if not data:
+            raise serializers.ValidationError("Supply order or a group label.")
+        return data

@@ -34,6 +34,7 @@ export interface WorkoutExercise {
   id: string;
   exercise_id: string;
   exercise_name: string;
+  group_name?: string;
   category_name: string;
   tracking_type: TrackingType;
   weight_unit: "kg" | "lb";
@@ -132,11 +133,12 @@ export function getWorkoutPage(
 export async function getWorkoutRange(
   from: string,
   to: string,
+  exercise?: string,
 ): Promise<Workout[]> {
   const rows: Workout[] = [];
   let offset = 0;
   while (true) {
-    const page = await getWorkoutPage(from, to, offset);
+    const page = await getWorkoutPage(from, to, offset, exercise);
     rows.push(...page.results);
     if (!page.next) return rows;
     if (!page.results.length)
@@ -209,9 +211,11 @@ export function deleteWorkoutItem(
 export function reorderWorkoutExercise(
   id: string,
   display_order: number,
+  group_name?: string,
 ): Promise<WorkoutExercise> {
   return request(`session-exercises/${encodeURIComponent(id)}/`, "PATCH", {
     display_order,
+    ...(group_name === undefined ? {} : { group_name }),
   });
 }
 
@@ -252,3 +256,36 @@ export const startRoutineDay = (
   });
 export const removeRoutineDay = (id: string): Promise<void> =>
   request(`routine-days/${encodeURIComponent(id)}/`, "DELETE");
+
+export const addRoutineExercise = (
+  day: string,
+  exercise_id: string,
+): Promise<RoutineExercise> =>
+  request(`routine-days/${encodeURIComponent(day)}/exercises/`, "POST", {
+    exercise_id,
+  });
+export const reorderRoutineExercise = (
+  id: string,
+  display_order: number,
+  group_name?: string,
+): Promise<RoutineExercise> =>
+  request(`routine-exercises/${encodeURIComponent(id)}/`, "PATCH", {
+    display_order,
+    ...(group_name === undefined ? {} : { group_name }),
+  });
+export const saveRoutineSet = (
+  item: string,
+  id: string | undefined,
+  data: Partial<Omit<RoutineSet, "id">>,
+): Promise<RoutineSet> =>
+  request(
+    id
+      ? `routine-sets/${encodeURIComponent(id)}/`
+      : `routine-exercises/${encodeURIComponent(item)}/sets/`,
+    id ? "PATCH" : "POST",
+    data,
+  );
+export const removeRoutineItem = (
+  kind: "routine-exercises" | "routine-sets",
+  id: string,
+): Promise<void> => request(`${kind}/${encodeURIComponent(id)}/`, "DELETE");

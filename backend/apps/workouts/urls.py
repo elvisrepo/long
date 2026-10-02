@@ -5,6 +5,26 @@ from . import routine_views
 
 urlpatterns = [
     path(
+        "routine-days/<uuid:day_id>/exercises/",
+        routine_views.RoutineExercisesView.as_view(),
+        name="workout-routine-exercises",
+    ),
+    path(
+        "routine-exercises/<uuid:item_id>/",
+        routine_views.RoutineExerciseDetailView.as_view(),
+        name="workout-routine-exercise-detail",
+    ),
+    path(
+        "routine-exercises/<uuid:item_id>/sets/",
+        routine_views.RoutineSetsView.as_view(),
+        name="workout-routine-sets",
+    ),
+    path(
+        "routine-sets/<uuid:set_id>/",
+        routine_views.RoutineSetDetailView.as_view(),
+        name="workout-routine-set-detail",
+    ),
+    path(
         "routines/<uuid:routine_id>/days/",
         routine_views.RoutineDaysView.as_view(),
         name="workout-routine-days",

@@ -3,16 +3,17 @@
 ## Workout tracking backend — 2026-10-01
 
 All routes require JWT and work on every plan. Basic UI integration is implemented
-locally (2026-10-02), including the first routine template workflow. Analysis and
-advanced planning remain later slices.
+locally (2026-10-02), including direct routines, groups, rest timer, month calendar,
+windowed progress/observed records and calculators. Advanced analysis remains future work.
 See `47-workout-tracking.md`.
 
 Frontend `/workouts` uses validated optional search fields: `view=home|exercises|
-training|history|routines`, real calendar `date=YYYY-MM-DD`, UUID `session` and `exercise`.
+training|history|routines|calendar|progress`, real calendar `date=YYYY-MM-DD`, UUID `session` and `exercise`.
 Training needs both UUIDs; its exercise parameter identifies a session occurrence,
-whereas History's optional exercise parameter identifies a library exercise.
+whereas History/Progress's optional exercise parameter identifies a library exercise.
 These are UI state, not new REST contracts. Invalid training links fall back Home;
 foreign/deleted UUIDs still rely on backend authorization and show read errors.
+Date controls preserve the selected library exercise in History/Progress.
 
 ### Routine templates — 2026-10-02
 
@@ -20,16 +21,33 @@ foreign/deleted UUIDs still rely on backend authorization and show read errors.
 |---|---|---|
 | GET/POST | `/api/v1/workouts/routines/` | GET own routines including archives with nested days/exercises/sets; POST `{name, notes?, display_order?}` creates an active routine `201` |
 | PATCH | `/api/v1/workouts/routines/{uuid}/` | Own name/notes/order/archive; no hard-delete routine endpoint |
-| POST | `/api/v1/workouts/routines/{uuid}/days/` | `{name, source_workout_id, notes?, display_order?}`; `201` independent snapshot of an own saved workout containing at least one exercise |
+| POST | `/api/v1/workouts/routines/{uuid}/days/` | `{name, source_workout_id?, notes?, display_order?}`; `201` empty day, or independent snapshot of an own saved workout containing at least one exercise |
 | PATCH/DELETE | `/api/v1/workouts/routine-days/{uuid}/` | PATCH own name/notes/order; optional `source_workout_id` atomically replaces exercise/set template; DELETE `204` removes only template, never previously created sessions |
 | POST | `/api/v1/workouts/routine-days/{uuid}/start/` | `{performed_on}` creates independent planned Workout `201`, all set completion false; original units/order/quantities preserved |
+| POST | `/api/v1/workouts/routine-days/{uuid}/exercises/` | `{exercise_id, display_order?}` adds active own library exercise with server-frozen snapshots, `201` |
+| PATCH/DELETE | `/api/v1/workouts/routine-exercises/{uuid}/` | PATCH `{display_order?, group_name?}` with at least one field; DELETE occurrence and its template sets, `204` |
+| POST | `/api/v1/workouts/routine-exercises/{uuid}/sets/` | Planned quantities and optional order, `201`; no performance fields |
+| PATCH/DELETE | `/api/v1/workouts/routine-sets/{uuid}/` | Combined-value validation on partial quantity/order edits; DELETE `204` |
 
 Routine JSON: `{id, name, notes, display_order, is_active, days}`. Day JSON:
 `{id, name, notes, display_order, exercises}`. Exercise snapshots use the same
 fields as session occurrences; template sets contain only
 `{id, display_order, weight, reps, distance, duration_seconds}`, not performance
-comments or completion. Nested templates are read-only through these contracts;
-create or replace them from a validated saved workout, not arbitrary nested JSON.
+comments or completion. Nested templates remain read-only JSON; manage items through
+the dedicated endpoints or replace them from a validated saved workout. Direct
+editing creates no Workout rows. All quantities are optional but supplied values
+must match the frozen exercise type. Empty days cannot start. Order appends by ten;
+clients can explicitly set nonnegative order. Existing snapshots remain editable
+after library archive; adding requires an active exercise/category.
+
+Session and template exercise JSON additionally includes `group_name` (blank =
+ungrouped, max 120 characters). Exact matching trimmed labels within one workout
+or routine day identify a superset/circuit. These are local labels, not cross-session
+foreign keys. Capture/copy/start preserve them independently; changing order/group
+cannot change references/type/units. No separate group table is introduced.
+The UI optionally cycles through same-group exercises in saved order after a
+confirmed new completion; failed saves, edits to already-completed sets and plans
+do not advance or start rest. Group and timer toggles are temporary UI preferences.
 
 Names max 120, instructions max 2000, order nonnegative; names are case-insensitive
 unique per owner (routines, including archives) or per routine (days). Foreign
@@ -58,7 +76,7 @@ and `routine_sets`; account deletion cascades all four.
 | GET/PATCH/DELETE | `/api/v1/workouts/sessions/{uuid}/` | Own detail; PATCH date/name/notes/is_finished; DELETE session and its sets `204` |
 | POST | `/api/v1/workouts/sessions/{uuid}/exercises/` | `{exercise_id, display_order?}`; `201` ordered occurrence with server snapshots; active own exercise/category required |
 | POST | `/api/v1/workouts/sessions/{uuid}/copy/` | `{performed_on}`; `201` independent planned session; no completion, session notes or performance comments copied |
-| PATCH/DELETE | `/api/v1/workouts/session-exercises/{uuid}/` | PATCH `{display_order}` only; DELETE occurrence and sets `204`; snapshots/reference immutable |
+| PATCH/DELETE | `/api/v1/workouts/session-exercises/{uuid}/` | PATCH `{display_order?, group_name?}` with at least one field; DELETE occurrence and sets `204`; snapshots/reference immutable |
 | POST | `/api/v1/workouts/session-exercises/{uuid}/sets/` | Set fields below; `201` individual set; completion defaults true |
 | PATCH/DELETE | `/api/v1/workouts/sets/{uuid}/` | Partial set edit validated against combined values, or DELETE `204` |
 
@@ -71,7 +89,7 @@ New catalog rows are always active; category/ownership input cannot cross accoun
 
 Session JSON includes `id, performed_on, name, notes, is_finished, created_at,
 completed_set_count, exercises`. Each occurrence includes `id, exercise_id,
-exercise_name, category_name, tracking_type, weight_unit, distance_unit,
+exercise_name, group_name, category_name, tracking_type, weight_unit, distance_unit,
 display_order, sets`. Set JSON: `{id, display_order, weight, reps, distance,
 duration_seconds, comment, is_completed}`. Decimal quantities serialize as strings
 or null; weight/distance have 3 decimal places. Duration is integer seconds.
@@ -93,6 +111,17 @@ or null; weight/distance have 3 decimal places. Duration is integer seconds.
   clients must disable duplicate submission, not assume retry idempotency.
 - Full account JSON includes `workout_catalog_state`, `exercise_categories`,
   `exercises`, `workouts`, `workout_exercises`, `workout_sets`, including archives.
+
+Calendar reads the displayed month through the existing bounded, safely paginated
+session API. Progress reads 30/90/365 days ending on the selected date with the
+owned library `exercise_id` filter. The browser derives daily maxima/observed
+records from completed sets only and partitions frozen type/unit combinations;
+no analytics endpoint, cached PR model or all-time claim. Writes invalidate these
+owner-scoped reads. Calculators run locally: Epley estimated max, percentage/nearest
+increment, and exact balanced plates from explicit finite inventory. Adding a
+percentage result uses the existing set POST with `is_completed:false`, unknown
+reps, and saved units. Calculator inputs/equipment inventory are temporary, not
+stored account data. No automatic unit conversion or health score.
 
 ## Diet tracking (implemented locally, 2026-10-01)
 

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Modal } from "../../components/modal";
 import { useMeQuery } from "../auth/use-me-query";
 import * as api from "./workout-api";
+import { RoutineDayBuilder } from "./routine-day-builder";
 import {
   dayLabel,
   setLabel,
@@ -240,6 +241,7 @@ export function WorkoutRoutines({
     api.WorkoutRoutine | null | undefined
   >();
   const [dayEditor, setDayEditor] = useState<api.RoutineDay>();
+  const [newDayRoutine, setNewDayRoutine] = useState<string>();
   const pending = busy || query.isFetching;
   const routines = query.data?.filter((r) => archives || r.is_active) ?? [];
   return (
@@ -276,8 +278,8 @@ export function WorkoutRoutines({
             <section className="workout-card workout-empty">
               <h2>Build a repeatable plan</h2>
               <p>
-                Save a workout as a routine day, then reuse it without carrying
-                over completion.
+                Create a routine and add days, or save an existing workout as a
+                template.
               </p>
               <button onClick={() => navigate({ view: "home", date: day })}>
                 Choose a saved workout
@@ -295,6 +297,12 @@ export function WorkoutRoutines({
                 </div>
                 {r.notes && <p>{r.notes}</p>}
                 <div className="workout-actions">
+                  <button
+                    disabled={pending || !r.is_active}
+                    onClick={() => setNewDayRoutine(r.id)}
+                  >
+                    Add routine day
+                  </button>
                   <button
                     disabled={pending}
                     onClick={() => setRoutineEditor(r)}
@@ -315,10 +323,7 @@ export function WorkoutRoutines({
                   </button>
                 </div>
                 {!r.days.length && (
-                  <p>
-                    No days yet. Open a saved workout and choose Save as routine
-                    day.
-                  </p>
+                  <p>No days yet. Add your first routine day.</p>
                 )}
                 <div className="workout-library-grid" style={{ marginTop: 16 }}>
                   {r.days.map((d) => (
@@ -328,6 +333,7 @@ export function WorkoutRoutines({
                       {d.exercises.map((i) => (
                         <div key={i.id}>
                           <strong>{i.exercise_name}</strong>
+                          {i.group_name && <small> · {i.group_name}</small>}
                           <p>
                             {i.sets.length
                               ? i.sets.map((s) => setLabel(i, s)).join(" / ")
@@ -374,10 +380,22 @@ export function WorkoutRoutines({
       )}
       {dayEditor && (
         <DayEditor
-          day={dayEditor}
+          day={
+            query.data
+              ?.flatMap((r) => r.days)
+              .find((d) => d.id === dayEditor.id) ?? dayEditor
+          }
           busy={busy}
           run={run}
           onClose={() => setDayEditor(undefined)}
+        />
+      )}
+      {newDayRoutine && (
+        <NewDayEditor
+          routineId={newDayRoutine}
+          busy={busy}
+          run={run}
+          onClose={() => setNewDayRoutine(undefined)}
         />
       )}
     </>
@@ -542,14 +560,11 @@ function DayEditor({
                 disabled={busy}
               />
             </label>
-            <p>
-              To change exercises or sets, edit a planned workout and save it as
-              a replacement day template.
-            </p>
             <button className="primary-button" disabled={busy}>
               Save day details
             </button>
           </form>
+          <RoutineDayBuilder day={day} busy={busy} run={run} />
           <button
             className="workout-danger"
             disabled={busy}
@@ -561,6 +576,51 @@ function DayEditor({
       )}
       {error && <p role="alert">{error}</p>}
       <button disabled={busy} onClick={onClose}>
+        Cancel
+      </button>
+    </Modal>
+  );
+}
+
+function NewDayEditor({
+  routineId,
+  busy,
+  run,
+  onClose,
+}: {
+  routineId: string;
+  busy: boolean;
+  run: RunAction;
+  onClose: () => void;
+}) {
+  const { error, execute } = useRoutineAction(run);
+  return (
+    <Modal labelledBy="new-routine-day" busy={busy} onClose={onClose}>
+      <h2 id="new-routine-day">New routine day</h2>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const fd = new FormData(e.currentTarget);
+          execute(async () => {
+            await api.saveRoutineDay(routineId, undefined, {
+              name: String(fd.get("name")).trim(),
+              notes: "",
+              display_order: 100,
+            });
+            onClose();
+          });
+        }}
+      >
+        <label>
+          Day name
+          <input name="name" required maxLength={120} disabled={busy} />
+        </label>
+        {error && <p role="alert">{error}</p>}
+        <button className="primary-button" disabled={busy}>
+          Create day
+        </button>
+      </form>
+      <button onClick={onClose} disabled={busy}>
         Cancel
       </button>
     </Modal>

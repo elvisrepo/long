@@ -234,7 +234,7 @@ for (const width of [320, 390, 1440])
     ).toBeVisible();
     await page.getByRole("button", { name: "Start new workout" }).click();
     await page.getByRole("button", { name: "Add Barbell bench press" }).click();
-    await page.getByLabel("Weight (kg)").fill("60");
+    await page.getByLabel("Weight (kg)", { exact: true }).fill("60");
     await page.getByLabel("Reps", { exact: true }).fill("8");
     await page.getByLabel("Set comment").fill("Steady pace");
     await page.getByRole("button", { name: "Save completed set" }).click();
@@ -242,12 +242,12 @@ for (const width of [320, 390, 1440])
       page.getByText("60 kg · 8 reps", { exact: true }),
     ).toBeVisible();
     await page.getByRole("button", { name: "Edit set 1" }).click();
-    await page.getByLabel("Weight (kg)").fill("65");
+    await page.getByLabel("Weight (kg)", { exact: true }).fill("65");
     await page.getByRole("button", { name: "Update set" }).click();
     await expect(
       page.getByText("65 kg · 8 reps", { exact: true }),
     ).toBeVisible();
-    await page.getByLabel("Weight (kg)").fill("");
+    await page.getByLabel("Weight (kg)", { exact: true }).fill("");
     await page.getByLabel("Reps", { exact: true }).fill("");
     await page.getByRole("button", { name: "Add planned set" }).click();
     await expect(page.getByLabel("Set 2 completed")).not.toBeChecked();

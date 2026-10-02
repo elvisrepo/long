@@ -54,6 +54,30 @@
 
 ### Routine templates — 2026-10-02
 
+- Direct editor tests add empty-day creation, exercise/set CRUD and ordering,
+  no synthetic Workout creation, independent started copies, frozen units,
+  JWT/foreign-owner/archive denial and planned partial quantity validation.
+- Group tests cover local labels, bounds and copying/capture/start independence.
+  Frontend checks cover group cycling, deadline catch-up/explicit auto-start,
+  month boundaries and planned/completed distinction, frozen-unit progress partitions,
+  Epley/percentage arithmetic, non-greedy exact finite plates and planned-only
+  calculator submission with visible retry errors.
+- `playwright.workout-live.config.ts` uses a dedicated :5176 Vite server proxying
+  isolated Django :8001 and `workout-live.spec.ts` (no intercepted workout API).
+  E2E CSRF defaults trust this origin only in E2E settings. The isolated containers
+  were recreated with their named volume retained to fix the missing network.
+  Do not reuse normal Vite :5173 accidentally; do not delete database volumes.
+- Latest convenience/analysis verification: **663 backend**, **415 frontend**,
+  **35 Chromium fixture checks** and **three real-Django flows** at 320/390/1440px.
+  Live flows include two-date SVG charts, completion-only records, direct template
+  editing/copy isolation, timer/group navigation, planned calculator outputs,
+  finite plate loading, month navigation/compact cell heights and reload.
+  Lint, TypeScript/build, mypy (16 files), migration drift and whitespace pass.
+  Local normal/E2E migration `workouts.0005_exercise_groups` is applied. Live
+  artifacts/screenshot output is isolated under ignored `playground/`, not the
+  fixture output directory. Probe scripts reproduced summary `<output>` click
+  behavior and artifact-path collisions; regression checks guard those fixes.
+
 - `test_workout_routines.py` covers private catalogs, names/archives, own source
   validation, cross-owner denial, authenticated routes, immutable snapshot units,
   planned independent starts, replacement/deletion preserving old sessions,

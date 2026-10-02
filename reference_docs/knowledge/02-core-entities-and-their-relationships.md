@@ -16,7 +16,10 @@ references Exercise and freezes its historical name/category/type/units; Routine
 contains nullable planned quantities, never completion or performance comments.
 Capture/start copy values, not source-session references; generated Workout rows
 are independent. Routine changes cannot rewrite existing sessions. See
-`47-workout-tracking.md`; advanced planning/analysis remain later slices.
+`47-workout-tracking.md`. `workouts.0005` adds `group_name` to both session/template
+exercise occurrences: matching local labels identify supersets/circuits, preserved
+in independent copies. No extra group, PR or calculator table. Windowed records are
+derived from completed sets; temporary timer/calculator inputs are not account data.
 
 ## Diet additions — 2026-10-01
 
