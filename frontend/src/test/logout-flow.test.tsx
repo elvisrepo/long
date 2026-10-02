@@ -89,7 +89,7 @@ describe("logout flow", () => {
     ).toBeInTheDocument();
   });
 
-  it("removes private metric, subscription and recovery caches on logout", async () => {
+  it("removes private tracking and subscription caches on logout", async () => {
     vi.mocked(logoutWeb).mockResolvedValue();
     vi.mocked(getMe).mockRejectedValue(new Error("Authentication required"));
     const queryClient = renderLogoutFlow({ path: "/unknown-page" });
@@ -97,6 +97,8 @@ describe("logout flow", () => {
       ["metric-entries", {}],
       ["current-subscription"],
       ["recovery", "user@example.com", "tools"],
+      ["workouts", "user@example.com", "catalog"],
+      ["workouts", "user@example.com", "session", "private-session"],
     ];
     for (const key of keys) queryClient.setQueryData(key, { private: true });
     await userEvent.click(

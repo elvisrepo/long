@@ -166,6 +166,8 @@ async function mockApi(page: Page) {
     else if (url.pathname === "/api/v1/diet/catalog/")
       json = { sections: [], foods: [] };
     else if (url.pathname === "/api/v1/diet/entries/") json = [];
+    else if (url.pathname === "/api/v1/workouts/sessions/")
+      json = { count: 0, next: null, previous: null, results: [] };
     else if (url.pathname.endsWith("/entries/"))
       json = entries.filter(
         (entry) =>

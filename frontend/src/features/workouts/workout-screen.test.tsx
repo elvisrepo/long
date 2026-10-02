@@ -1,0 +1,305 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { useState } from "react";
+import { beforeEach, expect, it, vi } from "vitest";
+import * as api from "./workout-api";
+import { WorkoutScreen } from "./workout-screen";
+import type { WorkoutSearch } from "./workout-navigation";
+vi.mock("./workout-api");
+vi.mock("../auth/use-me-query", () => ({
+  useMeQuery: () => ({ data: { email: "owner@example.com" } }),
+}));
+export const exercise: api.Exercise = {
+  id: "e",
+  category_id: "c",
+  name: "Barbell bench press",
+  tracking_type: "strength",
+  weight_unit: "kg",
+  distance_unit: "km",
+  notes: "",
+  weight_increment: "2.500",
+  rest_seconds: 90,
+  is_active: true,
+  display_order: 10,
+};
+export const item: api.WorkoutExercise = {
+  id: "i",
+  exercise_id: "e",
+  exercise_name: exercise.name,
+  category_name: "Chest",
+  tracking_type: "strength",
+  weight_unit: "kg",
+  distance_unit: "km",
+  display_order: 10,
+  sets: [],
+};
+export const workout: api.Workout = {
+  id: "w",
+  performed_on: "2026-10-02",
+  name: "Workout",
+  notes: "",
+  is_finished: false,
+  created_at: "2026-10-02T10:00:00Z",
+  completed_set_count: 0,
+  exercises: [item],
+};
+function mount(initial: WorkoutSearch = {}) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  function Wrapper() {
+    const [search, setSearch] = useState(initial);
+    return <WorkoutScreen search={search} onNavigate={setSearch} />;
+  }
+  render(
+    <QueryClientProvider client={client}>
+      <Wrapper />
+    </QueryClientProvider>,
+  );
+  return client;
+}
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(api.getWorkoutCatalog).mockResolvedValue({
+    categories: [
+      { id: "c", name: "Chest", is_active: true, display_order: 10 },
+    ],
+    exercises: [exercise],
+  });
+  vi.mocked(api.initializeWorkoutCatalog).mockImplementation(
+    api.getWorkoutCatalog,
+  );
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([]);
+  vi.mocked(api.getWorkoutPage).mockResolvedValue({
+    count: 0,
+    next: null,
+    previous: null,
+    results: [],
+  });
+  vi.mocked(api.getWorkout).mockResolvedValue(workout);
+  vi.mocked(api.createWorkout).mockResolvedValue({ ...workout, exercises: [] });
+  vi.mocked(api.addWorkoutExercise).mockResolvedValue(item);
+});
+it("starts on the chosen date, selects an exercise and opens its training screen", async () => {
+  mount({ date: "2026-10-02" });
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Start new workout" }),
+  );
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Add Barbell bench press" }),
+  );
+  expect(
+    await screen.findByRole("heading", {
+      name: "Barbell bench press",
+      level: 1,
+    }),
+  ).toBeInTheDocument();
+  expect(api.initializeWorkoutCatalog).toHaveBeenCalledTimes(1);
+  expect(api.createWorkout).toHaveBeenCalledWith("2026-10-02");
+  expect(api.addWorkoutExercise).toHaveBeenCalledWith("w", "e");
+  await waitFor(() =>
+    expect(screen.getByLabelText("Weight (kg)")).toBeInTheDocument(),
+  );
+});
+
+it("reuses a newly created session if adding its first exercise fails", async () => {
+  vi.mocked(api.addWorkoutExercise)
+    .mockRejectedValueOnce(new Error("Temporary failure"))
+    .mockResolvedValue(item);
+  mount({ view: "exercises", date: "2026-10-02" });
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Add Barbell bench press" }),
+  );
+  await screen.findByText("Temporary failure");
+  await userEvent.click(
+    screen.getByRole("button", { name: "Add Barbell bench press" }),
+  );
+  await screen.findByRole("heading", { name: "Barbell bench press", level: 1 });
+  expect(api.createWorkout).toHaveBeenCalledTimes(1);
+});
+
+it("saves a completed set with snapshot units and shows server-confirmed values", async () => {
+  let saved: api.Workout = { ...workout, exercises: [{ ...item, sets: [] }] };
+  vi.mocked(api.getWorkout).mockImplementation(async () => saved);
+  vi.mocked(api.saveWorkoutSet).mockImplementation(async (_item, _id, data) => {
+    const set: api.WorkoutSet = {
+      id: "s",
+      display_order: 10,
+      weight: String(data.weight),
+      reps: data.reps!,
+      distance: null,
+      duration_seconds: null,
+      comment: data.comment || "",
+      is_completed: true,
+    };
+    saved = {
+      ...saved,
+      completed_set_count: 1,
+      exercises: [{ ...item, sets: [set] }],
+    };
+    return set;
+  });
+  mount({ view: "training", date: "2026-10-02", session: "w", exercise: "i" });
+  await userEvent.type(await screen.findByLabelText("Weight (kg)"), "60");
+  await userEvent.type(screen.getByLabelText("Reps"), "8");
+  await userEvent.type(screen.getByLabelText("Set comment"), "Good set");
+  await userEvent.click(
+    screen.getByRole("button", { name: "Save completed set" }),
+  );
+  await waitFor(() =>
+    expect(api.saveWorkoutSet).toHaveBeenCalledWith(
+      "i",
+      undefined,
+      expect.objectContaining({
+        weight: "60",
+        reps: 8,
+        comment: "Good set",
+        is_completed: true,
+      }),
+    ),
+  );
+  expect(await screen.findByText("60 kg · 8 reps")).toBeInTheDocument();
+  expect(screen.getByLabelText("Set 1 completed")).toBeChecked();
+});
+
+it("allows an empty planned set, without recording it as completed", async () => {
+  vi.mocked(api.saveWorkoutSet).mockResolvedValue({
+    id: "s",
+    display_order: 10,
+    weight: null,
+    reps: null,
+    distance: null,
+    duration_seconds: null,
+    comment: "",
+    is_completed: false,
+  });
+  mount({ view: "training", session: "w", exercise: "i" });
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Add planned set" }),
+  );
+  await waitFor(() =>
+    expect(api.saveWorkoutSet).toHaveBeenCalledWith("i", undefined, {
+      weight: null,
+      reps: null,
+      comment: "",
+      is_completed: false,
+    }),
+  );
+});
+
+it("does not mark a planned set completed when the server rejects it", async () => {
+  vi.mocked(api.getWorkout).mockResolvedValue({
+    ...workout,
+    exercises: [
+      {
+        ...item,
+        sets: [
+          {
+            id: "s",
+            display_order: 10,
+            weight: null,
+            reps: null,
+            distance: null,
+            duration_seconds: null,
+            comment: "",
+            is_completed: false,
+          },
+        ],
+      },
+    ],
+  });
+  vi.mocked(api.saveWorkoutSet).mockRejectedValue(
+    new Error("reps: This field is required."),
+  );
+  mount({ view: "training", session: "w", exercise: "i" });
+  const checkbox = await screen.findByLabelText("Set 1 completed");
+  await userEvent.click(checkbox);
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "reps: This field is required.",
+  );
+  expect(checkbox).not.toBeChecked();
+});
+
+it("disables edits in a finished workout until it is reopened", async () => {
+  vi.mocked(api.getWorkout).mockResolvedValue({
+    ...workout,
+    is_finished: true,
+  });
+  vi.mocked(api.updateWorkout).mockResolvedValue(workout);
+  mount({ view: "training", session: "w", exercise: "i" });
+  expect(
+    await screen.findByRole("button", { name: "Save completed set" }),
+  ).toBeDisabled();
+  await userEvent.click(screen.getByRole("button", { name: "Reopen workout" }));
+  await waitFor(() =>
+    expect(api.updateWorkout).toHaveBeenCalledWith("w", { is_finished: false }),
+  );
+});
+
+it("edits an exercise in an archived category without reassigning its category", async () => {
+  vi.mocked(api.getWorkoutCatalog).mockResolvedValue({
+    categories: [
+      { id: "c", name: "Chest", is_active: false, display_order: 10 },
+    ],
+    exercises: [exercise],
+  });
+  vi.mocked(api.saveExercise).mockResolvedValue(exercise);
+  mount({ view: "exercises" });
+  await userEvent.click(await screen.findByLabelText("Show archived"));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Edit exercise Barbell bench press" }),
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Save exercise" }));
+  await waitFor(() => expect(api.saveExercise).toHaveBeenCalled());
+  expect(vi.mocked(api.saveExercise).mock.calls[0][1]).not.toHaveProperty(
+    "category_id",
+  );
+});
+
+it.each(["duration", "cardio", "bodyweight"] as const)(
+  "shows only fields relevant to %s snapshot",
+  async (type) => {
+    vi.mocked(api.getWorkout).mockResolvedValue({
+      ...workout,
+      exercises: [
+        {
+          ...item,
+          tracking_type: type,
+          distance_unit: "mi",
+          weight_unit: "lb",
+        },
+      ],
+    });
+    mount({ view: "training", session: "w", exercise: "i" });
+    await screen.findByRole("heading", { name: "Record a set" });
+    if (type === "bodyweight")
+      expect(screen.getByLabelText("Weight (lb)")).toBeInTheDocument();
+    else expect(screen.queryByLabelText("Weight (lb)")).not.toBeInTheDocument();
+    if (type === "cardio")
+      expect(screen.getByLabelText("Distance (mi)")).toBeInTheDocument();
+    if (type !== "bodyweight")
+      expect(screen.getByLabelText("Duration (seconds)")).toBeInTheDocument();
+  },
+);
+
+it("keeps seven-day history anchored to today when viewing another date", async () => {
+  vi.setSystemTime(new Date("2026-10-02T12:00:00"));
+  try {
+    mount({ date: "2026-09-01" });
+    const today = await screen.findByRole("button", {
+      name: "Fri, 2 Oct 2026, 0 sessions",
+    });
+    expect(today).toHaveAttribute("aria-current", "date");
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: "Sat, 26 Sept 2026, 0 sessions",
+      }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Fri, 2 Oct 2026, 0 sessions" }),
+    ).toBeInTheDocument();
+  } finally {
+    vi.useRealTimers();
+  }
+});

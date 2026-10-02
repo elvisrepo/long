@@ -1,5 +1,27 @@
 ## 5. Frontend Development (Parallel from R1)
 
+### Workout log (October 2, 2026, local)
+
+Authenticated `/workouts` now connects to the real backend on every plan. Home,
+All exercises, Training and History share URL-backed view/date/session selection.
+Start explicitly initializes editable starter samples once; ordinary reads do not
+seed. The library supports category/exercise creation, search, numeric ordering,
+editing and archive/restore. Training uses saved occurrence type/units for fields,
+not current library defaults; it supports planned/completed sets, comments,
+edit/delete, repeat entry and an explicit previous-set suggestion when available.
+Finished sessions must reopen before edits. Session name/date/notes and copying
+are available from Home; History browses a paginated 90-day window and filters by
+exercise. Exercise history offers a link to the fully paginated view.
+
+The seven-day strip always ends today, independently of the selected tracking
+date. Dashboard Recovery/Diet/Workouts summaries share a compact three-column row,
+stacking below 681px; workouts count completed sets and distinct trained days,
+excluding planned-only sessions. Pending writes disable controls and errors retain
+input without claiming success. Successful writes invalidate owner-scoped reads.
+Dark/Light/Sand tokens and mobile layouts are reused. Routines, supersets, timers,
+calculators, charts/records and month-calendar views remain unimplemented.
+See `47-workout-tracking.md`.
+
 ### Diet checklist (October 1, 2026, local)
 
 Authenticated `/diet` is available to every account through shared navigation.

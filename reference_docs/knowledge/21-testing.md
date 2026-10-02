@@ -10,9 +10,10 @@
 - Tests use PostgreSQL through an explicit host DATABASE_URL; Docker hostname
   `db` is not resolvable from host-run uv. Django creates a disposable test DB;
   no tests run against the application's live tables.
-- Model/migration drift and focused lint checks accompany this slice. Frontend,
-  dashboard, browser flows, routines and calculator acceptance tests are still
-  pending; the standalone HTML prototype is not production UI coverage.
+- Model/migration drift and focused lint checks accompany the backend slice.
+  Frontend basic logging/dashboard coverage was added on 2026-10-02 (below).
+  Routines and calculator acceptance remain pending; the standalone HTML prototype
+  is not production UI coverage.
 - See `47-workout-tracking.md`; local testing is not staging/deployment acceptance.
 - Verified: 42 workout checks within the full **646-test backend suite**, and
   **108 relevant regression checks** for Workouts/Diet/Recovery/account lifecycle.
@@ -21,6 +22,34 @@
   applied; unauthenticated runtime catalog smoke returned `401` as expected.
   The existing mypy cache was read-only; a temporary cache resolved its crash
   without changing dependencies or ownership of the old cache.
+
+### Workout frontend basic slice — 2026-10-02
+
+- API/navigation tests cover bearer auth, partial updates, nested errors, 204
+  deletion, safe pagination, invalid date/UUID links and month boundaries.
+- Component tests cover start → selection → training, saved snapshot fields,
+  comments, blank planned sets, failed completion, reopening finished sessions,
+  editing within archived categories, today-anchored history and dashboard counts.
+  Logout coverage includes private workout catalog/session caches.
+- `e2e/workouts.spec.ts` uses isolated intercepted API fixtures for the real React
+  UI: create, log, edit, plan/delete, finish, copy, reload and responsive containment.
+  This proves browser/UI integration, not live Django-to-browser end-to-end behavior.
+- Fixture-only checks can run without Docker:
+  `npm run test:e2e -- --config=playwright.fixture.config.ts` (port 5175).
+  The standard E2E config remains for tests that need isolated Django/database.
+  Its initial run encountered a stale Docker network reference in `db-e2e`; no
+  database containers were deleted or data repaired as part of this UI slice.
+- jsdom exposes `formNoValidate` but suppresses a blank planned submission before
+  the submit handler. A small ignored `playground/workout-form-validation.mjs`
+  reproduced it. Explicit completed-set `reportValidity()` with a noValidate form
+  preserves validation and makes planned submission deterministic; Chromium checks
+  exercise both populated completed sets and blank plans.
+- Final local verification: **398 frontend tests**, **35 Chromium fixture checks**
+  (including workout workflows at 320/390/1440px and shared layout/theme regressions),
+  ESLint, TypeScript/Vite production build and whitespace checks passed. Backend
+  source/schema was unchanged in this frontend slice; the previously recorded
+  646 backend tests were not rerun here. The live-backend E2E boundary remains
+  unverified because of the stale Docker network reference noted above.
 
 ## Diet tracking — 2026-10-01 local slice
 

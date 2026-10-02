@@ -10,12 +10,27 @@ catalog ownership, session/set semantics, history preservation, and phased deliv
 The first backend slice now implements the catalog, sessions, ordered exercise
 occurrences, set logging, copying/history and account lifecycle. Six models and
 three migrations are present; the canonical contracts are in
-[API design](03-api-design.md). The frontend, dashboard and phases 5–6 remain
-unimplemented. The separate `.lavish/workout-prototype.html` is a sample-only
+[API design](03-api-design.md). The basic frontend, history/copy and dashboard
+slice is now implemented locally (2026-10-02); phases 5–6 remain unimplemented.
+The separate `.lavish/workout-prototype.html` is a sample-only
 review prototype, not the real Workouts tab. No cloud deployment is implied.
 Local PostgreSQL now has all three workout migrations applied. The full backend
 suite passes 646 tests (42 workout checks); type checks, lint and migration drift
-checks pass. This verifies backend behavior, not frontend or staging acceptance.
+checks pass. This verifies backend behavior, not staging acceptance.
+
+The real authenticated `/workouts` tab provides Home, All exercises, Training,
+and History. Start explicitly initializes samples and creates a selected-day
+session; library GET never seeds. Category/exercise management includes search,
+order, archive/restore and editable notes/defaults. Set forms use immutable
+snapshot type/units, support comments, planned/completed entry, editing/deletion,
+repeat and explicit prior-set suggestions. Finish/reopen and session details are
+available; copying creates independent planned work. History is a paginated
+90-day window ending on the selected date, with exercise filtering; the activity
+strip and compact dashboard summary always cover today and its six preceding days.
+Planned-only sessions do not count as training. Server-confirmed queries, error
+states and pending-control guards are covered; no optimistic success is shown.
+Browser checks use isolated API fixtures, not users' live workouts. No cloud
+deployment or native background-timer behavior is implied.
 
 - Add an authenticated Workouts tab, using Longevity's existing visual system.
 - Every account gets the complete basic workout log. Advanced Pro analysis is a

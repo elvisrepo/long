@@ -2,8 +2,16 @@
 
 ## Workout tracking backend — 2026-10-01
 
-All routes require JWT and work on every plan. UI integration, routines and
-analysis are not implemented yet. See `47-workout-tracking.md`.
+All routes require JWT and work on every plan. Basic UI integration is implemented
+locally (2026-10-02); routines and analysis remain later slices.
+See `47-workout-tracking.md`.
+
+Frontend `/workouts` uses validated optional search fields: `view=home|exercises|
+training|history`, real calendar `date=YYYY-MM-DD`, UUID `session` and `exercise`.
+Training needs both UUIDs; its exercise parameter identifies a session occurrence,
+whereas History's optional exercise parameter identifies a library exercise.
+These are UI state, not new REST contracts. Invalid training links fall back Home;
+foreign/deleted UUIDs still rely on backend authorization and show read errors.
 
 | Method | Endpoint | Contract |
 |---|---|---|

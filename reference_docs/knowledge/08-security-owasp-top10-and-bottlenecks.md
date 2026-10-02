@@ -22,7 +22,12 @@
   quantities/nonnegative load, not the whole cross-table type invariant.
 - Account export includes private catalogs/snapshots/sets and the seeding marker;
   user deletion cascades all six tables. No URLs are fetched from exercise notes.
-- No frontend cache or analytics integration exists yet. See `47-workout-tracking.md`.
+- Basic frontend integration now uses owner-scoped `workouts` query keys, cleared
+  with all private caches on logout. Writes require bearer authentication and
+  disable duplicate submission while pending; results are server-confirmed, not
+  optimistic completion. Pagination constructs same-origin API paths rather than
+  trusting arbitrary provider `next` URLs. Notes/comments are rendered as text,
+  not HTML. Analytics remains pending. See `47-workout-tracking.md`.
 
 ## Diet tracking boundary — 2026-10-01
 

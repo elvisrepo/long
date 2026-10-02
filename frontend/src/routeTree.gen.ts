@@ -18,6 +18,7 @@ import { Route as RecoveryRouteImport } from './routes/recovery'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as WorkoutsRouteImport } from './routes/workouts'
 import { Route as AnalyticsConsistencyRouteImport } from './routes/analytics.consistency'
 import { Route as AnalyticsSleepRouteImport } from './routes/analytics.sleep'
 import { Route as AnalyticsWeightStepsRouteImport } from './routes/analytics.weight-steps'
@@ -68,6 +69,11 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WorkoutsRoute = WorkoutsRouteImport.update({
+  id: '/workouts',
+  path: '/workouts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AnalyticsConsistencyRoute = AnalyticsConsistencyRouteImport.update({
   id: '/analytics/consistency',
   path: '/analytics/consistency',
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
+  '/workouts': typeof WorkoutsRoute
   '/analytics/consistency': typeof AnalyticsConsistencyRoute
   '/analytics/sleep': typeof AnalyticsSleepRoute
   '/analytics/weight-steps': typeof AnalyticsWeightStepsRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
+  '/workouts': typeof WorkoutsRoute
   '/analytics/consistency': typeof AnalyticsConsistencyRoute
   '/analytics/sleep': typeof AnalyticsSleepRoute
   '/analytics/weight-steps': typeof AnalyticsWeightStepsRoute
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
+  '/workouts': typeof WorkoutsRoute
   '/analytics/consistency': typeof AnalyticsConsistencyRoute
   '/analytics/sleep': typeof AnalyticsSleepRoute
   '/analytics/weight-steps': typeof AnalyticsWeightStepsRoute
@@ -147,6 +156,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/settings'
+    | '/workouts'
     | '/analytics/consistency'
     | '/analytics/sleep'
     | '/analytics/weight-steps'
@@ -162,6 +172,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/settings'
+    | '/workouts'
     | '/analytics/consistency'
     | '/analytics/sleep'
     | '/analytics/weight-steps'
@@ -177,6 +188,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/settings'
+    | '/workouts'
     | '/analytics/consistency'
     | '/analytics/sleep'
     | '/analytics/weight-steps'
@@ -193,6 +205,7 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SettingsRoute: typeof SettingsRoute
+  WorkoutsRoute: typeof WorkoutsRoute
   AnalyticsConsistencyRoute: typeof AnalyticsConsistencyRoute
   AnalyticsSleepRoute: typeof AnalyticsSleepRoute
   AnalyticsWeightStepsRoute: typeof AnalyticsWeightStepsRoute
@@ -263,6 +276,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/workouts': {
+      id: '/workouts'
+      path: '/workouts'
+      fullPath: '/workouts'
+      preLoaderRoute: typeof WorkoutsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/analytics/consistency': {
       id: '/analytics/consistency'
       path: '/analytics/consistency'
@@ -315,6 +335,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SettingsRoute: SettingsRoute,
+  WorkoutsRoute: WorkoutsRoute,
   AnalyticsConsistencyRoute: AnalyticsConsistencyRoute,
   AnalyticsSleepRoute: AnalyticsSleepRoute,
   AnalyticsWeightStepsRoute: AnalyticsWeightStepsRoute,
