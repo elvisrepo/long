@@ -245,6 +245,12 @@ for (const width of [320, 390, 1440]) {
     await expect(
       page.getByRole("region", { name: "Selected training point" }),
     ).toContainText(currentDate);
+    await expect(
+      page.getByRole("region", { name: "Selected training point" }),
+    ).toContainText("Source set: 40 kg × 5 reps");
+    await expect(
+      page.getByText(/Only positive loads with 1–10 reps are included/),
+    ).toContainText("reps left in reserve");
     await capture("progress-estimated-1rm");
     for (const [metric, title] of [
       ["max_reps", "Max reps"],

@@ -56,7 +56,12 @@ export interface ProgressSeries {
   key: string;
   title: string;
   unit: string;
-  points: { date: string; value: number; session?: string }[];
+  points: {
+    date: string;
+    value: number;
+    session?: string;
+    source?: { weight: string; reps: number };
+  }[];
   records: { label: string; value: number; unit: string; date: string }[];
 }
 
@@ -97,6 +102,13 @@ export function progressSeries(
           });
         const group = groups.get(key)!;
         const pointKey = total ? workout.id : workout.performed_on;
+        const previous = group.points.get(pointKey);
+        const source =
+          choice === "estimated_1rm" && set.weight !== null && set.reps !== null
+            ? { weight: set.weight, reps: set.reps }
+            : undefined;
+        const winningSource =
+          previous && previous.value >= value ? previous.source : source;
         const aggregate = total
           ? Number(
               ((group.points.get(pointKey)?.value ?? 0) + value).toFixed(3),
@@ -106,6 +118,7 @@ export function progressSeries(
           date: workout.performed_on,
           value: aggregate,
           ...(total ? { session: workout.name || "Workout" } : {}),
+          ...(winningSource ? { source: winningSource } : {}),
         });
         const perRep =
           item.tracking_type === "strength" &&
@@ -167,7 +180,7 @@ function measure(
         set.reps === null ||
         !Number.isInteger(set.reps) ||
         set.reps < 1 ||
-        set.reps > 30
+        set.reps > 10
       )
         return null;
       return {

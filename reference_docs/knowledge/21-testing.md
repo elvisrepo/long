@@ -34,6 +34,12 @@
   the eight strength choices, estimates, rep-filter empty states, windowed records,
   single-point details/navigation, bodyweight defaults and numeric axes. Responsive
   real-Django flows switch every strength graph and inspect point details.
+  1RM follow-up covers the graph's 1–10-rep cutoff without excluding high-rep sets
+  from other graphs, winning-source retention across lower/tied same-day sets, and
+  source weight/reps plus the estimate/RIR caveat in point details. Live responsive
+  flows assert source attribution and the caveat against real backend data.
+  Follow-up verification: 79 focused workout tests, 459 frontend tests and three
+  real-backend responsive flows pass; lint/typecheck/build/format/whitespace pass.
   A narrow-container component test and live SVG-width assertion guard mobile axis
   readability. Verification: 76 workout component/pure checks, 456 frontend tests,
   three real-backend and three fixture browser flows pass; lint/typecheck/build pass.

@@ -21,7 +21,7 @@ The separate `.lavish/workout-prototype.html` is a sample-only
 review prototype, not the real Workouts tab. No cloud deployment is implied.
 Normal local and isolated E2E PostgreSQL have all six workout migrations applied.
 The full backend suite passes 672 tests (42 original workout, 17 routine and nine
-group checks); 456 frontend tests, 35 fixture browser checks and three real Django browser flows
+group checks); 459 frontend tests, 35 fixture browser checks and three real Django browser flows
 at 320/390/1440px pass. Type checks, lint, build and migration drift pass. Live
 flows cover direct editing, independent starts, groups, timer, calculator plans,
 windowed records, two-date charts, compact calendar cells, calendar-source copying and reload. Screenshots
@@ -47,7 +47,16 @@ deployment or native background-timer behavior is implied.
   volume, exact-rep max load, workout exercise volume/reps, and windowed per-rep
   personal records. These are completed-only and retain frozen unit/type partitions.
   Workout totals keep same-day sessions separate; volume is recorded load × reps,
-  not body mass. Estimated 1RM uses the existing Epley calculator's supported range.
+  not body mass. Estimated 1RM uses the existing Epley formula, with a tighter
+  positive-load/1–10-rep graph limit. Higher-rep sets remain in other graphs. Point
+  details show the winning set's recorded weight/reps, retaining the first source
+  on ties. The graph explains that it does not account for reps left in reserve;
+  this is a set-derived estimate, not a measured maximum. The standalone calculator
+  still accepts 1–30 reps with its uncertainty note.
+  1RM follow-up verification: 79 focused workout tests, 459 frontend tests and
+  three real-Django flows at 320/390/1440px pass; lint/typecheck/build, formatting
+  and whitespace checks pass. Mobile source details inspected. No schema/API
+  changes or edits to users' saved workouts; not committed or deployed.
   Cardio/duration expose their measures; bodyweight never fabricates mass-based
   estimates. Point details support tap or keyboard selection and date drill-down.
   Personal records remains a selected-window table, not all-time history. No new

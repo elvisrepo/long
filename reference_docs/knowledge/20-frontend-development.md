@@ -68,8 +68,13 @@ offers reps and recorded external load, without inventing body mass; cardio/dura
 offer distance/time. Max graphs aggregate by date. Workout totals sum only this
 exercise within each session (including duplicate occurrences), retaining separate
 same-day sessions. Volume is load × reps in kg·reps or lb·reps. Estimated 1RM reuses
-the calculator's Epley formula and valid positive-load/1–30-rep range, rounded to
-three decimals for display. Personal records shows a per-rep table for this window,
+the calculator's Epley formula, but graph estimates only include positive loads
+with 1–10 reps, rounded to three decimals for display. Higher-rep sets remain in
+other graphs. Point details retain the source weight/reps of the winning daily
+estimate (ties keep the first source). The note explains higher-rep exclusion and
+that reps left in reserve are not accounted for; estimates are not measured maxes.
+The standalone calculator still supports 1–30 reps with its uncertainty note.
+Personal records shows a per-rep table for this window,
 not an all-time chart. Single-point graphs are visible. Tap a point or use the
 keyboard-accessible point selector for exact values and a link to that day's Home.
 SVG coordinates follow the measured container width via ResizeObserver, retaining

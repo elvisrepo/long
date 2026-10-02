@@ -149,7 +149,10 @@ export function WorkoutProgress({
       {selectedMetric === "estimated_1rm" && (
         <p className="workout-note">
           Estimate only: Epley load × (1 + reps / 30); one rep uses the recorded
-          load. Only positive loads with 1–30 reps are included.
+          load. Only positive loads with 1–10 reps are included. Higher-rep sets
+          are excluded because their estimates are less dependable. This is not
+          a measured maximum and does not account for reps left in reserve; an
+          easy set can underestimate your capability.
         </p>
       )}
       {(selectedMetric === "max_volume" ||
@@ -372,6 +375,13 @@ function ProgressCard({
                 {selected.session ? ` · ${selected.session}` : ""}:{" "}
                 {selected.value} {series.unit}
               </p>
+              {selected.source && (
+                <p>
+                  Source set: {Number(selected.source.weight)} {series.unit} ×{" "}
+                  {selected.source.reps}{" "}
+                  {selected.source.reps === 1 ? "rep" : "reps"}
+                </p>
+              )}
               <button onClick={() => onOpenDate(selected.date)}>
                 View workouts on this date
               </button>

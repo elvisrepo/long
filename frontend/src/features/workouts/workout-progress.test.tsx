@@ -104,6 +104,27 @@ it("offers the strength graph choices and switches to calculated estimated 1RM",
     ).getByText("105 kg", { exact: true }),
   ).toBeInTheDocument();
 });
+it("explains estimate limits and shows the source weight and reps in point details", async () => {
+  mount([70, 80]);
+  await screen.findByRole("img");
+  await userEvent.selectOptions(
+    screen.getByLabelText("Graph"),
+    "estimated_1rm",
+  );
+  expect(
+    screen.getByText(/Only positive loads with 1–10 reps are included/),
+  ).toHaveTextContent("Higher-rep sets are excluded");
+  expect(screen.getByText(/reps left in reserve/)).toBeInTheDocument();
+  await userEvent.selectOptions(
+    screen.getByLabelText("Graph point details"),
+    "1",
+  );
+  const details = screen.getByRole("region", {
+    name: "Selected training point",
+  });
+  expect(details).toHaveTextContent("93.333 kg");
+  expect(details).toHaveTextContent("Source set: 80 kg × 5 reps");
+});
 it("filters an exact rep count and offers windowed personal records without a misleading chart", async () => {
   mount([60, 90]);
   await screen.findByRole("img");

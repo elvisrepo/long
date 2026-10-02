@@ -38,8 +38,50 @@ it("charts the maximum estimated 1RM per date using the calculator formula", () 
     "e",
     "estimated_1rm",
   );
-  expect(series[0].points).toEqual([{ date: "2026-10-01", value: 80 }]);
+  expect(series[0].points).toEqual([
+    { date: "2026-10-01", value: 80, source: { weight: "60", reps: 10 } },
+  ]);
   expect(series[0].unit).toBe("kg");
+});
+it("limits graph estimates to 1–10 reps without excluding those sets from other graphs", () => {
+  const sessions = [
+    strengthSession("2026-10-01", [
+      [60, 10],
+      [100, 11],
+      [120, 30],
+    ]),
+  ];
+  expect(
+    progressSeries(sessions, "e", "estimated_1rm")[0].points[0].value,
+  ).toBe(80);
+  expect(progressSeries(sessions, "e", "max_weight")[0].points[0].value).toBe(
+    120,
+  );
+  expect(
+    progressSeries(
+      [strengthSession("2026-10-02", [[100, 11]])],
+      "e",
+      "estimated_1rm",
+    ),
+  ).toEqual([]);
+});
+it("keeps the source set of the winning estimate when later sets are lower or tied", () => {
+  const sessions = [
+    strengthSession("2026-10-01", [[60, 10]], "first"),
+    strengthSession(
+      "2026-10-01",
+      [
+        [70, 1],
+        [80, 1],
+      ],
+      "later",
+    ),
+  ];
+  expect(progressSeries(sessions, "e", "estimated_1rm")[0].points[0]).toEqual({
+    date: "2026-10-01",
+    value: 80,
+    source: { weight: "60", reps: 10 },
+  });
 });
 it("skips sets outside the 1RM calculator's valid range without crashing progress", () => {
   const series = progressSeries(
@@ -53,7 +95,9 @@ it("skips sets outside the 1RM calculator's valid range without crashing progres
     "e",
     "estimated_1rm",
   );
-  expect(series[0].points).toEqual([{ date: "2026-10-01", value: 70 }]);
+  expect(series[0].points).toEqual([
+    { date: "2026-10-01", value: 70, source: { weight: "70", reps: 1 } },
+  ]);
 });
 it("charts maximum reps rather than the reps of the heaviest set", () => {
   const series = progressSeries(
