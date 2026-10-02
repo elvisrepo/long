@@ -56,12 +56,25 @@ day creation fails, avoiding duplicate routines on retry.
 
 `view=calendar` reads the selected month and drills into Home dates; completed
 training and plans are distinct. `view=progress` uses the owned library `exercise`
-UUID, a 30/90/365-day window ending on the selected date, and safely paginated
+UUID, a 30/90/180/365-day window ending on the selected date, and safely paginated
 session reads. Completed sets derive windowed records/charts, separated by frozen
 type/units and recomputed after writes. Tables expose exact chart/record values.
 Charts show a zero-based numeric axis with saved-unit labels and horizontal
 gridlines. Tick spacing uses bounded 1/2/5 multiples (0–80 kg uses 10 kg ticks),
 with decimal/large/all-zero ranges handled without changing saved quantities.
+The Graph selector offers strength Estimated 1RM, Max weight/reps/volume, Max weight
+for an exact rep count, Workout volume/reps and windowed Personal records. Bodyweight
+offers reps and recorded external load, without inventing body mass; cardio/duration
+offer distance/time. Max graphs aggregate by date. Workout totals sum only this
+exercise within each session (including duplicate occurrences), retaining separate
+same-day sessions. Volume is load × reps in kg·reps or lb·reps. Estimated 1RM reuses
+the calculator's Epley formula and valid positive-load/1–30-rep range, rounded to
+three decimals for display. Personal records shows a per-rep table for this window,
+not an all-time chart. Single-point graphs are visible. Tap a point or use the
+keyboard-accessible point selector for exact values and a link to that day's Home.
+SVG coordinates follow the measured container width via ResizeObserver, retaining
+readable axis text on narrow screens; compact date labels retain full dates in
+details/tables. Tables scroll locally rather than splitting numbers/units into fragments.
 Training provides collapsible calculators and a compact visual deadline timer;
 auto-start/next-group navigation occurs only on confirmed new completion. Percentage
 calculator results are planned sets, not performed work. No background alert promise.

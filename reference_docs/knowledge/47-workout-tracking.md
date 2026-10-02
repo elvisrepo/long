@@ -21,7 +21,7 @@ The separate `.lavish/workout-prototype.html` is a sample-only
 review prototype, not the real Workouts tab. No cloud deployment is implied.
 Normal local and isolated E2E PostgreSQL have all six workout migrations applied.
 The full backend suite passes 672 tests (42 original workout, 17 routine and nine
-group checks); 442 frontend tests, 35 fixture browser checks and three real Django browser flows
+group checks); 456 frontend tests, 35 fixture browser checks and three real Django browser flows
 at 320/390/1440px pass. Type checks, lint, build and migration drift pass. Live
 flows cover direct editing, independent starts, groups, timer, calculator plans,
 windowed records, two-date charts, compact calendar cells, calendar-source copying and reload. Screenshots
@@ -42,6 +42,21 @@ Browser checks use isolated API fixtures, not users' live workouts. No cloud
 deployment or native background-timer behavior is implied.
 
 ### Browsing/removal/history UX correction — 2026-10-02
+
+- Exercise progress now offers graph selection: estimated 1RM, max load/reps/set
+  volume, exact-rep max load, workout exercise volume/reps, and windowed per-rep
+  personal records. These are completed-only and retain frozen unit/type partitions.
+  Workout totals keep same-day sessions separate; volume is recorded load × reps,
+  not body mass. Estimated 1RM uses the existing Epley calculator's supported range.
+  Cardio/duration expose their measures; bodyweight never fabricates mass-based
+  estimates. Point details support tap or keyboard selection and date drill-down.
+  Personal records remains a selected-window table, not all-time history. No new
+  API/schema or Pro entitlement is needed. All-time aggregation is still future work.
+  Graph-selector verification: 76 focused workout checks, 456 frontend checks,
+  three fixture workout flows and three real-Django flows at 320/390/1440px pass.
+  Lint/typecheck/build, format and whitespace checks pass. Inspected screenshots
+  prompted container-width SVG sizing for readable mobile axis labels and locally
+  scrolling tables. No commit, push, cloud deployment or user-data mutation.
 
 - Home Copy previous workout now opens a marked month calendar and lets the user
   choose a source date/session, including planned sessions. Browsing never changes
@@ -303,7 +318,7 @@ group labels to both occurrence models without a new group table.
 - Calendar uses bounded month reads and separates sessions with completed sets
   from planned-only sessions (empty sessions also appear as plans). Date selection
   opens Home without shifting the today-anchored seven-day strip.
-- Progress reads 30/90/365-day windows with an owned exercise filter and safe
+- Progress reads 30/90/180/365-day windows with an owned exercise filter and safe
   pagination. Completed rows alone form daily maximum charts and observed records.
   Frozen type/unit combinations are separate; no implicit conversion. Strength
   records are maximum load per rep-count; other types show highest logged reps,

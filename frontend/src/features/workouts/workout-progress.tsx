@@ -1,7 +1,13 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import * as api from "./workout-api";
-import { progressSeries, type ProgressSeries } from "./workout-analysis";
+import {
+  defaultMetric,
+  progressMetrics,
+  progressSeries,
+  type ProgressMetric,
+  type ProgressSeries,
+} from "./workout-analysis";
 import { shiftDay, type NavigateWorkout } from "./workout-navigation";
 
 export function WorkoutProgress({
@@ -18,14 +24,33 @@ export function WorkoutProgress({
   navigate: NavigateWorkout;
 }) {
   const [days, setDays] = useState(90);
+  const [metric, setMetric] = useState<ProgressMetric | null>(null);
+  const [reps, setReps] = useState(5);
   const from = shiftDay(date, 1 - days);
   const query = useQuery({
     queryKey: ["workouts", owner, "progress", exerciseId, from, date],
     queryFn: () => api.getWorkoutRange(from, date, exerciseId),
     enabled: !!exerciseId,
   });
+  const libraryType = catalog.exercises.find(
+    (exercise) => exercise.id === exerciseId,
+  )?.tracking_type;
+  const savedTypes =
+    query.data?.flatMap((workout) =>
+      workout.exercises
+        .filter((item) => item.exercise_id === exerciseId)
+        .map((item) => item.tracking_type),
+    ) ?? [];
+  const types = savedTypes.length ? savedTypes : [libraryType ?? "strength"];
+  const options = progressMetrics(types);
+  const selectedMetric =
+    metric && options.some((option) => option.value === metric)
+      ? metric
+      : defaultMetric(types[0]);
   const series =
-    query.data && exerciseId ? progressSeries(query.data, exerciseId) : [];
+    query.data && exerciseId
+      ? progressSeries(query.data, exerciseId, selectedMetric, reps)
+      : [];
   const completedDates = new Set(
     query.data
       ?.filter((w) =>
@@ -58,13 +83,14 @@ export function WorkoutProgress({
           Progress exercise
           <select
             value={exerciseId ?? ""}
-            onChange={(e) =>
+            onChange={(e) => {
+              setMetric(null);
               navigate({
                 view: "progress",
                 date,
                 exercise: e.target.value || undefined,
-              })
-            }
+              });
+            }}
           >
             <option value="">Choose exercise…</option>
             {catalog.exercises.map((e) => (
@@ -76,6 +102,34 @@ export function WorkoutProgress({
           </select>
         </label>
         <label>
+          Graph
+          <select
+            value={selectedMetric}
+            onChange={(event) =>
+              setMetric(event.target.value as ProgressMetric)
+            }
+          >
+            {options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {selectedMetric === "max_weight_reps" && (
+          <label>
+            Rep count
+            <input
+              type="number"
+              min="1"
+              max="10000"
+              step="1"
+              value={reps}
+              onChange={(event) => setReps(Number(event.target.value))}
+            />
+          </label>
+        )}
+        <label>
           Progress window
           <select
             value={days}
@@ -83,6 +137,7 @@ export function WorkoutProgress({
           >
             <option value={30}>30 days</option>
             <option value={90}>90 days</option>
+            <option value={180}>180 days</option>
             <option value={365}>365 days</option>
           </select>
         </label>
@@ -91,6 +146,26 @@ export function WorkoutProgress({
         {from} – {date}. Completed sets only; saved types and units stay
         separate. These are records within this window, not all-time records.
       </p>
+      {selectedMetric === "estimated_1rm" && (
+        <p className="workout-note">
+          Estimate only: Epley load × (1 + reps / 30); one rep uses the recorded
+          load. Only positive loads with 1–30 reps are included.
+        </p>
+      )}
+      {(selectedMetric === "max_volume" ||
+        selectedMetric === "workout_volume") && (
+        <p className="workout-note">
+          Volume = recorded load × reps, not body weight. Max volume is one set;
+          workout volume totals this exercise within each session. Same-day
+          sessions stay separate.
+        </p>
+      )}
+      {selectedMetric === "workout_reps" && (
+        <p className="workout-note">
+          Completed reps for this exercise in each workout, not the whole
+          workout. Same-day sessions stay separate.
+        </p>
+      )}
       {query.isSuccess && plannedDates.length > 0 && (
         <p className="workout-note">
           Not plotted: {plannedDates.join(", ")} — only planned sets for this
@@ -107,18 +182,53 @@ export function WorkoutProgress({
           <button onClick={() => void query.refetch()}>Retry progress</button>
         </>
       ) : !series.length ? (
-        <p>No completed sets recorded in this window.</p>
+        <p>
+          {completedDates.size === 0
+            ? "No completed sets recorded in this window."
+            : `No eligible completed sets for this graph${selectedMetric === "max_weight_reps" ? ` at ${reps} reps` : ""} in this window.`}
+        </p>
       ) : (
         <div className="workout-stack">
           {series.map((s) => (
-            <ProgressCard key={s.key} series={s} />
+            <ProgressCard
+              key={`${exerciseId}:${from}:${date}:${selectedMetric}:${reps}:${s.key}`}
+              series={s}
+              recordsOnly={selectedMetric === "personal_records"}
+              onOpenDate={(date) => navigate({ view: "home", date })}
+            />
           ))}
         </div>
       )}
     </section>
   );
 }
-function ProgressCard({ series }: { series: ProgressSeries }) {
+function ProgressCard({
+  series,
+  recordsOnly,
+  onOpenDate,
+}: {
+  series: ProgressSeries;
+  recordsOnly: boolean;
+  onOpenDate: (date: string) => void;
+}) {
+  const [selectedPoint, setSelectedPoint] = useState<number | null>(null);
+  const chartRef = useRef<SVGSVGElement>(null);
+  const [chartWidth, setChartWidth] = useState(600);
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    const resize = () => {
+      const width = chart.getBoundingClientRect().width;
+      if (width > 0) setChartWidth(Math.max(160, width));
+    };
+    resize();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(resize);
+    observer.observe(chart);
+    return () => observer.disconnect();
+  }, []);
+  const selected =
+    selectedPoint === null ? undefined : series.points[selectedPoint];
   const values = series.points.map((p) => p.value);
   const max = Math.max(...values, 0) || 10;
   const roughStep = max / 8;
@@ -132,10 +242,18 @@ function ProgressCard({ series }: { series: ProgressSeries }) {
   );
   const xMin = Date.parse(series.points[0].date),
     xMax = Date.parse(series.points.at(-1)!.date);
+  const xRight = chartWidth - 20;
+  const dateLabel = (date: string) =>
+    chartWidth < 400
+      ? new Date(date + "T12:00:00").toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "short",
+        })
+      : date;
   const points = series.points
     .map(
       (p) =>
-        `${80 + ((Date.parse(p.date) - xMin) / (xMax - xMin || 1)) * 500},${160 - (p.value / axisMax) * 140}`,
+        `${xMax === xMin ? (80 + xRight) / 2 : 80 + ((Date.parse(p.date) - xMin) / (xMax - xMin)) * (xRight - 80)},${160 - (p.value / axisMax) * 140}`,
     )
     .join(" ");
   return (
@@ -143,10 +261,11 @@ function ProgressCard({ series }: { series: ProgressSeries }) {
       <h3>
         {series.title} · {series.unit}
       </h3>
-      {series.points.length > 1 && (
+      {!recordsOnly && (
         <svg
           className="workout-progress-chart"
-          viewBox="0 0 600 190"
+          ref={chartRef}
+          viewBox={`0 0 ${chartWidth} 190`}
           role="img"
           aria-label={`${series.title} by training date; exact values in table below`}
         >
@@ -154,7 +273,13 @@ function ProgressCard({ series }: { series: ProgressSeries }) {
             const y = 160 - (tick / axisMax) * 140;
             return (
               <g key={tick}>
-                <line x1="80" x2="580" y1={y} y2={y} stroke="var(--border)" />
+                <line
+                  x1="80"
+                  x2={xRight}
+                  y1={y}
+                  y2={y}
+                  stroke="var(--border)"
+                />
                 <text
                   x="70"
                   y={y + 4}
@@ -168,7 +293,11 @@ function ProgressCard({ series }: { series: ProgressSeries }) {
               </g>
             );
           })}
-          <path d="M80 20V160H580" fill="none" stroke="var(--border)" />
+          <path d={`M80 20V160H${xRight}`} fill="none" stroke="var(--border)" />
+          <polygon
+            points={`${points.split(" ")[0].split(",")[0]},160 ${points} ${points.split(" ").at(-1)!.split(",")[0]},160`}
+            fill="var(--accent-dim)"
+          />
           <polyline
             points={points}
             fill="none"
@@ -178,26 +307,77 @@ function ProgressCard({ series }: { series: ProgressSeries }) {
           {series.points.map((p, n) => {
             const [x, y] = points.split(" ")[n].split(",");
             return (
-              <circle key={p.date} cx={x} cy={y} r="4" fill="var(--accent)">
+              <g
+                key={`${p.date}:${n}`}
+                className="workout-progress-point"
+                onClick={() => setSelectedPoint(n)}
+              >
+                <circle cx={x} cy={y} r="12" fill="transparent" />
+                <circle
+                  cx={x}
+                  cy={y}
+                  r={selectedPoint === n ? "6" : "4"}
+                  fill="var(--accent)"
+                />
                 <title>
-                  {p.date}: {p.value} {series.unit}
+                  {p.date}
+                  {p.session ? ` · ${p.session}` : ""}: {p.value} {series.unit}
                 </title>
-              </circle>
+              </g>
             );
           })}
           <text x="80" y="187" fill="var(--text-dim)" fontSize="11">
-            {series.points[0].date}
+            {dateLabel(series.points[0].date)}
           </text>
           <text
-            x="580"
+            x={xRight}
             y="187"
             textAnchor="end"
             fill="var(--text-dim)"
             fontSize="11"
           >
-            {series.points.at(-1)!.date}
+            {dateLabel(series.points.at(-1)!.date)}
           </text>
         </svg>
+      )}
+      {!recordsOnly && (
+        <>
+          <label>
+            Graph point details
+            <select
+              value={selectedPoint ?? ""}
+              onChange={(event) =>
+                setSelectedPoint(
+                  event.target.value === "" ? null : Number(event.target.value),
+                )
+              }
+            >
+              <option value="">Tap a graph point or select a date…</option>
+              {series.points.map((point, index) => (
+                <option key={index} value={index}>
+                  {point.date}
+                  {point.session ? ` · ${point.session}` : ""}: {point.value}{" "}
+                  {series.unit}
+                </option>
+              ))}
+            </select>
+          </label>
+          {selected && (
+            <section
+              aria-label="Selected training point"
+              className="workout-inset"
+            >
+              <p>
+                {selected.date}
+                {selected.session ? ` · ${selected.session}` : ""}:{" "}
+                {selected.value} {series.unit}
+              </p>
+              <button onClick={() => onOpenDate(selected.date)}>
+                View workouts on this date
+              </button>
+            </section>
+          )}
+        </>
       )}
       <h4>Observed records in this window</h4>
       <div className="workout-table-wrap">
@@ -222,29 +402,39 @@ function ProgressCard({ series }: { series: ProgressSeries }) {
           </tbody>
         </table>
       </div>
-      <details>
-        <summary>Daily chart values</summary>
-        <div className="workout-table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">Date</th>
-                <th scope="col">Highest value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {series.points.map((p) => (
-                <tr key={p.date}>
-                  <td>{p.date}</td>
-                  <td>
-                    {p.value} {series.unit}
-                  </td>
+      {!recordsOnly && (
+        <details>
+          <summary>
+            {series.points.some((point) => point.session)
+              ? "Workout chart values"
+              : "Daily chart values"}
+          </summary>
+          <div className="workout-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  {series.points.some((point) => point.session) && (
+                    <th scope="col">Session</th>
+                  )}
+                  <th scope="col">Value</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </details>
+              </thead>
+              <tbody>
+                {series.points.map((p, index) => (
+                  <tr key={`${p.date}:${index}`}>
+                    <td>{p.date}</td>
+                    {p.session && <td>{p.session}</td>}
+                    <td>
+                      {p.value} {series.unit}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      )}
     </section>
   );
 }

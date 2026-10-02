@@ -214,6 +214,16 @@ for (const width of [320, 390, 1440]) {
     const progressChart = page.getByRole("img", {
       name: /Highest logged load by training date/,
     });
+    await expect
+      .poll(() =>
+        progressChart.evaluate((chart) => {
+          const svg = chart as SVGSVGElement;
+          return Math.abs(
+            svg.viewBox.baseVal.width - svg.getBoundingClientRect().width,
+          );
+        }),
+      )
+      .toBeLessThan(1);
     await expect(
       progressChart.getByText("0 kg", { exact: true }),
     ).toBeVisible();
@@ -223,6 +233,66 @@ for (const width of [320, 390, 1440]) {
     await expect(
       progressChart.getByText("40 kg", { exact: true }),
     ).toBeVisible();
+    await page
+      .getByRole("combobox", { name: "Graph", exact: true })
+      .selectOption("estimated_1rm");
+    await expect(
+      page.getByRole("img", { name: /Estimated 1RM by training date/ }),
+    ).toBeVisible();
+    await page
+      .getByRole("combobox", { name: "Graph point details", exact: true })
+      .selectOption("1");
+    await expect(
+      page.getByRole("region", { name: "Selected training point" }),
+    ).toContainText(currentDate);
+    await capture("progress-estimated-1rm");
+    for (const [metric, title] of [
+      ["max_reps", "Max reps"],
+      ["max_volume", "Max volume"],
+      ["workout_volume", "Workout volume"],
+      ["workout_reps", "Workout reps"],
+    ]) {
+      await page
+        .getByRole("combobox", { name: "Graph", exact: true })
+        .selectOption(metric);
+      await expect(
+        page.getByRole("img", {
+          name: new RegExp(`${title} by training date`),
+        }),
+      ).toBeVisible();
+    }
+    await page
+      .getByRole("combobox", { name: "Graph", exact: true })
+      .selectOption("workout_volume");
+    await capture("progress-workout-volume");
+    await page
+      .getByRole("combobox", { name: "Graph", exact: true })
+      .selectOption("max_weight_reps");
+    await page.getByLabel("Rep count", { exact: true }).fill("8");
+    await expect(
+      page.getByText(
+        "No eligible completed sets for this graph at 8 reps in this window.",
+      ),
+    ).toBeVisible();
+    await page.getByLabel("Rep count", { exact: true }).fill("5");
+    await expect(
+      page.getByRole("img", { name: /Max weight for 5 reps/ }),
+    ).toBeVisible();
+    await page
+      .getByRole("combobox", { name: "Graph", exact: true })
+      .selectOption("personal_records");
+    await expect(
+      page.getByRole("heading", {
+        name: "Personal records in this window · kg",
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("img", { name: /by training date/ }),
+    ).toHaveCount(0);
+    await capture("progress-personal-records");
+    await page
+      .getByRole("combobox", { name: "Graph", exact: true })
+      .selectOption("max_weight");
     await page.getByRole("button", { name: "Home", exact: true }).click();
     await page.reload();
     await expect(

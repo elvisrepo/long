@@ -59,11 +59,16 @@
   width: 100%;
   display: block;
 }
+.workout-progress-point {
+  cursor: pointer;
+}
 .workout-table-wrap {
   max-width: 100%;
   overflow-x: auto;
 }
 .workout-table-wrap table {
+  min-width: 360px;
+  overflow-wrap: normal;
   width: 100%;
   border-collapse: collapse;
   text-align: left;
@@ -167,6 +172,7 @@
   font-size: 0.8rem;
 }
 .workout-screen label {
+  min-width: 0;
   display: grid;
   gap: 0.3rem;
   color: var(--text-dim);
@@ -213,6 +219,8 @@
   margin: 0 auto 1.25rem;
 }
 .workout-inset {
+  min-width: 0;
+  overflow-wrap: anywhere;
   background: var(--inset-bg);
   padding: 1rem;
   border: 1px solid var(--border);

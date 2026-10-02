@@ -28,6 +28,16 @@
 
 #### Browsing, removal and history UX follow-up
 
+- Progress analysis tests cover graph maxima, valid/invalid 1RM estimates, exact rep
+  filters, exercise-specific workout totals, duplicate occurrences, separate same-day
+  sessions, frozen unit/type isolation and cardio measures. Progress UI tests cover
+  the eight strength choices, estimates, rep-filter empty states, windowed records,
+  single-point details/navigation, bodyweight defaults and numeric axes. Responsive
+  real-Django flows switch every strength graph and inspect point details.
+  A narrow-container component test and live SVG-width assertion guard mobile axis
+  readability. Verification: 76 workout component/pure checks, 456 frontend tests,
+  three real-backend and three fixture browser flows pass; lint/typecheck/build pass.
+
 - Calendar-copy screen tests cover open/cancel without writes, cross-month source
   selection, multiple sessions including plans, preserved destination, pending locks,
   explicit failed-copy retry, failed-month retry and empty-day/empty-session handling.
