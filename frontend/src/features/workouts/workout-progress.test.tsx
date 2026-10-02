@@ -11,6 +11,7 @@ beforeEach(() => vi.resetAllMocks());
 function mount(
   loads: number[],
   trackingType: api.Exercise["tracking_type"] = "strength",
+  preferredGraph = "",
 ) {
   const navigate = vi.fn();
   const workouts = loads.map((weight, i) => ({
@@ -57,7 +58,17 @@ function mount(
         owner="owner"
         date="2026-10-03"
         exerciseId="bench"
-        catalog={{ categories: [], exercises: [] }}
+        catalog={{
+          categories: [],
+          exercises: [
+            {
+              id: "bench",
+              name: "Bench",
+              tracking_type: trackingType,
+              default_graph: preferredGraph,
+            } as api.Exercise,
+          ],
+        }}
         navigate={navigate}
       />
     </QueryClientProvider>,
@@ -74,6 +85,18 @@ it("labels the weight axis from zero through 80 kg in 10 kg increments", async (
     expect(
       within(chart).getByText(`${weight} kg`, { exact: true }),
     ).toBeInTheDocument();
+});
+it("uses a saved graph default without overriding an explicit graph selection", async () => {
+  mount([70], "strength", "max_volume");
+  await screen.findByRole("img");
+  expect(screen.getByLabelText("Graph")).toHaveValue("max_volume");
+  await userEvent.selectOptions(screen.getByLabelText("Graph"), "max_reps");
+  expect(screen.getByLabelText("Graph")).toHaveValue("max_reps");
+});
+it("falls back safely when a saved graph does not fit the recorded type", async () => {
+  mount([70], "strength", "max_distance");
+  await screen.findByRole("img");
+  expect(screen.getByLabelText("Graph")).toHaveValue("max_weight");
 });
 it("offers all-time progress from summary endpoints without widening raw workout reads", async () => {
   mount([70, 80]);

@@ -120,7 +120,10 @@ for (const width of [320, 390, 1440]) {
       .getByRole("button", { name: /^Barbell bench press/ })
       .click();
     await page.getByRole("timer").click();
-    await page.getByLabel("Auto-start after completed set").check();
+    await page.getByLabel("Auto-start after completed set").click();
+    await expect(
+      page.getByLabel("Auto-start after completed set"),
+    ).toBeChecked();
     await expect(
       page.getByLabel("Advance within group after completion"),
     ).toBeChecked();
@@ -155,6 +158,23 @@ for (const width of [320, 390, 1440]) {
     await page.getByLabel("Plate 2 total count", { exact: true }).fill("4");
     await page.getByRole("button", { name: "Calculate plates" }).click();
     await expect(page.getByText(/Each side: 2 × 20 kg/)).toBeVisible();
+    await page.getByRole("button", { name: "Save equipment defaults" }).click();
+    await expect(
+      page.getByText("Equipment defaults saved to your account."),
+    ).toBeVisible();
+    await page.reload();
+    await page.getByRole("timer").click();
+    await expect(
+      page.getByLabel("Auto-start after completed set"),
+    ).toBeChecked();
+    await expect(
+      page.getByLabel("Advance within group after completion"),
+    ).toBeChecked();
+    await page.getByText("Workout calculators", { exact: true }).click();
+    await expect(page.getByLabel("Bar weight (kg)")).toHaveValue("20.000");
+    await expect(
+      page.getByLabel("Plate 2 total count", { exact: true }),
+    ).toHaveValue("4");
     await capture("training-tools");
     await page
       .getByRole("button", { name: "Exercise progress", exact: true })
@@ -353,6 +373,36 @@ for (const width of [320, 390, 1440]) {
       .click();
     await expect(page.getByRole("dialog")).toContainText("Barbell bench press");
     await page.getByRole("button", { name: "Close", exact: true }).click();
+    await page
+      .getByRole("button", {
+        name: "Favorite Barbell bench press",
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.getByRole("button", {
+        name: "Unfavorite Barbell bench press",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page.reload();
+    await expect(
+      page.getByRole("button", {
+        name: "Unfavorite Barbell bench press",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Favorites", exact: true }).click();
+    await expect(
+      page.getByRole("button", {
+        name: "View Barbell bench press",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "View Goblet squat", exact: true }),
+    ).toHaveCount(0);
+    await capture("favorite-library");
     expect(accidentalWrites).toBe(0);
     await page.getByRole("button", { name: "Home", exact: true }).click();
     await page

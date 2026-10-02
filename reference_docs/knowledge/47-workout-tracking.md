@@ -7,11 +7,14 @@ catalog ownership, session/set semantics, history preservation, and phased deliv
 
 ## Status and agreed product direction
 
+Daily-use follow-up: account-owned persisted auto-start rest, group auto-advance and separate metric/imperial equipment defaults; editable exercise favorites and preferred graphs; completed-only last-used/session-count hints; multi-word library search. Migration 0007 adds preferences and library metadata only. Equipment saving is explicit and cannot create workout sets; GET remains read-only. All tiers retain these basic controls. Accessible ordering, exercise overview/statistics and goals, selective copy/routine carry-forward, cardio metrics and calendar filters remain the next implementation slices. Export/sharing UI, session timing, offline logging and background alerts are separate follow-ups.
+
 The first backend slice now implements the catalog, sessions, ordered exercise
 occurrences, set logging, copying/history and account lifecycle. The routines
 slice adds four template models in migration `0004_routines`; `0005_exercise_groups`
 adds group labels to template/session occurrences; `0006_group_colours` adds
-colours to both (ten models, six migrations).
+colours to both; `0007_workout_preferences` adds account preferences and exercise
+favorites/preferred graphs (eleven models, seven migrations).
 The canonical contracts are in
 [API design](03-api-design.md). The basic frontend, history/copy and dashboard
 slice is now implemented locally (2026-10-02). Phase 5's first routine workflow
@@ -19,12 +22,12 @@ and the remaining phase 5 conveniences are implemented. Phase 6 now includes
 windowed charts/records and calculators; goals and advanced analysis remain future work.
 The separate `.lavish/workout-prototype.html` is a sample-only
 review prototype, not the real Workouts tab. No cloud deployment is implied.
-Normal local and isolated E2E PostgreSQL have all six workout migrations applied.
-The full backend suite passes 672 tests (42 original workout, 17 routine and nine
-group checks); 459 frontend tests, 35 fixture browser checks and three real Django browser flows
+Normal local and isolated E2E PostgreSQL have all seven workout migrations applied.
+Latest verification: 699 backend tests and 474 frontend tests pass; three real Django browser flows
 at 320/390/1440px pass. Type checks, lint, build and migration drift pass. Live
 flows cover direct editing, independent starts, groups, timer, calculator plans,
-windowed records, two-date charts, compact calendar cells, calendar-source copying and reload. Screenshots
+windowed records, two-date charts, compact calendar cells, calendar-source copying,
+preference/favorite persistence after reload, and browsing without workout creation. Screenshots
 were inspected. This is local verification, not staging acceptance or cloud deployment.
 
 The real authenticated `/workouts` tab provides Home, All exercises, Training,
@@ -184,7 +187,7 @@ Supporter-tier restrictions.
 ## Implemented backend entities
 
 UUIDs identify the nine domain resources; the initialization marker uses its
-user one-to-one FK as primary key. See the current ERD for fields.
+user one-to-one FK as primary key. Account preferences also use that primary key.
 
 - `ExerciseCategory`: owner, name, order, archive state.
 - `Exercise`: category, name, tracking type, notes and applicable entry defaults.
@@ -196,6 +199,9 @@ user one-to-one FK as primary key. See the current ERD for fields.
   and planned/completed state.
 - `WorkoutCatalogState`: user one-to-one plus initialization timestamp. It is
   separate from the user profile so workout initialization stays in this module.
+- `WorkoutPreferences`: owner one-to-one, auto-start/advance flags, metric and
+  imperial bar weights and bounded plate inventories. Reads return defaults
+  without creating this row; explicit saves create it. Account deletion cascades it.
 
 Weight/distance values are fixed decimals (3 places); duration is integer seconds,
 reps positive integers. Missing is null; zero external load is valid. Planned sets
@@ -352,7 +358,8 @@ group labels to both occurrence models without a new group table.
   percentage/nearest-increment loads, and balanced plates with configurable bar,
   sizes and finite counts. The plate search is exact (not greedy) and bounded;
   it reports no combination or a complexity-limit error rather than fabricated
-  loading. Calculator inputs/inventory are temporary. Percentage output is added
+  loading. Calculation inputs are temporary; inventory defaults can be explicitly
+  persisted per account and unit. Percentage output is added
   only as a planned set with unknown reps and the occurrence's saved unit.
 - Estimated max uses conventional Epley `load × (1 + reps / 30)` (one entered
   rep returns its load), bounded to 1–30 reps with a high-rep uncertainty note.

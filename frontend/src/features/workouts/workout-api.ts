@@ -8,6 +8,10 @@ export interface ExerciseCategory {
   is_active: boolean;
 }
 export interface Exercise extends ExerciseCategory {
+  is_favorite?: boolean;
+  default_graph?: string;
+  trained_session_count?: number;
+  last_used_on?: string | null;
   category_id: string;
   tracking_type: TrackingType;
   weight_unit: "kg" | "lb";
@@ -19,6 +23,15 @@ export interface Exercise extends ExerciseCategory {
 export interface WorkoutCatalog {
   categories: ExerciseCategory[];
   exercises: Exercise[];
+  preferences?: WorkoutPreferences;
+}
+export interface WorkoutPreferences {
+  auto_start_rest?: boolean;
+  auto_advance_groups?: boolean;
+  bar_kg?: string;
+  bar_lb?: string;
+  plates_kg?: { weight: string; count: number }[];
+  plates_lb?: { weight: string; count: number }[];
 }
 export interface WorkoutSet {
   id: string;
@@ -142,6 +155,9 @@ async function request<T>(
 }
 export const getWorkoutCatalog = (): Promise<WorkoutCatalog> =>
   request("catalog/");
+export const saveWorkoutPreferences = (
+  data: WorkoutPreferences,
+): Promise<WorkoutPreferences> => request("preferences/", "PATCH", data);
 export function getProgressPage(
   exercise: string,
   date: string,

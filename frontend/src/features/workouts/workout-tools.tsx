@@ -1,5 +1,9 @@
 import { useState } from "react";
-import type { SetInput, WorkoutExercise } from "./workout-api";
+import type {
+  SetInput,
+  WorkoutExercise,
+  WorkoutPreferences,
+} from "./workout-api";
 import {
   estimatedMax,
   percentageLoad,
@@ -11,10 +15,14 @@ export function WorkoutTools({
   item,
   busy,
   onAdd,
+  preferences,
+  onSaveEquipment,
 }: {
   item: WorkoutExercise;
   busy: boolean;
   onAdd: (data: SetInput) => Promise<void>;
+  preferences?: WorkoutPreferences;
+  onSaveEquipment?: (data: WorkoutPreferences) => Promise<void>;
 }) {
   const unit = item.weight_unit;
   const [error, setError] = useState("");
@@ -22,11 +30,20 @@ export function WorkoutTools({
   const [base, setBase] = useState("");
   const [result, setResult] = useState<number>();
   const [pending, setPending] = useState(false);
+  const [equipmentSaved, setEquipmentSaved] = useState(false);
+  const [bar, setBar] = useState(
+    preferences?.[unit === "kg" ? "bar_kg" : "bar_lb"] ??
+      (unit === "kg" ? "20" : "45"),
+  );
   const [plates, setPlates] = useState<Plate[]>(
-    (unit === "kg"
-      ? [25, 20, 15, 10, 5, 2.5, 1.25]
-      : [45, 35, 25, 10, 5, 2.5]
-    ).map((weight) => ({ weight, count: 0 })),
+    preferences?.[unit === "kg" ? "plates_kg" : "plates_lb"]?.map((plate) => ({
+      weight: Number(plate.weight),
+      count: plate.count,
+    })) ??
+      (unit === "kg"
+        ? [25, 20, 15, 10, 5, 2.5, 1.25]
+        : [45, 35, 25, 10, 5, 2.5]
+      ).map((weight) => ({ weight, count: 0 })),
   );
   const [plateResult, setPlateResult] = useState<string>();
   const calculate = (action: () => void) => {
@@ -43,8 +60,8 @@ export function WorkoutTools({
       <summary>Workout calculators</summary>
       <p>
         Saved units: {unit}. Estimates are not observed lifts or lifting
-        recommendations. Calculator inputs are temporary and reset when you
-        leave this exercise.
+        recommendations. Calculation inputs reset when you leave this exercise.
+        Use Save equipment defaults to keep your bar and plate inventory.
       </p>
       <h3>Estimated 1RM</h3>
       <form
@@ -259,7 +276,12 @@ export function WorkoutTools({
               min="0"
               max="1000"
               step=".001"
-              defaultValue={unit === "kg" ? 20 : 45}
+              value={bar}
+              disabled={pending}
+              onChange={(event) => {
+                setBar(event.target.value);
+                setEquipmentSaved(false);
+              }}
               required
             />
           </label>
@@ -275,15 +297,17 @@ export function WorkoutTools({
                 step=".001"
                 required
                 value={p.weight}
-                onChange={(e) =>
+                disabled={pending}
+                onChange={(e) => {
+                  setEquipmentSaved(false);
                   setPlates((rows) =>
                     rows.map((row, index) =>
                       index === n
                         ? { ...row, weight: Number(e.target.value) }
                         : row,
                     ),
-                  )
-                }
+                  );
+                }}
               />
             </label>
             <label>
@@ -295,15 +319,17 @@ export function WorkoutTools({
                 step="1"
                 required
                 value={p.count}
-                onChange={(e) =>
+                disabled={pending}
+                onChange={(e) => {
+                  setEquipmentSaved(false);
                   setPlates((rows) =>
                     rows.map((row, index) =>
                       index === n
                         ? { ...row, count: Number(e.target.value) }
                         : row,
                     ),
-                  )
-                }
+                  );
+                }}
               />
             </label>
           </div>
@@ -311,8 +337,9 @@ export function WorkoutTools({
         <div className="workout-actions">
           <button
             type="button"
-            disabled={plates.length >= 20}
+            disabled={pending || plates.length >= 20}
             onClick={() => {
+              setEquipmentSaved(false);
               setPlates((rows) => [...rows, { weight: 1, count: 0 }]);
               setPlateResult(undefined);
             }}
@@ -320,9 +347,71 @@ export function WorkoutTools({
             Add custom plate size
           </button>
           <button>Calculate plates</button>
+          {onSaveEquipment && (
+            <button
+              type="button"
+              disabled={busy || pending}
+              onClick={async () => {
+                setError("");
+                setEquipmentSaved(false);
+                if (
+                  !bar.trim() ||
+                  !Number.isFinite(Number(bar)) ||
+                  Number(bar) < 0 ||
+                  Number(bar) > 1000
+                ) {
+                  setError("Enter a valid bar weight between 0 and 1000.");
+                  return;
+                }
+                if (
+                  plates.some(
+                    (plate) =>
+                      !Number.isFinite(plate.weight) ||
+                      plate.weight < 0.001 ||
+                      plate.weight > 1000 ||
+                      !Number.isInteger(plate.count) ||
+                      plate.count < 0 ||
+                      plate.count > 100,
+                  )
+                ) {
+                  setError(
+                    "Enter valid plate weights and whole counts between 0 and 100.",
+                  );
+                  return;
+                }
+                setPending(true);
+                try {
+                  await onSaveEquipment({
+                    [unit === "kg" ? "bar_kg" : "bar_lb"]:
+                      Number(bar).toFixed(3),
+                    [unit === "kg" ? "plates_kg" : "plates_lb"]: plates.map(
+                      (plate) => ({
+                        weight: plate.weight.toFixed(3),
+                        count: plate.count,
+                      }),
+                    ),
+                  });
+                  setEquipmentSaved(true);
+                } catch (cause) {
+                  setError(
+                    cause instanceof Error
+                      ? cause.message
+                      : "Equipment failed to save.",
+                  );
+                } finally {
+                  setPending(false);
+                }
+              }}
+            >
+              Save equipment defaults
+            </button>
+          )}
         </div>
       </form>
       {plateResult && <p role="status">{plateResult}</p>}
+      {equipmentSaved && (
+        <p role="status">Equipment defaults saved to your account.</p>
+      )}
       {error && <p role="alert">{error}</p>}
     </details>
   );

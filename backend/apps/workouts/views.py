@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import Max, Count, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.permissions import IsAuthenticated
@@ -11,7 +11,14 @@ from rest_framework.views import APIView
 
 from apps.users.models import User
 
-from .models import Exercise, ExerciseCategory, Workout, WorkoutExercise, WorkoutSet
+from .models import (
+    Exercise,
+    ExerciseCategory,
+    Workout,
+    WorkoutExercise,
+    WorkoutSet,
+    WorkoutPreferences,
+)
 from .serializers import (
     CategorySerializer,
     ExerciseSerializer,
@@ -23,6 +30,7 @@ from .serializers import (
     ExerciseSettingsSerializer,
     GroupSerializer,
     GroupNameSerializer,
+    PreferencesSerializer,
 )
 from .services import initialize_catalog, copy_workout
 
@@ -32,8 +40,27 @@ def catalog_response(request: Request) -> Response:
     search = serializers.CharField(max_length=120, allow_blank=True).run_validation(
         request.query_params.get("search", "")
     )
-    exercises = Exercise.objects.filter(category__user=request.user).select_related(
-        "category"
+    exercises = (
+        Exercise.objects.filter(category__user=request.user)
+        .select_related("category")
+        .annotate(
+            trained_session_count=Count(
+                "workout_exercises__workout",
+                distinct=True,
+                filter=Q(
+                    workout_exercises__sets__is_completed=True,
+                    workout_exercises__workout__user=request.user,
+                ),
+            ),
+            last_used_on=Max(
+                "workout_exercises__workout__performed_on",
+                filter=Q(
+                    workout_exercises__sets__is_completed=True,
+                    workout_exercises__workout__user=request.user,
+                ),
+            ),
+        )
+        .order_by("display_order", "name", "id")
     )
     if search:
         exercises = exercises.filter(name__icontains=search)
@@ -45,6 +72,10 @@ def catalog_response(request: Request) -> Response:
                 context=context,
             ).data,
             "exercises": ExerciseSerializer(exercises, many=True, context=context).data,
+            "preferences": PreferencesSerializer(
+                WorkoutPreferences.objects.filter(user=request.user).first()
+                or WorkoutPreferences(user=request.user)
+            ).data,
         }
     )
 
@@ -54,6 +85,27 @@ class CatalogView(APIView):
 
     def get(self, request: Request) -> Response:
         return catalog_response(request)
+
+
+class PreferencesView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        preferences = WorkoutPreferences.objects.filter(
+            user=request.user
+        ).first() or WorkoutPreferences(user=request.user)
+        return Response(PreferencesSerializer(preferences).data)
+
+    @transaction.atomic
+    def patch(self, request: Request) -> Response:
+        User.objects.select_for_update().get(pk=request.user.pk)
+        preferences = WorkoutPreferences.objects.filter(
+            user=request.user
+        ).first() or WorkoutPreferences(user=request.user)
+        serializer = PreferencesSerializer(preferences, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 
 class InitializeCatalogView(APIView):

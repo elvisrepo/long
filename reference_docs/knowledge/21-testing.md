@@ -2,6 +2,15 @@
 
 ## Workout tracking — 2026-10-01 backend slice
 
+Daily-use preferences coverage: default reads without row creation, authenticated account-isolated persistence, bounded inventories and duplicate-size rejection, favorites/default-graph validation, completed-only session hints, unchanged logged sets, account export and deletion isolation. Frontend tests cover saved equipment loading and explicit save (without set creation), blank-bar rejection, favorite filtering, tokenized search and library hints. Run focused `test_workout_preferences.py` plus catalog regression tests before the wider workout suite.
+
+Verification: 699 backend tests, 474 frontend tests, lint, mypy, production build,
+migration drift and three live browser flows at 320/390/1440px pass. Browser flows
+verify persisted timer/equipment/favorites after reload and no accidental workout
+creation from library browsing. Preference checkbox assertions wait for server
+confirmation, rather than requiring an optimistic DOM change. Aggregated catalog
+queries explicitly preserve library ordering (covered by regression tests).
+
 ### All-time exercise summaries — 2026-10-02
 
 - `test_workout_progress.py` covers old dates, inclusive cutoff, planned exclusion,

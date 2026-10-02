@@ -7,16 +7,23 @@ export function RestTimer({
   seconds,
   ref,
   context = "",
+  autoStart,
+  onAutoStartChange,
+  disabled = false,
 }: {
   seconds: number;
   ref?: Ref<RestTimerHandle>;
   context?: string;
+  autoStart?: boolean;
+  onAutoStartChange?: (enabled: boolean) => void;
+  disabled?: boolean;
 }) {
   const [custom, setCustom] = useState<{ context: string; seconds: number }>();
   const duration = custom?.context === context ? custom.seconds : seconds;
   const [deadline, setDeadline] = useState<number>();
   const [now, setNow] = useState(() => Date.now());
-  const [auto, setAuto] = useState(false);
+  const [localAuto, setLocalAuto] = useState(false);
+  const auto = autoStart ?? localAuto;
   const start = () => {
     const current = Date.now();
     setNow(current);
@@ -82,7 +89,12 @@ export function RestTimer({
           <input
             type="checkbox"
             checked={auto}
-            onChange={(e) => setAuto(e.target.checked)}
+            disabled={disabled}
+            onChange={(e) =>
+              onAutoStartChange
+                ? onAutoStartChange(e.target.checked)
+                : setLocalAuto(e.target.checked)
+            }
           />
           Auto-start after completed set
         </label>

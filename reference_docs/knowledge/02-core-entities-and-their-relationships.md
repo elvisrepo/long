@@ -2,6 +2,13 @@
 
 ## Workout additions — 2026-10-01 backend slice
 
+`workouts.0007_workout_preferences` adds `User → WorkoutPreferences` as an owned
+one-to-one primary-key relationship (eleven workout tables total). It stores
+rest auto-start, group auto-advance and separate metric/imperial bar and plate
+defaults. Reads do not create rows; account export includes saved preferences,
+and deletion cascades them. Exercise favorites and preferred graphs are library
+metadata, not changes to recorded WorkoutExercise/WorkoutSet snapshots.
+
 Six workout tables are defined by local migrations: a one-to-one
 `WorkoutCatalogState` tracks explicit once-only initialization; `User →
 ExerciseCategory → Exercise` forms a private editable catalog; `User → Workout

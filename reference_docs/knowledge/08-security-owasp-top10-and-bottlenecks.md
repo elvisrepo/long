@@ -37,6 +37,8 @@
 
 ### All-time exercise summary boundary — 2026-10-02
 
+Workout preference reads and patches are authenticated and owner-scoped, available to every account tier. Reads do not seed data; patches share the owner lock used by account deletion. Inventories are bounded (20 sizes, 0–100 plates per size, weights ≤1000), duplicate sizes rejected. Favorites and graph defaults never change historical exercise snapshots. Catalog usage hints include only that owner's completed sets; preference export/deletion follows the existing account lifecycle.
+
 All-time progress/records are private read-only summary endpoints, not unbounded
 raw session exports. Exercise ownership and workout ownership are both filtered,
 including protection against inconsistent cross-owner raw ORM links. Completed-only

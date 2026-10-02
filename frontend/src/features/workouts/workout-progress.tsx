@@ -50,10 +50,16 @@ export function WorkoutProgress({
     ) ?? [];
   const types = savedTypes.length ? savedTypes : [libraryType ?? "strength"];
   const options = progressMetrics(types);
+  const preferredMetric = catalog.exercises.find(
+    (exercise) => exercise.id === exerciseId,
+  )?.default_graph;
   const selectedMetric =
     metric && (days === 0 || options.some((option) => option.value === metric))
       ? metric
-      : defaultMetric(types[0]);
+      : preferredMetric &&
+          options.some((option) => option.value === preferredMetric)
+        ? (preferredMetric as ProgressMetric)
+        : defaultMetric(types[0]);
   const allTimeQuery = useQuery({
     queryKey: [
       "workouts",

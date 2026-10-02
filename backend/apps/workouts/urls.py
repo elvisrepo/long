@@ -5,6 +5,7 @@ from . import routine_views
 from .progress_views import ExerciseProgressView, ExerciseRecordsView
 
 urlpatterns = [
+    path("preferences/", views.PreferencesView.as_view(), name="workout-preferences"),
     path(
         "exercises/<uuid:exercise_id>/records/",
         ExerciseRecordsView.as_view(),

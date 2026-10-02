@@ -27,6 +27,7 @@ from apps.workouts.models import (
     RoutineDay,
     RoutineExercise,
     RoutineSet,
+    WorkoutPreferences,
 )
 
 
@@ -99,6 +100,14 @@ def account_export(user: User) -> Iterator[str]:
         "workout_catalog_state": WorkoutCatalogState.objects.filter(user=user).values(
             "initialized_at"
         ),
+        "workout_preferences": WorkoutPreferences.objects.filter(user=user).values(
+            "auto_start_rest",
+            "auto_advance_groups",
+            "bar_kg",
+            "bar_lb",
+            "plates_kg",
+            "plates_lb",
+        ),
         "exercise_categories": ExerciseCategory.objects.filter(user=user)
         .order_by("id")
         .values("id", "name", "display_order", "is_active"),
@@ -116,6 +125,8 @@ def account_export(user: User) -> Iterator[str]:
             "rest_seconds",
             "display_order",
             "is_active",
+            "is_favorite",
+            "default_graph",
         ),
         "workouts": Workout.objects.filter(user=user)
         .order_by("id")

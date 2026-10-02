@@ -4,7 +4,73 @@ from django.core.exceptions import ValidationError as ModelValidationError
 
 from rest_framework import serializers
 
-from .models import Exercise, ExerciseCategory, Workout, WorkoutExercise, WorkoutSet
+from .models import (
+    Exercise,
+    ExerciseCategory,
+    Workout,
+    WorkoutExercise,
+    WorkoutSet,
+    WorkoutPreferences,
+)
+from .progress_queries import METRICS
+
+
+class PlateSerializer(serializers.Serializer):
+    weight = serializers.DecimalField(
+        max_digits=7,
+        decimal_places=3,
+        min_value=Decimal("0.001"),
+        max_value=Decimal("1000"),
+    )
+    count = serializers.IntegerField(min_value=0, max_value=100)
+
+
+class PreferencesSerializer(serializers.ModelSerializer):
+    plates_kg = PlateSerializer(
+        many=True, max_length=20, allow_empty=True, required=False
+    )
+    plates_lb = PlateSerializer(
+        many=True, max_length=20, allow_empty=True, required=False
+    )
+    bar_kg = serializers.DecimalField(
+        max_digits=7,
+        decimal_places=3,
+        min_value=Decimal("0"),
+        max_value=Decimal("1000"),
+        required=False,
+    )
+    bar_lb = serializers.DecimalField(
+        max_digits=7,
+        decimal_places=3,
+        min_value=Decimal("0"),
+        max_value=Decimal("1000"),
+        required=False,
+    )
+
+    class Meta:
+        model = WorkoutPreferences
+        fields = [
+            "auto_start_rest",
+            "auto_advance_groups",
+            "bar_kg",
+            "bar_lb",
+            "plates_kg",
+            "plates_lb",
+        ]
+
+    def validate(self, data: dict[str, Any]) -> dict[str, Any]:
+        for field in ("plates_kg", "plates_lb"):
+            if field in data:
+                weights = [plate["weight"] for plate in data[field]]
+                if len(weights) != len(set(weights)):
+                    raise serializers.ValidationError(
+                        {field: "Use each plate size only once."}
+                    )
+                data[field] = [
+                    {"weight": str(plate["weight"]), "count": plate["count"]}
+                    for plate in data[field]
+                ]
+        return data
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -27,6 +93,11 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class ExerciseSerializer(serializers.ModelSerializer):
+    default_graph = serializers.ChoiceField(
+        choices=["", *METRICS, "personal_records"], required=False, allow_blank=True
+    )
+    trained_session_count = serializers.IntegerField(read_only=True, default=0)
+    last_used_on = serializers.DateField(read_only=True, default=None)
     category_id = serializers.PrimaryKeyRelatedField(
         source="category", queryset=ExerciseCategory.objects.none()
     )
@@ -49,6 +120,10 @@ class ExerciseSerializer(serializers.ModelSerializer):
             "rest_seconds",
             "display_order",
             "is_active",
+            "is_favorite",
+            "default_graph",
+            "trained_session_count",
+            "last_used_on",
         ]
         read_only_fields = ["id"]
 

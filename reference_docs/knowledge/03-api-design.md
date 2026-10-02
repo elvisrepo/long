@@ -60,7 +60,7 @@ foreign keys. Capture/copy/start preserve them independently; changing order/gro
 cannot change references/type/units. No separate group table is introduced.
 The UI defaults to cycling through same-group exercises in saved order after a
 confirmed new completion; failed saves, edits to already-completed sets and plans
-do not advance or start rest. Group and timer toggles are temporary UI preferences.
+do not advance or start rest. Group auto-advance and timer auto-start are persisted account preferences; the running countdown remains temporary UI state.
 
 Session sidebar Add to group / Edit group opens a picker and member editor.
 New groups suggest the next unused `Superset N` name and include the selected
@@ -104,6 +104,10 @@ Full account export adds `workout_routines`, `routine_days`, `routine_exercises`
 and `routine_sets`; account deletion cascades all four.
 
 ### Basic catalog and session contracts
+
+Account workout preferences: authenticated `GET/PATCH /api/v1/workouts/preferences/` exposes `auto_start_rest` (default false), `auto_advance_groups` (true), `bar_kg` (20), `bar_lb` (45), and separate `plates_kg`/`plates_lb` inventories. GET (including catalog GET) returns defaults without creating rows. PATCH locks the owner before persisting validated changes. Bars accept 0–1000; inventories accept at most 20 distinct positive sizes up to 1000, with integer total counts 0–100. Inventories are explicit equipment defaults, not workout sets.
+
+Catalog responses additionally include `preferences`. Exercises accept `is_favorite` and `default_graph` (an existing graph metric, `personal_records`, or blank for automatic). Read-only catalog hints `trained_session_count` and `last_used_on` count only owned sessions containing completed sets, not planned entries. Account export includes these library fields and owned `workout_preferences`. Migration `0007_workout_preferences` is additive; no logged set snapshots are rewritten.
 
 | Method | Endpoint | Contract |
 |---|---|---|
@@ -198,8 +202,8 @@ combinations. All time uses the summary endpoints above, not expanded raw sessio
 reads. Writes invalidate these owner-scoped reads. Calculators run locally: Epley estimated max, percentage/nearest
 increment, and exact balanced plates from explicit finite inventory. Adding a
 percentage result uses the existing set POST with `is_completed:false`, unknown
-reps, and saved units. Calculator inputs/equipment inventory are temporary, not
-stored account data. No automatic unit conversion or health score.
+reps, and saved units. Calculation inputs are temporary; bar/plate inventory can
+be explicitly saved as unit-specific account defaults. No automatic unit conversion or health score.
 
 ## Diet tracking (implemented locally, 2026-10-01)
 

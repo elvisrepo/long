@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Modal } from "../../components/modal";
 import * as api from "./workout-api";
 import type { RunAction } from "./workout-navigation";
+import { progressMetrics } from "./workout-analysis";
 
 const labels: Record<api.TrackingType, string> = {
   strength: "Weight + reps",
@@ -36,9 +37,19 @@ export function WorkoutLibrary({
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [archives, setArchives] = useState(false);
+  const [favorites, setFavorites] = useState(false);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [detail, setDetail] = useState<api.Exercise | null>(null);
   const categories = catalog.categories.filter((c) => archives || c.is_active);
+  const terms = search.toLowerCase().trim().split(/\s+/);
+  const matchingExercises = catalog.exercises.filter(
+    (e) =>
+      categories.some((c) => c.id === e.category_id) &&
+      (!category || e.category_id === category) &&
+      (archives || e.is_active) &&
+      (!favorites || e.is_favorite) &&
+      terms.every((term) => e.name.toLowerCase().includes(term)),
+  );
   return (
     <>
       <div className="workout-toolbar">
@@ -70,6 +81,12 @@ export function WorkoutLibrary({
       <div className="workout-filters">
         <button aria-pressed={!category} onClick={() => setCategory("")}>
           All
+        </button>
+        <button
+          aria-pressed={favorites}
+          onClick={() => setFavorites(!favorites)}
+        >
+          Favorites
         </button>
         {categories.map((c) => (
           <button
@@ -109,15 +126,16 @@ export function WorkoutLibrary({
         </section>
       )}
       <div className="workout-library-grid">
+        {(favorites || search.trim()) && !matchingExercises.length && (
+          <p role="status">No exercises match these filters.</p>
+        )}
         {categories
           .filter((c) => !category || c.id === category)
           .map((c) => {
-            const exercises = catalog.exercises.filter(
-              (e) =>
-                e.category_id === c.id &&
-                (archives || e.is_active) &&
-                e.name.toLowerCase().includes(search.toLowerCase()),
+            const exercises = matchingExercises.filter(
+              (e) => e.category_id === c.id,
             );
+            if (!exercises.length && (favorites || search.trim())) return null;
             return (
               <section className="workout-card" key={c.id}>
                 <div className="workout-card-heading">
@@ -154,6 +172,14 @@ export function WorkoutLibrary({
                             {labels[e.tracking_type]}
                             {!e.is_active ? " · Archived" : ""}
                           </small>
+                          {e.trained_session_count !== undefined && (
+                            <small>
+                              {e.trained_session_count} trained sessions
+                              {e.last_used_on
+                                ? ` · Last used ${e.last_used_on}`
+                                : " · Not used yet"}
+                            </small>
+                          )}
                         </span>
                         <span aria-hidden="true">
                           {selectingWorkout &&
@@ -162,13 +188,31 @@ export function WorkoutLibrary({
                             : "→"}
                         </span>
                       </button>
-                      <button
-                        disabled={busy}
-                        aria-label={`Edit exercise ${e.name}`}
-                        onClick={() => setEditor({ kind: "exercise", item: e })}
-                      >
-                        Edit
-                      </button>
+                      <div className="workout-actions">
+                        <button
+                          disabled={busy}
+                          aria-label={`${e.is_favorite ? "Unfavorite" : "Favorite"} ${e.name}`}
+                          aria-pressed={e.is_favorite ?? false}
+                          onClick={() =>
+                            run(async () => {
+                              await api.saveExercise(e.id, {
+                                is_favorite: !e.is_favorite,
+                              });
+                            })
+                          }
+                        >
+                          {e.is_favorite ? "★" : "☆"}
+                        </button>
+                        <button
+                          disabled={busy}
+                          aria-label={`Edit exercise ${e.name}`}
+                          onClick={() =>
+                            setEditor({ kind: "exercise", item: e })
+                          }
+                        >
+                          Edit
+                        </button>
+                      </div>
                     </div>
                   ))}
                   {!exercises.length && (
@@ -255,6 +299,7 @@ export function WorkoutLibrary({
                     weight_unit: fd.get("weight-unit") as "kg" | "lb",
                     distance_unit: fd.get("distance-unit") as "km" | "mi",
                     notes: String(fd.get("notes")),
+                    default_graph: String(fd.get("default_graph") ?? ""),
                     weight_increment: String(fd.get("increment")),
                     rest_seconds: Number(fd.get("rest")),
                   });
@@ -382,6 +427,25 @@ export function WorkoutLibrary({
                     maxLength={2000}
                     disabled={busy}
                   />
+                </label>
+                <label>
+                  Default progress graph
+                  <select
+                    name="default_graph"
+                    defaultValue={editor.item?.default_graph ?? ""}
+                  >
+                    <option value="">Automatic for exercise type</option>
+                    {progressMetrics([
+                      "strength",
+                      "bodyweight",
+                      "cardio",
+                      "duration",
+                    ]).map((metric) => (
+                      <option key={metric.value} value={metric.value}>
+                        {metric.label}
+                      </option>
+                    ))}
+                  </select>
                 </label>
                 <p className="workout-note">
                   Type and unit changes apply to new workout occurrences only.

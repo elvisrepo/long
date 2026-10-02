@@ -38,7 +38,11 @@ def test_samples_are_private_repeat_safe_and_do_not_restore_archives() -> None:
     assert len(again.json()["exercises"]) == 10
     archived = next(e for e in again.json()["exercises"] if e["id"] == exercise["id"])
     assert archived["name"] == "My press" and not archived["is_active"]
-    assert other.get(BASE + "catalog/").json() == {"categories": [], "exercises": []}
+    assert other.get(BASE + "catalog/").json() == {
+        "categories": [],
+        "exercises": [],
+        "preferences": other.get(BASE + "preferences/").json(),
+    }
     theirs = other.post(BASE + "catalog/initialize/", {}, format="json").json()
     assert {e["id"] for e in theirs["exercises"]}.isdisjoint(
         e["id"] for e in first.json()["exercises"]
@@ -532,7 +536,11 @@ def test_history_filters_and_pagination_validate_dates_and_remain_owner_scoped()
 
 def test_catalog_search_is_bounded_and_does_not_seed_on_read() -> None:
     client, _ = workout_client()
-    assert client.get(BASE + "catalog/").json() == {"categories": [], "exercises": []}
+    assert client.get(BASE + "catalog/").json() == {
+        "categories": [],
+        "exercises": [],
+        "preferences": client.get(BASE + "preferences/").json(),
+    }
     client.post(BASE + "catalog/initialize/", {}, format="json")
     results = client.get(BASE + "catalog/?search=BENCH").json()["exercises"]
     assert [e["name"] for e in results] == ["Barbell bench press"]

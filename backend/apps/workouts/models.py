@@ -45,6 +45,32 @@ class WorkoutCatalogState(models.Model):
     initialized_at = models.DateTimeField(auto_now_add=True)
 
 
+def metric_plates() -> list[dict[str, str | int]]:
+    return [
+        {"weight": weight, "count": 0}
+        for weight in ("25", "20", "15", "10", "5", "2.5", "1.25")
+    ]
+
+
+def imperial_plates() -> list[dict[str, str | int]]:
+    return [
+        {"weight": weight, "count": 0}
+        for weight in ("45", "35", "25", "10", "5", "2.5")
+    ]
+
+
+class WorkoutPreferences(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, primary_key=True, on_delete=models.CASCADE
+    )
+    auto_start_rest = models.BooleanField(default=False)
+    auto_advance_groups = models.BooleanField(default=True)
+    bar_kg = models.DecimalField(max_digits=7, decimal_places=3, default="20")
+    bar_lb = models.DecimalField(max_digits=7, decimal_places=3, default="45")
+    plates_kg = models.JSONField(default=metric_plates)
+    plates_lb = models.JSONField(default=imperial_plates)
+
+
 class ExerciseCategory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
@@ -85,6 +111,8 @@ class Exercise(models.Model):
     rest_seconds = models.PositiveIntegerField(default=90)
     display_order = models.PositiveIntegerField(default=100)
     is_active = models.BooleanField(default=True)
+    is_favorite = models.BooleanField(default=False)
+    default_graph = models.CharField(max_length=24, blank=True)
 
     class Meta:
         ordering = ["display_order", "name", "id"]

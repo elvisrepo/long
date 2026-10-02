@@ -27,6 +27,7 @@ export function WorkoutTraining({
   autoAdvance,
   onAutoAdvance,
   savePlanned,
+  saveEquipment,
 }: {
   workout: api.Workout;
   itemId: string;
@@ -39,6 +40,7 @@ export function WorkoutTraining({
   autoAdvance: boolean;
   onAutoAdvance: (enabled: boolean) => void;
   savePlanned: (itemId: string, data: api.SetInput) => Promise<void>;
+  saveEquipment?: (data: api.WorkoutPreferences) => Promise<void>;
 }) {
   const item = workout.exercises.find((i) => i.id === itemId);
   const [tab, setTab] = useState<"track" | "history">("track");
@@ -280,6 +282,8 @@ export function WorkoutTraining({
             item={item}
             busy={disabled}
             onAdd={(data) => savePlanned(item.id, data)}
+            preferences={catalog.preferences}
+            onSaveEquipment={saveEquipment}
           />
           <div className="workout-subtabs">
             <button

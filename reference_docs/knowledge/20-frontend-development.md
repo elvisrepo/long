@@ -2,6 +2,8 @@
 
 ### Workout log (October 2, 2026, local)
 
+Daily-use preferences now persist per account: automatic rest start, group auto-advance and explicit unit-specific bar/plate defaults. Saving equipment does not create sets; pending saves disable inventory editing and failures remain visible. Library favorites and multi-word search coexist with category/archive filters; usage hints count completed sessions. Exercise editing offers a default graph; an incompatible default falls back safely to the current exercise's graph options. Browser-side countdowns still do not provide background notifications.
+
 Authenticated `/workouts` now connects to the real backend on every plan. Home,
 All exercises, Training and History share URL-backed view/date/session selection.
 Start explicitly initializes editable starter samples once; ordinary reads do not
@@ -32,7 +34,8 @@ excluding planned-only sessions. Pending writes disable controls and errors reta
 input without claiming success. Successful writes invalidate owner-scoped reads.
 Dark/Light/Sand tokens and mobile layouts are reused. Direct templates, groups,
 visual rest timer, calculators, windowed charts/records and month calendar are
-implemented locally. Calculator inputs and timer/advance preferences are temporary.
+implemented locally. Calculation inputs and the running countdown are temporary;
+timer/advance preferences and explicitly saved equipment defaults persist per account.
 See `47-workout-tracking.md`.
 
 Routines now have their own Workouts subview (`view=routines`), not a separate

@@ -36,7 +36,6 @@ export function WorkoutScreen({
   const day = search.date || localDay(new Date());
   const view = search.view || "home";
   const restTimer = useRef<RestTimerHandle>(null);
-  const [autoAdvance, setAutoAdvance] = useState(true);
   const catalog = useQuery({
     queryKey: ["workouts", owner, "catalog"],
     queryFn: api.getWorkoutCatalog,
@@ -157,6 +156,13 @@ export function WorkoutScreen({
             )?.rest_seconds ?? 90
           }
           context={search.exercise ?? ""}
+          autoStart={catalog.data.preferences?.auto_start_rest ?? false}
+          onAutoStartChange={(enabled) =>
+            run(async () => {
+              await api.saveWorkoutPreferences({ auto_start_rest: enabled });
+            })
+          }
+          disabled={busy}
         />
       </div>
       {view !== "training" && (
@@ -319,8 +325,19 @@ export function WorkoutScreen({
           <WorkoutTraining
             key={`${detail.data.id}:${search.exercise}`}
             onCompleted={() => restTimer.current?.completed()}
-            autoAdvance={autoAdvance}
-            onAutoAdvance={setAutoAdvance}
+            autoAdvance={catalog.data.preferences?.auto_advance_groups ?? true}
+            onAutoAdvance={(enabled) =>
+              run(async () => {
+                await api.saveWorkoutPreferences({
+                  auto_advance_groups: enabled,
+                });
+              })
+            }
+            saveEquipment={async (data) => {
+              await mutation.mutateAsync(async () => {
+                await api.saveWorkoutPreferences(data);
+              });
+            }}
             savePlanned={async (itemId, data) => {
               await mutation.mutateAsync(async () => {
                 await api.saveWorkoutSet(itemId, undefined, data);
