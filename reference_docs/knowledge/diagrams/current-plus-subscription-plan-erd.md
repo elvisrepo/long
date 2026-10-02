@@ -7,8 +7,10 @@
 ## Scope
 - Workout backend migrations add six tables to the prior 16-table checkpoint:
   `WorkoutCatalogState`, `ExerciseCategory`, `Exercise`, `Workout`,
-  `WorkoutExercise`, `WorkoutSet` (22 domain model tables). Frontend, routines and
-  analysis are not implemented. See [Workout tracking](../47-workout-tracking.md).
+  `WorkoutExercise`, `WorkoutSet` (22 domain model tables). `workouts.0004` adds
+  `WorkoutRoutine`, `RoutineDay`, `RoutineExercise`, `RoutineSet`, making **26**.
+  Basic frontend/routines are implemented locally; advanced planning/analysis
+  remain pending. See [Workout tracking](../47-workout-tracking.md).
 - The 2026-10-01 pre-workout checkpoint had 16 tables, including `DietSection`, `DietFood` and `DietEntry`. See [Diet before/after comparison](diet-erd-comparison.md) with the three additions green; ownership/archive rules are in [Diet tracking](../46-diet-tracking.md).
 - `User`, `MetricDefinition`, `MetricEntry`, `WearableConnection`, `SyncRun`, `SubscriptionPlan`, `SubscriptionPrice`, `BillingCustomer`, `Subscription`, `CheckoutAttempt`, `StripeWebhookEvent`, `RecoveryTool`, and `RecoveryEntry` are implemented domain tables.
 - See [recovery before/after ERD comparison](recovery-erd-comparison.md) for model-derived field maps, with the two new recovery tables highlighted green.
@@ -39,6 +41,47 @@ erDiagram
     WORKOUT ||--o{ WORKOUT_EXERCISE : orders
     EXERCISE ||--o{ WORKOUT_EXERCISE : "historical reference"
     WORKOUT_EXERCISE ||--o{ WORKOUT_SET : logs
+    USER ||--o{ WORKOUT_ROUTINE : "owns templates"
+    WORKOUT_ROUTINE ||--o{ ROUTINE_DAY : organizes
+    ROUTINE_DAY ||--o{ ROUTINE_EXERCISE : orders
+    EXERCISE ||--o{ ROUTINE_EXERCISE : "frozen template reference"
+    ROUTINE_EXERCISE ||--o{ ROUTINE_SET : plans
+
+    WORKOUT_ROUTINE {
+        uuid id PK
+        uuid user_id FK
+        string name "unique per owner, including archives"
+        string notes
+        integer display_order
+        boolean is_active
+    }
+    ROUTINE_DAY {
+        uuid id PK
+        uuid routine_id FK
+        string name "unique per routine"
+        string notes "instructions copied to session"
+        integer display_order
+    }
+    ROUTINE_EXERCISE {
+        uuid id PK
+        uuid day_id FK
+        uuid exercise_id FK "RESTRICT; owner must match"
+        string exercise_name "snapshot"
+        string category_name "snapshot"
+        string tracking_type "snapshot"
+        string weight_unit "snapshot"
+        string distance_unit "snapshot"
+        integer display_order
+    }
+    ROUTINE_SET {
+        uuid id PK
+        uuid routine_exercise_id FK
+        integer display_order
+        decimal weight "nullable; nonnegative"
+        integer reps "nullable; positive"
+        decimal distance "nullable; positive"
+        integer duration_seconds "nullable; positive"
+    }
 
     WORKOUT_CATALOG_STATE {
         uuid user_id PK,FK

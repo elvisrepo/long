@@ -1,6 +1,11 @@
 import type { WorkoutExercise, WorkoutSet } from "./workout-api";
 
-export type WorkoutView = "home" | "exercises" | "training" | "history";
+export type WorkoutView =
+  | "home"
+  | "exercises"
+  | "training"
+  | "history"
+  | "routines";
 export interface WorkoutSearch {
   view?: WorkoutView;
   date?: string;
@@ -29,7 +34,11 @@ export function parseWorkoutSearch(
   raw: Record<string, unknown>,
 ): WorkoutSearch {
   const result: WorkoutSearch = {};
-  if (["home", "exercises", "training", "history"].includes(String(raw.view)))
+  if (
+    ["home", "exercises", "training", "history", "routines"].includes(
+      String(raw.view),
+    )
+  )
     result.view = raw.view as WorkoutView;
   if (
     typeof raw.date === "string" &&
@@ -47,7 +56,13 @@ export function parseWorkoutSearch(
     result.view = "home";
   return result;
 }
-export function setLabel(item: WorkoutExercise, set: WorkoutSet): string {
+export function setLabel(
+  item: Pick<
+    WorkoutExercise,
+    "tracking_type" | "weight_unit" | "distance_unit"
+  >,
+  set: Pick<WorkoutSet, "weight" | "reps" | "distance" | "duration_seconds">,
+): string {
   if (item.tracking_type === "duration")
     return set.duration_seconds == null
       ? "Duration not set"

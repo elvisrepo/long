@@ -16,6 +16,7 @@ import {
 } from "./workout-navigation";
 import { WorkoutLibrary } from "./workout-library";
 import { WorkoutTraining } from "./workout-training";
+import { WorkoutRoutines, SaveRoutineDayDialog } from "./workout-routines";
 import "./workout.css";
 
 export function WorkoutScreen({
@@ -108,6 +109,7 @@ export function WorkoutScreen({
             ["home", "Home"],
             ["exercises", "All exercises"],
             ["history", "History"],
+            ["routines", "Routines"],
           ] as const
         ).map(([target, label]) => (
           <button
@@ -138,9 +140,11 @@ export function WorkoutScreen({
           title={
             view === "exercises"
               ? "All exercises"
-              : view === "history"
-                ? "Workout history"
-                : "Workouts"
+              : view === "routines"
+                ? "Routines"
+                : view === "history"
+                  ? "Workout history"
+                  : "Workouts"
           }
           eyebrow={
             view === "exercises" ? "PERSONAL LIBRARY" : "TRAIN THOUGHTFULLY"
@@ -148,9 +152,11 @@ export function WorkoutScreen({
           description={
             view === "exercises"
               ? "Your editable exercises. Select one to add it to a workout."
-              : view === "history"
-                ? "Review recorded sessions or copy one as a new plan."
-                : "Record your training, one set at a time."
+              : view === "routines"
+                ? "Reusable named days. Start each as an independent planned workout."
+                : view === "history"
+                  ? "Review recorded sessions or copy one as a new plan."
+                  : "Record your training, one set at a time."
           }
         />
       )}
@@ -285,6 +291,15 @@ export function WorkoutScreen({
           day={day}
           owner={owner}
           exercise={search.exercise}
+          busy={busy}
+          run={run}
+          navigate={navigate}
+        />
+      )}
+      {view === "routines" && (
+        <WorkoutRoutines
+          owner={owner}
+          day={day}
           busy={busy}
           run={run}
           navigate={navigate}
@@ -432,7 +447,9 @@ function SessionCard({
   run: RunAction;
   navigate: NavigateWorkout;
 }) {
-  const [dialog, setDialog] = useState<"edit" | "delete" | "copy" | null>(null);
+  const [dialog, setDialog] = useState<
+    "edit" | "delete" | "copy" | "routine" | null
+  >(null);
   return (
     <section className="workout-card">
       <div className="workout-card-heading">
@@ -506,6 +523,12 @@ function SessionCard({
           Copy workout
         </button>
         <button
+          disabled={busy || !w.exercises.length}
+          onClick={() => setDialog("routine")}
+        >
+          Save as routine day
+        </button>
+        <button
           className="workout-danger"
           disabled={busy}
           onClick={() => setDialog("delete")}
@@ -513,7 +536,15 @@ function SessionCard({
           Delete workout
         </button>
       </div>
-      {dialog && (
+      {dialog === "routine" && (
+        <SaveRoutineDayDialog
+          workout={w}
+          busy={busy}
+          run={run}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog && dialog !== "routine" && (
         <Modal
           labelledBy={`session-dialog-${w.id}`}
           busy={busy}

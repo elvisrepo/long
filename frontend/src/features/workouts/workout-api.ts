@@ -57,6 +57,25 @@ export interface WorkoutPage {
   previous: string | null;
   results: Workout[];
 }
+export type RoutineSet = Omit<WorkoutSet, "comment" | "is_completed">;
+export interface RoutineExercise extends Omit<WorkoutExercise, "sets"> {
+  sets: RoutineSet[];
+}
+export interface RoutineDay {
+  id: string;
+  name: string;
+  notes: string;
+  display_order: number;
+  exercises: RoutineExercise[];
+}
+export interface WorkoutRoutine {
+  id: string;
+  name: string;
+  notes: string;
+  display_order: number;
+  is_active: boolean;
+  days: RoutineDay[];
+}
 export type SetInput = Partial<Omit<WorkoutSet, "id">>;
 export type ExerciseInput = Partial<Omit<Exercise, "id">>;
 
@@ -195,3 +214,41 @@ export function reorderWorkoutExercise(
     display_order,
   });
 }
+
+export const getWorkoutRoutines = (): Promise<WorkoutRoutine[]> =>
+  request("routines/");
+export const saveWorkoutRoutine = (
+  id: string | undefined,
+  data: Partial<Omit<WorkoutRoutine, "id" | "days">>,
+): Promise<WorkoutRoutine> =>
+  request(
+    `routines/${id ? encodeURIComponent(id) + "/" : ""}`,
+    id ? "PATCH" : "POST",
+    data,
+  );
+export const saveRoutineDay = (
+  routineId: string,
+  id: string | undefined,
+  data: {
+    name?: string;
+    notes?: string;
+    display_order?: number;
+    source_workout_id?: string;
+  },
+): Promise<RoutineDay> =>
+  request(
+    id
+      ? `routine-days/${encodeURIComponent(id)}/`
+      : `routines/${encodeURIComponent(routineId)}/days/`,
+    id ? "PATCH" : "POST",
+    data,
+  );
+export const startRoutineDay = (
+  id: string,
+  performed_on: string,
+): Promise<Workout> =>
+  request(`routine-days/${encodeURIComponent(id)}/start/`, "POST", {
+    performed_on,
+  });
+export const removeRoutineDay = (id: string): Promise<void> =>
+  request(`routine-days/${encodeURIComponent(id)}/`, "DELETE");

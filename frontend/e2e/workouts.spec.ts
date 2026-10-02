@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import type { WorkoutRoutine } from "../src/features/workouts/workout-api";
 
 const categoryId = "11111111-1111-4111-8111-111111111111";
 const exerciseId = "22222222-2222-4222-8222-222222222222";
@@ -56,6 +57,7 @@ async function fixture(page: Page) {
     completed_set_count: number;
     exercises: (typeof occurrence)[];
   }[] = [];
+  const routines: WorkoutRoutine[] = [];
   await page.route("**/api/**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -67,7 +69,75 @@ async function fixture(page: Page) {
     else if (path.endsWith("/me/")) json = { email: "workout@example.test" };
     else if (path.includes("/workouts/catalog/"))
       json = { categories: [category], exercises: [exercise] };
-    else if (path === "/api/v1/workouts/sessions/" && method === "GET") {
+    else if (path === "/api/v1/workouts/routines/") {
+      if (method === "POST") {
+        const routine: WorkoutRoutine = {
+          id: "88888888-8888-4888-8888-888888888888",
+          name: String(body?.name),
+          notes: "",
+          display_order: 100,
+          is_active: true,
+          days: [],
+        };
+        routines.push(routine);
+        json = routine;
+      } else json = routines;
+    } else if (
+      path.includes("/workouts/routines/") &&
+      path.endsWith("/days/")
+    ) {
+      const source = sessions.find((w) => w.id === body?.source_workout_id)!;
+      const day = {
+        id: "99999999-9999-4999-8999-999999999999",
+        name: String(body?.name),
+        notes: String(body?.notes || ""),
+        display_order: Number(body?.display_order ?? 100),
+        exercises: structuredClone(source.exercises).map((i) => ({
+          ...i,
+          sets: i.sets.map((s) => ({
+            id: s.id,
+            weight: s.weight,
+            reps: s.reps,
+            distance: s.distance,
+            duration_seconds: s.duration_seconds,
+            display_order: s.display_order,
+          })),
+        })),
+      };
+      routines[0].days.push(day);
+      json = day;
+    } else if (path.includes("/workouts/routines/")) {
+      Object.assign(routines[0], body);
+      json = routines[0];
+    } else if (
+      path.includes("/workouts/routine-days/") &&
+      path.endsWith("/start/")
+    ) {
+      const day = routines[0].days[0];
+      const planned = {
+        ...sessions[0],
+        id: "77777777-7777-4777-8777-777777777777",
+        name: routines[0].name + " · " + day.name,
+        performed_on: String(body?.performed_on),
+        notes: day.notes,
+        is_finished: false,
+        completed_set_count: 0,
+        exercises: day.exercises.map((i) => ({
+          ...i,
+          sets: i.sets.map((s) => ({ ...s, comment: "", is_completed: false })),
+        })),
+      };
+      sessions.push(planned);
+      json = planned;
+    } else if (path.includes("/workouts/routine-days/")) {
+      if (method === "DELETE") {
+        routines[0].days = [];
+        await route.fulfill({ status: 204 });
+        return;
+      }
+      Object.assign(routines[0].days[0], body);
+      json = routines[0].days[0];
+    } else if (path === "/api/v1/workouts/sessions/" && method === "GET") {
       const rows = sessions.filter(
         (w) =>
           w.performed_on >= url.searchParams.get("date_from")! &&
@@ -207,8 +277,52 @@ for (const width of [320, 390, 1440])
     await expect(
       page.getByText("0 completed sets · 1 exercise", { exact: true }),
     ).toBeVisible();
+    await page.getByRole("button", { name: "Save as routine day" }).click();
+    await page.getByLabel("New routine name").fill("Weekly plan");
+    await page.getByLabel("Day name", { exact: true }).fill("Push");
+    await page.getByLabel("Day instructions").fill("Warm up first");
+    await page
+      .getByRole("button", { name: "Save routine day", exact: true })
+      .click();
+    await page.getByRole("button", { name: "Routines", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "Weekly plan" }),
+    ).toBeVisible();
+    await page.getByLabel("Tracking date").fill("2026-10-06");
+    await page.getByRole("button", { name: "Start Push", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "Weekly plan · Push" }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("0 completed sets · 1 exercise", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Warm up first", { exact: true }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Routines", exact: true }).click();
+    await page.getByRole("button", { name: "Archive routine" }).click();
+    await page.getByLabel("Show archived routines").check();
+    await expect(
+      page.getByRole("button", { name: "Start Push", exact: true }),
+    ).toBeDisabled();
+    await page.getByRole("button", { name: "Restore routine" }).click();
+    await page.getByRole("button", { name: "Edit day", exact: true }).click();
+    await page.getByLabel("Day name", { exact: true }).fill("Upper body");
+    await page.getByRole("button", { name: "Save day details" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Upper body", exact: true }),
+    ).toBeVisible();
+    for (const theme of ["light", "sand"]) {
+      await page.getByLabel("Color theme").selectOption(theme);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+    }
+    await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({
-      path: `test-results/workouts/home-${width}.png`,
+      path: `test-results/workouts/routines-${width}.png`,
       fullPage: true,
     });
     expect(
@@ -218,6 +332,6 @@ for (const width of [320, 390, 1440])
     ).toBe(true);
     await page.reload();
     await expect(
-      page.getByText("0 completed sets · 1 exercise", { exact: true }),
+      page.getByRole("heading", { name: "Upper body", exact: true }),
     ).toBeVisible();
   });

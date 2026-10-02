@@ -18,9 +18,23 @@ date. Dashboard Recovery/Diet/Workouts summaries share a compact three-column ro
 stacking below 681px; workouts count completed sets and distinct trained days,
 excluding planned-only sessions. Pending writes disable controls and errors retain
 input without claiming success. Successful writes invalidate owner-scoped reads.
-Dark/Light/Sand tokens and mobile layouts are reused. Routines, supersets, timers,
+Dark/Light/Sand tokens and mobile layouts are reused. Supersets, timers,
 calculators, charts/records and month-calendar views remain unimplemented.
 See `47-workout-tracking.md`.
+
+Routines now have their own Workouts subview (`view=routines`), not a separate
+top-level tab. Home sessions offer Save as routine day, either into a new routine,
+as another named day, or explicitly replacing an existing template. Routine/day
+metadata supports notes and numeric ordering; routine archive/restore retains
+templates, while confirmed day removal retains previously created sessions. Start
+uses the selected calendar date and creates a planned, independent session.
+To alter template exercises/quantities in this first slice, start a planned
+session, edit it with the existing Training UI, then save it back as a replacement
+day. This does create a planned workout row; it is not an ephemeral template editor
+and never contributes to activity counts until sets are completed. Direct template
+set editing remains a later convenience feature. Failed modal writes keep their
+inputs and show errors inside the modal. A confirmed routine ID is retained when
+day creation fails, avoiding duplicate routines on retry.
 
 ### Diet checklist (October 1, 2026, local)
 

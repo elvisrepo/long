@@ -1,8 +1,30 @@
 from django.urls import path
 
 from . import views
+from . import routine_views
 
 urlpatterns = [
+    path(
+        "routines/<uuid:routine_id>/days/",
+        routine_views.RoutineDaysView.as_view(),
+        name="workout-routine-days",
+    ),
+    path(
+        "routine-days/<uuid:day_id>/",
+        routine_views.RoutineDayDetailView.as_view(),
+        name="workout-routine-day-detail",
+    ),
+    path(
+        "routine-days/<uuid:day_id>/start/",
+        routine_views.StartRoutineDayView.as_view(),
+        name="workout-routine-day-start",
+    ),
+    path("routines/", routine_views.RoutinesView.as_view(), name="workout-routines"),
+    path(
+        "routines/<uuid:routine_id>/",
+        routine_views.RoutineDetailView.as_view(),
+        name="workout-routine-detail",
+    ),
     path(
         "session-exercises/<uuid:item_id>/sets/",
         views.SetsView.as_view(),

@@ -40,13 +40,11 @@ it("preserves partial set edits and reports nested validation errors", async () 
   setAccessToken("workout-token");
   vi.stubGlobal(
     "fetch",
-    vi
-      .fn()
-      .mockResolvedValue(
-        new Response(JSON.stringify({ reps: ["Enter a positive value."] }), {
-          status: 400,
-        }),
-      ),
+    vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ reps: ["Enter a positive value."] }), {
+        status: 400,
+      }),
+    ),
   );
   await expect(
     saveWorkoutSet("i", "s", { is_completed: true }),

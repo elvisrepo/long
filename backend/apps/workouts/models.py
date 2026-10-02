@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -11,6 +12,30 @@ class TrackingType(models.TextChoices):
     BODYWEIGHT = "bodyweight", "Reps with optional load"
     DURATION = "duration", "Duration"
     CARDIO = "cardio", "Distance and duration"
+
+
+def validate_quantities(
+    tracking_type: str, values: dict[str, Decimal | int | None], completed: bool
+) -> None:
+    allowed = {
+        str(TrackingType.STRENGTH): {"weight", "reps"},
+        str(TrackingType.BODYWEIGHT): {"weight", "reps"},
+        str(TrackingType.DURATION): {"duration_seconds"},
+        str(TrackingType.CARDIO): {"distance", "duration_seconds"},
+    }[tracking_type]
+    required = allowed - (
+        {"weight"} if tracking_type == TrackingType.BODYWEIGHT else set()
+    )
+    errors = {}
+    for field, value in values.items():
+        if value is not None and field not in allowed:
+            errors[field] = "This field is not used by this exercise type."
+        elif value is not None and (value < 0 or (field != "weight" and value == 0)):
+            errors[field] = "Enter a valid nonnegative load or positive quantity."
+        elif completed and field in required and value is None:
+            errors[field] = "Required for a completed set."
+    if errors:
+        raise ValidationError(errors)
 
 
 class WorkoutCatalogState(models.Model):
@@ -157,27 +182,127 @@ class WorkoutSet(models.Model):
 
     def clean(self) -> None:
         super().clean()
-        allowed = {
-            TrackingType.STRENGTH: {"weight", "reps"},
-            TrackingType.BODYWEIGHT: {"weight", "reps"},
-            TrackingType.DURATION: {"duration_seconds"},
-            TrackingType.CARDIO: {"distance", "duration_seconds"},
-        }[self.workout_exercise.tracking_type]
-        required = allowed - (
-            {"weight"}
-            if self.workout_exercise.tracking_type == TrackingType.BODYWEIGHT
-            else set()
+        validate_quantities(
+            self.workout_exercise.tracking_type,
+            {
+                field: getattr(self, field)
+                for field in ("weight", "reps", "distance", "duration_seconds")
+            },
+            self.is_completed,
         )
-        errors = {}
-        for field in ("weight", "reps", "distance", "duration_seconds"):
-            value = getattr(self, field)
-            if value is not None and field not in allowed:
-                errors[field] = "This field is not used by this exercise type."
-            elif value is not None and (
-                value < 0 or (field != "weight" and value == 0)
-            ):
-                errors[field] = "Enter a valid nonnegative load or positive quantity."
-            elif self.is_completed and field in required and value is None:
-                errors[field] = "Required for a completed set."
-        if errors:
-            raise ValidationError(errors)
+
+
+class WorkoutRoutine(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="workout_routines",
+    )
+    name = models.CharField(max_length=120)
+    notes = models.TextField(max_length=2000, blank=True)
+    display_order = models.PositiveIntegerField(default=100)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["display_order", "name", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                Lower("name"), "user", name="unique_workout_routine_name"
+            )
+        ]
+
+
+class RoutineDay(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    routine = models.ForeignKey(
+        WorkoutRoutine, on_delete=models.CASCADE, related_name="days"
+    )
+    name = models.CharField(max_length=120)
+    notes = models.TextField(max_length=2000, blank=True)
+    display_order = models.PositiveIntegerField(default=100)
+
+    class Meta:
+        ordering = ["display_order", "name", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                Lower("name"), "routine", name="unique_routine_day_name"
+            )
+        ]
+
+
+class RoutineExercise(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    day = models.ForeignKey(
+        RoutineDay, on_delete=models.CASCADE, related_name="exercises"
+    )
+    exercise = models.ForeignKey(
+        Exercise, on_delete=models.RESTRICT, related_name="routine_exercises"
+    )
+    exercise_name = models.CharField(max_length=120)
+    category_name = models.CharField(max_length=120)
+    tracking_type = models.CharField(max_length=16, choices=TrackingType.choices)
+    weight_unit = models.CharField(max_length=3, choices=[("kg", "kg"), ("lb", "lb")])
+    distance_unit = models.CharField(max_length=3, choices=[("km", "km"), ("mi", "mi")])
+    display_order = models.PositiveIntegerField(default=100)
+
+    class Meta:
+        ordering = ["display_order", "id"]
+
+    def clean(self) -> None:
+        super().clean()
+        if (
+            self.day_id
+            and self.exercise_id
+            and self.day.routine.user_id != self.exercise.category.user_id
+        ):
+            raise ValidationError(
+                {"exercise": "Exercise must belong to the routine owner."}
+            )
+
+
+class RoutineSet(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    routine_exercise = models.ForeignKey(
+        RoutineExercise, on_delete=models.CASCADE, related_name="sets"
+    )
+    display_order = models.PositiveIntegerField(default=100)
+    weight = models.DecimalField(max_digits=10, decimal_places=3, null=True, blank=True)
+    reps = models.PositiveIntegerField(null=True, blank=True)
+    distance = models.DecimalField(
+        max_digits=10, decimal_places=3, null=True, blank=True
+    )
+    duration_seconds = models.PositiveIntegerField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["display_order", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(weight__isnull=True) | models.Q(weight__gte=0),
+                name="routine_set_weight_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(distance__isnull=True) | models.Q(distance__gt=0),
+                name="routine_set_distance_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(reps__isnull=True) | models.Q(reps__gt=0),
+                name="routine_set_reps_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(duration_seconds__isnull=True)
+                | models.Q(duration_seconds__gt=0),
+                name="routine_set_duration_positive",
+            ),
+        ]
+
+    def clean(self) -> None:
+        super().clean()
+        validate_quantities(
+            self.routine_exercise.tracking_type,
+            {
+                field: getattr(self, field)
+                for field in ("weight", "reps", "distance", "duration_seconds")
+            },
+            False,
+        )

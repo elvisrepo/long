@@ -3,8 +3,10 @@
 ## Workout schema update — 2026-10-01 backend slice
 
 Workout migrations add six tables to the prior 16-table domain schema (22 model
-tables total, excluding Django framework tables). The backend is implemented and
-tested; frontend/routines/analysis remain planned. See the current model ERD in
+tables total, excluding Django framework tables). Basic frontend integration is
+implemented. `workouts.0004` adds four routine template tables, bringing the domain
+model count to **26**: WorkoutRoutine, RoutineDay, RoutineExercise, RoutineSet.
+Advanced planning/analysis remain planned. See the current model ERD in
 `diagrams/current-plus-subscription-plan-erd.md` and the scope/ownership record
 in `47-workout-tracking.md`. This does not establish a cloud deployment.
 

@@ -8,15 +8,20 @@ catalog ownership, session/set semantics, history preservation, and phased deliv
 ## Status and agreed product direction
 
 The first backend slice now implements the catalog, sessions, ordered exercise
-occurrences, set logging, copying/history and account lifecycle. Six models and
-three migrations are present; the canonical contracts are in
+occurrences, set logging, copying/history and account lifecycle. The routines
+slice adds four template models in migration `0004_routines` (ten workout models
+in four migrations); the canonical contracts are in
 [API design](03-api-design.md). The basic frontend, history/copy and dashboard
-slice is now implemented locally (2026-10-02); phases 5–6 remain unimplemented.
+slice is now implemented locally (2026-10-02). Phase 5's first routine workflow
+is implemented; its other conveniences and phase 6 remain unimplemented.
 The separate `.lavish/workout-prototype.html` is a sample-only
 review prototype, not the real Workouts tab. No cloud deployment is implied.
-Local PostgreSQL now has all three workout migrations applied. The full backend
-suite passes 646 tests (42 workout checks); type checks, lint and migration drift
-checks pass. This verifies backend behavior, not staging acceptance.
+Local PostgreSQL now has all four workout migrations applied, including routine
+tables. The full backend suite passes 660 tests (42 original workout and 14 routine
+checks); 402 frontend tests, three updated workout/routine browser fixture flows,
+type checks, lint, build and migration drift checks pass. The running local routine
+endpoint returns `401` without authentication. This is local verification, not
+staging acceptance or live browser-to-Django E2E coverage.
 
 The real authenticated `/workouts` tab provides Home, All exercises, Training,
 and History. Start explicitly initializes samples and creates a selected-day
@@ -136,6 +141,28 @@ basic logging migration; introduce them with their corresponding behavior.
 
 ## Phased implementation plan
 
+### Routine delivery checkpoint — 2026-10-02
+
+All accounts can create private routines, save sessions as named days, rename/order
+and archive/restore routines, manage day metadata or remove a template with explicit
+confirmation, and start an independent planned workout on the selected date.
+Template replacement is atomic, from an own saved workout with at least one
+exercise. All copied sets lose completion/performance comments; routine sets never
+have those fields. Snapshot units/type/order/quantities stay frozen. Archived
+library exercises remain usable within existing templates, matching workout-copy
+semantics. Routine archive must restore before day mutation/start.
+
+Day instructions, not source-session/performance notes or routine metadata notes,
+are copied into the planned session. Its combined routine/day name is capped at
+120 characters. Changing/removing a day or deleting its source workout cannot
+change already-created sessions. No source-workout or routine FK is stored on
+generated Workout rows. Export/deletion includes all four new tables.
+
+The first editor reuses the existing training flow: start a planned workout,
+change exercises/sets, then Save as routine day → explicitly replace the template.
+This leaves a real planned session, not a temporary draft; planned-only sessions
+do not count as training. Direct template set editing is still future work.
+
 ### 1. Models, starter catalog and ownership
 
 Backend implemented and tested, including concurrent PostgreSQL initialization.
@@ -202,4 +229,5 @@ as their implementation lands; clearly separate planned from implemented tables.
 Search for stale route references before broad tests. No deployment or database
 migration to a cloud environment is implied by this record. The checked-in
 migrations are `workouts.0001` (catalog), `0002` (sessions/snapshots), and `0003`
-(sets). Check the actual environment's migration status before claiming deployment.
+(sets), plus `0004_routines` (four template tables). Check the actual environment's
+migration status before claiming deployment.

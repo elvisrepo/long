@@ -12,7 +12,8 @@
   no tests run against the application's live tables.
 - Model/migration drift and focused lint checks accompany the backend slice.
   Frontend basic logging/dashboard coverage was added on 2026-10-02 (below).
-  Routines and calculator acceptance remain pending; the standalone HTML prototype
+  Calculator acceptance remains pending; first routine coverage is recorded below.
+  The standalone HTML prototype
   is not production UI coverage.
 - See `47-workout-tracking.md`; local testing is not staging/deployment acceptance.
 - Verified: 42 workout checks within the full **646-test backend suite**, and
@@ -50,6 +51,27 @@
   source/schema was unchanged in this frontend slice; the previously recorded
   646 backend tests were not rerun here. The live-backend E2E boundary remains
   unverified because of the stale Docker network reference noted above.
+
+### Routine templates — 2026-10-02
+
+- `test_workout_routines.py` covers private catalogs, names/archives, own source
+  validation, cross-owner denial, authenticated routes, immutable snapshot units,
+  planned independent starts, replacement/deletion preserving old sessions,
+  source deletion independence, bounded inputs, shared model quantity validation,
+  full account export and account cascade deletion.
+- Frontend tests cover capture, retained routine IDs after partial failure, modal
+  errors, failed reads, and selected-date start only after confirmed server success.
+- Workout browser fixtures extend the real app workflow through routine capture,
+  selected-date start, archive/restore, day rename, reload and Light/Sand layout
+  containment at 320/390/1440px. They remain intercepted API tests, not live backend
+  integration. PostgreSQL API tests exercise the real routine views separately.
+- Final verification: **660 backend tests** (14 routine checks), **402 frontend
+  tests**, and **three updated Chromium workout/routine flows** at 320/390/1440px
+  pass. Ruff, targeted mypy (15 source files), ESLint, TypeScript/Vite build,
+  migration drift and whitespace checks pass. `workouts.0004_routines` is applied
+  to normal local PostgreSQL; the live unauthenticated routine-list endpoint returns
+  `401`. No cloud migration/deployment or repair of the separate stale E2E Docker
+  network was performed.
 
 ## Diet tracking — 2026-10-01 local slice
 

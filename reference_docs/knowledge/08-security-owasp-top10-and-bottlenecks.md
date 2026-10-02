@@ -29,6 +29,25 @@
   trusting arbitrary provider `next` URLs. Notes/comments are rendered as text,
   not HTML. Analytics remains pending. See `47-workout-tracking.md`.
 
+### Routine template boundary — 2026-10-02
+
+- All plans can use private routines with JWT; never accept client ownership or
+  direct exercise/set snapshot input. Capture references must resolve to an own
+  saved workout; empty sources and cross-owner nested exercise references fail.
+- Capture, replacement, start, archive and day deletion serialize on the owner
+  row in atomic transactions, including account deletion. Start cannot race a
+  partial replacement. SQL uniqueness scopes routine/day names correctly.
+- Templates have no completion/performance state. Starting generates independent
+  rows, no template FK, so changing/removing templates cannot change old sessions.
+  Archived catalog exercises retain frozen template types/units; archived routines
+  must restore before their day mutations. RoutineExercise.clean checks owner
+  relationships, RoutineSet.clean shares snapshot quantity validation with
+  WorkoutSet; raw ORM writes still require explicit validation.
+- Account export includes all four owner-scoped template tables, and account
+  deletion cascades them. Frontend routine caches use the existing private owner
+  prefix and logout clearing. Modal write errors remain visible inside the dialog;
+  a confirmed routine creation is reused when a subsequent day write fails.
+
 ## Diet tracking boundary — 2026-10-01
 
 - JWT is required; catalogs and histories are private. Food ownership follows

@@ -3,15 +3,47 @@
 ## Workout tracking backend — 2026-10-01
 
 All routes require JWT and work on every plan. Basic UI integration is implemented
-locally (2026-10-02); routines and analysis remain later slices.
+locally (2026-10-02), including the first routine template workflow. Analysis and
+advanced planning remain later slices.
 See `47-workout-tracking.md`.
 
 Frontend `/workouts` uses validated optional search fields: `view=home|exercises|
-training|history`, real calendar `date=YYYY-MM-DD`, UUID `session` and `exercise`.
+training|history|routines`, real calendar `date=YYYY-MM-DD`, UUID `session` and `exercise`.
 Training needs both UUIDs; its exercise parameter identifies a session occurrence,
 whereas History's optional exercise parameter identifies a library exercise.
 These are UI state, not new REST contracts. Invalid training links fall back Home;
 foreign/deleted UUIDs still rely on backend authorization and show read errors.
+
+### Routine templates — 2026-10-02
+
+| Method | Endpoint | Contract |
+|---|---|---|
+| GET/POST | `/api/v1/workouts/routines/` | GET own routines including archives with nested days/exercises/sets; POST `{name, notes?, display_order?}` creates an active routine `201` |
+| PATCH | `/api/v1/workouts/routines/{uuid}/` | Own name/notes/order/archive; no hard-delete routine endpoint |
+| POST | `/api/v1/workouts/routines/{uuid}/days/` | `{name, source_workout_id, notes?, display_order?}`; `201` independent snapshot of an own saved workout containing at least one exercise |
+| PATCH/DELETE | `/api/v1/workouts/routine-days/{uuid}/` | PATCH own name/notes/order; optional `source_workout_id` atomically replaces exercise/set template; DELETE `204` removes only template, never previously created sessions |
+| POST | `/api/v1/workouts/routine-days/{uuid}/start/` | `{performed_on}` creates independent planned Workout `201`, all set completion false; original units/order/quantities preserved |
+
+Routine JSON: `{id, name, notes, display_order, is_active, days}`. Day JSON:
+`{id, name, notes, display_order, exercises}`. Exercise snapshots use the same
+fields as session occurrences; template sets contain only
+`{id, display_order, weight, reps, distance, duration_seconds}`, not performance
+comments or completion. Nested templates are read-only through these contracts;
+create or replace them from a validated saved workout, not arbitrary nested JSON.
+
+Names max 120, instructions max 2000, order nonnegative; names are case-insensitive
+unique per owner (routines, including archives) or per routine (days). Foreign
+source references return `400`; foreign detail actions `404`; unauthorized `401`.
+Restore archived routines before modifying/removing/starting days. Library archive
+does not invalidate existing template snapshots. Start copies day instructions
+to session notes, not routine metadata notes or source performance notes; its
+combined routine/day session name is capped at 120 characters. No implicit type
+or unit conversion occurs. Repeated Start POSTs create distinct sessions;
+clients disable pending submissions and do not automatically retry POST writes.
+Full account export adds `workout_routines`, `routine_days`, `routine_exercises`,
+and `routine_sets`; account deletion cascades all four.
+
+### Basic catalog and session contracts
 
 | Method | Endpoint | Contract |
 |---|---|---|

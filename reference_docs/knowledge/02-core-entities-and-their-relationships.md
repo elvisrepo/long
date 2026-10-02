@@ -9,8 +9,14 @@ ExerciseCategory → Exercise` forms a private editable catalog; `User → Worko
 WorkoutExercise references Exercise and preserves name/category/type/unit
 snapshots. Sets store nullable relevant quantities and planned/completed state;
 completed quantities are validated by the snapshot type, not current defaults.
-Multiple sessions per date are allowed. See `47-workout-tracking.md`; frontend
-and later planning/analysis tables are not implemented.
+Multiple sessions per date are allowed. Basic frontend integration is implemented
+locally. The first routines slice adds `User → WorkoutRoutine → RoutineDay →
+RoutineExercise → RoutineSet` (four tables in `workouts.0004`). RoutineExercise
+references Exercise and freezes its historical name/category/type/units; RoutineSet
+contains nullable planned quantities, never completion or performance comments.
+Capture/start copy values, not source-session references; generated Workout rows
+are independent. Routine changes cannot rewrite existing sessions. See
+`47-workout-tracking.md`; advanced planning/analysis remain later slices.
 
 ## Diet additions — 2026-10-01
 
