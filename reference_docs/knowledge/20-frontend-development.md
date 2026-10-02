@@ -32,7 +32,13 @@ uses the selected calendar date and creates a planned, independent session.
 Edit day directly manages template exercises, planned sets and numeric ordering;
 Add routine day creates an empty template without a Workout. Capture/replacement
 from saved sessions remains available. Exact group labels link occurrences within
-the day/session. Failed modal writes keep their
+the day/session. Session Training sidebar now exposes Add to group / Edit group:
+pick/join existing groups or create an editable `Superset N`, include the current
+exercise automatically, choose colour and select workout/library members. Library
+additions are drafts until one atomic Save. Edit, remove-current or confirmed delete
+preserves exercises/sets. Matching coloured bars identify members in the sidebar
+and Home overview. Next-member cycling defaults on (optional off) and wraps in
+saved workout order after confirmed new completion. Failed modal writes keep their
 inputs and show errors inside the modal. A confirmed routine ID is retained when
 day creation fails, avoiding duplicate routines on retry.
 

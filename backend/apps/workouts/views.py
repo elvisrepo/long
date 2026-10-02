@@ -21,6 +21,8 @@ from .serializers import (
     WorkoutRangeSerializer,
     CopySerializer,
     ExerciseSettingsSerializer,
+    GroupSerializer,
+    GroupNameSerializer,
 )
 from .services import initialize_catalog, copy_workout
 
@@ -232,6 +234,82 @@ def require_open(workout: Workout) -> None:
         raise ValidationError(
             "Reopen the workout before editing its exercises or sets."
         )
+
+
+class SessionGroupsView(APIView):
+    """Exact names identify session-local groups; replace all members in one write."""
+
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def put(self, request: Request, workout_id: str) -> Response:
+        User.objects.select_for_update().get(pk=request.user.pk)
+        workout = get_object_or_404(Workout, pk=workout_id, user=request.user)
+        require_open(workout)
+        serializer = GroupSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        name, original = data["name"], data.get("original_name")
+        if original and not workout.exercises.filter(group_name=original).exists():
+            raise ValidationError("This group no longer exists. Reload the workout.")
+        if name != original and workout.exercises.filter(group_name=name).exists():
+            raise ValidationError("This group name already exists in the workout.")
+        members = list(
+            workout.exercises.filter(
+                pk__in=data["member_ids"], exercise__category__user=request.user
+            )
+        )
+        if len(members) != len(data["member_ids"]):
+            raise ValidationError("Choose exercises from this workout only.")
+        additions = list(
+            Exercise.objects.filter(
+                pk__in=data["add_exercise_ids"],
+                category__user=request.user,
+                category__is_active=True,
+                is_active=True,
+            ).select_related("category")
+        )
+        if len(additions) != len(data["add_exercise_ids"]):
+            raise ValidationError("Choose active exercises from your library only.")
+        # All validation precedes writes. Newly selected library exercises are
+        # created only on Save; cancelling the editor never changes the session.
+        if original:
+            workout.exercises.filter(group_name=original).update(
+                group_name="", group_colour="#007f68"
+            )
+        order = workout.exercises.aggregate(value=Max("display_order"))["value"] or 0
+        by_id = {exercise.pk: exercise for exercise in additions}
+        for exercise_id in data["add_exercise_ids"]:
+            exercise = by_id[exercise_id]
+            order += 10
+            members.append(
+                WorkoutExercise.objects.create(
+                    workout=workout,
+                    exercise=exercise,
+                    exercise_name=exercise.name,
+                    category_name=exercise.category.name,
+                    tracking_type=exercise.tracking_type,
+                    weight_unit=exercise.weight_unit,
+                    distance_unit=exercise.distance_unit,
+                    display_order=order,
+                )
+            )
+        workout.exercises.filter(pk__in=[item.pk for item in members]).update(
+            group_name=name, group_colour=data["colour"]
+        )
+        return Response(WorkoutSerializer(workout).data)
+
+    @transaction.atomic
+    def delete(self, request: Request, workout_id: str) -> Response:
+        User.objects.select_for_update().get(pk=request.user.pk)
+        workout = get_object_or_404(Workout, pk=workout_id, user=request.user)
+        require_open(workout)
+        serializer = GroupNameSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        workout.exercises.filter(group_name=serializer.validated_data["name"]).update(
+            group_name="", group_colour="#007f68"
+        )
+        return Response(WorkoutSerializer(workout).data)
 
 
 class SetsView(APIView):

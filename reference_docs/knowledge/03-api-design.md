@@ -41,13 +41,42 @@ clients can explicitly set nonnegative order. Existing snapshots remain editable
 after library archive; adding requires an active exercise/category.
 
 Session and template exercise JSON additionally includes `group_name` (blank =
-ungrouped, max 120 characters). Exact matching trimmed labels within one workout
+ungrouped, max 120 characters) and `group_colour` (six-digit hex, default `#007f68`). Exact matching trimmed labels within one workout
 or routine day identify a superset/circuit. These are local labels, not cross-session
 foreign keys. Capture/copy/start preserve them independently; changing order/group
 cannot change references/type/units. No separate group table is introduced.
-The UI optionally cycles through same-group exercises in saved order after a
+The UI defaults to cycling through same-group exercises in saved order after a
 confirmed new completion; failed saves, edits to already-completed sets and plans
 do not advance or start rest. Group and timer toggles are temporary UI preferences.
+
+Session sidebar Add to group / Edit group opens a picker and member editor.
+New groups suggest the next unused `Superset N` name and include the selected
+occurrence. Colour is selected explicitly; linked cards display a coloured bar.
+The group editor uses an atomic API rather than sequential occurrence PATCHes:
+
+| Method | Endpoint | Contract |
+|---|---|---|
+| PUT | `/api/v1/workouts/sessions/{uuid}/groups/` | `{name, colour, original_name?, member_ids?, add_exercise_ids?}` replaces membership; returns complete Workout `200` |
+| DELETE | `/api/v1/workouts/sessions/{uuid}/groups/` | Body `{name}` unlinks group; retains every occurrence/set; returns Workout `200`; absent name is a no-op |
+
+Names are trimmed, nonblank and case-sensitive within a session. Omit
+`original_name` to create; supply it to edit/rename/join an existing group.
+Missing original or a collision with another group returns `400`, not an implicit
+merge. `colour` must match `#[0-9a-fA-F]{6}` and is stored lowercase. Each ID list
+defaults empty, is unique and bounded to 100 items; at least one member/addition
+is required. Existing IDs must belong to this session and owner, including archived
+library snapshots. New library IDs must be active and owner-scoped; new occurrences
+append in supplied order with server-frozen snapshots, no sets. All validation
+precedes the atomic write. Selected existing occurrences may move from another
+group; omitted old members become ungrouped. Removing the final member uses DELETE.
+Finished sessions reject both methods until reopened; foreign session `404`,
+foreign/nonsession members or library IDs `400`, unauthenticated `401`.
+Colours are read-only in ordinary occurrence input; the legacy `group_name` PATCH
+remains supported for template compatibility, but session UI no longer asks users
+to type matching labels. Cancel never creates additions. Copy/capture/start/export
+retain colours independently; group deletion does not remove exercises or sets.
+Creation with library additions is not a blind retry contract: after an uncertain
+response reload the workout before resubmitting, rather than creating duplicates.
 
 Names max 120, instructions max 2000, order nonnegative; names are case-insensitive
 unique per owner (routines, including archives) or per routine (days). Foreign
@@ -89,7 +118,7 @@ New catalog rows are always active; category/ownership input cannot cross accoun
 
 Session JSON includes `id, performed_on, name, notes, is_finished, created_at,
 completed_set_count, exercises`. Each occurrence includes `id, exercise_id,
-exercise_name, group_name, category_name, tracking_type, weight_unit, distance_unit,
+exercise_name, group_name, group_colour, category_name, tracking_type, weight_unit, distance_unit,
 display_order, sets`. Set JSON: `{id, display_order, weight, reps, distance,
 duration_seconds, comment, is_completed}`. Decimal quantities serialize as strings
 or null; weight/distance have 3 decimal places. Duration is integer seconds.

@@ -5,6 +5,11 @@ from . import routine_views
 
 urlpatterns = [
     path(
+        "sessions/<uuid:workout_id>/groups/",
+        views.SessionGroupsView.as_view(),
+        name="workout-session-groups",
+    ),
+    path(
         "routine-days/<uuid:day_id>/exercises/",
         routine_views.RoutineExercisesView.as_view(),
         name="workout-routine-exercises",

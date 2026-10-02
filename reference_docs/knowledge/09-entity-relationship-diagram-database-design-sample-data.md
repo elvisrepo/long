@@ -7,6 +7,7 @@ tables total, excluding Django framework tables). Basic frontend integration is
 implemented. `workouts.0004` adds four routine template tables, bringing the domain
 model count to **26**: WorkoutRoutine, RoutineDay, RoutineExercise, RoutineSet.
 `workouts.0005` adds group labels to both occurrence models without extra tables.
+`workouts.0006` adds snapshotted hex group colours to those same models; no new tables.
 Direct routine editing, groups, calendar and windowed records are implemented;
 timer/calculator inputs are temporary browser state. See the current model ERD in
 `diagrams/current-plus-subscription-plan-erd.md` and the scope/ownership record

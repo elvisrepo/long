@@ -56,6 +56,12 @@
 - Group labels are bounded text on owner-scoped occurrences, not cross-user
   references. Group mutations require an open session or active routine and serialize
   with copying/start/deletion. Export includes labels; no new table/cascade behavior.
+- Session group PUT validates all member/library IDs before any writes, inside
+  the same owner-locked transaction. Members must belong to that workout; library
+  additions must be active/owned. UUID lists are unique and bounded to 100 each.
+  Hex-only colours prevent arbitrary CSS values. Rename collisions reject rather
+  than silently merge. DELETE only clears membership; logged sets remain intact.
+  Missing original names reject stale edits. Finished workouts require reopening.
 - Calculator output is never accepted as proof of completion or a record. Percentage
   outputs use ordinary planned-set validation; plate search validates finite inventory
   and bounds computation. Local calculator/timer inputs are temporary, not persisted.

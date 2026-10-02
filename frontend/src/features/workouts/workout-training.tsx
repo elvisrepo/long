@@ -4,6 +4,7 @@ import { PageHeader } from "../../components/page-header";
 import { Modal } from "../../components/modal";
 import * as api from "./workout-api";
 import { WorkoutTools } from "./workout-tools";
+import { WorkoutGroups } from "./workout-groups";
 import {
   dayLabel,
   setLabel,
@@ -42,7 +43,7 @@ export function WorkoutTraining({
   const [tab, setTab] = useState<"track" | "history">("track");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<
-    "notes" | "delete-set" | "manage" | null
+    "notes" | "delete-set" | "manage" | "groups" | null
   >(null);
   const [version, setVersion] = useState(0);
   const [draft, setDraft] = useState<api.WorkoutSet | null>(null);
@@ -219,6 +220,12 @@ export function WorkoutTraining({
                 key={i.id}
                 disabled={busy}
                 aria-pressed={i.id === item.id}
+                className={i.group_name ? "workout-group-mark" : undefined}
+                style={
+                  i.group_name
+                    ? { borderInlineStartColor: i.group_colour ?? "#007f68" }
+                    : undefined
+                }
                 onClick={() =>
                   navigate({
                     view: "training",
@@ -253,6 +260,9 @@ export function WorkoutTraining({
             }
           >
             Add exercise
+          </button>
+          <button disabled={disabled} onClick={() => setDialog("groups")}>
+            {item.group_name ? "Edit group" : "Add to group"}
           </button>
         </aside>
         <section className="workout-card">
@@ -567,7 +577,17 @@ export function WorkoutTraining({
           )}
         </section>
       </div>
-      {dialog && (
+      {dialog === "groups" && (
+        <WorkoutGroups
+          workout={workout}
+          current={item}
+          catalog={catalog}
+          busy={busy}
+          run={run}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog && dialog !== "groups" && (
         <Modal
           labelledBy="training-dialog"
           busy={busy}
@@ -669,11 +689,7 @@ export function WorkoutTraining({
                   const fd = new FormData(e.currentTarget);
                   const order = Number(fd.get("order"));
                   run(async () => {
-                    await api.reorderWorkoutExercise(
-                      item.id,
-                      order,
-                      String(fd.get("group")),
-                    );
+                    await api.reorderWorkoutExercise(item.id, order);
                     setDialog(null);
                   });
                 }}
@@ -691,20 +707,7 @@ export function WorkoutTraining({
                     disabled={busy}
                   />
                 </label>
-                <label>
-                  Superset / circuit name
-                  <input
-                    name="group"
-                    maxLength={120}
-                    defaultValue={item.group_name ?? ""}
-                    disabled={busy}
-                  />
-                </label>
-                <p>
-                  Use the same name on each linked exercise. Leave blank to
-                  ungroup.
-                </p>
-                <button disabled={busy}>Save order & group</button>
+                <button disabled={busy}>Save order</button>
               </form>
               <p>
                 This removes the exercise and all of its sets from this session

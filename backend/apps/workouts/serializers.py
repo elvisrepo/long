@@ -170,6 +170,7 @@ class WorkoutExerciseSerializer(serializers.ModelSerializer):
             "exercise_id",
             "exercise_name",
             "group_name",
+            "group_colour",
             "category_name",
             "tracking_type",
             "weight_unit",
@@ -180,6 +181,7 @@ class WorkoutExerciseSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "exercise_name",
+            "group_colour",
             "category_name",
             "tracking_type",
             "weight_unit",
@@ -242,4 +244,30 @@ class ExerciseSettingsSerializer(serializers.Serializer):
     def validate(self, data: dict[str, Any]) -> dict[str, Any]:
         if not data:
             raise serializers.ValidationError("Supply order or a group label.")
+        return data
+
+
+class GroupNameSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=120)
+
+
+class GroupSerializer(GroupNameSerializer):
+    original_name = serializers.CharField(max_length=120, required=False)
+    colour = serializers.RegexField(r"^#[0-9a-fA-F]{6}$")
+    member_ids = serializers.ListField(
+        child=serializers.UUIDField(), max_length=100, default=list
+    )
+    add_exercise_ids = serializers.ListField(
+        child=serializers.UUIDField(), max_length=100, default=list
+    )
+
+    def validate_colour(self, value: str) -> str:
+        return value.lower()
+
+    def validate(self, data: dict[str, Any]) -> dict[str, Any]:
+        if not data["member_ids"] and not data["add_exercise_ids"]:
+            raise serializers.ValidationError("Choose at least one exercise.")
+        for field in ["member_ids", "add_exercise_ids"]:
+            if len(data[field]) != len(set(data[field])):
+                raise serializers.ValidationError("Choose each exercise only once.")
         return data

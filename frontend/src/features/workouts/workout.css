@@ -3,6 +3,41 @@
   gap: 1rem;
   min-width: 0;
 }
+.workout-screen .workout-group-mark {
+  border-inline-start-width: 4px;
+  border-inline-start-style: solid;
+}
+.workout-group-colours,
+.workout-group-members {
+  min-width: 0;
+  margin: 1rem 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem;
+}
+.workout-group-colours {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.workout-group-colours button {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.workout-group-colours button[aria-pressed="true"] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.workout-group-colours span {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+}
+.workout-group-members {
+  display: grid;
+  gap: 0.7rem;
+}
 .workout-calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));

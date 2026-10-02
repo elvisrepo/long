@@ -94,25 +94,36 @@ for (const width of [320, 390, 1440]) {
     await page
       .getByRole("button", { name: "Barbell bench press →", exact: true })
       .click();
-    await page.getByRole("button", { name: "Manage exercise" }).click();
-    await page.getByLabel("Superset / circuit name").fill("Circuit A");
-    await page.getByRole("button", { name: "Save order & group" }).click();
     await page
-      .getByRole("button", { name: "Add exercise", exact: true })
+      .getByRole("button", { name: "Add to group", exact: true })
       .click();
+    await page.getByRole("button", { name: "New group", exact: true }).click();
+    await expect(page.getByLabel("Group name")).toHaveValue("Superset 1");
+    await expect(
+      page.getByLabel("Barbell bench press", { exact: true }),
+    ).toBeChecked();
+    await page.getByLabel("Group name").fill("Circuit A");
+    await page.getByRole("button", { name: "Pink", exact: true }).click();
     await page
-      .getByRole("button", { name: "Add Dumbbell incline press", exact: true })
+      .getByRole("button", { name: "Add exercise to group", exact: true })
       .click();
-    await page.getByRole("button", { name: "Manage exercise" }).click();
-    await page.getByLabel("Superset / circuit name").fill("Circuit A");
-    await page.getByRole("button", { name: "Save order & group" }).click();
+    await page.getByLabel("Dumbbell incline press", { exact: true }).check();
+    await capture("group-editor");
+    await page.getByRole("button", { name: "Save group", exact: true }).click();
+    await expect(
+      page
+        .getByRole("complementary")
+        .getByRole("button", { name: /Dumbbell incline press/ }),
+    ).toHaveCSS("border-left-color", "rgb(219, 39, 119)");
     await page
       .getByRole("complementary")
       .getByRole("button", { name: /Barbell bench press/ })
       .click();
     await page.getByRole("timer").click();
     await page.getByLabel("Auto-start after completed set").check();
-    await page.getByLabel("Advance within group after completion").check();
+    await expect(
+      page.getByLabel("Advance within group after completion"),
+    ).toBeChecked();
     // Server-confirmed control may navigate; don't assert an optimistic toggle.
     await page.getByLabel("Set 1 completed").click();
     await expect(

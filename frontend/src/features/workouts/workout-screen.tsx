@@ -34,7 +34,7 @@ export function WorkoutScreen({
   const day = search.date || localDay(new Date());
   const view = search.view || "home";
   const restTimer = useRef<RestTimerHandle>(null);
-  const [autoAdvance, setAutoAdvance] = useState(false);
+  const [autoAdvance, setAutoAdvance] = useState(true);
   const catalog = useQuery({
     queryKey: ["workouts", owner, "catalog"],
     queryFn: api.getWorkoutCatalog,
@@ -527,7 +527,15 @@ function SessionCard({
       </p>
       <div className="workout-stack">
         {w.exercises.map((item) => (
-          <div key={item.id} className="workout-inset">
+          <div
+            key={item.id}
+            className={`workout-inset${item.group_name ? " workout-group-mark" : ""}`}
+            style={
+              item.group_name
+                ? { borderInlineStartColor: item.group_colour ?? "#007f68" }
+                : undefined
+            }
+          >
             <button
               className="workout-text-button"
               disabled={busy}

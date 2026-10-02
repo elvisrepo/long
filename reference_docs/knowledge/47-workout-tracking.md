@@ -10,7 +10,8 @@ catalog ownership, session/set semantics, history preservation, and phased deliv
 The first backend slice now implements the catalog, sessions, ordered exercise
 occurrences, set logging, copying/history and account lifecycle. The routines
 slice adds four template models in migration `0004_routines`; `0005_exercise_groups`
-adds group labels to template/session occurrences (ten models, five migrations).
+adds group labels to template/session occurrences; `0006_group_colours` adds
+colours to both (ten models, six migrations).
 The canonical contracts are in
 [API design](03-api-design.md). The basic frontend, history/copy and dashboard
 slice is now implemented locally (2026-10-02). Phase 5's first routine workflow
@@ -18,9 +19,9 @@ and the remaining phase 5 conveniences are implemented. Phase 6 now includes
 windowed charts/records and calculators; goals and advanced analysis remain future work.
 The separate `.lavish/workout-prototype.html` is a sample-only
 review prototype, not the real Workouts tab. No cloud deployment is implied.
-Normal local and isolated E2E PostgreSQL have all five workout migrations applied.
-The full backend suite passes 663 tests (42 original workout and 17 routine checks);
-415 frontend tests, 35 fixture browser checks and three real Django browser flows
+Normal local and isolated E2E PostgreSQL have all six workout migrations applied.
+The full backend suite passes 672 tests (42 original workout, 17 routine and nine
+group checks); 424 frontend tests, 35 fixture browser checks and three real Django browser flows
 at 320/390/1440px pass. Type checks, lint, build and migration drift pass. Live
 flows cover direct editing, independent starts, groups, timer, calculator plans,
 windowed records, two-date charts, compact calendar cells and reload. Screenshots
@@ -242,7 +243,16 @@ group labels to both occurrence models without a new group table.
 - Direct routine editing now supports empty days, exercise/set management and
   numeric ordering without creating a session.
 - `group_name` links exact matching labels within a session/day; blank ungroups.
-  Copies/capture/start retain labels independently. Optional UI advancement cycles
+  Session Add to group / Edit group now opens a real picker/editor, with generated
+  editable `Superset N` name, selected occurrence included, colour and member choices.
+  Add exercise selects from the active private library, creating additions only
+  on Save. Group edits replace membership/name/colour atomically, reject rename
+  collisions, and can move existing members from other groups. Remove-current and
+  confirmed Delete group only unlink; all exercises/sets remain. Colours appear as
+  bars in the training sidebar and workout overview. Template direct label editing
+  remains available; captured routines retain group colours. No new group table.
+  Copies/capture/start/export retain labels and colours independently. UI advancement
+  defaults on, can be disabled, and cycles
   after confirmed new completion, including planned-set completion and repeat.
   It never advances on failure, plans or editing already-completed work.
 - Rest defaults come from the current library exercise. A deadline-based visual

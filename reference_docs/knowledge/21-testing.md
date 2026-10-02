@@ -73,6 +73,26 @@
   editing/copy isolation, timer/group navigation, planned calculator outputs,
   finite plate loading, month navigation/compact cell heights and reload.
   Lint, TypeScript/build, mypy (16 files), migration drift and whitespace pass.
+
+### Session group editor — 2026-10-02
+
+- `backend/tests/test_workout_groups.py` exercises atomic colour/membership saves,
+  rename/unlink/delete preservation, invalid IDs/colours, owner/session boundaries,
+  finished-session rejection, deferred active-library additions and independent
+  workout-copy/routine capture/start colours. Uses disposable PostgreSQL tests.
+- `workout-groups.test.tsx` covers generated names/current selection, colour/member
+  editing, joining/unlinking, confirmed deletion, cancellation without writes,
+  combined library additions, retained failed drafts and confirmed-only cycling.
+- The existing real-Django responsive flow now creates a coloured group through
+  the picker/editor and adds its second exercise from the library in the same save;
+  automatic cycling defaults on and wraps after its second completed set.
+  Group-editor screenshots join the ignored playground artifacts. This is browser
+  verification, not a claim of native/mobile background alert support.
+- Group-editor verification: **672 backend tests**, **424 frontend tests**, and
+  **35 fixture browser checks** plus **three real-Django responsive flows** pass.
+  Focused lint, mypy (17 source files),
+  TypeScript/Vite build, migration drift and whitespace checks pass. Migration
+  `workouts.0006_group_colours` is applied to normal local and isolated E2E databases.
   Local normal/E2E migration `workouts.0005_exercise_groups` is applied. Live
   artifacts/screenshot output is isolated under ignored `playground/`, not the
   fixture output directory. Probe scripts reproduced summary `<output>` click

@@ -35,6 +35,7 @@ export interface WorkoutExercise {
   exercise_id: string;
   exercise_name: string;
   group_name?: string;
+  group_colour?: string;
   category_name: string;
   tracking_type: TrackingType;
   weight_unit: "kg" | "lb";
@@ -148,6 +149,25 @@ export async function getWorkoutRange(
 }
 export const getWorkout = (id: string): Promise<Workout> =>
   request(`sessions/${encodeURIComponent(id)}/`);
+export interface GroupInput {
+  name: string;
+  colour: string;
+  original_name?: string;
+  member_ids: string[];
+  add_exercise_ids: string[];
+}
+export const saveWorkoutGroup = (
+  session: string,
+  data: GroupInput,
+): Promise<Workout> =>
+  request(`sessions/${encodeURIComponent(session)}/groups/`, "PUT", data);
+export const deleteWorkoutGroup = (
+  session: string,
+  name: string,
+): Promise<Workout> =>
+  request(`sessions/${encodeURIComponent(session)}/groups/`, "DELETE", {
+    name,
+  });
 export const createWorkout = (performed_on: string): Promise<Workout> =>
   request("sessions/", "POST", { performed_on });
 export const updateWorkout = (

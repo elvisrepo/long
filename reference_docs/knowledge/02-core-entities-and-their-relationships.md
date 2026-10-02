@@ -20,6 +20,9 @@ are independent. Routine changes cannot rewrite existing sessions. See
 exercise occurrences: matching local labels identify supersets/circuits, preserved
 in independent copies. No extra group, PR or calculator table. Windowed records are
 derived from completed sets; temporary timer/calculator inputs are not account data.
+`workouts.0006` adds `group_colour` to both occurrence models. The session group
+editor replaces membership/name/colour atomically; colours survive copy/capture/start.
+Deleting/unlinking groups never deletes occurrences or sets.
 
 ## Diet additions — 2026-10-01
 
