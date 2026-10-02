@@ -1,8 +1,16 @@
 ### ERD
 
+## Workout schema update — 2026-10-01 backend slice
+
+Workout migrations add six tables to the prior 16-table domain schema (22 model
+tables total, excluding Django framework tables). The backend is implemented and
+tested; frontend/routines/analysis remain planned. See the current model ERD in
+`diagrams/current-plus-subscription-plan-erd.md` and the scope/ownership record
+in `47-workout-tracking.md`. This does not establish a cloud deployment.
+
 ## Current Diet ERD update — 2026-10-01 local slice
 
-The implemented domain schema has **16 tables**, excluding framework tables.
+The pre-workout domain checkpoint has **16 tables**, excluding framework tables.
 Diet adds `DietSection`, `DietFood` and `DietEntry`; see the model-derived
 [13→16-table comparison](diagrams/diet-erd-comparison.md), with additions green.
 The original schema below and the Recovery 13-table checkpoint are historical.

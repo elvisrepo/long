@@ -7,8 +7,15 @@ catalog ownership, session/set semantics, history preservation, and phased deliv
 
 ## Status and agreed product direction
 
-This is a planning record, not an implemented API or migration. No workout
-endpoint paths or schema contracts are finalized here.
+The first backend slice now implements the catalog, sessions, ordered exercise
+occurrences, set logging, copying/history and account lifecycle. Six models and
+three migrations are present; the canonical contracts are in
+[API design](03-api-design.md). The frontend, dashboard and phases 5–6 remain
+unimplemented. The separate `.lavish/workout-prototype.html` is a sample-only
+review prototype, not the real Workouts tab. No cloud deployment is implied.
+Local PostgreSQL now has all three workout migrations applied. The full backend
+suite passes 646 tests (42 workout checks); type checks, lint and migration drift
+checks pass. This verifies backend behavior, not frontend or staging acceptance.
 
 - Add an authenticated Workouts tab, using Longevity's existing visual system.
 - Every account gets the complete basic workout log. Advanced Pro analysis is a
@@ -44,9 +51,10 @@ Supporter-tier restrictions.
 ## Data and behavior safeguards
 
 - Seed independent owner-editable catalog rows once per user, including existing
-  accounts. Seeding must be transactional/idempotent, and not recreate samples
-  the user has deliberately archived. Exact seeding mechanism is an implementation
-  choice to resolve and test in the first slice.
+  accounts. Explicit POST initialization locks the owner and creates a
+  `WorkoutCatalogState` marker once. Subsequent calls do not recreate samples
+  the user has deliberately archived or changed. GET does not seed. Starter
+  catalog: seven categories and ten exercises; all are private editable copies.
 - Derive ownership from authentication. Scope every catalog, session, exercise
   occurrence and set lookup to that owner; reject cross-owner nested references.
 - Distinguish planned sets from performed/completed sets. Normal logging records
@@ -56,7 +64,9 @@ Supporter-tier restrictions.
   may omit external load; explicitly entered zero load is not the same as missing.
 - A copied workout is an independent instance. Routine edits must never rewrite
   past sessions. Changing catalog defaults must not reinterpret historical units
-  or field types. Resolve which labels/settings are snapshotted in the model slice.
+  or field types. Name, category name, tracking type, weight unit and distance unit
+  are snapshotted on each session exercise. Existing quantities never undergo an
+  implicit unit conversion; a library unit change affects newly added occurrences.
 - Archive categories/exercises rather than cascading away historical training.
   Unit conversions must preserve physical quantities; never silently relabel
   numeric values or erase old fields when changing an exercise type.
@@ -69,10 +79,10 @@ Supporter-tier restrictions.
   sets as records or promise estimates as lifting prescriptions.
 - Include owner-scoped workout data and archives in full account export/deletion.
 
-## Proposed first-version entities
+## Implemented backend entities
 
-These responsibilities are provisional; constraints and exact fields are to be
-finalized against existing repository conventions before migrations are written.
+UUIDs identify the five domain resources; the initialization marker uses its
+user one-to-one FK as primary key. See the current ERD for fields.
 
 - `ExerciseCategory`: owner, name, order, archive state.
 - `Exercise`: category, name, tracking type, notes and applicable entry defaults.
@@ -82,6 +92,27 @@ finalized against existing repository conventions before migrations are written.
   needed to prevent later catalog edits from reinterpreting recorded sets.
 - `WorkoutSet`: workout exercise, order, applicable quantities/units, comment
   and planned/completed state.
+- `WorkoutCatalogState`: user one-to-one plus initialization timestamp. It is
+  separate from the user profile so workout initialization stays in this module.
+
+Weight/distance values are fixed decimals (3 places); duration is integer seconds,
+reps positive integers. Missing is null; zero external load is valid. Planned sets
+may omit relevant fields. Completed strength requires weight/reps, bodyweight
+requires reps (optional weight), timed exercises require duration, cardio requires
+distance/duration. Both planned/completed sets reject irrelevant supplied fields.
+Set PATCH validates combined values. Ordering uses nonnegative numeric order
+with ID tie-breaking; appends use the current maximum plus ten.
+
+The library has no hard-delete endpoint. RESTRICT protects exercises referenced
+by history, but account deletion can cascade all owned rows together. Archive
+prevents newly adding the exercise to a session; existing snapshots remain
+editable. Finished sessions require reopening before exercise/set edits. Finishing
+does not complete planned sets. Copies reset completion and clear session notes
+and set comments, retaining quantities and snapshot settings.
+
+History is owner-scoped, date-bounded (1–366 days), paginated (25 default/100 max),
+and can filter by an owned exercise ID. It does not yet provide a dashboard aggregate
+or dedicated analytics endpoint. Catalog search is case-insensitive, max 120 chars.
 
 Foreign keys alone do not establish that all nested references belong to the
 same user. Enforce that invariant in validated owner-scoped mutation logic and
@@ -92,12 +123,16 @@ basic logging migration; introduce them with their corresponding behavior.
 
 ### 1. Models, starter catalog and ownership
 
+Backend implemented and tested, including concurrent PostgreSQL initialization.
+
 Finalize field types, unit semantics, snapshots and completion validation. Write
 failing model/API ownership tests, then migrations and idempotent starter seeding.
 Verify existing users, repeat initialization, archive preservation, multiple daily
 sessions, valid exercise types and rejection of cross-user relationships.
 
 ### 2. Catalog and workout logging API
+
+Backend implemented and tested; see canonical API, security and testing docs.
 
 Implement category/exercise creation, editing, ordering, archive/restore and
 search; session and exercise-occurrence management; set create/edit/delete,
@@ -150,4 +185,6 @@ When implementation changes public contracts, update
 [testing](21-testing.md) in the same slice. Update entity/ERD and frontend docs
 as their implementation lands; clearly separate planned from implemented tables.
 Search for stale route references before broad tests. No deployment or database
-migration is implied by this planning record.
+migration to a cloud environment is implied by this record. The checked-in
+migrations are `workouts.0001` (catalog), `0002` (sessions/snapshots), and `0003`
+(sets). Check the actual environment's migration status before claiming deployment.

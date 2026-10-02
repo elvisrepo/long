@@ -16,6 +16,7 @@ from apps.subscriptions.models import BillingCustomer, CheckoutAttempt, Subscrip
 from apps.subscriptions.services import UnresolvedCheckoutError, cancel_account_billing
 from apps.users.models import User
 from apps.wearables.models import SyncRun, WearableConnection
+from apps.workouts.models import Exercise, ExerciseCategory, Workout, WorkoutCatalogState, WorkoutExercise, WorkoutSet
 
 
 class AccountBillingConflict(APIException):
@@ -47,6 +48,17 @@ def account_export(user: User) -> Iterator[str]:
     # Avoid a single enormous line that text editors struggle to render.
     yield encoder.encode(header).removesuffix("\n}")
     sections: dict[str, QuerySet[Any]] = {
+        "workout_catalog_state": WorkoutCatalogState.objects.filter(user=user).values("initialized_at"),
+        "exercise_categories": ExerciseCategory.objects.filter(user=user).order_by("id")
+        .values("id", "name", "display_order", "is_active"),
+        "exercises": Exercise.objects.filter(category__user=user).order_by("id")
+        .values("id", "category_id", "name", "tracking_type", "weight_unit", "distance_unit", "notes", "weight_increment", "rest_seconds", "display_order", "is_active"),
+        "workouts": Workout.objects.filter(user=user).order_by("id")
+        .values("id", "performed_on", "name", "notes", "is_finished", "created_at"),
+        "workout_exercises": WorkoutExercise.objects.filter(workout__user=user, exercise__category__user=user).order_by("id")
+        .values("id", "workout_id", "exercise_id", "exercise_name", "category_name", "tracking_type", "weight_unit", "distance_unit", "display_order"),
+        "workout_sets": WorkoutSet.objects.filter(workout_exercise__workout__user=user, workout_exercise__exercise__category__user=user).order_by("id")
+        .values("id", "workout_exercise_id", "display_order", "weight", "reps", "distance", "duration_seconds", "comment", "is_completed"),
         "diet_sections": DietSection.objects.filter(user=user).order_by("id")
         .values("id", "name", "display_order", "is_active"),
         "diet_foods": DietFood.objects.filter(section__user=user).order_by("id")

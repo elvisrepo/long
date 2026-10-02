@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     "apps.metrics",
     "apps.recovery",
     "apps.diet",
+    "apps.workouts",
     "apps.subscriptions",
     "apps.wearables",
     "common",

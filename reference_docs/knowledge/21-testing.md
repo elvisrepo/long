@@ -1,5 +1,27 @@
 ## 6. Testing
 
+## Workout tracking — 2026-10-01 backend slice
+
+- `backend/tests/test_workouts.py` covers private once-only samples, concurrent
+  PostgreSQL row-lock seeding, catalog search/management/archive, owner isolation,
+  multiple sessions/day, immutable snapshots, type-specific set fields, partial
+  edits, planned/completed counts, finished-session reopening, ordering/deletion,
+  copy reset, date bounds/pagination, JWT and full account export/deletion.
+- Tests use PostgreSQL through an explicit host DATABASE_URL; Docker hostname
+  `db` is not resolvable from host-run uv. Django creates a disposable test DB;
+  no tests run against the application's live tables.
+- Model/migration drift and focused lint checks accompany this slice. Frontend,
+  dashboard, browser flows, routines and calculator acceptance tests are still
+  pending; the standalone HTML prototype is not production UI coverage.
+- See `47-workout-tracking.md`; local testing is not staging/deployment acceptance.
+- Verified: 42 workout checks within the full **646-test backend suite**, and
+  **108 relevant regression checks** for Workouts/Diet/Recovery/account lifecycle.
+  Focused lint, mypy (10 source files with a writable temporary cache), migration
+  drift and whitespace checks passed. Local migrations `workouts.0001–0003`
+  applied; unauthenticated runtime catalog smoke returned `401` as expected.
+  The existing mypy cache was read-only; a temporary cache resolved its crash
+  without changing dependencies or ownership of the old cache.
+
 ## Diet tracking — 2026-10-01 local slice
 
 - `backend/tests/test_diet.py`: empty catalog, unrestricted creation, JWT,

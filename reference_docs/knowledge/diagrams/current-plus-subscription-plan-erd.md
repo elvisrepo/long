@@ -5,7 +5,11 @@
 - Use the target-state ERD separately for planned Stripe, wearable-sync, and audit tables.
 
 ## Scope
-- As of 2026-10-01, the local domain schema has 16 tables, including `DietSection`, `DietFood` and `DietEntry`. See [Diet before/after comparison](diet-erd-comparison.md) with the three additions green; ownership/archive rules are in [Diet tracking](../46-diet-tracking.md).
+- Workout backend migrations add six tables to the prior 16-table checkpoint:
+  `WorkoutCatalogState`, `ExerciseCategory`, `Exercise`, `Workout`,
+  `WorkoutExercise`, `WorkoutSet` (22 domain model tables). Frontend, routines and
+  analysis are not implemented. See [Workout tracking](../47-workout-tracking.md).
+- The 2026-10-01 pre-workout checkpoint had 16 tables, including `DietSection`, `DietFood` and `DietEntry`. See [Diet before/after comparison](diet-erd-comparison.md) with the three additions green; ownership/archive rules are in [Diet tracking](../46-diet-tracking.md).
 - `User`, `MetricDefinition`, `MetricEntry`, `WearableConnection`, `SyncRun`, `SubscriptionPlan`, `SubscriptionPrice`, `BillingCustomer`, `Subscription`, `CheckoutAttempt`, `StripeWebhookEvent`, `RecoveryTool`, and `RecoveryEntry` are implemented domain tables.
 - See [recovery before/after ERD comparison](recovery-erd-comparison.md) for model-derived field maps, with the two new recovery tables highlighted green.
 - Registration creates an explicit active free subscription, and metric limits resolve through the current subscription's plan.
@@ -28,6 +32,74 @@ erDiagram
     DIET_SECTION ||--o{ DIET_FOOD : "contains foods"
     USER ||--o{ DIET_ENTRY : "records eating"
     DIET_FOOD ||--o{ DIET_ENTRY : "checked daily"
+    USER ||--o| WORKOUT_CATALOG_STATE : "initializes once"
+    USER ||--o{ EXERCISE_CATEGORY : "owns catalog"
+    EXERCISE_CATEGORY ||--o{ EXERCISE : contains
+    USER ||--o{ WORKOUT : records
+    WORKOUT ||--o{ WORKOUT_EXERCISE : orders
+    EXERCISE ||--o{ WORKOUT_EXERCISE : "historical reference"
+    WORKOUT_EXERCISE ||--o{ WORKOUT_SET : logs
+
+    WORKOUT_CATALOG_STATE {
+        uuid user_id PK,FK
+        datetime initialized_at
+    }
+
+    EXERCISE_CATEGORY {
+        uuid id PK
+        uuid user_id FK
+        string name "case-insensitive unique per user"
+        integer display_order
+        boolean is_active
+    }
+
+    EXERCISE {
+        uuid id PK
+        uuid category_id FK
+        string name "case-insensitive unique per category"
+        string tracking_type
+        string weight_unit "kg or lb"
+        string distance_unit "km or mi"
+        string notes
+        decimal weight_increment
+        integer rest_seconds
+        integer display_order
+        boolean is_active
+    }
+
+    WORKOUT {
+        uuid id PK
+        uuid user_id FK
+        date performed_on "multiple sessions allowed"
+        string name
+        string notes
+        boolean is_finished "not set completion"
+        datetime created_at
+    }
+
+    WORKOUT_EXERCISE {
+        uuid id PK
+        uuid workout_id FK
+        uuid exercise_id FK "RESTRICT; owner must match"
+        string exercise_name "snapshot"
+        string category_name "snapshot"
+        string tracking_type "snapshot"
+        string weight_unit "snapshot"
+        string distance_unit "snapshot"
+        integer display_order
+    }
+
+    WORKOUT_SET {
+        uuid id PK
+        uuid workout_exercise_id FK
+        integer display_order
+        decimal weight "nullable; nonnegative"
+        integer reps "nullable; positive"
+        decimal distance "nullable; positive"
+        integer duration_seconds "nullable; positive"
+        string comment
+        boolean is_completed "only performed sets count"
+    }
 
     DIET_SECTION {
         uuid id PK

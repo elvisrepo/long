@@ -1,5 +1,17 @@
 ### 1.4 Core Entities
 
+## Workout additions — 2026-10-01 backend slice
+
+Six workout tables are defined by local migrations: a one-to-one
+`WorkoutCatalogState` tracks explicit once-only initialization; `User →
+ExerciseCategory → Exercise` forms a private editable catalog; `User → Workout
+→ WorkoutExercise → WorkoutSet` records ordered sessions and individual sets.
+WorkoutExercise references Exercise and preserves name/category/type/unit
+snapshots. Sets store nullable relevant quantities and planned/completed state;
+completed quantities are validated by the snapshot type, not current defaults.
+Multiple sessions per date are allowed. See `47-workout-tracking.md`; frontend
+and later planning/analysis tables are not implemented.
+
 ## Diet additions — 2026-10-01
 
 `User → DietSection → DietFood` are one-to-many relationships. `DietEntry`

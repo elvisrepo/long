@@ -1,5 +1,29 @@
 #### Security (OWASP Top 10 addressed)
 
+## Workout tracking boundary — 2026-10-01 backend slice
+
+- JWT required, no paid-plan gate. Identity is derived from authentication;
+  owner-scoped lookups reject foreign nested references and private history.
+- Mutations (including explicit catalog initialization) lock the user row within
+  a transaction, serializing with account deletion. A one-to-one initialization
+  marker and scoped SQL name uniqueness protect repeat/concurrent seeding.
+- GET catalog is read-only. History requires a 1–366-day date range and paginates
+  sessions (default 25/max 100); optional exercise filtering verifies ownership.
+- Name/search length is bounded, notes/comments capped at 2000, numeric fields
+  validated by snapshot type. Partial set updates validate combined saved/input
+  values; planned rows cannot claim completion with missing required quantities.
+- Type/unit/name snapshots are server-written and immutable. Catalog edits cannot
+  reinterpret recorded work. Archive preserves history; RESTRICT prevents direct
+  deletion of referenced exercises while allowing full account cascades.
+- WorkoutExercise.clean validates the cross-owner relationship for full_clean
+  callers. Foreign keys alone do not enforce it; raw ORM writers must use the
+  validated owner-scoped services or explicit model validation. WorkoutSet.clean
+  validates type-specific fields; SQL constraints additionally protect positive
+  quantities/nonnegative load, not the whole cross-table type invariant.
+- Account export includes private catalogs/snapshots/sets and the seeding marker;
+  user deletion cascades all six tables. No URLs are fetched from exercise notes.
+- No frontend cache or analytics integration exists yet. See `47-workout-tracking.md`.
+
 ## Diet tracking boundary — 2026-10-01
 
 - JWT is required; catalogs and histories are private. Food ownership follows

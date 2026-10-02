@@ -1,5 +1,59 @@
 ### 1.7 API Design
 
+## Workout tracking backend — 2026-10-01
+
+All routes require JWT and work on every plan. UI integration, routines and
+analysis are not implemented yet. See `47-workout-tracking.md`.
+
+| Method | Endpoint | Contract |
+|---|---|---|
+| GET | `/api/v1/workouts/catalog/` | `{categories, exercises}`, own catalog including archives; optional case-insensitive `search` (max 120 chars); does not seed |
+| POST | `/api/v1/workouts/catalog/initialize/` | Empty body; owner-locked, once-only starter samples; returns catalog `200` |
+| POST | `/api/v1/workouts/categories/` | `{name, display_order?}`; `201` active private category |
+| PATCH | `/api/v1/workouts/categories/{uuid}/` | `{name?, display_order?, is_active?}`; own category |
+| POST | `/api/v1/workouts/exercises/` | `{category_id, name, tracking_type, ...defaults}`; `201`, own active category |
+| PATCH | `/api/v1/workouts/exercises/{uuid}/` | Editable library fields including category, type, units, notes, increments, rest and archive; never changes existing snapshots |
+| GET | `/api/v1/workouts/sessions/` | Required `date_from`, `date_to`, inclusive 1–366 days; optional own `exercise_id`; `{count, next, previous, results}`; limit default 25/max 100, offset default 0 |
+| POST | `/api/v1/workouts/sessions/` | `{performed_on, name?, notes?, is_finished?}`; `201`; multiple sessions on a day allowed |
+| GET/PATCH/DELETE | `/api/v1/workouts/sessions/{uuid}/` | Own detail; PATCH date/name/notes/is_finished; DELETE session and its sets `204` |
+| POST | `/api/v1/workouts/sessions/{uuid}/exercises/` | `{exercise_id, display_order?}`; `201` ordered occurrence with server snapshots; active own exercise/category required |
+| POST | `/api/v1/workouts/sessions/{uuid}/copy/` | `{performed_on}`; `201` independent planned session; no completion, session notes or performance comments copied |
+| PATCH/DELETE | `/api/v1/workouts/session-exercises/{uuid}/` | PATCH `{display_order}` only; DELETE occurrence and sets `204`; snapshots/reference immutable |
+| POST | `/api/v1/workouts/session-exercises/{uuid}/sets/` | Set fields below; `201` individual set; completion defaults true |
+| PATCH/DELETE | `/api/v1/workouts/sets/{uuid}/` | Partial set edit validated against combined values, or DELETE `204` |
+
+Category JSON: `{id, name, display_order, is_active}`. Exercise adds
+`category_id, tracking_type, weight_unit, distance_unit, notes, weight_increment,
+rest_seconds`. Names max 120, notes/comments max 2000, order nonnegative.
+Scoped case-insensitive duplicate names include archives. Units are `kg|lb` and
+`km|mi`; increment is a positive decimal (3 places), rest is 0–3600 seconds.
+New catalog rows are always active; category/ownership input cannot cross accounts.
+
+Session JSON includes `id, performed_on, name, notes, is_finished, created_at,
+completed_set_count, exercises`. Each occurrence includes `id, exercise_id,
+exercise_name, category_name, tracking_type, weight_unit, distance_unit,
+display_order, sets`. Set JSON: `{id, display_order, weight, reps, distance,
+duration_seconds, comment, is_completed}`. Decimal quantities serialize as strings
+or null; weight/distance have 3 decimal places. Duration is integer seconds.
+
+- `strength`: completed sets require nonnegative weight and positive integer reps.
+- `bodyweight`: completed sets require positive integer reps; weight optional.
+- `duration`: completed sets require positive integer duration_seconds.
+- `cardio`: completed sets require positive distance and duration_seconds.
+- Planned sets may omit relevant values. Irrelevant fields and invalid supplied
+  values are rejected even for planned sets; unknown is null, not fake zero.
+- Finished sessions must be reopened (`is_finished: false`) before modifying
+  exercises/sets. Finishing does not mark planned sets completed. Only completed
+  sets contribute to `completed_set_count`.
+- Catalog archive does not block editing existing history or copying snapshots.
+  Catalog has no hard-delete API. Foreign detail access returns `404`, foreign
+  creation references `400`, validation errors `400`. Session/exercise/set DELETE
+  is not idempotent: subsequent deletion of an absent row returns `404`.
+- Initialization is idempotent. Other POSTs create new resources on each request;
+  clients must disable duplicate submission, not assume retry idempotency.
+- Full account JSON includes `workout_catalog_state`, `exercise_categories`,
+  `exercises`, `workouts`, `workout_exercises`, `workout_sets`, including archives.
+
 ## Diet tracking (implemented locally, 2026-10-01)
 
 All routes require JWT and are available on every plan. No seeded sections/foods.
