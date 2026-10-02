@@ -28,6 +28,12 @@
 
 #### Browsing, removal and history UX follow-up
 
+- Calendar-copy screen tests cover open/cancel without writes, cross-month source
+  selection, multiple sessions including plans, preserved destination, pending locks,
+  explicit failed-copy retry, failed-month retry and empty-day/empty-session handling.
+  Real-Django responsive flows additionally choose a source calendar date and verify
+  the copy response retains the destination and resets all set completion flags.
+
 - Screen tests cover read-only library details, explicit session creation,
   failed-add retries without creating another session, opening existing occurrences,
   clearing context via All exercises, confirmed/cancelled/failed removal and

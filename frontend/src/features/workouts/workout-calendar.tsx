@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { getWorkoutRange } from "./workout-api";
+import type { ReactNode } from "react";
+import { getWorkoutRange, type Workout } from "./workout-api";
 import { localDay, shiftDay, type NavigateWorkout } from "./workout-navigation";
 
 export function WorkoutCalendar({
@@ -7,11 +8,13 @@ export function WorkoutCalendar({
   date,
   busy,
   navigate,
+  renderSelectedDay,
 }: {
   owner: string;
   date: string;
   busy: boolean;
   navigate: NavigateWorkout;
+  renderSelectedDay?: (sessions: Workout[]) => ReactNode;
 }) {
   const first = date.slice(0, 7) + "-01";
   const next = new Date(first + "T12:00:00");
@@ -27,7 +30,7 @@ export function WorkoutCalendar({
   previous.setMonth(previous.getMonth() - 1);
   return (
     <section className="workout-card">
-      <div className="workout-card-heading">
+      <div className="workout-card-heading workout-calendar-heading">
         <button
           aria-label="Previous month"
           disabled={busy || query.isFetching}
@@ -84,12 +87,19 @@ export function WorkoutCalendar({
                   onClick={() => navigate({ view: "home", date: day })}
                 >
                   <span>{n + 1}</span>
-                  {trained > 0 && <small title="Training sessions">T{trained}</small>}
-                  {planned > 0 && <small title="Planned sessions">P{planned}</small>}
+                  {trained > 0 && (
+                    <small title="Training sessions">T{trained}</small>
+                  )}
+                  {planned > 0 && (
+                    <small title="Planned sessions">P{planned}</small>
+                  )}
                 </button>
               );
             })}
           </div>
+          {renderSelectedDay?.(
+            query.data.filter((w) => w.performed_on === date),
+          )}
         </>
       )}
     </section>

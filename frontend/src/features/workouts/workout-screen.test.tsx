@@ -81,6 +81,134 @@ beforeEach(() => {
   vi.mocked(api.createWorkout).mockResolvedValue({ ...workout, exercises: [] });
   vi.mocked(api.addWorkoutExercise).mockResolvedValue(item);
 });
+it("opens a calendar to choose a previous workout without creating a copy", async () => {
+  mount({ date: "2026-10-02" });
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Copy previous workout" }),
+  );
+  expect(screen.getByRole("dialog")).toHaveAccessibleName(
+    "Select the workout you would like to copy",
+  );
+  expect(
+    await screen.findByRole("heading", { name: "October 2026" }),
+  ).toBeInTheDocument();
+  expect(api.copyWorkout).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+it("chooses a source session in another month while keeping the copy destination", async () => {
+  vi.mocked(api.getWorkoutRange).mockImplementation(async (first) =>
+    first === "2026-09-01"
+      ? [
+          {
+            ...workout,
+            id: "morning",
+            name: "Morning",
+            performed_on: "2026-09-30",
+            completed_set_count: 3,
+          },
+          {
+            ...workout,
+            id: "evening",
+            name: "Evening",
+            performed_on: "2026-09-30",
+          },
+        ]
+      : [],
+  );
+  vi.mocked(api.copyWorkout).mockResolvedValue({ ...workout, id: "copy" });
+  mount({ date: "2026-10-02" });
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Copy previous workout" }),
+  );
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Previous month" }),
+  );
+  await userEvent.click(
+    await screen.findByRole("button", {
+      name: "2026-09-30: 1 training session, 1 planned session",
+    }),
+  );
+  expect(
+    screen.getByRole("button", { name: "Copy Morning to 2026-10-02" }),
+  ).toBeInTheDocument();
+  expect(api.copyWorkout).not.toHaveBeenCalled();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Copy Evening to 2026-10-02" }),
+  );
+  await waitFor(() =>
+    expect(api.copyWorkout).toHaveBeenCalledExactlyOnceWith(
+      "evening",
+      "2026-10-02",
+    ),
+  );
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
+  expect(screen.getByLabelText("Tracking date")).toHaveValue("2026-10-02");
+  expect(api.createWorkout).not.toHaveBeenCalled();
+});
+it("locks the picker while copying and preserves selection after a failed copy", async () => {
+  vi.mocked(api.getWorkoutRange).mockImplementation(async (first) =>
+    first === "2026-10-01" ? [workout] : [],
+  );
+  let rejectCopy!: (error: Error) => void;
+  vi.mocked(api.copyWorkout).mockImplementationOnce(
+    () =>
+      new Promise((_resolve, reject) => {
+        rejectCopy = reject;
+      }),
+  );
+  mount({ date: "2026-10-02" });
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Copy previous workout" }),
+  );
+  const copyButton = await screen.findByRole("button", {
+    name: "Copy Workout to 2026-10-02",
+  });
+  await userEvent.click(copyButton);
+  expect(copyButton).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Previous month" })).toBeDisabled();
+  rejectCopy(new Error("Copy failed"));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Copy failed");
+  await waitFor(() => expect(copyButton).toBeEnabled());
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
+  expect(api.copyWorkout).toHaveBeenCalledTimes(1);
+  vi.mocked(api.copyWorkout).mockResolvedValue(workout);
+  await userEvent.click(copyButton);
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
+  expect(api.copyWorkout).toHaveBeenCalledTimes(2);
+});
+it("shows a failed calendar read instead of inventing empty history and allows retry", async () => {
+  let fail = true;
+  vi.mocked(api.getWorkoutRange).mockImplementation(async (first) => {
+    if (first === "2026-10-01" && fail) throw new Error("Offline");
+    return first === "2026-10-01" ? [{ ...workout, exercises: [] }] : [];
+  });
+  mount({ date: "2026-10-02" });
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Copy previous workout" }),
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Month couldn't load",
+  );
+  expect(screen.queryByText(/No workouts on this day/)).not.toBeInTheDocument();
+  fail = false;
+  await userEvent.click(screen.getByRole("button", { name: "Retry month" }));
+  expect(
+    await screen.findByRole("button", { name: "Copy Workout to 2026-10-02" }),
+  ).toBeDisabled();
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "2026-10-03: 0 training sessions, 0 planned sessions",
+    }),
+  );
+  expect(screen.getByText(/No workouts on this day/)).toBeInTheDocument();
+  expect(api.copyWorkout).not.toHaveBeenCalled();
+});
 it("browses library details without creating or changing a workout", async () => {
   mount({ view: "exercises", date: "2026-10-02" });
   await userEvent.click(

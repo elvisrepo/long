@@ -19,6 +19,7 @@ import { RemoveWorkoutExercise } from "./remove-workout-exercise";
 import { WorkoutTraining } from "./workout-training";
 import { RestTimer, type RestTimerHandle } from "./rest-timer";
 import { WorkoutCalendar } from "./workout-calendar";
+import { CopyWorkoutPicker } from "./copy-workout-picker";
 import { WorkoutProgress } from "./workout-progress";
 import { WorkoutRoutines, SaveRoutineDayDialog } from "./workout-routines";
 import "./workout.css";
@@ -392,6 +393,7 @@ function WorkoutHome({
   run: RunAction;
   navigate: NavigateWorkout;
 }) {
+  const [copyOpen, setCopyOpen] = useState(false);
   return (
     <div className="workout-layout">
       <div className="workout-stack">
@@ -399,13 +401,20 @@ function WorkoutHome({
           <button className="primary-button" disabled={busy} onClick={start}>
             Start new workout
           </button>
-          <button
-            disabled={busy}
-            onClick={() => navigate({ view: "history", date: day })}
-          >
+          <button disabled={busy} onClick={() => setCopyOpen(true)}>
             Copy previous workout
           </button>
         </div>
+        {copyOpen && (
+          <CopyWorkoutPicker
+            owner={owner}
+            destination={day}
+            busy={busy}
+            run={run}
+            navigate={navigate}
+            onClose={() => setCopyOpen(false)}
+          />
+        )}
         {sessions.length ? (
           sessions.map((w) => (
             <SessionCard

@@ -315,5 +315,47 @@ for (const width of [320, 390, 1440]) {
         exact: true,
       }),
     ).toBeVisible();
+    await page.getByRole("button", { name: "Home", exact: true }).click();
+    const copyDate = shiftDay(currentDate, 1);
+    await page.getByLabel("Tracking date").fill(copyDate);
+    await page
+      .getByRole("button", { name: "Copy previous workout", exact: true })
+      .click();
+    const picker = page.getByRole("dialog", {
+      name: "Select the workout you would like to copy",
+    });
+    await expect(picker).toBeVisible();
+    // Browsing the source month must not change the chosen destination.
+    if (copyDate.slice(0, 7) !== currentDate.slice(0, 7)) {
+      await picker
+        .getByRole("button", { name: "Previous month", exact: true })
+        .click();
+    }
+    await picker
+      .getByRole("button", { name: new RegExp(`^${currentDate}:`) })
+      .click();
+    await capture("copy-workout-picker");
+    const copiedResponse = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        /\/sessions\/[^/]+\/copy\/$/.test(new URL(response.url()).pathname),
+    );
+    await picker
+      .getByRole("button", { name: new RegExp(`^Copy .+ to ${copyDate}$`) })
+      .and(picker.locator("button:enabled"))
+      .first()
+      .click();
+    const copied = await (await copiedResponse).json();
+    expect(copied.performed_on).toBe(copyDate);
+    expect(copied.completed_set_count).toBe(0);
+    expect(copied.exercises.length).toBeGreaterThan(0);
+    for (const exercise of copied.exercises) {
+      for (const set of exercise.sets) expect(set.is_completed).toBe(false);
+    }
+    await expect(picker).toHaveCount(0);
+    await expect(page.getByLabel("Tracking date")).toHaveValue(copyDate);
+    await expect(
+      page.getByText("Planned", { exact: true }).first(),
+    ).toBeVisible();
   });
 }

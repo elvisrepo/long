@@ -44,6 +44,17 @@
   gap: 0.3rem;
   text-align: center;
 }
+.workout-calendar-heading {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  gap: 0.25rem;
+  align-items: center;
+}
+.workout-card .workout-calendar-heading h2 {
+  margin: 0;
+  font-size: 1rem;
+  text-align: center;
+}
 .workout-progress-chart {
   width: 100%;
   display: block;

@@ -21,10 +21,10 @@ The separate `.lavish/workout-prototype.html` is a sample-only
 review prototype, not the real Workouts tab. No cloud deployment is implied.
 Normal local and isolated E2E PostgreSQL have all six workout migrations applied.
 The full backend suite passes 672 tests (42 original workout, 17 routine and nine
-group checks); 438 frontend tests, 35 fixture browser checks and three real Django browser flows
+group checks); 442 frontend tests, 35 fixture browser checks and three real Django browser flows
 at 320/390/1440px pass. Type checks, lint, build and migration drift pass. Live
 flows cover direct editing, independent starts, groups, timer, calculator plans,
-windowed records, two-date charts, compact calendar cells and reload. Screenshots
+windowed records, two-date charts, compact calendar cells, calendar-source copying and reload. Screenshots
 were inspected. This is local verification, not staging acceptance or cloud deployment.
 
 The real authenticated `/workouts` tab provides Home, All exercises, Training,
@@ -42,6 +42,16 @@ Browser checks use isolated API fixtures, not users' live workouts. No cloud
 deployment or native background-timer behavior is implied.
 
 ### Browsing/removal/history UX correction — 2026-10-02
+
+- Home Copy previous workout now opens a marked month calendar and lets the user
+  choose a source date/session, including planned sessions. Browsing never changes
+  the original destination date. Explicit copy creates an independent planned session
+  through the existing API; empty sources are disabled. Cancellation performs no write,
+  pending copies lock controls, and read/write failures keep the modal with retry.
+  Calendar-copy verification: 62 focused workout tests, 442 frontend tests, three
+  existing fixture workout flows and three real-Django flows at 320/390/1440px
+  pass. Lint/typecheck/build and whitespace checks pass; mobile/desktop screenshots
+  inspected. No backend contract/schema changes, commit or deployment in this slice.
 
 - All exercises opens library details/history/progress, never starts a workout
   implicitly. The navigation tab clears session context; Home Start is explicit.

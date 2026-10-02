@@ -66,6 +66,13 @@ Training provides collapsible calculators and a compact visual deadline timer;
 auto-start/next-group navigation occurs only on confirmed new completion. Percentage
 calculator results are planned sets, not performed work. No background alert promise.
 
+Home's Copy previous workout opens a calendar picker, not History. Month browsing
+and source-day selection are local modal state; the destination remains the original
+tracking date. Marked dates distinguish training and planned sessions, with an explicit
+copy button for each session on the selected day. Empty sessions cannot be copied
+from this picker. Copy uses the existing endpoint and creates independent planned
+sets. Pending copies lock controls; failed reads/writes remain visible with retry.
+
 ### Diet checklist (October 1, 2026, local)
 
 Authenticated `/diet` is available to every account through shared navigation.
