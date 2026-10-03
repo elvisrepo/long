@@ -183,6 +183,15 @@ queries explicitly preserve library ordering (covered by regression tests).
 
 ### Routine preview and carry-forward — 2026-10-03
 
+Calendar-filter follow-up (UI-only): component checks cover same-occurrence combined
+filters, matching-set rather than unrelated completion, unique-session counting,
+planned-only/empty drafts, reset, intact source objects, saved-label retention across
+months, busy/read-pending locks, read failure versus no matches and explicit retry.
+Full frontend suite: 508 tests pass. Live flows at 320/390/1440px cover shared picker
+filters with unchanged destination, exercise/category/status calendar controls and
+reset. Existing backend/API contracts are untouched; the previous 757 backend
+verification is not a new backend run for this UI-only slice.
+
 Cardio rates follow-up: progress API tests cover completed paired values, daily
 fastest-set selection, lower-is-better pace, null quantity exclusion, frozen units,
 cutoffs, source IDs, ownership/authentication, non-cardio exclusion, saved defaults

@@ -667,6 +667,14 @@ for (const width of [320, 390, 1440]) {
       .click();
     await capture("copy-workout-picker");
     await picker
+      .getByRole("combobox", { name: "Calendar exercise", exact: true })
+      .selectOption({ label: "Barbell bench press" });
+    await picker
+      .getByRole("combobox", { name: "Calendar status", exact: true })
+      .selectOption("training");
+    await capture("copy-picker-filters");
+    await expect(page.getByLabel("Tracking date")).toHaveValue(copyDate);
+    await picker
       .getByRole("button", { name: new RegExp(`^Copy .+ to ${copyDate}$`) })
       .and(picker.locator("button:enabled"))
       .first()
@@ -821,5 +829,35 @@ for (const width of [320, 390, 1440]) {
       page.getByRole("cell", { name: "5:00 min/km", exact: true }),
     ).toBeVisible();
     await capture("cardio-all-time-pace");
+    await page.getByRole("button", { name: "Calendar", exact: true }).click();
+    await page
+      .getByRole("combobox", { name: "Calendar exercise", exact: true })
+      .selectOption({ label: "Running" });
+    await page
+      .getByRole("combobox", { name: "Calendar category", exact: true })
+      .selectOption({ label: "Cardio" });
+    await page
+      .getByRole("combobox", { name: "Calendar status", exact: true })
+      .selectOption("training");
+    await expect(
+      page.getByRole("button", {
+        name: `${copyDate}: 1 training session, 0 planned sessions`,
+        exact: true,
+      }),
+    ).toBeVisible();
+    await capture("calendar-filters");
+    await page
+      .getByRole("combobox", { name: "Calendar status", exact: true })
+      .selectOption("planned");
+    await expect(
+      page.getByText("No workouts match these filters in this month."),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Reset filters", exact: true })
+      .click();
+    await expect(
+      page.getByRole("combobox", { name: "Calendar exercise", exact: true }),
+    ).toHaveValue("");
+    await expect(page.getByLabel("Tracking date")).toHaveValue(copyDate);
   });
 }

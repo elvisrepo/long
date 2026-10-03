@@ -14,6 +14,11 @@ whereas History/Progress/Overview's optional exercise parameter identifies a lib
 These are UI state, not new REST contracts. Invalid training links fall back Home;
 foreign/deleted UUIDs still rely on backend authorization and show read errors.
 Date controls preserve the selected library exercise in History/Progress/Overview.
+Calendar filters (2026-10-03) are client-side UI state over the existing fully
+paginated month read. Exercise ID, saved category name and training/planned status
+are not new session-list query parameters. Exercise/category criteria match the
+same frozen occurrence; training means a completed set among matching entries,
+not the Workout's finished flag. Opening/copying still uses the full session.
 `view=exercises` without `session` is read-only browsing: exercise clicks open
 library details with History/Progress links, never create a Workout. The All
 exercises navigation tab clears session context. Start new workout explicitly

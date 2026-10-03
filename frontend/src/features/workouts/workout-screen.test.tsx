@@ -357,7 +357,9 @@ it("shows a failed calendar read instead of inventing empty history and allows r
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "Month couldn't load",
   );
-  expect(screen.queryByText(/No workouts on this day/)).not.toBeInTheDocument();
+  expect(
+    screen.queryByText(/No matching workouts on this day/),
+  ).not.toBeInTheDocument();
   fail = false;
   await userEvent.click(screen.getByRole("button", { name: "Retry month" }));
   expect(
@@ -368,7 +370,9 @@ it("shows a failed calendar read instead of inventing empty history and allows r
       name: "2026-10-03: 0 training sessions, 0 planned sessions",
     }),
   );
-  expect(screen.getByText(/No workouts on this day/)).toBeInTheDocument();
+  expect(
+    screen.getByText(/No matching workouts on this day/),
+  ).toBeInTheDocument();
   expect(api.copyWorkout).not.toHaveBeenCalled();
 });
 it("browses library details without creating or changing a workout", async () => {

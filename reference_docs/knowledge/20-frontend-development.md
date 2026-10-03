@@ -100,6 +100,21 @@ rounded to a whole second in axes/details/tables. Best pace's title explicitly s
 lower is faster. A graph note explains the formulas, single-set (not workout-average)
 selection and lack of terrain/route/interval adjustment. Missing pairs are ineligible.
 
+Calendar filters (2026-10-03) apply locally to the fully loaded month and the shared
+copy-source picker. Exercise/category criteria match the same occurrence; categories
+use frozen saved names, with choices from the displayed month's recorded history
+including archived exercises. Selected choices remain available across month changes.
+Status is All workouts, Completed training or Planned only / empty drafts. With
+exercise/category filters, training requires a completed set in a matching occurrence;
+otherwise it uses the full session's completed count. Finished flags do not decide
+training. Duplicated occurrences count as one session. Reset restores all markers;
+no-match and read-error states differ, and controls lock while fetching/busy.
+Filters are transient UI state, not URL/account settings, and reset on leaving the
+calendar (including entering the copy selection step). Opening a date shows all
+workouts; the picker shows matching sessions but passes complete source objects to
+the separate exercise/set selection dialog, never silently trims copied work.
+Filtering causes no writes or additional history reads and preserves the destination.
+
 `view=calendar` reads the selected month and drills into Home dates; completed
 training and plans are distinct. `view=progress` uses the owned library `exercise`
 UUID, a 30/90/180/365-day window ending on the selected date, and safely paginated

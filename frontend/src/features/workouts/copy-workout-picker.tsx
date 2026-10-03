@@ -60,15 +60,15 @@ export function CopyWorkoutPicker({
             <h3>{dayLabel(sourceDate)}</h3>
             {sessions.length === 0 && (
               <p>
-                No workouts on this day. Choose a marked date or browse another
-                month.
+                No matching workouts on this day. Choose a marked date, reset
+                filters or browse another month.
               </p>
             )}
             {sessions.map((session) => (
               <section className="workout-card" key={session.id}>
                 <h3>{session.name || "Workout"}</h3>
                 <p>
-                  {session.exercises.length}{" "}
+                  Full workout: {session.exercises.length}{" "}
                   {session.exercises.length === 1 ? "exercise" : "exercises"} ·{" "}
                   {session.completed_set_count} completed{" "}
                   {session.completed_set_count === 1 ? "set" : "sets"}

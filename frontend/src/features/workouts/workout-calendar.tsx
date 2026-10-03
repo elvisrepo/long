@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { getWorkoutRange, type Workout } from "./workout-api";
 import { localDay, shiftDay, type NavigateWorkout } from "./workout-navigation";
 
@@ -24,6 +24,41 @@ export function WorkoutCalendar({
     queryKey: ["workouts", owner, "month", first],
     queryFn: () => getWorkoutRange(first, last),
   });
+  const [exercise, setExercise] = useState<{ id: string; name: string } | null>(
+    null,
+  );
+  const [category, setCategory] = useState("");
+  const [status, setStatus] = useState<"all" | "training" | "planned">("all");
+  const entries = query.data?.flatMap((workout) => workout.exercises) ?? [];
+  const exercises = new Map<string, string>();
+  for (const item of entries) {
+    if (!exercises.has(item.exercise_id))
+      exercises.set(item.exercise_id, item.exercise_name);
+  }
+  if (exercise) exercises.set(exercise.id, exercise.name);
+  const categories = new Set(entries.map((item) => item.category_name));
+  if (category) categories.add(category);
+  const narrowed = !!exercise || !!category;
+  const filtered =
+    query.data?.flatMap((workout) => {
+      const items = workout.exercises.filter(
+        (item) =>
+          (!exercise || item.exercise_id === exercise.id) &&
+          (!category || item.category_name === category),
+      );
+      if (narrowed && !items.length) return [];
+      const training = narrowed
+        ? items.some((item) => item.sets.some((set) => set.is_completed))
+        : workout.completed_set_count > 0;
+      if (
+        (status === "training" && !training) ||
+        (status === "planned" && training)
+      )
+        return [];
+      return [{ workout, training }];
+    }) ?? [];
+  const activeFilters = narrowed || status !== "all";
+  const locked = busy || query.isFetching;
   const days = Number(last.slice(-2));
   const leading = (new Date(first + "T12:00:00").getDay() + 6) % 7;
   const previous = new Date(first + "T12:00:00");
@@ -54,6 +89,77 @@ export function WorkoutCalendar({
           →
         </button>
       </div>
+      <div className="workout-toolbar" aria-label="Calendar filters">
+        <label>
+          Calendar exercise
+          <select
+            disabled={locked}
+            value={exercise?.id ?? ""}
+            onChange={(event) =>
+              setExercise(
+                event.target.value
+                  ? {
+                      id: event.target.value,
+                      name: exercises.get(event.target.value)!,
+                    }
+                  : null,
+              )
+            }
+          >
+            <option value="">All exercises</option>
+            {[...exercises]
+              .sort((a, b) => a[1].localeCompare(b[1]))
+              .map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+          </select>
+        </label>
+        <label>
+          Calendar category
+          <select
+            disabled={locked}
+            value={category}
+            onChange={(event) => setCategory(event.target.value)}
+          >
+            <option value="">All saved categories</option>
+            {[...categories].sort().map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Calendar status
+          <select
+            disabled={locked}
+            value={status}
+            onChange={(event) => setStatus(event.target.value as typeof status)}
+          >
+            <option value="all">All workouts</option>
+            <option value="training">Completed training</option>
+            <option value="planned">Planned only / empty drafts</option>
+          </select>
+        </label>
+        <button
+          disabled={locked || !activeFilters}
+          onClick={() => {
+            setExercise(null);
+            setCategory("");
+            setStatus("all");
+          }}
+        >
+          Reset filters
+        </button>
+      </div>
+      <p className="workout-note">
+        Choices come from this month's recorded workouts, including archived
+        exercise history. Categories use saved names. Status reflects matching
+        exercise entries. Filters only locate workouts; opening or copying one
+        still includes its full exercise list.
+      </p>
       {query.isPending ? (
         <p role="status">Loading month…</p>
       ) : query.isError ? (
@@ -63,7 +169,17 @@ export function WorkoutCalendar({
         </>
       ) : (
         <>
-          <p>T = training with completed sets. P = planned-only sessions.</p>
+          <p>
+            T = matching training with completed sets. P = planned-only
+            sessions, including empty drafts.
+          </p>
+          <p role="status">
+            {filtered.length} matching{" "}
+            {filtered.length === 1 ? "session" : "sessions"} in this month.
+          </p>
+          {activeFilters && !filtered.length && (
+            <p>No workouts match these filters in this month.</p>
+          )}
           <div className="workout-calendar-grid">
             {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
               <small key={d}>{d}</small>
@@ -73,10 +189,10 @@ export function WorkoutCalendar({
             ))}
             {Array.from({ length: days }, (_, n) => {
               const day = first.slice(0, 8) + String(n + 1).padStart(2, "0");
-              const sessions = query.data.filter((w) => w.performed_on === day);
-              const trained = sessions.filter(
-                (w) => w.completed_set_count > 0,
-              ).length;
+              const sessions = filtered.filter(
+                (row) => row.workout.performed_on === day,
+              );
+              const trained = sessions.filter((row) => row.training).length;
               const planned = sessions.length - trained;
               return (
                 <button
@@ -98,7 +214,9 @@ export function WorkoutCalendar({
             })}
           </div>
           {renderSelectedDay?.(
-            query.data.filter((w) => w.performed_on === date),
+            filtered
+              .filter((row) => row.workout.performed_on === date)
+              .map((row) => row.workout),
           )}
         </>
       )}
