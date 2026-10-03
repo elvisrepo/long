@@ -385,6 +385,16 @@ export function reorderWorkoutExercise(
   });
 }
 
+export function moveWorkoutItem(
+  kind: "session-exercises" | "sets",
+  id: string,
+  direction: "up" | "down",
+): Promise<Workout> {
+  return request(`${kind}/${encodeURIComponent(id)}/move/`, "POST", {
+    direction,
+  });
+}
+
 export const getWorkoutRoutines = (): Promise<WorkoutRoutine[]> =>
   request("routines/");
 export const saveWorkoutRoutine = (

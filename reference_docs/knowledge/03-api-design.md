@@ -125,6 +125,16 @@ Catalog responses additionally include `preferences`. Exercises accept `is_favor
 | PATCH/DELETE | `/api/v1/workouts/session-exercises/{uuid}/` | PATCH `{display_order?, group_name?}` with at least one field; DELETE occurrence and sets `204`; snapshots/reference immutable |
 | POST | `/api/v1/workouts/session-exercises/{uuid}/sets/` | Set fields below; `201` individual set; completion defaults true |
 | PATCH/DELETE | `/api/v1/workouts/sets/{uuid}/` | Partial set edit validated against combined values, or DELETE `204` |
+| POST | `/api/v1/workouts/session-exercises/{uuid}/move/` | `{direction: "up" \| "down"}` moves one occurrence adjacent in its workout; complete Workout `200` |
+| POST | `/api/v1/workouts/sets/{uuid}/move/` | Same input; moves one set adjacent within its occurrence; complete Workout `200` |
+
+Moves lock the owner in one transaction, using the current server order rather
+than a stale client-side swap. Ordering is `(display_order, id)`; successful
+non-boundary moves normalize sibling order to 10, 20, …, including ties. First-up
+and last-down are no-ops. Only `direction` is accepted. Unauthorized requests
+remain `401`, foreign targets `404`, invalid input/finished sessions `400`.
+Reopen before moving. Snapshot fields, group membership, quantities, completion
+and comments are unchanged. Existing numeric-order PATCH contracts remain.
 
 Category JSON: `{id, name, display_order, is_active}`. Exercise adds
 `category_id, tracking_type, weight_unit, distance_unit, notes, weight_increment,

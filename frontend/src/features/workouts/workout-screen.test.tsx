@@ -81,6 +81,100 @@ beforeEach(() => {
   vi.mocked(api.createWorkout).mockResolvedValue({ ...workout, exercises: [] });
   vi.mocked(api.addWorkoutExercise).mockResolvedValue(item);
 });
+it("moves a Home exercise and reloads the server-confirmed order", async () => {
+  const second = {
+    ...item,
+    id: "row",
+    exercise_name: "Row",
+    display_order: 20,
+  };
+  const initial = { ...workout, exercises: [item, second] };
+  const moved = { ...workout, exercises: [second, item] };
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([initial]);
+  vi.mocked(api.moveWorkoutItem).mockImplementation(async () => {
+    vi.mocked(api.getWorkoutRange).mockResolvedValue([moved]);
+    return moved;
+  });
+  mount({ date: workout.performed_on });
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Move exercise 2 (Row) up" }),
+  );
+  expect(api.moveWorkoutItem).toHaveBeenCalledWith(
+    "session-exercises",
+    "row",
+    "up",
+  );
+  expect(
+    await screen.findByRole("button", { name: "Move exercise 1 (Row) up" }),
+  ).toBeDisabled();
+  expect(api.createWorkout).not.toHaveBeenCalled();
+});
+it("reorders training sets and sidebar exercises without changing the selected occurrence", async () => {
+  const first: api.WorkoutSet = {
+    id: "s1",
+    weight: "70.000",
+    reps: 5,
+    distance: null,
+    duration_seconds: null,
+    comment: "Keep me",
+    is_completed: true,
+    display_order: 10,
+  };
+  const second = {
+    ...first,
+    id: "s2",
+    weight: "80.000",
+    comment: "",
+    display_order: 20,
+  };
+  const selected = { ...item, sets: [first, second] };
+  const row = { ...item, id: "row", exercise_name: "Row", display_order: 20 };
+  let current = { ...workout, exercises: [selected, row] };
+  vi.mocked(api.getWorkout).mockImplementation(async () => current);
+  vi.mocked(api.moveWorkoutItem).mockImplementation(async (kind) => {
+    current =
+      kind === "sets"
+        ? {
+            ...workout,
+            exercises: [{ ...selected, sets: [second, first] }, row],
+          }
+        : { ...current, exercises: [...current.exercises].reverse() };
+    return current;
+  });
+  mount({
+    view: "training",
+    date: workout.performed_on,
+    session: workout.id,
+    exercise: item.id,
+  });
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Move set 2 up" }),
+  );
+  expect(api.moveWorkoutItem).toHaveBeenCalledWith("sets", "s2", "up");
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Move set 1 up" }),
+    ).toBeDisabled(),
+  );
+  const values = document.querySelectorAll(".workout-set-values");
+  expect(values[0]).toHaveTextContent("80 kg");
+  expect(values[1]).toHaveTextContent("Keep me");
+  await userEvent.click(
+    screen.getByRole("button", { name: "Move exercise 2 (Row) up" }),
+  );
+  expect(api.moveWorkoutItem).toHaveBeenCalledWith(
+    "session-exercises",
+    "row",
+    "up",
+  );
+  expect(
+    await screen.findByRole("button", { name: "Move exercise 1 (Row) up" }),
+  ).toBeDisabled();
+  expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+    exercise.name,
+  );
+  expect(api.saveWorkoutSet).not.toHaveBeenCalled();
+});
 it("opens a calendar to choose a previous workout without creating a copy", async () => {
   mount({ date: "2026-10-02" });
   await userEvent.click(

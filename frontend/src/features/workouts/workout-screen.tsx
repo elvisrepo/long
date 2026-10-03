@@ -16,6 +16,7 @@ import {
 } from "./workout-navigation";
 import { WorkoutLibrary } from "./workout-library";
 import { RemoveWorkoutExercise } from "./remove-workout-exercise";
+import { WorkoutOrderControls } from "./workout-order-controls";
 import { WorkoutTraining } from "./workout-training";
 import { RestTimer, type RestTimerHandle } from "./rest-timer";
 import { WorkoutCalendar } from "./workout-calendar";
@@ -575,7 +576,7 @@ function SessionCard({
         {w.exercises.length === 1 ? "exercise" : "exercises"}
       </p>
       <div className="workout-stack">
-        {w.exercises.map((item) => (
+        {w.exercises.map((item, index) => (
           <div
             key={item.id}
             className={`workout-inset${item.group_name ? " workout-group-mark" : ""}`}
@@ -615,6 +616,15 @@ function SessionCard({
               </div>
             ))}
             {!item.sets.length && <p>No sets yet</p>}
+            <WorkoutOrderControls
+              kind="session-exercises"
+              id={item.id}
+              label={`exercise ${index + 1} (${item.exercise_name})`}
+              index={index}
+              count={w.exercises.length}
+              disabled={busy || w.is_finished}
+              run={run}
+            />
             <RemoveWorkoutExercise
               item={item}
               finished={w.is_finished}

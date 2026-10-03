@@ -3,6 +3,7 @@ from django.urls import path
 from . import views
 from . import routine_views
 from .goal_views import ExerciseGoalsView, ExerciseGoalDetailView
+from .ordering_views import MoveExerciseView, MoveSetView
 from .progress_views import (
     ExerciseProgressView,
     ExerciseRecordsView,
@@ -10,6 +11,12 @@ from .progress_views import (
 )
 
 urlpatterns = [
+    path("sets/<uuid:set_id>/move/", MoveSetView.as_view(), name="workout-set-move"),
+    path(
+        "session-exercises/<uuid:item_id>/move/",
+        MoveExerciseView.as_view(),
+        name="workout-exercise-move",
+    ),
     path(
         "exercises/<uuid:exercise_id>/goals/",
         ExerciseGoalsView.as_view(),

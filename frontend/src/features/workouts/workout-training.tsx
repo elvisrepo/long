@@ -6,6 +6,7 @@ import * as api from "./workout-api";
 import { WorkoutTools } from "./workout-tools";
 import { WorkoutGroups } from "./workout-groups";
 import { RemoveWorkoutExercise } from "./remove-workout-exercise";
+import { WorkoutOrderControls } from "./workout-order-controls";
 import {
   dayLabel,
   setLabel,
@@ -230,37 +231,47 @@ export function WorkoutTraining({
         <aside className="workout-card workout-training-sidebar">
           <h2>This workout</h2>
           <div className="workout-stack">
-            {workout.exercises.map((i) => (
-              <button
-                key={i.id}
-                disabled={busy}
-                aria-pressed={i.id === item.id}
-                className={i.group_name ? "workout-group-mark" : undefined}
-                style={
-                  i.group_name
-                    ? { borderInlineStartColor: i.group_colour ?? "#007f68" }
-                    : undefined
-                }
-                onClick={() =>
-                  navigate({
-                    view: "training",
-                    date: workout.performed_on,
-                    session: workout.id,
-                    exercise: i.id,
-                  })
-                }
-              >
-                <span>
-                  {i.exercise_name}
-                  {i.group_name && (
-                    <small style={{ display: "block" }}>{i.group_name}</small>
-                  )}
-                  <small style={{ display: "block" }}>
-                    {i.sets.filter((s) => s.is_completed).length}/
-                    {i.sets.length} sets completed
-                  </small>
-                </span>
-              </button>
+            {workout.exercises.map((i, index) => (
+              <div key={i.id} className="workout-sidebar-exercise">
+                <button
+                  disabled={busy}
+                  aria-pressed={i.id === item.id}
+                  className={i.group_name ? "workout-group-mark" : undefined}
+                  style={
+                    i.group_name
+                      ? { borderInlineStartColor: i.group_colour ?? "#007f68" }
+                      : undefined
+                  }
+                  onClick={() =>
+                    navigate({
+                      view: "training",
+                      date: workout.performed_on,
+                      session: workout.id,
+                      exercise: i.id,
+                    })
+                  }
+                >
+                  <span>
+                    {i.exercise_name}
+                    {i.group_name && (
+                      <small style={{ display: "block" }}>{i.group_name}</small>
+                    )}
+                    <small style={{ display: "block" }}>
+                      {i.sets.filter((s) => s.is_completed).length}/
+                      {i.sets.length} sets completed
+                    </small>
+                  </span>
+                </button>
+                <WorkoutOrderControls
+                  kind="session-exercises"
+                  id={i.id}
+                  label={`exercise ${index + 1} (${i.exercise_name})`}
+                  index={index}
+                  count={workout.exercises.length}
+                  disabled={disabled}
+                  run={run}
+                />
+              </div>
             ))}
           </div>
           <button
@@ -499,6 +510,15 @@ export function WorkoutTraining({
                             if (completed) advance();
                           });
                         }}
+                      />
+                      <WorkoutOrderControls
+                        kind="sets"
+                        id={s.id}
+                        label={`set ${n + 1}`}
+                        index={n}
+                        count={item.sets.length}
+                        disabled={disabled}
+                        run={run}
                       />
                     </div>
                   ))

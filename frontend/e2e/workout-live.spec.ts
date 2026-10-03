@@ -113,7 +113,7 @@ for (const width of [320, 390, 1440]) {
     await expect(
       page
         .getByRole("complementary")
-        .getByRole("button", { name: /Dumbbell incline press/ }),
+        .getByRole("button", { name: /^Dumbbell incline press/ }),
     ).toHaveCSS("border-left-color", "rgb(219, 39, 119)");
     await page
       .getByRole("complementary")
@@ -150,6 +150,66 @@ for (const width of [320, 390, 1440]) {
     await expect(
       page.getByText("80 kg · — reps", { exact: true }),
     ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Move set 2 up", exact: true })
+      .focus();
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".workout-set-values").first()).toContainText(
+      "80 kg",
+    );
+    await page.reload();
+    await expect(page.locator(".workout-set-values").first()).toContainText(
+      "80 kg",
+    );
+    await expect(
+      page.getByRole("button", { name: "Move set 1 up", exact: true }),
+    ).toBeDisabled();
+    await capture("set-ordering");
+    await page
+      .getByRole("button", { name: "Move set 1 down", exact: true })
+      .click();
+    await expect(page.locator(".workout-set-values").first()).toContainText(
+      "40 kg",
+    );
+    await page
+      .getByRole("button", { name: "Workout overview", exact: true })
+      .click();
+    await page
+      .getByRole("button", {
+        name: "Move exercise 2 (Dumbbell incline press) up",
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.getByRole("button", {
+        name: "Move exercise 1 (Dumbbell incline press) up",
+        exact: true,
+      }),
+    ).toBeDisabled();
+    await page.reload();
+    await expect(
+      page.locator(".workout-inset.workout-group-mark").first(),
+    ).toContainText("Dumbbell incline press");
+    await capture("exercise-ordering");
+    await page
+      .getByRole("button", { name: "Barbell bench press →", exact: true })
+      .click();
+    await page
+      .getByRole("button", {
+        name: "Move exercise 2 (Barbell bench press) up",
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.getByRole("button", {
+        name: "Move exercise 1 (Barbell bench press) up",
+        exact: true,
+      }),
+    ).toBeDisabled();
+    await expect(
+      page.getByRole("heading", { name: "Barbell bench press", level: 1 }),
+    ).toBeVisible();
+    await page.getByText("Workout calculators", { exact: true }).click();
     await page.getByLabel("Lifted load (kg)").fill("100");
     await page.getByLabel("Lifted reps", { exact: true }).fill("5");
     await page.getByRole("button", { name: "Calculate estimated 1RM" }).click();

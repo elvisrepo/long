@@ -2,6 +2,21 @@
 
 ## Workout tracking — 2026-10-01 backend slice
 
+Adjacent ordering coverage: `test_workout_ordering.py` checks persisted exercise
+and set moves, tied orders, both directions/boundaries, performance preservation,
+JWT/foreign ownership, strict input and finished/reopened sessions. Component
+tests cover keyboard activation, disabled boundaries/locked state, pending-click
+protection, retryable errors, Home refetch and keeping the selected training
+occurrence. Real-backend flows cover set and exercise moves/reloads at
+320/390/1440px, with viewport containment and screenshots. Run focused ordering
+and workout-screen/group tests first, then the broader relevant suites.
+
+Ordering verification: 8 focused ordering backend cases, 50 ordering/basic-log
+regressions, 724 full backend tests, 490 frontend tests and three real-backend
+browser flows pass. Ruff, targeted mypy, ESLint, production build, migration-drift
+and whitespace checks pass. Phone set ordering and desktop exercise ordering
+screenshots were inspected; no horizontal overflow. No migration or deployment.
+
 Exercise overview/goal scenarios: completed-only distinct-session totals, inclusive
 cutoff and old history, frozen types/units, foreign/unauthorized access, actual
 strength goals with at-least/exact rep rules, immutable units after catalog
