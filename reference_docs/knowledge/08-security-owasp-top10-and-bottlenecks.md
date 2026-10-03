@@ -76,6 +76,18 @@ notes fetch, new index or migration is introduced.
 
 ### Routine template boundary — 2026-10-02
 
+Routine preview/start (2026-10-03): GET preview is read-only and JWT/owner-scoped,
+including nested exercise ownership and completed-history lookups. POST retains
+the per-owner lock and atomic transaction, validates all selected template IDs
+before creating a workout, and recomputes the plan before comparing its fingerprint.
+The fingerprint is not a bearer credential; ownership checks apply independently.
+Stale plans return `409` with no partial write. Carry-forward requires a preview,
+never guesses ambiguous duplicates, and never copies private set comments.
+The client disables confirmation during reads/writes and requires an explicit
+refresh after failed creation; it does not automatically retry non-idempotent starts.
+On ambiguous network failure it advises checking the destination for an already
+created session before retrying. This is not an idempotency guarantee.
+
 - All plans can use private routines with JWT; never accept client ownership or
   direct exercise/set snapshot input. Capture references must resolve to an own
   saved workout; empty sources and cross-owner nested exercise references fail.

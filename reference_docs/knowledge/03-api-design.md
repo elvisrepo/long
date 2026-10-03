@@ -30,13 +30,36 @@ exercise-specific planned-only dates excluded from its completed-only series.
 
 ### Routine templates — 2026-10-02
 
+Routine start preview (2026-10-03): carry-forward is explicit and off by default.
+Fixed values, including zero, stay fixed. Only blank quantities applicable to the
+frozen type are filled from the latest matching exercise occurrence with completed
+sets on a date strictly before `performed_on`. Type and both saved units must match.
+Set positions match in saved order; missing/planned positions stay blank, without
+falling back to older individual sets. Duplicate matching occurrences in the template
+or source workout are ambiguous and remain blank with an explanation.
+
+Preview JSON contains `day_id`, `name`, `notes`, `performed_on`, `carry_forward`,
+`preview_token`, and nested template `exercises`. Each exercise adds `carry_reason`;
+each set adds nullable `source: {workout_id, item_id, set_id, date, fields}` identifying
+only filled quantities. No source comments/completion are exposed or copied.
+`preview_token` is a SHA-256 fingerprint of the rendered plan, not authorization.
+Carry-forward requires this token; any supplied token is compared to a recomputed
+plan under the owner lock. Changed plans return `409` before any creation.
+Selection uses `{item_id, set_ids?}` for template IDs, with the same 1–100 exercise,
+0–1000 set, duplicate/foreign-ID validation as selective workout copying. Omitted
+selection means all; omitted set IDs means all that item's sets; `[]` means exercise
+only. Request order cannot change template order. New IDs/sets are independent,
+planned and comment-free; day notes and groups are retained. No new schema or
+persisted routine-to-workout occurrence lineage is introduced.
+
 | Method | Endpoint | Contract |
 |---|---|---|
 | GET/POST | `/api/v1/workouts/routines/` | GET own routines including archives with nested days/exercises/sets; POST `{name, notes?, display_order?}` creates an active routine `201` |
 | PATCH | `/api/v1/workouts/routines/{uuid}/` | Own name/notes/order/archive; no hard-delete routine endpoint |
 | POST | `/api/v1/workouts/routines/{uuid}/days/` | `{name, source_workout_id?, notes?, display_order?}`; `201` empty day, or independent snapshot of an own saved workout containing at least one exercise |
 | PATCH/DELETE | `/api/v1/workouts/routine-days/{uuid}/` | PATCH own name/notes/order; optional `source_workout_id` atomically replaces exercise/set template; DELETE `204` removes only template, never previously created sessions |
-| POST | `/api/v1/workouts/routine-days/{uuid}/start/` | `{performed_on}` creates independent planned Workout `201`, all set completion false; original units/order/quantities preserved |
+| GET | `/api/v1/workouts/routine-days/{uuid}/preview/` | Required `performed_on`, optional `carry_forward=false`; read-only resolved start plan with provenance and `preview_token` |
+| POST | `/api/v1/workouts/routine-days/{uuid}/start/` | `{performed_on, carry_forward?, preview_token?, selection?}` creates independent planned Workout `201`; legacy date-only starts retain fixed template behavior |
 | POST | `/api/v1/workouts/routine-days/{uuid}/exercises/` | `{exercise_id, display_order?}` adds active own library exercise with server-frozen snapshots, `201` |
 | PATCH/DELETE | `/api/v1/workouts/routine-exercises/{uuid}/` | PATCH `{display_order?, group_name?}` with at least one field; DELETE occurrence and its template sets, `204` |
 | POST | `/api/v1/workouts/routine-exercises/{uuid}/sets/` | Planned quantities and optional order, `201`; no performance fields |

@@ -4,6 +4,7 @@ import { Modal } from "../../components/modal";
 import { useMeQuery } from "../auth/use-me-query";
 import * as api from "./workout-api";
 import { RoutineDayBuilder } from "./routine-day-builder";
+import { RoutineStartDialog } from "./routine-start-dialog";
 import {
   dayLabel,
   setLabel,
@@ -180,6 +181,7 @@ export function SaveRoutineDayDialog({
           <label>
             Day order
             <input
+              aria-describedby="capture-template-order-help"
               type="number"
               min="0"
               max="2147483647"
@@ -190,6 +192,10 @@ export function SaveRoutineDayDialog({
               disabled={pending}
             />
           </label>
+          <small id="capture-template-order-help">
+            Position among this plan's templates. Lower numbers appear first;
+            this is not a calendar date.
+          </small>
           {dayId && (
             <p>
               This replaces the template's exercises and sets. Existing workout
@@ -241,11 +247,25 @@ export function WorkoutRoutines({
     api.WorkoutRoutine | null | undefined
   >();
   const [dayEditor, setDayEditor] = useState<api.RoutineDay>();
+  const [startDay, setStartDay] = useState<api.RoutineDay>();
   const [newDayRoutine, setNewDayRoutine] = useState<string>();
   const pending = busy || query.isFetching;
   const routines = query.data?.filter((r) => archives || r.is_active) ?? [];
   return (
     <>
+      <section className="workout-inset" aria-label="How routines work">
+        <h2>Training plans & workout templates</h2>
+        <p>
+          A routine is a training plan, such as Push / Pull / Legs. Each routine
+          day is a reusable workout template, such as Push. You can also keep
+          just one template in a routine.
+        </p>
+        <p className="workout-note">
+          Create a routine → Add a workout template → Add exercises → Start its
+          preview. Starting creates a separate workout on your selected date;
+          the template stays unchanged.
+        </p>
+      </section>
       <div className="workout-toolbar">
         <button
           className="primary-button"
@@ -292,16 +312,20 @@ export function WorkoutRoutines({
                 <div className="workout-card-heading">
                   <h2>{r.name}</h2>
                   <span className="workout-badge">
-                    {r.is_active ? "Routine" : "Archived"}
+                    {r.is_active ? "Training plan" : "Archived plan"}
                   </span>
                 </div>
                 {r.notes && <p>{r.notes}</p>}
+                <p className="workout-note">
+                  {r.days.length} workout{" "}
+                  {r.days.length === 1 ? "template" : "templates"}
+                </p>
                 <div className="workout-actions">
                   <button
                     disabled={pending || !r.is_active}
                     onClick={() => setNewDayRoutine(r.id)}
                   >
-                    Add routine day
+                    Add workout template
                   </button>
                   <button
                     disabled={pending}
@@ -323,13 +347,31 @@ export function WorkoutRoutines({
                   </button>
                 </div>
                 {!r.days.length && (
-                  <p>No days yet. Add your first routine day.</p>
+                  <p>
+                    No workout templates yet. Add a template such as Push or
+                    Legs, then choose its exercises.
+                  </p>
                 )}
                 <div className="workout-library-grid" style={{ marginTop: 16 }}>
                   {r.days.map((d) => (
                     <section key={d.id} className="workout-inset">
                       <h3>{d.name}</h3>
+                      <p className="workout-note">
+                        Workout template · {d.exercises.length}{" "}
+                        {d.exercises.length === 1 ? "exercise" : "exercises"} ·{" "}
+                        {d.exercises.reduce(
+                          (total, item) => total + item.sets.length,
+                          0,
+                        )}{" "}
+                        planned sets
+                      </p>
                       {d.notes && <p>{d.notes}</p>}
+                      {!d.exercises.length && (
+                        <p>
+                          Add at least one exercise to enable Start. Planned
+                          sets are optional.
+                        </p>
+                      )}
                       {d.exercises.map((i) => (
                         <div key={i.id}>
                           <strong>{i.exercise_name}</strong>
@@ -344,13 +386,10 @@ export function WorkoutRoutines({
                       <div className="workout-actions">
                         <button
                           className="primary-button"
-                          disabled={pending || !r.is_active}
-                          onClick={() =>
-                            run(async () => {
-                              const w = await api.startRoutineDay(d.id, day);
-                              navigate({ view: "home", date: w.performed_on });
-                            })
+                          disabled={
+                            pending || !r.is_active || !d.exercises.length
                           }
+                          onClick={() => setStartDay(d)}
                         >
                           Start {d.name}
                         </button>
@@ -358,10 +397,16 @@ export function WorkoutRoutines({
                           disabled={pending || !r.is_active}
                           onClick={() => setDayEditor(d)}
                         >
-                          Edit day
+                          {d.exercises.length
+                            ? "Edit template"
+                            : "Add exercises"}
                         </button>
                       </div>
-                      <small>Start on {dayLabel(day)}</small>
+                      <small>
+                        {d.exercises.length
+                          ? `Preview and start on ${dayLabel(day)}`
+                          : "Not ready to start"}
+                      </small>
                     </section>
                   ))}
                 </div>
@@ -376,6 +421,17 @@ export function WorkoutRoutines({
           busy={busy}
           run={run}
           onClose={() => setRoutineEditor(undefined)}
+        />
+      )}
+      {startDay && (
+        <RoutineStartDialog
+          owner={owner}
+          dayId={startDay.id}
+          destination={day}
+          busy={busy}
+          run={run}
+          navigate={navigate}
+          onClose={() => setStartDay(undefined)}
         />
       )}
       {dayEditor && (
@@ -396,6 +452,10 @@ export function WorkoutRoutines({
           busy={busy}
           run={run}
           onClose={() => setNewDayRoutine(undefined)}
+          onCreated={(created) => {
+            setNewDayRoutine(undefined);
+            setDayEditor(created);
+          }}
         />
       )}
     </>
@@ -417,6 +477,11 @@ function RoutineEditor({
   return (
     <Modal labelledBy="routine-editor" busy={busy} onClose={onClose}>
       <h2 id="routine-editor">{routine ? "Edit routine" : "New routine"}</h2>
+      <p>
+        A routine groups your workout templates. For example, name the plan Push
+        / Pull / Legs, then add Push, Pull and Legs templates. A single-template
+        plan works too.
+      </p>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -453,6 +518,7 @@ function RoutineEditor({
         <label>
           Routine order
           <input
+            aria-describedby="routine-order-help"
             name="order"
             type="number"
             min="0"
@@ -463,6 +529,9 @@ function RoutineEditor({
             disabled={busy}
           />
         </label>
+        <small id="routine-order-help">
+          Position in your plan list. Lower numbers appear first.
+        </small>
         {error && <p role="alert">{error}</p>}
         <button className="primary-button" disabled={busy}>
           Save routine
@@ -491,8 +560,15 @@ function DayEditor({
   return (
     <Modal labelledBy="routine-day-editor" busy={busy} onClose={onClose}>
       <h2 id="routine-day-editor">
-        {confirm ? "Remove routine day?" : "Edit routine day"}
+        {confirm ? "Remove workout template?" : "Edit workout template"}
       </h2>
+      {!confirm && (
+        <p>
+          Routine day means workout template, not a calendar date. Add exercises
+          here, then use Start to preview a workout on your chosen date. Changes
+          here do not alter existing workouts.
+        </p>
+      )}
       {confirm ? (
         <>
           <p>
@@ -550,6 +626,7 @@ function DayEditor({
             <label>
               Day order
               <input
+                aria-describedby="template-order-help"
                 name="order"
                 type="number"
                 min="0"
@@ -560,6 +637,10 @@ function DayEditor({
                 disabled={busy}
               />
             </label>
+            <small id="template-order-help">
+              Position among this plan's templates. Lower numbers appear first;
+              this is not a calendar date.
+            </small>
             <button className="primary-button" disabled={busy}>
               Save day details
             </button>
@@ -587,27 +668,33 @@ function NewDayEditor({
   busy,
   run,
   onClose,
+  onCreated,
 }: {
   routineId: string;
   busy: boolean;
   run: RunAction;
   onClose: () => void;
+  onCreated: (day: api.RoutineDay) => void;
 }) {
   const { error, execute } = useRoutineAction(run);
   return (
     <Modal labelledBy="new-routine-day" busy={busy} onClose={onClose}>
-      <h2 id="new-routine-day">New routine day</h2>
+      <h2 id="new-routine-day">Add workout template</h2>
+      <p>
+        Name this reusable workout, for example Push, Pull or Legs. Next, choose
+        its exercises. This does not start a workout.
+      </p>
       <form
         onSubmit={(e) => {
           e.preventDefault();
           const fd = new FormData(e.currentTarget);
           execute(async () => {
-            await api.saveRoutineDay(routineId, undefined, {
+            const created = await api.saveRoutineDay(routineId, undefined, {
               name: String(fd.get("name")).trim(),
               notes: "",
               display_order: 100,
             });
-            onClose();
+            onCreated(created);
           });
         }}
       >

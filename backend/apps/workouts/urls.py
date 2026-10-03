@@ -4,6 +4,7 @@ from . import views
 from . import routine_views
 from .goal_views import ExerciseGoalsView, ExerciseGoalDetailView
 from .ordering_views import MoveExerciseView, MoveSetView
+from .routine_preview import RoutinePreviewView
 from .progress_views import (
     ExerciseProgressView,
     ExerciseRecordsView,
@@ -11,6 +12,11 @@ from .progress_views import (
 )
 
 urlpatterns = [
+    path(
+        "routine-days/<uuid:day_id>/preview/",
+        RoutinePreviewView.as_view(),
+        name="workout-routine-preview",
+    ),
     path("sets/<uuid:set_id>/move/", MoveSetView.as_view(), name="workout-set-move"),
     path(
         "session-exercises/<uuid:item_id>/move/",

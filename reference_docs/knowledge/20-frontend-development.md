@@ -65,9 +65,21 @@ top-level tab. Home sessions offer Save as routine day, either into a new routin
 as another named day, or explicitly replacing an existing template. Routine/day
 metadata supports notes and numeric ordering; routine archive/restore retains
 templates, while confirmed day removal retains previously created sessions. Start
-uses the selected calendar date and creates a planned, independent session.
-Edit day directly manages template exercises, planned sets and numeric ordering;
-Add routine day creates an empty template without a Workout. Capture/replacement
+opens a read-only preview for the selected calendar date before creating a planned,
+independent session. Preview supports exercise/set selection and explicit, off-by-default
+carry-forward for blank fields, with source dates/fields and explanations for unmatched
+history. Fixed values stay fixed; quantities can be edited after starting. Owner/date/mode
+scope the preview cache. Pending reads/writes lock controls; failed creation requires
+explicit Refresh preview while retaining selection. Stale server plans cannot silently
+start with changed values. Cancellation and preview GET never create workouts.
+The Routines view explicitly distinguishes a training plan (routine) from its
+workout templates (routine days), using Push / Pull / Legs as an example. Cards
+show template/exercise/planned-set counts. Add workout template creates an empty
+template and opens its exercise editor only after server confirmation, without
+creating a Workout. Empty templates explain the disabled Start and offer Add
+exercises; populated templates offer Edit template. Numeric ordering fields have
+accessible explanations: lower values come first, and order is not a count/date.
+Edit template directly manages exercises, planned sets and numeric ordering. Capture/replacement
 from saved sessions remains available. Exact group labels link occurrences within
 the day/session. Session Training sidebar now exposes Add to group / Edit group:
 pick/join existing groups or create an editable `Superset N`, include the current

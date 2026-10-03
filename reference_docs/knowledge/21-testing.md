@@ -181,6 +181,40 @@ queries explicitly preserve library ordering (covered by regression tests).
   646 backend tests were not rerun here. The live-backend E2E boundary remains
   unverified because of the stale Docker network reference noted above.
 
+### Routine preview and carry-forward — 2026-10-03
+
+Routine UX component checks additionally cover plan/template terminology and counts,
+empty-template Start guidance and Add exercises, direct entry into the exercise
+editor after confirmed template creation without creating a workout, and accessible
+exercise/set order descriptions. Browser flows follow the direct setup transition
+and renamed Add workout template / Edit template actions.
+UI-only follow-up verification: 501 frontend tests, all six workout browser flows
+at 320/390/1440px, lint and build pass. No backend or contract changes in this follow-up.
+
+`test_routine_carry_forward.py` covers read-only preview, fixed/zero quantities,
+completed-only history strictly before the target date, type/unit boundaries,
+ordered positions without compressing planned gaps, duplicate ambiguity, per-field
+provenance, strength/bodyweight/cardio/duration fields, selective independent starts,
+groups, planned/comment-free output, template/source preservation, required tokens,
+stale template/performance rejection and explicit refresh, invalid IDs and ownership.
+Focused verification: 34 backend cases including existing routines; 10 frontend
+cases cover carry mode, preview-only opening, selection/cancel/read errors, pending
+controls, stale retry requiring refresh, and server-confirmed navigation.
+Live browser coverage at 320/390/1440px additionally checks carry from earlier completed
+history rather than the destination's planned copy, and verifies template blanks remain
+unchanged after starting. See current slice verification in the workout domain doc.
+
+Final slice verification: 753 backend tests, 500 frontend tests, three real-backend
+browser flows and three mocked workout flows pass. Frontend/backend lint, TypeScript
+build, mypy, migration drift and whitespace checks pass. Touched frontend files pass
+formatting. Global Prettier still flags unchanged `features/auth/account-api.test.ts`,
+`features/subscriptions/subscriptions-api.test.ts` and
+`features/subscriptions/use-current-subscription-query.ts`; these were left untouched.
+An initial desktop browser failure was traced to Django auto-reloading formatted
+backend files mid-request; rerunning after writes settled passed without application
+retry changes. A tied-order test assumption and the fixture's missing copy-preview
+step were corrected before the final green runs.
+
 ### Routine templates — 2026-10-02
 
 - Direct editor tests add empty-day creation, exercise/set CRUD and ordering,

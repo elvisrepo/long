@@ -197,7 +197,7 @@ export function WorkoutScreen({
                   ? "Select an exercise to add to this workout, or open one already included."
                   : "Browse your exercise library, history and progress. No workout is created here."
                 : view === "routines"
-                  ? "Reusable named days. Start each as an independent planned workout."
+                  ? "Organize training plans and start reusable workout templates."
                   : view === "calendar"
                     ? "Browse training and plans by month."
                     : view === "progress"

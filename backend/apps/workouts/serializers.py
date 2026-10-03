@@ -336,7 +336,7 @@ class SessionCopySerializer(CopySerializer):
     )
 
     def validate(self, data: dict[str, Any]) -> dict[str, Any]:
-        if set(self.initial_data) - {"performed_on", "selection"}:
+        if set(self.initial_data) - set(self.fields):
             raise serializers.ValidationError(
                 "Only performed_on and selection can be supplied."
             )

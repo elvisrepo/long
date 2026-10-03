@@ -111,6 +111,24 @@ async function fixture(page: Page) {
       json = routines[0];
     } else if (
       path.includes("/workouts/routine-days/") &&
+      path.endsWith("/preview/")
+    ) {
+      const day = routines[0].days[0];
+      json = {
+        day_id: day.id,
+        name: routines[0].name + " · " + day.name,
+        notes: day.notes,
+        performed_on: url.searchParams.get("performed_on"),
+        carry_forward: false,
+        preview_token: "a".repeat(64),
+        exercises: day.exercises.map((item) => ({
+          ...item,
+          carry_reason: "Fixed template values; carry-forward is off.",
+          sets: item.sets.map((row) => ({ ...row, source: null })),
+        })),
+      };
+    } else if (
+      path.includes("/workouts/routine-days/") &&
       path.endsWith("/start/")
     ) {
       const day = routines[0].days[0];
@@ -273,6 +291,9 @@ for (const width of [320, 390, 1440])
     await page.getByRole("button", { name: "History", exact: true }).click();
     await page.getByRole("button", { name: "Copy workout" }).click();
     await page.getByLabel("Copy to date").fill("2026-10-03");
+    await page
+      .getByRole("button", { name: "Preview copy", exact: true })
+      .click();
     await page.getByRole("button", { name: "Create planned workout" }).click();
     await expect(
       page.getByText("0 completed sets · 1 exercise", { exact: true }),
@@ -291,6 +312,12 @@ for (const width of [320, 390, 1440])
     await page.getByLabel("Tracking date").fill("2026-10-06");
     await page.getByRole("button", { name: "Start Push", exact: true }).click();
     await expect(
+      page.getByRole("heading", { name: "Preview routine start" }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Start planned workout", exact: true })
+      .click();
+    await expect(
       page.getByRole("heading", { name: "Weekly plan · Push" }),
     ).toBeVisible();
     await expect(
@@ -306,7 +333,9 @@ for (const width of [320, 390, 1440])
       page.getByRole("button", { name: "Start Push", exact: true }),
     ).toBeDisabled();
     await page.getByRole("button", { name: "Restore routine" }).click();
-    await page.getByRole("button", { name: "Edit day", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Edit template", exact: true })
+      .click();
     await page.getByLabel("Day name", { exact: true }).fill("Upper body");
     await page.getByRole("button", { name: "Save day details" }).click();
     await expect(

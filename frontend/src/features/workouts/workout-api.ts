@@ -119,6 +119,26 @@ export interface WorkoutRoutine {
   is_active: boolean;
   days: RoutineDay[];
 }
+export interface RoutineStartPreview {
+  day_id: string;
+  name: string;
+  notes: string;
+  performed_on: string;
+  carry_forward: boolean;
+  preview_token: string;
+  exercises: (Omit<RoutineExercise, "sets"> & {
+    carry_reason: string;
+    sets: (RoutineSet & {
+      source: null | {
+        workout_id: string;
+        item_id: string;
+        set_id: string;
+        date: string;
+        fields: string[];
+      };
+    })[];
+  })[];
+}
 export type SetInput = Partial<Omit<WorkoutSet, "id">>;
 export type ExerciseInput = Partial<Omit<Exercise, "id">>;
 
@@ -434,10 +454,24 @@ export const saveRoutineDay = (
 export const startRoutineDay = (
   id: string,
   performed_on: string,
+  options?: {
+    carry_forward?: boolean;
+    preview_token?: string;
+    selection?: CopySelection[];
+  },
 ): Promise<Workout> =>
   request(`routine-days/${encodeURIComponent(id)}/start/`, "POST", {
     performed_on,
+    ...options,
   });
+export const getRoutineStartPreview = (
+  id: string,
+  performed_on: string,
+  carry_forward: boolean,
+): Promise<RoutineStartPreview> =>
+  request(
+    `routine-days/${encodeURIComponent(id)}/preview/?${new URLSearchParams({ performed_on, carry_forward: String(carry_forward) })}`,
+  );
 export const removeRoutineDay = (id: string): Promise<void> =>
   request(`routine-days/${encodeURIComponent(id)}/`, "DELETE");
 

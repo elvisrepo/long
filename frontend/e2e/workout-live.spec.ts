@@ -58,10 +58,12 @@ for (const width of [320, 390, 1440]) {
     await page
       .getByRole("button", { name: "Save routine", exact: true })
       .click();
-    await page.getByRole("button", { name: "Add routine day" }).click();
+    await page.getByRole("button", { name: "Add workout template" }).click();
     await page.getByLabel("Day name").fill("Push");
     await page.getByRole("button", { name: "Create day" }).click();
-    await page.getByRole("button", { name: "Edit day" }).click();
+    await expect(
+      page.getByRole("dialog", { name: "Edit workout template" }),
+    ).toBeVisible();
     await page
       .getByLabel("Add an exercise")
       .selectOption({ label: "Barbell bench press" });
@@ -76,12 +78,32 @@ for (const width of [320, 390, 1440]) {
     ).toBeVisible();
     await capture("routine-editor");
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(
+      page.getByText("Training plan", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("1 workout template", { exact: true }),
+    ).toBeVisible();
+    await capture("routine-templates");
     await page.getByRole("button", { name: "Start Push", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "Preview routine start" }),
+    ).toBeVisible();
+    await expect(
+      page.getByLabel("Fill blank fields from earlier completed sets"),
+    ).not.toBeChecked();
+    await expect(
+      page.getByRole("region", { name: "Routine start preview" }),
+    ).toContainText("40 kg · 5 reps");
+    await capture("routine-start-preview");
+    await page
+      .getByRole("button", { name: "Start planned workout", exact: true })
+      .click();
     await expect(
       page.getByRole("heading", { name: "Weekly plan · Push" }),
     ).toBeVisible();
     await page.getByRole("button", { name: "Routines", exact: true }).click();
-    await page.getByRole("button", { name: "Edit day" }).click();
+    await page.getByRole("button", { name: "Edit template" }).click();
     await page.getByRole("button", { name: /Set 1:/ }).click();
     await page.getByLabel("Weight (kg)").fill("55");
     await page.getByRole("button", { name: "Update planned set" }).click();
@@ -702,5 +724,43 @@ for (const width of [320, 390, 1440]) {
       page.getByText("40 kg · 5 reps", { exact: false }).first(),
     ).toBeVisible();
     await expect(page.getByText("80 kg", { exact: false })).toHaveCount(0);
+    // Blank template fields are filled explicitly from earlier completed history,
+    // not from the planned copy on the destination date.
+    await page.getByRole("button", { name: "Routines", exact: true }).click();
+    await page.getByRole("button", { name: "Edit template" }).click();
+    await page.getByRole("button", { name: /Set 1:/ }).click();
+    await page.getByLabel("Weight (kg)").fill("");
+    await page.getByRole("button", { name: "Update planned set" }).click();
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await page.getByRole("button", { name: "Start Push", exact: true }).click();
+    const routinePreview = page.getByRole("region", {
+      name: "Routine start preview",
+    });
+    await expect(routinePreview).toContainText("5 reps");
+    await expect(routinePreview).not.toContainText("40 kg");
+    await page
+      .getByLabel("Fill blank fields from earlier completed sets")
+      .check();
+    await expect(routinePreview).toContainText("40 kg · 5 reps");
+    await expect(routinePreview).toContainText(`From ${currentDate}: weight`);
+    await capture("routine-carry-forward");
+    const startedResponse = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        /\/routine-days\/[^/]+\/start\/$/.test(
+          new URL(response.url()).pathname,
+        ),
+    );
+    await page
+      .getByRole("button", { name: "Start planned workout", exact: true })
+      .click();
+    const started = await (await startedResponse).json();
+    expect(started.performed_on).toBe(copyDate);
+    expect(started.exercises[0].sets[0].weight).toBe("40.000");
+    expect(started.exercises[0].sets[0].is_completed).toBe(false);
+    await page.getByRole("button", { name: "Routines", exact: true }).click();
+    await page.getByRole("button", { name: "Edit template" }).click();
+    await page.getByRole("button", { name: /Set 1:/ }).click();
+    await expect(page.getByLabel("Weight (kg)")).toHaveValue("");
   });
 }

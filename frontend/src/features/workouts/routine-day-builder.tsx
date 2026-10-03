@@ -174,6 +174,7 @@ export function RoutineDayBuilder({
             <label>
               Exercise order
               <input
+                aria-describedby="routine-exercise-order-help"
                 name="order"
                 type="number"
                 min="0"
@@ -184,6 +185,10 @@ export function RoutineDayBuilder({
                 disabled={busy}
               />
             </label>
+            <small id="routine-exercise-order-help">
+              Position in this template, not a count. Lower numbers appear
+              first: 10, 20, 30. Use 15 to place an exercise between 10 and 20.
+            </small>
             <label>
               Superset / circuit name
               <input
@@ -256,6 +261,7 @@ export function RoutineDayBuilder({
             <label>
               Set order
               <input
+                aria-describedby="routine-set-order-help"
                 name="order"
                 type="number"
                 min="0"
@@ -269,6 +275,10 @@ export function RoutineDayBuilder({
                 disabled={busy}
               />
             </label>
+            <small id="routine-set-order-help">
+              Position within this exercise, not reps or number of sets. Lower
+              numbers appear first.
+            </small>
             <button className="primary-button" disabled={busy}>
               {editing ? "Update planned set" : "Add planned set"}
             </button>

@@ -15,7 +15,13 @@ from .routine_serializers import (
     RoutineSetInputSerializer,
 )
 from .routine_services import capture_day, start_day
-from .serializers import CopySerializer, WorkoutSerializer, ExerciseSettingsSerializer
+from .serializers import WorkoutSerializer, ExerciseSettingsSerializer
+from .routine_preview import (
+    load_start_day,
+    start_preview,
+    RoutineStartInput,
+    StaleRoutinePreview,
+)
 
 
 class RoutinesView(APIView):
@@ -125,21 +131,14 @@ class StartRoutineDayView(APIView):
     @transaction.atomic
     def post(self, request: Request, day_id: str) -> Response:
         User.objects.select_for_update().get(pk=request.user.pk)
-        day = get_object_or_404(
-            RoutineDay.objects.select_related("routine__user").prefetch_related(
-                "exercises__sets"
-            ),
-            pk=day_id,
-            routine__user=request.user,
-        )
-        require_active(day.routine)
-        if not day.exercises.exists():
-            raise ValidationError("Add exercises to this routine day first.")
-        if day.exercises.exclude(exercise__category__user=request.user).exists():
-            raise ValidationError("This day contains an inaccessible exercise.")
-        serializer = CopySerializer(data=request.data)
+        day = load_start_day(request.user, day_id)
+        serializer = RoutineStartInput(data=request.data)
         serializer.is_valid(raise_exception=True)
-        workout = start_day(day, serializer.validated_data["performed_on"])
+        data = serializer.validated_data
+        plan = start_preview(day, data["performed_on"], data["carry_forward"])
+        if "preview_token" in data and data["preview_token"] != plan["preview_token"]:
+            raise StaleRoutinePreview()
+        workout = start_day(day, data["performed_on"], plan, data.get("selection"))
         return Response(WorkoutSerializer(workout).data, status=201)
 
 
