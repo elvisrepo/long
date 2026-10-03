@@ -21,6 +21,7 @@ import { WorkoutTraining } from "./workout-training";
 import { RestTimer, type RestTimerHandle } from "./rest-timer";
 import { WorkoutCalendar } from "./workout-calendar";
 import { CopyWorkoutPicker } from "./copy-workout-picker";
+import { CopyWorkoutDialog } from "./copy-workout-dialog";
 import { WorkoutProgress } from "./workout-progress";
 import { WorkoutOverview } from "./workout-overview";
 import { WorkoutRoutines, SaveRoutineDayDialog } from "./workout-routines";
@@ -682,18 +683,24 @@ function SessionCard({
           onClose={() => setDialog(null)}
         />
       )}
-      {dialog && dialog !== "routine" && (
+      {dialog === "copy" && (
+        <CopyWorkoutDialog
+          source={w}
+          destination={localDay(new Date())}
+          busy={busy}
+          run={run}
+          navigate={navigate}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog && dialog !== "routine" && dialog !== "copy" && (
         <Modal
           labelledBy={`session-dialog-${w.id}`}
           busy={busy}
           onClose={() => setDialog(null)}
         >
           <h2 id={`session-dialog-${w.id}`}>
-            {dialog === "copy"
-              ? "Copy workout"
-              : dialog === "delete"
-                ? "Delete workout?"
-                : "Session details"}
+            {dialog === "delete" ? "Delete workout?" : "Session details"}
           </h2>
           {dialog === "delete" ? (
             <>
@@ -720,67 +727,49 @@ function SessionCard({
                 e.preventDefault();
                 const fd = new FormData(e.currentTarget);
                 run(async () => {
-                  if (dialog === "copy") {
-                    const copy = await api.copyWorkout(
-                      w.id,
-                      String(fd.get("date")),
-                    );
-                    setDialog(null);
-                    navigate({ view: "home", date: copy.performed_on });
-                  } else {
-                    const saved = await api.updateWorkout(w.id, {
-                      name: String(fd.get("name")).trim(),
-                      notes: String(fd.get("notes")),
-                      performed_on: String(fd.get("date")),
-                    });
-                    setDialog(null);
-                    navigate({ view: "home", date: saved.performed_on });
-                  }
+                  const saved = await api.updateWorkout(w.id, {
+                    name: String(fd.get("name")).trim(),
+                    notes: String(fd.get("notes")),
+                    performed_on: String(fd.get("date")),
+                  });
+                  setDialog(null);
+                  navigate({ view: "home", date: saved.performed_on });
                 });
               }}
             >
               <label>
-                {dialog === "copy" ? "Copy to date" : "Session date"}
+                Session date
                 <input
                   name="date"
                   type="date"
-                  defaultValue={
-                    dialog === "copy" ? localDay(new Date()) : w.performed_on
-                  }
+                  defaultValue={w.performed_on}
                   required
                   disabled={busy}
                 />
               </label>
-              {dialog === "copy" ? (
-                <p>
-                  Copied sets start planned, not completed. Performance comments
-                  are not copied.
-                </p>
-              ) : (
-                <>
-                  <label>
-                    Session name
-                    <input
-                      name="name"
-                      defaultValue={w.name}
-                      required
-                      maxLength={120}
-                      disabled={busy}
-                    />
-                  </label>
-                  <label>
-                    Session notes
-                    <textarea
-                      name="notes"
-                      defaultValue={w.notes}
-                      maxLength={2000}
-                      disabled={busy}
-                    />
-                  </label>
-                </>
-              )}
+              <>
+                <label>
+                  Session name
+                  <input
+                    name="name"
+                    defaultValue={w.name}
+                    required
+                    maxLength={120}
+                    disabled={busy}
+                  />
+                </label>
+                <label>
+                  Session notes
+                  <textarea
+                    name="notes"
+                    defaultValue={w.notes}
+                    maxLength={2000}
+                    disabled={busy}
+                  />
+                </label>
+              </>
               <button className="primary-button" disabled={busy}>
-                {dialog === "copy" ? "Create planned workout" : "Save session"}
+                Save session
               </button>
             </form>
           )}
@@ -876,45 +865,14 @@ function WorkoutHistory({
         </button>
       </div>
       {copy && (
-        <Modal
-          labelledBy="history-copy"
+        <CopyWorkoutDialog
+          source={copy}
+          destination={day}
           busy={busy}
+          run={run}
+          navigate={navigate}
           onClose={() => setCopy(null)}
-        >
-          <h2 id="history-copy">Copy {copy.name}</h2>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const date = String(new FormData(e.currentTarget).get("date"));
-              run(async () => {
-                const saved = await api.copyWorkout(copy.id, date);
-                setCopy(null);
-                navigate({ view: "home", date: saved.performed_on });
-              });
-            }}
-          >
-            <label>
-              Copy to date
-              <input
-                name="date"
-                type="date"
-                defaultValue={day}
-                required
-                disabled={busy}
-              />
-            </label>
-            <p>
-              Values are copied as planned sets. Completion and performance
-              comments are reset.
-            </p>
-            <button disabled={busy} className="primary-button">
-              Create planned workout
-            </button>
-            <button type="button" disabled={busy} onClick={() => setCopy(null)}>
-              Cancel
-            </button>
-          </form>
-        </Modal>
+        />
       )}
     </div>
   );

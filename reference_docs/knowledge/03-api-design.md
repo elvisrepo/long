@@ -121,12 +121,28 @@ Catalog responses additionally include `preferences`. Exercises accept `is_favor
 | POST | `/api/v1/workouts/sessions/` | `{performed_on, name?, notes?, is_finished?}`; `201`; multiple sessions on a day allowed |
 | GET/PATCH/DELETE | `/api/v1/workouts/sessions/{uuid}/` | Own detail; PATCH date/name/notes/is_finished; DELETE session and its sets `204` |
 | POST | `/api/v1/workouts/sessions/{uuid}/exercises/` | `{exercise_id, display_order?}`; `201` ordered occurrence with server snapshots; active own exercise/category required |
-| POST | `/api/v1/workouts/sessions/{uuid}/copy/` | `{performed_on}`; `201` independent planned session; no completion, session notes or performance comments copied |
+| POST | `/api/v1/workouts/sessions/{uuid}/copy/` | `{performed_on, selection?}`; `201` independent planned session; no completion, session notes or performance comments copied |
 | PATCH/DELETE | `/api/v1/workouts/session-exercises/{uuid}/` | PATCH `{display_order?, group_name?}` with at least one field; DELETE occurrence and sets `204`; snapshots/reference immutable |
 | POST | `/api/v1/workouts/session-exercises/{uuid}/sets/` | Set fields below; `201` individual set; completion defaults true |
 | PATCH/DELETE | `/api/v1/workouts/sets/{uuid}/` | Partial set edit validated against combined values, or DELETE `204` |
 | POST | `/api/v1/workouts/session-exercises/{uuid}/move/` | `{direction: "up" \| "down"}` moves one occurrence adjacent in its workout; complete Workout `200` |
 | POST | `/api/v1/workouts/sets/{uuid}/move/` | Same input; moves one set adjacent within its occurrence; complete Workout `200` |
+
+Selective copy accepts `selection: [{item_id, set_ids?}]`, with 1–100 unique source
+occurrence UUIDs. Each optional `set_ids` contains at most 1000 unique UUIDs from
+that occurrence; omitted means all its sets, `[]` means exercise only. Omitted
+selection retains full-workout copy compatibility. Empty/null selection, wrong
+or deleted occurrence/set IDs, duplicates and unknown input fields reject `400`
+before any writes. UUIDs identify saved occurrences, not library exercises.
+The owner lock covers validation and cloning, including source nested ownership;
+foreign source workouts return `404`, anonymous requests `401`. Finished/archived
+sources may copy their frozen snapshots. Response is a complete new Workout `201`,
+never appended to another session. Source order, names/types/units, values and
+group colours/membership are retained for chosen items; new IDs, planned state,
+blank session notes/comments and open state are generated. A singleton group
+retains its label but does not auto-advance. UI calendar, Home and History share
+selection → read-only preview → explicit confirmation; cancel/browsing never writes,
+and failed saves retain selection/date/preview for retry. No route or schema change.
 
 Moves lock the owner in one transaction, using the current server order rather
 than a stale client-side swap. Ordering is `(display_order, id)`; successful

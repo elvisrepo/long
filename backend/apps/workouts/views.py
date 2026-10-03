@@ -26,7 +26,7 @@ from .serializers import (
     WorkoutExerciseSerializer,
     WorkoutSerializer,
     WorkoutRangeSerializer,
-    CopySerializer,
+    SessionCopySerializer,
     ExerciseSettingsSerializer,
     GroupSerializer,
     GroupNameSerializer,
@@ -428,13 +428,24 @@ class CopyView(APIView):
     def post(self, request: Request, workout_id: str) -> Response:
         User.objects.select_for_update().get(pk=request.user.pk)
         source = get_object_or_404(
-            Workout.objects.prefetch_related("exercises__sets", "exercises__exercise"),
+            Workout.objects.prefetch_related(
+                "exercises__sets", "exercises__exercise__category"
+            ),
             pk=workout_id,
             user=request.user,
         )
-        serializer = CopySerializer(data=request.data)
+        serializer = SessionCopySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        copied = copy_workout(source, serializer.validated_data["performed_on"])
+        data = serializer.validated_data
+        selection = (
+            {
+                item["item_id"]: set(item["set_ids"]) if "set_ids" in item else None
+                for item in data["selection"]
+            }
+            if "selection" in data
+            else None
+        )
+        copied = copy_workout(source, data["performed_on"], selection)
         return Response(WorkoutSerializer(copied).data, status=201)
 
 

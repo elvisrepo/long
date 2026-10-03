@@ -310,6 +310,42 @@ class CopySerializer(serializers.Serializer):
     performed_on = serializers.DateField()
 
 
+class CopyItemSerializer(serializers.Serializer):
+    item_id = serializers.UUIDField()
+    set_ids = serializers.ListField(
+        child=serializers.UUIDField(), max_length=1000, required=False
+    )
+
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
+        if isinstance(data, dict) and set(data) - {"item_id", "set_ids"}:
+            raise serializers.ValidationError(
+                "Only item_id and set_ids can be supplied."
+            )
+        return super().to_internal_value(data)
+
+    def validate(self, data: dict[str, Any]) -> dict[str, Any]:
+        ids = data.get("set_ids", [])
+        if len(ids) != len(set(ids)):
+            raise serializers.ValidationError("Set IDs must be unique.")
+        return data
+
+
+class SessionCopySerializer(CopySerializer):
+    selection = CopyItemSerializer(
+        many=True, required=False, allow_empty=False, max_length=100
+    )
+
+    def validate(self, data: dict[str, Any]) -> dict[str, Any]:
+        if set(self.initial_data) - {"performed_on", "selection"}:
+            raise serializers.ValidationError(
+                "Only performed_on and selection can be supplied."
+            )
+        ids = [item["item_id"] for item in data.get("selection", [])]
+        if len(ids) != len(set(ids)):
+            raise serializers.ValidationError("Exercise occurrences must be unique.")
+        return data
+
+
 class ExerciseSettingsSerializer(serializers.Serializer):
     display_order = serializers.IntegerField(
         min_value=0, max_value=2147483647, required=False

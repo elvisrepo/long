@@ -2,6 +2,16 @@
 
 ### Workout log (October 2, 2026, local)
 
+Selective copying uses a shared dialog from calendar source selection, Home
+session cards and History. Default selection includes all occurrences/sets;
+individual occurrence and set checkboxes support duplicate library exercises
+independently. Clear/select-all, editable destination and exercise-only selections
+are supported. Preview lists only chosen values and groups without source notes
+or comments; only explicit confirmation creates planned work. Source order and
+snapshot units remain. Pending saves lock controls; errors retain preview and
+selection for retry; cancel and source browsing never write. Basic full copy
+remains backward-compatible when the API selection field is absent.
+
 `view=overview` uses a library exercise UUID. Library details and Training offer
 Exercise overview buttons. Statistics, History, Graphs, Records and Goals tabs
 reuse existing query/graph/source flows. Statistics use a completed-only SQL

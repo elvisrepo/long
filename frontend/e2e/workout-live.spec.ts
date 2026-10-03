@@ -644,27 +644,63 @@ for (const width of [320, 390, 1440]) {
       .getByRole("button", { name: new RegExp(`^${currentDate}:`) })
       .click();
     await capture("copy-workout-picker");
-    const copiedResponse = page.waitForResponse(
-      (response) =>
-        response.request().method() === "POST" &&
-        /\/sessions\/[^/]+\/copy\/$/.test(new URL(response.url()).pathname),
-    );
     await picker
       .getByRole("button", { name: new RegExp(`^Copy .+ to ${copyDate}$`) })
       .and(picker.locator("button:enabled"))
       .first()
       .click();
-    const copied = await (await copiedResponse).json();
+    const selection = page.getByRole("dialog", { name: /^Copy / });
+    await expect(selection.locator(".workout-copy-choice").first()).toHaveCSS(
+      "display",
+      "flex",
+    );
+    await selection
+      .getByRole("button", { name: "Clear selection", exact: true })
+      .click();
+    await expect(
+      selection.getByRole("button", { name: "Preview copy", exact: true }),
+    ).toBeDisabled();
+    await selection
+      .getByRole("checkbox", { name: /^Include exercise 1 set 1:/ })
+      .check();
+    await capture("copy-selection");
+    await selection
+      .getByRole("button", { name: "Preview copy", exact: true })
+      .click();
+    const preview = selection.getByRole("region", { name: "Copy preview" });
+    await expect(preview).toContainText("40 kg · 5 reps");
+    await expect(preview).not.toContainText("80 kg");
+    await capture("copy-preview");
+    const copiedResponse = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        /\/sessions\/[^/]+\/copy\/$/.test(new URL(response.url()).pathname),
+    );
+    await selection
+      .getByRole("button", { name: "Create planned workout", exact: true })
+      .click();
+    const response = await copiedResponse;
+    expect(response.request().postDataJSON().selection).toHaveLength(1);
+    const copied = await response.json();
     expect(copied.performed_on).toBe(copyDate);
     expect(copied.completed_set_count).toBe(0);
-    expect(copied.exercises.length).toBeGreaterThan(0);
+    expect(copied.exercises).toHaveLength(1);
+    expect(copied.exercises[0].sets).toHaveLength(1);
+    expect(copied.exercises[0].sets[0].weight).toBe("40.000");
+    expect(copied.exercises[0].sets[0].comment).toBe("");
     for (const exercise of copied.exercises) {
       for (const set of exercise.sets) expect(set.is_completed).toBe(false);
     }
     await expect(picker).toHaveCount(0);
+    await expect(selection).toHaveCount(0);
     await expect(page.getByLabel("Tracking date")).toHaveValue(copyDate);
     await expect(
       page.getByText("Planned", { exact: true }).first(),
     ).toBeVisible();
+    await page.reload();
+    await expect(
+      page.getByText("40 kg · 5 reps", { exact: false }).first(),
+    ).toBeVisible();
+    await expect(page.getByText("80 kg", { exact: false })).toHaveCount(0);
   });
 }

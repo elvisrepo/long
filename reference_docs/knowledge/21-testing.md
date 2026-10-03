@@ -2,6 +2,25 @@
 
 ## Workout tracking — 2026-10-01 backend slice
 
+Selective-copy tests (`test_workout_copy_selection.py`) cover subsets, duplicate
+occurrences, source order, empty exercises, planned resets, frozen units/groups,
+archived/finished sources, full-copy compatibility, strict bounded input,
+ownership (including inconsistent ORM links), and atomic invalid-ID rejection.
+Dialog/API/screen tests cover exact subset payloads, read-only preview/cancel,
+Home/History/calendar entry points, empty selection, back/edit/select-all, pending
+locks and retained subset/date after errors. Live flows copy only one set at
+320/390/1440px and verify the saved subset after reload. Start focused before
+broader workout/account lifecycle coverage. An ignored serializer probe confirms
+nested DRF items lack `initial_data`; unknown nested keys reject during parsing.
+
+Selective-copy verification: 12 focused backend cases, 54 subset/basic-workout
+regressions, 736 full backend tests and 497 frontend tests pass. Ruff, targeted
+mypy, ESLint, production build, migration-drift and whitespace checks pass.
+Three real-backend responsive flows verify selection/preview/confirmation and
+subset persistence after reload; screenshots inspected for phone/desktop layout.
+Checkbox labels use explicit workout-screen specificity and browser checks for
+side-by-side alignment. No migration, commit or deployment in this slice.
+
 Adjacent ordering coverage: `test_workout_ordering.py` checks persisted exercise
 and set moves, tied orders, both directions/boundaries, performance preservation,
 JWT/foreign ownership, strict input and finished/reopened sessions. Component

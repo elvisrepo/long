@@ -190,6 +190,58 @@ it("opens a calendar to choose a previous workout without creating a copy", asyn
   await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });
+it.each(["home", "history"] as const)(
+  "opens the shared selection dialog from %s without writes",
+  async (view) => {
+    vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
+    vi.mocked(api.getWorkoutPage).mockResolvedValue({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [workout],
+    });
+    mount({ view, date: workout.performed_on });
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Copy workout", exact: true }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Copy Workout" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("checkbox", {
+        name: `Include exercise 1: ${item.exercise_name}`,
+      }),
+    ).toBeChecked();
+    await userEvent.click(screen.getByRole("button", { name: "Preview copy" }));
+    expect(
+      screen.getByRole("region", { name: "Copy preview" }),
+    ).toHaveTextContent(item.exercise_name);
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(api.copyWorkout).not.toHaveBeenCalled();
+    expect(api.createWorkout).not.toHaveBeenCalled();
+  },
+);
+it("returns from selection to the source calendar without creating anything", async () => {
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
+  mount({ date: workout.performed_on });
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Copy previous workout" }),
+  );
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Copy Workout to 2026-10-02" }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Choose another workout" }),
+  );
+  expect(screen.getByRole("dialog")).toHaveAccessibleName(
+    "Select the workout you would like to copy",
+  );
+  expect(
+    await screen.findByRole("button", { name: "Copy Workout to 2026-10-02" }),
+  ).toBeEnabled();
+  expect(api.copyWorkout).not.toHaveBeenCalled();
+});
 it("chooses a source session in another month while keeping the copy destination", async () => {
   vi.mocked(api.getWorkoutRange).mockImplementation(async (first) =>
     first === "2026-09-01"
@@ -230,6 +282,14 @@ it("chooses a source session in another month while keeping the copy destination
   await userEvent.click(
     screen.getByRole("button", { name: "Copy Evening to 2026-10-02" }),
   );
+  expect(api.copyWorkout).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("button", { name: "Preview copy" }));
+  expect(
+    screen.getByRole("region", { name: "Copy preview" }),
+  ).toBeInTheDocument();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Create planned workout" }),
+  );
   await waitFor(() =>
     expect(api.copyWorkout).toHaveBeenCalledExactlyOnceWith(
       "evening",
@@ -257,13 +317,21 @@ it("locks the picker while copying and preserves selection after a failed copy",
   await userEvent.click(
     await screen.findByRole("button", { name: "Copy previous workout" }),
   );
-  const copyButton = await screen.findByRole("button", {
+  const sourceButton = await screen.findByRole("button", {
     name: "Copy Workout to 2026-10-02",
+  });
+  await userEvent.click(sourceButton);
+  expect(api.copyWorkout).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("button", { name: "Preview copy" }));
+  const copyButton = screen.getByRole("button", {
+    name: "Create planned workout",
   });
   await userEvent.click(copyButton);
   expect(copyButton).toBeDisabled();
   expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Previous month" })).toBeDisabled();
+  expect(
+    screen.getByRole("button", { name: "Choose another workout" }),
+  ).toBeDisabled();
   rejectCopy(new Error("Copy failed"));
   expect(await screen.findByRole("alert")).toHaveTextContent("Copy failed");
   await waitFor(() => expect(copyButton).toBeEnabled());

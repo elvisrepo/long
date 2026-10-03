@@ -37,6 +37,18 @@
 
 ### All-time exercise summary boundary — 2026-10-02
 
+Selective copying shares the existing owner lock and transaction. Selection lists
+are bounded and unique; unknown fields reject, every selected occurrence belongs
+to the source and every selected set belongs to its occurrence. Nested catalog
+ownership is checked before cloning, even for inconsistent raw ORM links.
+Validation completes before new rows exist; errors leave no partial workout.
+Archived/finished source snapshots are preserved, never rewritten from current
+catalog defaults. Source remains unchanged; copies reset performance state and
+comments/notes. Shared UI preview/cancel is read-only; pending locks and retained
+errors prevent optimistic success claims. It remains a non-idempotent create:
+an ambiguous network failure may have created a copy; verify destination before
+retrying when unsure. No external sharing, paid gate or schema migration.
+
 Adjacent exercise/set move endpoints require JWT and independently scope workout
 and catalog ownership. Mutations serialize on the user row with all other workout
 writes/account deletion; sibling updates are atomic. Only direction up/down is

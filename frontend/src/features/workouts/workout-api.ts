@@ -323,11 +323,19 @@ export const updateWorkout = (
   >,
 ): Promise<Workout> =>
   request(`sessions/${encodeURIComponent(id)}/`, "PATCH", data);
+export interface CopySelection {
+  item_id: string;
+  set_ids?: string[];
+}
 export const copyWorkout = (
   id: string,
   performed_on: string,
+  selection?: CopySelection[],
 ): Promise<Workout> =>
-  request(`sessions/${encodeURIComponent(id)}/copy/`, "POST", { performed_on });
+  request(`sessions/${encodeURIComponent(id)}/copy/`, "POST", {
+    performed_on,
+    ...(selection === undefined ? {} : { selection }),
+  });
 export const addWorkoutExercise = (
   session: string,
   exercise_id: string,

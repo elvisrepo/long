@@ -3,6 +3,8 @@ from django.db import transaction
 from apps.users.models import User
 
 from datetime import date
+from uuid import UUID
+from rest_framework.exceptions import ValidationError
 from .models import (
     Exercise,
     ExerciseCategory,
@@ -50,12 +52,31 @@ def initialize_catalog(user: User) -> None:
     WorkoutCatalogState.objects.create(user=user)
 
 
-def copy_workout(source: Workout, performed_on: date) -> Workout:
+def copy_workout(
+    source: Workout,
+    performed_on: date,
+    selection: dict[UUID, set[UUID] | None] | None = None,
+) -> Workout:
     """Called inside the owner-locked mutation transaction."""
+    items = list(source.exercises.all())
+    by_id = {item.pk: item for item in items}
+    if selection is not None:
+        if not selection or not selection.keys() <= by_id.keys():
+            raise ValidationError(
+                "Choose exercise occurrences from the source workout."
+            )
+        items = [item for item in items if item.pk in selection]
+    for item in items:
+        if item.exercise.category.user_id != source.user_id:
+            raise ValidationError("Source exercises must belong to the workout owner.")
+        set_ids = selection[item.pk] if selection is not None else None
+        if set_ids is not None and not set_ids <= {s.pk for s in item.sets.all()}:
+            raise ValidationError("Choose sets from their selected source exercise.")
     copied = Workout.objects.create(
         user=source.user, performed_on=performed_on, name=source.name
     )
-    for item in source.exercises.all():
+    for item in items:
+        selected_set_ids = selection[item.pk] if selection is not None else None
         cloned = WorkoutExercise.objects.create(
             workout=copied,
             exercise=item.exercise,
@@ -80,6 +101,7 @@ def copy_workout(source: Workout, performed_on: date) -> Workout:
                     is_completed=False,
                 )
                 for s in item.sets.all()
+                if selected_set_ids is None or s.pk in selected_set_ids
             ]
         )
     return copied

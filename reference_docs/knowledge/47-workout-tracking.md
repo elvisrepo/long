@@ -7,6 +7,15 @@ catalog ownership, session/set semantics, history preservation, and phased deliv
 
 ## Status and agreed product direction
 
+Selective copying (2026-10-03): calendar source selection, Home and History share
+an exercise/set selection dialog and read-only preview before confirmation.
+Duplicate occurrences are independent; empty exercise-only copies are allowed.
+Server validates all IDs before cloning in an owner-locked transaction, preserves
+chosen snapshot values/units/order/groups, generates new IDs, resets all completion
+and clears comments/session notes. Full-copy API compatibility remains. Finished
+and archived source snapshots remain copyable. No new schema. Routine carry-forward
+with preview is the next daily-use slice; see API/testing docs for bounds.
+
 Accessible ordering: Home exercise cards and the training sidebar have explicit
 Move up/down buttons; training set rows have the same controls. Native buttons
 support touch and keyboard, announce saved moves and show retryable failures.
@@ -14,7 +23,7 @@ First/last boundaries, pending writes and finished workouts disable moves.
 Server-side owner-locked adjacent moves normalize ties atomically while retaining
 all recorded values, comments, completion and superset membership. Group cycling
 follows the reordered workout. Numeric-order editors remain for direct placement.
-No new schema. Selective copying is the next daily-use slice.
+No new schema. Selective copying is implemented above.
 
 Exercise overview and strength goals follow-up: `view=overview` brings Statistics,
 History, Graphs, Records and Goals together, reachable from library/training.
@@ -27,7 +36,7 @@ timed/cardio/bodyweight goals remain future work. Migration 0008 adds ExerciseGo
 no existing logged set snapshot changes. Goal export/deletion follows account
 lifecycle. See API/testing docs for exact contracts and verification.
 
-Daily-use follow-up: account-owned persisted auto-start rest, group auto-advance and separate metric/imperial equipment defaults; editable exercise favorites and preferred graphs; completed-only last-used/session-count hints; multi-word library search. Migration 0007 adds preferences and library metadata only. Equipment saving is explicit and cannot create workout sets; GET remains read-only. All tiers retain these basic controls. Accessible ordering is implemented above. Selective copy/routine carry-forward, cardio metrics and calendar filters remain the next implementation slices. Export/sharing UI, session timing, offline logging and background alerts are separate follow-ups.
+Daily-use follow-up: account-owned persisted auto-start rest, group auto-advance and separate metric/imperial equipment defaults; editable exercise favorites and preferred graphs; completed-only last-used/session-count hints; multi-word library search. Migration 0007 adds preferences and library metadata only. Equipment saving is explicit and cannot create workout sets; GET remains read-only. All tiers retain these basic controls. Accessible ordering and selective copying are implemented above. Routine carry-forward, cardio metrics and calendar filters remain the next implementation slices. Export/sharing UI, session timing, offline logging and background alerts are separate follow-ups.
 
 The first backend slice now implements the catalog, sessions, ordered exercise
 occurrences, set logging, copying/history and account lifecycle. The routines

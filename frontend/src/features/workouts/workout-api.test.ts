@@ -6,27 +6,45 @@ import {
   saveWorkoutSet,
   deleteWorkoutItem,
   getProgressPage,
+  copyWorkout,
 } from "./workout-api";
 
 afterEach(() => {
   clearAccessToken();
   vi.unstubAllGlobals();
 });
-it("requests all-time summaries through an owned same-origin exercise path", async () => {
+it("posts selective-copy occurrence IDs and set IDs without performance fields", async () => {
   setAccessToken("workout-token");
   const fetcher = vi
     .fn()
-    .mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          count: 0,
-          next: null,
-          previous: null,
-          results: [],
-          types: [],
-        }),
-      ),
-    );
+    .mockResolvedValue(new Response(JSON.stringify({ id: "copy" })));
+  vi.stubGlobal("fetch", fetcher);
+  await copyWorkout("source", "2026-10-03", [
+    { item_id: "occurrence", set_ids: ["set"] },
+  ]);
+  expect(fetcher.mock.calls[0][0]).toBe(
+    "/api/v1/workouts/sessions/source/copy/",
+  );
+  const init = fetcher.mock.calls[0][1];
+  expect(init.method).toBe("POST");
+  expect(JSON.parse(init.body)).toEqual({
+    performed_on: "2026-10-03",
+    selection: [{ item_id: "occurrence", set_ids: ["set"] }],
+  });
+});
+it("requests all-time summaries through an owned same-origin exercise path", async () => {
+  setAccessToken("workout-token");
+  const fetcher = vi.fn().mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        count: 0,
+        next: null,
+        previous: null,
+        results: [],
+        types: [],
+      }),
+    ),
+  );
   vi.stubGlobal("fetch", fetcher);
   await getProgressPage("exercise", "2026-10-02", "estimated_1rm", 5, 500);
   expect(fetcher.mock.calls[0][0]).toBe(

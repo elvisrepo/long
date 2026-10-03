@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Modal } from "../../components/modal";
-import { copyWorkout, type Workout } from "./workout-api";
+import { type Workout } from "./workout-api";
+import { CopyWorkoutDialog } from "./copy-workout-dialog";
 import { WorkoutCalendar } from "./workout-calendar";
 import {
   dayLabel,
@@ -24,29 +25,20 @@ export function CopyWorkoutPicker({
   onClose: () => void;
 }) {
   const [sourceDate, setSourceDate] = useState(destination);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState("");
-  const locked = busy || pending;
-  function copy(source: Workout) {
-    if (locked) return;
-    setPending(true);
-    setError("");
-    run(async () => {
-      try {
-        await copyWorkout(source.id, destination);
-        onClose();
-        navigate({ view: "home", date: destination });
-      } catch (cause) {
-        setError(
-          cause instanceof Error
-            ? cause.message
-            : "Workout couldn't be copied. Please try again.",
-        );
-      } finally {
-        setPending(false);
-      }
-    });
-  }
+  const [source, setSource] = useState<Workout | null>(null);
+  const locked = busy;
+  if (source)
+    return (
+      <CopyWorkoutDialog
+        source={source}
+        destination={destination}
+        busy={busy}
+        run={run}
+        navigate={navigate}
+        onClose={onClose}
+        onBack={() => setSource(null)}
+      />
+    );
   return (
     <Modal labelledBy="copy-workout-title" busy={locked} onClose={onClose}>
       <h2 id="copy-workout-title">Select the workout you would like to copy</h2>
@@ -61,7 +53,6 @@ export function CopyWorkoutPicker({
         navigate={(next) => {
           if (next.date) {
             setSourceDate(next.date);
-            setError("");
           }
         }}
         renderSelectedDay={(sessions) => (
@@ -90,18 +81,16 @@ export function CopyWorkoutPicker({
                 <button
                   className="primary-button"
                   disabled={locked || session.exercises.length === 0}
-                  onClick={() => copy(session)}
+                  onClick={() => setSource(session)}
                   aria-label={`Copy ${session.name || "Workout"} to ${destination}`}
                 >
-                  Copy this workout
+                  Select this workout
                 </button>
               </section>
             ))}
           </div>
         )}
       />
-      {pending && <p role="status">Copying workout…</p>}
-      {error && <p role="alert">{error}</p>}
       <button disabled={locked} onClick={onClose}>
         Cancel
       </button>

@@ -390,6 +390,26 @@
   margin-block: 0.5rem;
   overflow-wrap: anywhere;
 }
+.workout-copy-item {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem;
+  overflow-wrap: anywhere;
+}
+.workout-copy-item legend {
+  max-width: 100%;
+}
+.workout-screen .workout-copy-choice {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 44px;
+}
+.workout-copy-choice input {
+  width: auto;
+  flex-shrink: 0;
+}
 .workout-set-row > .workout-order-controls {
   grid-column: 2 / -1;
   margin: 0;
