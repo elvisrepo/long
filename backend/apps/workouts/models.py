@@ -1,4 +1,6 @@
 import uuid
+from datetime import datetime
+from django.utils import timezone
 from decimal import Decimal
 
 from django.conf import settings
@@ -165,12 +167,46 @@ class Workout(models.Model):
     name = models.CharField(max_length=120, default="Workout")
     notes = models.TextField(max_length=2000, blank=True)
     is_finished = models.BooleanField(default=False)
+    duration_seconds = models.PositiveIntegerField(null=True, blank=True)
+    timer_started_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def elapsed_at(self, now: datetime | None = None) -> int | None:
+        if self.duration_seconds is None:
+            return None
+        running = (
+            max(
+                0,
+                int(((now or timezone.now()) - self.timer_started_at).total_seconds()),
+            )
+            if self.timer_started_at
+            else 0
+        )
+        return min(604800, self.duration_seconds + running)
+
+    def pause_timer(self, now: datetime) -> None:
+        self.duration_seconds = self.elapsed_at(now)
+        self.timer_started_at = None
 
     class Meta:
         ordering = ["-performed_on", "-created_at", "id"]
         indexes = [
             models.Index(fields=["user", "performed_on"], name="workout_user_day_idx")
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(duration_seconds__isnull=True)
+                | models.Q(duration_seconds__lte=604800),
+                name="workout_duration_bound",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(timer_started_at__isnull=True)
+                | (
+                    models.Q(is_finished=False)
+                    & models.Q(duration_seconds__isnull=False)
+                ),
+                name="workout_timer_state",
+            ),
         ]
 
 

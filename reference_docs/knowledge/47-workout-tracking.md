@@ -7,6 +7,18 @@ catalog ownership, session/set semantics, history preservation, and phased deliv
 
 ## Status and agreed product direction
 
+Workout duration (2026-10-03): explicit per-session Start/Resume/Pause controls
+in Home and Training; merely creating/copying/starting a routine does not start
+timing. Migration 0009 adds nullable accumulated duration and running timestamp.
+Server-authoritative elapsed time survives refresh/background inactivity; rest
+counts unless paused. Finish stops timing; Reopen stays paused. Manual correction
+or Clear duration pauses the clock and never changes sets/completion. Old logs remain
+Not tracked, not zero. Each session is independent (multiple clocks can run).
+Totals use whole seconds and cap at seven days; forgotten clocks can be corrected.
+Errors advise refresh to resolve ambiguous writes, not optimistic timer state.
+Account JSON includes stored timing; CSV/text includes the loaded elapsed snapshot.
+No automatic public sharing, background alarm, paid gate or new route.
+
 Selected-workout export (2026-10-03): Home session cards offer Export workout,
 including finished sessions, with a read-only text preview, local CSV download
 and explicit clipboard copy. All occurrences/sets, groups, saved values/units and
@@ -16,7 +28,8 @@ checkbox. CSV quotes cells, escapes quotes/newlines and neutralizes spreadsheet
 formula prefixes; it is not a restorable backup. Clipboard failures retain a manual
 copy preview. No public links, automatic sharing, backend writes, new endpoints or
 schema changes. Filters do not trim an export. Full account JSON export remains
-separate. Session timing, offline logging and background alerts are future slices.
+separate. Session timing is implemented above; offline logging and background
+alerts are future slices.
 
 Calendar filters (2026-10-03): shared Calendar and copy-picker controls select
 exercise, saved category name and completed training versus planned-only/empty
@@ -91,15 +104,15 @@ timed/cardio/bodyweight goals remain future work. Migration 0008 adds ExerciseGo
 no existing logged set snapshot changes. Goal export/deletion follows account
 lifecycle. See API/testing docs for exact contracts and verification.
 
-Daily-use follow-up: account-owned persisted auto-start rest, group auto-advance and separate metric/imperial equipment defaults; editable exercise favorites and preferred graphs; completed-only last-used/session-count hints; multi-word library search. Migration 0007 adds preferences and library metadata only. Equipment saving is explicit and cannot create workout sets; GET remains read-only. All tiers retain these basic controls. Accessible ordering, selective copying, routine carry-forward, cardio metrics, calendar filters and selected-workout export are implemented above. Session timing, offline logging and background alerts are separate follow-ups.
+Daily-use follow-up: account-owned persisted auto-start rest, group auto-advance and separate metric/imperial equipment defaults; editable exercise favorites and preferred graphs; completed-only last-used/session-count hints; multi-word library search. Migration 0007 adds preferences and library metadata only. Equipment saving is explicit and cannot create workout sets; GET remains read-only. All tiers retain these basic controls. Accessible ordering, selective copying, routine carry-forward, cardio metrics, calendar filters, selected-workout export and session timing are implemented above. Offline logging and background alerts are separate follow-ups.
 
 The first backend slice now implements the catalog, sessions, ordered exercise
 occurrences, set logging, copying/history and account lifecycle. The routines
 slice adds four template models in migration `0004_routines`; `0005_exercise_groups`
 adds group labels to template/session occurrences; `0006_group_colours` adds
 colours to both; `0007_workout_preferences` adds account preferences and exercise
-favorites/preferred graphs; `0008_exercise_goals` adds actual strength targets
-(twelve models, eight migrations).
+favorites/preferred graphs; `0008_exercise_goals` adds actual strength targets;
+`0009_workout_timing` adds nullable session timing (twelve models, nine migrations).
 The canonical contracts are in
 [API design](03-api-design.md). The basic frontend, history/copy and dashboard
 slice is now implemented locally (2026-10-02). Phase 5's first routine workflow
@@ -108,12 +121,13 @@ windowed charts/records, calculators, exercise statistics and strength goals;
 other goal types and advanced analysis remain future work.
 The separate `.lavish/workout-prototype.html` is a sample-only
 review prototype, not the real Workouts tab. No cloud deployment is implied.
-Normal local and isolated E2E PostgreSQL have all eight workout migrations applied.
-Latest verification (2026-10-03): 522 frontend tests pass. Selected-workout export
-passes three fixture browser flows at 320/390/1440px, including downloaded CSV
-contents and mobile preview layout, plus lint/build/touched-file formatting.
-The prior backend run passed 757 tests (backend unchanged in calendar/export UI
-slices); prior real-backend flows were not rerun for export.
+Normal local and isolated E2E PostgreSQL have all nine workout migrations applied.
+Latest verification (2026-10-03): 766 backend and 528 frontend tests pass. Three
+real-backend and three fixture browser flows at 320/390/1440px pass, including
+timing start/reload/pause/correction/finish/reopen, downloaded CSV contents and
+mobile layout. Lint/build/migration drift and touched-file formatting pass. Focused
+mypy passes with a fresh temporary cache; the existing default cache crashed
+internally and was preserved. See testing docs for this diagnostic boundary.
 Three real Django browser flows and three mocked workout flows
 at 320/390/1440px pass. Type checks, lint, build and migration drift pass. Touched
 frontend files pass formatting; global formatting still flags three unchanged

@@ -141,7 +141,7 @@ for (const width of [320, 390, 1440]) {
       .getByRole("complementary")
       .getByRole("button", { name: /^Barbell bench press/ })
       .click();
-    await page.getByRole("timer").click();
+    await page.getByRole("timer", { name: "Rest remaining" }).click();
     await page.getByLabel("Auto-start after completed set").click();
     await expect(
       page.getByLabel("Auto-start after completed set"),
@@ -154,7 +154,9 @@ for (const width of [320, 390, 1440]) {
     await expect(
       page.getByRole("heading", { name: "Dumbbell incline press", level: 1 }),
     ).toBeVisible();
-    await expect(page.getByRole("timer")).not.toHaveText("0:00");
+    await expect(
+      page.getByRole("timer", { name: "Rest remaining" }),
+    ).not.toHaveText("0:00");
     await page.getByLabel("Weight (kg)", { exact: true }).fill("20");
     await page.getByLabel("Reps", { exact: true }).fill("8");
     await page
@@ -196,6 +198,43 @@ for (const width of [320, 390, 1440]) {
     await page
       .getByRole("button", { name: "Workout overview", exact: true })
       .click();
+    const timing = page
+      .getByRole("region", { name: "Workout duration" })
+      .first();
+    await expect(timing.getByRole("timer")).toHaveText("Not tracked");
+    await timing.getByRole("button", { name: "Start timer" }).click();
+    await expect(
+      timing.getByRole("button", { name: "Pause timer" }),
+    ).toBeVisible();
+    await page.reload();
+    await expect(
+      timing.getByRole("button", { name: "Pause timer" }),
+    ).toBeVisible();
+    await timing.getByRole("button", { name: "Pause timer" }).click();
+    await expect(
+      timing.getByRole("button", { name: "Resume timer" }),
+    ).toBeVisible();
+    await timing.getByRole("button", { name: "Correct duration" }).click();
+    await page.getByLabel("Workout minutes").fill("12");
+    await page.getByLabel("Workout seconds").fill("0");
+    await page
+      .getByRole("button", { name: "Save duration", exact: true })
+      .click();
+    await expect(timing.getByRole("timer")).toHaveText("00:12:00");
+    await capture("workout-duration");
+    const sessionCard = timing.locator("..");
+    await sessionCard.getByRole("button", { name: "Resume timer" }).click();
+    await sessionCard.getByRole("button", { name: "Finish workout" }).click();
+    await expect(
+      sessionCard.getByRole("button", { name: "Resume timer" }),
+    ).toBeDisabled();
+    await sessionCard.getByRole("button", { name: "Reopen workout" }).click();
+    await expect(
+      sessionCard.getByRole("button", { name: "Resume timer" }),
+    ).toBeEnabled();
+    await expect(
+      sessionCard.getByRole("button", { name: "Pause timer" }),
+    ).toHaveCount(0);
     await page
       .getByRole("button", {
         name: "Move exercise 2 (Dumbbell incline press) up",
@@ -245,7 +284,7 @@ for (const width of [320, 390, 1440]) {
       page.getByText("Equipment defaults saved to your account."),
     ).toBeVisible();
     await page.reload();
-    await page.getByRole("timer").click();
+    await page.getByRole("timer", { name: "Rest remaining" }).click();
     await expect(
       page.getByLabel("Auto-start after completed set"),
     ).toBeChecked();

@@ -4,6 +4,7 @@ import { PageHeader } from "../../components/page-header";
 import { Modal } from "../../components/modal";
 import * as api from "./workout-api";
 import { WorkoutTools } from "./workout-tools";
+import { WorkoutTiming } from "./workout-timing";
 import { WorkoutGroups } from "./workout-groups";
 import { RemoveWorkoutExercise } from "./remove-workout-exercise";
 import { WorkoutOrderControls } from "./workout-order-controls";
@@ -161,6 +162,7 @@ export function WorkoutTraining({
         eyebrow={item.category_name}
         description={`${dayLabel(workout.performed_on)} · ${workout.name}`}
       />
+      <WorkoutTiming workout={workout} busy={busy} run={run} />
       <div className="workout-actions">
         {item.group_name && (
           <>

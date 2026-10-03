@@ -4,6 +4,7 @@ import { PageHeader } from "../../components/page-header";
 import { PageState } from "../../components/page-state";
 import { Modal } from "../../components/modal";
 import { WorkoutExportDialog } from "./workout-export-dialog";
+import { WorkoutTiming } from "./workout-timing";
 import { useMeQuery } from "../auth/use-me-query";
 import * as api from "./workout-api";
 import {
@@ -637,6 +638,7 @@ function SessionCard({
         ))}
       </div>
       {w.notes && <p className="workout-note">{w.notes}</p>}
+      <WorkoutTiming workout={w} busy={busy} run={run} />
       <div className="workout-actions">
         <button
           disabled={busy}

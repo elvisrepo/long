@@ -62,6 +62,10 @@ export interface Workout {
   name: string;
   notes: string;
   is_finished: boolean;
+  duration_seconds?: number | null;
+  timer_started_at?: string | null;
+  elapsed_seconds?: number | null;
+  timer_server_now?: string;
   created_at: string;
   completed_set_count: number;
   exercises: WorkoutExercise[];
@@ -339,8 +343,11 @@ export const createWorkout = (performed_on: string): Promise<Workout> =>
 export const updateWorkout = (
   id: string,
   data: Partial<
-    Pick<Workout, "performed_on" | "name" | "notes" | "is_finished">
-  >,
+    Pick<
+      Workout,
+      "performed_on" | "name" | "notes" | "is_finished" | "duration_seconds"
+    >
+  > & { timer_action?: "start" | "pause" },
 ): Promise<Workout> =>
   request(`sessions/${encodeURIComponent(id)}/`, "PATCH", data);
 export interface CopySelection {

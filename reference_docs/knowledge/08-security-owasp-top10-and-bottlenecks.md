@@ -2,6 +2,17 @@
 
 ## Workout tracking boundary — 2026-10-01 backend slice
 
+Session timing (2026-10-03) reuses JWT-scoped session PATCH and the user-row lock.
+Clients cannot write the running timestamp, elapsed total or server clock. Only
+bounded nullable duration corrections and start/pause commands are accepted;
+corrections pause timing and cannot accompany an action. Repeated actions do not
+reset/double-count. Finish pauses atomically; finished sessions cannot start.
+SQL constrains duration and prevents a running finished/unknown-duration state.
+Copies and routine starts are untimed, and account deletion cascades timing with
+sessions. These are informational wall-clock logs, not a billing clock or trusted
+proof of exercise. Manual corrections remain last-write-wins. UI failures never
+optimistically pause the server clock; ambiguous failures advise refreshing.
+
 - JWT required, no paid-plan gate. Identity is derived from authentication;
   owner-scoped lookups reject foreign nested references and private history.
 - Mutations (including explicit catalog initialization) lock the user row within

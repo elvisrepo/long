@@ -1,6 +1,7 @@
 from typing import Any
 from decimal import Decimal
 from django.core.exceptions import ValidationError as ModelValidationError
+from django.utils import timezone
 
 from rest_framework import serializers
 
@@ -274,6 +275,49 @@ class WorkoutExerciseSerializer(serializers.ModelSerializer):
 class WorkoutSerializer(serializers.ModelSerializer):
     exercises = WorkoutExerciseSerializer(many=True, read_only=True)
     completed_set_count = serializers.SerializerMethodField()
+    duration_seconds = serializers.IntegerField(
+        min_value=0, max_value=604800, allow_null=True, required=False
+    )
+    timer_action = serializers.ChoiceField(
+        choices=["start", "pause"], write_only=True, required=False
+    )
+    elapsed_seconds = serializers.SerializerMethodField()
+    timer_server_now = serializers.SerializerMethodField()
+
+    def get_elapsed_seconds(self, obj: Workout) -> int | None:
+        return obj.elapsed_at()
+
+    def get_timer_server_now(self, obj: Workout) -> str:
+        return timezone.now().isoformat()
+
+    def validate(self, data: dict[str, Any]) -> dict[str, Any]:
+        action = data.get("timer_action")
+        if action and (self.instance is None or "duration_seconds" in data):
+            raise serializers.ValidationError(
+                "Timer actions require an existing workout and cannot accompany a duration correction."
+            )
+        finished = data.get(
+            "is_finished", self.instance.is_finished if self.instance else False
+        )
+        if action == "start" and finished:
+            raise serializers.ValidationError(
+                "Reopen the workout before starting its timer."
+            )
+        return data
+
+    def update(self, instance: Workout, validated_data: dict[str, Any]) -> Workout:
+        action = validated_data.pop("timer_action", None)
+        now = timezone.now()
+        if (
+            action == "pause"
+            or "duration_seconds" in validated_data
+            or validated_data.get("is_finished")
+        ):
+            instance.pause_timer(now)
+        elif action == "start" and instance.timer_started_at is None:
+            instance.duration_seconds = instance.duration_seconds or 0
+            instance.timer_started_at = now
+        return super().update(instance, validated_data)
 
     def get_completed_set_count(self, obj: Workout) -> int:
         return sum(
@@ -288,11 +332,16 @@ class WorkoutSerializer(serializers.ModelSerializer):
             "name",
             "notes",
             "is_finished",
+            "duration_seconds",
+            "timer_started_at",
+            "elapsed_seconds",
+            "timer_server_now",
+            "timer_action",
             "created_at",
             "exercises",
             "completed_set_count",
         ]
-        read_only_fields = ["id", "created_at", "exercises"]
+        read_only_fields = ["id", "created_at", "exercises", "timer_started_at"]
 
 
 class WorkoutRangeSerializer(serializers.Serializer):

@@ -7,6 +7,23 @@ locally (2026-10-02), including direct routines, groups, rest timer, month calen
 windowed/all-time progress, personal records and calculators. Advanced analysis remains future work.
 See `47-workout-tracking.md`.
 
+Workout duration (2026-10-03): existing session POST/GET/PATCH/list responses add
+`duration_seconds` (nullable accumulated seconds, 0–604800), read-only
+`timer_started_at`, computed `elapsed_seconds` and `timer_server_now` (server clock
+calibration). Existing session PATCH accepts write-only `timer_action=start|pause`;
+actions require an existing session and cannot accompany `duration_seconds`.
+Start is explicit, repeat-safe and requires an open workout; pause accumulates
+nonnegative whole seconds once and clears the timestamp. Finishing atomically
+pauses; reopening never starts. Direct duration correction (including null to clear)
+pauses and replaces the accumulated value, including on finished sessions. Running
+totals saturate at 604800 seconds. Neither POST nor copy/routine start implicitly
+starts timing. Copies/routine starts reset timing to null. Other session edits retain
+timing state. The existing owner-locked PATCH protects actions from double counting;
+manual corrections are last-write-wins, not a stale-version check. No new route.
+Migration 0009 adds two nullable fields and bound/state SQL constraints. Account
+JSON export includes stored duration/start; selected-workout CSV/text includes the
+loaded elapsed snapshot and running status, not a restorable timing backup.
+
 Frontend `/workouts` uses validated optional search fields: `view=home|exercises|
 training|history|routines|calendar|progress|overview`, real calendar `date=YYYY-MM-DD`, UUID `session` and `exercise`.
 Training needs both UUIDs; its exercise parameter identifies a session occurrence,

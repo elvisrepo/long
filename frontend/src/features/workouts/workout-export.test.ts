@@ -65,6 +65,20 @@ it("exports frozen values and units with escaped, formula-safe text", () => {
   expect(source.name).toBe('=Training,"day"');
 });
 
+it("includes duration and running snapshot state without inventing time for old logs", () => {
+  const timed = {
+    ...source,
+    duration_seconds: 30,
+    elapsed_seconds: 90,
+    timer_started_at: "2026-10-03T12:00:00Z",
+  };
+  expect(workoutCsv(timed)).toContain('"90","Running"');
+  expect(workoutSummary(timed)).toContain(
+    "Duration: 90 sec · Running (snapshot)",
+  );
+  expect(workoutSummary(source)).toContain("Duration: Not tracked");
+});
+
 it("downloads a UTF-8 CSV and releases its URL even if the browser click fails", () => {
   const create = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:csv");
   const revoke = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});

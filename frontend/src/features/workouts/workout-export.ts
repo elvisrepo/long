@@ -24,6 +24,8 @@ export function workoutCsv(workout: Workout, includeNotes = false): string {
       "Workout",
       "Session status",
       "Session notes",
+      "Duration seconds",
+      "Timer state",
       "Exercise position",
       "Exercise",
       "Category",
@@ -45,6 +47,12 @@ export function workoutCsv(workout: Workout, includeNotes = false): string {
     workout.name,
     workout.is_finished ? "Finished" : "In progress",
     includeNotes ? workout.notes : "",
+    workout.elapsed_seconds ?? workout.duration_seconds ?? null,
+    workout.timer_started_at
+      ? "Running"
+      : workout.duration_seconds == null
+        ? "Not tracked"
+        : "Paused",
   ];
   if (!workout.exercises.length) rows.push(base);
   workout.exercises.forEach((item, index) => {
@@ -87,7 +95,9 @@ export function workoutCsv(workout: Workout, includeNotes = false): string {
   return (
     rows
       .map((row) =>
-        Array.from({ length: 18 }, (_, index) => cell(row[index])).join(","),
+        Array.from({ length: rows[0].length }, (_, index) =>
+          cell(row[index]),
+        ).join(","),
       )
       .join("\r\n") + "\r\n"
   );
@@ -98,6 +108,10 @@ export function workoutSummary(workout: Workout, includeNotes = false): string {
     `${workout.performed_on} · ${workout.name}`,
     workout.is_finished ? "Finished" : "In progress",
   ];
+  const duration = workout.elapsed_seconds ?? workout.duration_seconds;
+  lines.push(
+    `Duration: ${duration == null ? "Not tracked" : `${duration} sec`}${workout.timer_started_at ? " · Running (snapshot)" : ""}`,
+  );
   if (includeNotes && workout.notes) lines.push(`Notes: ${workout.notes}`);
   if (!workout.exercises.length) lines.push("No exercises yet");
   workout.exercises.forEach((item, index) => {

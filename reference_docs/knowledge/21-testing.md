@@ -183,6 +183,21 @@ queries explicitly preserve library ordering (covered by regression tests).
 
 ### Routine preview and carry-forward — 2026-10-03
 
+Workout timing tests: server checks explicit start, null versus zero, persistent
+reads, repeated start/pause, finish/reopen, correction/clear, bounds, clock rollback,
+foreign/anonymous requests, read-only timestamp spoofing, copy reset and account
+JSON export. Frontend checks server-clock calibration, ticking/remount, correction
+of finished logs, clear, failed pause and pending locks. Live browser flows cover
+start/reload/pause/correct/finish/reopen and mobile layout. Whole seconds are used;
+subsecond portions are truncated at pause, and stored totals cap at seven days.
+Verification: 766 backend tests and 528 frontend tests pass. Three real-backend
+and three fixture flows at 320/390/1440px pass; live checks include start/reload/
+pause/correction/finish/reopen and inspected mobile screenshots. Migration 0009
+is applied locally and in isolated E2E PostgreSQL; migration drift, frontend lint/
+build and touched-file Python/TypeScript formatting pass. Focused mypy over models,
+serializers and account export passes with a fresh temporary cache; the default
+existing cache produced an internal mypy crash (no cache deletion was performed).
+
 Selected-workout export: unit checks cover frozen precision/units, CSV escaping and
 formula neutralization, notes opt-in, planned/empty/duplicate entries, cardio/time
 values and object-URL cleanup after failed download clicks. Component checks cover

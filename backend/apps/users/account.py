@@ -143,7 +143,16 @@ def account_export(user: User) -> Iterator[str]:
         ),
         "workouts": Workout.objects.filter(user=user)
         .order_by("id")
-        .values("id", "performed_on", "name", "notes", "is_finished", "created_at"),
+        .values(
+            "id",
+            "performed_on",
+            "name",
+            "notes",
+            "is_finished",
+            "created_at",
+            "duration_seconds",
+            "timer_started_at",
+        ),
         "workout_exercises": WorkoutExercise.objects.filter(
             workout__user=user, exercise__category__user=user
         )

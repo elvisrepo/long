@@ -2,6 +2,17 @@
 
 ### Workout log (October 2, 2026, local)
 
+Workout duration (2026-10-03): shared controls in Home session cards and Training
+offer explicit Start/Resume/Pause and Correct duration, with hours/minutes/seconds
+or Clear duration. Finished workouts disable start/resume but allow correction.
+Untimed historical/planned logs show Not tracked, not zero. Writes use existing
+owner-scoped invalidation/pending locks; errors advise refresh before retry and do
+not invent successful state. A running display uses server clock calibration and
+recomputes on ticks/visibility; refresh reads persisted server state. It is not a
+background alarm. Rest counts unless paused; Finish stops, Reopen leaves paused.
+Timing is per session, so starting one does not automatically stop another.
+CSV/text exports report the loaded server elapsed snapshot and running state.
+
 Home session cards offer Export workout with a read-only summary preview. CSV
 download and clipboard copy are explicit local actions over the loaded full session
 snapshot; no new query/mutation or public sharing service is involved. Notes and
