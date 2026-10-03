@@ -91,6 +91,15 @@ saved workout order after confirmed new completion. Failed modal writes keep the
 inputs and show errors inside the modal. A confirmed routine ID is retained when
 day creation fails, avoiding duplicate routines on retry.
 
+Cardio graph follow-up (2026-10-03): Max speed and Best pace are available in
+windowed/all-time Progress, Exercise overview and saved graph defaults. Positive
+distance/time must be paired within a completed cardio set; per-date speed takes
+the maximum, pace the minimum. Units stay separate (km/h versus mi/h, min/km versus
+min/mi). Pace values are decimal minutes internally and shown as minutes:seconds,
+rounded to a whole second in axes/details/tables. Best pace's title explicitly says
+lower is faster. A graph note explains the formulas, single-set (not workout-average)
+selection and lack of terrain/route/interval adjustment. Missing pairs are ineligible.
+
 `view=calendar` reads the selected month and drills into Home dates; completed
 training and plans are distinct. `view=progress` uses the owned library `exercise`
 UUID, a 30/90/180/365-day window ending on the selected date, and safely paginated

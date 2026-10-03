@@ -19,6 +19,42 @@ const point: api.ProgressPointRow = {
   distance_unit: "km",
   source,
 };
+it("keeps cardio rate units separate and selects lowest all-time pace", async () => {
+  vi.mocked(api.getProgressPage).mockResolvedValue({
+    count: 3,
+    next: null,
+    previous: null,
+    types: ["cardio"],
+    results: [
+      { ...point, tracking_type: "cardio", value: "5", source: null },
+      {
+        ...point,
+        date: "2026-10-01",
+        tracking_type: "cardio",
+        value: "6",
+        source: null,
+      },
+      {
+        ...point,
+        tracking_type: "cardio",
+        distance_unit: "mi",
+        value: "8",
+        source: null,
+      },
+    ],
+  });
+  const pace = await getAllTimeProgress("e", "2026-10-02", "best_pace");
+  expect(pace.series.map((series) => series.unit)).toEqual([
+    "min/km",
+    "min/mi",
+  ]);
+  expect(pace.series[0].records[0].value).toBe(5);
+  expect(pace.series[0].records[0].date).toBe("2023-01-01");
+  const speed = await getAllTimeProgress("e", "2026-10-02", "max_speed");
+  expect(speed.series.map((series) => series.unit)).toEqual(["km/h", "mi/h"]);
+  expect(speed.series[0].records[0].value).toBe(6);
+  expect(api.getRecordPage).not.toHaveBeenCalled();
+});
 it("loads paginated summaries, keeps per-rep records and never loads raw workouts", async () => {
   vi.mocked(api.getProgressPage)
     .mockResolvedValueOnce({

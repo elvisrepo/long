@@ -64,8 +64,13 @@ Workout preference reads and patches are authenticated and owner-scoped, availab
 
 All-time progress/records are private read-only summary endpoints, not unbounded
 raw session exports. Exercise ownership and workout ownership are both filtered,
-including protection against inconsistent cross-owner raw ORM links. Completed-only
-SQL aggregates and window functions preserve frozen type/unit partitions; archived
+including protection against inconsistent cross-owner raw ORM links.
+
+Cardio speed/pace use those same owner-scoped queries and positive distance/time
+guards before division. They expose no new private fields or writes. Frozen units
+remain separate, and calculated charts never mutate source quantities/completion.
+
+Completed-only SQL aggregates and window functions preserve frozen type/unit partitions; archived
 exercises remain readable. Required date, metric/rep/unit validation and strict
 1–500 pagination bounds reject malformed requests. Frontend pagination builds
 same-origin paths and owner-scoped query keys; no arbitrary `next` URL is fetched.

@@ -238,8 +238,19 @@ The UI requests summary pages of 500 and record-history pages of 25, constructin
 its own same-origin paths instead of following response URLs.
 
 Metrics: `max_weight`, `estimated_1rm`, `max_reps`, `max_volume`,
-`max_weight_reps`, `workout_volume`, `workout_reps`, `max_distance`, `max_duration`.
-`reps` accepts 1–10000 and only affects `max_weight_reps`. Daily maxima select one
+`max_weight_reps`, `workout_volume`, `workout_reps`, `max_distance`, `max_duration`,
+`max_speed`, `best_pace`.
+Cardio rates require completed cardio snapshots with positive distance and duration
+in the same set. `max_speed` = distance × 3600 / duration_seconds (km/h or mi/h);
+`best_pace` = duration_seconds / (distance × 60) (decimal min/km or min/mi).
+Values round to three decimal places. Daily selection takes maximum speed or minimum
+pace in each frozen type/unit partition, with the existing stable source tie order.
+These are individual-set rates, not summed ratios or workout-average speeds.
+Missing quantities, plans, other types and future dates never contribute.
+Source JSON is unchanged; its workout/item/set IDs allow inspection of recorded
+distance/time. Both metrics can be saved as `default_graph` via existing exercise
+PATCH. No route, schema or automatic unit conversion changes.
+`reps` accepts 1–10000 and only affects `max_weight_reps`. Daily extrema select one
 source set per date/type/unit partition; workout totals retain separate sessions
 and sum this exercise's occurrences. Estimated 1RM uses Epley, positive load up to
 10000 and 1–10 reps, rounded to three decimals; a one-rep set returns its load.

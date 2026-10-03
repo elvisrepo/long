@@ -38,8 +38,8 @@ function mount(
             display_order: 10,
             weight: String(weight),
             reps: 5,
-            distance: null,
-            duration_seconds: null,
+            distance: trackingType === "cardio" ? String(weight) : null,
+            duration_seconds: trackingType === "cardio" ? 900 : null,
             comment: "",
             is_completed: true,
           },
@@ -85,6 +85,27 @@ it("labels the weight axis from zero through 80 kg in 10 kg increments", async (
     expect(
       within(chart).getByText(`${weight} kg`, { exact: true }),
     ).toBeInTheDocument();
+});
+it("uses saved pace defaults, readable point details and cardio-only speed options", async () => {
+  mount([3, 2.5], "cardio", "best_pace");
+  const chart = await screen.findByRole("img", { name: /Best logged pace/ });
+  expect(screen.getByLabelText("Graph")).toHaveValue("best_pace");
+  expect(within(chart).getByText("6:00 min/km", { exact: true })).toBeVisible();
+  expect(screen.getByText(/not a workout average/)).toBeVisible();
+  await userEvent.selectOptions(
+    screen.getByLabelText("Graph point details"),
+    "0",
+  );
+  expect(
+    screen.getByRole("region", { name: "Selected training point" }),
+  ).toHaveTextContent("5:00 min/km");
+  await userEvent.selectOptions(screen.getByLabelText("Graph"), "max_speed");
+  expect(
+    await screen.findByRole("heading", { name: "Fastest logged speed · km/h" }),
+  ).toBeVisible();
+  expect(
+    screen.queryByRole("option", { name: "Estimated 1RM" }),
+  ).not.toBeInTheDocument();
 });
 it("uses a saved graph default without overriding an explicit graph selection", async () => {
   mount([70], "strength", "max_volume");

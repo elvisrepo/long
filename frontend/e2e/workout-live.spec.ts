@@ -762,5 +762,64 @@ for (const width of [320, 390, 1440]) {
     await page.getByRole("button", { name: "Edit template" }).click();
     await page.getByRole("button", { name: /Set 1:/ }).click();
     await expect(page.getByLabel("Weight (kg)")).toHaveValue("");
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await page.getByRole("button", { name: "Home", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Start new workout", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Add Running", exact: true })
+      .click();
+    await page.getByLabel("Distance (km)").fill("3");
+    await page.getByLabel("Duration (seconds)").fill("900");
+    await page
+      .getByRole("button", { name: "Save completed set", exact: true })
+      .click();
+    await page.getByLabel("Distance (km)").fill("5");
+    await page.getByLabel("Duration (seconds)").fill("1800");
+    await page
+      .getByRole("button", { name: "Save completed set", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Exercise overview", exact: true })
+      .click();
+    await page
+      .getByRole("navigation", { name: "Exercise overview sections" })
+      .getByRole("button", { name: "Graphs", exact: true })
+      .click();
+    await page
+      .getByRole("combobox", { name: "Graph", exact: true })
+      .selectOption("best_pace");
+    await expect(
+      page.getByRole("heading", {
+        name: "Best logged pace (lower is faster) · min/km",
+      }),
+    ).toBeVisible();
+    await page.getByLabel("Graph point details").selectOption("0");
+    await expect(
+      page.getByRole("region", { name: "Selected training point" }),
+    ).toContainText("5:00 min/km");
+    await capture("cardio-pace");
+    await page
+      .getByRole("combobox", { name: "Graph", exact: true })
+      .selectOption("max_speed");
+    await expect(
+      page.getByRole("heading", { name: "Fastest logged speed · km/h" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("cell", { name: "12 km/h", exact: true }),
+    ).toBeVisible();
+    await capture("cardio-speed");
+    await page.getByLabel("Progress window").selectOption("0");
+    await expect(
+      page.getByRole("cell", { name: "12 km/h", exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("combobox", { name: "Graph", exact: true })
+      .selectOption("best_pace");
+    await expect(
+      page.getByRole("cell", { name: "5:00 min/km", exact: true }),
+    ).toBeVisible();
+    await capture("cardio-all-time-pace");
   });
 }

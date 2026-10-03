@@ -31,6 +31,8 @@ METRICS = [
     "workout_reps",
     "max_distance",
     "max_duration",
+    "max_speed",
+    "best_pace",
 ]
 
 
@@ -89,6 +91,18 @@ def progress_points(
             tracking_type="strength", weight__isnull=False, reps__isnull=False
         )
         value = Cast(F("weight") * F("reps"), number)
+    elif metric in ("max_speed", "best_pace"):
+        rows = rows.filter(
+            tracking_type="cardio", distance__gt=0, duration_seconds__gt=0
+        )
+        distance = Cast(F("distance"), number)
+        duration = Cast(F("duration_seconds"), number)
+        value = Round(
+            distance * Value(Decimal(3600)) / duration
+            if metric == "max_speed"
+            else duration / (distance * Value(Decimal(60))),
+            precision=3,
+        )
     elif metric == "max_distance":
         rows = rows.filter(tracking_type="cardio", distance__isnull=False)
         value = Cast(F("distance"), number)
@@ -116,7 +130,10 @@ def progress_points(
             rank=Window(
                 RowNumber(),
                 partition_by=[F(field) for field in [*PARTITION, "date"]],
-                order_by=[F("value").desc(), *[F(field).asc() for field in CHRONOLOGY]],
+                order_by=[
+                    F("value").asc() if metric == "best_pace" else F("value").desc(),
+                    *[F(field).asc() for field in CHRONOLOGY],
+                ],
             ),
         )
         .filter(rank=1)

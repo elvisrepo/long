@@ -183,6 +183,19 @@ queries explicitly preserve library ordering (covered by regression tests).
 
 ### Routine preview and carry-forward — 2026-10-03
 
+Cardio rates follow-up: progress API tests cover completed paired values, daily
+fastest-set selection, lower-is-better pace, null quantity exclusion, frozen units,
+cutoffs, source IDs, ownership/authentication, non-cardio exclusion, saved defaults
+and recomputation after uncompletion. Frontend checks cover window/all-time minima,
+separate km/mi units, planned/missing/nonpositive input exclusion, pace clock-format
+rounding, saved defaults and graph point display. Full suites: 757 backend and 505
+frontend tests pass; lint, type checks and build pass. Three real-backend browser
+flows at 320/390/1440px verify cardio entry, clock-formatted pace, speed, point details
+and all-time results; three existing fixture flows also pass. Screenshots were
+inspected. An isolated browser probe reproduced the new test's exact-label lookup
+failure; using the combobox's accessible name fixed it without application changes.
+Touched-file formatting and whitespace checks pass. No migration required.
+
 Routine UX component checks additionally cover plan/template terminology and counts,
 empty-template Start guidance and Add exercises, direct entry into the exercise
 editor after confirmed template creation without creating a workout, and accessible

@@ -6,6 +6,14 @@ import type {
 } from "./workout-api";
 import { estimatedMax } from "./workout-calculators";
 
+export function formatProgressValue(value: number, unit: string): string {
+  if (unit.startsWith("min/")) {
+    const seconds = Math.round(value * 60);
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")} ${unit}`;
+  }
+  return `${value} ${unit}`;
+}
+
 export type ProgressMetric =
   | "estimated_1rm"
   | "max_weight"
@@ -16,7 +24,9 @@ export type ProgressMetric =
   | "workout_reps"
   | "personal_records"
   | "max_distance"
-  | "max_duration";
+  | "max_duration"
+  | "max_speed"
+  | "best_pace";
 
 const metricOptions: {
   value: ProgressMetric;
@@ -49,6 +59,8 @@ const metricOptions: {
     label: "Max duration",
     types: ["cardio", "duration"],
   },
+  { value: "max_speed", label: "Max speed", types: ["cardio"] },
+  { value: "best_pace", label: "Best pace", types: ["cardio"] },
 ];
 
 export function progressMetrics(types: WorkoutExercise["tracking_type"][]) {
@@ -124,7 +136,9 @@ export function progressSeries(
           ? Number(
               ((group.points.get(pointKey)?.value ?? 0) + value).toFixed(3),
             )
-          : Math.max(group.points.get(pointKey)?.value ?? -Infinity, value);
+          : choice === "best_pace"
+            ? Math.min(previous?.value ?? Infinity, value)
+            : Math.max(previous?.value ?? -Infinity, value);
         group.points.set(pointKey, {
           date: workout.performed_on,
           value: aggregate,
@@ -138,7 +152,13 @@ export function progressSeries(
             choice === "personal_records");
         const label = perRep ? `${set.reps} reps` : title;
         const recordValue = total ? aggregate : value;
-        if (recordValue > (group.records.get(label)?.value ?? -Infinity))
+        const previousRecord = group.records.get(label);
+        if (
+          !previousRecord ||
+          (choice === "best_pace"
+            ? recordValue < previousRecord.value
+            : recordValue > previousRecord.value)
+        )
           group.records.set(label, {
             label,
             value: recordValue,
@@ -182,6 +202,34 @@ function measure(
   const weight = set.weight === null ? null : Number(set.weight);
   const volumeUnit = `${item.weight_unit}·reps`;
   switch (choice) {
+    case "max_speed":
+    case "best_pace": {
+      const distance = set.distance === null ? 0 : Number(set.distance);
+      const duration = set.duration_seconds ?? 0;
+      if (
+        !Number.isFinite(distance) ||
+        !Number.isFinite(duration) ||
+        distance <= 0 ||
+        duration <= 0
+      )
+        return null;
+      return {
+        value: Number(
+          (choice === "max_speed"
+            ? (distance * 3600) / duration
+            : duration / (distance * 60)
+          ).toFixed(3),
+        ),
+        title:
+          choice === "max_speed"
+            ? "Fastest logged speed"
+            : "Best logged pace (lower is faster)",
+        unit:
+          choice === "max_speed"
+            ? `${item.distance_unit}/h`
+            : `min/${item.distance_unit}`,
+      };
+    }
     case "estimated_1rm":
       if (
         weight === null ||

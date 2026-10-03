@@ -1,6 +1,47 @@
 import { expect, it } from "vitest";
-import { progressMetrics, progressSeries } from "./workout-analysis";
+import {
+  formatProgressValue,
+  progressMetrics,
+  progressSeries,
+} from "./workout-analysis";
 import type { Workout } from "./workout-api";
+
+it("formats pace as minutes and seconds while leaving other metric values unchanged", () => {
+  expect(formatProgressValue(5, "min/km")).toBe("5:00 min/km");
+  expect(formatProgressValue(8.5, "min/mi")).toBe("8:30 min/mi");
+  expect(formatProgressValue(5.999, "min/km")).toBe("6:00 min/km");
+  expect(formatProgressValue(12, "km/h")).toBe("12 km/h");
+  expect(formatProgressValue(70, "kg")).toBe("70 kg");
+});
+
+it("chooses fastest paired cardio sets and lower pace across dates", () => {
+  const sessions = ["2026-10-01", "2026-10-02"].map((date, index) => {
+    const workout = strengthSession(date, []);
+    workout.exercises[0].tracking_type = "cardio";
+    workout.exercises[0].sets = [
+      { distance: "5", duration_seconds: 1800, is_completed: true },
+      {
+        distance: "3",
+        duration_seconds: index ? 1080 : 900,
+        is_completed: true,
+      },
+      { distance: "100", duration_seconds: 60, is_completed: false },
+      { distance: null, duration_seconds: 60, is_completed: true },
+      { distance: "3", duration_seconds: null, is_completed: true },
+      { distance: "0", duration_seconds: 60, is_completed: true },
+      { distance: "1", duration_seconds: 0, is_completed: true },
+    ] as Workout["exercises"][number]["sets"];
+    return workout;
+  });
+  const speed = progressSeries(sessions, "e", "max_speed")[0];
+  expect(speed.unit).toBe("km/h");
+  expect(speed.points.map((point) => point.value)).toEqual([12, 10]);
+  const pace = progressSeries(sessions, "e", "best_pace")[0];
+  expect(pace.unit).toBe("min/km");
+  expect(pace.points.map((point) => point.value)).toEqual([5, 6]);
+  expect(pace.records[0].value).toBe(5);
+  expect(pace.records[0].date).toBe("2026-10-01");
+});
 
 function strengthSession(
   date: string,
@@ -199,6 +240,8 @@ it("supports cardio distance/time without mixing strength, bodyweight or frozen 
   expect(progressMetrics(["cardio"]).map((option) => option.value)).toEqual([
     "max_distance",
     "max_duration",
+    "max_speed",
+    "best_pace",
   ]);
   expect(
     progressSeries([session], "e", "max_distance")[0].points[0].value,

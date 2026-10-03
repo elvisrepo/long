@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import * as api from "./workout-api";
 import {
   defaultMetric,
+  formatProgressValue,
   progressMetrics,
   progressSeries,
   type ProgressMetric,
@@ -209,6 +210,15 @@ export function WorkoutProgress({
           easy set can underestimate your capability.
         </p>
       )}
+      {(selectedMetric === "max_speed" || selectedMetric === "best_pace") && (
+        <p className="workout-note">
+          Speed = distance ÷ time in hours. Pace = time in minutes ÷ distance,
+          shown as minutes:seconds per km or mile; lower pace is faster. Each
+          date uses its fastest eligible set, not a workout average. Only
+          completed cardio sets with positive distance and time are included.
+          Comparisons do not adjust for route, terrain or interval length.
+        </p>
+      )}
       {(selectedMetric === "max_volume" ||
         selectedMetric === "workout_volume") && (
         <p className="workout-note">
@@ -379,8 +389,9 @@ function ProgressCard({
                   fill="var(--text-dim)"
                   fontSize="11"
                 >
-                  {tick.toLocaleString("en-GB", { maximumFractionDigits: 6 })}{" "}
-                  {series.unit}
+                  {series.unit.startsWith("min/")
+                    ? formatProgressValue(tick, series.unit)
+                    : `${tick.toLocaleString("en-GB", { maximumFractionDigits: 6 })} ${series.unit}`}
                 </text>
               </g>
             );
@@ -413,7 +424,8 @@ function ProgressCard({
                 />
                 <title>
                   {p.date}
-                  {p.session ? ` · ${p.session}` : ""}: {p.value} {series.unit}
+                  {p.session ? ` · ${p.session}` : ""}:{" "}
+                  {formatProgressValue(p.value, series.unit)}
                 </title>
               </g>
             );
@@ -448,8 +460,8 @@ function ProgressCard({
               {series.points.map((point, index) => (
                 <option key={index} value={index}>
                   {point.date}
-                  {point.session ? ` · ${point.session}` : ""}: {point.value}{" "}
-                  {series.unit}
+                  {point.session ? ` · ${point.session}` : ""}:{" "}
+                  {formatProgressValue(point.value, series.unit)}
                 </option>
               ))}
             </select>
@@ -462,7 +474,7 @@ function ProgressCard({
               <p>
                 {selected.date}
                 {selected.session ? ` · ${selected.session}` : ""}:{" "}
-                {selected.value} {series.unit}
+                {formatProgressValue(selected.value, series.unit)}
               </p>
               {selected.source && (
                 <p>
@@ -499,9 +511,7 @@ function ProgressCard({
             {series.records.map((r) => (
               <tr key={r.label}>
                 <td>{r.label}</td>
-                <td>
-                  {r.value} {r.unit}
-                </td>
+                <td>{formatProgressValue(r.value, r.unit)}</td>
                 <td>{r.date}</td>
                 {allTime && series.records.some((record) => record.source) && (
                   <td>
@@ -552,9 +562,7 @@ function ProgressCard({
                   <tr key={`${p.date}:${index}`}>
                     <td>{p.date}</td>
                     {p.session && <td>{p.session}</td>}
-                    <td>
-                      {p.value} {series.unit}
-                    </td>
+                    <td>{formatProgressValue(p.value, series.unit)}</td>
                   </tr>
                 ))}
               </tbody>

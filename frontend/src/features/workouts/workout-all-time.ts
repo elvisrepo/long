@@ -35,6 +35,8 @@ function title(
     return `Highest logged reps (external load ${unit} may vary)`;
   if (metric === "max_distance") return "Longest logged distance";
   if (metric === "max_duration") return "Longest logged duration";
+  if (metric === "max_speed") return "Fastest logged speed";
+  if (metric === "best_pace") return "Best logged pace (lower is faster)";
   if (metric === "max_weight_reps") return `Max weight for ${reps} reps`;
   return progressMetrics([type]).find((option) => option.value === metric)!
     .label;
@@ -80,13 +82,17 @@ export async function getAllTimeProgress(
       const unit =
         metric === "max_reps" || metric === "workout_reps"
           ? "reps"
-          : metric === "max_distance"
-            ? row.distance_unit
-            : metric === "max_duration"
-              ? "sec"
-              : metric === "max_volume" || metric === "workout_volume"
-                ? `${row.weight_unit}·reps`
-                : row.weight_unit;
+          : metric === "max_speed"
+            ? `${row.distance_unit}/h`
+            : metric === "best_pace"
+              ? `min/${row.distance_unit}`
+              : metric === "max_distance"
+                ? row.distance_unit
+                : metric === "max_duration"
+                  ? "sec"
+                  : metric === "max_volume" || metric === "workout_volume"
+                    ? `${row.weight_unit}·reps`
+                    : row.weight_unit;
       groups.set(key, {
         key,
         title: title(metric, row.tracking_type, row.weight_unit, reps),
@@ -127,7 +133,13 @@ export async function getAllTimeProgress(
   for (const series of groups.values()) {
     if (!series.records.length && series.points.length) {
       const best = series.points.reduce((best, point) =>
-        point.value > best.value ? point : best,
+        (
+          metric === "best_pace"
+            ? point.value < best.value
+            : point.value > best.value
+        )
+          ? point
+          : best,
       );
       series.records.push({
         label: series.title,

@@ -56,6 +56,103 @@ def url(exercise: Exercise, action: str = "progress") -> str:
     return f"/api/v1/workouts/exercises/{exercise.pk}/{action}/"
 
 
+def test_cardio_rates_choose_fastest_completed_paired_set_not_longest_duration() -> (
+    None
+):
+    client, exercise = catalog()
+    row = logged(exercise, "2026-10-01", "0")
+    item = row.workout_exercise
+    item.tracking_type = "cardio"
+    item.save()
+    row.weight = None
+    row.reps = None
+    row.distance = Decimal("5")
+    row.duration_seconds = 1800
+    row.save()
+    fast = WorkoutSet.objects.create(
+        workout_exercise=item, distance=3, duration_seconds=900
+    )
+    WorkoutSet.objects.create(
+        workout_exercise=item, distance=10, duration_seconds=60, is_completed=False
+    )
+    for metric, expected in [("max_speed", Decimal("12")), ("best_pace", Decimal("5"))]:
+        response = client.get(
+            url(exercise), {"metric": metric, "date_to": "2026-10-02"}
+        )
+        assert response.status_code == 200
+        assert response.json()["count"] == 1
+        point = response.json()["results"][0]
+        assert Decimal(point["value"]) == expected
+        assert point["source"]["set_id"] == str(fast.pk)
+
+
+@pytest.mark.parametrize("missing", ["distance", "duration_seconds"])
+def test_cardio_rates_exclude_incomplete_pairs(missing: str) -> None:
+    client, exercise = catalog()
+    row = logged(exercise, "2026-10-01", "0")
+    WorkoutExercise.objects.filter(pk=row.workout_exercise_id).update(
+        tracking_type="cardio"
+    )
+    row.weight = None
+    row.reps = None
+    row.distance = Decimal("3")
+    row.duration_seconds = 900
+    setattr(row, missing, None)
+    row.save()
+    for metric in ("max_speed", "best_pace"):
+        response = client.get(
+            url(exercise), {"metric": metric, "date_to": "2026-10-02"}
+        )
+        assert response.status_code == 200
+        assert response.json()["count"] == 0
+
+
+def test_cardio_rates_preserve_units_cutoff_ownership_defaults_and_recompute() -> None:
+    client, exercise = catalog()
+    rows = []
+    for day, unit, distance, duration in [
+        ("2023-01-01", "km", "1.2", 480),
+        ("2026-10-01", "km", "3", 900),
+        ("2026-10-01", "mi", "2", 900),
+        ("2026-10-03", "km", "100", 60),
+    ]:
+        row = logged(exercise, day, "0")
+        WorkoutExercise.objects.filter(pk=row.workout_exercise_id).update(
+            tracking_type="cardio", distance_unit=unit
+        )
+        row.weight = None
+        row.reps = None
+        row.distance = Decimal(distance)
+        row.duration_seconds = duration
+        row.save()
+        rows.append(row)
+    # A non-cardio snapshot with paired raw fields must not contribute.
+    wrong_type = logged(exercise, "2026-10-01", "0")
+    wrong_type.distance, wrong_type.duration_seconds = Decimal("100"), 60
+    wrong_type.save()
+    params = {"metric": "best_pace", "date_to": "2026-10-02"}
+    points = client.get(url(exercise), params).json()["results"]
+    assert [(p["date"], p["distance_unit"], Decimal(p["value"])) for p in points] == [
+        ("2023-01-01", "km", Decimal("6.667")),
+        ("2026-10-01", "km", Decimal("5")),
+        ("2026-10-01", "mi", Decimal("7.5")),
+    ]
+    other, _ = catalog("other-cardio@example.com")
+    assert other.get(url(exercise), params).status_code == 404
+    assert APIClient().get(url(exercise), params).status_code == 401
+    for metric in ("best_pace", "max_speed"):
+        response = client.patch(
+            f"/api/v1/workouts/exercises/{exercise.pk}/",
+            {"default_graph": metric},
+            format="json",
+        )
+        assert response.status_code == 200
+        assert response.json()["default_graph"] == metric
+    rows[1].is_completed = False
+    rows[1].save()
+    assert client.get(url(exercise), params).json()["count"] == 2
+
+
 def test_all_time_progress_aggregates_completed_days_without_a_366_day_limit() -> None:
     client, exercise = catalog()
     logged(exercise, "2023-01-01", "40")

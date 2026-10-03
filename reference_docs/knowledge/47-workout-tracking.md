@@ -7,6 +7,17 @@ catalog ownership, session/set semantics, history preservation, and phased deliv
 
 ## Status and agreed product direction
 
+Cardio speed/pace (2026-10-03): windowed and all-time graphs offer Max speed and
+Best pace, also available as saved default graphs. Rates require positive distance
+and time paired within a completed cardio set. Speed is distance × 3600 / seconds;
+pace is seconds / (distance × 60), stored as decimal minutes and shown as m:ss per
+saved km/mile. Each date selects highest speed or lowest pace in its frozen partition;
+all-time/window best pace also selects the minimum. Plans/missing quantities/other
+types/future dates are excluded; km and miles stay separate. These are individual
+set rates, not workout averages or route/terrain-adjusted comparisons. API metrics
+are additive, source fields unchanged, and no migration or source mutation is needed.
+Calendar exercise/category and completed/planned filters are the next slice.
+
 Routine UX clarification (2026-10-03): keep the Routines navigation and existing
 domain/API names, but explain that a routine is a training plan and each routine
 day is a reusable workout template, not a calendar date. Show plan/template counts,
@@ -34,7 +45,7 @@ under the owner lock before creation; stale plans return 409 without partial wri
 Starts create independent planned sets without comments, preserve day notes/groups,
 and never change the template or source. There is no persisted occurrence lineage
 back to the routine, so ambiguous duplicates are not guessed. No migration required.
-Cardio speed/pace metrics and calendar filters are the next slices.
+Cardio speed/pace is implemented above; calendar filters are the next slice.
 
 Accessible ordering: Home exercise cards and the training sidebar have explicit
 Move up/down buttons; training set rows have the same controls. Native buttons
@@ -56,7 +67,7 @@ timed/cardio/bodyweight goals remain future work. Migration 0008 adds ExerciseGo
 no existing logged set snapshot changes. Goal export/deletion follows account
 lifecycle. See API/testing docs for exact contracts and verification.
 
-Daily-use follow-up: account-owned persisted auto-start rest, group auto-advance and separate metric/imperial equipment defaults; editable exercise favorites and preferred graphs; completed-only last-used/session-count hints; multi-word library search. Migration 0007 adds preferences and library metadata only. Equipment saving is explicit and cannot create workout sets; GET remains read-only. All tiers retain these basic controls. Accessible ordering, selective copying and routine carry-forward are implemented above. Cardio metrics and calendar filters remain the next implementation slices. Export/sharing UI, session timing, offline logging and background alerts are separate follow-ups.
+Daily-use follow-up: account-owned persisted auto-start rest, group auto-advance and separate metric/imperial equipment defaults; editable exercise favorites and preferred graphs; completed-only last-used/session-count hints; multi-word library search. Migration 0007 adds preferences and library metadata only. Equipment saving is explicit and cannot create workout sets; GET remains read-only. All tiers retain these basic controls. Accessible ordering, selective copying, routine carry-forward and cardio metrics are implemented above. Calendar filters remain the next implementation slice. Export/sharing UI, session timing, offline logging and background alerts are separate follow-ups.
 
 The first backend slice now implements the catalog, sessions, ordered exercise
 occurrences, set logging, copying/history and account lifecycle. The routines
@@ -74,7 +85,7 @@ other goal types and advanced analysis remain future work.
 The separate `.lavish/workout-prototype.html` is a sample-only
 review prototype, not the real Workouts tab. No cloud deployment is implied.
 Normal local and isolated E2E PostgreSQL have all eight workout migrations applied.
-Latest verification (2026-10-03): 753 backend tests and 501 frontend tests pass.
+Latest verification (2026-10-03): 757 backend tests and 505 frontend tests pass.
 Three real Django browser flows and three mocked workout flows
 at 320/390/1440px pass. Type checks, lint, build and migration drift pass. Touched
 frontend files pass formatting; global formatting still flags three unchanged
@@ -83,8 +94,10 @@ flows cover direct editing, independent starts, groups, timer, calculator plans,
 windowed records, two-date charts, compact calendar cells, calendar-source copying,
 preference/favorite persistence after reload, exercise overview/statistics,
 goal create/edit/reload/source/removal, routine start previews and explicit blank-only
-carry-forward without template mutation, and browsing without workout creation. Screenshots
-were inspected. This is local verification, not staging acceptance or cloud deployment.
+carry-forward without template mutation, and browsing without workout creation.
+Cardio live coverage includes completed distance/time entry, readable speed/pace
+graphs and point details, and all-time summaries in the same three viewport flows.
+Screenshots were inspected. This is local verification, not staging acceptance or cloud deployment.
 
 The real authenticated `/workouts` tab provides Home, All exercises, Training,
 and History. Start explicitly initializes samples and creates a selected-day
