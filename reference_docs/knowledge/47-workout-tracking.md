@@ -7,6 +7,17 @@ catalog ownership, session/set semantics, history preservation, and phased deliv
 
 ## Status and agreed product direction
 
+Selected-workout export (2026-10-03): Home session cards offer Export workout,
+including finished sessions, with a read-only text preview, local CSV download
+and explicit clipboard copy. All occurrences/sets, groups, saved values/units and
+planned/completed status are retained, including duplicates and empty entries.
+Session notes/set comments are excluded by default and included only by an explicit
+checkbox. CSV quotes cells, escapes quotes/newlines and neutralizes spreadsheet
+formula prefixes; it is not a restorable backup. Clipboard failures retain a manual
+copy preview. No public links, automatic sharing, backend writes, new endpoints or
+schema changes. Filters do not trim an export. Full account JSON export remains
+separate. Session timing, offline logging and background alerts are future slices.
+
 Calendar filters (2026-10-03): shared Calendar and copy-picker controls select
 exercise, saved category name and completed training versus planned-only/empty
 drafts. Filtering uses the existing complete month read, not a new API contract.
@@ -18,7 +29,7 @@ No-match and read errors are distinct; pending/busy controls lock. Filters do no
 edit workouts or the copy destination and never trim a source workout silently:
 the separate copy selection step still receives all its exercises/sets. Filters
 are transient and reset when leaving Calendar or entering copy selection. No
-schema, backend, route or API changes. Export/sharing UI remains a separate follow-up.
+schema, backend, route or API changes. Selected-workout export is implemented above.
 
 Cardio speed/pace (2026-10-03): windowed and all-time graphs offer Max speed and
 Best pace, also available as saved default graphs. Rates require positive distance
@@ -80,7 +91,7 @@ timed/cardio/bodyweight goals remain future work. Migration 0008 adds ExerciseGo
 no existing logged set snapshot changes. Goal export/deletion follows account
 lifecycle. See API/testing docs for exact contracts and verification.
 
-Daily-use follow-up: account-owned persisted auto-start rest, group auto-advance and separate metric/imperial equipment defaults; editable exercise favorites and preferred graphs; completed-only last-used/session-count hints; multi-word library search. Migration 0007 adds preferences and library metadata only. Equipment saving is explicit and cannot create workout sets; GET remains read-only. All tiers retain these basic controls. Accessible ordering, selective copying, routine carry-forward, cardio metrics and calendar filters are implemented above. Export/sharing UI, session timing, offline logging and background alerts are separate follow-ups.
+Daily-use follow-up: account-owned persisted auto-start rest, group auto-advance and separate metric/imperial equipment defaults; editable exercise favorites and preferred graphs; completed-only last-used/session-count hints; multi-word library search. Migration 0007 adds preferences and library metadata only. Equipment saving is explicit and cannot create workout sets; GET remains read-only. All tiers retain these basic controls. Accessible ordering, selective copying, routine carry-forward, cardio metrics, calendar filters and selected-workout export are implemented above. Session timing, offline logging and background alerts are separate follow-ups.
 
 The first backend slice now implements the catalog, sessions, ordered exercise
 occurrences, set logging, copying/history and account lifecycle. The routines
@@ -98,8 +109,11 @@ other goal types and advanced analysis remain future work.
 The separate `.lavish/workout-prototype.html` is a sample-only
 review prototype, not the real Workouts tab. No cloud deployment is implied.
 Normal local and isolated E2E PostgreSQL have all eight workout migrations applied.
-Latest verification (2026-10-03): 508 frontend tests pass; the prior backend run
-passed 757 tests (backend unchanged in the calendar-filter UI slice).
+Latest verification (2026-10-03): 522 frontend tests pass. Selected-workout export
+passes three fixture browser flows at 320/390/1440px, including downloaded CSV
+contents and mobile preview layout, plus lint/build/touched-file formatting.
+The prior backend run passed 757 tests (backend unchanged in calendar/export UI
+slices); prior real-backend flows were not rerun for export.
 Three real Django browser flows and three mocked workout flows
 at 320/390/1440px pass. Type checks, lint, build and migration drift pass. Touched
 frontend files pass formatting; global formatting still flags three unchanged

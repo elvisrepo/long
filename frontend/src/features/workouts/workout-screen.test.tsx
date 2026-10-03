@@ -81,6 +81,21 @@ beforeEach(() => {
   vi.mocked(api.createWorkout).mockResolvedValue({ ...workout, exercises: [] });
   vi.mocked(api.addWorkoutExercise).mockResolvedValue(item);
 });
+it("opens an export preview from Home without writing or creating a workout", async () => {
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
+  mount({ view: "home", date: workout.performed_on });
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Export workout" }),
+  );
+  expect(
+    screen.getByRole("dialog", { name: "Export workout" }),
+  ).toBeInTheDocument();
+  expect(
+    (screen.getByLabelText("Workout summary") as HTMLTextAreaElement).value,
+  ).toContain("Barbell bench press");
+  expect(api.createWorkout).not.toHaveBeenCalled();
+  expect(api.updateWorkout).not.toHaveBeenCalled();
+});
 it("moves a Home exercise and reloads the server-confirmed order", async () => {
   const second = {
     ...item,

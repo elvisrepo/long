@@ -2,6 +2,14 @@
 
 ### Workout log (October 2, 2026, local)
 
+Home session cards offer Export workout with a read-only summary preview. CSV
+download and clipboard copy are explicit local actions over the loaded full session
+snapshot; no new query/mutation or public sharing service is involved. Notes and
+comments default off. Planned/completed sets, empty/duplicate occurrences and frozen
+units remain; no unit conversion occurs. CSV protects text from spreadsheet formula
+interpretation and includes UTF-8 BOM. Clipboard denial offers manual preview copy;
+download errors are retryable. This CSV is not a full-account backup/import format.
+
 Selective copying uses a shared dialog from calendar source selection, Home
 session cards and History. Default selection includes all occurrences/sets;
 individual occurrence and set checkboxes support duplicate library exercises

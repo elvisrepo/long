@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { PageHeader } from "../../components/page-header";
 import { PageState } from "../../components/page-state";
 import { Modal } from "../../components/modal";
+import { WorkoutExportDialog } from "./workout-export-dialog";
 import { useMeQuery } from "../auth/use-me-query";
 import * as api from "./workout-api";
 import {
@@ -561,7 +562,7 @@ function SessionCard({
   navigate: NavigateWorkout;
 }) {
   const [dialog, setDialog] = useState<
-    "edit" | "delete" | "copy" | "routine" | null
+    "edit" | "delete" | "copy" | "routine" | "export" | null
   >(null);
   return (
     <section className="workout-card">
@@ -661,6 +662,9 @@ function SessionCard({
         <button disabled={busy} onClick={() => setDialog("copy")}>
           Copy workout
         </button>
+        <button disabled={busy} onClick={() => setDialog("export")}>
+          Export workout
+        </button>
         <button
           disabled={busy || !w.exercises.length}
           onClick={() => setDialog("routine")}
@@ -693,7 +697,10 @@ function SessionCard({
           onClose={() => setDialog(null)}
         />
       )}
-      {dialog && dialog !== "routine" && dialog !== "copy" && (
+      {dialog === "export" && (
+        <WorkoutExportDialog workout={w} onClose={() => setDialog(null)} />
+      )}
+      {(dialog === "edit" || dialog === "delete") && (
         <Modal
           labelledBy={`session-dialog-${w.id}`}
           busy={busy}

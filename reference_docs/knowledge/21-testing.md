@@ -183,6 +183,16 @@ queries explicitly preserve library ordering (covered by regression tests).
 
 ### Routine preview and carry-forward — 2026-10-03
 
+Selected-workout export: unit checks cover frozen precision/units, CSV escaping and
+formula neutralization, notes opt-in, planned/empty/duplicate entries, cardio/time
+values and object-URL cleanup after failed download clicks. Component checks cover
+read-only Home entry, opt-in preview, clipboard denial/manual-copy fallback and retry.
+Fixture browser flows exercise download and mobile preview at 320/390/1440px.
+This slice changes no backend/API contract.
+Verification: 522 frontend tests, three fixture browser flows with downloaded CSV
+content assertions at 320/390/1440px, lint, build and touched-file formatting pass.
+No new backend or real-backend browser run is claimed for this UI-only slice.
+
 Calendar-filter follow-up (UI-only): component checks cover same-occurrence combined
 filters, matching-set rather than unrelated completion, unique-session counting,
 planned-only/empty drafts, reset, intact source objects, saved-label retention across

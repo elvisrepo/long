@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 import type { WorkoutRoutine } from "../src/features/workouts/workout-api";
 
 const categoryId = "11111111-1111-4111-8111-111111111111";
@@ -288,6 +289,32 @@ for (const width of [320, 390, 1440])
     await expect(
       page.getByRole("button", { name: "Reopen workout" }),
     ).toBeVisible();
+    await page.getByRole("button", { name: "Export workout" }).click();
+    await expect(page.getByLabel("Workout summary")).toContainText("65");
+    await expect(page.getByLabel("Workout summary")).not.toContainText(
+      "Steady pace",
+    );
+    await page.getByLabel("Include session notes and set comments").check();
+    await expect(page.getByLabel("Workout summary")).toContainText(
+      "Steady pace",
+    );
+    const downloadEvent = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Download CSV" }).click();
+    const download = await downloadEvent;
+    expect(download.suggestedFilename()).toBe(`longevity-workout-${date}.csv`);
+    const csv = await readFile((await download.path())!, "utf8");
+    expect(csv).toContain('"65","kg","8"');
+    expect(csv).toContain('"Completed","Steady pace"');
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path: `test-results/workouts/export-${width}.png`,
+      fullPage: true,
+    });
+    await page.getByRole("button", { name: "Close", exact: true }).click();
     await page.getByRole("button", { name: "History", exact: true }).click();
     await page.getByRole("button", { name: "Copy workout" }).click();
     await page.getByLabel("Copy to date").fill("2026-10-03");
