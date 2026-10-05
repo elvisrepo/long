@@ -284,6 +284,7 @@ for (const width of [320, 390, 1440])
         () => document.documentElement.scrollWidth <= innerWidth,
       ),
     ).toBe(true);
+    await page.getByText("Workout options", { exact: true }).click();
     await page.getByRole("button", { name: "Workout overview" }).click();
     await page.getByRole("button", { name: "Finish workout" }).click();
     await expect(
@@ -391,3 +392,50 @@ for (const width of [320, 390, 1440])
       page.getByRole("heading", { name: "Upper body", exact: true }),
     ).toBeVisible();
   });
+
+test("mobile training puts set logging before exercise management", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() =>
+    localStorage.setItem("longevity-theme", "light"),
+  );
+  await fixture(page);
+  await page.goto("/workouts?date=" + date);
+  await page.getByRole("button", { name: "Start new workout" }).click();
+  await page.getByRole("button", { name: "Add Barbell bench press" }).click();
+
+  const saveSet = page.getByRole("button", {
+    name: "Save completed set",
+    exact: true,
+  });
+  const exerciseSwitcher = page.getByRole("heading", {
+    name: "This workout",
+    exact: true,
+  });
+  const setsHeading = page.getByRole("heading", { name: "Sets", exact: true });
+  await expect(saveSet).toBeVisible();
+  await expect(setsHeading).toBeVisible();
+  await expect(exerciseSwitcher).toBeVisible();
+  expect((await saveSet.boundingBox())!.y).toBeLessThan(
+    (await exerciseSwitcher.boundingBox())!.y,
+  );
+  expect((await setsHeading.boundingBox())!.y).toBeLessThan(
+    (await exerciseSwitcher.boundingBox())!.y,
+  );
+  await expect(
+    page.getByRole("button", { name: "Exercise notes", exact: true }),
+  ).not.toBeVisible();
+  await expect(
+    page.getByText("Workout options", { exact: true }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("training-mobile-light.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.screenshot({
+    path: testInfo.outputPath("training-desktop-light.png"),
+    fullPage: true,
+  });
+});

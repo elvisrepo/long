@@ -131,9 +131,6 @@
   .diet-layout {
     grid-template-columns: minmax(0, 1fr);
   }
-  .diet-summary {
-    order: -1;
-  }
 }
 @media (max-width: 420px) {
   .diet-food-grid {

@@ -2,6 +2,16 @@ import { expect, test } from "@playwright/test";
 import { resetE2eDatabase } from "./support/e2e-api";
 import { shiftDay } from "../src/features/workouts/workout-navigation";
 
+async function openTrainingOptions(page: import("@playwright/test").Page) {
+  const options = page.locator(".workout-training-options");
+  if (
+    (await options.count()) > 0 &&
+    !(await options.evaluate((element) => (element as HTMLDetailsElement).open))
+  ) {
+    await options.locator("summary").click();
+  }
+}
+
 for (const width of [320, 390, 1440]) {
   test(`real backend workout conveniences at ${width}px`, async ({
     page,
@@ -195,6 +205,7 @@ for (const width of [320, 390, 1440]) {
     await expect(page.locator(".workout-set-values").first()).toContainText(
       "40 kg",
     );
+    await openTrainingOptions(page);
     await page
       .getByRole("button", { name: "Workout overview", exact: true })
       .click();
@@ -297,6 +308,7 @@ for (const width of [320, 390, 1440]) {
       page.getByLabel("Plate 2 total count", { exact: true }),
     ).toHaveValue("4");
     await capture("training-tools");
+    await openTrainingOptions(page);
     await page
       .getByRole("button", { name: "Exercise progress", exact: true })
       .click();
@@ -344,6 +356,7 @@ for (const width of [320, 390, 1440]) {
       .getByRole("button", { name: "Save completed set", exact: true })
       .click();
     await expect(page.getByLabel("Set 1 completed")).toBeChecked();
+    await openTrainingOptions(page);
     await page
       .getByRole("button", { name: "Exercise progress", exact: true })
       .click();
@@ -598,6 +611,7 @@ for (const width of [320, 390, 1440]) {
     await expect(
       page.getByText("45 kg · 5 reps", { exact: true }),
     ).toBeVisible();
+    await openTrainingOptions(page);
     await page
       .getByRole("button", { name: "Exercise overview", exact: true })
       .click();
@@ -643,6 +657,7 @@ for (const width of [320, 390, 1440]) {
       page.getByRole("heading", { name: "Barbell bench press", level: 1 }),
     ).toBeVisible();
     expect(accidentalWrites).toBe(0);
+    await openTrainingOptions(page);
     await page
       .getByRole("button", { name: "Workout overview", exact: true })
       .click();
@@ -836,6 +851,7 @@ for (const width of [320, 390, 1440]) {
     await expect(
       page.getByText("5.000 km · 1800 sec", { exact: true }),
     ).toBeVisible();
+    await openTrainingOptions(page);
     await page
       .getByRole("button", { name: "Exercise overview", exact: true })
       .click();
@@ -913,6 +929,7 @@ for (const width of [320, 390, 1440]) {
     await expect(
       page.getByText("5.000 km · 1800 sec", { exact: true }),
     ).toBeVisible();
+    await openTrainingOptions(page);
     await page
       .getByRole("button", { name: "Exercise overview", exact: true })
       .click();
@@ -941,6 +958,7 @@ for (const width of [320, 390, 1440]) {
     await expect(
       page.getByRole("heading", { name: "Running", level: 1 }),
     ).toBeVisible();
+    await openTrainingOptions(page);
     await page
       .getByRole("button", { name: "Exercise overview", exact: true })
       .click();
@@ -1023,6 +1041,7 @@ for (const width of [320, 390, 1440]) {
     await page
       .getByRole("button", { name: "Save completed set", exact: true })
       .click();
+    await openTrainingOptions(page);
     await page
       .getByRole("button", { name: "Exercise overview", exact: true })
       .click();

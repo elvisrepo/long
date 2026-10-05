@@ -166,6 +166,57 @@ test("Diet date buttons align with the input rather than its label", async ({
   expect(input.height).toBeCloseTo(44, 0);
 });
 
+test("mobile Diet puts the food checklist before its daily summary", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() =>
+    localStorage.setItem("longevity-theme", "light"),
+  );
+  await mockApi(page);
+  await page.route("**/api/v1/diet/catalog/", (route) =>
+    route.fulfill({
+      json: {
+        sections: [
+          {
+            id: "protein",
+            name: "Protein",
+            display_order: 10,
+            is_active: true,
+          },
+        ],
+        foods: [
+          {
+            id: "beans",
+            section_id: "protein",
+            name: "Beans",
+            display_order: 10,
+            is_active: true,
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto("/diet");
+
+  const food = page.getByRole("checkbox", { name: "Beans", exact: true });
+  const summary = page.getByRole("heading", { name: "Today", exact: true });
+  await expect(food).toBeVisible();
+  await expect(summary).toBeVisible();
+  expect((await food.boundingBox())!.y).toBeLessThan(
+    (await summary.boundingBox())!.y,
+  );
+  await page.screenshot({
+    path: testInfo.outputPath("diet-mobile-light.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.screenshot({
+    path: testInfo.outputPath("diet-desktop-light.png"),
+    fullPage: true,
+  });
+});
+
 test("dashboard icon controls keep square touch targets", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
   await page.route("**/api/v1/metrics/definitions/", (route) =>
@@ -510,9 +561,14 @@ async function mockApi(page: Page) {
   });
 }
 
-for (const width of [320, 1440]) {
-  test(`recovery tracking and custom tools at ${width}px`, async ({ page }) => {
+for (const width of [320, 390, 1440]) {
+  test(`recovery tracking and custom tools at ${width}px`, async ({
+    page,
+  }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
+    await page.addInitScript(() =>
+      localStorage.setItem("longevity-theme", "light"),
+    );
     let checked = false;
     let archived = false;
     let custom = false;
@@ -602,6 +658,21 @@ for (const width of [320, 1440]) {
     await page.goto("/recovery");
     const checkbox = page.getByRole("checkbox", { name: "Massage" });
     await expect(checkbox).not.toBeChecked();
+    if (width === 390 || width === 1440) {
+      await page.screenshot({
+        path: testInfo.outputPath(
+          `recovery-${width === 390 ? "mobile" : "desktop"}-light.png`,
+        ),
+        fullPage: true,
+      });
+    }
+    if (width === 320) {
+      const dailySummary = page.getByRole("region", { name: "Daily tracking" });
+      await expect(dailySummary).toBeVisible();
+      expect((await checkbox.boundingBox())!.y).toBeLessThan(
+        (await dailySummary.boundingBox())!.y,
+      );
+    }
     await checkbox.click();
     await expect(checkbox).toBeChecked();
     await expect(

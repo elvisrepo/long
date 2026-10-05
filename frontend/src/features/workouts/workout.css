@@ -363,8 +363,25 @@
 .workout-training-layout {
   display: grid;
   grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
+  grid-template-areas: "navigation logging";
   gap: 1.25rem;
   align-items: start;
+}
+.workout-training-layout > .workout-training-sidebar {
+  grid-area: navigation;
+}
+.workout-training-main {
+  grid-area: logging;
+}
+.workout-training-options {
+  padding: 0.9rem 1rem;
+}
+.workout-training-options > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.workout-training-options[open] > .workout-actions {
+  margin-top: 0.75rem;
 }
 .workout-set-row {
   display: grid;
@@ -441,6 +458,9 @@
   .workout-training-layout,
   .workout-library-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .workout-training-layout {
+    grid-template-areas: "logging" "navigation";
   }
   .workout-card {
     padding: 1rem;

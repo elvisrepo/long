@@ -197,9 +197,6 @@
   .recovery-sidebar {
     display: contents;
   }
-  .recovery-tool-groups {
-    grid-row: 2;
-  }
   .recovery-custom-form {
     padding: 0;
     border: 0;

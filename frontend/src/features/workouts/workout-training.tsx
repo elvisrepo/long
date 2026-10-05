@@ -164,10 +164,11 @@ export function WorkoutTraining({
         eyebrow={item.category_name}
         description={`${dayLabel(workout.performed_on)} · ${workout.name}`}
       />
-      <WorkoutTiming workout={workout} busy={busy} run={run} />
-      <div className="workout-actions">
+      <details className="workout-card workout-training-options">
+        <summary>Workout options</summary>
+        <WorkoutTiming workout={workout} busy={busy} run={run} />
         {item.group_name && (
-          <>
+          <div className="workout-actions">
             <span className="workout-badge">{item.group_name}</span>
             <label className="workout-check">
               <input
@@ -177,45 +178,47 @@ export function WorkoutTraining({
               />
               Advance within group after completion
             </label>
-          </>
+          </div>
         )}
-        <button
-          disabled={busy}
-          onClick={() => navigate({ view: "home", date: workout.performed_on })}
-        >
-          Workout overview
-        </button>
-        <button disabled={busy || !library} onClick={() => setDialog("notes")}>
-          Exercise notes
-        </button>
-        <button disabled={disabled} onClick={() => setDialog("manage")}>
-          Manage exercise
-        </button>
-        <button
-          disabled={busy}
-          onClick={() =>
-            navigate({
-              view: "progress",
-              date: workout.performed_on,
-              exercise: item.exercise_id,
-            })
-          }
-        >
-          Exercise progress
-        </button>
-        <button
-          disabled={busy}
-          onClick={() =>
-            navigate({
-              view: "overview",
-              date: workout.performed_on,
-              exercise: item.exercise_id,
-            })
-          }
-        >
-          Exercise overview
-        </button>
-      </div>
+        <div className="workout-actions">
+          <button
+            disabled={busy}
+            onClick={() => navigate({ view: "home", date: workout.performed_on })}
+          >
+            Workout overview
+          </button>
+          <button disabled={busy || !library} onClick={() => setDialog("notes")}>
+            Exercise notes
+          </button>
+          <button disabled={disabled} onClick={() => setDialog("manage")}>
+            Manage exercise
+          </button>
+          <button
+            disabled={busy}
+            onClick={() =>
+              navigate({
+                view: "progress",
+                date: workout.performed_on,
+                exercise: item.exercise_id,
+              })
+            }
+          >
+            Exercise progress
+          </button>
+          <button
+            disabled={busy}
+            onClick={() =>
+              navigate({
+                view: "overview",
+                date: workout.performed_on,
+                exercise: item.exercise_id,
+              })
+            }
+          >
+            Exercise overview
+          </button>
+        </div>
+      </details>
       {workout.is_finished && (
         <div className="workout-context">
           This workout is finished. Reopen it to edit sets.{" "}
@@ -304,7 +307,7 @@ export function WorkoutTraining({
             }
           />
         </aside>
-        <section className="workout-card">
+        <section className="workout-card workout-training-main">
           <WorkoutTools
             item={item}
             busy={disabled}
@@ -408,16 +411,6 @@ export function WorkoutTraining({
                     </label>
                   ))}
                 </div>
-                <label>
-                  Set comment
-                  <input
-                    name="comment"
-                    maxLength={2000}
-                    defaultValue={editing?.comment || ""}
-                    disabled={disabled}
-                    placeholder="Optional: effort, form, assistance…"
-                  />
-                </label>
                 {editing && (
                   <label>
                     Set order
@@ -471,6 +464,16 @@ export function WorkoutTraining({
                     </button>
                   )}
                 </div>
+                <label>
+                  Set comment
+                  <input
+                    name="comment"
+                    maxLength={2000}
+                    defaultValue={editing?.comment || ""}
+                    disabled={disabled}
+                    placeholder="Optional: effort, form, assistance…"
+                  />
+                </label>
               </form>
               <div className="workout-set-list">
                 <div className="workout-card-heading">

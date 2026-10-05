@@ -70,6 +70,26 @@ The foundation is approved; later page-specific layout changes remain proposals:
 These rules are implemented in `frontend/src/index.css`, feature styles, and
 `frontend/src/components/modal.tsx`. No API contracts, routes, or schemas changed.
 
+### Logging-first mobile pass (implemented)
+
+- Workout Training places the set form and current set list before the exercise
+  switcher on mobile. Exercise/session actions, group auto-advance settings, and
+  workout duration controls are available under the collapsed **Workout options**
+  disclosure. Workout calculators remain collapsed, and the optional set comment
+  follows the primary save actions.
+- Diet check-offs now precede the daily summary on mobile; the seven-day summary
+  remains available below the checklist.
+- Recovery check-off tools now precede daily and seven-day summary panels on
+  mobile. Research context and caveats remain present; research details and the
+  longer evidence explanation remain disclosure-based.
+- Responsive browser tests assert these mobile ordering expectations and retain
+  the existing workout logging/edit/delete and recovery check-off coverage.
+- Local Light-theme before/after captures are in the ignored
+  `.lavish/uiux-review/action-first-before-after/` gallery. Sample fixture content
+  may differ across the before/after captures; compare layout and controls.
+
+No API contracts, routes, schemas, or account data changed in this pass.
+
 Separate dependency follow-up: font installation's audit reported two existing
 high-severity development-only dependency groups (`brace-expansion` via linting
 tools and `undici` via jsdom). The font packages introduce neither group. No
