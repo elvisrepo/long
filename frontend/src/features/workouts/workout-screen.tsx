@@ -211,7 +211,7 @@ export function WorkoutScreen({
         />
       )}
       {view !== "training" && (
-        <div className="workout-date-controls">
+        <div className="workout-date-controls date-navigation">
           <button
             aria-label="Previous day"
             disabled={busy}

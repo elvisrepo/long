@@ -115,7 +115,7 @@ export function DietScreen() {
         description="Track foods you ate. No portions, calories or nutrition totals—just your own daily checklist."
       />
       <div className="diet-toolbar">
-        <div className="diet-date-controls">
+        <div className="diet-date-controls date-navigation">
           <button
             type="button"
             aria-label="Previous day"

@@ -3,7 +3,6 @@
   gap: 1rem;
 }
 .diet-toolbar,
-.diet-date-controls,
 .diet-actions,
 .diet-card-heading {
   display: flex;
@@ -15,10 +14,8 @@
 .diet-card-heading {
   justify-content: space-between;
 }
-.diet-date-controls label {
-  display: grid;
-  gap: 0.25rem;
-  font-size: 0.85rem;
+.diet-toolbar {
+  align-items: flex-end;
 }
 .diet-layout {
   display: grid;
@@ -43,6 +40,9 @@
 .diet-card h2 {
   font-size: 1.1rem;
   margin: 0 0 0.75rem;
+}
+.diet-card-heading h2 {
+  margin: 0;
 }
 .diet-card p {
   color: var(--text-dim);
@@ -77,12 +77,12 @@
 .diet-screen button,
 .dashboard-diet button {
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
+  border-radius: var(--control-radius);
   background: var(--surface);
   color: var(--text);
-  padding: 0.55rem 0.75rem;
+  padding: var(--control-padding);
   cursor: pointer;
-  min-height: 2.5rem;
+  min-height: var(--control-height);
 }
 .diet-screen button:disabled {
   opacity: 0.55;
@@ -93,7 +93,7 @@
   outline-offset: 2px;
 }
 .diet-actions button {
-  font-size: 0.8rem;
+  font-size: var(--label-font-size);
 }
 .diet-add {
   justify-self: start;

@@ -19,21 +19,6 @@
   color: var(--text-dim);
   margin: 0;
 }
-.recovery-date-navigation {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  gap: 0.5rem;
-}
-.recovery-date-navigation .recovery-action {
-  margin: 0;
-  min-height: 2.75rem;
-}
-.recovery-date-navigation .recovery-date {
-  display: grid;
-  gap: 0.3rem;
-  font-size: 0.85rem;
-}
 .recovery-evidence-details {
   margin-top: 0.6rem;
   font-size: 0.85rem;
@@ -178,19 +163,12 @@
   align-items: center;
   gap: 0.75rem;
 }
-.recovery-date input {
-  background: var(--surface);
-  color: var(--text);
-  border: 1px solid var(--border);
-  padding: 0.6rem;
-  border-radius: 0.5rem;
-}
 .recovery-action {
-  padding: 0.6rem 0.85rem;
+  padding: var(--control-padding);
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
+  border-radius: var(--control-radius);
   cursor: pointer;
   margin: 0.3rem 0.5rem 0.3rem 0;
 }
@@ -200,17 +178,17 @@
 }
 .recovery-custom-form label {
   display: grid;
-  gap: 0.5rem;
+  gap: var(--field-gap);
   max-width: 30rem;
 }
 .recovery-custom-form input {
   width: 100%;
   box-sizing: border-box;
-  padding: 0.7rem;
+  padding: var(--control-padding);
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
+  border-radius: var(--control-radius);
 }
 @media (max-width: 760px) {
   .recovery-layout {

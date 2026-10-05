@@ -1,5 +1,31 @@
 ## 6. Testing
 
+## Shared UI foundation — 2026-10-05
+
+`frontend/e2e/layout.spec.ts` includes fixture-only browser regressions for native
+custom-metric create/deactivation focus containment, Escape/opener restoration,
+backdrop dismissal versus clicks inside dialog padding, locally loaded fonts,
+square Dashboard icon targets, and consistent date/toolbar/card-heading alignment.
+The tracking controls run across Diet, Recovery, and Workouts in all three themes
+at 320/390/1440 px. Assertions cover 44 px field/action height, 16 px field text,
+checkbox proportions, viewport containment, and screenshot evidence. Existing
+page/auth/dialog layout checks remain relevant through 1920 px.
+
+Run focused browser cases first, then the full layout suite and frontend tests,
+lint, build, formatting, and whitespace checks. Browser mocks intercept account
+and domain calls; these tests do not validate real backend entitlement behavior.
+Keep generated screenshots local and ignored. Do not weaken pixel assertions to
+hide native control sizing or mobile specificity differences. An ignored pointer
+probe diagnosed default mouse focus movement after native-dialog dismissal;
+preventing that movement preserves restored focus. jsdom's dialog shim covers
+component open/close behavior, not browser-native focus containment.
+
+Verification: 543 frontend tests, lint, production build, formatting and whitespace
+checks pass. The complete 47-case fixture layout suite passed; the final date-width
+refinement was then checked by all 15 focused foundation cases across the three
+themes. Screenshot inspection includes mobile Dashboard/Library and desktop
+tracking layouts. No backend changes, account-data writes, commit, or deployment.
+
 ## Workout tracking — 2026-10-01 backend slice
 
 Combined cardio goals (2026-10-05): `test_workout_combined_goals.py` covers inclusive

@@ -91,11 +91,11 @@
 }
 .workout-screen button {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--control-radius);
   background: var(--surface);
   color: var(--text);
-  padding: 0.65rem 0.85rem;
-  min-height: 44px;
+  padding: var(--control-padding);
+  min-height: var(--control-height);
   cursor: pointer;
 }
 .workout-screen button:disabled {
@@ -115,7 +115,6 @@
 .workout-tabs,
 .workout-actions,
 .workout-card-heading,
-.workout-date-controls,
 .workout-toolbar,
 .workout-filters {
   display: flex;
@@ -137,7 +136,10 @@
 .workout-toolbar {
   justify-content: space-between;
 }
-.workout-card-heading h2 {
+.workout-toolbar {
+  align-items: flex-end;
+}
+.workout-card .workout-card-heading h2 {
   margin: 0;
 }
 .workout-layout {
@@ -192,9 +194,9 @@
 .workout-screen label {
   min-width: 0;
   display: grid;
-  gap: 0.3rem;
+  gap: var(--field-gap);
   color: var(--text-dim);
-  font-size: 0.85rem;
+  font-size: var(--label-font-size);
 }
 .workout-screen input,
 .workout-screen select,
@@ -204,22 +206,22 @@
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
-  border-radius: 8px;
-  padding: 0.7rem;
-  font: inherit;
+  border-radius: var(--control-radius);
+  padding: var(--control-padding);
+  font-family: var(--font-sans);
+  font-size: var(--field-font-size);
+  line-height: var(--control-line-height);
 }
 .workout-screen input[type="checkbox"] {
   width: 1.15rem;
   height: 1.15rem;
   accent-color: var(--accent);
   flex-shrink: 0;
+  padding: 0;
 }
 .workout-screen textarea {
   resize: vertical;
   min-height: 90px;
-}
-.workout-date-controls input {
-  width: 10rem;
 }
 .workout-empty {
   text-align: center;
@@ -333,6 +335,7 @@
 }
 .workout-fields {
   display: grid;
+  align-items: end;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
   margin: 1rem 0;
@@ -372,8 +375,8 @@
   padding: 0.75rem 0;
 }
 .workout-set-row button {
-  min-height: 36px;
-  font-size: 0.8rem;
+  min-height: var(--control-height);
+  font-size: var(--label-font-size);
 }
 .workout-set-row input {
   width: auto;
@@ -442,9 +445,6 @@
   .workout-card {
     padding: 1rem;
   }
-  .workout-toolbar {
-    align-items: start;
-  }
   .workout-tabs {
     gap: 0.25rem;
   }
@@ -462,8 +462,5 @@
   }
   .workout-exercise-row > button:last-child {
     padding: 0.55rem;
-  }
-  .workout-card-heading {
-    align-items: start;
   }
 }

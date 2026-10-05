@@ -60,6 +60,251 @@ const entries = definitions.map((definition, index) => ({
   context: {},
 }));
 
+test("custom metric modal contains keyboard focus and restores its opener", async ({
+  page,
+}) => {
+  await page.goto("/metrics");
+  const opener = page.getByRole("button", {
+    name: "+ New custom metric",
+    exact: true,
+  });
+  await opener.click();
+  const dialog = page.getByRole("dialog", { name: "Create custom metric" });
+  await expect(dialog).toBeVisible();
+  for (let i = 0; i < 16; i++) {
+    await page.keyboard.press("Tab");
+    expect(
+      await dialog.evaluate(
+        (el) =>
+          el.contains(document.activeElement) ||
+          document.activeElement === document.body,
+      ),
+      "Tab must not reach background controls",
+    ).toBe(true);
+  }
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(opener).toBeFocused();
+});
+
+test("metric deactivation modal contains focus and restores its opener", async ({
+  page,
+}) => {
+  await page.goto("/metrics");
+  const opener = page.getByRole("button", {
+    name: "Deactivate Personal wellbeing and energy score",
+    exact: true,
+  });
+  await opener.click();
+  const dialog = page.getByRole("dialog");
+  for (let i = 0; i < 10; i++) {
+    await page.keyboard.press("Shift+Tab");
+    expect(
+      await dialog.evaluate(
+        (el) =>
+          el.contains(document.activeElement) ||
+          document.activeElement === document.body,
+      ),
+    ).toBe(true);
+  }
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(opener).toBeFocused();
+});
+
+test("UI fonts are loaded locally instead of relying on system fallbacks", async ({
+  page,
+}) => {
+  await page.goto("/metrics");
+  await expect(
+    page.getByRole("heading", { name: "Metrics", exact: true }),
+  ).toBeVisible();
+  const fonts = await page.evaluate(async () => {
+    await document.fonts.ready;
+    return [...document.fonts]
+      .filter((font) => font.status === "loaded")
+      .map((font) => font.family.replaceAll('"', ""));
+  });
+  expect(fonts).toContain("DM Sans Variable");
+  expect(fonts).toContain("DM Mono");
+});
+
+test("metric dialogs retain backdrop dismissal without dismissing on dialog padding", async ({
+  page,
+}) => {
+  await page.goto("/metrics");
+  const opener = page.getByRole("button", {
+    name: "+ New custom metric",
+    exact: true,
+  });
+  await opener.click();
+  const dialog = page.getByRole("dialog");
+  await dialog.click({ position: { x: 4, y: 4 } });
+  await expect(dialog).toBeVisible();
+  await page.mouse.click(5, 5);
+  await expect(dialog).not.toBeVisible();
+  await expect(opener).toBeFocused();
+});
+
+test("Diet date buttons align with the input rather than its label", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.goto("/diet");
+  const field = page.getByLabel("Tracking date", { exact: true });
+  await expect(field).toBeVisible();
+  const input = (await field.boundingBox())!;
+  for (const name of ["Previous day", "Next day"]) {
+    const box = (await page
+      .getByRole("button", { name, exact: true })
+      .boundingBox())!;
+    expect(box.y + box.height).toBeCloseTo(input.y + input.height, 0);
+    expect(box.height).toBeCloseTo(44, 0);
+    expect(box.width).toBeGreaterThanOrEqual(44);
+  }
+  await expect(field).toHaveCSS("font-size", "16px");
+  expect(input.height).toBeCloseTo(44, 0);
+});
+
+test("dashboard icon controls keep square touch targets", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.route("**/api/v1/metrics/definitions/", (route) =>
+    route.fulfill({
+      json: [
+        ...definitions,
+        ...Array.from({ length: 3 }, (_, i) => ({
+          ...definitions[3],
+          id: `extra-${i}`,
+          slug: `extra_${i}`,
+          name: `Extra metric ${i}`,
+        })),
+      ],
+    }),
+  );
+  await page.goto("/");
+  await expect(page.locator(".metric-card-add").first()).toBeVisible();
+  for (const selector of [
+    ".metric-card-add",
+    ".dashboard-rail-controls button",
+  ]) {
+    const box = (await page.locator(selector).first().boundingBox())!;
+    expect(box.width).toBeCloseTo(44, 0);
+    expect(box.height).toBeCloseTo(44, 0);
+  }
+});
+
+for (const theme of ["dark", "light", "sand"]) {
+  for (const width of [320, 390, 1440]) {
+    test(`${theme} shared controls align across tracking pages at ${width}px`, async ({
+      page,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.addInitScript(
+        (theme) => localStorage.setItem("longevity-theme", theme),
+        theme,
+      );
+      await page.route("**/api/v1/workouts/catalog/", (route) =>
+        route.fulfill({
+          json: {
+            categories: [
+              {
+                id: "11111111-1111-4111-8111-111111111111",
+                name: "Chest",
+                is_active: true,
+                display_order: 0,
+              },
+            ],
+            exercises: [],
+            preferences: { bar_kg: "20.000", bar_lb: "45.000" },
+          },
+        }),
+      );
+      for (const path of [
+        "/diet",
+        "/recovery",
+        "/workouts",
+        "/workouts?view=exercises",
+      ]) {
+        await page.goto(path);
+        const field = page.getByLabel("Tracking date", { exact: true });
+        await expect(field).toBeVisible();
+        const input = (await field.boundingBox())!;
+        for (const name of ["Previous day", "Next day"]) {
+          const box = (await page
+            .getByRole("button", { name, exact: true })
+            .boundingBox())!;
+          expect(box.y + box.height, path).toBeCloseTo(
+            input.y + input.height,
+            0,
+          );
+          expect(box.height, path).toBeCloseTo(44, 0);
+          expect(box.width, path).toBeGreaterThanOrEqual(44);
+        }
+        await expect(field).toHaveCSS("font-size", "16px");
+        expect(input.height, path).toBeCloseTo(44, 0);
+        expect(input.width, path).toBeCloseTo(160, 0);
+        expect(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+          path,
+        ).toBe(true);
+        if (path.includes("exercises")) {
+          const heading = (await page
+            .getByRole("heading", { name: "Chest", exact: true })
+            .boundingBox())!;
+          const edit = (await page
+            .getByRole("button", { name: "Edit category Chest", exact: true })
+            .boundingBox())!;
+          expect(heading.y + heading.height / 2).toBeCloseTo(
+            edit.y + edit.height / 2,
+            0,
+          );
+          const search = page.getByLabel("Search exercises", { exact: true });
+          await expect(search).toHaveCSS("font-size", "16px");
+          expect((await search.boundingBox())!.height).toBeCloseTo(44, 0);
+          const checkbox = page.getByRole("checkbox", {
+            name: "Show archived",
+            exact: true,
+          });
+          const box = (await checkbox.boundingBox())!;
+          expect(box.width).toBeCloseTo(box.height, 0);
+          expect(box.height).toBeLessThan(24);
+        }
+        if (width === 1440) {
+          const search = path.includes("exercises")
+            ? page.getByLabel("Search exercises", { exact: true })
+            : null;
+          const action =
+            path === "/diet"
+              ? page.getByRole("button", {
+                  name: "Manage checklist",
+                  exact: true,
+                })
+              : search
+                ? page.getByRole("button", {
+                    name: "New exercise",
+                    exact: true,
+                  })
+                : null;
+          if (action) {
+            const fieldBox = search ? (await search.boundingBox())! : input;
+            const buttonBox = (await action.boundingBox())!;
+            expect(buttonBox.y + buttonBox.height).toBeCloseTo(
+              fieldBox.y + fieldBox.height,
+              0,
+            );
+          }
+        }
+        await page.screenshot({
+          path: testInfo.outputPath(`${path.replaceAll(/[/?=]/g, "_")}.png`),
+          fullPage: true,
+        });
+      }
+    });
+  }
+}
+
 test("dashboard tracking summaries share one row on desktop", async ({
   page,
 }) => {

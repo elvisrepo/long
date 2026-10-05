@@ -105,7 +105,7 @@ export function RecoveryScreen() {
         eyebrow="Recover thoughtfully"
         description="Track what you did. Research bars describe estimated muscle soreness relief, not overall recovery."
       />
-      <div className="recovery-date-navigation">
+      <div className="recovery-date-navigation date-navigation">
         <button
           className="recovery-action"
           aria-label="Previous day"

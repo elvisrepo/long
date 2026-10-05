@@ -2,8 +2,10 @@
 
 ## Status and scope
 
-Review completed; UI implementation recommendations await user review and approval.
-No application code or account data was changed during the review.
+Review completed. The user approved starting the shared UI foundation on
+5 October 2026, explicitly prioritizing text, label, field, and button alignment.
+No account data was changed. The original review itself made no application changes;
+the foundation implementation below is a subsequent slice.
 
 Inspected all main routes: Dashboard, metric library/detail variants, three analytics
 pages, Recovery, Diet, Settings, authentication/password recovery, and missing-page
@@ -18,7 +20,7 @@ accessibility audit, entitlement test, or complete interaction regression suite.
 Sparse fixture data, transient loading, and development overlays must not be
 treated as evidence of production defects.
 
-## Findings
+## Findings — original review snapshot
 
 | Priority | Finding | Proposed direction |
 | --- | --- | --- |
@@ -31,22 +33,52 @@ treated as evidence of production defects.
 | P2 | Workout reorder/remove/edit controls compete with logging; nested overview navigation and selectors repeat. | Separate management from logging and clarify navigation levels. |
 | P2 | Chart conventions vary between Metrics and Workouts; catalog density, status typography, and page titles need polish. | Share semantic chart tokens and axis/tooltip styles; use meaningful browser titles instead of frontend. |
 
-## Proposed direction — not yet approved
+## Direction and implementation status
 
 Retain the existing identity and all three themes. Light is the recommended
 reference for dense forms and tables; Dark and Sand remain supported choices.
 The review artifact matches the project's existing CSS tokens, not an external kit.
 
-Suggested sequence:
+The foundation is approved; later page-specific layout changes remain proposals:
 
 1. Typography and shared controls, date alignment, modal keyboard fixes.
 2. Logging-first mobile layouts for Workouts, Diet, and Recovery.
 3. Charts, routine builder, calendar, nested navigation, and sleep-duration input.
 
+### Shared foundation rules
+
+- Bundle DM Sans Variable (normal/italic) and DM Mono (400/500) through Fontsource
+  dependencies. Fonts are local Vite assets, not runtime CDN requests; use swap.
+- Single-line fields are 44 px tall with 16 px text and tabular numbers. Labels
+  use 14 px text, a 1.5 line height, and a 6 px field gap. Multiline fields grow.
+- Shared button minimum height/width is 44 px; standard button text is 14 px.
+  Circular Dashboard controls explicitly keep equal width and height.
+- Control radius is 10 px; action gaps are 8 px. Existing theme palettes remain.
+- Diet, Recovery, and Workouts use `.date-navigation`: buttons align to the
+  input's bottom, not the label/input wrapper. The label container fixes the date
+  field width at 10 rem rather than the browser's intrinsic width. Toolbar actions
+  align to fields.
+- Multi-column forms align fields at the bottom even when labels wrap. Card
+  headings do not carry an extra bottom margin beside an Edit button.
+- Checkbox/radio/range controls are excluded from single-line field sizing.
+  Workout checkboxes do not inherit text-field padding.
+- Custom-metric creation and deactivation reuse the native shared `Modal`.
+  Keyboard focus stays out of the background; Escape and dismissal restore the
+  opener. These two dialogs retain backdrop dismissal without treating dialog
+  padding as backdrop. Deactivation prevents dismissal while pending.
+
+These rules are implemented in `frontend/src/index.css`, feature styles, and
+`frontend/src/components/modal.tsx`. No API contracts, routes, or schemas changed.
+
+Separate dependency follow-up: font installation's audit reported two existing
+high-severity development-only dependency groups (`brace-expansion` via linting
+tools and `undici` via jsdom). The font packages introduce neither group. No
+unrelated audit fixes were applied in this UI slice.
+
 Keep data contracts, history/units, planned/completed semantics, superset behavior,
 and research/coverage caveats intact. Use focused behavioral tests and responsive
 visual checks when implementing. Record approved design rules here after the user
-chooses the direction; do not treat the recommendations as settled decisions.
+chooses the remaining direction; do not treat later recommendations as decisions.
 
 ## Review artifact policy
 
