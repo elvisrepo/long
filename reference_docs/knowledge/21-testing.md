@@ -2,6 +2,33 @@
 
 ## Workout tracking — 2026-10-01 backend slice
 
+Combined cardio goals (2026-10-05): `test_workout_combined_goals.py` covers inclusive
+raw thresholds, near-boundary progress below 100, separate-bests rejection, no pace
+extrapolation, single supporting set/chronological ties, planned/missing/future
+exclusion, frozen type/both-unit partitions, independent ownership, archive/edit,
+partial targets, strict shape/bounds/whole seconds, SQL invalid-shape rejection,
+shared cap, export, target-only deletion and account cascade isolation. Existing
+metric/strength goal suites check compatibility. Zero set duration is already
+forbidden in SQL: tests assert that rejection rather than store an impossible row;
+missing nullable quantities exercise read guards separately. An ignored read-only
+probe inspects the duration and combined-goal constraints.
+Frontend tests cover creation with minute/second conversion, saved-unit/type editing,
+retained failed inputs, actual source navigation and empty-source progress without
+a guessed single best value. Live 320/390/1440px workout flows create a combined
+goal, verify 83.3% against a 5 km/30-minute set, edit to 30 minutes, reload achieved
+status, open the source and remove only the target. Editor/card screenshots and
+viewport containment accompany the flow. Migration drift checks accompany 0011;
+normal local and isolated E2E databases apply it. No route renames or deployment.
+
+Combined-goal verification: 39 new backend cases, 848 full backend tests and
+543 frontend tests pass. All nine workout browser flows pass at 320/390/1440px.
+Ruff, focused mypy, ESLint, production build, formatting and migration drift pass.
+Editor/progress screenshots inspected. An ignored read-only SQL/input probe
+confirmed an initial browser failure was a test-entry race, not incorrect SQL:
+the second input was overwritten by the first save's form reset. The flow now
+waits for each persisted set row before entering the next values, and checks
+the actual 5 km/1800-second source instead of relying on matching pace alone.
+
 Bulk history correction (2026-10-05): `test_workout_bulk_sets.py` covers cross-session
 updates/deletes, preservation of comments/order/snapshots, JWT/both ownership paths,
 missing IDs, stale previews, finished/reopened sessions, strict bounded input,

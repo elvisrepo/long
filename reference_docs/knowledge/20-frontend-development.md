@@ -2,6 +2,17 @@
 
 ### Workout log (October 2, 2026, local)
 
+Combined cardio goals (2026-10-05): Exercise overview → Goals → New goal →
+Distance within a time limit. Use minimum distance in saved km/mi and time-limit
+minutes/seconds (1 second–7 days); create supplies both fields and edit follows
+the goal's frozen kind/units even after library archive/type/unit changes. Cards
+show both thresholds, the weaker ratio's progress and the actual source distance/
+time/date, with Open supporting set. Source-less combined goals show zero and no
+invented scalar best. Duration-only goals still mean at least that long. Combined
+goals explicitly require one full completed set, without splits or extrapolation.
+Error/input retention, pending locks, removal confirmation and owner cache refresh
+remain shared with existing goals. No new frontend route.
+
 Bulk history editing (2026-10-05): Training → Exercise history and library Exercise
 overview → History use a shared Edit multiple sets dialog. Select up to 100 loaded
 sets, choose shared quantities/completion/comment changes or deletion, then review

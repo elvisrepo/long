@@ -7,6 +7,21 @@ catalog ownership, session/set semantics, history preservation, and phased deliv
 
 ## Status and agreed product direction
 
+Combined cardio goals (2026-10-05): Overview → Goals offers Distance within a time
+limit, e.g. at least 5 km within 25 minutes. Both raw thresholds must hold in one
+completed cardio set; no split estimates, summed sets, pace extrapolation or unit
+conversion. Saved type and both units remain frozen. Progress selects the single
+set with the highest weaker ratio (distance/target versus limit/recorded time),
+stable earliest ties; it stays below 100 until achieved. Cards show that set's
+actual distance/time and supporting-workout navigation, not a scalar guessed best.
+Inputs are minimum saved km/mi and limit minutes/seconds; duration-only goals still
+mean longer. Partial API edits retain the other target; existing goals keep their
+contracts, archives stay readable/editable, and source corrections/deletions
+recalculate. Migration 0011 adds two nullable fields plus strict SQL shape/bounds;
+goal export/account deletion includes them. Existing owner locks, all-tier access,
+20-goal cap and confirmation/error handling remain. No new routes, recorded-set
+rewrites or deployment. Multi-set targets/split tracking remain future work.
+
 Bulk history editing (2026-10-05): Training → Exercise history and library Exercise
 overview → History offer Edit multiple sets. Choose up to 100 loaded sets across
 dates/duplicate occurrences; finished workouts remain disabled until reopened.
@@ -142,24 +157,26 @@ adds group labels to template/session occurrences; `0006_group_colours` adds
 colours to both; `0007_workout_preferences` adds account preferences and exercise
 favorites/preferred graphs; `0008_exercise_goals` adds actual strength targets;
 `0009_workout_timing` adds nullable session timing; `0010_metric_goals` extends
-targets without changing recorded set snapshots (twelve models, ten migrations).
+targets without changing recorded set snapshots; `0011_combined_cardio_goals`
+adds distance-within-time targets (twelve models, eleven migrations).
 The canonical contracts are in
 [API design](03-api-design.md). The basic frontend, history/copy and dashboard
 slice is now implemented locally (2026-10-02). Phase 5's first routine workflow
 and the remaining phase 5 conveniences are implemented. Phase 6 now includes
 windowed charts/records, calculators, exercise statistics, strength and metric goals;
-multi-set/combined-distance race goals and advanced analysis remain future work;
-bulk history corrections are implemented above.
+combined cardio goals and bulk corrections are implemented; multi-set/split targets
+and advanced analysis remain future work.
 The separate `.lavish/workout-prototype.html` is a sample-only
 review prototype, not the real Workouts tab. No cloud deployment is implied.
-Normal local and isolated E2E PostgreSQL have all ten workout migrations applied.
-Latest verification (2026-10-05): 809 backend and 540 frontend tests pass. Six
+Normal local and isolated E2E PostgreSQL have all eleven workout migrations applied.
+Latest verification (2026-10-05): 848 backend and 543 frontend tests pass. Six
 real-backend and three fixture browser flows at 320/390/1440px pass, including
 timing start/reload/pause/correction/finish/reopen, downloaded CSV contents, cardio
 pace goal creation/edit/reload/supporting-source navigation, bodyweight goal
-creation/reload, bulk correction/stale preview/confirmed deletion and mobile layout.
-Lint/build and touched-file formatting pass. Migration drift was checked in the
-metric-goal slice; bulk corrections do not change models or migrations. Focused
+creation/reload, combined distance/time goal progress/edit/reload/source/removal,
+bulk correction/stale preview/confirmed deletion and mobile layout.
+Lint/build and touched-file formatting pass. Migration drift was checked after
+0011; bulk corrections do not change models or migrations. Focused
 mypy passes with a fresh temporary cache; the existing default cache crashed
 internally and was preserved. See testing docs for this diagnostic boundary.
 Metric-goal focused mypy passes with a separate temporary cache. The stopped E2E

@@ -117,6 +117,8 @@ def account_export(user: User) -> Iterator[str]:
             "goal_type",
             "tracking_type",
             "target_value",
+            "target_distance",
+            "target_duration_seconds",
             "target_weight",
             "target_reps",
             "rep_rule",

@@ -7,6 +7,53 @@ import { ExerciseGoals } from "./exercise-goals";
 
 vi.mock("./workout-api");
 beforeEach(() => vi.resetAllMocks());
+it("creates a distance within time goal with both targets and no pace extrapolation", async () => {
+  vi.mocked(api.getExerciseGoals).mockResolvedValue([]);
+  vi.mocked(api.saveExerciseGoal).mockResolvedValue({} as api.GoalDefinition);
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <ExerciseGoals
+        owner="owner"
+        date="2026-10-05"
+        exercise={
+          {
+            id: "run",
+            tracking_type: "cardio",
+            weight_unit: "kg",
+            distance_unit: "km",
+          } as api.Exercise
+        }
+        canCreate
+        navigate={vi.fn()}
+      />
+    </QueryClientProvider>,
+  );
+  await userEvent.click(
+    await screen.findByRole("button", { name: "New goal" }),
+  );
+  await userEvent.selectOptions(
+    screen.getByRole("combobox", { name: "Goal type" }),
+    "distance_time",
+  );
+  await userEvent.type(screen.getByLabelText("Minimum distance (km)"), "5");
+  await userEvent.clear(screen.getByLabelText("Time limit minutes"));
+  await userEvent.type(screen.getByLabelText("Time limit minutes"), "25");
+  await userEvent.clear(screen.getByLabelText("Time limit seconds"));
+  await userEvent.type(screen.getByLabelText("Time limit seconds"), "10");
+  expect(
+    screen.getByText(/No split times or pace extrapolation/),
+  ).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Save goal" }));
+  expect(api.saveExerciseGoal).toHaveBeenCalledWith("run", undefined, {
+    goal_type: "distance_time",
+    target_distance: "5",
+    target_duration_seconds: 1510,
+  });
+});
 it("creates a bodyweight rep target without a guessed weight", async () => {
   const user = userEvent.setup();
   vi.mocked(api.getExerciseGoals).mockResolvedValue([]);
@@ -41,6 +88,154 @@ it("creates a bodyweight rep target without a guessed weight", async () => {
     goal_type: "reps",
     target_value: "10",
   });
+});
+
+it("edits both combined targets with frozen units after archive/type changes and keeps errors", async () => {
+  const goal: api.ExerciseGoal = {
+    id: "combined",
+    goal_type: "distance_time",
+    tracking_type: "cardio",
+    target_distance: "5.000",
+    target_duration_seconds: 1501,
+    target_value: null,
+    target_weight: null,
+    target_reps: null,
+    rep_rule: "at_least",
+    weight_unit: "kg",
+    distance_unit: "mi",
+    created_at: "",
+    achieved: false,
+    best_weight: null,
+    best_value: null,
+    progress_percent: "83.3",
+    source_date: "2026-10-04",
+    source: {
+      workout_id: "w",
+      item_id: "i",
+      set_id: "s",
+      weight: null,
+      reps: null,
+      distance: "5.000",
+      duration_seconds: 1800,
+    },
+  };
+  vi.mocked(api.getExerciseGoals).mockResolvedValue([goal]);
+  vi.mocked(api.saveExerciseGoal).mockRejectedValue(
+    new Error("Save failed; please retry."),
+  );
+  const navigate = vi.fn();
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: {
+            queries: { retry: false },
+            mutations: { retry: false },
+          },
+        })
+      }
+    >
+      <ExerciseGoals
+        owner="owner"
+        date="2026-10-05"
+        exercise={
+          {
+            id: "run",
+            tracking_type: "strength",
+            weight_unit: "lb",
+            distance_unit: "km",
+          } as api.Exercise
+        }
+        canCreate={false}
+        navigate={navigate}
+      />
+    </QueryClientProvider>,
+  );
+  expect(
+    await screen.findByText("At least 5 mi within 25 min 1 sec in one set"),
+  ).toBeInTheDocument();
+  expect(screen.getByText("5 mi in 30 min · 2026-10-04")).toBeInTheDocument();
+  expect(screen.getByRole("progressbar")).toHaveAttribute("value", "83.3");
+  expect(screen.getByRole("button", { name: "New goal" })).toBeDisabled();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Open supporting set" }),
+  );
+  expect(navigate).toHaveBeenCalledWith({
+    view: "training",
+    date: "2026-10-04",
+    session: "w",
+    exercise: "i",
+  });
+  await userEvent.click(
+    screen.getByRole("button", { name: /^Edit goal At least/ }),
+  );
+  expect(screen.queryByLabelText("Goal type")).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Time limit minutes")).toHaveValue(25);
+  expect(screen.getByLabelText("Time limit seconds")).toHaveValue(1);
+  await userEvent.clear(screen.getByLabelText("Minimum distance (mi)"));
+  await userEvent.type(screen.getByLabelText("Minimum distance (mi)"), "6");
+  await userEvent.click(screen.getByRole("button", { name: "Save goal" }));
+  expect(api.saveExerciseGoal).toHaveBeenCalledWith("run", "combined", {
+    target_distance: "6",
+    target_duration_seconds: 1501,
+  });
+  expect(await screen.findByRole("alert")).toHaveTextContent("Save failed");
+  expect(screen.getByLabelText("Minimum distance (mi)")).toHaveValue(6);
+  expect(screen.getByLabelText("Time limit seconds")).toHaveValue(1);
+  expect(screen.queryByLabelText("Target weight (lb)")).not.toBeInTheDocument();
+});
+
+it("shows a combined target with no source as zero progress, not a numeric best", async () => {
+  vi.mocked(api.getExerciseGoals).mockResolvedValue([
+    {
+      id: "combined",
+      goal_type: "distance_time",
+      target_distance: "1.500",
+      target_duration_seconds: 59,
+      target_weight: null,
+      target_reps: null,
+      rep_rule: "at_least",
+      weight_unit: "kg",
+      distance_unit: "km",
+      created_at: "",
+      achieved: false,
+      best_weight: null,
+      best_value: null,
+      progress_percent: "0.0",
+      source: null,
+      source_date: null,
+    },
+  ]);
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <ExerciseGoals
+        owner="owner"
+        date="2026-10-05"
+        exercise={
+          {
+            id: "run",
+            tracking_type: "cardio",
+            weight_unit: "kg",
+            distance_unit: "km",
+          } as api.Exercise
+        }
+        canCreate
+        navigate={vi.fn()}
+      />
+    </QueryClientProvider>,
+  );
+  expect(
+    await screen.findByText("At least 1.5 km within 59 sec in one set"),
+  ).toBeInTheDocument();
+  expect(screen.getByRole("progressbar")).toHaveAttribute("value", "0");
+  expect(screen.getByText(/No completed set meets/)).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Open supporting set" }),
+  ).not.toBeInTheDocument();
 });
 
 it.each([

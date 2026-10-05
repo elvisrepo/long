@@ -2,6 +2,18 @@
 
 ## Workout tracking boundary — 2026-10-01 backend slice
 
+Combined cardio goals (2026-10-05) reuse JWT ownership, shared user-row locks,
+active-only creation, 20-goal cap and independently owner-scoped completed sources.
+Only distance and a bounded whole-second limit may be patched; saved type/units
+remain immutable. SQL rejects incompatible or mixed goal shapes; API rejects
+noninteger time/irrelevant fields. Both conditions must match one completed set,
+never different sets/units, pace estimates or inferred splits. Progress is a
+goal ratio, not verified race evidence or medical/fitness scoring. Archived targets
+stay editable, corrections/deletions recalculate, account export/cascade includes
+the two new nullable fields. Migration 0011 preserves existing goals and source
+sets; rollback requires coordinated handling of combined rows. No paid gate,
+public sharing, new route or automatic source mutation.
+
 Session timing (2026-10-03) reuses JWT-scoped session PATCH and the user-row lock.
 Clients cannot write the running timestamp, elapsed total or server clock. Only
 bounded nullable duration corrections and start/pause commands are accepted;

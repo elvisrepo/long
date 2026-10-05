@@ -8,6 +8,7 @@ import {
   goalTypesFor,
   goalTitle,
   goalValue,
+  goalTime,
 } from "./goal-display";
 
 export function ExerciseGoals({
@@ -54,9 +55,10 @@ export function ExerciseGoals({
       <p>
         Completed single sets through {date}, not estimated 1RM or workout
         totals. Goal type and units stay saved. Rate labels are rounded;
-        achievement uses unrounded values. Duration means longer, not a faster
-        race time. Bodyweight rep goals allow any optional recorded load,
-        without estimating body mass.
+        achievement uses unrounded values. Duration-only goals mean longer;
+        distance within time goals require both conditions in one full set.
+        Bodyweight rep goals allow any optional recorded load, without
+        estimating body mass.
       </p>
       {!canCreate && (
         <p>
@@ -89,9 +91,11 @@ export function ExerciseGoals({
           />
           <p>
             {goal.progress_percent}% of target{" "}
-            {goal.goal_type === "best_pace"
-              ? "(target pace / best pace)"
-              : "(best value / target)"}
+            {goal.goal_type === "distance_time"
+              ? "(weaker of distance / target and time limit / recorded time)"
+              : goal.goal_type === "best_pace"
+                ? "(target pace / best pace)"
+                : "(best value / target)"}
             .
           </p>
           {goal.source && goal.source_date ? (
@@ -99,7 +103,9 @@ export function ExerciseGoals({
               <p>
                 {!goal.goal_type || goal.goal_type === "strength"
                   ? `${Number(goal.source.weight)} ${goal.weight_unit} × ${goal.source.reps} reps`
-                  : goalValue(goal, goal.best_value!)}{" "}
+                  : goal.goal_type === "distance_time"
+                    ? `${Number(goal.source.distance)} ${goal.distance_unit} in ${goalTime(goal.source.duration_seconds!)}`
+                    : goalValue(goal, goal.best_value!)}{" "}
                 · {goal.source_date}
               </p>
               <button
@@ -184,13 +190,21 @@ export function ExerciseGoals({
                         "rule",
                       ) as api.GoalDefinition["rep_rule"],
                     }
-                  : {
-                      ...(!editor.goal ? { goal_type: goalType } : {}),
-                      target_value:
-                        goalType === "best_pace"
-                          ? paceTarget
-                          : String(fields.get("value")),
-                    };
+                  : goalType === "distance_time"
+                    ? {
+                        ...(!editor.goal ? { goal_type: goalType } : {}),
+                        target_distance: String(fields.get("target_distance")),
+                        target_duration_seconds:
+                          Number(fields.get("time_minutes")) * 60 +
+                          Number(fields.get("time_seconds")),
+                      }
+                    : {
+                        ...(!editor.goal ? { goal_type: goalType } : {}),
+                        target_value:
+                          goalType === "best_pace"
+                            ? paceTarget
+                            : String(fields.get("value")),
+                      };
               try {
                 await mutation.mutateAsync(() =>
                   api.saveExerciseGoal(exercise.id, editor.goal?.id, data),
@@ -263,6 +277,58 @@ export function ExerciseGoals({
                       <option value="exact">Exactly target reps</option>
                     </select>
                   </label>
+                </>
+              ) : goalType === "distance_time" ? (
+                <>
+                  <label style={{ gridColumn: "1 / -1" }}>
+                    Minimum distance (
+                    {editor.goal?.distance_unit ?? exercise.distance_unit})
+                    <input
+                      name="target_distance"
+                      type="number"
+                      min=".001"
+                      max="100000"
+                      step=".001"
+                      required
+                      disabled={busy}
+                      defaultValue={editor.goal?.target_distance ?? ""}
+                    />
+                  </label>
+                  <label>
+                    Time limit minutes
+                    <input
+                      name="time_minutes"
+                      type="number"
+                      min="0"
+                      max="10080"
+                      step="1"
+                      required
+                      disabled={busy}
+                      defaultValue={Math.floor(
+                        (editor.goal?.target_duration_seconds ?? 1500) / 60,
+                      )}
+                    />
+                  </label>
+                  <label>
+                    Time limit seconds
+                    <input
+                      name="time_seconds"
+                      type="number"
+                      min="0"
+                      max="59"
+                      step="1"
+                      required
+                      disabled={busy}
+                      defaultValue={
+                        (editor.goal?.target_duration_seconds ?? 1500) % 60
+                      }
+                    />
+                  </label>
+                  <p style={{ gridColumn: "1 / -1" }}>
+                    At least this distance and at most this time in the same
+                    completed set. No split times or pace extrapolation. Time
+                    limit: 1 second to 7 days.
+                  </p>
                 </>
               ) : goalType === "best_pace" ? (
                 <>

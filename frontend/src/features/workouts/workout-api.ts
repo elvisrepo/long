@@ -213,12 +213,15 @@ export type GoalType =
   | "distance"
   | "duration"
   | "max_speed"
-  | "best_pace";
+  | "best_pace"
+  | "distance_time";
 export interface GoalDefinition {
   id: string;
   goal_type?: GoalType;
   tracking_type?: TrackingType;
   target_value?: string | null;
+  target_distance?: string | null;
+  target_duration_seconds?: number | null;
   target_weight: string | null;
   target_reps: number | null;
   rep_rule: "at_least" | "exact";
@@ -247,7 +250,15 @@ export type GoalInput =
       target_reps: number;
       rep_rule: GoalDefinition["rep_rule"];
     }
-  | { goal_type?: Exclude<GoalType, "strength">; target_value: string };
+  | {
+      goal_type?: Exclude<GoalType, "strength" | "distance_time">;
+      target_value: string;
+    }
+  | {
+      goal_type?: "distance_time";
+      target_distance: string;
+      target_duration_seconds: number;
+    };
 export const saveExerciseGoal = (
   exercise: string,
   id: string | undefined,

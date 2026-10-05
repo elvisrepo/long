@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import Any
 from django.db import transaction
 from django.db.models import QuerySet, F, Value, DecimalField
-from django.db.models.functions import Cast
+from django.db.models.functions import Cast, Least
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.permissions import IsAuthenticated
@@ -18,6 +18,16 @@ from .progress_queries import completed_sets, source, SOURCE_FIELDS, CHRONOLOGY
 
 
 class GoalSerializer(serializers.ModelSerializer):
+    target_distance = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        min_value=Decimal(".001"),
+        max_value=Decimal("100000"),
+        required=False,
+    )
+    target_duration_seconds = serializers.IntegerField(
+        min_value=1, max_value=604800, required=False
+    )
     target_weight = serializers.DecimalField(
         max_digits=8,
         decimal_places=3,
@@ -41,6 +51,8 @@ class GoalSerializer(serializers.ModelSerializer):
             "goal_type",
             "tracking_type",
             "target_value",
+            "target_distance",
+            "target_duration_seconds",
             "target_weight",
             "target_reps",
             "rep_rule",
@@ -65,6 +77,8 @@ class GoalSerializer(serializers.ModelSerializer):
         allowed = (
             {"target_weight", "target_reps", "rep_rule"}
             if kind == "strength"
+            else {"target_distance", "target_duration_seconds"}
+            if kind == "distance_time"
             else {"target_value"}
         )
         if self.instance is None:
@@ -82,6 +96,14 @@ class GoalSerializer(serializers.ModelSerializer):
             ):
                 raise serializers.ValidationError(
                     "Strength goals require weight and reps."
+                )
+        elif kind == "distance_time":
+            if (
+                self.instance is None
+                and not {"target_distance", "target_duration_seconds"} <= data.keys()
+            ):
+                raise serializers.ValidationError(
+                    "Supply both distance and a time limit."
                 )
         else:
             value = data.get(
@@ -101,6 +123,8 @@ class GoalSerializer(serializers.ModelSerializer):
 
 
 def goal_result(goal: ExerciseGoal, rows: QuerySet[WorkoutSet]) -> dict[str, Any]:
+    if goal.goal_type == "distance_time":
+        return combined_goal_result(goal, rows)
     if goal.goal_type != "strength":
         return metric_goal_result(goal, rows)
     qualifying = rows.filter(
@@ -126,6 +150,60 @@ def goal_result(goal: ExerciseGoal, rows: QuerySet[WorkoutSet]) -> dict[str, Any
         if best
         else "0.0",
         "source": source(best) if best else None,
+        "source_date": best["date"].isoformat() if best else None,
+    }
+
+
+def combined_goal_result(
+    goal: ExerciseGoal, rows: QuerySet[WorkoutSet]
+) -> dict[str, Any]:
+    number = DecimalField(max_digits=24, decimal_places=8)
+    distance, duration = (
+        Cast(F("distance"), number),
+        Cast(F("duration_seconds"), number),
+    )
+    rows = rows.filter(
+        tracking_type=goal.tracking_type,
+        weight_unit=goal.weight_unit,
+        distance_unit=goal.distance_unit,
+        distance__gt=0,
+        duration_seconds__gt=0,
+    )
+    score = Least(
+        distance / Value(goal.target_distance),
+        Value(Decimal(goal.target_duration_seconds)) / duration,
+    )
+    best = (
+        rows.annotate(goal_score=score)
+        .order_by("-goal_score", *CHRONOLOGY)
+        .values(*SOURCE_FIELDS, "goal_score", "distance", "duration_seconds")
+        .first()
+    )
+    achieved = bool(
+        best
+        and best["distance"] >= goal.target_distance
+        and best["duration_seconds"] <= goal.target_duration_seconds
+    )
+    percent = (
+        min(Decimal(100), best["goal_score"] * 100).quantize(Decimal(".1"))
+        if best
+        else Decimal("0.0")
+    )
+    if not achieved:
+        percent = min(Decimal("99.9"), percent)
+    return {
+        **GoalSerializer(goal).data,
+        "achieved": achieved,
+        "best_weight": None,
+        "best_value": None,
+        "progress_percent": str(percent),
+        "source": {
+            **source(best),
+            "distance": str(best["distance"]),
+            "duration_seconds": best["duration_seconds"],
+        }
+        if best
+        else None,
         "source_date": best["date"].isoformat() if best else None,
     }
 
@@ -232,7 +310,13 @@ class ExerciseGoalsView(APIView):
         allowed = {
             "strength": ["strength"],
             "bodyweight": ["reps"],
-            "cardio": ["distance", "duration", "max_speed", "best_pace"],
+            "cardio": [
+                "distance",
+                "duration",
+                "max_speed",
+                "best_pace",
+                "distance_time",
+            ],
             "duration": ["duration"],
         }
         if kind not in allowed[exercise.tracking_type]:

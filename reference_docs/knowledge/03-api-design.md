@@ -296,10 +296,39 @@ unchanged. Migration 0010 should not be reversed while metric goals exist: the
 legacy nonnullable strength-only schema cannot represent them; use a coordinated
 data/backup plan, not a blind downgrade.
 
+Combined cardio extension (2026-10-05): the same POST also accepts
+`{goal_type:"distance_time", target_distance, target_duration_seconds}` on an active
+cardio exercise/category. Both targets are required: distance .001–100000 in the
+saved km/mi (three decimal places), time limit 1–604800 whole seconds. PATCH accepts
+either/both target fields, nonempty, retaining the other; kind/type/units cannot
+change. Other target fields/null/unknown inputs reject. All older goal payloads
+remain compatible. Responses/export add nullable `target_distance` and
+`target_duration_seconds`; only combined goals populate these fields, with
+`target_value,target_weight,target_reps` null. SQL constrains shape/type/bounds;
+API enforces whole seconds. Migration `0011_combined_cardio_goals` adds these
+nullable fields and updates the goal constraint without rewriting old goals/sets.
+Do not blindly reverse 0011 while combined goals exist: 0010's constraint cannot
+represent them; coordinate data/backup handling first.
+
+Combined achievement requires distance ≥ target AND duration ≤ limit in the
+same completed cardio set through the inclusive date cutoff, matching frozen
+tracking type and both units. Incomplete/planned/foreign/future/other partitions
+never count. There are no split times, summed sets, rate extrapolations or unit
+conversions: 10 km in 50 minutes does not prove 5 km within 25 minutes.
+For each eligible set, score = min(distance/target_distance, time_limit/duration).
+The highest uncapped score chooses one supporting set; earliest stable chronology
+wins ties. Display progress = score × 100, rounded to one decimal, capped at 99.9
+until both raw thresholds are met, then 100. This is a bottleneck goal ratio, not
+a fitness score or predicted race time. `best_value,best_weight` are null because
+two dimensions cannot be expressed as one best quantity; inspect source's recorded
+distance/duration. No source gives zero progress. Corrections, uncompletion and
+deletion immediately recalculate; no permanent badge. Existing owner lock, 20-goal
+cap, all-tier JWT ownership, export and cascade deletion apply. No new route.
+
 | Method | Endpoint | Contract |
 |---|---|---|
-| GET/POST | `/api/v1/workouts/exercises/{uuid}/goals/` | GET requires `date_to`, returns up to 20 targets with progress; POST strength `{target_weight,target_reps,rep_rule?}` or metric `{goal_type,target_value}` creates `201` on a compatible active exercise/category |
-| PATCH/DELETE | `/api/v1/workouts/goals/{uuid}/` | PATCH strength weight/reps/rep rule or metric target value; DELETE target only `204`, not recorded sets |
+| GET/POST | `/api/v1/workouts/exercises/{uuid}/goals/` | GET requires `date_to`, returns up to 20 targets with progress; POST strength `{target_weight,target_reps,rep_rule?}`, metric `{goal_type,target_value}` or combined `{goal_type:"distance_time",target_distance,target_duration_seconds}` creates `201` on a compatible active exercise/category |
+| PATCH/DELETE | `/api/v1/workouts/goals/{uuid}/` | PATCH strength weight/reps/rep rule, metric target value or either/both combined target fields; DELETE target only `204`, not recorded sets |
 
 For strength targets, weights accept .001–10000 (3 decimals), reps 1–10000. `rep_rule=at_least` (default) means target reps or more; `exact` means exactly that count. Saved weight/distance units come from the library at creation and cannot be patched; unknown input fields reject. At most 20 goals per exercise, enforced inside the owner-locked creation transaction. Existing goals remain editable/readable after catalog archive/type/unit changes; creation requires an active compatible exercise. All routes require authentication and work on every tier; foreign IDs `404`, invalid input `400`.
 

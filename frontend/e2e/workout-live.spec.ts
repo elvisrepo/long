@@ -822,11 +822,20 @@ for (const width of [320, 390, 1440]) {
     await page
       .getByRole("button", { name: "Save completed set", exact: true })
       .click();
+    await expect(
+      page.getByText("3.000 km · 900 sec", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Save completed set", exact: true }),
+    ).toBeEnabled();
     await page.getByLabel("Distance (km)").fill("5");
     await page.getByLabel("Duration (seconds)").fill("1800");
     await page
       .getByRole("button", { name: "Save completed set", exact: true })
       .click();
+    await expect(
+      page.getByText("5.000 km · 1800 sec", { exact: true }),
+    ).toBeVisible();
     await page
       .getByRole("button", { name: "Exercise overview", exact: true })
       .click();
@@ -854,6 +863,78 @@ for (const width of [320, 390, 1440]) {
       .click();
     await expect(page.getByText("Achieved", { exact: true })).toBeVisible();
     await capture("cardio-goals");
+    await page.getByRole("button", { name: "New goal", exact: true }).click();
+    await page
+      .getByRole("combobox", { name: "Goal type", exact: true })
+      .selectOption("distance_time");
+    await page.getByLabel("Minimum distance (km)").fill("5");
+    await page.getByLabel("Time limit minutes").fill("25");
+    await page.getByLabel("Time limit seconds").fill("0");
+    await capture("combined-goal-editor");
+    await page.getByRole("button", { name: "Save goal", exact: true }).click();
+    const combinedTitle = "At least 5 km within 25 min in one set";
+    let combined = page.locator("section.workout-card").filter({
+      has: page.getByRole("heading", { name: combinedTitle, exact: true }),
+    });
+    await expect(
+      combined.getByText("Not achieved", { exact: true }),
+    ).toBeVisible();
+    await expect(combined.getByRole("progressbar")).toHaveAttribute(
+      "value",
+      "83.3",
+    );
+    await expect(combined.getByText(/5 km in 30 min/)).toBeVisible();
+    await capture("combined-goal-progress");
+    await combined.getByRole("button", { name: /^Edit goal/ }).click();
+    await page.getByLabel("Time limit minutes").fill("30");
+    await page.getByRole("button", { name: "Save goal", exact: true }).click();
+    await page.reload();
+    await page
+      .getByRole("navigation", { name: "Exercise overview sections" })
+      .getByRole("button", { name: "Goals", exact: true })
+      .click();
+    combined = page.locator("section.workout-card").filter({
+      has: page.getByRole("heading", {
+        name: "At least 5 km within 30 min in one set",
+        exact: true,
+      }),
+    });
+    await expect(combined.getByText("Achieved", { exact: true })).toBeVisible();
+    await expect(combined.getByRole("progressbar")).toHaveAttribute(
+      "value",
+      "100",
+    );
+    await combined
+      .getByRole("button", { name: "Open supporting set", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Running", level: 1 }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("5.000 km · 1800 sec", { exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Exercise overview", exact: true })
+      .click();
+    await page
+      .getByRole("navigation", { name: "Exercise overview sections" })
+      .getByRole("button", { name: "Goals", exact: true })
+      .click();
+    await page
+      .getByRole("button", {
+        name: "Remove goal At least 5 km within 30 min in one set",
+        exact: true,
+      })
+      .click();
+    await page
+      .getByRole("button", { name: "Confirm remove goal", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", {
+        name: "At least 5 km within 30 min in one set",
+        exact: true,
+      }),
+    ).not.toBeVisible();
     await page
       .getByRole("button", { name: "Open supporting set", exact: true })
       .click();
