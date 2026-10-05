@@ -2,6 +2,16 @@
 
 ### Workout log (October 2, 2026, local)
 
+Metric goals (2026-10-05): Overview → Goals enables active bodyweight/cardio/timed
+catalog entries as well as strength. New goal choices follow library type; editing
+always follows the saved goal type and units even after catalog changes. Bodyweight
+reps, cardio distance/duration/speed and timed duration use explicit-unit number
+fields; pace uses minutes and seconds per saved km/mi. Supporting-set navigation
+reuses the logged workout/occurrence route. Higher is better except pace; ratio
+progress is informational and display rounding never determines achievement.
+Existing strength forms, source links, pending/error handling and removal confirmation
+remain. Archived goals remain editable but cannot be newly created. No new route.
+
 Workout duration (2026-10-03): shared controls in Home session cards and Training
 offer explicit Start/Resume/Pause and Correct duration, with hours/minutes/seconds
 or Clear duration. Finished workouts disable start/resume but allow correction.
@@ -36,9 +46,11 @@ Exercise overview buttons. Statistics, History, Graphs, Records and Goals tabs
 reuse existing query/graph/source flows. Statistics use a completed-only SQL
 summary through the tracking date; History shows a paginated 90-day window,
 including plans and comments for only the selected exercise. Records start in
-all-time mode. Goal creation supports active strength entries; targets have an
+all-time mode. Strength goal creation supports active strength entries; targets have an
 explicit at-least/exact rep rule and retain saved units. Progress uses actual
 completed lifts, and supporting-lift buttons open their saved workout occurrence.
+Metric goals are implemented by the extension above; unchanged pace saves preserve
+the original decimal target even when the displayed seconds were rounded.
 Goal save/remove dialogs retain failed input/errors and wait for server confirmation.
 All overview/goal caches use the owner-scoped workouts prefix and invalidate on
 workout/goal writes. Date controls preserve the chosen library exercise.

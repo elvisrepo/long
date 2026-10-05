@@ -126,14 +126,37 @@ class Exercise(models.Model):
 
 
 class ExerciseGoal(models.Model):
-    """An actual strength lift target; units remain frozen after catalog edits."""
+    """An actual completed-set target; type and units stay frozen."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     exercise = models.ForeignKey(
         Exercise, on_delete=models.CASCADE, related_name="goals"
     )
-    target_weight = models.DecimalField(max_digits=8, decimal_places=3)
-    target_reps = models.PositiveIntegerField()
+    target_weight = models.DecimalField(
+        max_digits=8, decimal_places=3, null=True, blank=True
+    )
+    target_reps = models.PositiveIntegerField(null=True, blank=True)
+    goal_type = models.CharField(
+        max_length=16,
+        default="strength",
+        choices=[
+            (kind, kind)
+            for kind in [
+                "strength",
+                "reps",
+                "distance",
+                "duration",
+                "max_speed",
+                "best_pace",
+            ]
+        ],
+    )
+    tracking_type = models.CharField(
+        max_length=12, choices=TrackingType.choices, default="strength"
+    )
+    target_value = models.DecimalField(
+        max_digits=12, decimal_places=3, null=True, blank=True
+    )
     weight_unit = models.CharField(max_length=3, choices=[("kg", "kg"), ("lb", "lb")])
     distance_unit = models.CharField(max_length=3, choices=[("km", "km"), ("mi", "mi")])
     rep_rule = models.CharField(
@@ -147,11 +170,47 @@ class ExerciseGoal(models.Model):
         ordering = ["created_at", "id"]
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(
-                    target_weight__gt=0,
-                    target_weight__lte=10000,
-                    target_reps__gte=1,
-                    target_reps__lte=10000,
+                condition=(
+                    models.Q(
+                        goal_type="strength",
+                        tracking_type="strength",
+                        target_value__isnull=True,
+                        target_weight__isnull=False,
+                        target_reps__isnull=False,
+                    )
+                    & models.Q(
+                        target_weight__gt=0,
+                        target_weight__lte=10000,
+                        target_reps__gte=1,
+                        target_reps__lte=10000,
+                    )
+                )
+                | (
+                    models.Q(
+                        target_weight__isnull=True,
+                        target_reps__isnull=True,
+                        target_value__isnull=False,
+                        target_value__gt=0,
+                    )
+                    & (
+                        models.Q(
+                            goal_type="reps",
+                            tracking_type="bodyweight",
+                            target_value__gte=1,
+                            target_value__lte=100000,
+                        )
+                        | models.Q(
+                            goal_type="duration",
+                            tracking_type__in=["cardio", "duration"],
+                            target_value__gte=1,
+                            target_value__lte=604800,
+                        )
+                        | models.Q(
+                            goal_type__in=["distance", "max_speed", "best_pace"],
+                            tracking_type="cardio",
+                            target_value__lte=100000,
+                        )
+                    )
                 ),
                 name="valid_exercise_goal_target",
             )

@@ -82,6 +82,8 @@ export interface RecordSource {
   set_id: string;
   weight: string | null;
   reps: number | null;
+  distance?: string | null;
+  duration_seconds?: number | null;
 }
 export interface ProgressPointRow {
   date: string;
@@ -196,10 +198,20 @@ export interface ExerciseStatistics {
     last_date: string;
   }[];
 }
+export type GoalType =
+  | "strength"
+  | "reps"
+  | "distance"
+  | "duration"
+  | "max_speed"
+  | "best_pace";
 export interface GoalDefinition {
   id: string;
-  target_weight: string;
-  target_reps: number;
+  goal_type?: GoalType;
+  tracking_type?: TrackingType;
+  target_value?: string | null;
+  target_weight: string | null;
+  target_reps: number | null;
   rep_rule: "at_least" | "exact";
   weight_unit: "kg" | "lb";
   distance_unit: "km" | "mi";
@@ -208,6 +220,7 @@ export interface GoalDefinition {
 export interface ExerciseGoal extends GoalDefinition {
   achieved: boolean;
   best_weight: string | null;
+  best_value?: string | null;
   progress_percent: string;
   source: RecordSource | null;
   source_date: string | null;
@@ -219,10 +232,13 @@ export const getExerciseGoals = (
   request(
     `exercises/${encodeURIComponent(exercise)}/goals/?${new URLSearchParams({ date_to: date })}`,
   );
-export type GoalInput = Pick<
-  GoalDefinition,
-  "target_weight" | "target_reps" | "rep_rule"
->;
+export type GoalInput =
+  | {
+      target_weight: string;
+      target_reps: number;
+      rep_rule: GoalDefinition["rep_rule"];
+    }
+  | { goal_type?: Exclude<GoalType, "strength">; target_value: string };
 export const saveExerciseGoal = (
   exercise: string,
   id: string | undefined,

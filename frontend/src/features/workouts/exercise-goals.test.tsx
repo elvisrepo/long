@@ -7,6 +7,164 @@ import { ExerciseGoals } from "./exercise-goals";
 
 vi.mock("./workout-api");
 beforeEach(() => vi.resetAllMocks());
+it("creates a bodyweight rep target without a guessed weight", async () => {
+  const user = userEvent.setup();
+  vi.mocked(api.getExerciseGoals).mockResolvedValue([]);
+  vi.mocked(api.saveExerciseGoal).mockResolvedValue({} as api.GoalDefinition);
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <ExerciseGoals
+        owner="owner"
+        date="2026-10-05"
+        exercise={
+          {
+            id: "pullup",
+            tracking_type: "bodyweight",
+            weight_unit: "kg",
+            distance_unit: "km",
+          } as api.Exercise
+        }
+        canCreate
+        navigate={vi.fn()}
+      />
+    </QueryClientProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "New goal" }));
+  await user.type(screen.getByLabelText("Target reps"), "10");
+  expect(screen.queryByLabelText("Target weight (kg)")).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Save goal" }));
+  expect(api.saveExerciseGoal).toHaveBeenCalledWith("pullup", undefined, {
+    goal_type: "reps",
+    target_value: "10",
+  });
+});
+
+it.each([
+  ["5.500", 5, 30, "5:30"],
+  ["5.999", 6, 0, "6:00"],
+] as const)(
+  "preserves saved pace %s after catalog changes and display rounding",
+  async (target, minutes, seconds, display) => {
+    const user = userEvent.setup();
+    const navigate = vi.fn();
+    vi.mocked(api.getExerciseGoals).mockResolvedValue([
+      {
+        id: "pace",
+        goal_type: "best_pace",
+        tracking_type: "cardio",
+        target_value: target,
+        target_weight: null,
+        target_reps: null,
+        rep_rule: "at_least",
+        weight_unit: "kg",
+        distance_unit: "mi",
+        created_at: "",
+        achieved: false,
+        best_value: "6",
+        best_weight: null,
+        progress_percent: "91.7",
+        source_date: "2026-10-04",
+        source: {
+          workout_id: "w",
+          item_id: "i",
+          set_id: "s",
+          weight: null,
+          reps: null,
+        },
+      },
+    ]);
+    vi.mocked(api.saveExerciseGoal).mockResolvedValue({} as api.GoalDefinition);
+    render(
+      <QueryClientProvider
+        client={
+          new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        }
+      >
+        <ExerciseGoals
+          owner="owner"
+          date="2026-10-05"
+          exercise={
+            {
+              id: "run",
+              tracking_type: "strength",
+              weight_unit: "lb",
+              distance_unit: "km",
+            } as api.Exercise
+          }
+          canCreate={false}
+          navigate={navigate}
+        />
+      </QueryClientProvider>,
+    );
+    expect(
+      await screen.findByText(`At most ${display} min/mi in one set`),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).toHaveAttribute("value", "91.7");
+    expect(screen.getByRole("button", { name: "New goal" })).toBeDisabled();
+    await user.click(
+      screen.getByRole("button", { name: "Open supporting set" }),
+    );
+    expect(navigate).toHaveBeenCalledWith({
+      view: "training",
+      date: "2026-10-04",
+      session: "w",
+      exercise: "i",
+    });
+    await user.click(screen.getByRole("button", { name: /Edit goal/ }));
+    expect(screen.getByLabelText("Pace minutes")).toHaveValue(minutes);
+    expect(screen.getByLabelText("Pace seconds")).toHaveValue(seconds);
+    expect(screen.queryByLabelText("Goal type")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save goal" }));
+    expect(api.saveExerciseGoal).toHaveBeenCalledWith("run", "pace", {
+      target_value: target,
+    });
+  },
+);
+it("creates a cardio pace goal in minutes and seconds without a strength payload", async () => {
+  const user = userEvent.setup();
+  vi.mocked(api.getExerciseGoals).mockResolvedValue([]);
+  vi.mocked(api.saveExerciseGoal).mockResolvedValue({} as api.GoalDefinition);
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <ExerciseGoals
+        owner="owner"
+        date="2026-10-05"
+        exercise={
+          {
+            id: "run",
+            name: "Running",
+            tracking_type: "cardio",
+            is_active: true,
+            weight_unit: "kg",
+            distance_unit: "km",
+          } as api.Exercise
+        }
+        canCreate
+        navigate={vi.fn()}
+      />
+    </QueryClientProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "New goal" }));
+  await user.selectOptions(screen.getByLabelText("Goal type"), "best_pace");
+  await user.clear(screen.getByLabelText("Pace minutes"));
+  await user.type(screen.getByLabelText("Pace minutes"), "5");
+  await user.clear(screen.getByLabelText("Pace seconds"));
+  await user.type(screen.getByLabelText("Pace seconds"), "30");
+  expect(screen.queryByLabelText("Target weight (kg)")).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Save goal" }));
+  expect(api.saveExerciseGoal).toHaveBeenCalledWith("run", undefined, {
+    goal_type: "best_pace",
+    target_value: "5.500",
+  });
+});
 it("shows goal progress and opens its actual supporting lift", async () => {
   vi.mocked(api.getExerciseGoals).mockResolvedValue([
     {

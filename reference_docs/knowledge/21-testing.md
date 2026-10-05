@@ -183,6 +183,22 @@ queries explicitly preserve library ordering (covered by regression tests).
 
 ### Routine preview and carry-forward — 2026-10-03
 
+Metric goals (2026-10-05): focused API tests cover bodyweight reps, all four cardio
+metrics, lower-is-better pace, positive same-set rate guards, plans/future exclusion,
+saved type/units after archive/edit, foreign nested ownership, corrections, target
+shape/type/ranges, immutable metadata, limit, export and target-only deletion.
+Near-threshold rates must not achieve from rounded labels or show 100% prematurely.
+Component checks cover bodyweight creation without weight, pace minutes/seconds,
+saved-unit/type editing after catalog changes and supporting-source navigation.
+Legacy strength tests remain in the regression suite.
+Verification (2026-10-05): 787 backend and 532 frontend tests pass. Three fixture
+and three real-backend browser flows at 320/390/1440px pass; live flows cover pace
+create/edit/reload/source and bodyweight create/reload, with inspected screenshots.
+Both local databases have migration 0010. Lint/build/migration drift, touched-file
+formatting and focused mypy with a temporary cache pass. An initial E2E startup
+timeout was resolved by starting only the isolated test containers without deleting
+database volumes. Unchanged rounded pace inputs preserve the original API precision.
+
 Workout timing tests: server checks explicit start, null versus zero, persistent
 reads, repeated start/pause, finish/reopen, correction/clear, bounds, clock rollback,
 foreign/anonymous requests, read-only timestamp spoofing, copy reset and account

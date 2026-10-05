@@ -48,6 +48,17 @@ optimistically pause the server clock; ambiguous failures advise refreshing.
 
 ### All-time exercise summary boundary — 2026-10-02
 
+Metric goals (2026-10-05) retain the strength goal JWT/owner-lock boundaries.
+Creation checks the active catalog type; saved goal type/tracking type/units cannot
+be patched. Targets have bounded precision/ranges; reps and seconds must be whole
+numbers. SQL constraints protect type/shape/bounds (integer validation is at the
+API boundary). Completed-set queries check workout and catalog ownership; rates
+require positive paired distance/time in one set before division. No client-supplied
+achievement, public sharing, body-mass assumption or cross-unit conversion.
+Migration 0010 preserves legacy strength targets; metrics participate in the same
+20-goal cap, export and deletion lifecycle. This is a single-set achievement, not
+proof of finishing a race distance, a permanent award or a health recommendation.
+
 Selective copying shares the existing owner lock and transaction. Selection lists
 are bounded and unique; unknown fields reject, every selected occurrence belongs
 to the source and every selected set belongs to its occurrence. Nested catalog
@@ -69,7 +80,7 @@ The client waits for server confirmation and refetches private owner-scoped data
 failure remains visible beside the controls and retryable. No migration or new
 entitlement gate. Reordering also changes the next superset member in workout order.
 
-Exercise statistics and goals use authenticated owner-scoped library lookups, and completed-set queries independently check workout ownership. SQL statistics preserve frozen type/unit partitions. Goal creation/edit/deletion locks the user row, sharing account-deletion serialization. Inputs are bounded, unknown goal input fields reject, and saved goal units cannot be patched. Creation is capped at 20 goals per exercise and requires active strength library entries; old goals remain readable/editable after library changes. Goal reads derive actual source lifts, not estimates or permanent achievement records; editing/deleting/uncompleting a source changes the result. The 20-target response bound limits per-goal queries, not the cost of scanning a long exercise history. Goals participate in account export/cascade deletion. No public sharing or paid-plan gate.
+Exercise statistics and goals use authenticated owner-scoped library lookups, and completed-set queries independently check workout ownership. SQL statistics preserve frozen type/unit partitions. Goal creation/edit/deletion locks the user row, sharing account-deletion serialization. Inputs are bounded, unknown goal input fields reject, and saved goal units cannot be patched. Creation is capped at 20 goals per exercise and requires active compatible library entries; old goals remain readable/editable after library changes. Goal reads derive actual completed source sets, not estimates or permanent achievement records; editing/deleting/uncompleting a source changes the result. The 20-target response bound limits per-goal queries, not the cost of scanning a long exercise history. Goals participate in account export/cascade deletion. No public sharing or paid-plan gate.
 
 Workout preference reads and patches are authenticated and owner-scoped, available to every account tier. Reads do not seed data; patches share the owner lock used by account deletion. Inventories are bounded (20 sizes, 0–100 plates per size, weights ≤1000), duplicate sizes rejected. Favorites and graph defaults never change historical exercise snapshots. Catalog usage hints include only that owner's completed sets; preference export/deletion follows the existing account lifecycle.
 

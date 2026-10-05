@@ -7,6 +7,19 @@ catalog ownership, session/set semantics, history preservation, and phased deliv
 
 ## Status and agreed product direction
 
+Metric goals (2026-10-05): migration 0010 preserves strength targets and adds
+bodyweight rep goals, cardio distance/duration/speed/pace goals, and timed duration
+goals. Each target evaluates one completed set, not session totals. Higher is
+better except pace (lower); speed/pace pair distance and seconds in the same set.
+Saved type/units stay immutable and separate after catalog edits. Reps allow any
+optional recorded load without assuming body mass. Duration means at least that
+long, not a fastest race time. Supporting-set links and correction-driven
+recalculation remain; no permanent badge. Pace inputs use minutes/seconds, API
+stores three-decimal minutes, and rounded display labels do not drive achievement.
+New metric progress cannot round up to 100 until achieved. Existing all-tier access,
+active-only creation, 20-target cap, ownership/export/deletion and strength payloads
+remain. SQL constrains goal shape/type/bounds; API checks integer reps/seconds.
+
 Workout duration (2026-10-03): explicit per-session Start/Resume/Pause controls
 in Home and Training; merely creating/copying/starting a routine does not start
 timing. Migration 0009 adds nullable accumulated duration and running timestamp.
@@ -99,8 +112,8 @@ Completed-only statistics aggregate distinct sessions, sets, reps, recorded
 volume, distance/time and first/last training dates per frozen type/unit partition.
 Goals target actual strength weight/reps, with explicit at-least/exact rep rules,
 frozen units, supporting-lift navigation and recalculation after corrections.
-Creation requires active strength entries and is capped at 20 targets per exercise;
-timed/cardio/bodyweight goals remain future work. Migration 0008 adds ExerciseGoal;
+Strength creation requires active strength entries and is capped at 20 targets per exercise;
+timed/cardio/bodyweight goals are implemented in migration 0010 above. Migration 0008 adds ExerciseGoal;
 no existing logged set snapshot changes. Goal export/deletion follows account
 lifecycle. See API/testing docs for exact contracts and verification.
 
@@ -112,22 +125,27 @@ slice adds four template models in migration `0004_routines`; `0005_exercise_gro
 adds group labels to template/session occurrences; `0006_group_colours` adds
 colours to both; `0007_workout_preferences` adds account preferences and exercise
 favorites/preferred graphs; `0008_exercise_goals` adds actual strength targets;
-`0009_workout_timing` adds nullable session timing (twelve models, nine migrations).
+`0009_workout_timing` adds nullable session timing; `0010_metric_goals` extends
+targets without changing recorded set snapshots (twelve models, ten migrations).
 The canonical contracts are in
 [API design](03-api-design.md). The basic frontend, history/copy and dashboard
 slice is now implemented locally (2026-10-02). Phase 5's first routine workflow
 and the remaining phase 5 conveniences are implemented. Phase 6 now includes
-windowed charts/records, calculators, exercise statistics and strength goals;
-other goal types and advanced analysis remain future work.
+windowed charts/records, calculators, exercise statistics, strength and metric goals;
+multi-set/combined-distance race goals and advanced analysis remain future work.
 The separate `.lavish/workout-prototype.html` is a sample-only
 review prototype, not the real Workouts tab. No cloud deployment is implied.
-Normal local and isolated E2E PostgreSQL have all nine workout migrations applied.
-Latest verification (2026-10-03): 766 backend and 528 frontend tests pass. Three
+Normal local and isolated E2E PostgreSQL have all ten workout migrations applied.
+Latest verification (2026-10-05): 787 backend and 532 frontend tests pass. Three
 real-backend and three fixture browser flows at 320/390/1440px pass, including
-timing start/reload/pause/correction/finish/reopen, downloaded CSV contents and
-mobile layout. Lint/build/migration drift and touched-file formatting pass. Focused
+timing start/reload/pause/correction/finish/reopen, downloaded CSV contents, cardio
+pace goal creation/edit/reload/supporting-source navigation, bodyweight goal
+creation/reload and mobile layout. Lint/build/migration drift and touched-file formatting pass. Focused
 mypy passes with a fresh temporary cache; the existing default cache crashed
 internally and was preserved. See testing docs for this diagnostic boundary.
+Metric-goal focused mypy passes with a separate temporary cache. The stopped E2E
+server initially timed out during recreation; targeted startup recovered it without
+removing database volumes, then all live checks passed. No cloud deployment.
 Three real Django browser flows and three mocked workout flows
 at 320/390/1440px pass. Type checks, lint, build and migration drift pass. Touched
 frontend files pass formatting; global formatting still flags three unchanged

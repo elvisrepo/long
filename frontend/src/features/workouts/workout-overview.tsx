@@ -174,7 +174,6 @@ export function WorkoutOverview({
             exercise={exercise}
             canCreate={
               exercise.is_active &&
-              exercise.tracking_type === "strength" &&
               catalog.categories.some(
                 (c) => c.id === exercise.category_id && c.is_active,
               )

@@ -832,6 +832,39 @@ for (const width of [320, 390, 1440]) {
       .click();
     await page
       .getByRole("navigation", { name: "Exercise overview sections" })
+      .getByRole("button", { name: "Goals", exact: true })
+      .click();
+    await page.getByRole("button", { name: "New goal", exact: true }).click();
+    await page.getByLabel("Goal type").selectOption("best_pace");
+    await page.getByLabel("Pace minutes").fill("4");
+    await page.getByLabel("Pace seconds").fill("30");
+    await capture("cardio-goal-editor");
+    await page.getByRole("button", { name: "Save goal", exact: true }).click();
+    await expect(page.getByText("Not achieved", { exact: true })).toBeVisible();
+    await expect(page.getByRole("progressbar")).toHaveAttribute("value", "90");
+    await page.getByRole("button", { name: /^Edit goal At most/ }).click();
+    await page.getByLabel("Pace minutes").fill("5");
+    await page.getByLabel("Pace seconds").fill("0");
+    await page.getByRole("button", { name: "Save goal", exact: true }).click();
+    await expect(page.getByText("Achieved", { exact: true })).toBeVisible();
+    await page.reload();
+    await page
+      .getByRole("navigation", { name: "Exercise overview sections" })
+      .getByRole("button", { name: "Goals", exact: true })
+      .click();
+    await expect(page.getByText("Achieved", { exact: true })).toBeVisible();
+    await capture("cardio-goals");
+    await page
+      .getByRole("button", { name: "Open supporting set", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Running", level: 1 }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Exercise overview", exact: true })
+      .click();
+    await page
+      .getByRole("navigation", { name: "Exercise overview sections" })
       .getByRole("button", { name: "Graphs", exact: true })
       .click();
     await page
@@ -898,5 +931,36 @@ for (const width of [320, 390, 1440]) {
       page.getByRole("combobox", { name: "Calendar exercise", exact: true }),
     ).toHaveValue("");
     await expect(page.getByLabel("Tracking date")).toHaveValue(copyDate);
+    await page.getByRole("button", { name: "Home", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Start new workout", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Add Pull-up", exact: true })
+      .click();
+    await page.getByLabel("Reps", { exact: true }).fill("10");
+    await page
+      .getByRole("button", { name: "Save completed set", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Exercise overview", exact: true })
+      .click();
+    await page
+      .getByRole("navigation", { name: "Exercise overview sections" })
+      .getByRole("button", { name: "Goals", exact: true })
+      .click();
+    await page.getByRole("button", { name: "New goal", exact: true }).click();
+    await page.getByLabel("Target reps", { exact: true }).fill("10");
+    await page.getByRole("button", { name: "Save goal", exact: true }).click();
+    await expect(page.getByText("Achieved", { exact: true })).toBeVisible();
+    await page.reload();
+    await page
+      .getByRole("navigation", { name: "Exercise overview sections" })
+      .getByRole("button", { name: "Goals", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "At least 10 reps in one set" }),
+    ).toBeVisible();
+    await capture("bodyweight-goals");
   });
 }

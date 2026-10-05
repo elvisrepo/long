@@ -114,6 +114,9 @@ def account_export(user: User) -> Iterator[str]:
         .values(
             "id",
             "exercise_id",
+            "goal_type",
+            "tracking_type",
+            "target_value",
             "target_weight",
             "target_reps",
             "rep_rule",

@@ -233,18 +233,44 @@ or null; weight/distance have 3 decimal places. Duration is integer seconds.
 
 Exercise overview statistics: `GET /api/v1/workouts/exercises/{uuid}/stats/?date_to=YYYY-MM-DD` returns `{exercise_id,date_to,groups}`. Each frozen type/weight-unit/distance-unit group contains `session_count` (distinct workouts), `set_count`, `first_date`, `last_date`, `reps_total`, `volume_total`, `distance_total`, `duration_seconds_total`. Only completed sets through the inclusive cutoff count; unsupported totals are null. Volume means recorded load × reps (strength only), not body mass; decimal totals are strings with three places. SQL aggregates keep the raw history off the client. First/last dates are training dates, not catalog creation dates. No lower date bound or automatic conversion.
 
-Strength goals (migration `0008_exercise_goals`):
+Exercise goals (strength in migration `0008`, metric targets in `0010`):
+
+Metric extension (2026-10-05): the same POST accepts `{goal_type,target_value}`.
+Bodyweight supports `reps`; cardio supports `distance`, `duration`, `max_speed`,
+`best_pace`; timed exercises support `duration`. Strength payloads below stay valid.
+Creation requires active exercise/category; PATCH of metric goals accepts only
+`target_value`. Goal type, saved tracking type and both units are immutable, and
+each goal compares only completed sets in that frozen partition through `date_to`.
+Distance is saved km/mi, duration is seconds (at least, not a race-time maximum),
+speed is saved distance/hour, pace is minutes per saved distance (at most/lower).
+Reps goals allow optional recorded load without inventing body mass.
+Targets have 3 decimal places: reps are integers 1–100000, duration integers
+1–604800, distance/speed/pace .001–100000. API validates integer targets; SQL
+constrains type/shape/bounds. Speed/pace require positive distance and seconds in
+the same completed set; achievement compares unrounded rates, not display values.
+GET adds `best_value` (also an alias of `best_weight` for strength), plus new goal
+fields `goal_type,tracking_type,target_value`. Strength fields are null on metric
+goals. Metric source includes recorded distance/duration alongside existing IDs.
+Metric progress is best/target, except pace is target/best; it rounds to one decimal,
+capped at 99.9 until achieved and 100 after achievement. No match yields null source/
+best and zero progress. Stable earliest chronology wins ties; edits/deletion/
+uncompletion recompute results. Existing 20-target cap, JWT scope, user lock,
+account export/deletion and all-tier access remain. No route changes.
+Pace editor saves preserve the original target when displayed minutes/seconds are
+unchanged. Migration 0010 should not be reversed while metric goals exist: the
+legacy nonnullable strength-only schema cannot represent them; use a coordinated
+data/backup plan, not a blind downgrade.
 
 | Method | Endpoint | Contract |
 |---|---|---|
-| GET/POST | `/api/v1/workouts/exercises/{uuid}/goals/` | GET requires `date_to`, returns up to 20 saved targets with derived progress; POST `{target_weight,target_reps,rep_rule?}` creates `201` on active strength exercise/category |
-| PATCH/DELETE | `/api/v1/workouts/goals/{uuid}/` | PATCH weight/reps/rep rule with at least one field; DELETE target only `204`, not recorded sets |
+| GET/POST | `/api/v1/workouts/exercises/{uuid}/goals/` | GET requires `date_to`, returns up to 20 targets with progress; POST strength `{target_weight,target_reps,rep_rule?}` or metric `{goal_type,target_value}` creates `201` on a compatible active exercise/category |
+| PATCH/DELETE | `/api/v1/workouts/goals/{uuid}/` | PATCH strength weight/reps/rep rule or metric target value; DELETE target only `204`, not recorded sets |
 
-Weights accept .001–10000 (3 decimals), reps 1–10000. `rep_rule=at_least` (default) means target reps or more; `exact` means exactly that count. Saved weight/distance units come from the library at creation and cannot be patched; unknown input fields reject. At most 20 goals per exercise, enforced inside the owner-locked creation transaction. Existing goals remain editable/readable after catalog archive/type/unit changes, but creation requires an active strength exercise. All routes require authentication and work on every tier; foreign IDs `404`, invalid input `400`.
+For strength targets, weights accept .001–10000 (3 decimals), reps 1–10000. `rep_rule=at_least` (default) means target reps or more; `exact` means exactly that count. Saved weight/distance units come from the library at creation and cannot be patched; unknown input fields reject. At most 20 goals per exercise, enforced inside the owner-locked creation transaction. Existing goals remain editable/readable after catalog archive/type/unit changes; creation requires an active compatible exercise. All routes require authentication and work on every tier; foreign IDs `404`, invalid input `400`.
 
 Goal JSON: `{id,target_weight,target_reps,rep_rule,weight_unit,distance_unit,created_at}`. GET adds `achieved,best_weight,progress_percent,source,source_date`. Among completed strength sets through `date_to` matching the frozen units and rep rule, the highest actual load is the supporting lift (earliest stable source on ties). Achieved means that load meets/exceeds the target. `progress_percent` is qualifying load/target load capped at 100, not a fitness score or combined rep/weight percentage; without a qualifying lift best/source are null and percentage zero. It includes existing history, not only sets logged after goal creation. Changes/uncompletion/deletion of sets immediately recompute progress; achievement is not a permanent badge or immutable audit trail. GET is read-only. Account export includes `exercise_goals`; account deletion cascades owned goals.
 
-Frontend Overview groups Statistics, bounded 90-day paginated History (including plans/comments), Graphs, all-time Records and Goals. Library/training provide Exercise overview buttons. The selected tracking date is the cutoff. History/source navigation uses the actual saved workout/occurrence UUIDs. Goals for bodyweight/timed/cardio exercises are not implemented in this slice.
+Frontend Overview groups Statistics, bounded 90-day paginated History (including plans/comments), Graphs, all-time Records and Goals. Library/training provide Exercise overview buttons. The selected tracking date is the cutoff. History/source navigation uses the actual saved workout/occurrence UUIDs. Bodyweight/timed/cardio goals are implemented by the metric extension above. Pace uses minutes/seconds inputs converted to the API's three-decimal minutes; rate labels are rounded for display.
 
 | Method | Endpoint | Contract |
 |---|---|---|
