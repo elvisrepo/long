@@ -138,6 +138,19 @@ it("keeps history inside the overview and shows only the selected exercise", asy
   expect(screen.getByText("Good form")).toBeInTheDocument();
   expect(screen.queryByText("Squat")).not.toBeInTheDocument();
   await userEvent.click(
+    screen.getByRole("button", { name: "Edit multiple sets" }),
+  );
+  expect(
+    screen.getByRole("dialog", { name: "Edit multiple sets" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("checkbox", { name: /Squat/ }),
+  ).not.toBeInTheDocument();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Cancel", exact: true }),
+  );
+  expect(api.bulkUpdateSets).not.toHaveBeenCalled();
+  await userEvent.click(
     screen.getByRole("button", { name: "Open exercise", exact: true }),
   );
   expect(navigate).toHaveBeenCalledWith({

@@ -7,6 +7,22 @@ catalog ownership, session/set semantics, history preservation, and phased deliv
 
 ## Status and agreed product direction
 
+Bulk history editing (2026-10-05): Training → Exercise history and library Exercise
+overview → History offer Edit multiple sets. Choose up to 100 loaded sets across
+dates/duplicate occurrences; finished workouts remain disabled until reopened.
+Completion/planned status, shared numeric values, explicit comment replacement or
+clearing, and deletion require a before/after preview followed by confirmation.
+Blank numeric inputs preserve existing values. Numeric edits require matching
+saved types and both units; no conversion. Comments/completion/deletion may mix
+partitions. The new owner-locked atomic `sets/bulk/` endpoint validates all IDs,
+expected full snapshots, open workouts and combined values before writing.
+Stale data rejects the entire batch; failed previews remain with explicit Refresh
+history/review guidance, never auto retry. Success refreshes workout/history,
+statistics/graphs/records/goals; no bulk timer/group advance. Deleted sets/comments
+are permanent, but exercises/workouts remain. No schema change, undo or offline queue.
+This selects loaded history, not all-time/unseen pages. Snapshot checks detect
+changed values, not every intervening change (no version/ABA guarantee).
+
 Metric goals (2026-10-05): migration 0010 preserves strength targets and adds
 bodyweight rep goals, cardio distance/duration/speed/pace goals, and timed duration
 goals. Each target evaluates one completed set, not session totals. Higher is
@@ -132,15 +148,18 @@ The canonical contracts are in
 slice is now implemented locally (2026-10-02). Phase 5's first routine workflow
 and the remaining phase 5 conveniences are implemented. Phase 6 now includes
 windowed charts/records, calculators, exercise statistics, strength and metric goals;
-multi-set/combined-distance race goals and advanced analysis remain future work.
+multi-set/combined-distance race goals and advanced analysis remain future work;
+bulk history corrections are implemented above.
 The separate `.lavish/workout-prototype.html` is a sample-only
 review prototype, not the real Workouts tab. No cloud deployment is implied.
 Normal local and isolated E2E PostgreSQL have all ten workout migrations applied.
-Latest verification (2026-10-05): 787 backend and 532 frontend tests pass. Three
+Latest verification (2026-10-05): 809 backend and 540 frontend tests pass. Six
 real-backend and three fixture browser flows at 320/390/1440px pass, including
 timing start/reload/pause/correction/finish/reopen, downloaded CSV contents, cardio
 pace goal creation/edit/reload/supporting-source navigation, bodyweight goal
-creation/reload and mobile layout. Lint/build/migration drift and touched-file formatting pass. Focused
+creation/reload, bulk correction/stale preview/confirmed deletion and mobile layout.
+Lint/build and touched-file formatting pass. Migration drift was checked in the
+metric-goal slice; bulk corrections do not change models or migrations. Focused
 mypy passes with a fresh temporary cache; the existing default cache crashed
 internally and was preserved. See testing docs for this diagnostic boundary.
 Metric-goal focused mypy passes with a separate temporary cache. The stopped E2E

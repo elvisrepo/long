@@ -170,8 +170,43 @@ Catalog responses additionally include `preferences`. Exercises accept `is_favor
 | PATCH/DELETE | `/api/v1/workouts/session-exercises/{uuid}/` | PATCH `{display_order?, group_name?}` with at least one field; DELETE occurrence and sets `204`; snapshots/reference immutable |
 | POST | `/api/v1/workouts/session-exercises/{uuid}/sets/` | Set fields below; `201` individual set; completion defaults true |
 | PATCH/DELETE | `/api/v1/workouts/sets/{uuid}/` | Partial set edit validated against combined values, or DELETE `204` |
+| POST | `/api/v1/workouts/sets/bulk/` | Atomic history update/delete of 1–100 sets with expected snapshots; `{affected_count}` `200` |
 | POST | `/api/v1/workouts/session-exercises/{uuid}/move/` | `{direction: "up" \| "down"}` moves one occurrence adjacent in its workout; complete Workout `200` |
 | POST | `/api/v1/workouts/sets/{uuid}/move/` | Same input; moves one set adjacent within its occurrence; complete Workout `200` |
+
+Bulk history correction accepts `{action: "update" | "delete", sets:
+[{id, expected}], changes?}`. IDs are unique set UUIDs; `expected` is the complete
+unchanged Set JSON from a session read (including ID, order, comment and completion;
+decimal strings retain their saved three-decimal representation). Selection is
+1–100 rows, possibly across dates/occurrences. Update requires a nonempty shared
+`changes` object containing only weight, reps, distance, duration_seconds, comment
+or is_completed. Omitted fields stay unchanged; null clears a relevant optional
+quantity, subject to combined-value validation. Delete does not accept changes.
+Unknown outer/selection/change keys reject. Quantities share individual-set bounds
+and frozen-type validation. Numeric edits require matching saved type and both
+units across the selection; comment/completion-only edits and deletion may mix
+partitions. No unit conversion, order/snapshot edits or automatic timer/group advance.
+
+JWT and both workout/catalog ownership paths are checked under the shared owner
+lock. Foreign, missing or deleted IDs return `404`; anonymous returns `401`;
+invalid values/selections or any finished workout return `400`. Reopen finished
+workouts first. Any expected-snapshot mismatch returns `409`; all rows are checked
+and all combined updates validated before writing. The transaction changes all
+selected rows or none, including across sessions. Delete removes selected sets
+and their comments, retaining workouts/exercises/groups. Goals, records, statistics
+and progress derive the corrected state on their next read. No schema change.
+
+Training Exercise history and library Exercise overview → History share a
+selection → before/after preview → explicit confirmation dialog. Only loaded
+history is selectable; Select all caps at 100 editable sets. Finished rows are
+visible but disabled. Blank numeric inputs mean leave unchanged; comment clearing
+requires an explicit Replace comments checkbox. The dialog freezes reviewed rows
+across refetches, disables all controls while pending, retains failed previews and
+requires Refresh history/review before confirming again. Successful corrections
+invalidate the private owner-scoped workout cache; no auto rest/advance from bulk
+completion. This is snapshot-based stale protection, not an idempotency key or
+ABA/version guarantee: if data changes and returns to identical values, it matches.
+For an ambiguous network failure, refresh to inspect the saved state before retrying.
 
 Selective copy accepts `selection: [{item_id, set_ids?}]`, with 1–100 unique source
 occurrence UUIDs. Each optional `set_ids` contains at most 1000 unique UUIDs from

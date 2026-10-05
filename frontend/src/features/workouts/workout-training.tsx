@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { PageHeader } from "../../components/page-header";
 import { Modal } from "../../components/modal";
@@ -8,6 +8,7 @@ import { WorkoutTiming } from "./workout-timing";
 import { WorkoutGroups } from "./workout-groups";
 import { RemoveWorkoutExercise } from "./remove-workout-exercise";
 import { WorkoutOrderControls } from "./workout-order-controls";
+import { BulkSetDialog } from "./bulk-set-dialog";
 import {
   dayLabel,
   setLabel,
@@ -44,11 +45,12 @@ export function WorkoutTraining({
   savePlanned: (itemId: string, data: api.SetInput) => Promise<void>;
   saveEquipment?: (data: api.WorkoutPreferences) => Promise<void>;
 }) {
+  const client = useQueryClient();
   const item = workout.exercises.find((i) => i.id === itemId);
   const [tab, setTab] = useState<"track" | "history">("track");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<
-    "notes" | "delete-set" | "manage" | "groups" | null
+    "notes" | "delete-set" | "manage" | "groups" | "bulk" | null
   >(null);
   const [version, setVersion] = useState(0);
   const [draft, setDraft] = useState<api.WorkoutSet | null>(null);
@@ -568,6 +570,29 @@ export function WorkoutTraining({
                 </div>
               ) : (
                 <>
+                  <button disabled={busy} onClick={() => setDialog("bulk")}>
+                    Edit multiple sets
+                  </button>
+                  {dialog === "bulk" && (
+                    <BulkSetDialog
+                      workouts={[
+                        workout,
+                        ...history.data.results.filter(
+                          (w) => w.id !== workout.id,
+                        ),
+                      ]}
+                      exerciseId={item.exercise_id}
+                      busy={busy}
+                      run={run}
+                      onClose={() => setDialog(null)}
+                      onRefresh={() => {
+                        setDialog(null);
+                        void client.invalidateQueries({
+                          queryKey: ["workouts", owner],
+                        });
+                      }}
+                    />
+                  )}
                   {[
                     workout,
                     ...history.data.results.filter((w) => w.id !== workout.id),
@@ -655,7 +680,7 @@ export function WorkoutTraining({
           onClose={() => setDialog(null)}
         />
       )}
-      {dialog && dialog !== "groups" && (
+      {dialog && dialog !== "groups" && dialog !== "bulk" && (
         <Modal
           labelledBy="training-dialog"
           busy={busy}

@@ -542,6 +542,17 @@ it("includes the current session in exercise history", async () => {
   expect(
     screen.getByRole("button", { name: "Back to Track" }),
   ).toBeInTheDocument();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Edit multiple sets" }),
+  );
+  expect(
+    screen.getByRole("dialog", { name: "Edit multiple sets" }),
+  ).toBeInTheDocument();
+  expect(screen.getAllByRole("dialog")).toHaveLength(1);
+  expect(api.bulkUpdateSets).not.toHaveBeenCalled();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Cancel", exact: true }),
+  );
 });
 
 it("shows one history link per session and prefers an entry with sets", async () => {

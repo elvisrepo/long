@@ -146,6 +146,15 @@ export interface RoutineStartPreview {
   })[];
 }
 export type SetInput = Partial<Omit<WorkoutSet, "id">>;
+export type BulkSetInput = {
+  sets: { id: string; expected: WorkoutSet }[];
+} & (
+  | { action: "update"; changes: Omit<SetInput, "display_order"> }
+  | { action: "delete" }
+);
+export const bulkUpdateSets = (
+  data: BulkSetInput,
+): Promise<{ affected_count: number }> => request("sets/bulk/", "POST", data);
 export type ExerciseInput = Partial<Omit<Exercise, "id">>;
 
 function message(data: unknown): string {

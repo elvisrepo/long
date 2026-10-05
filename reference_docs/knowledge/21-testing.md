@@ -2,6 +2,30 @@
 
 ## Workout tracking — 2026-10-01 backend slice
 
+Bulk history correction (2026-10-05): `test_workout_bulk_sets.py` covers cross-session
+updates/deletes, preservation of comments/order/snapshots, JWT/both ownership paths,
+missing IDs, stale previews, finished/reopened sessions, strict bounded input,
+mixed saved units, invalid combined values and correction-driven goal/statistics
+recalculation. Compare independent-session sets by ID, not insertion order: their
+display orders can tie. Start with this file and basic workout/goal regressions.
+`bulk-set-dialog.test.tsx` covers selection, duplicate occurrences, preview-only and
+cancel without writes, numeric/comment/completion payloads, mixed partitions,
+finished rows, pending locks, retained failures/explicit refresh and the 100-row cap.
+Screen/overview tests cover both entry points and exactly one open training dialog.
+`workout-bulk-live.spec.ts` exercises real-Django update/reload, a second-writer stale
+rejection, refresh, cancelled/confirmed deletion and finished-row preservation at
+320/390/1440px, using only the isolated E2E database. No production fixtures.
+No migration or route renames; the new endpoint is `/api/v1/workouts/sets/bulk/`.
+
+Bulk verification: 22 focused backend cases, 102 bulk/basic-workout/goal regressions,
+809 full backend tests and 540 frontend tests pass. Nine responsive browser flows
+(six real-Django, three fixture) pass at 320/390/1440px; update/deletion preview
+screenshots inspected. Ruff, focused mypy, ESLint, TypeScript/Vite build and whitespace
+checks pass. A minimal ignored browser probe confirms exact nested-label matching
+includes select option text; E2E controls use combobox role/accessible name instead.
+No migration or deployment. Back-to-selection draft retention is covered; the
+training fallback excludes the bulk dialog so only one dialog opens.
+
 Selective-copy tests (`test_workout_copy_selection.py`) cover subsets, duplicate
 occurrences, source order, empty exercises, planned resets, frozen units/groups,
 archived/finished sources, full-copy compatibility, strict bounded input,

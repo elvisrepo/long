@@ -2,6 +2,21 @@
 
 ### Workout log (October 2, 2026, local)
 
+Bulk history editing (2026-10-05): Training → Exercise history and library Exercise
+overview → History use a shared Edit multiple sets dialog. Select up to 100 loaded
+sets, choose shared quantities/completion/comment changes or deletion, then review
+before/after rows and explicitly confirm. Numeric inputs use frozen type/units;
+mixed partitions disable them but allow comment/completion changes. Blank numbers
+mean unchanged; comment clearing requires an explicit checkbox. Back retains
+entered changes without carrying numeric drafts into a different type/unit partition.
+Duplicate occurrences have separate IDs and entry/set labels. Finished rows are
+visible but disabled until reopened from their workout. Reviewed snapshots are
+frozen across refetches; pending writes lock all controls. Failed previews retain
+errors and disable confirmation until refresh/review. Successful batches invalidate
+the private owner workout query prefix, updating history, statistics, graphs and
+goals. They never auto-start rest or advance a superset. Delete is permanent for
+sets/comments only. Selection does not cover unseen pages. No frontend route change.
+
 Metric goals (2026-10-05): Overview → Goals enables active bodyweight/cardio/timed
 catalog entries as well as strength. New goal choices follow library type; editing
 always follows the saved goal type and units even after catalog changes. Bodyweight

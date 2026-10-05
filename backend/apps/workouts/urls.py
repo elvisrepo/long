@@ -4,6 +4,7 @@ from . import views
 from . import routine_views
 from .goal_views import ExerciseGoalsView, ExerciseGoalDetailView
 from .ordering_views import MoveExerciseView, MoveSetView
+from .bulk_views import BulkSetsView
 from .routine_preview import RoutinePreviewView
 from .progress_views import (
     ExerciseProgressView,
@@ -12,6 +13,7 @@ from .progress_views import (
 )
 
 urlpatterns = [
+    path("sets/bulk/", BulkSetsView.as_view(), name="workout-sets-bulk"),
     path(
         "routine-days/<uuid:day_id>/preview/",
         RoutinePreviewView.as_view(),

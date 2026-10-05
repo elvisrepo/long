@@ -80,6 +80,20 @@ The client waits for server confirmation and refetches private owner-scoped data
 failure remains visible beside the controls and retryable. No migration or new
 entitlement gate. Reordering also changes the next superset member in workout order.
 
+Bulk set corrections require JWT, unique bounded selection (1–100) and independent
+workout/catalog owner guards. The shared owner row lock serializes with individual
+writes/account deletion. Every expected full set snapshot and every finished-session
+guard is checked before writes; combined-value validation precedes all updates.
+Stale snapshots reject `409` with no partial mutation; missing/foreign rows `404`.
+Only quantity/comment/completion fields may change, never order/ownership/snapshots.
+Numeric batches cannot mix frozen type/units; no implicit conversion. Unknown
+outer/nested/change fields reject. Delete requires explicit UI preview and removes
+only selected sets/comments. Saved history, goals and records recalculate; no paid
+gate, sharing, schema migration, bulk rest-timer trigger or group advance.
+Snapshots are stale-value guards, not idempotency/version tokens; a network failure
+requires refresh/review rather than automatic retry. Raw ORM writes that bypass the
+owner lock are not part of this serialization guarantee.
+
 Exercise statistics and goals use authenticated owner-scoped library lookups, and completed-set queries independently check workout ownership. SQL statistics preserve frozen type/unit partitions. Goal creation/edit/deletion locks the user row, sharing account-deletion serialization. Inputs are bounded, unknown goal input fields reject, and saved goal units cannot be patched. Creation is capped at 20 goals per exercise and requires active compatible library entries; old goals remain readable/editable after library changes. Goal reads derive actual completed source sets, not estimates or permanent achievement records; editing/deleting/uncompleting a source changes the result. The 20-target response bound limits per-goal queries, not the cost of scanning a long exercise history. Goals participate in account export/cascade deletion. No public sharing or paid-plan gate.
 
 Workout preference reads and patches are authenticated and owner-scoped, available to every account tier. Reads do not seed data; patches share the owner lock used by account deletion. Inventories are bounded (20 sizes, 0–100 plates per size, weights ≤1000), duplicate sizes rejected. Favorites and graph defaults never change historical exercise snapshots. Catalog usage hints include only that owner's completed sets; preference export/deletion follows the existing account lifecycle.

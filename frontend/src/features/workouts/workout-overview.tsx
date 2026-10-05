@@ -1,9 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import * as api from "./workout-api";
 import { setLabel, shiftDay, type NavigateWorkout } from "./workout-navigation";
 import { WorkoutProgress } from "./workout-progress";
 import { ExerciseGoals } from "./exercise-goals";
+import { BulkSetDialog } from "./bulk-set-dialog";
 
 function Statistics({
   owner,
@@ -216,6 +217,13 @@ function ExerciseHistory({
   navigate: NavigateWorkout;
 }) {
   const [offset, setOffset] = useState(0);
+  const [bulk, setBulk] = useState(false);
+  const client = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: (action: () => Promise<void>) => action(),
+    onSuccess: () =>
+      client.invalidateQueries({ queryKey: ["workouts", owner] }),
+  });
   const from = shiftDay(date, -89);
   const query = useQuery({
     queryKey: [
@@ -248,6 +256,27 @@ function ExerciseHistory({
           No sessions in this range. Choose an earlier tracking date for older
           history.
         </p>
+      )}
+      <button
+        disabled={
+          query.isFetching || mutation.isPending || !query.data.results.length
+        }
+        onClick={() => setBulk(true)}
+      >
+        Edit multiple sets
+      </button>
+      {bulk && (
+        <BulkSetDialog
+          workouts={query.data.results}
+          exerciseId={exerciseId}
+          busy={query.isFetching || mutation.isPending}
+          run={(action) => mutation.mutate(action)}
+          onClose={() => setBulk(false)}
+          onRefresh={() => {
+            setBulk(false);
+            void client.invalidateQueries({ queryKey: ["workouts", owner] });
+          }}
+        />
       )}
       {query.data.results.map((w) => (
         <section className="workout-card" key={w.id}>
