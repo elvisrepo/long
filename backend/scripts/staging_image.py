@@ -10,6 +10,10 @@ from collections.abc import Mapping, Sequence
 ACCEPTED_STAGING_HIGH_FINDINGS = {
     "CVE-2026-85091": ("zlib", "1.3.dfsg+really1.3.1-1"),
     "CVE-2026-82560": ("perl", "5.40.1-6+deb13u1"),
+    # Staging deployment exception requested by the operator while Debian's
+    # Trixie package remains unfixed; exact package/version matching is required.
+    "CVE-2026-102010": ("gcc-14", "14.2.0-19"),
+    "CVE-2026-95619": ("gcc-14", "14.2.0-19"),
 }
 
 
@@ -82,9 +86,7 @@ def review_scan_findings(report: Mapping[str, object]) -> None:
         if severity != "HIGH":
             continue
         accepted_package = (
-            ACCEPTED_STAGING_HIGH_FINDINGS.get(name)
-            if isinstance(name, str)
-            else None
+            ACCEPTED_STAGING_HIGH_FINDINGS.get(name) if isinstance(name, str) else None
         )
         if accepted_package is None or package != accepted_package:
             raise StagingImageError(f"unapproved {severity} finding: {name}")
