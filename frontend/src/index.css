@@ -2157,6 +2157,15 @@ button {
   white-space: nowrap;
 }
 
+.chart-surface {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--inset-bg);
+  padding: 12px;
+}
+
 .sleep-insights-chart {
   position: relative;
   height: 250px;
@@ -2164,10 +2173,8 @@ button {
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 12px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--muted) 20%, transparent);
-  border-radius: 16px;
-  background: var(--inset-bg);
-  padding: 24px 16px 14px;
+  padding-top: 24px;
+  padding-bottom: 14px;
 }
 
 .sleep-target-line {
@@ -2175,7 +2182,7 @@ button {
   right: 16px;
   left: 16px;
   z-index: 0;
-  border-top: 1px dashed color-mix(in srgb, var(--muted) 60%, transparent);
+  border-top: 1px dashed var(--chart-axis);
 }
 
 .sleep-target-label {
@@ -2199,8 +2206,8 @@ button {
   grid-template-rows: minmax(0, 1fr) auto;
   gap: 8px;
   color: var(--text-dim);
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-sans);
+  font-size: 12px;
   text-align: center;
   text-transform: uppercase;
 }
@@ -2215,7 +2222,7 @@ button {
 }
 
 .sleep-night-value {
-  font-size: 11px;
+  font-size: 12px;
   text-transform: none;
   color: var(--text-dim);
 }
@@ -2228,7 +2235,7 @@ button {
   width: min(44px, 75%);
   min-height: 4px;
   border-radius: 8px 8px 4px 4px;
-  background: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--chart-line) 45%, transparent);
 }
 
 .sleep-night-bar-short {
@@ -2296,10 +2303,6 @@ button {
 .weight-steps-chart {
   height: 320px;
   min-width: 0;
-  border: 1px solid color-mix(in srgb, var(--muted) 20%, transparent);
-  border-radius: 16px;
-  background: var(--inset-bg);
-  padding: 16px;
 }
 
 .weight-steps-summary {
@@ -2333,7 +2336,6 @@ button {
 @media (max-width: 680px) {
   .weight-steps-chart {
     height: 260px;
-    padding: 10px;
   }
 
   .weight-steps-summary {
@@ -2453,16 +2455,6 @@ button {
 .metric-trend-chart {
   position: relative;
   height: 280px;
-  border: 1px solid color-mix(in srgb, var(--muted) 20%, transparent);
-  border-radius: 16px;
-  background:
-    radial-gradient(
-      circle at 18% 0%,
-      color-mix(in srgb, var(--accent) 10%, transparent),
-      transparent 30%
-    ),
-    var(--inset-bg);
-  padding: 16px;
 }
 
 .metric-trend-chart-header {
@@ -3010,12 +3002,6 @@ summary:focus-visible {
 .consistency-summary article {
   border-color: transparent;
   background: var(--surface);
-}
-.metric-trend-chart,
-.weight-steps-chart {
-  background: transparent;
-  border-color: transparent;
-  padding-inline: 0;
 }
 .entry-time,
 .entry-source {

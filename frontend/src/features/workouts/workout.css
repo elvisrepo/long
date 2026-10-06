@@ -59,6 +59,13 @@
   width: 100%;
   display: block;
 }
+.workout-inset.chart-surface {
+  padding: 12px;
+}
+.workout-progress-chart text {
+  font-family: var(--font-sans);
+  font-size: 12px;
+}
 .workout-progress-point {
   cursor: pointer;
 }

@@ -114,6 +114,20 @@ No API contracts, routes, schemas, or account data changed in this pass.
 - Live-backend browser checks passed at 320, 390, and 1440 px. The local Light
   before/after gallery is `.lavish/uiux-review/calendar-progress-before-after/`.
 
+### Chart presentation consistency (implemented)
+
+- Metrics trends, Sleep Insights, Weight/Steps analytics, and Workout Progress
+  share the `.chart-surface` inset frame (theme border/background, 12 px radius,
+  and 12 px padding).
+- Chart.js labels use the bundled app sans-serif at 12 px. Workout Progress uses
+  the semantic chart grid, axis, line, and fill tokens; Sleep duration bars use
+  the chart-line token while below-target bars remain warning-colored.
+- Chart data, units, aggregation rules, numeric ranges, and sleep target meaning
+  are unchanged. Fixture-backed visual checks at 390 and 1440 px found no
+  horizontal overflow.
+- The ignored Light-theme before/after gallery is
+  `.lavish/uiux-review/chart-consistency-before-after/`.
+
 Separate dependency follow-up: font installation's audit reported two existing
 high-severity development-only dependency groups (`brace-expansion` via linting
 tools and `undici` via jsdom). The font packages introduce neither group. No

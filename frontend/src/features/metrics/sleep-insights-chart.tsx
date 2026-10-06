@@ -23,7 +23,7 @@ export function SleepInsightsChart({
   return (
     <div
       aria-label={`Nightly sleep durations compared with the ${formatMinutes(targetMinutes)} target: ${accessibleSummary}`}
-      className="sleep-insights-chart"
+      className="chart-surface sleep-insights-chart"
       role="img"
     >
       <div

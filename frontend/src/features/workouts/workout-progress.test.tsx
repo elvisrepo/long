@@ -81,6 +81,7 @@ it("labels the weight axis from zero through 80 kg in 10 kg increments", async (
   const chart = await screen.findByRole("img", {
     name: /Highest logged load by training date/,
   });
+  expect(chart.closest(".chart-surface")).not.toBeNull();
   for (let weight = 0; weight <= 80; weight += 10)
     expect(
       within(chart).getByText(`${weight} kg`, { exact: true }),

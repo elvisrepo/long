@@ -117,6 +117,7 @@ export function MetricTrendChart({
         ],
       },
       options: {
+        font: { family: colors.font, size: 12 },
         maintainAspectRatio: false,
         responsive: true,
         plugins: {
@@ -173,7 +174,7 @@ export function MetricTrendChart({
   return (
     <div
       aria-label={`${metricName} trend chart`}
-      className="metric-trend-chart"
+      className="chart-surface metric-trend-chart"
       role="img"
     >
       <div className="metric-trend-chart-header">

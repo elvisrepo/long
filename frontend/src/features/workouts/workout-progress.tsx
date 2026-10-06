@@ -359,7 +359,7 @@ function ProgressCard({
     )
     .join(" ");
   return (
-    <section className="workout-inset">
+    <section className="workout-inset chart-surface">
       <h3>
         {series.title} · {series.unit}
       </h3>
@@ -380,14 +380,14 @@ function ProgressCard({
                   x2={xRight}
                   y1={y}
                   y2={y}
-                  stroke="var(--border)"
+                  stroke="var(--chart-grid)"
                 />
                 <text
                   x="70"
                   y={y + 4}
                   textAnchor="end"
                   fill="var(--text-dim)"
-                  fontSize="11"
+                  fontSize="12"
                 >
                   {series.unit.startsWith("min/")
                     ? formatProgressValue(tick, series.unit)
@@ -396,15 +396,15 @@ function ProgressCard({
               </g>
             );
           })}
-          <path d={`M80 20V160H${xRight}`} fill="none" stroke="var(--border)" />
+          <path d={`M80 20V160H${xRight}`} fill="none" stroke="var(--chart-axis)" />
           <polygon
             points={`${points.split(" ")[0].split(",")[0]},160 ${points} ${points.split(" ").at(-1)!.split(",")[0]},160`}
-            fill="var(--accent-dim)"
+            fill="var(--chart-fill)"
           />
           <polyline
             points={points}
             fill="none"
-            stroke="var(--accent)"
+            stroke="var(--chart-line)"
             strokeWidth="3"
           />
           {series.points.map((p, n) => {
@@ -420,7 +420,7 @@ function ProgressCard({
                   cx={x}
                   cy={y}
                   r={selectedPoint === n ? "6" : "4"}
-                  fill="var(--accent)"
+                  fill="var(--chart-line)"
                 />
                 <title>
                   {p.date}

@@ -67,9 +67,11 @@ describe("MetricTrendChart", () => {
       />,
     );
 
-    expect(
-      screen.getByRole("img", { name: /resting heart rate trend chart/i }),
-    ).toBeInTheDocument();
+    const chart = screen.getByRole("img", {
+      name: /resting heart rate trend chart/i,
+    });
+    expect(chart).toBeInTheDocument();
+    expect(chart).toHaveClass("chart-surface");
     expect(screen.getByText(/56 to 60 bpm/i)).toBeInTheDocument();
     expect(screen.getByText(/daily latest values/i)).toBeInTheDocument();
   });
