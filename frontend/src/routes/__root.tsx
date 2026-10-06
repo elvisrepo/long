@@ -13,21 +13,25 @@ import { PageHeader } from "../components/page-header";
 import { ThemeToggle } from "../components/theme-toggle";
 import { logoutWeb } from "../features/auth/auth-logout-api";
 import { useMeQuery } from "../features/auth/use-me-query";
+import { getDocumentTitle } from "../utils/document-title";
 
 interface RouterContext {
   queryClient: QueryClient;
 }
 
 function RootLayout() {
-  const pathname = useRouterState({
-    select: (state) => state.location.pathname,
-  });
+  const location = useRouterState({ select: (state) => state.location });
+  const pathname = location.pathname;
   const isPublicAuthRoute = [
     "/login",
     "/register",
     "/forgot-password",
     "/reset-password",
   ].includes(pathname);
+
+  useEffect(() => {
+    document.title = getDocumentTitle(location.pathname, location.search);
+  }, [location.pathname, location.search]);
 
   return (
     <div className="app-shell">
@@ -69,7 +73,8 @@ function AppNavigation() {
       setLogoutError("");
       setIsLoggingOut(true);
       await logoutWeb();
-      queryClient.removeQueries({ queryKey: ["me"] });
+      await queryClient.cancelQueries();
+      queryClient.clear();
       await navigate({ to: "/login" });
     } catch (error) {
       setLogoutError(error instanceof Error ? error.message : "Logout failed");
@@ -168,6 +173,15 @@ function AuthenticatedNavigation({
         </Link>
         <Link to="/metrics" className="app-nav-link">
           Metrics
+        </Link>
+        <Link to="/recovery" className="app-nav-link">
+          Recovery
+        </Link>
+        <Link to="/diet" className="app-nav-link">
+          Diet
+        </Link>
+        <Link to="/workouts" search={{}} className="app-nav-link">
+          Workouts
         </Link>
         <Link to="/settings" search={{}} className="app-nav-link">
           Settings

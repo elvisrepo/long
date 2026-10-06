@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-export type Theme = "dark" | "light" | "sand";
+export type Theme = "dark" | "light";
 const storageKey = "longevity-theme";
 const changeEvent = "longevity-theme-change";
 
@@ -9,7 +9,7 @@ function getTheme(): Theme {
 }
 
 function parseTheme(value: string | null | undefined): Theme {
-  return value === "light" || value === "sand" ? value : "dark";
+  return value === "light" ? value : "dark";
 }
 
 export function setTheme(theme: Theme) {

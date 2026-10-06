@@ -36,11 +36,11 @@ describe("WeightStepsOverlayChart", () => {
       />,
     );
 
-    expect(
-      screen.getByRole("img", {
-        name: /daily body weight, trailing seven-day mean, and daily total steps/i,
-      }),
-    ).toBeInTheDocument();
+    const chart = screen.getByRole("img", {
+      name: /daily body weight, trailing seven-day mean, and daily total steps/i,
+    });
+    expect(chart).toBeInTheDocument();
+    expect(chart).toHaveClass("chart-surface");
     expect(chartMock.mock.calls.at(-1)?.[0].data.labels).toEqual([
       "Sep 18",
       "Sep 19",

@@ -1,5 +1,487 @@
 ## 6. Testing
 
+## Shared UI foundation — 2026-10-05
+
+`frontend/e2e/layout.spec.ts` includes fixture-only browser regressions for native
+custom-metric create/deactivation focus containment, Escape/opener restoration,
+backdrop dismissal versus clicks inside dialog padding, locally loaded fonts,
+square Dashboard icon targets, and consistent date/toolbar/card-heading alignment.
+The tracking controls run across Diet, Recovery, and Workouts in all three themes
+at 320/390/1440 px. Assertions cover 44 px field/action height, 16 px field text,
+checkbox proportions, viewport containment, and screenshot evidence. Existing
+page/auth/dialog layout checks remain relevant through 1920 px.
+
+Run focused browser cases first, then the full layout suite and frontend tests,
+lint, build, formatting, and whitespace checks. Browser mocks intercept account
+and domain calls; these tests do not validate real backend entitlement behavior.
+Keep generated screenshots local and ignored. Do not weaken pixel assertions to
+hide native control sizing or mobile specificity differences. An ignored pointer
+probe diagnosed default mouse focus movement after native-dialog dismissal;
+preventing that movement preserves restored focus. jsdom's dialog shim covers
+component open/close behavior, not browser-native focus containment.
+
+Verification: 543 frontend tests, lint, production build, formatting and whitespace
+checks pass. The complete 47-case fixture layout suite passed; the final date-width
+refinement was then checked by all 15 focused foundation cases across the three
+themes. Screenshot inspection includes mobile Dashboard/Library and desktop
+tracking layouts. No backend changes, account-data writes, commit, or deployment.
+
+## Workout tracking — 2026-10-01 backend slice
+
+Combined cardio goals (2026-10-05): `test_workout_combined_goals.py` covers inclusive
+raw thresholds, near-boundary progress below 100, separate-bests rejection, no pace
+extrapolation, single supporting set/chronological ties, planned/missing/future
+exclusion, frozen type/both-unit partitions, independent ownership, archive/edit,
+partial targets, strict shape/bounds/whole seconds, SQL invalid-shape rejection,
+shared cap, export, target-only deletion and account cascade isolation. Existing
+metric/strength goal suites check compatibility. Zero set duration is already
+forbidden in SQL: tests assert that rejection rather than store an impossible row;
+missing nullable quantities exercise read guards separately. An ignored read-only
+probe inspects the duration and combined-goal constraints.
+Frontend tests cover creation with minute/second conversion, saved-unit/type editing,
+retained failed inputs, actual source navigation and empty-source progress without
+a guessed single best value. Live 320/390/1440px workout flows create a combined
+goal, verify 83.3% against a 5 km/30-minute set, edit to 30 minutes, reload achieved
+status, open the source and remove only the target. Editor/card screenshots and
+viewport containment accompany the flow. Migration drift checks accompany 0011;
+normal local and isolated E2E databases apply it. No route renames or deployment.
+
+Combined-goal verification: 39 new backend cases, 848 full backend tests and
+543 frontend tests pass. All nine workout browser flows pass at 320/390/1440px.
+Ruff, focused mypy, ESLint, production build, formatting and migration drift pass.
+Editor/progress screenshots inspected. An ignored read-only SQL/input probe
+confirmed an initial browser failure was a test-entry race, not incorrect SQL:
+the second input was overwritten by the first save's form reset. The flow now
+waits for each persisted set row before entering the next values, and checks
+the actual 5 km/1800-second source instead of relying on matching pace alone.
+
+Bulk history correction (2026-10-05): `test_workout_bulk_sets.py` covers cross-session
+updates/deletes, preservation of comments/order/snapshots, JWT/both ownership paths,
+missing IDs, stale previews, finished/reopened sessions, strict bounded input,
+mixed saved units, invalid combined values and correction-driven goal/statistics
+recalculation. Compare independent-session sets by ID, not insertion order: their
+display orders can tie. Start with this file and basic workout/goal regressions.
+`bulk-set-dialog.test.tsx` covers selection, duplicate occurrences, preview-only and
+cancel without writes, numeric/comment/completion payloads, mixed partitions,
+finished rows, pending locks, retained failures/explicit refresh and the 100-row cap.
+Screen/overview tests cover both entry points and exactly one open training dialog.
+`workout-bulk-live.spec.ts` exercises real-Django update/reload, a second-writer stale
+rejection, refresh, cancelled/confirmed deletion and finished-row preservation at
+320/390/1440px, using only the isolated E2E database. No production fixtures.
+No migration or route renames; the new endpoint is `/api/v1/workouts/sets/bulk/`.
+
+Bulk verification: 22 focused backend cases, 102 bulk/basic-workout/goal regressions,
+809 full backend tests and 540 frontend tests pass. Nine responsive browser flows
+(six real-Django, three fixture) pass at 320/390/1440px; update/deletion preview
+screenshots inspected. Ruff, focused mypy, ESLint, TypeScript/Vite build and whitespace
+checks pass. A minimal ignored browser probe confirms exact nested-label matching
+includes select option text; E2E controls use combobox role/accessible name instead.
+No migration or deployment. Back-to-selection draft retention is covered; the
+training fallback excludes the bulk dialog so only one dialog opens.
+
+Selective-copy tests (`test_workout_copy_selection.py`) cover subsets, duplicate
+occurrences, source order, empty exercises, planned resets, frozen units/groups,
+archived/finished sources, full-copy compatibility, strict bounded input,
+ownership (including inconsistent ORM links), and atomic invalid-ID rejection.
+Dialog/API/screen tests cover exact subset payloads, read-only preview/cancel,
+Home/History/calendar entry points, empty selection, back/edit/select-all, pending
+locks and retained subset/date after errors. Live flows copy only one set at
+320/390/1440px and verify the saved subset after reload. Start focused before
+broader workout/account lifecycle coverage. An ignored serializer probe confirms
+nested DRF items lack `initial_data`; unknown nested keys reject during parsing.
+
+Selective-copy verification: 12 focused backend cases, 54 subset/basic-workout
+regressions, 736 full backend tests and 497 frontend tests pass. Ruff, targeted
+mypy, ESLint, production build, migration-drift and whitespace checks pass.
+Three real-backend responsive flows verify selection/preview/confirmation and
+subset persistence after reload; screenshots inspected for phone/desktop layout.
+Checkbox labels use explicit workout-screen specificity and browser checks for
+side-by-side alignment. No migration, commit or deployment in this slice.
+
+Adjacent ordering coverage: `test_workout_ordering.py` checks persisted exercise
+and set moves, tied orders, both directions/boundaries, performance preservation,
+JWT/foreign ownership, strict input and finished/reopened sessions. Component
+tests cover keyboard activation, disabled boundaries/locked state, pending-click
+protection, retryable errors, Home refetch and keeping the selected training
+occurrence. Real-backend flows cover set and exercise moves/reloads at
+320/390/1440px, with viewport containment and screenshots. Run focused ordering
+and workout-screen/group tests first, then the broader relevant suites.
+
+Ordering verification: 8 focused ordering backend cases, 50 ordering/basic-log
+regressions, 724 full backend tests, 490 frontend tests and three real-backend
+browser flows pass. Ruff, targeted mypy, ESLint, production build, migration-drift
+and whitespace checks pass. Phone set ordering and desktop exercise ordering
+screenshots were inspected; no horizontal overflow. No migration or deployment.
+
+Exercise overview/goal scenarios: completed-only distinct-session totals, inclusive
+cutoff and old history, frozen types/units, foreign/unauthorized access, actual
+strength goals with at-least/exact rep rules, immutable units after catalog
+changes, uncompletion/deletion recomputation, target validation and account
+export/cascade isolation. Frontend checks cover the overview link parser,
+statistics and first/last navigation without writes, selected-exercise history,
+all-time records without raw history loading, goal supporting lifts, failed-save
+input retention, and confirmed goal deletion. Start with `test_workout_overview.py`
+and overview/goals component tests before broader workout coverage.
+
+Overview/goals verification: 17 focused backend cases, 716 full backend tests,
+482 frontend tests, lint, mypy (22 source files), production build and migration
+drift checks pass. Normal local and isolated E2E databases apply migration 0008.
+Three live browser flows at 320/390/1440px cover overview navigation/statistics,
+history/graphs/records, goal create/edit/reload/source navigation/removal, and
+no accidental workout creation. Screenshots were inspected. Browser goal-form
+and graph selectors use accessible roles to avoid option-text label collisions;
+an ignored isolated browser probe confirmed the issue. Cardio Records tests
+ensure the strength-only personal-record selector stays explicit rather than
+silently showing a different metric.
+
+Daily-use preferences coverage: default reads without row creation, authenticated account-isolated persistence, bounded inventories and duplicate-size rejection, favorites/default-graph validation, completed-only session hints, unchanged logged sets, account export and deletion isolation. Frontend tests cover saved equipment loading and explicit save (without set creation), blank-bar rejection, favorite filtering, tokenized search and library hints. Run focused `test_workout_preferences.py` plus catalog regression tests before the wider workout suite.
+
+Verification: 699 backend tests, 474 frontend tests, lint, mypy, production build,
+migration drift and three live browser flows at 320/390/1440px pass. Browser flows
+verify persisted timer/equipment/favorites after reload and no accidental workout
+creation from library browsing. Preference checkbox assertions wait for server
+confirmation, rather than requiring an optimistic DOM change. Aggregated catalog
+queries explicitly preserve library ordering (covered by regression tests).
+
+### All-time exercise summaries — 2026-10-02
+
+- `test_workout_progress.py` covers old dates, inclusive cutoff, planned exclusion,
+  JWT/owner isolation (including inconsistent raw ORM cross-owner links), archives,
+  frozen type/unit partitions, every metric, same-day session totals, duplicate
+  occurrences, estimated-1RM eligibility/source, ties, bests per rep count, strict
+  improvement history, pagination, validation, and recomputation after edits/deletes.
+- Frontend coverage checks summary pagination without following arbitrary URLs or
+  downloading raw workouts, unit-separated records, records-only reads, incomplete
+  page errors, all-time selection, PR-history pagination/error/retry and source navigation.
+- Real-Django responsive flows at 320/390/1440px switch to All time, inspect the
+  records dialog/source and graph, and check viewport containment. Only isolated
+  E2E fixtures are written; existing account workouts are not changed.
+- Verification: 689 backend tests, 468 frontend tests (88 focused workout checks),
+  and three real-Django browser flows pass.
+  No schema migration required. Ruff, mypy, ESLint, TypeScript/Vite and whitespace
+  checks pass; phone/desktop screenshots inspected. No commit or deployment.
+
+- `backend/tests/test_workouts.py` covers private once-only samples, concurrent
+  PostgreSQL row-lock seeding, catalog search/management/archive, owner isolation,
+  multiple sessions/day, immutable snapshots, type-specific set fields, partial
+  edits, planned/completed counts, finished-session reopening, ordering/deletion,
+  copy reset, date bounds/pagination, JWT and full account export/deletion.
+- Tests use PostgreSQL through an explicit host DATABASE_URL; Docker hostname
+  `db` is not resolvable from host-run uv. Django creates a disposable test DB;
+  no tests run against the application's live tables.
+- Model/migration drift and focused lint checks accompany the backend slice.
+  Frontend basic logging/dashboard coverage was added on 2026-10-02 (below).
+  Calculator acceptance remains pending; first routine coverage is recorded below.
+  The standalone HTML prototype
+  is not production UI coverage.
+- See `47-workout-tracking.md`; local testing is not staging/deployment acceptance.
+- Verified: 42 workout checks within the full **646-test backend suite**, and
+  **108 relevant regression checks** for Workouts/Diet/Recovery/account lifecycle.
+  Focused lint, mypy (10 source files with a writable temporary cache), migration
+  drift and whitespace checks passed. Local migrations `workouts.0001–0003`
+  applied; unauthenticated runtime catalog smoke returned `401` as expected.
+  The existing mypy cache was read-only; a temporary cache resolved its crash
+  without changing dependencies or ownership of the old cache.
+
+### Workout frontend basic slice — 2026-10-02
+
+#### Browsing, removal and history UX follow-up
+
+- Progress analysis tests cover graph maxima, valid/invalid 1RM estimates, exact rep
+  filters, exercise-specific workout totals, duplicate occurrences, separate same-day
+  sessions, frozen unit/type isolation and cardio measures. Progress UI tests cover
+  the eight strength choices, estimates, rep-filter empty states, windowed records,
+  single-point details/navigation, bodyweight defaults and numeric axes. Responsive
+  real-Django flows switch every strength graph and inspect point details.
+  1RM follow-up covers the graph's 1–10-rep cutoff without excluding high-rep sets
+  from other graphs, winning-source retention across lower/tied same-day sets, and
+  source weight/reps plus the estimate/RIR caveat in point details. Live responsive
+  flows assert source attribution and the caveat against real backend data.
+  Follow-up verification: 79 focused workout tests, 459 frontend tests and three
+  real-backend responsive flows pass; lint/typecheck/build/format/whitespace pass.
+  A narrow-container component test and live SVG-width assertion guard mobile axis
+  readability. Verification: 76 workout component/pure checks, 456 frontend tests,
+  three real-backend and three fixture browser flows pass; lint/typecheck/build pass.
+
+- Calendar-copy screen tests cover open/cancel without writes, cross-month source
+  selection, multiple sessions including plans, preserved destination, pending locks,
+  explicit failed-copy retry, failed-month retry and empty-day/empty-session handling.
+  Real-Django responsive flows additionally choose a source calendar date and verify
+  the copy response retains the destination and resets all set completion flags.
+
+- Screen tests cover read-only library details, explicit session creation,
+  failed-add retries without creating another session, opening existing occurrences,
+  clearing context via All exercises, confirmed/cancelled/failed removal and
+  finished-session protection. History includes current data and collapses navigation
+  to one link per workout; progress explains exercise-specific planned-only dates.
+- Real-Django responsive flows additionally assert zero session/occurrence POSTs
+  while browsing or reopening an existing exercise, current-session history, and
+  cancelled/confirmed removal retaining the library exercise. Only the isolated
+  E2E user's fixtures are removed. Existing real account rows are not cleaned up.
+- Exercise-name selectors are anchored to avoid matching new accessible Remove
+  controls. REST routes/backend/schema are unchanged; no migration required.
+- `workout-progress.test.tsx` checks zero-based 10 kg tick labels for 70/75/80 kg,
+  decimal/large/all-zero ranges, bounded tick counts and finite plotted coordinates.
+  Live responsive flows assert visible kg tick labels on the real chart.
+  Axis verification: 58 focused workout checks, 438 total frontend checks,
+  three live responsive flows, lint and production build pass; inspected desktop/
+  phone screenshots. The 35 fixture checks belong to the preceding UX run.
+- Verified: 54 focused workout and 434 full frontend checks, 35 fixture browser
+  checks and three real-Django responsive flows at 320/390/1440px. Lint,
+  TypeScript/Vite build, formatting and whitespace pass. Screenshots were inspected.
+  An initially misplaced removal check ran before creating its exercise; moving
+  it to the end fixed test sequencing. No production/user data was removed.
+
+- API/navigation tests cover bearer auth, partial updates, nested errors, 204
+  deletion, safe pagination, invalid date/UUID links and month boundaries.
+- Component tests cover start → selection → training, saved snapshot fields,
+  comments, blank planned sets, failed completion, reopening finished sessions,
+  editing within archived categories, today-anchored history and dashboard counts.
+  Logout coverage includes private workout catalog/session caches.
+- `e2e/workouts.spec.ts` uses isolated intercepted API fixtures for the real React
+  UI: create, log, edit, plan/delete, finish, copy, reload and responsive containment.
+  This proves browser/UI integration, not live Django-to-browser end-to-end behavior.
+- Fixture-only checks can run without Docker:
+  `npm run test:e2e -- --config=playwright.fixture.config.ts` (port 5175).
+  The standard E2E config remains for tests that need isolated Django/database.
+  Its initial run encountered a stale Docker network reference in `db-e2e`; no
+  database containers were deleted or data repaired as part of this UI slice.
+- jsdom exposes `formNoValidate` but suppresses a blank planned submission before
+  the submit handler. A small ignored `playground/workout-form-validation.mjs`
+  reproduced it. Explicit completed-set `reportValidity()` with a noValidate form
+  preserves validation and makes planned submission deterministic; Chromium checks
+  exercise both populated completed sets and blank plans.
+- Final local verification: **398 frontend tests**, **35 Chromium fixture checks**
+  (including workout workflows at 320/390/1440px and shared layout/theme regressions),
+  ESLint, TypeScript/Vite production build and whitespace checks passed. Backend
+  source/schema was unchanged in this frontend slice; the previously recorded
+  646 backend tests were not rerun here. The live-backend E2E boundary remains
+  unverified because of the stale Docker network reference noted above.
+
+### Routine preview and carry-forward — 2026-10-03
+
+Metric goals (2026-10-05): focused API tests cover bodyweight reps, all four cardio
+metrics, lower-is-better pace, positive same-set rate guards, plans/future exclusion,
+saved type/units after archive/edit, foreign nested ownership, corrections, target
+shape/type/ranges, immutable metadata, limit, export and target-only deletion.
+Near-threshold rates must not achieve from rounded labels or show 100% prematurely.
+Component checks cover bodyweight creation without weight, pace minutes/seconds,
+saved-unit/type editing after catalog changes and supporting-source navigation.
+Legacy strength tests remain in the regression suite.
+Verification (2026-10-05): 787 backend and 532 frontend tests pass. Three fixture
+and three real-backend browser flows at 320/390/1440px pass; live flows cover pace
+create/edit/reload/source and bodyweight create/reload, with inspected screenshots.
+Both local databases have migration 0010. Lint/build/migration drift, touched-file
+formatting and focused mypy with a temporary cache pass. An initial E2E startup
+timeout was resolved by starting only the isolated test containers without deleting
+database volumes. Unchanged rounded pace inputs preserve the original API precision.
+
+Workout timing tests: server checks explicit start, null versus zero, persistent
+reads, repeated start/pause, finish/reopen, correction/clear, bounds, clock rollback,
+foreign/anonymous requests, read-only timestamp spoofing, copy reset and account
+JSON export. Frontend checks server-clock calibration, ticking/remount, correction
+of finished logs, clear, failed pause and pending locks. Live browser flows cover
+start/reload/pause/correct/finish/reopen and mobile layout. Whole seconds are used;
+subsecond portions are truncated at pause, and stored totals cap at seven days.
+Verification: 766 backend tests and 528 frontend tests pass. Three real-backend
+and three fixture flows at 320/390/1440px pass; live checks include start/reload/
+pause/correction/finish/reopen and inspected mobile screenshots. Migration 0009
+is applied locally and in isolated E2E PostgreSQL; migration drift, frontend lint/
+build and touched-file Python/TypeScript formatting pass. Focused mypy over models,
+serializers and account export passes with a fresh temporary cache; the default
+existing cache produced an internal mypy crash (no cache deletion was performed).
+
+Selected-workout export: unit checks cover frozen precision/units, CSV escaping and
+formula neutralization, notes opt-in, planned/empty/duplicate entries, cardio/time
+values and object-URL cleanup after failed download clicks. Component checks cover
+read-only Home entry, opt-in preview, clipboard denial/manual-copy fallback and retry.
+Fixture browser flows exercise download and mobile preview at 320/390/1440px.
+This slice changes no backend/API contract.
+Verification: 522 frontend tests, three fixture browser flows with downloaded CSV
+content assertions at 320/390/1440px, lint, build and touched-file formatting pass.
+No new backend or real-backend browser run is claimed for this UI-only slice.
+
+Calendar-filter follow-up (UI-only): component checks cover same-occurrence combined
+filters, matching-set rather than unrelated completion, unique-session counting,
+planned-only/empty drafts, reset, intact source objects, saved-label retention across
+months, busy/read-pending locks, read failure versus no matches and explicit retry.
+Full frontend suite: 508 tests pass. Live flows at 320/390/1440px cover shared picker
+filters with unchanged destination, exercise/category/status calendar controls and
+reset. Existing backend/API contracts are untouched; the previous 757 backend
+verification is not a new backend run for this UI-only slice.
+
+Cardio rates follow-up: progress API tests cover completed paired values, daily
+fastest-set selection, lower-is-better pace, null quantity exclusion, frozen units,
+cutoffs, source IDs, ownership/authentication, non-cardio exclusion, saved defaults
+and recomputation after uncompletion. Frontend checks cover window/all-time minima,
+separate km/mi units, planned/missing/nonpositive input exclusion, pace clock-format
+rounding, saved defaults and graph point display. Full suites: 757 backend and 505
+frontend tests pass; lint, type checks and build pass. Three real-backend browser
+flows at 320/390/1440px verify cardio entry, clock-formatted pace, speed, point details
+and all-time results; three existing fixture flows also pass. Screenshots were
+inspected. An isolated browser probe reproduced the new test's exact-label lookup
+failure; using the combobox's accessible name fixed it without application changes.
+Touched-file formatting and whitespace checks pass. No migration required.
+
+Routine UX component checks additionally cover plan/template terminology and counts,
+empty-template Start guidance and Add exercises, direct entry into the exercise
+editor after confirmed template creation without creating a workout, and accessible
+exercise/set order descriptions. Browser flows follow the direct setup transition
+and renamed Add workout template / Edit template actions.
+UI-only follow-up verification: 501 frontend tests, all six workout browser flows
+at 320/390/1440px, lint and build pass. No backend or contract changes in this follow-up.
+
+`test_routine_carry_forward.py` covers read-only preview, fixed/zero quantities,
+completed-only history strictly before the target date, type/unit boundaries,
+ordered positions without compressing planned gaps, duplicate ambiguity, per-field
+provenance, strength/bodyweight/cardio/duration fields, selective independent starts,
+groups, planned/comment-free output, template/source preservation, required tokens,
+stale template/performance rejection and explicit refresh, invalid IDs and ownership.
+Focused verification: 34 backend cases including existing routines; 10 frontend
+cases cover carry mode, preview-only opening, selection/cancel/read errors, pending
+controls, stale retry requiring refresh, and server-confirmed navigation.
+Live browser coverage at 320/390/1440px additionally checks carry from earlier completed
+history rather than the destination's planned copy, and verifies template blanks remain
+unchanged after starting. See current slice verification in the workout domain doc.
+
+Final slice verification: 753 backend tests, 500 frontend tests, three real-backend
+browser flows and three mocked workout flows pass. Frontend/backend lint, TypeScript
+build, mypy, migration drift and whitespace checks pass. Touched frontend files pass
+formatting. Global Prettier still flags unchanged `features/auth/account-api.test.ts`,
+`features/subscriptions/subscriptions-api.test.ts` and
+`features/subscriptions/use-current-subscription-query.ts`; these were left untouched.
+An initial desktop browser failure was traced to Django auto-reloading formatted
+backend files mid-request; rerunning after writes settled passed without application
+retry changes. A tied-order test assumption and the fixture's missing copy-preview
+step were corrected before the final green runs.
+
+### Routine templates — 2026-10-02
+
+- Direct editor tests add empty-day creation, exercise/set CRUD and ordering,
+  no synthetic Workout creation, independent started copies, frozen units,
+  JWT/foreign-owner/archive denial and planned partial quantity validation.
+- Group tests cover local labels, bounds and copying/capture/start independence.
+  Frontend checks cover group cycling, deadline catch-up/explicit auto-start,
+  month boundaries and planned/completed distinction, frozen-unit progress partitions,
+  Epley/percentage arithmetic, non-greedy exact finite plates and planned-only
+  calculator submission with visible retry errors.
+- `playwright.workout-live.config.ts` uses a dedicated :5176 Vite server proxying
+  isolated Django :8001 and `workout-live.spec.ts` (no intercepted workout API).
+  E2E CSRF defaults trust this origin only in E2E settings. The isolated containers
+  were recreated with their named volume retained to fix the missing network.
+  Do not reuse normal Vite :5173 accidentally; do not delete database volumes.
+- Latest convenience/analysis verification: **663 backend**, **415 frontend**,
+  **35 Chromium fixture checks** and **three real-Django flows** at 320/390/1440px.
+  Live flows include two-date SVG charts, completion-only records, direct template
+  editing/copy isolation, timer/group navigation, planned calculator outputs,
+  finite plate loading, month navigation/compact cell heights and reload.
+  Lint, TypeScript/build, mypy (16 files), migration drift and whitespace pass.
+
+### Session group editor — 2026-10-02
+
+- `backend/tests/test_workout_groups.py` exercises atomic colour/membership saves,
+  rename/unlink/delete preservation, invalid IDs/colours, owner/session boundaries,
+  finished-session rejection, deferred active-library additions and independent
+  workout-copy/routine capture/start colours. Uses disposable PostgreSQL tests.
+- `workout-groups.test.tsx` covers generated names/current selection, colour/member
+  editing, joining/unlinking, confirmed deletion, cancellation without writes,
+  combined library additions, retained failed drafts and confirmed-only cycling.
+- The existing real-Django responsive flow now creates a coloured group through
+  the picker/editor and adds its second exercise from the library in the same save;
+  automatic cycling defaults on and wraps after its second completed set.
+  Group-editor screenshots join the ignored playground artifacts. This is browser
+  verification, not a claim of native/mobile background alert support.
+- Group-editor verification: **672 backend tests**, **424 frontend tests**, and
+  **35 fixture browser checks** plus **three real-Django responsive flows** pass.
+  Focused lint, mypy (17 source files),
+  TypeScript/Vite build, migration drift and whitespace checks pass. Migration
+  `workouts.0006_group_colours` is applied to normal local and isolated E2E databases.
+  Local normal/E2E migration `workouts.0005_exercise_groups` is applied. Live
+  artifacts/screenshot output is isolated under ignored `playground/`, not the
+  fixture output directory. Probe scripts reproduced summary `<output>` click
+  behavior and artifact-path collisions; regression checks guard those fixes.
+
+- `test_workout_routines.py` covers private catalogs, names/archives, own source
+  validation, cross-owner denial, authenticated routes, immutable snapshot units,
+  planned independent starts, replacement/deletion preserving old sessions,
+  source deletion independence, bounded inputs, shared model quantity validation,
+  full account export and account cascade deletion.
+- Frontend tests cover capture, retained routine IDs after partial failure, modal
+  errors, failed reads, and selected-date start only after confirmed server success.
+- Workout browser fixtures extend the real app workflow through routine capture,
+  selected-date start, archive/restore, day rename, reload and Light/Sand layout
+  containment at 320/390/1440px. They remain intercepted API tests, not live backend
+  integration. PostgreSQL API tests exercise the real routine views separately.
+- Final verification: **660 backend tests** (14 routine checks), **402 frontend
+  tests**, and **three updated Chromium workout/routine flows** at 320/390/1440px
+  pass. Ruff, targeted mypy (15 source files), ESLint, TypeScript/Vite build,
+  migration drift and whitespace checks pass. `workouts.0004_routines` is applied
+  to normal local PostgreSQL; the live unauthenticated routine-list endpoint returns
+  `401`. No cloud migration/deployment or repair of the separate stale E2E Docker
+  network was performed.
+
+## Diet tracking — 2026-10-01 local slice
+
+- `backend/tests/test_diet.py`: empty catalog, unrestricted creation, JWT,
+  cross-owner isolation/validation, scoped case-insensitive names, immutable food
+  section, archive/restore, bounded history, retry-safe check-offs, export/deletion.
+- `frontend/src/features/diet/*.test.*`: bearer/body/error contracts, empty state,
+  section creation, selected-day saves, today-anchored seven-day history, failed
+  save behavior and dashboard counts (including archived foods).
+- `e2e/layout.spec.ts`: isolated API fixtures at 320/1440px verify creating a
+  section/food, daily save/undo, dates, rename/order, archive/restore, reload,
+  dashboard integration and horizontal containment. These do not prove live API
+  integration or physical-device behavior.
+- See `46-diet-tracking.md`; local verification is not staging acceptance.
+- Verification for this slice: **604 backend tests**, **380 frontend tests**, and
+  **17 selected Chromium checks** passed (Diet/Recovery flows and shared responsive
+  pages). Ruff, mypy (125 source files), ESLint, frontend build, migration-drift
+  detection and `git diff --check` passed. Diet ERD rendering verified 13/16 cards,
+  exactly three new green tables, and no clipped field labels. No staging writes.
+
+## Recovery tracking — 2026-09-30 local slice
+
+- `backend/tests/test_recovery.py`: JWT, exact Table 1 estimates, private-tool
+  ownership, Pro-only creation, idempotent daily save/undo, bounded date ranges,
+  archive/history, downgrade preservation and account export/deletion cascades.
+- `frontend/src/features/recovery/*.test.*`: API bearer/body/error contracts,
+  research labels, selected calendar dates, saved/failed check-offs, Pro creation
+  and custom-tool archiving. Tests do not equate activity counts with recovery.
+- Browser layout fixtures exercise recovery at phone and desktop widths.
+  Isolated E2E resets restore all six shared recovery tools after flush.
+- Logout regression coverage confirms metric, subscription and recovery caches
+  are erased after successful logout; failed logout still preserves the session.
+- See `45-recovery-tracking.md`; local verification is not staging acceptance.
+
+## Account lifecycle — 2026-09-30 local slice
+
+- `backend/tests/test_account_lifecycle.py` covers Free-plan full JSON export,
+  owner isolation including archived definitions, sync and billing history,
+  credential exclusion, authentication, and independent per-user export limits.
+- Deletion coverage proves password-required validation preserves the account on
+  failure, explicit handling of protected metric/checkout dependents, user/metric/
+  connection/receipt/subscription/refresh-token removal, preservation of other
+  users and shared defaults, cleared web refresh cookie, and `401` for old access
+  and refresh tokens. Paid-account cases prove confirmed immediate cancellation,
+  open checkout expiration, subscriptions created before webhook delivery,
+  redacted provider failures, partial-failure retries, and fail-closed ownership
+  and missing-receipt handling. No test performs live Stripe cancellations.
+- Regression coverage includes multiple historical customers from owned
+  checkouts before webhook delivery, plus rejection of a different session owner,
+  another account's customer mapping, and a mismatched subscription customer.
+- `test_account_deletion_concurrency.py` uses committed PostgreSQL transactions
+  and separate thread connections to prove deletion waits for an in-flight
+  checkout to save its receipt, then expires the resulting link. Checkout tests
+  preserve failed-attempt rows and session IDs returned without redirect URLs.
+- `account-api.test.ts` covers bearer transport, password body, authenticated JSON
+  download and object-URL cleanup, and preservation of the session on failure.
+  `account-panel.test.tsx` covers password plus checkbox confirmation, download
+  completion, and failure/cancel behavior. Settings route coverage proves Free
+  export, successful deletion navigation to Login, and cleared private query data.
+- These tests do not call live Stripe, erase a real account, or establish staging
+  acceptance. The local feature is not yet deployed; broader provider/backup
+  erasure and live staging acceptance remain outstanding.
+
 ## Responsive frontend layout checks
 
 - Run from `frontend`: `npm run test:e2e -- --config playwright.layout.config.ts`.
@@ -560,6 +1042,12 @@ Current Stripe testing boundary:
 - See `reference_docs/knowledge/38-stripe-testing-and-load-testing.md` for the complete policy and official Stripe references.
 
 Current Stripe Checkout testing checkpoint:
+- Duplicate-purchase regression tests cover open-session reuse, completed but
+  unconfirmed payments, existing paid plans/remote subscriptions, missing receipts,
+  expired-session replacement, price switching, unconfirmed expiration, ownership
+  failures, and repurchase after cancellation. All provider calls are mocked.
+- `test_checkout_concurrency.py` uses separate PostgreSQL connections to prove
+  simultaneous requests serialize and return one provider session with one receipt.
 - `tests/test_subscription_checkout.py` proves Checkout requires authentication and rejects missing, inactive, default-plan, duplicate-current-price, active-Stripe-subscription plan changes, and no-current-subscription inputs.
 - The same suite proves successful Checkout calls the service and returns only the hosted Stripe URL.
 - Service-level Checkout tests mock `StripeClient`, assert subscription mode, server-owned Stripe price IDs, metadata, and `CheckoutAttempt.id` as the Stripe idempotency key.
@@ -584,6 +1072,11 @@ Current frontend subscription Checkout and Portal testing checkpoint:
 - `use-create-subscription-checkout-mutation.test.tsx` proves the mutation forwards the selected internal price ID to the checkout API helper.
 - `use-create-subscription-portal-mutation.test.tsx` proves the portal mutation delegates to the authenticated portal API helper.
 - `settings-route.test.tsx` proves Settings renders current plan state, hides billing management without a Stripe customer, handles portal pending and error states, and redirects successful Checkout and Portal responses without contacting Stripe.
+- Checkout-return tests prove two-second polling promotes the banner and plan to
+  confirmed Pro, stops on confirmation or after sixty seconds, offers a safe
+  retry, and disables repeat upgrades while unresolved. Ordinary/cancelled visits
+  do not poll. Mocked layout browser tests cover Free-to-Pro confirmation at
+  320px and 1440px without real payments or database changes.
 - `settings-route.test.tsx` also proves Settings renders paid subscription billing amount/interval plus renewal and scheduled-cancellation dates from the current-subscription response, and labels Free as manual 30-minute sync versus Pro automatic 15-minute sync.
 - `settings-route.test.tsx` proves Stripe-managed subscriptions hide Checkout upgrade buttons and direct billing changes through **Manage subscription** instead.
 
@@ -1018,6 +1511,29 @@ Current auth foundation status:
 Frontend test harness note:
 - route tests use `window.history.pushState(...)` to set the active URL before mounting `RouterProvider`
 - `render(...)` from React Testing Library mounts the routed React tree into jsdom so assertions can target user-visible DOM output
+
+Settings re-subscription regression coverage:
+- Backend tests cover missing confirmed receipts and old completed sandbox
+  receipts: replacement only after saved-customer subscription verification.
+  Active subscriptions, missing customers, recent/failed attempts, live legacy
+  receipts, ownership mismatches, provider outages and unrelated errors block
+  replacement without retiring the receipt.
+- New Free accounts and former-Pro Free accounts with a retained Stripe customer
+  can start checkout. Former customers retain portal access for billing history.
+- Active, trialing, past-due and incomplete Stripe-managed Pro plans hide checkout
+  upgrades and use the portal. Portal availability alone is not a paid entitlement.
+
+Recovery UI regression coverage:
+- Dashboard component tests cover today's tool names, distinct recorded days,
+  empty/loading/error states and the tracking link. Phone/desktop checks save on
+  Recovery, inspect the dashboard summary, then navigate back to tracking.
+- Component tests cover daily save/undo, date arrows/history/Today navigation,
+  separate custom tools, expandable evidence, modal cancellation/focus restoration,
+  creation errors retaining input, and load errors.
+- Regression tests keep history anchored to today after selecting older dates
+  and preserve its counts independently of the selected day's entries.
+- Phone/desktop browser checks cover persistence, custom creation/archive/restore
+  and horizontal overflow. API permissions and research estimates are unchanged.
 
 Logging visibility note during tests:
 - normal pytest output captures logs by default

@@ -1,0 +1,182 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1410" height="2158" viewBox="0 0 1410 2158" role="img" aria-labelledby="title desc">
+<title id="title">With Diet — 16 domain tables</title>
+<desc id="desc">Domain entity relationship schema map. FK arrows name the referenced parent. Each parent can have zero or many children. Nullable foreign keys allow zero or one parent. New diet tables are green.</desc>
+<style>text{font-family:Arial,sans-serif;fill:#1b2b34}.name{font-size:19px;font-weight:bold}.table{font-size:12px;fill:#50636f}.field{font-family:Consolas,monospace;font-size:13px}a:hover text{fill:#00795e}</style>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="25" y="36" class="name">With Diet — 16 domain tables</text>
+<text x="25" y="64" class="field">Blue: existing tables · Green: new diet tables · PK: primary key · FK → parent · UK: unique field</text>
+<g id="User"><rect x="25" y="110" width="440" height="374" rx="10" fill="#eef4fc" stroke="#4475ab" stroke-width="2"/>
+<text x="41" y="138" class="name">User</text>
+<text x="41" y="158" class="table">users_user</text>
+<text x="41" y="186" class="field">id: uuid PK</text>
+<text x="41" y="209" class="field">password: text</text>
+<text x="41" y="232" class="field">last_login: datetime (nullable)</text>
+<text x="41" y="255" class="field">is_superuser: bool</text>
+<text x="41" y="278" class="field">email: text</text>
+<text x="41" y="301" class="field">email_lookup_hash: text UK</text>
+<text x="41" y="324" class="field">is_active: bool</text>
+<text x="41" y="347" class="field">is_staff: bool</text>
+<text x="41" y="370" class="field">sleep_target_minutes: smallint</text></g><g id="MetricDefinition"><rect x="485" y="110" width="440" height="374" rx="10" fill="#eef4fc" stroke="#4475ab" stroke-width="2"/>
+<text x="501" y="138" class="name">MetricDefinition</text>
+<text x="501" y="158" class="table">metrics_metric_definition</text>
+<text x="501" y="186" class="field">id: uuid PK</text>
+<a href="#User"><text x="501" y="209" class="field">user_id FK → User.id (nullable)</text></a>
+<text x="501" y="232" class="field">name: text</text>
+<text x="501" y="255" class="field">slug: text</text>
+<text x="501" y="278" class="field">unit: text</text>
+<text x="501" y="301" class="field">category: text</text>
+<text x="501" y="324" class="field">min_value: float</text>
+<text x="501" y="347" class="field">max_value: float</text>
+<text x="501" y="370" class="field">is_default: bool</text>
+<text x="501" y="393" class="field">is_active: bool</text>
+<text x="501" y="416" class="field">metadata: json</text></g><g id="MetricEntry"><rect x="945" y="110" width="440" height="374" rx="10" fill="#eef4fc" stroke="#4475ab" stroke-width="2"/>
+<text x="961" y="138" class="name">MetricEntry</text>
+<text x="961" y="158" class="table">metrics_metric_entry</text>
+<text x="961" y="186" class="field">id: bigint PK</text>
+<a href="#User"><text x="961" y="209" class="field">user_id FK → User.id</text></a>
+<a href="#MetricDefinition"><text x="961" y="232" class="field">metric_definition_id FK → MetricDefinition.id</text></a>
+<text x="961" y="255" class="field">value: float</text>
+<text x="961" y="278" class="field">period_start: datetime (nullable)</text>
+<text x="961" y="301" class="field">recorded_at: datetime</text>
+<text x="961" y="324" class="field">source: text</text>
+<a href="#WearableConnection"><text x="961" y="347" class="field">source_connection_id FK → WearableConnection.id</text></a>
+<a href="#WearableConnection"><text x="961" y="370" class="field">(nullable)</text></a>
+<text x="961" y="393" class="field">external_source_id: text (nullable)</text>
+<text x="961" y="416" class="field">source_record_modified_at: datetime (nullable)</text>
+<text x="961" y="439" class="field">context: json</text>
+<text x="961" y="462" class="field">created_at: datetime</text></g><g id="WearableConnection"><rect x="25" y="514" width="440" height="397" rx="10" fill="#eef4fc" stroke="#4475ab" stroke-width="2"/>
+<text x="41" y="542" class="name">WearableConnection</text>
+<text x="41" y="562" class="table">wearables_wearable_connection</text>
+<text x="41" y="590" class="field">id: uuid PK</text>
+<a href="#User"><text x="41" y="613" class="field">user_id FK → User.id</text></a>
+<text x="41" y="636" class="field">provider: text</text>
+<text x="41" y="659" class="field">status: text</text>
+<text x="41" y="682" class="field">last_synced_at: datetime (nullable)</text>
+<text x="41" y="705" class="field">last_error: text</text>
+<text x="41" y="728" class="field">is_active: bool</text>
+<text x="41" y="751" class="field">created_at: datetime</text>
+<text x="41" y="774" class="field">updated_at: datetime</text></g><g id="SyncRun"><rect x="485" y="514" width="440" height="397" rx="10" fill="#eef4fc" stroke="#4475ab" stroke-width="2"/>
+<text x="501" y="542" class="name">SyncRun</text>
+<text x="501" y="562" class="table">wearables_sync_run</text>
+<text x="501" y="590" class="field">id: uuid PK</text>
+<a href="#WearableConnection"><text x="501" y="613" class="field">wearable_connection_id FK → WearableConnection.id</text></a>
+<text x="501" y="636" class="field">upload_id: uuid</text>
+<text x="501" y="659" class="field">payload_hash: text</text>
+<text x="501" y="682" class="field">status: text</text>
+<text x="501" y="705" class="field">received_at: datetime</text>
+<text x="501" y="728" class="field">processing_started_at: datetime (nullable)</text>
+<text x="501" y="751" class="field">finished_at: datetime (nullable)</text>
+<text x="501" y="774" class="field">entries_imported: int</text>
+<text x="501" y="797" class="field">entries_updated: int</text>
+<text x="501" y="820" class="field">entries_skipped: int</text>
+<text x="501" y="843" class="field">error_code: text</text>
+<text x="501" y="866" class="field">error_detail: json</text>
+<text x="501" y="889" class="field">metadata: json</text></g><g id="SubscriptionPlan"><rect x="945" y="514" width="440" height="397" rx="10" fill="#eef4fc" stroke="#4475ab" stroke-width="2"/>
+<text x="961" y="542" class="name">SubscriptionPlan</text>
+<text x="961" y="562" class="table">subscriptions_subscription_plan</text>
+<text x="961" y="590" class="field">id: uuid PK</text>
+<text x="961" y="613" class="field">code: text UK</text>
+<text x="961" y="636" class="field">name: text</text>
+<text x="961" y="659" class="field">active_custom_metric_limit: int</text>
+<text x="961" y="682" class="field">wearable_connection_limit: int</text>
+<text x="961" y="705" class="field">automatic_sync_enabled: bool</text>
+<text x="961" y="728" class="field">sync_interval_minutes: int</text>
+<text x="961" y="751" class="field">analytics_enabled: bool</text>
+<text x="961" y="774" class="field">csv_import_enabled: bool</text>
+<text x="961" y="797" class="field">csv_export_enabled: bool</text>
+<text x="961" y="820" class="field">is_default: bool</text>
+<text x="961" y="843" class="field">is_active: bool</text>
+<text x="961" y="866" class="field">created_at: datetime</text>
+<text x="961" y="889" class="field">updated_at: datetime</text></g><g id="SubscriptionPrice"><rect x="25" y="941" width="440" height="420" rx="10" fill="#eef4fc" stroke="#4475ab" stroke-width="2"/>
+<text x="41" y="969" class="name">SubscriptionPrice</text>
+<text x="41" y="989" class="table">subscriptions_subscription_price</text>
+<text x="41" y="1017" class="field">id: uuid PK</text>
+<a href="#SubscriptionPlan"><text x="41" y="1040" class="field">plan_id FK → SubscriptionPlan.id</text></a>
+<text x="41" y="1063" class="field">provider: text</text>
+<text x="41" y="1086" class="field">provider_price_id: text UK</text>
+<text x="41" y="1109" class="field">currency: text</text>
+<text x="41" y="1132" class="field">unit_amount: int</text>
+<text x="41" y="1155" class="field">billing_interval: text</text>
+<text x="41" y="1178" class="field">is_active: bool</text>
+<text x="41" y="1201" class="field">created_at: datetime</text>
+<text x="41" y="1224" class="field">updated_at: datetime</text></g><g id="Subscription"><rect x="485" y="941" width="440" height="420" rx="10" fill="#eef4fc" stroke="#4475ab" stroke-width="2"/>
+<text x="501" y="969" class="name">Subscription</text>
+<text x="501" y="989" class="table">subscriptions_subscription</text>
+<text x="501" y="1017" class="field">id: uuid PK</text>
+<a href="#User"><text x="501" y="1040" class="field">user_id FK → User.id</text></a>
+<a href="#SubscriptionPlan"><text x="501" y="1063" class="field">plan_id FK → SubscriptionPlan.id</text></a>
+<a href="#SubscriptionPrice"><text x="501" y="1086" class="field">price_id FK → SubscriptionPrice.id (nullable)</text></a>
+<text x="501" y="1109" class="field">status: text</text>
+<text x="501" y="1132" class="field">provider: text (nullable)</text>
+<text x="501" y="1155" class="field">provider_customer_id: text (nullable)</text>
+<text x="501" y="1178" class="field">provider_subscription_id: text UK (nullable)</text>
+<text x="501" y="1201" class="field">current_period_start: datetime (nullable)</text>
+<text x="501" y="1224" class="field">current_period_end: datetime (nullable)</text>
+<text x="501" y="1247" class="field">cancel_at: datetime (nullable)</text>
+<text x="501" y="1270" class="field">cancel_at_period_end: bool</text>
+<text x="501" y="1293" class="field">cancelled_at: datetime (nullable)</text>
+<text x="501" y="1316" class="field">created_at: datetime</text>
+<text x="501" y="1339" class="field">updated_at: datetime</text></g><g id="BillingCustomer"><rect x="945" y="941" width="440" height="420" rx="10" fill="#eef4fc" stroke="#4475ab" stroke-width="2"/>
+<text x="961" y="969" class="name">BillingCustomer</text>
+<text x="961" y="989" class="table">subscriptions_billing_customer</text>
+<text x="961" y="1017" class="field">id: uuid PK</text>
+<a href="#User"><text x="961" y="1040" class="field">user_id FK → User.id</text></a>
+<text x="961" y="1063" class="field">provider: text</text>
+<text x="961" y="1086" class="field">provider_customer_id: text</text>
+<text x="961" y="1109" class="field">created_at: datetime</text>
+<text x="961" y="1132" class="field">updated_at: datetime</text></g><g id="CheckoutAttempt"><rect x="25" y="1391" width="440" height="282" rx="10" fill="#eef4fc" stroke="#4475ab" stroke-width="2"/>
+<text x="41" y="1419" class="name">CheckoutAttempt</text>
+<text x="41" y="1439" class="table">subscriptions_checkout_attempt</text>
+<text x="41" y="1467" class="field">id: uuid PK</text>
+<a href="#User"><text x="41" y="1490" class="field">user_id FK → User.id</text></a>
+<a href="#SubscriptionPrice"><text x="41" y="1513" class="field">price_id FK → SubscriptionPrice.id</text></a>
+<a href="#Subscription"><text x="41" y="1536" class="field">expected_subscription_id FK → Subscription.id</text></a>
+<a href="#Subscription"><text x="41" y="1559" class="field">(nullable)</text></a>
+<text x="41" y="1582" class="field">status: text</text>
+<text x="41" y="1605" class="field">provider_checkout_session_id: text</text>
+<text x="41" y="1628" class="field">created_at: datetime</text>
+<text x="41" y="1651" class="field">updated_at: datetime</text></g><g id="StripeWebhookEvent"><rect x="485" y="1391" width="440" height="282" rx="10" fill="#eef4fc" stroke="#4475ab" stroke-width="2"/>
+<text x="501" y="1419" class="name">StripeWebhookEvent</text>
+<text x="501" y="1439" class="table">subscriptions_stripe_webhook_event</text>
+<text x="501" y="1467" class="field">id: bigint PK</text>
+<text x="501" y="1490" class="field">provider_event_id: text UK</text>
+<text x="501" y="1513" class="field">event_type: text</text>
+<text x="501" y="1536" class="field">processed_at: datetime</text></g><g id="RecoveryTool"><rect x="945" y="1391" width="440" height="282" rx="10" fill="#eef4fc" stroke="#4475ab" stroke-width="2"/>
+<text x="961" y="1419" class="name">RecoveryTool</text>
+<text x="961" y="1439" class="table">recovery_recoverytool</text>
+<text x="961" y="1467" class="field">id: uuid PK</text>
+<a href="#User"><text x="961" y="1490" class="field">user_id FK → User.id (nullable)</text></a>
+<text x="961" y="1513" class="field">slug: text</text>
+<text x="961" y="1536" class="field">name: text</text>
+<text x="961" y="1559" class="field">description: text</text>
+<text x="961" y="1582" class="field">display_order: int</text>
+<text x="961" y="1605" class="field">is_active: bool</text></g><g id="RecoveryEntry"><rect x="25" y="1703" width="440" height="190" rx="10" fill="#eef4fc" stroke="#4475ab" stroke-width="2"/>
+<text x="41" y="1731" class="name">RecoveryEntry</text>
+<text x="41" y="1751" class="table">recovery_recoveryentry</text>
+<text x="41" y="1779" class="field">id: bigint PK</text>
+<a href="#User"><text x="41" y="1802" class="field">user_id FK → User.id</text></a>
+<a href="#RecoveryTool"><text x="41" y="1825" class="field">tool_id FK → RecoveryTool.id</text></a>
+<text x="41" y="1848" class="field">performed_on: date</text>
+<text x="41" y="1871" class="field">created_at: datetime</text></g><g id="DietSection"><rect x="25" y="1923" width="440" height="190" rx="10" fill="#e6f7ec" stroke="#22854f" stroke-width="2"/>
+<text x="41" y="1951" class="name">DietSection · NEW</text>
+<text x="41" y="1971" class="table">diet_dietsection</text>
+<text x="41" y="1999" class="field">id: uuid PK</text>
+<a href="#User"><text x="41" y="2022" class="field">user_id FK → User.id</text></a>
+<text x="41" y="2045" class="field">name: text</text>
+<text x="41" y="2068" class="field">display_order: int</text>
+<text x="41" y="2091" class="field">is_active: bool</text></g><g id="DietFood"><rect x="485" y="1923" width="440" height="190" rx="10" fill="#e6f7ec" stroke="#22854f" stroke-width="2"/>
+<text x="501" y="1951" class="name">DietFood · NEW</text>
+<text x="501" y="1971" class="table">diet_dietfood</text>
+<text x="501" y="1999" class="field">id: uuid PK</text>
+<a href="#DietSection"><text x="501" y="2022" class="field">section_id FK → DietSection.id</text></a>
+<text x="501" y="2045" class="field">name: text</text>
+<text x="501" y="2068" class="field">display_order: int</text>
+<text x="501" y="2091" class="field">is_active: bool</text></g><g id="DietEntry"><rect x="945" y="1923" width="440" height="190" rx="10" fill="#e6f7ec" stroke="#22854f" stroke-width="2"/>
+<text x="961" y="1951" class="name">DietEntry · NEW</text>
+<text x="961" y="1971" class="table">diet_dietentry</text>
+<text x="961" y="1999" class="field">id: bigint PK</text>
+<a href="#User"><text x="961" y="2022" class="field">user_id FK → User.id</text></a>
+<a href="#DietFood"><text x="961" y="2045" class="field">food_id FK → DietFood.id</text></a>
+<text x="961" y="2068" class="field">performed_on: date</text>
+<text x="961" y="2091" class="field">created_at: datetime</text></g>
+</svg>

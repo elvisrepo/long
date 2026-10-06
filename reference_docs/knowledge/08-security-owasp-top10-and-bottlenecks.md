@@ -1,5 +1,197 @@
 #### Security (OWASP Top 10 addressed)
 
+## Workout tracking boundary — 2026-10-01 backend slice
+
+Combined cardio goals (2026-10-05) reuse JWT ownership, shared user-row locks,
+active-only creation, 20-goal cap and independently owner-scoped completed sources.
+Only distance and a bounded whole-second limit may be patched; saved type/units
+remain immutable. SQL rejects incompatible or mixed goal shapes; API rejects
+noninteger time/irrelevant fields. Both conditions must match one completed set,
+never different sets/units, pace estimates or inferred splits. Progress is a
+goal ratio, not verified race evidence or medical/fitness scoring. Archived targets
+stay editable, corrections/deletions recalculate, account export/cascade includes
+the two new nullable fields. Migration 0011 preserves existing goals and source
+sets; rollback requires coordinated handling of combined rows. No paid gate,
+public sharing, new route or automatic source mutation.
+
+Session timing (2026-10-03) reuses JWT-scoped session PATCH and the user-row lock.
+Clients cannot write the running timestamp, elapsed total or server clock. Only
+bounded nullable duration corrections and start/pause commands are accepted;
+corrections pause timing and cannot accompany an action. Repeated actions do not
+reset/double-count. Finish pauses atomically; finished sessions cannot start.
+SQL constrains duration and prevents a running finished/unknown-duration state.
+Copies and routine starts are untimed, and account deletion cascades timing with
+sessions. These are informational wall-clock logs, not a billing clock or trusted
+proof of exercise. Manual corrections remain last-write-wins. UI failures never
+optimistically pause the server clock; ambiguous failures advise refreshing.
+
+- JWT required, no paid-plan gate. Identity is derived from authentication;
+  owner-scoped lookups reject foreign nested references and private history.
+- Mutations (including explicit catalog initialization) lock the user row within
+  a transaction, serializing with account deletion. A one-to-one initialization
+  marker and scoped SQL name uniqueness protect repeat/concurrent seeding.
+- GET catalog is read-only. History requires a 1–366-day date range and paginates
+  sessions (default 25/max 100); optional exercise filtering verifies ownership.
+- Name/search length is bounded, notes/comments capped at 2000, numeric fields
+  validated by snapshot type. Partial set updates validate combined saved/input
+  values; planned rows cannot claim completion with missing required quantities.
+- Type/unit/name snapshots are server-written and immutable. Catalog edits cannot
+  reinterpret recorded work. Archive preserves history; RESTRICT prevents direct
+  deletion of referenced exercises while allowing full account cascades.
+- WorkoutExercise.clean validates the cross-owner relationship for full_clean
+  callers. Foreign keys alone do not enforce it; raw ORM writers must use the
+  validated owner-scoped services or explicit model validation. WorkoutSet.clean
+  validates type-specific fields; SQL constraints additionally protect positive
+  quantities/nonnegative load, not the whole cross-table type invariant.
+- Account export includes private catalogs/snapshots/sets and the seeding marker;
+  user deletion cascades all six tables. No URLs are fetched from exercise notes.
+- Basic frontend integration now uses owner-scoped `workouts` query keys, cleared
+  with all private caches on logout. Writes require bearer authentication and
+  disable duplicate submission while pending; results are server-confirmed, not
+  optimistic completion. Pagination constructs same-origin API paths rather than
+  trusting arbitrary provider `next` URLs. Notes/comments are rendered as text,
+  not HTML. Windowed progress now derives from authenticated bounded session reads,
+  never public/private cross-owner analytics. See `47-workout-tracking.md`.
+- Library browsing never creates workouts; choosing an existing occurrence avoids
+  a duplicate UI write. This does not replace backend ownership validation or
+  introduce SQL uniqueness. Direct removal requires explicit confirmation, keeps
+  errors visible in the dialog, and cannot edit finished sessions without reopening.
+  The existing owner-scoped occurrence DELETE still deletes its sets permanently.
+
+### All-time exercise summary boundary — 2026-10-02
+
+Metric goals (2026-10-05) retain the strength goal JWT/owner-lock boundaries.
+Creation checks the active catalog type; saved goal type/tracking type/units cannot
+be patched. Targets have bounded precision/ranges; reps and seconds must be whole
+numbers. SQL constraints protect type/shape/bounds (integer validation is at the
+API boundary). Completed-set queries check workout and catalog ownership; rates
+require positive paired distance/time in one set before division. No client-supplied
+achievement, public sharing, body-mass assumption or cross-unit conversion.
+Migration 0010 preserves legacy strength targets; metrics participate in the same
+20-goal cap, export and deletion lifecycle. This is a single-set achievement, not
+proof of finishing a race distance, a permanent award or a health recommendation.
+
+Selective copying shares the existing owner lock and transaction. Selection lists
+are bounded and unique; unknown fields reject, every selected occurrence belongs
+to the source and every selected set belongs to its occurrence. Nested catalog
+ownership is checked before cloning, even for inconsistent raw ORM links.
+Validation completes before new rows exist; errors leave no partial workout.
+Archived/finished source snapshots are preserved, never rewritten from current
+catalog defaults. Source remains unchanged; copies reset performance state and
+comments/notes. Shared UI preview/cancel is read-only; pending locks and retained
+errors prevent optimistic success claims. It remains a non-idempotent create:
+an ambiguous network failure may have created a copy; verify destination before
+retrying when unsure. No external sharing, paid gate or schema migration.
+
+Adjacent exercise/set move endpoints require JWT and independently scope workout
+and catalog ownership. Mutations serialize on the user row with all other workout
+writes/account deletion; sibling updates are atomic. Only direction up/down is
+accepted. Finished sessions require reopening. Normalization updates order only,
+not snapshot values, comments, completion or groups. Boundary moves do not write.
+The client waits for server confirmation and refetches private owner-scoped data;
+failure remains visible beside the controls and retryable. No migration or new
+entitlement gate. Reordering also changes the next superset member in workout order.
+
+Bulk set corrections require JWT, unique bounded selection (1–100) and independent
+workout/catalog owner guards. The shared owner row lock serializes with individual
+writes/account deletion. Every expected full set snapshot and every finished-session
+guard is checked before writes; combined-value validation precedes all updates.
+Stale snapshots reject `409` with no partial mutation; missing/foreign rows `404`.
+Only quantity/comment/completion fields may change, never order/ownership/snapshots.
+Numeric batches cannot mix frozen type/units; no implicit conversion. Unknown
+outer/nested/change fields reject. Delete requires explicit UI preview and removes
+only selected sets/comments. Saved history, goals and records recalculate; no paid
+gate, sharing, schema migration, bulk rest-timer trigger or group advance.
+Snapshots are stale-value guards, not idempotency/version tokens; a network failure
+requires refresh/review rather than automatic retry. Raw ORM writes that bypass the
+owner lock are not part of this serialization guarantee.
+
+Exercise statistics and goals use authenticated owner-scoped library lookups, and completed-set queries independently check workout ownership. SQL statistics preserve frozen type/unit partitions. Goal creation/edit/deletion locks the user row, sharing account-deletion serialization. Inputs are bounded, unknown goal input fields reject, and saved goal units cannot be patched. Creation is capped at 20 goals per exercise and requires active compatible library entries; old goals remain readable/editable after library changes. Goal reads derive actual completed source sets, not estimates or permanent achievement records; editing/deleting/uncompleting a source changes the result. The 20-target response bound limits per-goal queries, not the cost of scanning a long exercise history. Goals participate in account export/cascade deletion. No public sharing or paid-plan gate.
+
+Workout preference reads and patches are authenticated and owner-scoped, available to every account tier. Reads do not seed data; patches share the owner lock used by account deletion. Inventories are bounded (20 sizes, 0–100 plates per size, weights ≤1000), duplicate sizes rejected. Favorites and graph defaults never change historical exercise snapshots. Catalog usage hints include only that owner's completed sets; preference export/deletion follows the existing account lifecycle.
+
+All-time progress/records are private read-only summary endpoints, not unbounded
+raw session exports. Exercise ownership and workout ownership are both filtered,
+including protection against inconsistent cross-owner raw ORM links.
+
+Cardio speed/pace use those same owner-scoped queries and positive distance/time
+guards before division. They expose no new private fields or writes. Frozen units
+remain separate, and calculated charts never mutate source quantities/completion.
+
+Completed-only SQL aggregates and window functions preserve frozen type/unit partitions; archived
+exercises remain readable. Required date, metric/rep/unit validation and strict
+1–500 pagination bounds reject malformed requests. Frontend pagination builds
+same-origin paths and owner-scoped query keys; no arbitrary `next` URL is fetched.
+Source navigation still uses authenticated detail routes. These queries scan the
+selected exercise's history through the cutoff; bounded response pages do not
+bound total database aggregation cost. No cached PR table, public analytics,
+notes fetch, new index or migration is introduced.
+
+### Routine template boundary — 2026-10-02
+
+Routine preview/start (2026-10-03): GET preview is read-only and JWT/owner-scoped,
+including nested exercise ownership and completed-history lookups. POST retains
+the per-owner lock and atomic transaction, validates all selected template IDs
+before creating a workout, and recomputes the plan before comparing its fingerprint.
+The fingerprint is not a bearer credential; ownership checks apply independently.
+Stale plans return `409` with no partial write. Carry-forward requires a preview,
+never guesses ambiguous duplicates, and never copies private set comments.
+The client disables confirmation during reads/writes and requires an explicit
+refresh after failed creation; it does not automatically retry non-idempotent starts.
+On ambiguous network failure it advises checking the destination for an already
+created session before retrying. This is not an idempotency guarantee.
+
+- All plans can use private routines with JWT; never accept client ownership or
+  direct exercise/set snapshot input. Capture references must resolve to an own
+  saved workout; empty sources and cross-owner nested exercise references fail.
+- Capture, replacement, start, archive and day deletion serialize on the owner
+  row in atomic transactions, including account deletion. Start cannot race a
+  partial replacement. SQL uniqueness scopes routine/day names correctly.
+- Templates have no completion/performance state. Starting generates independent
+  rows, no template FK, so changing/removing templates cannot change old sessions.
+  Archived catalog exercises retain frozen template types/units; archived routines
+  must restore before their day mutations. RoutineExercise.clean checks owner
+  relationships, RoutineSet.clean shares snapshot quantity validation with
+  WorkoutSet; raw ORM writes still require explicit validation.
+- Account export includes all four owner-scoped template tables, and account
+  deletion cascades them. Frontend routine caches use the existing private owner
+  prefix and logout clearing. Modal write errors remain visible inside the dialog;
+  a confirmed routine creation is reused when a subsequent day write fails.
+- Direct template editing uses owner-locked transactions and owner-scoped nested
+  exercise/set lookups. Only active own catalog exercises may be added; frozen
+  snapshots/reference cannot be patched. Existing archived library snapshots may
+  be edited, but archived routines must restore. Planned quantity validation is
+  shared with the workout validator; template sets never store completion/comments.
+- Group labels are bounded text on owner-scoped occurrences, not cross-user
+  references. Group mutations require an open session or active routine and serialize
+  with copying/start/deletion. Export includes labels; no new table/cascade behavior.
+- Session group PUT validates all member/library IDs before any writes, inside
+  the same owner-locked transaction. Members must belong to that workout; library
+  additions must be active/owned. UUID lists are unique and bounded to 100 each.
+  Hex-only colours prevent arbitrary CSS values. Rename collisions reject rather
+  than silently merge. DELETE only clears membership; logged sets remain intact.
+  Missing original names reject stale edits. Finished workouts require reopening.
+- Calculator output is never accepted as proof of completion or a record. Percentage
+  outputs use ordinary planned-set validation; plate search validates finite inventory
+  and bounds computation. Calculation drafts and running countdowns are temporary;
+  explicitly saved equipment and auto-start/advance preferences persist per account.
+  Timer updates/advancement fire only after server-confirmed new completion.
+
+## Diet tracking boundary — 2026-10-01
+
+- JWT is required; catalogs and histories are private. Food ownership follows
+  `food.section.user`. Entry writes bind the authenticated user and require that
+  owner; entry reads filter both owner paths. Foreign edits/check-offs return 404.
+- All mutations lock the user row in a transaction, serializing with deletion;
+  SQL uniqueness protects scoped names and one daily check-off per food/user.
+- Name length is bounded to 120, order is nonnegative, and history ranges cap at
+  366 days. Archive retains history; undo works even after archive.
+- DietEntry.clean validates matching owners for explicit full_clean callers;
+  ordinary foreign keys do not enforce this cross-table invariant for raw writes.
+- Export is owner-scoped; deletion cascades owned sections/foods/entries. Cache
+  keys include the owner and successful logout clears private query state.
+- No Pro gate or nutrient/medical recommendations. See `46-diet-tracking.md`.
+
 ## Use When
 - Load this when you need to work on security prevention and Bottlenecks & Mitigations .
 
@@ -192,3 +384,16 @@ Current Stripe credential and traffic boundary:
 | Stripe API rate or concurrency limits | Checkout or subscription operations receive `429` or object lock timeouts | Use idempotency keys, exponential backoff with jitter, inspect Stripe's rate-limit reason, serialize mutations to the same provider object, and never load test against sandbox. |
 | WebSocket connection memory (1000+ concurrent) | OOM on app instance | Token-bucket backpressure. Max 3 connections per user. Separate WS instances from REST API at scale. |
 | Large GDPR export (user with 100K+ entries) | Request timeout | Async export via Celery. Return 202 Accepted + poll endpoint. Stream results to S3, send download link via email. |
+# Recovery tracking boundary — 2026-09-30
+
+- Recovery routes require JWT and expose only shared tools plus the requesting
+  user's tools and entries. Writes to another user's tools return 404.
+- Pro custom-tool creation is checked against the current server-side plan.
+  Shared tools and research scores cannot be modified through these endpoints.
+- Names/descriptions have bounded lengths; entry ranges are limited to 366 days.
+- Mutations lock the user row to serialize with subscription changes/deletion;
+  `(user, tool, performed_on)` is unique. PUT/DELETE are retry-safe.
+- Archived history and downgrade data are retained. Export includes owned
+  recovery data; account deletion cascades it without deleting shared defaults.
+- Recovery query keys include the owner. Successful logout cancels outstanding
+  requests and clears all query caches, including metric/subscription state.

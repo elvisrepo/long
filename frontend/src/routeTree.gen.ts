@@ -10,12 +10,15 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DietRouteImport } from './routes/diet'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MetricsRouteImport } from './routes/metrics'
+import { Route as RecoveryRouteImport } from './routes/recovery'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as WorkoutsRouteImport } from './routes/workouts'
 import { Route as AnalyticsConsistencyRouteImport } from './routes/analytics.consistency'
 import { Route as AnalyticsSleepRouteImport } from './routes/analytics.sleep'
 import { Route as AnalyticsWeightStepsRouteImport } from './routes/analytics.weight-steps'
@@ -24,6 +27,11 @@ import { Route as MetricsSlugRouteImport } from './routes/metrics.$slug'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DietRoute = DietRouteImport.update({
+  id: '/diet',
+  path: '/diet',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -41,6 +49,11 @@ const MetricsRoute = MetricsRouteImport.update({
   path: '/metrics',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RecoveryRoute = RecoveryRouteImport.update({
+  id: '/recovery',
+  path: '/recovery',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -54,6 +67,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkoutsRoute = WorkoutsRouteImport.update({
+  id: '/workouts',
+  path: '/workouts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AnalyticsConsistencyRoute = AnalyticsConsistencyRouteImport.update({
@@ -79,12 +97,15 @@ const MetricsSlugRoute = MetricsSlugRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/diet': typeof DietRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/metrics': typeof MetricsRouteWithChildren
+  '/recovery': typeof RecoveryRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
+  '/workouts': typeof WorkoutsRoute
   '/analytics/consistency': typeof AnalyticsConsistencyRoute
   '/analytics/sleep': typeof AnalyticsSleepRoute
   '/analytics/weight-steps': typeof AnalyticsWeightStepsRoute
@@ -92,12 +113,15 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/diet': typeof DietRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/metrics': typeof MetricsRouteWithChildren
+  '/recovery': typeof RecoveryRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
+  '/workouts': typeof WorkoutsRoute
   '/analytics/consistency': typeof AnalyticsConsistencyRoute
   '/analytics/sleep': typeof AnalyticsSleepRoute
   '/analytics/weight-steps': typeof AnalyticsWeightStepsRoute
@@ -106,12 +130,15 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/diet': typeof DietRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/metrics': typeof MetricsRouteWithChildren
+  '/recovery': typeof RecoveryRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
+  '/workouts': typeof WorkoutsRoute
   '/analytics/consistency': typeof AnalyticsConsistencyRoute
   '/analytics/sleep': typeof AnalyticsSleepRoute
   '/analytics/weight-steps': typeof AnalyticsWeightStepsRoute
@@ -121,12 +148,15 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/diet'
     | '/forgot-password'
     | '/login'
     | '/metrics'
+    | '/recovery'
     | '/register'
     | '/reset-password'
     | '/settings'
+    | '/workouts'
     | '/analytics/consistency'
     | '/analytics/sleep'
     | '/analytics/weight-steps'
@@ -134,12 +164,15 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/diet'
     | '/forgot-password'
     | '/login'
     | '/metrics'
+    | '/recovery'
     | '/register'
     | '/reset-password'
     | '/settings'
+    | '/workouts'
     | '/analytics/consistency'
     | '/analytics/sleep'
     | '/analytics/weight-steps'
@@ -147,12 +180,15 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/diet'
     | '/forgot-password'
     | '/login'
     | '/metrics'
+    | '/recovery'
     | '/register'
     | '/reset-password'
     | '/settings'
+    | '/workouts'
     | '/analytics/consistency'
     | '/analytics/sleep'
     | '/analytics/weight-steps'
@@ -161,12 +197,15 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DietRoute: typeof DietRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   MetricsRoute: typeof MetricsRouteWithChildren
+  RecoveryRoute: typeof RecoveryRoute
   RegisterRoute: typeof RegisterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SettingsRoute: typeof SettingsRoute
+  WorkoutsRoute: typeof WorkoutsRoute
   AnalyticsConsistencyRoute: typeof AnalyticsConsistencyRoute
   AnalyticsSleepRoute: typeof AnalyticsSleepRoute
   AnalyticsWeightStepsRoute: typeof AnalyticsWeightStepsRoute
@@ -179,6 +218,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/diet': {
+      id: '/diet'
+      path: '/diet'
+      fullPath: '/diet'
+      preLoaderRoute: typeof DietRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -202,6 +248,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MetricsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/recovery': {
+      id: '/recovery'
+      path: '/recovery'
+      fullPath: '/recovery'
+      preLoaderRoute: typeof RecoveryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
@@ -221,6 +274,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workouts': {
+      id: '/workouts'
+      path: '/workouts'
+      fullPath: '/workouts'
+      preLoaderRoute: typeof WorkoutsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/analytics/consistency': {
@@ -267,12 +327,15 @@ const MetricsRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DietRoute: DietRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   MetricsRoute: MetricsRouteWithChildren,
+  RecoveryRoute: RecoveryRoute,
   RegisterRoute: RegisterRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SettingsRoute: SettingsRoute,
+  WorkoutsRoute: WorkoutsRoute,
   AnalyticsConsistencyRoute: AnalyticsConsistencyRoute,
   AnalyticsSleepRoute: AnalyticsSleepRoute,
   AnalyticsWeightStepsRoute: AnalyticsWeightStepsRoute,

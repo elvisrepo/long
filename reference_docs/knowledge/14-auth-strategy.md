@@ -400,7 +400,32 @@ Current implementation gap:
 - the remaining auth transport decision is whether register should also be split explicitly by client type or stay shared
 
 Deferred user-backend scope:
-- profile update and account deletion flows are not implemented yet
+- profile update remains unimplemented; account export and password-confirmed
+  deletion with immediate Stripe cancellation are implemented locally on 2026-09-30
+- deletion requires bearer authentication and current-password confirmation under
+  a user-row lock; it removes stored refresh credentials, clears the browser
+  refresh cookie, and removes the User row so existing access JWTs stop working
+- Settings clears the in-memory access token and cancels/clears all query-cache
+  data before returning to Login; Android sessions lose server access as well
+- account export is available on every plan and exports session timestamps only,
+  never passwords, lookup hashes, refresh/access JWTs, or other credentials
+- deletion expires open checkout links and confirms cancellation of subscriptions
+  before local erasure; customer ownership checks prevent cross-account billing
+  changes. Provider failures return redacted `502`; unverified checkouts without
+  receipts return `409`. Local account data remains available for retry
+- multiple historical Stripe customers can be proven by saved, user-owned
+  checkouts; cleanup includes them without changing the current billing mapping.
+  Cross-account customer mappings and checkout/subscription mismatches fail closed
+- checkout creation reuses a matching open session under the user lock, expires
+  other open links before replacement, and blocks repeat payment after a completed
+  purchase or while a paid subscription exists. Missing provider receipts require
+  billing verification rather than risking another charge; webhooks still grant
+  entitlements, not the checkout redirect
+- Stripe mutations can already have succeeded when another cleanup step fails;
+  retries inspect current remote state. Checkout creation and delayed webhook
+  updates coordinate with deletion through the user-row lock
+- local deletion does not erase records in backups, Health Connect, or Stripe;
+  cancellation does not issue an automatic refund
 - email verification is not implemented; add it later only if the product or abuse profile justifies it
 - richer user-profile domain behavior beyond auth basics is still deferred
 - this means the current backend user slice should be treated as an auth foundation, not a complete user-account system

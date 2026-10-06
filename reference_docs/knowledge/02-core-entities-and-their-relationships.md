@@ -1,5 +1,50 @@
 ### 1.4 Core Entities
 
+## Workout additions — 2026-10-01 backend slice
+
+`workouts.0008_exercise_goals` adds `Exercise → ExerciseGoal` (twelve workout
+tables total). Ownership follows the private category. Goal quantities/rep rule
+are editable, units are frozen, and actual achievement/supporting lifts are
+derived from completed strength sets rather than stored status. Account export
+includes goals; account deletion cascades them. Goal deletion never deletes sets.
+
+`workouts.0007_workout_preferences` adds `User → WorkoutPreferences` as an owned
+one-to-one primary-key relationship (eleven workout tables total). It stores
+rest auto-start, group auto-advance and separate metric/imperial bar and plate
+defaults. Reads do not create rows; account export includes saved preferences,
+and deletion cascades them. Exercise favorites and preferred graphs are library
+metadata, not changes to recorded WorkoutExercise/WorkoutSet snapshots.
+
+Six workout tables are defined by local migrations: a one-to-one
+`WorkoutCatalogState` tracks explicit once-only initialization; `User →
+ExerciseCategory → Exercise` forms a private editable catalog; `User → Workout
+→ WorkoutExercise → WorkoutSet` records ordered sessions and individual sets.
+WorkoutExercise references Exercise and preserves name/category/type/unit
+snapshots. Sets store nullable relevant quantities and planned/completed state;
+completed quantities are validated by the snapshot type, not current defaults.
+Multiple sessions per date are allowed. Basic frontend integration is implemented
+locally. The first routines slice adds `User → WorkoutRoutine → RoutineDay →
+RoutineExercise → RoutineSet` (four tables in `workouts.0004`). RoutineExercise
+references Exercise and freezes its historical name/category/type/units; RoutineSet
+contains nullable planned quantities, never completion or performance comments.
+Capture/start copy values, not source-session references; generated Workout rows
+are independent. Routine changes cannot rewrite existing sessions. See
+`47-workout-tracking.md`. `workouts.0005` adds `group_name` to both session/template
+exercise occurrences: matching local labels identify supersets/circuits, preserved
+in independent copies. No extra group, PR or calculator table. Windowed records are
+derived from completed sets; temporary timer/calculator inputs are not account data.
+`workouts.0006` adds `group_colour` to both occurrence models. The session group
+editor replaces membership/name/colour atomically; colours survive copy/capture/start.
+Deleting/unlinking groups never deletes occurrences or sets.
+
+## Diet additions — 2026-10-01
+
+`User → DietSection → DietFood` are one-to-many relationships. `DietEntry`
+references both User and DietFood and records a calendar-date check-off, unique
+per `(user, food, performed_on)`. Food ownership is derived through its section;
+the API enforces that the entry owner matches. Every plan can create the catalog.
+See `46-diet-tracking.md` and `diagrams/diet-erd-comparison.md`.
+
 ## Use When
 - Load this when you need the core entities, and their relationships.
 
@@ -73,3 +118,11 @@ We derived entities from the functional requirements by asking: *"What data must
 - A Stripe `customer.subscription.updated` event synchronizes the current paid subscription's `cancel_at_period_end`, `current_period_start`, and `current_period_end`. Scheduling cancellation does not revoke paid entitlements.
 - The paid subscription remains current until Stripe reports that it has actually ended through `customer.subscription.deleted`.
 - A verified deletion event cancels the paid local subscription and creates a new active Free subscription. The cancelled paid row remains as subscription history.
+# Recovery domain additions — 2026-09-30 local slice
+
+`RecoveryTool` holds shared tools (nullable user FK) and private custom tools.
+`RecoveryEntry` belongs to a user and tool and records a calendar-day check-off;
+`(user, tool, performed_on)` is unique. These are separate from numeric
+`MetricEntry` and wearable sync. Pro can create custom tools; existing tools and
+history survive downgrade and archive. See `45-recovery-tracking.md` and
+`diagrams/recovery-erd-comparison.md` for the updated domain ERD.

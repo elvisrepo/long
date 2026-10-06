@@ -4,6 +4,19 @@ Current state, bluntly: the project has a working hosted staging value loop. The
 
 ## 1. Local system design — what exists now
 
+Latest acceptance: on 2026-09-29 the updated Android `1.3-staging` APK was built
+against `https://staging.syncvitals.space/` and installed over USB. On 2026-09-30
+the owner confirmed successful sync. The active Fitbit/Google Health bridge now
+supports Weight, daily Steps, Sleep, Resting Heart Rate, and daily-median HRV;
+earlier Samsung-only checkpoints above are historical.
+
+The 2026-09-30 account lifecycle slice adds local account-wide JSON export on
+every plan and password-confirmed deletion with immediate Stripe cancellation
+and open-checkout expiration. Billing failures preserve local data for retry;
+unverified checkout receipts prevent erasure. This slice has not been deployed
+or accepted on staging. Existing backups and external provider records need
+separate handling.
+
 Local runtime is roughly:
 
 ```text
@@ -384,8 +397,8 @@ Related docs:
 Next real product step:
 
 ```text
-Implement account-wide data export and account deletion, then validate both
-authenticated lifecycle flows on staging
+Validate account-wide export and password-confirmed deletion with Stripe
+cancellation on staging using a disposable test account
 ```
 
 SES-backed password reset is deployed and owner-verified on staging: a real

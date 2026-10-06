@@ -266,11 +266,10 @@ describe("Sleep Insights route", () => {
     renderRoute("/analytics/sleep");
     await screen.findByRole("heading", { name: /sleep insights/i });
 
-    fireEvent.change(screen.getByLabelText(/nightly sleep target/i), {
-      target: { value: "08:00" },
-    });
+    const hoursInput = screen.getByLabelText("Hours", { exact: true });
+    fireEvent.change(hoursInput, { target: { value: "8" } });
 
-    expect(useSleepInsightsQuery).toHaveBeenLastCalledWith(480);
+    expect(useSleepInsightsQuery).toHaveBeenLastCalledWith(510);
   });
 
   it("initializes from the saved target and persists a changed target", async () => {
@@ -298,12 +297,37 @@ describe("Sleep Insights route", () => {
 
     renderRoute("/analytics/sleep");
 
-    const targetInput = await screen.findByLabelText(/nightly sleep target/i);
-    expect(targetInput).toHaveValue("08:00");
-    fireEvent.change(targetInput, { target: { value: "08:30" } });
+    const hoursInput = await screen.findByLabelText("Hours", { exact: true });
+    const minutesInput = screen.getByLabelText("Minutes", { exact: true });
+    expect(hoursInput).toHaveValue(8);
+    expect(minutesInput).toHaveValue(0);
+    expect(hoursInput).toHaveAttribute("min", "1");
+    expect(hoursInput).toHaveAttribute("max", "23");
+    expect(minutesInput).toHaveAttribute("min", "0");
+    expect(minutesInput).toHaveAttribute("max", "59");
+    fireEvent.change(minutesInput, { target: { value: "30" } });
     fireEvent.click(screen.getByRole("button", { name: /save target/i }));
 
     expect(updateSleepTargetMutateAsyncMock).toHaveBeenCalledWith(510);
+  });
+
+  it("requires a valid duration before the target can be saved", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "pro@example.com" });
+    mockEmptySleepInsights();
+    renderRoute("/analytics/sleep");
+
+    const hoursInput = await screen.findByLabelText("Hours", { exact: true });
+    const minutesInput = screen.getByLabelText("Minutes", { exact: true });
+    const saveButton = screen.getByRole("button", { name: "Save target" });
+
+    fireEvent.change(hoursInput, { target: { value: "" } });
+    expect(saveButton).toBeDisabled();
+    fireEvent.change(hoursInput, { target: { value: "24" } });
+    expect(saveButton).toBeDisabled();
+    fireEvent.change(hoursInput, { target: { value: "7" } });
+    fireEvent.change(minutesInput, { target: { value: "60" } });
+    expect(saveButton).toBeDisabled();
+    expect(updateSleepTargetMutateAsyncMock).not.toHaveBeenCalled();
   });
 
   it("shows a target save failure", async () => {
