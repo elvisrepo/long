@@ -19,14 +19,22 @@ export const Route = createFileRoute("/analytics/sleep")({
 const DEFAULT_TARGET_MINUTES = 7 * 60 + 30;
 
 function SleepInsightsRoute() {
-  const [draftTargetMinutes, setDraftTargetMinutes] = useState<number | null>(
-    null,
-  );
+  const [draftTarget, setDraftTarget] = useState<{
+    hours: string;
+    minutes: string;
+  } | null>(null);
   const preferenceQuery = useSleepTargetPreferenceQuery();
   const updatePreferenceMutation = useUpdateSleepTargetPreferenceMutation();
   const savedTargetMinutes =
     preferenceQuery.data?.target_minutes ?? DEFAULT_TARGET_MINUTES;
-  const targetMinutes = draftTargetMinutes ?? savedTargetMinutes;
+  const targetHours =
+    draftTarget?.hours ?? String(Math.floor(savedTargetMinutes / 60));
+  const targetMinuteField =
+    draftTarget?.minutes ?? String(savedTargetMinutes % 60);
+  const parsedDraftTarget = draftTarget
+    ? parseDurationFields(targetHours, targetMinuteField)
+    : savedTargetMinutes;
+  const targetMinutes = parsedDraftTarget ?? savedTargetMinutes;
   const analyticsQuery = useSleepInsightsQuery(targetMinutes);
 
   if (preferenceQuery.isLoading || analyticsQuery.isLoading) {
@@ -59,9 +67,15 @@ function SleepInsightsRoute() {
   }
 
   async function saveTarget() {
+    if (
+      parsedDraftTarget === null ||
+      parsedDraftTarget === savedTargetMinutes
+    ) {
+      return;
+    }
     try {
-      await updatePreferenceMutation.mutateAsync(targetMinutes);
-      setDraftTargetMinutes(null);
+      await updatePreferenceMutation.mutateAsync(parsedDraftTarget);
+      setDraftTarget(null);
     } catch {
       // The mutation exposes its safe error message in the form below.
     }
@@ -95,24 +109,50 @@ function SleepInsightsRoute() {
         aria-label="Seven-night sleep insights"
       >
         <div className="sleep-target-control">
-          <label htmlFor="sleep-target">Nightly sleep target</label>
-          <input
+          <fieldset
             aria-describedby="sleep-target-help"
-            id="sleep-target"
-            max="23:59"
-            min="01:00"
-            onChange={(event) => {
-              const minutes = parseDurationInput(event.target.value);
-              if (minutes !== null) {
-                setDraftTargetMinutes(minutes);
-              }
-            }}
-            type="time"
-            value={formatDurationInput(targetMinutes)}
-          />
+            className="sleep-target-duration"
+          >
+            <legend>Nightly sleep target</legend>
+            <div className="sleep-target-fields">
+              <label>
+                Hours
+                <input
+                  inputMode="numeric"
+                  max="23"
+                  min="1"
+                  onChange={(event) =>
+                    setDraftTarget({
+                      hours: event.currentTarget.value,
+                      minutes: targetMinuteField,
+                    })
+                  }
+                  type="number"
+                  value={targetHours}
+                />
+              </label>
+              <label>
+                Minutes
+                <input
+                  inputMode="numeric"
+                  max="59"
+                  min="0"
+                  onChange={(event) =>
+                    setDraftTarget({
+                      hours: targetHours,
+                      minutes: event.currentTarget.value,
+                    })
+                  }
+                  type="number"
+                  value={targetMinuteField}
+                />
+              </label>
+            </div>
+          </fieldset>
           <button
             disabled={
               updatePreferenceMutation.isPending ||
+              parsedDraftTarget === null ||
               targetMinutes === savedTargetMinutes
             }
             onClick={() => void saveTarget()}
@@ -121,8 +161,9 @@ function SleepInsightsRoute() {
             {updatePreferenceMutation.isPending ? "Saving…" : "Save target"}
           </button>
           <p id="sleep-target-help">
-            Default 7h 30m. Preview changes immediately, then save the target to
-            your account. It is not a medical prescription.
+            Enter a duration in hours and minutes. Default 7h 30m. Preview
+            changes immediately; save the target to your account. It is not a
+            medical prescription.
           </p>
           {updatePreferenceMutation.isSuccess ? (
             <p className="sleep-target-success" role="status">
@@ -261,17 +302,24 @@ function SleepInsightsLoading() {
   );
 }
 
-function parseDurationInput(value: string): number | null {
-  const [hours, minutes] = value.split(":").map(Number);
-  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) {
+function parseDurationFields(hoursValue: string, minutesValue: string) {
+  if (hoursValue.trim() === "" || minutesValue.trim() === "") {
+    return null;
+  }
+  const hours = Number(hoursValue);
+  const minutes = Number(minutesValue);
+  if (
+    !Number.isInteger(hours) ||
+    !Number.isInteger(minutes) ||
+    hours < 1 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
     return null;
   }
   const totalMinutes = hours * 60 + minutes;
   return totalMinutes >= 60 && totalMinutes <= 1439 ? totalMinutes : null;
-}
-
-function formatDurationInput(totalMinutes: number): string {
-  return `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`;
 }
 
 function formatMinutes(totalMinutes: number): string {

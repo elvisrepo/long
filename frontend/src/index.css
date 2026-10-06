@@ -1871,8 +1871,8 @@ button {
 
 .sleep-target-control {
   display: grid;
-  grid-template-columns: auto 128px auto minmax(0, 1fr);
-  align-items: center;
+  grid-template-columns: minmax(0, 360px) auto;
+  align-items: end;
   gap: 12px;
   color: var(--text-dim);
 }
@@ -1884,7 +1884,34 @@ button {
   text-transform: none;
 }
 
-.sleep-target-control input {
+.sleep-target-duration {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.sleep-target-duration legend {
+  padding: 0 6px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.sleep-target-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.sleep-target-fields label {
+  display: grid;
+  gap: 5px;
+}
+
+.sleep-target-fields input {
+  width: 100%;
   min-width: 0;
 }
 
@@ -1900,6 +1927,7 @@ button {
 
 .sleep-target-control button {
   min-height: 44px;
+  width: 160px;
   white-space: nowrap;
 }
 
@@ -2314,6 +2342,17 @@ button {
 
   .sleep-target-control {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sleep-target-control button {
+    width: 100%;
+  }
+
+  .sleep-target-duration {
+    padding: 8px 12px 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
   }
 
   .sleep-shortfall-summary {

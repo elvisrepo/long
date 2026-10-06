@@ -561,6 +561,57 @@ async function mockApi(page: Page) {
   });
 }
 
+for (const width of [390, 1440]) {
+  test(`Sleep Insights uses aligned duration fields at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.addInitScript(() =>
+      localStorage.setItem("longevity-theme", "light"),
+    );
+    await mockApi(page);
+    await page.goto("/analytics/sleep");
+
+    await expect(
+      page.getByRole("heading", { name: "Sleep Insights", exact: true }),
+    ).toBeVisible();
+    const hours = page.getByLabel("Hours", { exact: true });
+    const minutes = page.getByLabel("Minutes", { exact: true });
+    await expect(hours).toHaveValue("7");
+    await expect(minutes).toHaveValue("30");
+    const hoursBox = (await hours.boundingBox())!;
+    const minutesBox = (await minutes.boundingBox())!;
+    expect(hoursBox.y).toBeCloseTo(minutesBox.y, 0);
+    const saveBox = (await page
+      .getByRole("button", { name: "Save target", exact: true })
+      .boundingBox())!;
+    const durationBox = (await page
+      .locator(".sleep-target-duration")
+      .boundingBox())!;
+    if (width > 680) {
+      expect(Math.abs(saveBox.width - hoursBox.width)).toBeLessThanOrEqual(24);
+      expect(saveBox.height).toBeCloseTo(hoursBox.height, 0);
+      expect(saveBox.y).toBeCloseTo(hoursBox.y, 0);
+    } else {
+      expect(saveBox.x).toBeCloseTo(durationBox.x, 0);
+      expect(saveBox.width).toBeCloseTo(durationBox.width, 0);
+    }
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+    await page.addStyleTag({
+      content:
+        '[aria-label="Open TanStack Router Devtools"] { display: none !important; }',
+    });
+    await page.screenshot({
+      path: `../playground/sleep-target-screenshots/target-${width}.png`,
+      fullPage: true,
+    });
+  });
+}
+
 for (const width of [320, 390, 1440]) {
   test(`recovery tracking and custom tools at ${width}px`, async ({
     page,

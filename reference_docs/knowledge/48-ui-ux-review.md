@@ -39,11 +39,13 @@ Retain the existing identity and all three themes. Light is the recommended
 reference for dense forms and tables; Dark and Sand remain supported choices.
 The review artifact matches the project's existing CSS tokens, not an external kit.
 
-The foundation is approved; later page-specific layout changes remain proposals:
+The foundation is approved; later page-specific layout changes are tracked below:
 
 1. Typography and shared controls, date alignment, modal keyboard fixes.
 2. Logging-first mobile layouts for Workouts, Diet, and Recovery.
-3. Charts, routine builder, calendar, nested navigation, and sleep-duration input.
+3. Cross-page polish: chart conventions, routine builder, calendar, and nested
+   navigation. The sleep-duration control and calendar layout refinements are
+   implemented; remaining work is not implied to be approved by this record.
 
 ### Shared foundation rules
 
@@ -89,6 +91,28 @@ These rules are implemented in `frontend/src/index.css`, feature styles, and
   may differ across the before/after captures; compare layout and controls.
 
 No API contracts, routes, schemas, or account data changed in this pass.
+
+### Sleep duration target input (implemented)
+
+- Replaced the native clock-time input with explicitly labeled Hours and Minutes
+  number fields. The supported range remains 1 hour through 23 hours 59 minutes.
+- Valid drafts preview immediately; incomplete or out-of-range durations cannot
+  be saved. The existing preference and analytics contracts continue to use
+  total minutes; no API, schema, or route changed.
+- Route tests cover the saved-value conversion, minute-based save, recalculation,
+  and invalid values. Playwright checks field alignment and page overflow at 390
+  and 1440 px.
+- Light-theme before/after captures are in the ignored
+  `.lavish/uiux-review/sleep-duration-before-after/` gallery.
+
+### Workout Calendar and Progress refinement (implemented)
+
+- Calendar filters use aligned responsive columns, and training/planned markers
+  share a compact line while the date button retains full accessible counts.
+- Progress tables have a responsive table style so records fit the mobile card
+  rather than inheriting the generic 360 px minimum width.
+- Live-backend browser checks passed at 320, 390, and 1440 px. The local Light
+  before/after gallery is `.lavish/uiux-review/calendar-progress-before-after/`.
 
 Separate dependency follow-up: font installation's audit reported two existing
 high-severity development-only dependency groups (`brace-expansion` via linting
