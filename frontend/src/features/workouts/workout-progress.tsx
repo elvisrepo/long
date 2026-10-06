@@ -116,7 +116,7 @@ export function WorkoutProgress({
   ].sort();
   return (
     <section className="workout-card">
-      <div className="workout-filters">
+      <div className="workout-filters workout-progress-filters">
         <label>
           Progress exercise
           <select
@@ -496,7 +496,7 @@ function ProgressCard({
           : "Observed records in this window"}
       </h4>
       <div className="workout-table-wrap">
-        <table>
+        <table className="workout-progress-table">
           <thead>
             <tr>
               <th scope="col">Measure</th>
@@ -547,7 +547,7 @@ function ProgressCard({
               : "Daily chart values"}
           </summary>
           <div className="workout-table-wrap">
-            <table>
+            <table className="workout-progress-table">
               <thead>
                 <tr>
                   <th scope="col">Date</th>

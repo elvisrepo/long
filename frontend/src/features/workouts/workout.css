@@ -73,6 +73,27 @@
   border-collapse: collapse;
   text-align: left;
 }
+.workout-table-wrap table.workout-progress-table {
+  min-width: 0;
+  table-layout: fixed;
+  overflow-wrap: anywhere;
+}
+.workout-progress-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.2fr) minmax(0, 0.9fr);
+  align-items: end;
+}
+.workout-progress-filters > label {
+  min-width: 0;
+}
+.workout-calendar-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  align-items: end;
+}
+.workout-calendar-filters > label {
+  min-width: 0;
+}
 .workout-table-wrap th,
 .workout-table-wrap td {
   padding: 0.5rem;
@@ -80,10 +101,16 @@
 }
 .workout-screen .workout-calendar-grid button {
   min-width: 0;
-  padding: 0.4rem 0.15rem;
+  padding: 0.25rem 0.1rem;
   display: grid;
-  gap: 0.15rem;
+  align-content: center;
+  gap: 0.1rem;
   overflow-wrap: anywhere;
+}
+.workout-calendar-grid button small {
+  font-size: 0.6875rem;
+  line-height: 1.15;
+  white-space: nowrap;
 }
 .workout-calendar-grid button[aria-pressed="true"] {
   border-color: var(--accent);
@@ -470,6 +497,26 @@
   }
   .workout-tabs button {
     padding: 0.55rem 0.7rem;
+  }
+  .workout-progress-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .workout-calendar-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .workout-calendar-filters > label:first-child {
+    grid-column: 1 / -1;
+  }
+  .workout-calendar-filters > button {
+    justify-self: start;
+  }
+  .workout-progress-filters > label:first-child {
+    grid-column: 1 / -1;
+  }
+  .workout-table-wrap table.workout-progress-table th,
+  .workout-table-wrap table.workout-progress-table td {
+    padding: 0.4rem 0.3rem;
+    font-size: 0.875rem;
   }
   .workout-training-sidebar .workout-stack {
     grid-template-columns: repeat(2, minmax(0, 1fr));

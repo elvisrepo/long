@@ -34,6 +34,9 @@ for (const width of [320, 390, 1440]) {
             (element) => element.scrollWidth <= element.clientWidth + 1,
           ),
         ).toBe(true);
+      await page.addStyleTag({
+        content: '[aria-label="Open TanStack Router Devtools"] { display: none !important; }',
+      });
       await page.screenshot({
         path: `../playground/workout-live-screenshots/${name}-${width}.png`,
         fullPage: true,
@@ -51,6 +54,7 @@ for (const width of [320, 390, 1440]) {
     await expect(
       page.getByRole("heading", { name: /dashboard/i }),
     ).toBeVisible();
+    await page.getByLabel("Color theme").selectOption("light");
     const menu = page.getByRole("button", { name: "Menu", exact: true });
     if (await menu.isVisible()) await menu.click();
     await page.getByRole("link", { name: "Workouts", exact: true }).click();
@@ -321,6 +325,12 @@ for (const width of [320, 390, 1440]) {
     await expect(
       page.getByRole("cell", { name: "80 kg", exact: true }),
     ).toHaveCount(0);
+    expect(
+      await page
+        .locator(".workout-table-wrap")
+        .first()
+        .evaluate((element) => element.scrollWidth <= element.clientWidth + 1),
+    ).toBe(true);
     await page.getByRole("button", { name: "Calendar", exact: true }).click();
     await expect(
       page.getByRole("button", {

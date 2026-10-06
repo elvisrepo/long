@@ -89,7 +89,10 @@ export function WorkoutCalendar({
           →
         </button>
       </div>
-      <div className="workout-toolbar" aria-label="Calendar filters">
+      <div
+        className="workout-toolbar workout-calendar-filters"
+        aria-label="Calendar filters"
+      >
         <label>
           Calendar exercise
           <select
@@ -203,11 +206,13 @@ export function WorkoutCalendar({
                   onClick={() => navigate({ view: "home", date: day })}
                 >
                   <span>{n + 1}</span>
-                  {trained > 0 && (
-                    <small title="Training sessions">T{trained}</small>
-                  )}
-                  {planned > 0 && (
-                    <small title="Planned sessions">P{planned}</small>
+                  {(trained > 0 || planned > 0) && (
+                    <small title="Training and planned sessions">
+                      {[
+                        ...(trained > 0 ? [`T${trained}`] : []),
+                        ...(planned > 0 ? [`P${planned}`] : []),
+                      ].join(" · ")}
+                    </small>
                   )}
                 </button>
               );
