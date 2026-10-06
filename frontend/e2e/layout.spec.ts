@@ -109,7 +109,7 @@ test("workout completion labels meet text contrast in all themes", async ({
 }) => {
   await page.goto("/workouts");
   const ratios: Record<string, number[]> = {};
-  for (const theme of ["dark", "light", "sand"]) {
+  for (const theme of ["dark", "light"]) {
     await page.getByLabel("Color theme").selectOption(theme);
     ratios[theme] = await page.evaluate(() => {
       const root = document.querySelector("main")!;
@@ -317,7 +317,7 @@ test("dashboard icon controls keep square touch targets", async ({ page }) => {
   }
 });
 
-for (const theme of ["dark", "light", "sand"]) {
+for (const theme of ["dark", "light"]) {
   for (const width of [320, 390, 1440]) {
     test(`${theme} shared controls align across tracking pages at ${width}px`, async ({
       page,
@@ -1033,18 +1033,16 @@ test("theme switch persists across pages and reloads, including authentication",
     "background-color",
     "rgb(245, 247, 248)",
   );
-  await selector.selectOption("sand");
-  await expect(root).toHaveAttribute("data-theme", "sand");
-  await expect(page.locator("body")).toHaveCSS(
-    "background-color",
-    "rgb(228, 219, 204)",
-  );
+  await expect(selector.locator("option")).toHaveCount(2);
+  await selector.selectOption("dark");
+  await expect(root).toHaveAttribute("data-theme", "dark");
+  await selector.selectOption("light");
   await page.reload();
-  await expect(root).toHaveAttribute("data-theme", "sand");
+  await expect(root).toHaveAttribute("data-theme", "light");
   for (const path of ["/metrics", "/settings", "/login", "/register"]) {
     await page.goto(path);
-    await expect(selector).toHaveValue("sand");
-    await expect(root).toHaveAttribute("data-theme", "sand");
+    await expect(selector).toHaveValue("light");
+    await expect(root).toHaveAttribute("data-theme", "light");
   }
   await selector.selectOption("dark");
   await expect(root).toHaveAttribute("data-theme", "dark");
@@ -1068,8 +1066,16 @@ test("theme remains usable when browser storage is unavailable", async ({
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page
     .getByRole("combobox", { name: "Color theme" })
-    .selectOption("sand");
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "sand");
+    .selectOption("light");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+});
+
+test("legacy Sand preference falls back to Dark", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("longevity-theme", "sand"));
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.getByLabel("Color theme")).toHaveValue("dark");
+  await expect(page.getByLabel("Color theme").locator("option")).toHaveCount(2);
 });
 
 const views = [
@@ -1090,7 +1096,6 @@ const layoutCases = [
     theme: "dark",
   })),
   ...[320, 768, 1440].map((width) => ({ width, theme: "light" })),
-  ...[320, 768, 1440].map((width) => ({ width, theme: "sand" })),
 ];
 for (const { width, theme } of layoutCases) {
   test(`${theme} signed-in pages share responsive alignment at ${width}px`, async ({
@@ -1188,7 +1193,6 @@ for (const { width, theme } of layoutCases) {
 for (const { width, theme } of [
   ...[320, 768, 1440].map((width) => ({ width, theme: "dark" })),
   ...[320, 1440].map((width) => ({ width, theme: "light" })),
-  ...[320, 1440].map((width) => ({ width, theme: "sand" })),
 ]) {
   test(`${theme} auth pages and dialogs fit the viewport at ${width}px`, async ({
     page,
@@ -1233,7 +1237,7 @@ for (const { width, theme } of [
       if (theme !== "dark") {
         await expect(dialog).toHaveCSS(
           "background-color",
-          theme === "sand" ? "rgb(239, 231, 218)" : "rgb(255, 255, 255)",
+          "rgb(255, 255, 255)",
         );
         await page.screenshot({
           path: testInfo.outputPath(`${action.replaceAll(" ", "_")}.png`),

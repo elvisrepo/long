@@ -369,7 +369,7 @@ for (const width of [320, 390, 1440])
     await expect(
       page.getByRole("heading", { name: "Upper body", exact: true }),
     ).toBeVisible();
-    for (const theme of ["light", "sand"]) {
+    for (const theme of ["dark", "light"]) {
       await page.getByLabel("Color theme").selectOption(theme);
       expect(
         await page.evaluate(

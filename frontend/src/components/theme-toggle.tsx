@@ -12,7 +12,6 @@ export function ThemeToggle() {
     >
       <option value="dark">Dark</option>
       <option value="light">Light</option>
-      <option value="sand">Sand</option>
     </select>
   );
 }

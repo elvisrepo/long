@@ -2,7 +2,7 @@
 try {
   const savedTheme = localStorage.getItem("longevity-theme");
   document.documentElement.dataset.theme =
-    savedTheme === "light" || savedTheme === "sand" ? savedTheme : "dark";
+    savedTheme === "light" ? "light" : "dark";
 } catch {
   document.documentElement.dataset.theme = "dark";
 }
