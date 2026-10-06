@@ -326,7 +326,7 @@
 .workout-status--finished,
 .workout-status--completed {
   background: var(--accent-dim);
-  color: var(--accent);
+  color: var(--text);
 }
 .workout-status--in-progress,
 .workout-status--planned {
@@ -370,7 +370,7 @@
 .workout-calendar-key-marker.training,
 .workout-calendar-count.training {
   background: var(--accent-dim);
-  color: var(--accent);
+  color: var(--text);
 }
 .workout-calendar-key-marker.planned,
 .workout-calendar-count.planned {

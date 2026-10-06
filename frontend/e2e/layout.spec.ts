@@ -74,11 +74,7 @@ test("custom metric modal contains keyboard focus and restores its opener", asyn
   for (let i = 0; i < 16; i++) {
     await page.keyboard.press("Tab");
     expect(
-      await dialog.evaluate(
-        (el) =>
-          el.contains(document.activeElement) ||
-          document.activeElement === document.body,
-      ),
+      await dialog.evaluate((el) => el.contains(document.activeElement)),
       "Tab must not reach background controls",
     ).toBe(true);
   }
@@ -100,16 +96,93 @@ test("metric deactivation modal contains focus and restores its opener", async (
   for (let i = 0; i < 10; i++) {
     await page.keyboard.press("Shift+Tab");
     expect(
-      await dialog.evaluate(
-        (el) =>
-          el.contains(document.activeElement) ||
-          document.activeElement === document.body,
-      ),
+      await dialog.evaluate((el) => el.contains(document.activeElement)),
     ).toBe(true);
   }
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
   await expect(opener).toBeFocused();
+});
+
+test("workout completion labels meet text contrast in all themes", async ({
+  page,
+}) => {
+  await page.goto("/workouts");
+  const ratios: Record<string, number[]> = {};
+  for (const theme of ["dark", "light", "sand"]) {
+    await page.getByLabel("Color theme").selectOption(theme);
+    ratios[theme] = await page.evaluate(() => {
+      const root = document.querySelector("main")!;
+      const fixture = document.createElement("div");
+      fixture.className = "workout-screen";
+      fixture.innerHTML = `
+        <div style="background: var(--surface)">
+          <span class="workout-badge workout-status workout-status--completed">Completed</span>
+        </div>
+        <div class="workout-calendar-grid">
+          <button aria-pressed="false"><small><span class="workout-calendar-count training">T1</span></small></button>
+          <button aria-pressed="true"><small><span class="workout-calendar-count training">T1</span></small></button>
+        </div>`;
+      root.append(fixture);
+      const luminance = (color: string) => {
+        const values = color
+          .match(/[\d.]+/g)!
+          .slice(0, 3)
+          .map(Number);
+        const linear = values.map((channel) => {
+          const normalized = channel / 255;
+          return normalized <= 0.04045
+            ? normalized / 12.92
+            : ((normalized + 0.055) / 1.055) ** 2.4;
+        });
+        return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+      };
+      const effectiveBackground = (element: HTMLElement) => {
+        const composite = (front: number[], back: number[]) => {
+          const alpha = front[3] ?? 1;
+          return [0, 1, 2].map(
+            (index) => front[index] * alpha + back[index] * (1 - alpha),
+          );
+        };
+        let background = [255, 255, 255];
+        const ancestors: HTMLElement[] = [];
+        for (
+          let node: HTMLElement | null = element;
+          node;
+          node = node.parentElement
+        )
+          ancestors.push(node);
+        for (const node of ancestors.reverse()) {
+          const color = getComputedStyle(node).backgroundColor;
+          const channels = color.match(/[\d.]+/g)?.map(Number);
+          if (channels) background = composite(channels, background);
+        }
+        return `rgb(${background.map(Math.round).join(", ")})`;
+      };
+      const targets = [
+        ...fixture.querySelectorAll<HTMLElement>(
+          ".workout-status--completed, .workout-calendar-count.training",
+        ),
+      ];
+      const ratios = targets.map((element) => {
+        const style = getComputedStyle(element);
+        const foreground = luminance(style.color);
+        const background = luminance(effectiveBackground(element));
+        return (
+          (Math.max(foreground, background) + 0.05) /
+          (Math.min(foreground, background) + 0.05)
+        );
+      });
+      fixture.remove();
+      return ratios;
+    });
+  }
+  for (const [theme, themeRatios] of Object.entries(ratios)) {
+    expect(
+      Math.min(...themeRatios),
+      `${theme} workout status text contrast`,
+    ).toBeGreaterThanOrEqual(4.5);
+  }
 });
 
 test("UI fonts are loaded locally instead of relying on system fallbacks", async ({

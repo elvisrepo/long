@@ -20,8 +20,38 @@ export function Modal({
   useEffect(() => {
     const opener = document.activeElement;
     const dialog = ref.current!;
+    const containTabFocus = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter(
+        (element) =>
+          element.tabIndex >= 0 &&
+          element.getClientRects().length > 0 &&
+          getComputedStyle(element).visibility !== "hidden",
+      );
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      const outside = !dialog.contains(active);
+
+      if (!first) {
+        event.preventDefault();
+        dialog.focus();
+      } else if (event.shiftKey && (outside || active === first)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (outside || active === last)) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", containTabFocus, true);
     dialog.showModal();
     return () => {
+      document.removeEventListener("keydown", containTabFocus, true);
       dialog.close();
       if (opener instanceof HTMLElement) opener.focus();
     };
