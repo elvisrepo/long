@@ -5,7 +5,15 @@
 - Use the target-state ERD separately for planned Stripe, wearable-sync, and audit tables.
 
 ## Scope
-- `User`, `MetricDefinition`, `MetricEntry`, `WearableConnection`, `SyncRun`, `SubscriptionPlan`, `SubscriptionPrice`, `BillingCustomer`, `Subscription`, `CheckoutAttempt`, and `StripeWebhookEvent` are implemented domain tables.
+- Workout backend migrations add six tables to the prior 16-table checkpoint:
+  `WorkoutCatalogState`, `ExerciseCategory`, `Exercise`, `Workout`,
+  `WorkoutExercise`, `WorkoutSet` (22 domain model tables). `workouts.0004` adds
+  `WorkoutRoutine`, `RoutineDay`, `RoutineExercise`, `RoutineSet`, making **26**.
+  Basic frontend/routines are implemented locally; advanced planning/analysis
+  remain pending. See [Workout tracking](../47-workout-tracking.md).
+- The 2026-10-01 pre-workout checkpoint had 16 tables, including `DietSection`, `DietFood` and `DietEntry`. See [Diet before/after comparison](diet-erd-comparison.md) with the three additions green; ownership/archive rules are in [Diet tracking](../46-diet-tracking.md).
+- `User`, `MetricDefinition`, `MetricEntry`, `WearableConnection`, `SyncRun`, `SubscriptionPlan`, `SubscriptionPrice`, `BillingCustomer`, `Subscription`, `CheckoutAttempt`, `StripeWebhookEvent`, `RecoveryTool`, and `RecoveryEntry` are implemented domain tables.
+- See [recovery before/after ERD comparison](recovery-erd-comparison.md) for model-derived field maps, with the two new recovery tables highlighted green.
 - Registration creates an explicit active free subscription, and metric limits resolve through the current subscription's plan.
 - Django framework tables such as auth groups, permissions, sessions, admin logs, and JWT token blacklist tables are intentionally omitted.
 
@@ -18,6 +26,169 @@ erDiagram
     USER ||--o{ WEARABLE_CONNECTION : connects
     METRIC_DEFINITION ||--o{ METRIC_ENTRY : classifies
     WEARABLE_CONNECTION ||--o{ SYNC_RUN : receives
+    WEARABLE_CONNECTION o|--o{ METRIC_ENTRY : "source connection"
+    USER o|--o{ RECOVERY_TOOL : "owns custom tools"
+    USER ||--o{ RECOVERY_ENTRY : "checks off"
+    RECOVERY_TOOL ||--o{ RECOVERY_ENTRY : "tracked daily"
+    USER ||--o{ DIET_SECTION : "owns sections"
+    DIET_SECTION ||--o{ DIET_FOOD : "contains foods"
+    USER ||--o{ DIET_ENTRY : "records eating"
+    DIET_FOOD ||--o{ DIET_ENTRY : "checked daily"
+    USER ||--o| WORKOUT_CATALOG_STATE : "initializes once"
+    USER ||--o{ EXERCISE_CATEGORY : "owns catalog"
+    EXERCISE_CATEGORY ||--o{ EXERCISE : contains
+    USER ||--o{ WORKOUT : records
+    WORKOUT ||--o{ WORKOUT_EXERCISE : orders
+    EXERCISE ||--o{ WORKOUT_EXERCISE : "historical reference"
+    WORKOUT_EXERCISE ||--o{ WORKOUT_SET : logs
+    USER ||--o{ WORKOUT_ROUTINE : "owns templates"
+    WORKOUT_ROUTINE ||--o{ ROUTINE_DAY : organizes
+    ROUTINE_DAY ||--o{ ROUTINE_EXERCISE : orders
+    EXERCISE ||--o{ ROUTINE_EXERCISE : "frozen template reference"
+    ROUTINE_EXERCISE ||--o{ ROUTINE_SET : plans
+
+    WORKOUT_ROUTINE {
+        uuid id PK
+        uuid user_id FK
+        string name "unique per owner, including archives"
+        string notes
+        integer display_order
+        boolean is_active
+    }
+    ROUTINE_DAY {
+        uuid id PK
+        uuid routine_id FK
+        string name "unique per routine"
+        string notes "instructions copied to session"
+        integer display_order
+    }
+    ROUTINE_EXERCISE {
+        uuid id PK
+        uuid day_id FK
+        uuid exercise_id FK "RESTRICT; owner must match"
+        string exercise_name "snapshot"
+        string group_name "local day label; blank means ungrouped"
+        string group_colour "hex colour snapshot; default #007f68"
+        string category_name "snapshot"
+        string tracking_type "snapshot"
+        string weight_unit "snapshot"
+        string distance_unit "snapshot"
+        integer display_order
+    }
+    ROUTINE_SET {
+        uuid id PK
+        uuid routine_exercise_id FK
+        integer display_order
+        decimal weight "nullable; nonnegative"
+        integer reps "nullable; positive"
+        decimal distance "nullable; positive"
+        integer duration_seconds "nullable; positive"
+    }
+
+    WORKOUT_CATALOG_STATE {
+        uuid user_id PK,FK
+        datetime initialized_at
+    }
+
+    EXERCISE_CATEGORY {
+        uuid id PK
+        uuid user_id FK
+        string name "case-insensitive unique per user"
+        integer display_order
+        boolean is_active
+    }
+
+    EXERCISE {
+        uuid id PK
+        uuid category_id FK
+        string name "case-insensitive unique per category"
+        string tracking_type
+        string weight_unit "kg or lb"
+        string distance_unit "km or mi"
+        string notes
+        decimal weight_increment
+        integer rest_seconds
+        integer display_order
+        boolean is_active
+    }
+
+    WORKOUT {
+        uuid id PK
+        uuid user_id FK
+        date performed_on "multiple sessions allowed"
+        string name
+        string notes
+        boolean is_finished "not set completion"
+        datetime created_at
+    }
+
+    WORKOUT_EXERCISE {
+        uuid id PK
+        uuid workout_id FK
+        uuid exercise_id FK "RESTRICT; owner must match"
+        string exercise_name "snapshot"
+        string group_name "local session label; blank means ungrouped"
+        string group_colour "hex colour snapshot; default #007f68"
+        string category_name "snapshot"
+        string tracking_type "snapshot"
+        string weight_unit "snapshot"
+        string distance_unit "snapshot"
+        integer display_order
+    }
+
+    WORKOUT_SET {
+        uuid id PK
+        uuid workout_exercise_id FK
+        integer display_order
+        decimal weight "nullable; nonnegative"
+        integer reps "nullable; positive"
+        decimal distance "nullable; positive"
+        integer duration_seconds "nullable; positive"
+        string comment
+        boolean is_completed "only performed sets count"
+    }
+
+    DIET_SECTION {
+        uuid id PK
+        uuid user_id FK
+        string name "case-insensitive unique per user"
+        integer display_order
+        boolean is_active
+    }
+
+    DIET_FOOD {
+        uuid id PK
+        uuid section_id FK
+        string name "case-insensitive unique per section"
+        integer display_order
+        boolean is_active
+    }
+
+    DIET_ENTRY {
+        bigint id PK
+        uuid user_id FK
+        uuid food_id FK
+        date performed_on "unique per user and food"
+        datetime created_at
+    }
+
+    RECOVERY_TOOL {
+        uuid id PK
+        uuid user_id FK "nullable for shared tools"
+        string slug "unique for shared tools"
+        string name
+        string description
+        integer display_order
+        boolean is_active
+    }
+
+    RECOVERY_ENTRY {
+        bigint id PK
+        uuid user_id FK
+        uuid tool_id FK
+        date performed_on "unique per user and tool"
+        datetime created_at
+    }
 
     USER {
         uuid id PK
@@ -28,6 +199,7 @@ erDiagram
         boolean is_active
         boolean is_staff
         boolean is_superuser
+        integer sleep_target_minutes
     }
 
     METRIC_DEFINITION {
@@ -49,10 +221,12 @@ erDiagram
         uuid user_id FK
         uuid metric_definition_id FK
         float value
+        datetime period_start "nullable"
         datetime recorded_at
         string source
         uuid source_connection_id FK "nullable"
         string external_source_id "nullable, unique per source connection"
+        datetime source_record_modified_at "nullable"
         json context
         datetime created_at
     }
@@ -79,6 +253,7 @@ erDiagram
         datetime processing_started_at "nullable"
         datetime finished_at "nullable"
         integer entries_imported
+        integer entries_updated
         integer entries_skipped
         string error_code
         json error_detail
@@ -101,10 +276,12 @@ erDiagram
         string code UK "free|pro|premium"
         string name
         integer active_custom_metric_limit
+        boolean automatic_sync_enabled
         integer sync_interval_minutes
         integer wearable_connection_limit
         boolean analytics_enabled
         boolean csv_import_enabled
+        boolean csv_export_enabled
         boolean is_default
         boolean is_active
         datetime created_at
@@ -131,6 +308,7 @@ erDiagram
         string provider_subscription_id UK "nullable"
         datetime current_period_start "nullable"
         datetime current_period_end "nullable"
+        datetime cancel_at "nullable"
         boolean cancel_at_period_end
         datetime cancelled_at "nullable"
         datetime created_at

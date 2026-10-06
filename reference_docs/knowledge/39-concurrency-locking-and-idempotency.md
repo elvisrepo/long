@@ -7,6 +7,18 @@
 - You are changing rotating JWT refresh behavior in the browser or Android client.
 - You need to decide whether a problem should be solved with database locking, optimistic locking, idempotency keys, or a combination.
 
+## Missing historical Stripe Checkout receipts (September 30, 2026)
+
+Checkout reconciliation handles only `InvalidRequestError` with HTTP 404 and
+`resource_missing` as potentially retired history. A saved BillingCustomer is
+required, and the receipt must be confirmed or a completed sandbox attempt at
+least 90 days old. Recent/unresolved attempts remain conflicts; the legacy
+exception never applies to live keys. Before retiring any such receipt, all other
+attempts and every page of the customer's Stripe subscriptions are verified.
+Any nonterminal subscription, ownership mismatch or provider error blocks a new
+purchase. Successful verification marks missing history expired under the user
+row lock, preserving its session ID for audit rather than deleting the record.
+
 ## Core Terms
 
 Race condition:

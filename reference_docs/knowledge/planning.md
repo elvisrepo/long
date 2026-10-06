@@ -129,10 +129,13 @@ We derived entities from the functional requirements by asking: *"What data must
 #### User & Profile (JWT required)
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
-| GET | `/api/v1/me/` | Current user profile | |
-| PATCH | `/api/v1/me/` | Update profile (partial) | PATCH not PUT — only send fields to change |
-| GET | `/api/v1/me/export/` | GDPR data export | Returns 202 Accepted, async job |
-| DELETE | `/api/v1/me/` | GDPR account deletion | Idempotent — repeated calls return 204 |
+| GET | `/api/auth/me/` | Current user email | Implemented |
+| PATCH | `/api/v1/me/` | Update profile (partial) | Planned; not implemented |
+| GET | `/api/v1/me/export/` | Account-wide app data export | Local streaming JSON attachment, `200`, every plan |
+| DELETE | `/api/v1/me/` | Delete live app account | Local password-confirmed `204` after immediate Stripe cancellation; provider failures return `502`, unverified checkout receipts return `409`; old credentials subsequently return `401` |
+
+The current lifecycle contract, included data, and outstanding billing/provider/
+backup work are defined in `reference_docs/knowledge/03-api-design.md`.
 
 #### Metrics (JWT required)
 | Method | Endpoint | Description | Notes |

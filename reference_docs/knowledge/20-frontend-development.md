@@ -1,10 +1,278 @@
 ## 5. Frontend Development (Parallel from R1)
 
+### Workout log (October 2, 2026, local)
+
+Combined cardio goals (2026-10-05): Exercise overview → Goals → New goal →
+Distance within a time limit. Use minimum distance in saved km/mi and time-limit
+minutes/seconds (1 second–7 days); create supplies both fields and edit follows
+the goal's frozen kind/units even after library archive/type/unit changes. Cards
+show both thresholds, the weaker ratio's progress and the actual source distance/
+time/date, with Open supporting set. Source-less combined goals show zero and no
+invented scalar best. Duration-only goals still mean at least that long. Combined
+goals explicitly require one full completed set, without splits or extrapolation.
+Error/input retention, pending locks, removal confirmation and owner cache refresh
+remain shared with existing goals. No new frontend route.
+
+Bulk history editing (2026-10-05): Training → Exercise history and library Exercise
+overview → History use a shared Edit multiple sets dialog. Select up to 100 loaded
+sets, choose shared quantities/completion/comment changes or deletion, then review
+before/after rows and explicitly confirm. Numeric inputs use frozen type/units;
+mixed partitions disable them but allow comment/completion changes. Blank numbers
+mean unchanged; comment clearing requires an explicit checkbox. Back retains
+entered changes without carrying numeric drafts into a different type/unit partition.
+Duplicate occurrences have separate IDs and entry/set labels. Finished rows are
+visible but disabled until reopened from their workout. Reviewed snapshots are
+frozen across refetches; pending writes lock all controls. Failed previews retain
+errors and disable confirmation until refresh/review. Successful batches invalidate
+the private owner workout query prefix, updating history, statistics, graphs and
+goals. They never auto-start rest or advance a superset. Delete is permanent for
+sets/comments only. Selection does not cover unseen pages. No frontend route change.
+
+Metric goals (2026-10-05): Overview → Goals enables active bodyweight/cardio/timed
+catalog entries as well as strength. New goal choices follow library type; editing
+always follows the saved goal type and units even after catalog changes. Bodyweight
+reps, cardio distance/duration/speed and timed duration use explicit-unit number
+fields; pace uses minutes and seconds per saved km/mi. Supporting-set navigation
+reuses the logged workout/occurrence route. Higher is better except pace; ratio
+progress is informational and display rounding never determines achievement.
+Existing strength forms, source links, pending/error handling and removal confirmation
+remain. Archived goals remain editable but cannot be newly created. No new route.
+
+Workout duration (2026-10-03): shared controls in Home session cards and Training
+offer explicit Start/Resume/Pause and Correct duration, with hours/minutes/seconds
+or Clear duration. Finished workouts disable start/resume but allow correction.
+Untimed historical/planned logs show Not tracked, not zero. Writes use existing
+owner-scoped invalidation/pending locks; errors advise refresh before retry and do
+not invent successful state. A running display uses server clock calibration and
+recomputes on ticks/visibility; refresh reads persisted server state. It is not a
+background alarm. Rest counts unless paused; Finish stops, Reopen leaves paused.
+Timing is per session, so starting one does not automatically stop another.
+CSV/text exports report the loaded server elapsed snapshot and running state.
+
+Home session cards offer Export workout with a read-only summary preview. CSV
+download and clipboard copy are explicit local actions over the loaded full session
+snapshot; no new query/mutation or public sharing service is involved. Notes and
+comments default off. Planned/completed sets, empty/duplicate occurrences and frozen
+units remain; no unit conversion occurs. CSV protects text from spreadsheet formula
+interpretation and includes UTF-8 BOM. Clipboard denial offers manual preview copy;
+download errors are retryable. This CSV is not a full-account backup/import format.
+
+Selective copying uses a shared dialog from calendar source selection, Home
+session cards and History. Default selection includes all occurrences/sets;
+individual occurrence and set checkboxes support duplicate library exercises
+independently. Clear/select-all, editable destination and exercise-only selections
+are supported. Preview lists only chosen values and groups without source notes
+or comments; only explicit confirmation creates planned work. Source order and
+snapshot units remain. Pending saves lock controls; errors retain preview and
+selection for retry; cancel and source browsing never write. Basic full copy
+remains backward-compatible when the API selection field is absent.
+
+`view=overview` uses a library exercise UUID. Library details and Training offer
+Exercise overview buttons. Statistics, History, Graphs, Records and Goals tabs
+reuse existing query/graph/source flows. Statistics use a completed-only SQL
+summary through the tracking date; History shows a paginated 90-day window,
+including plans and comments for only the selected exercise. Records start in
+all-time mode. Strength goal creation supports active strength entries; targets have an
+explicit at-least/exact rep rule and retain saved units. Progress uses actual
+completed lifts, and supporting-lift buttons open their saved workout occurrence.
+Metric goals are implemented by the extension above; unchanged pace saves preserve
+the original decimal target even when the displayed seconds were rounded.
+Goal save/remove dialogs retain failed input/errors and wait for server confirmation.
+All overview/goal caches use the owner-scoped workouts prefix and invalidate on
+workout/goal writes. Date controls preserve the chosen library exercise.
+
+Daily-use preferences now persist per account: automatic rest start, group auto-advance and explicit unit-specific bar/plate defaults. Saving equipment does not create sets; pending saves disable inventory editing and failures remain visible. Library favorites and multi-word search coexist with category/archive filters; usage hints count completed sessions. Exercise editing offers a default graph; an incompatible default falls back safely to the current exercise's graph options. Browser-side countdowns still do not provide background notifications.
+
+Authenticated `/workouts` now connects to the real backend on every plan. Home,
+All exercises, Training and History share URL-backed view/date/session selection.
+Start explicitly initializes editable starter samples once; ordinary reads do not
+seed. The library supports category/exercise creation, search, numeric ordering,
+editing and archive/restore. Training uses saved occurrence type/units for fields,
+not current library defaults; it supports planned/completed sets, comments,
+edit/delete, repeat entry and an explicit previous-set suggestion when available.
+Finished sessions must reopen before edits. Session name/date/notes and copying
+are available from Home; History browses a paginated 90-day window and filters by
+exercise. Exercise history includes the current session with Back to Track and
+one Open exercise button per other workout, plus a fully paginated history link.
+
+All exercises is now browsing-only: clicking a row opens notes/type/units and
+History/Progress links. The tab clears prior workout context. Start new workout
+on Home explicitly creates a session; Add exercise on a session enters selection
+mode. An already-present exercise is labelled Open and reuses its entry, preferring
+one with logged sets. Existing duplicates are never automatically deleted.
+Overview exercise cards and the Training sidebar expose Remove exercise with a
+confirmation explaining permanent set deletion and retained catalog/other sessions.
+Finished sessions must reopen first; failed removal retains its dialog and error.
+Progress keeps completed-only calculations and explicitly names planned-only dates
+for the selected exercise that are not plotted.
+
+The seven-day strip always ends today, independently of the selected tracking
+date. Dashboard Recovery/Diet/Workouts summaries share a compact three-column row,
+stacking below 681px; workouts count completed sets and distinct trained days,
+excluding planned-only sessions. Pending writes disable controls and errors retain
+input without claiming success. Successful writes invalidate owner-scoped reads.
+Dark/Light/Sand tokens and mobile layouts are reused. Direct templates, groups,
+visual rest timer, calculators, windowed charts/records and month calendar are
+implemented locally. Calculation inputs and the running countdown are temporary;
+timer/advance preferences and explicitly saved equipment defaults persist per account.
+See `47-workout-tracking.md`.
+
+Routines now have their own Workouts subview (`view=routines`), not a separate
+top-level tab. Home sessions offer Save as routine day, either into a new routine,
+as another named day, or explicitly replacing an existing template. Routine/day
+metadata supports notes and numeric ordering; routine archive/restore retains
+templates, while confirmed day removal retains previously created sessions. Start
+opens a read-only preview for the selected calendar date before creating a planned,
+independent session. Preview supports exercise/set selection and explicit, off-by-default
+carry-forward for blank fields, with source dates/fields and explanations for unmatched
+history. Fixed values stay fixed; quantities can be edited after starting. Owner/date/mode
+scope the preview cache. Pending reads/writes lock controls; failed creation requires
+explicit Refresh preview while retaining selection. Stale server plans cannot silently
+start with changed values. Cancellation and preview GET never create workouts.
+The Routines view explicitly distinguishes a training plan (routine) from its
+workout templates (routine days), using Push / Pull / Legs as an example. Cards
+show template/exercise/planned-set counts. Add workout template creates an empty
+template and opens its exercise editor only after server confirmation, without
+creating a Workout. Empty templates explain the disabled Start and offer Add
+exercises; populated templates offer Edit template. Numeric ordering fields have
+accessible explanations: lower values come first, and order is not a count/date.
+Edit template directly manages exercises, planned sets and numeric ordering. Capture/replacement
+from saved sessions remains available. Exact group labels link occurrences within
+the day/session. Session Training sidebar now exposes Add to group / Edit group:
+pick/join existing groups or create an editable `Superset N`, include the current
+exercise automatically, choose colour and select workout/library members. Library
+additions are drafts until one atomic Save. Edit, remove-current or confirmed delete
+preserves exercises/sets. Matching coloured bars identify members in the sidebar
+and Home overview. Next-member cycling defaults on (optional off) and wraps in
+saved workout order after confirmed new completion. Failed modal writes keep their
+inputs and show errors inside the modal. A confirmed routine ID is retained when
+day creation fails, avoiding duplicate routines on retry.
+
+Cardio graph follow-up (2026-10-03): Max speed and Best pace are available in
+windowed/all-time Progress, Exercise overview and saved graph defaults. Positive
+distance/time must be paired within a completed cardio set; per-date speed takes
+the maximum, pace the minimum. Units stay separate (km/h versus mi/h, min/km versus
+min/mi). Pace values are decimal minutes internally and shown as minutes:seconds,
+rounded to a whole second in axes/details/tables. Best pace's title explicitly says
+lower is faster. A graph note explains the formulas, single-set (not workout-average)
+selection and lack of terrain/route/interval adjustment. Missing pairs are ineligible.
+
+Calendar filters (2026-10-03) apply locally to the fully loaded month and the shared
+copy-source picker. Exercise/category criteria match the same occurrence; categories
+use frozen saved names, with choices from the displayed month's recorded history
+including archived exercises. Selected choices remain available across month changes.
+Status is All workouts, Completed training or Planned only / empty drafts. With
+exercise/category filters, training requires a completed set in a matching occurrence;
+otherwise it uses the full session's completed count. Finished flags do not decide
+training. Duplicated occurrences count as one session. Reset restores all markers;
+no-match and read-error states differ, and controls lock while fetching/busy.
+Filters are transient UI state, not URL/account settings, and reset on leaving the
+calendar (including entering the copy selection step). Opening a date shows all
+workouts; the picker shows matching sessions but passes complete source objects to
+the separate exercise/set selection dialog, never silently trims copied work.
+Filtering causes no writes or additional history reads and preserves the destination.
+
+`view=calendar` reads the selected month and drills into Home dates; completed
+training and plans are distinct. `view=progress` uses the owned library `exercise`
+UUID, a 30/90/180/365-day window ending on the selected date, and safely paginated
+session reads. Completed sets derive windowed records/charts, separated by frozen
+type/units and recomputed after writes. Tables expose exact chart/record values.
+Charts show a zero-based numeric axis with saved-unit labels and horizontal
+gridlines. Tick spacing uses bounded 1/2/5 multiples (0–80 kg uses 10 kg ticks),
+with decimal/large/all-zero ranges handled without changing saved quantities.
+The Graph selector offers strength Estimated 1RM, Max weight/reps/volume, Max weight
+for an exact rep count, Workout volume/reps and windowed Personal records. Bodyweight
+offers reps and recorded external load, without inventing body mass; cardio/duration
+offer distance/time. Max graphs aggregate by date. Workout totals sum only this
+exercise within each session (including duplicate occurrences), retaining separate
+same-day sessions. Volume is load × reps in kg·reps or lb·reps. Estimated 1RM reuses
+the calculator's Epley formula, but graph estimates only include positive loads
+with 1–10 reps, rounded to three decimals for display. Higher-rep sets remain in
+other graphs. Point details retain the source weight/reps of the winning daily
+estimate (ties keep the first source). The note explains higher-rep exclusion and
+that reps left in reserve are not accounted for; estimates are not measured maxes.
+The standalone calculator still supports 1–30 reps with its uncertainty note.
+Personal records shows a per-rep table. All time reads paginated server summaries
+through the selected date, not all raw workouts. All-time bests expose source
+weight/reps and Open source exercise navigation. PR history opens a read-only native
+dialog with strict improvement rows, 25-row pagination, loading/error/retry states,
+and source-workout navigation. Ties do not add records; edits/deletes recompute
+history rather than preserve an immutable audit trail. Query keys include owner,
+exercise, date, graph, rep count and history filter/page; existing workout write
+invalidation refreshes these summaries. Frozen types/units remain separate.
+Single-point graphs are visible. Tap a point or use the
+keyboard-accessible point selector for exact values and a link to that day's Home.
+SVG coordinates follow the measured container width via ResizeObserver, retaining
+readable axis text on narrow screens; compact date labels retain full dates in
+details/tables. Tables scroll locally rather than splitting numbers/units into fragments.
+Training provides collapsible calculators and a compact visual deadline timer;
+auto-start/next-group navigation occurs only on confirmed new completion. Percentage
+calculator results are planned sets, not performed work. No background alert promise.
+
+Home's Copy previous workout opens a calendar picker, not History. Month browsing
+and source-day selection are local modal state; the destination remains the original
+tracking date. Marked dates distinguish training and planned sessions, with an explicit
+copy button for each session on the selected day. Empty sessions cannot be copied
+from this picker. Copy uses the existing endpoint and creates independent planned
+sets. Pending copies lock controls; failed reads/writes remain visible with retry.
+
+### Diet checklist (October 1, 2026, local)
+
+Authenticated `/diet` is available to every account through shared navigation.
+There are no seeded foods: start by adding a section and foods. Compact cards
+track eaten/not-recorded only, with no nutrient quantities or completion targets.
+Management provides rename, numeric order and archive/restore in shared modals.
+Selected-day controls are independent of a today-anchored seven-day history;
+archived history remains visible. Owner-scoped queries invalidate after writes;
+pending saves disable check-offs and failures do not claim success.
+The dashboard places Diet and Recovery summaries in one equal-width row, stacking
+below 681px. Each shows today's count, days recorded out of seven, and a tracking
+link. Dark/Light/Sand tokens follow the app; long food/tool lists stay on their tabs.
+See `46-diet-tracking.md` for contracts and data lifecycle.
+
 ## Use When
 - Load this when you need the planned frontend stack, component direction, routes, API integration approach, state management, or responsive behavior.
 
 ## Source
 - Derived from `reference_docs/knowledge/planning.md` section 5.
+
+### Recovery tracking (September 30, 2026, local)
+
+- October 1 UI update: dashboard metrics are followed by a read-only Recovery
+  activities panel (today's activity count, distinct recorded days over seven days, and
+  a link to tracking). The summary is available on every plan, not a Pro insight.
+  Custom creation is placed in Your custom tools; dates are human-readable and
+  checked cards receive a subtle tint. Evidence explanation is not repeated per card.
+
+- The authenticated `/recovery` route is reachable from the shared navigation.
+- Shared tools show Table 1 soreness-effect bars and confidence intervals;
+  private custom tools are not research-rated. See `45-recovery-tracking.md`.
+- A local-calendar date selector loads the selected day's activities. A separate
+  history query always covers today and its six preceding days, regardless of
+  which tracking date is selected. Daily
+  checkboxes save/undo through the backend; failed saves leave their state unchanged.
+- Pro can add custom tools. Existing tools remain usable after downgrade; owners
+  can archive/restore without losing history. Server permissions are authoritative.
+- Daily tracking uses compact date navigation, clickable history tiles, and a
+  target-free activity count. Custom tools have their own section; Pro creation
+  opens the shared modal. Research details expand on demand; bars are unchanged.
+- The page uses existing Dark/Light/Sand tokens and collapses to one column on
+  narrow screens. Owner-scoped React Query caches are invalidated after writes
+  and removed on logout. The local migration is applied; staging is untouched.
+
+### Checkout confirmation UX (September 30, 2026, local)
+
+- Settings with `checkout=success` refreshes the current-subscription query on
+  mount and polls every two seconds while awaiting a paid active/trialing plan.
+  The redirect itself never grants entitlements; the backend remains authoritative.
+- A confirmed plan replaces the pending banner with `<plan name> is active` and
+  stops polling. Ordinary Settings and cancelled-checkout visits do not poll.
+- After sixty seconds, automatic polling stops and the banner warns against
+  another payment. `Check again` fetches current state and restarts the bounded
+  wait; upgrade buttons stay disabled while confirmation is unresolved.
+- Polling reads our existing API only, not Stripe. The shared query cache updates
+  the Current Plan card and entitlement consumers without a manual page refresh.
+- This is local-only behavior; no staging validation or deployment was performed.
 
 ### Dark, Light and Sand appearance (September 21, 2026)
 
@@ -606,7 +874,7 @@ Current Settings subscription UI checkpoint:
 - `getSubscriptionPlans()` fetches the public `GET /api/v1/subscriptions/plans/` catalog.
 - `useSubscriptionPlansQuery()` caches the active plan catalog under `['subscription-plans']`.
 - Settings renders subscription information in card-style panels: current plan name with a muted renewal line (`Renews <date>`, `Cancels <date>`, or a quiet empty-state note), active custom metric limit, sync interval, and the current billing price when present (the redundant separate interval tile was removed since the price already carries `/ month`).
-- Settings renders Checkout upgrade options only for users who are not already managed through Stripe Customer Portal. When `billing_portal_available=true`, Settings hides Checkout upgrade buttons and tells the user to use **Manage subscription** for billing changes.
+- Settings keeps **Manage subscription** available when `billing_portal_available=true`, including former paid customers viewing billing history. Checkout upgrade options are hidden only when that flag is true and the current plan is not Free. Free accounts can subscribe again without losing portal access; an ongoing Stripe paid plan uses the portal rather than a second checkout.
 - The plan catalog exposes internal `SubscriptionPrice.id` values to the frontend; Stripe `provider_price_id` values remain server-side.
 - `createSubscriptionCheckout()` posts `POST /api/v1/subscriptions/checkout/` with `{ price_id: <internal SubscriptionPrice.id> }`.
 - `useCreateSubscriptionCheckoutMutation()` wraps Checkout creation in TanStack Query mutation state.

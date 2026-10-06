@@ -13,5 +13,6 @@ export function getChartPalette() {
     text: color("--text-dim"),
     background: color("--dialog-bg"),
     foreground: color("--text"),
+    font: color("--font-sans"),
   };
 }

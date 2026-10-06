@@ -1,5 +1,440 @@
 ### 1.7 API Design
 
+## Workout tracking backend — 2026-10-01
+
+All routes require JWT and work on every plan. Basic UI integration is implemented
+locally (2026-10-02), including direct routines, groups, rest timer, month calendar,
+windowed/all-time progress, personal records and calculators. Advanced analysis remains future work.
+See `47-workout-tracking.md`.
+
+Workout duration (2026-10-03): existing session POST/GET/PATCH/list responses add
+`duration_seconds` (nullable accumulated seconds, 0–604800), read-only
+`timer_started_at`, computed `elapsed_seconds` and `timer_server_now` (server clock
+calibration). Existing session PATCH accepts write-only `timer_action=start|pause`;
+actions require an existing session and cannot accompany `duration_seconds`.
+Start is explicit, repeat-safe and requires an open workout; pause accumulates
+nonnegative whole seconds once and clears the timestamp. Finishing atomically
+pauses; reopening never starts. Direct duration correction (including null to clear)
+pauses and replaces the accumulated value, including on finished sessions. Running
+totals saturate at 604800 seconds. Neither POST nor copy/routine start implicitly
+starts timing. Copies/routine starts reset timing to null. Other session edits retain
+timing state. The existing owner-locked PATCH protects actions from double counting;
+manual corrections are last-write-wins, not a stale-version check. No new route.
+Migration 0009 adds two nullable fields and bound/state SQL constraints. Account
+JSON export includes stored duration/start; selected-workout CSV/text includes the
+loaded elapsed snapshot and running status, not a restorable timing backup.
+
+Frontend `/workouts` uses validated optional search fields: `view=home|exercises|
+training|history|routines|calendar|progress|overview`, real calendar `date=YYYY-MM-DD`, UUID `session` and `exercise`.
+Training needs both UUIDs; its exercise parameter identifies a session occurrence,
+whereas History/Progress/Overview's optional exercise parameter identifies a library exercise.
+These are UI state, not new REST contracts. Invalid training links fall back Home;
+foreign/deleted UUIDs still rely on backend authorization and show read errors.
+Date controls preserve the selected library exercise in History/Progress/Overview.
+Calendar filters (2026-10-03) are client-side UI state over the existing fully
+paginated month read. Exercise ID, saved category name and training/planned status
+are not new session-list query parameters. Exercise/category criteria match the
+same frozen occurrence; training means a completed set among matching entries,
+not the Workout's finished flag. Opening/copying still uses the full session.
+`view=exercises` without `session` is read-only browsing: exercise clicks open
+library details with History/Progress links, never create a Workout. The All
+exercises navigation tab clears session context. Start new workout explicitly
+creates a session; session Add exercise passes its UUID to selection mode.
+Selection reloads that owner-scoped session and opens a matching occurrence
+(preferring one with sets), rather than POSTing a duplicate. Existing duplicate
+rows are preserved; this is a frontend flow rule, not a new database uniqueness
+constraint or a change to the occurrence-creation REST contract.
+Overview and Training offer confirmed removal using the existing occurrence DELETE:
+it removes that occurrence's sets, not the catalog exercise or other workouts.
+Finished sessions must reopen first. Exercise history includes the current session,
+marked explicitly, with one navigation link per other workout. Progress lists
+exercise-specific planned-only dates excluded from its completed-only series.
+
+### Routine templates — 2026-10-02
+
+Routine start preview (2026-10-03): carry-forward is explicit and off by default.
+Fixed values, including zero, stay fixed. Only blank quantities applicable to the
+frozen type are filled from the latest matching exercise occurrence with completed
+sets on a date strictly before `performed_on`. Type and both saved units must match.
+Set positions match in saved order; missing/planned positions stay blank, without
+falling back to older individual sets. Duplicate matching occurrences in the template
+or source workout are ambiguous and remain blank with an explanation.
+
+Preview JSON contains `day_id`, `name`, `notes`, `performed_on`, `carry_forward`,
+`preview_token`, and nested template `exercises`. Each exercise adds `carry_reason`;
+each set adds nullable `source: {workout_id, item_id, set_id, date, fields}` identifying
+only filled quantities. No source comments/completion are exposed or copied.
+`preview_token` is a SHA-256 fingerprint of the rendered plan, not authorization.
+Carry-forward requires this token; any supplied token is compared to a recomputed
+plan under the owner lock. Changed plans return `409` before any creation.
+Selection uses `{item_id, set_ids?}` for template IDs, with the same 1–100 exercise,
+0–1000 set, duplicate/foreign-ID validation as selective workout copying. Omitted
+selection means all; omitted set IDs means all that item's sets; `[]` means exercise
+only. Request order cannot change template order. New IDs/sets are independent,
+planned and comment-free; day notes and groups are retained. No new schema or
+persisted routine-to-workout occurrence lineage is introduced.
+
+| Method | Endpoint | Contract |
+|---|---|---|
+| GET/POST | `/api/v1/workouts/routines/` | GET own routines including archives with nested days/exercises/sets; POST `{name, notes?, display_order?}` creates an active routine `201` |
+| PATCH | `/api/v1/workouts/routines/{uuid}/` | Own name/notes/order/archive; no hard-delete routine endpoint |
+| POST | `/api/v1/workouts/routines/{uuid}/days/` | `{name, source_workout_id?, notes?, display_order?}`; `201` empty day, or independent snapshot of an own saved workout containing at least one exercise |
+| PATCH/DELETE | `/api/v1/workouts/routine-days/{uuid}/` | PATCH own name/notes/order; optional `source_workout_id` atomically replaces exercise/set template; DELETE `204` removes only template, never previously created sessions |
+| GET | `/api/v1/workouts/routine-days/{uuid}/preview/` | Required `performed_on`, optional `carry_forward=false`; read-only resolved start plan with provenance and `preview_token` |
+| POST | `/api/v1/workouts/routine-days/{uuid}/start/` | `{performed_on, carry_forward?, preview_token?, selection?}` creates independent planned Workout `201`; legacy date-only starts retain fixed template behavior |
+| POST | `/api/v1/workouts/routine-days/{uuid}/exercises/` | `{exercise_id, display_order?}` adds active own library exercise with server-frozen snapshots, `201` |
+| PATCH/DELETE | `/api/v1/workouts/routine-exercises/{uuid}/` | PATCH `{display_order?, group_name?}` with at least one field; DELETE occurrence and its template sets, `204` |
+| POST | `/api/v1/workouts/routine-exercises/{uuid}/sets/` | Planned quantities and optional order, `201`; no performance fields |
+| PATCH/DELETE | `/api/v1/workouts/routine-sets/{uuid}/` | Combined-value validation on partial quantity/order edits; DELETE `204` |
+
+Routine JSON: `{id, name, notes, display_order, is_active, days}`. Day JSON:
+`{id, name, notes, display_order, exercises}`. Exercise snapshots use the same
+fields as session occurrences; template sets contain only
+`{id, display_order, weight, reps, distance, duration_seconds}`, not performance
+comments or completion. Nested templates remain read-only JSON; manage items through
+the dedicated endpoints or replace them from a validated saved workout. Direct
+editing creates no Workout rows. All quantities are optional but supplied values
+must match the frozen exercise type. Empty days cannot start. Order appends by ten;
+clients can explicitly set nonnegative order. Existing snapshots remain editable
+after library archive; adding requires an active exercise/category.
+
+Session and template exercise JSON additionally includes `group_name` (blank =
+ungrouped, max 120 characters) and `group_colour` (six-digit hex, default `#007f68`). Exact matching trimmed labels within one workout
+or routine day identify a superset/circuit. These are local labels, not cross-session
+foreign keys. Capture/copy/start preserve them independently; changing order/group
+cannot change references/type/units. No separate group table is introduced.
+The UI defaults to cycling through same-group exercises in saved order after a
+confirmed new completion; failed saves, edits to already-completed sets and plans
+do not advance or start rest. Group auto-advance and timer auto-start are persisted account preferences; the running countdown remains temporary UI state.
+
+Session sidebar Add to group / Edit group opens a picker and member editor.
+New groups suggest the next unused `Superset N` name and include the selected
+occurrence. Colour is selected explicitly; linked cards display a coloured bar.
+The group editor uses an atomic API rather than sequential occurrence PATCHes:
+
+| Method | Endpoint | Contract |
+|---|---|---|
+| PUT | `/api/v1/workouts/sessions/{uuid}/groups/` | `{name, colour, original_name?, member_ids?, add_exercise_ids?}` replaces membership; returns complete Workout `200` |
+| DELETE | `/api/v1/workouts/sessions/{uuid}/groups/` | Body `{name}` unlinks group; retains every occurrence/set; returns Workout `200`; absent name is a no-op |
+
+Names are trimmed, nonblank and case-sensitive within a session. Omit
+`original_name` to create; supply it to edit/rename/join an existing group.
+Missing original or a collision with another group returns `400`, not an implicit
+merge. `colour` must match `#[0-9a-fA-F]{6}` and is stored lowercase. Each ID list
+defaults empty, is unique and bounded to 100 items; at least one member/addition
+is required. Existing IDs must belong to this session and owner, including archived
+library snapshots. New library IDs must be active and owner-scoped; new occurrences
+append in supplied order with server-frozen snapshots, no sets. All validation
+precedes the atomic write. Selected existing occurrences may move from another
+group; omitted old members become ungrouped. Removing the final member uses DELETE.
+Finished sessions reject both methods until reopened; foreign session `404`,
+foreign/nonsession members or library IDs `400`, unauthenticated `401`.
+Colours are read-only in ordinary occurrence input; the legacy `group_name` PATCH
+remains supported for template compatibility, but session UI no longer asks users
+to type matching labels. Cancel never creates additions. Copy/capture/start/export
+retain colours independently; group deletion does not remove exercises or sets.
+Creation with library additions is not a blind retry contract: after an uncertain
+response reload the workout before resubmitting, rather than creating duplicates.
+
+Names max 120, instructions max 2000, order nonnegative; names are case-insensitive
+unique per owner (routines, including archives) or per routine (days). Foreign
+source references return `400`; foreign detail actions `404`; unauthorized `401`.
+Restore archived routines before modifying/removing/starting days. Library archive
+does not invalidate existing template snapshots. Start copies day instructions
+to session notes, not routine metadata notes or source performance notes; its
+combined routine/day session name is capped at 120 characters. No implicit type
+or unit conversion occurs. Repeated Start POSTs create distinct sessions;
+clients disable pending submissions and do not automatically retry POST writes.
+Full account export adds `workout_routines`, `routine_days`, `routine_exercises`,
+and `routine_sets`; account deletion cascades all four.
+
+### Basic catalog and session contracts
+
+Account workout preferences: authenticated `GET/PATCH /api/v1/workouts/preferences/` exposes `auto_start_rest` (default false), `auto_advance_groups` (true), `bar_kg` (20), `bar_lb` (45), and separate `plates_kg`/`plates_lb` inventories. GET (including catalog GET) returns defaults without creating rows. PATCH locks the owner before persisting validated changes. Bars accept 0–1000; inventories accept at most 20 distinct positive sizes up to 1000, with integer total counts 0–100. Inventories are explicit equipment defaults, not workout sets.
+
+Catalog responses additionally include `preferences`. Exercises accept `is_favorite` and `default_graph` (an existing graph metric, `personal_records`, or blank for automatic). Read-only catalog hints `trained_session_count` and `last_used_on` count only owned sessions containing completed sets, not planned entries. Account export includes these library fields and owned `workout_preferences`. Migration `0007_workout_preferences` is additive; no logged set snapshots are rewritten.
+
+| Method | Endpoint | Contract |
+|---|---|---|
+| GET | `/api/v1/workouts/catalog/` | `{categories, exercises, preferences}`, own catalog including archives; optional case-insensitive `search` (max 120 chars); does not seed |
+| POST | `/api/v1/workouts/catalog/initialize/` | Empty body; owner-locked, once-only starter samples; returns catalog `200` |
+| POST | `/api/v1/workouts/categories/` | `{name, display_order?}`; `201` active private category |
+| PATCH | `/api/v1/workouts/categories/{uuid}/` | `{name?, display_order?, is_active?}`; own category |
+| POST | `/api/v1/workouts/exercises/` | `{category_id, name, tracking_type, ...defaults}`; `201`, own active category |
+| PATCH | `/api/v1/workouts/exercises/{uuid}/` | Editable library fields including category, type, units, notes, increments, rest and archive; never changes existing snapshots |
+| GET | `/api/v1/workouts/sessions/` | Required `date_from`, `date_to`, inclusive 1–366 days; optional own `exercise_id`; `{count, next, previous, results}`; limit default 25/max 100, offset default 0 |
+| POST | `/api/v1/workouts/sessions/` | `{performed_on, name?, notes?, is_finished?}`; `201`; multiple sessions on a day allowed |
+| GET/PATCH/DELETE | `/api/v1/workouts/sessions/{uuid}/` | Own detail; PATCH date/name/notes/is_finished; DELETE session and its sets `204` |
+| POST | `/api/v1/workouts/sessions/{uuid}/exercises/` | `{exercise_id, display_order?}`; `201` ordered occurrence with server snapshots; active own exercise/category required |
+| POST | `/api/v1/workouts/sessions/{uuid}/copy/` | `{performed_on, selection?}`; `201` independent planned session; no completion, session notes or performance comments copied |
+| PATCH/DELETE | `/api/v1/workouts/session-exercises/{uuid}/` | PATCH `{display_order?, group_name?}` with at least one field; DELETE occurrence and sets `204`; snapshots/reference immutable |
+| POST | `/api/v1/workouts/session-exercises/{uuid}/sets/` | Set fields below; `201` individual set; completion defaults true |
+| PATCH/DELETE | `/api/v1/workouts/sets/{uuid}/` | Partial set edit validated against combined values, or DELETE `204` |
+| POST | `/api/v1/workouts/sets/bulk/` | Atomic history update/delete of 1–100 sets with expected snapshots; `{affected_count}` `200` |
+| POST | `/api/v1/workouts/session-exercises/{uuid}/move/` | `{direction: "up" \| "down"}` moves one occurrence adjacent in its workout; complete Workout `200` |
+| POST | `/api/v1/workouts/sets/{uuid}/move/` | Same input; moves one set adjacent within its occurrence; complete Workout `200` |
+
+Bulk history correction accepts `{action: "update" | "delete", sets:
+[{id, expected}], changes?}`. IDs are unique set UUIDs; `expected` is the complete
+unchanged Set JSON from a session read (including ID, order, comment and completion;
+decimal strings retain their saved three-decimal representation). Selection is
+1–100 rows, possibly across dates/occurrences. Update requires a nonempty shared
+`changes` object containing only weight, reps, distance, duration_seconds, comment
+or is_completed. Omitted fields stay unchanged; null clears a relevant optional
+quantity, subject to combined-value validation. Delete does not accept changes.
+Unknown outer/selection/change keys reject. Quantities share individual-set bounds
+and frozen-type validation. Numeric edits require matching saved type and both
+units across the selection; comment/completion-only edits and deletion may mix
+partitions. No unit conversion, order/snapshot edits or automatic timer/group advance.
+
+JWT and both workout/catalog ownership paths are checked under the shared owner
+lock. Foreign, missing or deleted IDs return `404`; anonymous returns `401`;
+invalid values/selections or any finished workout return `400`. Reopen finished
+workouts first. Any expected-snapshot mismatch returns `409`; all rows are checked
+and all combined updates validated before writing. The transaction changes all
+selected rows or none, including across sessions. Delete removes selected sets
+and their comments, retaining workouts/exercises/groups. Goals, records, statistics
+and progress derive the corrected state on their next read. No schema change.
+
+Training Exercise history and library Exercise overview → History share a
+selection → before/after preview → explicit confirmation dialog. Only loaded
+history is selectable; Select all caps at 100 editable sets. Finished rows are
+visible but disabled. Blank numeric inputs mean leave unchanged; comment clearing
+requires an explicit Replace comments checkbox. The dialog freezes reviewed rows
+across refetches, disables all controls while pending, retains failed previews and
+requires Refresh history/review before confirming again. Successful corrections
+invalidate the private owner-scoped workout cache; no auto rest/advance from bulk
+completion. This is snapshot-based stale protection, not an idempotency key or
+ABA/version guarantee: if data changes and returns to identical values, it matches.
+For an ambiguous network failure, refresh to inspect the saved state before retrying.
+
+Selective copy accepts `selection: [{item_id, set_ids?}]`, with 1–100 unique source
+occurrence UUIDs. Each optional `set_ids` contains at most 1000 unique UUIDs from
+that occurrence; omitted means all its sets, `[]` means exercise only. Omitted
+selection retains full-workout copy compatibility. Empty/null selection, wrong
+or deleted occurrence/set IDs, duplicates and unknown input fields reject `400`
+before any writes. UUIDs identify saved occurrences, not library exercises.
+The owner lock covers validation and cloning, including source nested ownership;
+foreign source workouts return `404`, anonymous requests `401`. Finished/archived
+sources may copy their frozen snapshots. Response is a complete new Workout `201`,
+never appended to another session. Source order, names/types/units, values and
+group colours/membership are retained for chosen items; new IDs, planned state,
+blank session notes/comments and open state are generated. A singleton group
+retains its label but does not auto-advance. UI calendar, Home and History share
+selection → read-only preview → explicit confirmation; cancel/browsing never writes,
+and failed saves retain selection/date/preview for retry. No route or schema change.
+
+Moves lock the owner in one transaction, using the current server order rather
+than a stale client-side swap. Ordering is `(display_order, id)`; successful
+non-boundary moves normalize sibling order to 10, 20, …, including ties. First-up
+and last-down are no-ops. Only `direction` is accepted. Unauthorized requests
+remain `401`, foreign targets `404`, invalid input/finished sessions `400`.
+Reopen before moving. Snapshot fields, group membership, quantities, completion
+and comments are unchanged. Existing numeric-order PATCH contracts remain.
+
+Category JSON: `{id, name, display_order, is_active}`. Exercise adds
+`category_id, tracking_type, weight_unit, distance_unit, notes, weight_increment,
+rest_seconds`. Names max 120, notes/comments max 2000, order nonnegative.
+Scoped case-insensitive duplicate names include archives. Units are `kg|lb` and
+`km|mi`; increment is a positive decimal (3 places), rest is 0–3600 seconds.
+New catalog rows are always active; category/ownership input cannot cross accounts.
+
+Session JSON includes `id, performed_on, name, notes, is_finished, created_at,
+completed_set_count, exercises`. Each occurrence includes `id, exercise_id,
+exercise_name, group_name, group_colour, category_name, tracking_type, weight_unit, distance_unit,
+display_order, sets`. Set JSON: `{id, display_order, weight, reps, distance,
+duration_seconds, comment, is_completed}`. Decimal quantities serialize as strings
+or null; weight/distance have 3 decimal places. Duration is integer seconds.
+
+- `strength`: completed sets require nonnegative weight and positive integer reps.
+- `bodyweight`: completed sets require positive integer reps; weight optional.
+- `duration`: completed sets require positive integer duration_seconds.
+- `cardio`: completed sets require positive distance and duration_seconds.
+- Planned sets may omit relevant values. Irrelevant fields and invalid supplied
+  values are rejected even for planned sets; unknown is null, not fake zero.
+- Finished sessions must be reopened (`is_finished: false`) before modifying
+  exercises/sets. Finishing does not mark planned sets completed. Only completed
+  sets contribute to `completed_set_count`.
+- Catalog archive does not block editing existing history or copying snapshots.
+  Catalog has no hard-delete API. Foreign detail access returns `404`, foreign
+  creation references `400`, validation errors `400`. Session/exercise/set DELETE
+  is not idempotent: subsequent deletion of an absent row returns `404`.
+- Initialization is idempotent. Other POSTs create new resources on each request;
+  clients must disable duplicate submission, not assume retry idempotency.
+- Full account JSON includes `workout_catalog_state`, `exercise_categories`,
+  `exercises`, `workouts`, `workout_exercises`, `workout_sets`, including archives.
+
+### All-time exercise summaries — 2026-10-02
+
+Exercise overview statistics: `GET /api/v1/workouts/exercises/{uuid}/stats/?date_to=YYYY-MM-DD` returns `{exercise_id,date_to,groups}`. Each frozen type/weight-unit/distance-unit group contains `session_count` (distinct workouts), `set_count`, `first_date`, `last_date`, `reps_total`, `volume_total`, `distance_total`, `duration_seconds_total`. Only completed sets through the inclusive cutoff count; unsupported totals are null. Volume means recorded load × reps (strength only), not body mass; decimal totals are strings with three places. SQL aggregates keep the raw history off the client. First/last dates are training dates, not catalog creation dates. No lower date bound or automatic conversion.
+
+Exercise goals (strength in migration `0008`, metric targets in `0010`):
+
+Metric extension (2026-10-05): the same POST accepts `{goal_type,target_value}`.
+Bodyweight supports `reps`; cardio supports `distance`, `duration`, `max_speed`,
+`best_pace`; timed exercises support `duration`. Strength payloads below stay valid.
+Creation requires active exercise/category; PATCH of metric goals accepts only
+`target_value`. Goal type, saved tracking type and both units are immutable, and
+each goal compares only completed sets in that frozen partition through `date_to`.
+Distance is saved km/mi, duration is seconds (at least, not a race-time maximum),
+speed is saved distance/hour, pace is minutes per saved distance (at most/lower).
+Reps goals allow optional recorded load without inventing body mass.
+Targets have 3 decimal places: reps are integers 1–100000, duration integers
+1–604800, distance/speed/pace .001–100000. API validates integer targets; SQL
+constrains type/shape/bounds. Speed/pace require positive distance and seconds in
+the same completed set; achievement compares unrounded rates, not display values.
+GET adds `best_value` (also an alias of `best_weight` for strength), plus new goal
+fields `goal_type,tracking_type,target_value`. Strength fields are null on metric
+goals. Metric source includes recorded distance/duration alongside existing IDs.
+Metric progress is best/target, except pace is target/best; it rounds to one decimal,
+capped at 99.9 until achieved and 100 after achievement. No match yields null source/
+best and zero progress. Stable earliest chronology wins ties; edits/deletion/
+uncompletion recompute results. Existing 20-target cap, JWT scope, user lock,
+account export/deletion and all-tier access remain. No route changes.
+Pace editor saves preserve the original target when displayed minutes/seconds are
+unchanged. Migration 0010 should not be reversed while metric goals exist: the
+legacy nonnullable strength-only schema cannot represent them; use a coordinated
+data/backup plan, not a blind downgrade.
+
+Combined cardio extension (2026-10-05): the same POST also accepts
+`{goal_type:"distance_time", target_distance, target_duration_seconds}` on an active
+cardio exercise/category. Both targets are required: distance .001–100000 in the
+saved km/mi (three decimal places), time limit 1–604800 whole seconds. PATCH accepts
+either/both target fields, nonempty, retaining the other; kind/type/units cannot
+change. Other target fields/null/unknown inputs reject. All older goal payloads
+remain compatible. Responses/export add nullable `target_distance` and
+`target_duration_seconds`; only combined goals populate these fields, with
+`target_value,target_weight,target_reps` null. SQL constrains shape/type/bounds;
+API enforces whole seconds. Migration `0011_combined_cardio_goals` adds these
+nullable fields and updates the goal constraint without rewriting old goals/sets.
+Do not blindly reverse 0011 while combined goals exist: 0010's constraint cannot
+represent them; coordinate data/backup handling first.
+
+Combined achievement requires distance ≥ target AND duration ≤ limit in the
+same completed cardio set through the inclusive date cutoff, matching frozen
+tracking type and both units. Incomplete/planned/foreign/future/other partitions
+never count. There are no split times, summed sets, rate extrapolations or unit
+conversions: 10 km in 50 minutes does not prove 5 km within 25 minutes.
+For each eligible set, score = min(distance/target_distance, time_limit/duration).
+The highest uncapped score chooses one supporting set; earliest stable chronology
+wins ties. Display progress = score × 100, rounded to one decimal, capped at 99.9
+until both raw thresholds are met, then 100. This is a bottleneck goal ratio, not
+a fitness score or predicted race time. `best_value,best_weight` are null because
+two dimensions cannot be expressed as one best quantity; inspect source's recorded
+distance/duration. No source gives zero progress. Corrections, uncompletion and
+deletion immediately recalculate; no permanent badge. Existing owner lock, 20-goal
+cap, all-tier JWT ownership, export and cascade deletion apply. No new route.
+
+| Method | Endpoint | Contract |
+|---|---|---|
+| GET/POST | `/api/v1/workouts/exercises/{uuid}/goals/` | GET requires `date_to`, returns up to 20 targets with progress; POST strength `{target_weight,target_reps,rep_rule?}`, metric `{goal_type,target_value}` or combined `{goal_type:"distance_time",target_distance,target_duration_seconds}` creates `201` on a compatible active exercise/category |
+| PATCH/DELETE | `/api/v1/workouts/goals/{uuid}/` | PATCH strength weight/reps/rep rule, metric target value or either/both combined target fields; DELETE target only `204`, not recorded sets |
+
+For strength targets, weights accept .001–10000 (3 decimals), reps 1–10000. `rep_rule=at_least` (default) means target reps or more; `exact` means exactly that count. Saved weight/distance units come from the library at creation and cannot be patched; unknown input fields reject. At most 20 goals per exercise, enforced inside the owner-locked creation transaction. Existing goals remain editable/readable after catalog archive/type/unit changes; creation requires an active compatible exercise. All routes require authentication and work on every tier; foreign IDs `404`, invalid input `400`.
+
+Goal JSON: `{id,target_weight,target_reps,rep_rule,weight_unit,distance_unit,created_at}`. GET adds `achieved,best_weight,progress_percent,source,source_date`. Among completed strength sets through `date_to` matching the frozen units and rep rule, the highest actual load is the supporting lift (earliest stable source on ties). Achieved means that load meets/exceeds the target. `progress_percent` is qualifying load/target load capped at 100, not a fitness score or combined rep/weight percentage; without a qualifying lift best/source are null and percentage zero. It includes existing history, not only sets logged after goal creation. Changes/uncompletion/deletion of sets immediately recompute progress; achievement is not a permanent badge or immutable audit trail. GET is read-only. Account export includes `exercise_goals`; account deletion cascades owned goals.
+
+Frontend Overview groups Statistics, bounded 90-day paginated History (including plans/comments), Graphs, all-time Records and Goals. Library/training provide Exercise overview buttons. The selected tracking date is the cutoff. History/source navigation uses the actual saved workout/occurrence UUIDs. Bodyweight/timed/cardio goals are implemented by the metric extension above. Pace uses minutes/seconds inputs converted to the API's three-decimal minutes; rate labels are rounded for display.
+
+| Method | Endpoint | Contract |
+|---|---|---|
+| GET | `/api/v1/workouts/exercises/{uuid}/progress/` | Required `date_to`; optional `metric` (default `max_weight`), `reps` (default 5), `limit`, `offset`; paginated aggregate points and `types` |
+| GET | `/api/v1/workouts/exercises/{uuid}/records/` | Required `date_to`; optional `history` (default false), `reps`, `weight_unit`, `distance_unit`, `limit`, `offset`; paginated best records or strict improvement history |
+
+Both are authenticated, owner-only and available on every plan. Foreign/unknown
+exercise UUIDs return `404`, unauthenticated reads `401`, invalid parameters `400`.
+`date_to` is inclusive; there is no lower date bound. Only completed sets count,
+including archived catalog history, partitioned by frozen tracking type and units.
+Pagination defaults to 100 rows, allows 1–500, and requires nonnegative offset.
+The UI requests summary pages of 500 and record-history pages of 25, constructing
+its own same-origin paths instead of following response URLs.
+
+Metrics: `max_weight`, `estimated_1rm`, `max_reps`, `max_volume`,
+`max_weight_reps`, `workout_volume`, `workout_reps`, `max_distance`, `max_duration`,
+`max_speed`, `best_pace`.
+Cardio rates require completed cardio snapshots with positive distance and duration
+in the same set. `max_speed` = distance × 3600 / duration_seconds (km/h or mi/h);
+`best_pace` = duration_seconds / (distance × 60) (decimal min/km or min/mi).
+Values round to three decimal places. Daily selection takes maximum speed or minimum
+pace in each frozen type/unit partition, with the existing stable source tie order.
+These are individual-set rates, not summed ratios or workout-average speeds.
+Missing quantities, plans, other types and future dates never contribute.
+Source JSON is unchanged; its workout/item/set IDs allow inspection of recorded
+distance/time. Both metrics can be saved as `default_graph` via existing exercise
+PATCH. No route, schema or automatic unit conversion changes.
+`reps` accepts 1–10000 and only affects `max_weight_reps`. Daily extrema select one
+source set per date/type/unit partition; workout totals retain separate sessions
+and sum this exercise's occurrences. Estimated 1RM uses Epley, positive load up to
+10000 and 1–10 reps, rounded to three decimals; a one-rep set returns its load.
+The `types` list includes all completed saved types through that date, independent
+of the selected metric. The Personal records graph uses the records endpoint.
+
+Progress rows: `{date, tracking_type, weight_unit, distance_unit, value, source}`;
+`value` is a decimal string. Source is `{workout_id, item_id, set_id, weight, reps}`;
+totals have `source:null` plus `workout_id` and `session` name. Record rows add `reps`
+and always carry the source set. Bests are strongest recorded load per strength
+rep count/type/unit partition, retaining the earliest source on ties. `history=true`
+returns the first qualifying set and subsequent strictly higher loads in stable
+date/session-creation/exercise/set order; ties are not improvements. Optional
+rep/unit filters narrow the records. Editing, deleting, or uncompleting sets
+recomputes records/history: this is not an immutable audit trail or a cached PR model.
+SQL aggregation/window functions avoid loading raw workout histories in Python or
+the browser. No migration or automatic unit conversion is introduced.
+
+Calendar reads the displayed month through the existing bounded, safely paginated
+session API. Windowed progress reads 30/90/180/365 days ending on the selected date
+with the owned library `exercise_id` filter. The browser derives daily maxima/
+observed records from completed sets only and partitions frozen type/unit
+combinations. All time uses the summary endpoints above, not expanded raw session
+reads. Writes invalidate these owner-scoped reads. Calculators run locally: Epley estimated max, percentage/nearest
+increment, and exact balanced plates from explicit finite inventory. Adding a
+percentage result uses the existing set POST with `is_completed:false`, unknown
+reps, and saved units. Calculation inputs are temporary; bar/plate inventory can
+be explicitly saved as unit-specific account defaults. No automatic unit conversion or health score.
+
+## Diet tracking (implemented locally, 2026-10-01)
+
+All routes require JWT and are available on every plan. No seeded sections/foods.
+See `46-diet-tracking.md` for ownership, archive and calendar-day rules.
+
+| Method | Endpoint | Contract |
+|---|---|---|
+| GET | `/api/v1/diet/catalog/` | `{sections: [...], foods: [...]}`; own catalog including archives |
+| POST | `/api/v1/diet/sections/` | `{name, display_order?}`; `201` owned active section |
+| PATCH | `/api/v1/diet/sections/{uuid}/` | Own section: name, display_order, is_active |
+| POST | `/api/v1/diet/foods/` | `{section_id, name, display_order?}`; `201` food under own active section |
+| PATCH | `/api/v1/diet/foods/{uuid}/` | Own food: name, display_order, is_active; section cannot change |
+| GET | `/api/v1/diet/entries/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD` | Own entries, inclusive 1–366-day range; invalid/missing bounds `400` |
+| PUT | `/api/v1/diet/entries/{food_uuid}/{YYYY-MM-DD}/` | Empty body; idempotent check-off `200`; archived food/section `400`, inaccessible food `404` |
+| DELETE | `/api/v1/diet/entries/{food_uuid}/{YYYY-MM-DD}/` | Idempotent undo including archived foods, `204`; inaccessible food `404` |
+
+Section JSON: `{id, name, display_order, is_active}`. Food adds `section_id`.
+Entry JSON: `{id, food_id, performed_on, created_at}`. Names max 120 characters;
+nonnegative order; case-insensitive scoped duplicates return `400`, including
+archived rows. Foreign-section creation returns `400`; foreign detail edits `404`.
+Authenticated ownership is not client-writable. Account JSON export includes
+Diet archives/history; user deletion cascades owned Diet data.
+
+## Recovery tracking (implemented locally, 2026-09-30)
+
+All routes require JWT; see `45-recovery-tracking.md` for evidence and access rules.
+
+| Method | Endpoint | Contract |
+|---|---|---|
+| GET | `/api/v1/recovery/tools/` | `{tools: [...], can_create_custom: bool}`; shared and own tools, including archived; custom evidence is null |
+| POST | `/api/v1/recovery/tools/` | Pro only; `{name, description?}`; `201` private tool; `403` for Free |
+| PATCH | `/api/v1/recovery/tools/{uuid}/` | Owner-only custom tool; name, description, is_active; archive/restore retains history |
+| GET | `/api/v1/recovery/entries/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD` | Own entries, inclusive 1–366-day range; `400` for missing/invalid bounds |
+| PUT | `/api/v1/recovery/entries/{tool_uuid}/{YYYY-MM-DD}/` | Empty body; idempotent daily check-off, `200`; archived tool `400`, inaccessible tool `404` |
+| DELETE | `/api/v1/recovery/entries/{tool_uuid}/{YYYY-MM-DD}/` | Idempotent undo, `204`; inaccessible tool `404` |
+
+Entry JSON: `{id, tool_id, performed_on, created_at}`. Tool JSON:
+`{id, name, description, is_active, is_custom, evidence}`; shared evidence includes
+`outcome, smd, ci_lower, ci_upper, subjects, experimental_groups, citation, source_url`.
+Ownership, slug, order and evidence are not client-writable. Existing custom tools
+remain usable after downgrade. Full account JSON export adds recovery sections;
+account deletion removes owned recovery data through database cascades.
+
 ## Use When
 - Load this when you need the api design.
 
@@ -63,10 +498,65 @@ Refresh concurrency behavior:
 #### User & Profile (JWT required)
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
-| GET | `/api/v1/me/` | Current user profile | |
-| PATCH | `/api/v1/me/` | Update profile (partial) | PATCH not PUT — only send fields to change |
-| GET | `/api/v1/me/export/` | GDPR data export | Returns 202 Accepted, async job |
-| DELETE | `/api/v1/me/` | GDPR account deletion | Idempotent — repeated calls return 204 |
+| GET | `/api/auth/me/` | Current user email | Implemented; the previously planned `GET /api/v1/me/` is not mounted |
+| PATCH | `/api/v1/me/` | Update profile (partial) | Planned, not implemented |
+| GET | `/api/v1/me/export/` | Account-wide app data export | Implemented locally; streams a `200` JSON attachment on every plan, not an asynchronous job |
+| DELETE | `/api/v1/me/` | Delete account and live app data | Implemented locally; confirms immediate Stripe cancellation first; requires current password; returns `204` and invalidates sessions |
+
+Account lifecycle checkpoint — 2026-09-30 (local, not deployed):
+- Settings offers **Download account data** independently of the Pro CSV export.
+  `longevity-account.json` has `schema_version=1`, an export timestamp, profile
+  and sleep preference, owned custom definitions (including archived ones),
+  definitions referenced by owned entries, full raw metric history and provenance,
+  wearable connections, sync receipts, local billing and checkout history, and
+  session creation/expiration dates. Every section is caller-scoped; query-string
+  user IDs cannot select another account. Password hashes, lookup hashes,
+  JWT credentials, and global webhook receipts are excluded.
+- JSON is formatted with indentation and line breaks so editors do not have to
+  render the entire archive as one enormous line. Raw readings remain complete;
+  dashboard daily aggregation does not discard samples from this archive.
+- Export uses bounded database iteration and `Cache-Control: no-store`; it has
+  a per-user limit of three requests/hour in each worker's local cache. It is
+  a live streamed read, not a transactionally frozen snapshot. Avoid simultaneous
+  edits/sync during export when an exact point-in-time copy is needed. Large
+  asynchronous archive generation remains a later measured need.
+- `DELETE` accepts JSON `{"password":"current password"}` with bearer auth.
+  Password validation happens under the user-row lock; missing/incorrect passwords
+  return `400` without deleting data. The UI also requires an explicit checkbox.
+  Deletion erases owned metric entries before protected custom definitions,
+  checkout attempts before protected subscriptions, and outstanding refresh tokens
+  before deleting the user and cascading remaining owned data. It clears the web
+  refresh cookie; subsequent access/refresh requests fail with `401`. A repeated
+  request using the deleted account's token therefore returns `401`, not `204`.
+- Account deletion expires open Stripe checkout links and cancels all nonterminal
+  subscriptions immediately. It resolves locally known subscription IDs and
+  completed checkouts whose webhooks have not arrived, then checks every page of
+  customer subscriptions with `status=all`. Ownership and terminal provider
+  responses are checked before any local data is deleted. Cancellation sends
+  `invoice_now=false` and `prorate=false`; it does not issue a refund automatically.
+  Ordinary subscription cancellation through the Portal remains a separate flow.
+- Historical customer IDs are accepted only from saved Checkout sessions whose
+  `client_reference_id` matches the deleting user. This handles repeated paid
+  checkouts before webhook delivery persisted a customer mapping. A customer
+  mapped to another local user is rejected, and each checkout's subscription
+  must belong to that exact customer. Every proven customer is scanned for all
+  subscriptions; the current `BillingCustomer` mapping is not replaced.
+- Provider failure, mismatched ownership, or unconfirmed cancellation returns a
+  redacted `502` and rolls back local deletion. Stripe mutations already completed
+  cannot be rolled back: a retry reads current remote state and skips canceled or
+  incomplete-expired subscriptions rather than cancelling them twice. A pending,
+  failed, or completed checkout without a saved Stripe receipt returns `409` and
+  requires billing verification; an active Stripe row without a subscription ID
+  also prevents deletion. Deletion attempts retain the per-user five/hour limit.
+- Checkout creation shares the user-row lock with deletion until its receipt is
+  saved. Failed attempts commit before the provider exception is re-raised, and
+  a session ID is saved even when Stripe returns no redirect URL. Webhooks ignore
+  deleted owners, and subscription-update handlers re-read under that same lock
+  so delayed events cannot recreate account data.
+- These endpoints operate on the live application database. Existing backups,
+  source-app/Health Connect records, and external Stripe records are not erased.
+  Provider archives and deletion-aware backup restoration need
+  separate handling before describing this slice as a complete privacy lifecycle.
 
 #### Metrics (JWT required)
 | Method | Endpoint | Description | Notes |
@@ -352,7 +842,27 @@ Checkout behavior:
 - The authenticated user must already have one current subscription row. Registration creates a Free current subscription, so a missing current subscription is treated as inconsistent local state and returns `400`.
 - Checkout rejects the exact current subscription price so repeated checkout for the same active price does not create a new Stripe session.
 - If the current subscription already has a Stripe provider subscription ID, Checkout rejects selecting a different price with `400`. Paid plan changes remain unsupported until Customer Portal price-change reconciliation is implemented, preventing a second concurrently billed Stripe subscription or provider/local state drift.
-- The service creates a local `CheckoutAttempt` before calling Stripe.
+- Under the user-row lock, the service reconciles saved checkout receipts before
+  allowing a new purchase. It reuses an open session for the same price/current
+  subscription (`201` with its existing URL), and confirms expiration of other
+  open links before creating a replacement for a different price.
+- A completed session with a nonterminal Stripe subscription, an existing paid
+  local plan, or any nonterminal subscription found across the known customer's
+  paginated Stripe history blocks another purchase. New service conflicts return
+  `409 {"detail": "..."}` instructing the user not to pay again or to manage billing.
+  Existing serializer-level `400` validation remains unchanged.
+- A previous pending/failed attempt without a saved provider receipt also returns
+  `409` and needs billing verification: an ambiguous provider failure is not proof
+  that no checkout was created. Provider reads, ownership checks, and expiration
+  failures return generic `502` without creating another session.
+- A missing historical session (`404 resource_missing`) can be retired only with
+  a saved Stripe customer and a confirmed receipt, or a completed sandbox receipt
+  at least 90 days old. All other attempts and the customer's paginated subscription
+  history must pass verification first. Missing recent/unresolved receipts or a
+  missing customer return `409`; other provider errors still return `502`.
+- After these checks, the service creates a local `CheckoutAttempt` before
+  requesting a new Stripe session. Cancelled/incomplete-expired subscriptions
+  permit a new purchase; no subscriptions are cancelled by this checkout guard.
 - `CheckoutAttempt.expected_subscription` stores the user's current subscription at checkout creation time; this is the subscription state the later Stripe webhook is allowed to replace.
 - `CheckoutAttempt.id` is used as the Stripe idempotency key, so retries of the same local attempt use the same provider retry identity.
 - Stripe Checkout receives the server-owned `SubscriptionPrice.provider_price_id` in `line_items`; clients cannot submit provider price IDs or amounts.
@@ -361,7 +871,9 @@ Checkout behavior:
 - The Stripe metadata includes `user_id`, `checkout_attempt_id`, `subscription_price_id`, and `subscription_plan_id` for later webhook reconciliation.
 - If Stripe creates the Checkout Session, the attempt is marked `completed` and stores `provider_checkout_session_id`; this means only that the provider session exists.
 - If Stripe creation fails, the attempt is marked `failed`, the view logs the exception, and the API returns `502` with a generic public error.
-- Successful response shape is `201 {"url": "https://checkout.stripe.com/..."}`.
+- Successful response shape is `201 {"url": "https://checkout.stripe.com/..."}`,
+  including a safely reused session. Concurrent clicks share the same user lock
+  and receipt, so a second request cannot create a parallel checkout.
 - Checkout creation does **not** grant paid entitlements. Entitlements change only after a trusted Stripe webhook confirms payment/subscription state.
 
 Customer Portal behavior:

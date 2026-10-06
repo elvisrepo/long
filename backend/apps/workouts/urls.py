@@ -1,0 +1,147 @@
+from django.urls import path
+
+from . import views
+from . import routine_views
+from .goal_views import ExerciseGoalsView, ExerciseGoalDetailView
+from .ordering_views import MoveExerciseView, MoveSetView
+from .bulk_views import BulkSetsView
+from .routine_preview import RoutinePreviewView
+from .progress_views import (
+    ExerciseProgressView,
+    ExerciseRecordsView,
+    ExerciseStatisticsView,
+)
+
+urlpatterns = [
+    path("sets/bulk/", BulkSetsView.as_view(), name="workout-sets-bulk"),
+    path(
+        "routine-days/<uuid:day_id>/preview/",
+        RoutinePreviewView.as_view(),
+        name="workout-routine-preview",
+    ),
+    path("sets/<uuid:set_id>/move/", MoveSetView.as_view(), name="workout-set-move"),
+    path(
+        "session-exercises/<uuid:item_id>/move/",
+        MoveExerciseView.as_view(),
+        name="workout-exercise-move",
+    ),
+    path(
+        "exercises/<uuid:exercise_id>/goals/",
+        ExerciseGoalsView.as_view(),
+        name="workout-exercise-goals",
+    ),
+    path(
+        "goals/<uuid:goal_id>/",
+        ExerciseGoalDetailView.as_view(),
+        name="workout-goal-detail",
+    ),
+    path(
+        "exercises/<uuid:exercise_id>/stats/",
+        ExerciseStatisticsView.as_view(),
+        name="workout-exercise-statistics",
+    ),
+    path("preferences/", views.PreferencesView.as_view(), name="workout-preferences"),
+    path(
+        "exercises/<uuid:exercise_id>/records/",
+        ExerciseRecordsView.as_view(),
+        name="workout-exercise-records",
+    ),
+    path(
+        "exercises/<uuid:exercise_id>/progress/",
+        ExerciseProgressView.as_view(),
+        name="workout-exercise-progress",
+    ),
+    path(
+        "sessions/<uuid:workout_id>/groups/",
+        views.SessionGroupsView.as_view(),
+        name="workout-session-groups",
+    ),
+    path(
+        "routine-days/<uuid:day_id>/exercises/",
+        routine_views.RoutineExercisesView.as_view(),
+        name="workout-routine-exercises",
+    ),
+    path(
+        "routine-exercises/<uuid:item_id>/",
+        routine_views.RoutineExerciseDetailView.as_view(),
+        name="workout-routine-exercise-detail",
+    ),
+    path(
+        "routine-exercises/<uuid:item_id>/sets/",
+        routine_views.RoutineSetsView.as_view(),
+        name="workout-routine-sets",
+    ),
+    path(
+        "routine-sets/<uuid:set_id>/",
+        routine_views.RoutineSetDetailView.as_view(),
+        name="workout-routine-set-detail",
+    ),
+    path(
+        "routines/<uuid:routine_id>/days/",
+        routine_views.RoutineDaysView.as_view(),
+        name="workout-routine-days",
+    ),
+    path(
+        "routine-days/<uuid:day_id>/",
+        routine_views.RoutineDayDetailView.as_view(),
+        name="workout-routine-day-detail",
+    ),
+    path(
+        "routine-days/<uuid:day_id>/start/",
+        routine_views.StartRoutineDayView.as_view(),
+        name="workout-routine-day-start",
+    ),
+    path("routines/", routine_views.RoutinesView.as_view(), name="workout-routines"),
+    path(
+        "routines/<uuid:routine_id>/",
+        routine_views.RoutineDetailView.as_view(),
+        name="workout-routine-detail",
+    ),
+    path(
+        "session-exercises/<uuid:item_id>/sets/",
+        views.SetsView.as_view(),
+        name="workout-sets",
+    ),
+    path(
+        "sets/<uuid:set_id>/", views.SetDetailView.as_view(), name="workout-set-detail"
+    ),
+    path("sessions/", views.SessionsView.as_view(), name="workout-sessions"),
+    path(
+        "sessions/<uuid:workout_id>/",
+        views.SessionDetailView.as_view(),
+        name="workout-session-detail",
+    ),
+    path(
+        "sessions/<uuid:workout_id>/exercises/",
+        views.SessionExercisesView.as_view(),
+        name="workout-session-exercises",
+    ),
+    path(
+        "sessions/<uuid:workout_id>/copy/",
+        views.CopyView.as_view(),
+        name="workout-copy",
+    ),
+    path(
+        "session-exercises/<uuid:item_id>/",
+        views.SessionExerciseDetailView.as_view(),
+        name="workout-session-exercise-detail",
+    ),
+    path("catalog/", views.CatalogView.as_view(), name="workout-catalog"),
+    path(
+        "catalog/initialize/",
+        views.InitializeCatalogView.as_view(),
+        name="workout-catalog-initialize",
+    ),
+    path("categories/", views.CategoriesView.as_view(), name="workout-categories"),
+    path(
+        "categories/<uuid:category_id>/",
+        views.CategoryDetailView.as_view(),
+        name="workout-category-detail",
+    ),
+    path("exercises/", views.ExercisesView.as_view(), name="workout-exercises"),
+    path(
+        "exercises/<uuid:exercise_id>/",
+        views.ExerciseDetailView.as_view(),
+        name="workout-exercise-detail",
+    ),
+]

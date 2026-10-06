@@ -1,5 +1,6 @@
 import { PageHeader } from "../components/page-header";
 import { PageState } from "../components/page-state";
+import { Modal } from "../components/modal";
 import {
   Link,
   Outlet,
@@ -7,7 +8,6 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
-import { createPortal } from "react-dom";
 
 import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load";
 import { metricSymbol } from "../features/metrics/metric-symbol";
@@ -116,52 +116,37 @@ function MetricsCatalog() {
       </div>
 
       {isCreateDialogOpen ? (
-        <div
-          className="metric-dialog-backdrop"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              setIsCreateDialogOpen(false);
-            }
-          }}
+        <Modal
+          labelledBy="create-metric-title"
+          closeOnBackdrop
+          onClose={() => setIsCreateDialogOpen(false)}
         >
-          <section
-            aria-labelledby="create-metric-title"
-            aria-modal="true"
-            className="metric-dialog"
-            role="dialog"
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                setIsCreateDialogOpen(false);
-              }
-            }}
-          >
-            <div className="metric-dialog-header">
-              <div>
-                <p className="eyebrow">Custom metric</p>
-                <h2 id="create-metric-title">Create custom metric</h2>
-              </div>
-              <button
-                aria-label="Close dialog"
-                className="metric-dialog-close"
-                type="button"
-                onClick={() => setIsCreateDialogOpen(false)}
-              >
-                ×
-              </button>
+          <div className="metric-dialog-header">
+            <div>
+              <p className="eyebrow">Custom metric</p>
+              <h2 id="create-metric-title">Create custom metric</h2>
             </div>
-            <p
-              className={`metric-dialog-quota ${
-                used >= limit ? "metric-dialog-quota-limit" : ""
-              }`}
+            <button
+              aria-label="Close dialog"
+              className="metric-dialog-close"
+              type="button"
+              onClick={() => setIsCreateDialogOpen(false)}
             >
-              {used} of {limit} custom metrics used
-            </p>
-            <CreateCustomMetricForm
-              onCancel={() => setIsCreateDialogOpen(false)}
-              onCreated={() => setIsCreateDialogOpen(false)}
-            />
-          </section>
-        </div>
+              ×
+            </button>
+          </div>
+          <p
+            className={`metric-dialog-quota ${
+              used >= limit ? "metric-dialog-quota-limit" : ""
+            }`}
+          >
+            {used} of {limit} custom metrics used
+          </p>
+          <CreateCustomMetricForm
+            onCancel={() => setIsCreateDialogOpen(false)}
+            onCreated={() => setIsCreateDialogOpen(false)}
+          />
+        </Modal>
       ) : null}
 
       <section aria-label="Default metrics" className="metrics-cards-grid">
@@ -474,77 +459,62 @@ function MetricDefinitionRow({ definition }: MetricDefinitionRowProps) {
         ) : null}
       </article>
 
-      {isDeactivateDialogOpen
-        ? createPortal(
-            <div
-              className="metric-dialog-backdrop"
-              onMouseDown={(event) => {
-                if (event.target === event.currentTarget) {
-                  setIsDeactivateDialogOpen(false);
-                }
-              }}
+      {isDeactivateDialogOpen ? (
+        <Modal
+          labelledBy={`deactivate-${definition.id}-title`}
+          className="metric-deactivate-dialog"
+          closeOnBackdrop
+          busy={deactivateMetricDefinitionMutation.isPending}
+          onClose={() => setIsDeactivateDialogOpen(false)}
+        >
+          <div className="metric-dialog-header">
+            <div>
+              <p className="eyebrow">Archive custom metric</p>
+              <h2 id={`deactivate-${definition.id}-title`}>
+                Deactivate {definition.name}?
+              </h2>
+            </div>
+            <button
+              aria-label="Close dialog"
+              className="metric-dialog-close"
+              disabled={deactivateMetricDefinitionMutation.isPending}
+              type="button"
+              onClick={() => setIsDeactivateDialogOpen(false)}
             >
-              <section
-                aria-labelledby={`deactivate-${definition.id}-title`}
-                aria-modal="true"
-                className="metric-dialog metric-deactivate-dialog"
-                role="dialog"
-                onKeyDown={(event) => {
-                  if (event.key === "Escape") {
-                    setIsDeactivateDialogOpen(false);
-                  }
-                }}
-              >
-                <div className="metric-dialog-header">
-                  <div>
-                    <p className="eyebrow">Archive custom metric</p>
-                    <h2 id={`deactivate-${definition.id}-title`}>
-                      Deactivate {definition.name}?
-                    </h2>
-                  </div>
-                  <button
-                    aria-label="Close dialog"
-                    className="metric-dialog-close"
-                    type="button"
-                    onClick={() => setIsDeactivateDialogOpen(false)}
-                  >
-                    ×
-                  </button>
-                </div>
-                <p className="metric-dialog-copy">
-                  Entries are kept. The metric moves to Archived, logging stops,
-                  and one custom metric slot is freed.
-                </p>
-                {deactivateError ? (
-                  <p className="form-error" role="alert">
-                    {deactivateError}
-                  </p>
-                ) : null}
-                <div className="metric-dialog-actions">
-                  <button
-                    className="metric-danger-action"
-                    disabled={deactivateMetricDefinitionMutation.isPending}
-                    type="button"
-                    onClick={() => void handleDeactivate()}
-                  >
-                    {deactivateMetricDefinitionMutation.isPending
-                      ? "Deactivating..."
-                      : "Deactivate metric"}
-                  </button>
-                  <button
-                    className="metrics-secondary-action"
-                    disabled={deactivateMetricDefinitionMutation.isPending}
-                    type="button"
-                    onClick={() => setIsDeactivateDialogOpen(false)}
-                  >
-                    Keep it
-                  </button>
-                </div>
-              </section>
-            </div>,
-            document.body,
-          )
-        : null}
+              ×
+            </button>
+          </div>
+          <p className="metric-dialog-copy">
+            Entries are kept. The metric moves to Archived, logging stops, and
+            one custom metric slot is freed.
+          </p>
+          {deactivateError ? (
+            <p className="form-error" role="alert">
+              {deactivateError}
+            </p>
+          ) : null}
+          <div className="metric-dialog-actions">
+            <button
+              className="metric-danger-action"
+              disabled={deactivateMetricDefinitionMutation.isPending}
+              type="button"
+              onClick={() => void handleDeactivate()}
+            >
+              {deactivateMetricDefinitionMutation.isPending
+                ? "Deactivating..."
+                : "Deactivate metric"}
+            </button>
+            <button
+              className="metrics-secondary-action"
+              disabled={deactivateMetricDefinitionMutation.isPending}
+              type="button"
+              onClick={() => setIsDeactivateDialogOpen(false)}
+            >
+              Keep it
+            </button>
+          </div>
+        </Modal>
+      ) : null}
     </>
   );
 }

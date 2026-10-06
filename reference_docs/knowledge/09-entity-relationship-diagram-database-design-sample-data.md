@@ -1,5 +1,27 @@
 ### ERD
 
+## Workout schema update — 2026-10-01 backend slice
+
+Workout migrations add six tables to the prior 16-table domain schema (22 model
+tables total, excluding Django framework tables). Basic frontend integration is
+implemented. `workouts.0004` adds four routine template tables, bringing the domain
+model count to **26**: WorkoutRoutine, RoutineDay, RoutineExercise, RoutineSet.
+`workouts.0005` adds group labels to both occurrence models without extra tables.
+`workouts.0006` adds snapshotted hex group colours to those same models; no new tables.
+Direct routine editing, groups, calendar and windowed records are implemented;
+timer/calculator inputs are temporary browser state. See the current model ERD in
+`diagrams/current-plus-subscription-plan-erd.md` and the scope/ownership record
+in `47-workout-tracking.md`. This does not establish a cloud deployment.
+
+## Current Diet ERD update — 2026-10-01 local slice
+
+The pre-workout domain checkpoint has **16 tables**, excluding framework tables.
+Diet adds `DietSection`, `DietFood` and `DietEntry`; see the model-derived
+[13→16-table comparison](diagrams/diet-erd-comparison.md), with additions green.
+The original schema below and the Recovery 13-table checkpoint are historical.
+For current ownership/constraints, see `46-diet-tracking.md` and
+`diagrams/current-plus-subscription-plan-erd.md`. No cloud deployment is implied.
+
 
 ## Use When
 - Load this when you need the entity relationship diagram, the entities and their relationships in our database. When you need to review database design and Sample Data Across All Tables.
@@ -219,3 +241,11 @@ Notice row 1: Alice's resting HR of 58 bpm was *auto-synced* from Samsung Health
 |---|---|---|---|---|
 | 1 | `a1b2c3d4-...` | create | MetricEntry | `{"value": 42.5, "metric": "vo2_max"}` |
 | 2 | `a1b2c3d4-...` | update | User | `{"timezone": ["UTC", "Europe/Berlin"]}` |
+# Recovery ERD update — 2026-09-30 local slice
+
+At that checkpoint the domain schema had 13 tables (excluding Django/framework
+tables). Recovery adds `RecoveryTool` and `RecoveryEntry` without adding columns
+to existing tables. See [before/after diagrams](diagrams/recovery-erd-comparison.md)
+for the previous 11-table schema and updated schema with the two additions green.
+The diagrams are generated from model metadata; they do not read personal data
+or establish cloud deployment. See `45-recovery-tracking.md` for constraints.

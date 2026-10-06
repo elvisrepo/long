@@ -1,5 +1,16 @@
 # Stripe Testing and Load-Testing Policy
 
+## Sandbox retention
+
+Stripe automatically cancels ordinary test subscriptions after 90 days unless
+excluded, then deletes related objects after a further 30 days. Test-clock
+subscriptions have separate timing. This does not apply to live subscriptions.
+The cancellation reason can be `canceled_by_retention_policy`; its deletion
+webhook legitimately returns the account to Free. Missing historical checkout
+receipts must be reconciled safely, not treated as a generic provider outage.
+See `39-concurrency-locking-and-idempotency.md` for the implemented guardrails.
+Source: [Stripe test-subscription retention](https://support.stripe.com/questions/data-retention-policy-for-test-subscriptions).
+
 ## Use When
 
 - Implementing Stripe Checkout, Billing, webhooks, or subscription lifecycle code.

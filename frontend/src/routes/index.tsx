@@ -1,5 +1,8 @@
 import { PageHeader } from "../components/page-header";
 import { PageState } from "../components/page-state";
+import { DashboardRecoveryPanel } from "../features/recovery/dashboard-recovery-panel";
+import { DashboardDietPanel } from "../features/diet/dashboard-diet-panel";
+import { DashboardWorkoutPanel } from "../features/workouts/dashboard-workout-panel";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load";
@@ -178,6 +181,12 @@ function DashboardRoute() {
           ))}
         </div>
       </section>
+
+      <div className="dashboard-tracking-summaries">
+        <DashboardRecoveryPanel />
+        <DashboardDietPanel />
+        <DashboardWorkoutPanel />
+      </div>
 
       <section className="insights-card" aria-label="Pro insights">
         <div className="entries-toolbar">

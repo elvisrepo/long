@@ -124,6 +124,7 @@ export function WeightStepsOverlayChart({
         ],
       },
       options: {
+        font: { family: colors.font, size: 12 },
         maintainAspectRatio: false,
         responsive: true,
         interaction: { intersect: false, mode: "index" },
@@ -173,7 +174,7 @@ export function WeightStepsOverlayChart({
   return (
     <div
       aria-label="Daily body weight, trailing seven-day mean, and daily total steps chart"
-      className="weight-steps-chart"
+      className="chart-surface weight-steps-chart"
       role="img"
     >
       <canvas ref={canvasRef} />

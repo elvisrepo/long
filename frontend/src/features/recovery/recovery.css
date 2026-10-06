@@ -1,0 +1,204 @@
+.recovery-screen {
+  display: grid;
+  gap: var(--page-section-gap);
+}
+.recovery-add {
+  justify-self: start;
+}
+.recovery-tool-groups {
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+  align-content: start;
+}
+.recovery-tools h2 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+.recovery-section-copy {
+  color: var(--text-dim);
+  margin: 0;
+}
+.recovery-evidence-details {
+  margin-top: 0.6rem;
+  font-size: 0.85rem;
+}
+.recovery-evidence-details summary {
+  cursor: pointer;
+  color: var(--text-dim);
+}
+.recovery-save-status {
+  min-height: 1.4em;
+}
+.recovery-history button {
+  display: grid;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 0.6rem 0.15rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+.recovery-history button[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.recovery-history button span {
+  white-space: nowrap;
+}
+.recovery-action:focus-visible,
+.recovery-history button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.recovery-tools {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  min-width: 0;
+}
+.recovery-tool,
+.recovery-panel {
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--panel-bg);
+  padding: 1.25rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.recovery-tool p,
+.recovery-panel p {
+  color: var(--text-dim);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+.recovery-tool label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+}
+.recovery-tool-checked {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 5%, var(--panel-bg));
+}
+.recovery-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.dashboard-recovery {
+  display: grid;
+  gap: 0.6rem;
+}
+.dashboard-recovery h2,
+.dashboard-recovery p {
+  margin: 0;
+}
+.dashboard-recovery p {
+  color: var(--text-dim);
+}
+.dashboard-recovery a {
+  color: var(--accent);
+  justify-self: start;
+}
+.recovery-tool input[type="checkbox"] {
+  width: 1.2rem;
+  height: 1.2rem;
+  accent-color: var(--accent);
+}
+.recovery-evidence-bar {
+  height: 0.5rem;
+  background: var(--surface-high);
+  border-radius: 1rem;
+  margin-top: 1rem;
+}
+.recovery-evidence-bar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: inherit;
+}
+.recovery-panel summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.recovery-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 1.5rem;
+}
+.recovery-sidebar {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+  min-width: 0;
+}
+.recovery-panel h2 {
+  font-size: 1.1rem;
+}
+.recovery-history {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.recovery-history li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+.recovery-date {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+.recovery-action {
+  padding: var(--control-padding);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--control-radius);
+  cursor: pointer;
+  margin: 0.3rem 0.5rem 0.3rem 0;
+}
+.recovery-action:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.recovery-custom-form label {
+  display: grid;
+  gap: var(--field-gap);
+  max-width: 30rem;
+}
+.recovery-custom-form input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--control-padding);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--control-radius);
+}
+@media (max-width: 760px) {
+  .recovery-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .recovery-sidebar {
+    display: contents;
+  }
+  .recovery-custom-form {
+    padding: 0;
+    border: 0;
+  }
+}
