@@ -277,6 +277,12 @@ for (const theme of ["dark", "light", "sand"]) {
         "/workouts?view=exercises",
       ]) {
         await page.goto(path);
+        const expectedTitle = path.includes("exercises")
+          ? "All exercises · Longevity"
+          : path.startsWith("/workouts")
+            ? "Workouts · Longevity"
+            : `${path === "/diet" ? "Diet" : "Recovery"} · Longevity`;
+        await expect(page).toHaveTitle(expectedTitle);
         const field = page.getByLabel("Tracking date", { exact: true });
         await expect(field).toBeVisible();
         const input = (await field.boundingBox())!;
@@ -302,7 +308,7 @@ for (const theme of ["dark", "light", "sand"]) {
         ).toBe(true);
         if (path.includes("exercises")) {
           const heading = (await page
-            .getByRole("heading", { name: "Chest", exact: true })
+            .locator(".workout-library-category-heading")
             .boundingBox())!;
           const edit = (await page
             .getByRole("button", { name: "Edit category Chest", exact: true })

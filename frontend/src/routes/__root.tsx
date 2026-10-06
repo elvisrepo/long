@@ -13,21 +13,25 @@ import { PageHeader } from "../components/page-header";
 import { ThemeToggle } from "../components/theme-toggle";
 import { logoutWeb } from "../features/auth/auth-logout-api";
 import { useMeQuery } from "../features/auth/use-me-query";
+import { getDocumentTitle } from "../utils/document-title";
 
 interface RouterContext {
   queryClient: QueryClient;
 }
 
 function RootLayout() {
-  const pathname = useRouterState({
-    select: (state) => state.location.pathname,
-  });
+  const location = useRouterState({ select: (state) => state.location });
+  const pathname = location.pathname;
   const isPublicAuthRoute = [
     "/login",
     "/register",
     "/forgot-password",
     "/reset-password",
   ].includes(pathname);
+
+  useEffect(() => {
+    document.title = getDocumentTitle(location.pathname, location.search);
+  }, [location.pathname, location.search]);
 
   return (
     <div className="app-shell">

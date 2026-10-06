@@ -154,6 +154,15 @@ No API contracts, routes, schemas, or account data changed in this pass.
 - The ignored Light-theme before/after gallery is
   `.lavish/uiux-review/workout-library-before-after.html`.
 
+### Browser page titles (implemented)
+
+- The browser tab title follows the active route, including each Workout view
+  and human-readable metric slugs, with `Longevity` as the app name.
+- Unknown paths receive a not-found title, and the HTML fallback title is no
+  longer the Vite placeholder. No route paths or page content changed.
+- Unit tests cover title mapping; the mocked browser layout journey verifies
+  workout home and All exercises titles during navigation.
+
 Separate dependency follow-up: font installation's audit reported two existing
 high-severity development-only dependency groups (`brace-expansion` via linting
 tools and `undici` via jsdom). The font packages introduce neither group. No
