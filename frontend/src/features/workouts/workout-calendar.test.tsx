@@ -242,6 +242,9 @@ it("reads only the displayed month and distinguishes completed training from pla
   const button = await screen.findByRole("button", {
     name: "2026-02-15: 1 training session, 0 planned sessions",
   });
+  const statusKey = screen.getByRole("group", { name: "Workout status key" });
+  expect(statusKey).toHaveTextContent("Completed training");
+  expect(statusKey).toHaveTextContent("Planned");
   expect(api.getWorkoutRange).toHaveBeenCalledWith("2026-02-01", "2026-02-28");
   expect(
     screen.getByRole("button", {

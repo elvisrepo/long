@@ -569,7 +569,9 @@ function SessionCard({
     <section className="workout-card">
       <div className="workout-card-heading">
         <h2>{w.name}</h2>
-        <span className="workout-badge">
+        <span
+          className={`workout-badge workout-status workout-status--${w.is_finished ? "finished" : "in-progress"}`}
+        >
           {w.is_finished ? "Finished" : "In progress"}
         </span>
       </div>
@@ -612,7 +614,7 @@ function SessionCard({
                   {i + 1}. {setLabel(item, s)}
                 </span>
                 <span
-                  className={`workout-badge ${s.is_completed ? "" : "muted"}`}
+                  className={`workout-badge workout-status workout-status--${s.is_completed ? "completed" : "planned"}`}
                 >
                   {s.is_completed ? "Completed" : "Planned"}
                 </span>

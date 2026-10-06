@@ -190,11 +190,16 @@ export function WorkoutProgress({
           </select>
         </label>
       </div>
-      <p>
-        {days === 0
-          ? `All recorded training through ${date}. Completed sets only; saved types and units stay separate.`
-          : `${from} – ${date}. Completed sets only; saved types and units stay separate. These are records within this window, not all-time records.`}
-      </p>
+      <div className="workout-progress-scope">
+        <span className="workout-badge workout-status workout-status--completed">
+          Completed sets only
+        </span>
+        <p>
+          {days === 0
+            ? `All recorded training through ${date}; saved types and units stay separate.`
+            : `${from} – ${date}. Saved types and units stay separate. These are records within this window, not all-time records.`}
+        </p>
+      </div>
       {selectedMetric === "personal_records" && (
         <p className="workout-note">
           Personal records here are actual strength loads by rep count. Cardio

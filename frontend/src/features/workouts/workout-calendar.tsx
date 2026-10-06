@@ -172,10 +172,26 @@ export function WorkoutCalendar({
         </>
       ) : (
         <>
-          <p>
-            T = matching training with completed sets. P = planned-only
-            sessions, including empty drafts.
-          </p>
+          <div
+            className="workout-calendar-key"
+            role="group"
+            aria-label="Workout status key"
+          >
+            <div>
+              <span className="workout-calendar-key-marker training">T</span>
+              <span>
+                <strong>Completed training</strong>
+                <small>At least one completed set</small>
+              </span>
+            </div>
+            <div>
+              <span className="workout-calendar-key-marker planned">P</span>
+              <span>
+                <strong>Planned</strong>
+                <small>No completed sets, including empty drafts</small>
+              </span>
+            </div>
+          </div>
           <p role="status">
             {filtered.length} matching{" "}
             {filtered.length === 1 ? "session" : "sessions"} in this month.
@@ -207,11 +223,18 @@ export function WorkoutCalendar({
                 >
                   <span>{n + 1}</span>
                   {(trained > 0 || planned > 0) && (
-                    <small title="Training and planned sessions">
-                      {[
-                        ...(trained > 0 ? [`T${trained}`] : []),
-                        ...(planned > 0 ? [`P${planned}`] : []),
-                      ].join(" · ")}
+                    <small title="Completed training and planned sessions">
+                      {trained > 0 && (
+                        <span className="workout-calendar-count training">
+                          T{trained}
+                        </span>
+                      )}
+                      {trained > 0 && planned > 0 && " · "}
+                      {planned > 0 && (
+                        <span className="workout-calendar-count planned">
+                          P{planned}
+                        </span>
+                      )}
                     </small>
                   )}
                 </button>

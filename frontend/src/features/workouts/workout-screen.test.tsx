@@ -81,6 +81,51 @@ beforeEach(() => {
   vi.mocked(api.createWorkout).mockResolvedValue({ ...workout, exercises: [] });
   vi.mocked(api.addWorkoutExercise).mockResolvedValue(item);
 });
+it("distinguishes session and set status labels on Home", async () => {
+  const completedSet: api.WorkoutSet = {
+    id: "completed",
+    weight: "70.000",
+    reps: 5,
+    distance: null,
+    duration_seconds: null,
+    comment: "",
+    is_completed: true,
+    display_order: 10,
+  };
+  const plannedSet = { ...completedSet, id: "planned", is_completed: false };
+  const active = {
+    ...workout,
+    id: "active",
+    name: "Active workout",
+    completed_set_count: 1,
+    exercises: [{ ...item, sets: [completedSet, plannedSet] }],
+  };
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([
+    active,
+    { ...active, id: "finished", name: "Finished workout", is_finished: true },
+  ]);
+  mount({ date: workout.performed_on });
+
+  expect(await screen.findByText("In progress")).toHaveClass(
+    "workout-status--in-progress",
+  );
+  expect(screen.getByText("Finished", { exact: true })).toHaveClass(
+    "workout-status--finished",
+  );
+  expect(screen.getAllByText("Completed", { exact: true })).toHaveLength(2);
+  expect(
+    screen
+      .getAllByText("Completed", { exact: true })
+      .every((badge) => badge.classList.contains("workout-status--completed")),
+  ).toBe(true);
+  expect(screen.getAllByText("Planned", { exact: true })).toHaveLength(2);
+  expect(
+    screen
+      .getAllByText("Planned", { exact: true })
+      .every((badge) => badge.classList.contains("workout-status--planned")),
+  ).toBe(true);
+});
+
 it("opens an export preview from Home without writing or creating a workout", async () => {
   vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
   mount({ view: "home", date: workout.performed_on });

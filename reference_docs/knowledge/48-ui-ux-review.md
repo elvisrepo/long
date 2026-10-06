@@ -163,6 +163,19 @@ No API contracts, routes, schemas, or account data changed in this pass.
 - Unit tests cover title mapping; the mocked browser layout journey verifies
   workout home and All exercises titles during navigation.
 
+### Workout status labels (implemented)
+
+- Home and History preserve separate session states (Finished / In progress)
+  and set states (Completed / Planned), now with distinct, readable badge styles.
+- Calendar retains compact T/P day counts and accessible full counts, with an
+  explicit key: Completed training means at least one completed set; Planned
+  means no completed sets, including empty drafts.
+- Progress surfaces its existing Completed sets only scope as a status chip.
+  No workout or set completion semantics changed.
+- Fixture-backed Light captures at 390 and 1440 px fit without horizontal
+  overflow and made no API writes. Gallery:
+  `.lavish/uiux-review/workout-status-before-after.html`.
+
 Separate dependency follow-up: font installation's audit reported two existing
 high-severity development-only dependency groups (`brace-expansion` via linting
 tools and `undici` via jsdom). The font packages introduce neither group. No
