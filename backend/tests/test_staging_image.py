@@ -78,6 +78,27 @@ def test_scan_gate_accepts_only_the_documented_staging_high() -> None:
     review_scan_findings(report)
 
 
+def test_scan_gate_accepts_reported_gcc_findings_for_exact_package_version() -> None:
+    report = {
+        "imageScanStatus": {"status": "COMPLETE"},
+        "imageScanFindings": {
+            "findings": [
+                {
+                    "name": cve,
+                    "severity": "HIGH",
+                    "attributes": [
+                        {"key": "package_name", "value": "gcc-14"},
+                        {"key": "package_version", "value": "14.2.0-19"},
+                    ],
+                }
+                for cve in ("CVE-2026-102010", "CVE-2026-95619")
+            ]
+        },
+    }
+
+    review_scan_findings(report)
+
+
 def test_scan_gate_rejects_allowlisted_cve_for_an_unreviewed_package_version() -> None:
     report = {
         "imageScanStatus": {"status": "COMPLETE"},
@@ -98,6 +119,30 @@ def test_scan_gate_rejects_allowlisted_cve_for_an_unreviewed_package_version() -
     with pytest.raises(
         StagingImageError,
         match="unapproved HIGH finding: CVE-2026-82560",
+    ):
+        review_scan_findings(report)
+
+
+def test_scan_gate_rejects_gcc_finding_for_an_unreviewed_package_version() -> None:
+    report = {
+        "imageScanStatus": {"status": "COMPLETE"},
+        "imageScanFindings": {
+            "findings": [
+                {
+                    "name": "CVE-2026-102010",
+                    "severity": "HIGH",
+                    "attributes": [
+                        {"key": "package_name", "value": "gcc-14"},
+                        {"key": "package_version", "value": "14.2.0-20"},
+                    ],
+                }
+            ]
+        },
+    }
+
+    with pytest.raises(
+        StagingImageError,
+        match="unapproved HIGH finding: CVE-2026-102010",
     ):
         review_scan_findings(report)
 

@@ -407,6 +407,13 @@ availability, automatic database-password rotation, or memory-only Docker secret
 storage. Migration failure blocks API replacement but may leave schema changes;
 Docker metadata can retain container environments on the encrypted root disk.
 
+On 2026-10-06, the operator approved a staging-only exception for ECR HIGH
+findings `CVE-2026-102010` and `CVE-2026-95619` on `gcc-14` version
+`14.2.0-19`, which Debian Trixie had not yet fixed. The scan policy matches the
+exact CVE, package, and version; CRITICAL findings and all other unreviewed
+HIGH findings continue to block deployment. Remove this exception once the
+staging image no longer contains the affected package version.
+
 ## 6. Current gate
 
 Steps 1–11 are complete. Step 12 is active and follows
