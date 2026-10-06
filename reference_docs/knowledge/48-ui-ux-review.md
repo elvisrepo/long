@@ -128,6 +128,20 @@ No API contracts, routes, schemas, or account data changed in this pass.
 - The ignored Light-theme before/after gallery is
   `.lavish/uiux-review/chart-consistency-before-after/`.
 
+### Nested Workout navigation (implemented)
+
+- Exercise Overview has four clearly scoped sections: Statistics, Exercise
+  history, Exercise progress, and Goals. The former separate Graphs and Records
+  tabs were redundant because both used the same progress view.
+- Exercise progress reuses the Overview exercise selection rather than showing
+  a second exercise dropdown. The standalone Workout Progress page keeps its
+  selector.
+- Personal records remain available from the graph menu; the selected progress
+  window remains authoritative, including windowed personal records. The date,
+  route, and data contracts are unchanged.
+- The ignored Light-theme before/after gallery is
+  `.lavish/uiux-review/workout-navigation-before-after/`.
+
 Separate dependency follow-up: font installation's audit reported two existing
 high-severity development-only dependency groups (`brace-expansion` via linting
 tools and `undici` via jsdom). The font packages introduce neither group. No

@@ -19,19 +19,17 @@ export function WorkoutProgress({
   exerciseId,
   catalog,
   navigate,
-  initialMetric = null,
-  initialDays = 90,
+  showExerciseSelector = true,
 }: {
   owner: string;
   date: string;
   exerciseId?: string;
   catalog: api.WorkoutCatalog;
   navigate: NavigateWorkout;
-  initialMetric?: ProgressMetric | null;
-  initialDays?: number;
+  showExerciseSelector?: boolean;
 }) {
-  const [days, setDays] = useState(initialDays);
-  const [metric, setMetric] = useState<ProgressMetric | null>(initialMetric);
+  const [days, setDays] = useState(90);
+  const [metric, setMetric] = useState<ProgressMetric | null>(null);
   const [reps, setReps] = useState(5);
   const [history, setHistory] = useState<{
     reps: number;
@@ -117,35 +115,38 @@ export function WorkoutProgress({
   return (
     <section className="workout-card">
       <div className="workout-filters workout-progress-filters">
-        <label>
-          Progress exercise
-          <select
-            value={exerciseId ?? ""}
-            onChange={(e) => {
-              setMetric(null);
-              navigate({
-                view: "progress",
-                date,
-                exercise: e.target.value || undefined,
-              });
-            }}
-          >
-            <option value="">Choose exercise…</option>
-            {catalog.exercises.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.name}
-                {e.is_active ? "" : " (archived)"}
-              </option>
-            ))}
-          </select>
-        </label>
+        {showExerciseSelector && (
+          <label>
+            Progress exercise
+            <select
+              value={exerciseId ?? ""}
+              onChange={(e) => {
+                setMetric(null);
+                navigate({
+                  view: "progress",
+                  date,
+                  exercise: e.target.value || undefined,
+                });
+              }}
+            >
+              <option value="">Choose exercise…</option>
+              {catalog.exercises.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.name}
+                  {e.is_active ? "" : " (archived)"}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label>
           Graph
           <select
             value={selectedMetric}
-            onChange={(event) =>
-              setMetric(event.target.value as ProgressMetric)
-            }
+            onChange={(event) => {
+              const selected = event.target.value as ProgressMetric;
+              setMetric(selected);
+            }}
           >
             {selectedMetric === "personal_records" &&
               !displayedOptions.some(

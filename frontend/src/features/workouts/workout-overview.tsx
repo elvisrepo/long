@@ -6,6 +6,13 @@ import { WorkoutProgress } from "./workout-progress";
 import { ExerciseGoals } from "./exercise-goals";
 import { BulkSetDialog } from "./bulk-set-dialog";
 
+const overviewSections = [
+  { id: "Statistics", label: "Statistics" },
+  { id: "History", label: "Exercise history" },
+  { id: "Progress", label: "Exercise progress" },
+  { id: "Goals", label: "Goals" },
+] as const;
+
 function Statistics({
   owner,
   date,
@@ -143,9 +150,13 @@ export function WorkoutOverview({
       </label>
       {exercise && <h2>{exercise.name}</h2>}
       <nav className="workout-tabs" aria-label="Exercise overview sections">
-        {["Statistics", "History", "Graphs", "Records", "Goals"].map((t) => (
-          <button key={t} aria-pressed={tab === t} onClick={() => setTab(t)}>
-            {t}
+        {overviewSections.map(({ id, label }) => (
+          <button
+            key={id}
+            aria-pressed={tab === id}
+            onClick={() => setTab(id)}
+          >
+            {label}
           </button>
         ))}
       </nav>
@@ -197,8 +208,7 @@ export function WorkoutOverview({
               view: next.view === "progress" ? "overview" : next.view,
             })
           }
-          initialMetric={tab === "Records" ? "personal_records" : null}
-          initialDays={tab === "Records" ? 0 : 90}
+          showExerciseSelector={false}
         />
       )}
     </section>

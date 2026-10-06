@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import * as api from "./workout-api";
@@ -130,7 +130,7 @@ it("keeps history inside the overview and shows only the selected exercise", asy
     </QueryClientProvider>,
   );
   await userEvent.click(
-    screen.getByRole("button", { name: "History", exact: true }),
+    screen.getByRole("button", { name: "Exercise history", exact: true }),
   );
   expect(
     await screen.findByText("70 kg · 5 reps · Completed"),
@@ -161,8 +161,99 @@ it("keeps history inside the overview and shows only the selected exercise", asy
   });
 });
 
+it("does not repeat the exercise selector inside exercise progress", async () => {
+  vi.mocked(api.getExerciseStats).mockResolvedValue({
+    exercise_id: "bench",
+    date_to: "2026-10-02",
+    groups: [],
+  });
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([]);
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <WorkoutOverview
+        owner="owner"
+        date="2026-10-02"
+        exerciseId="bench"
+        catalog={{
+          categories: [],
+          exercises: [
+            {
+              id: "bench",
+              name: "Bench",
+              tracking_type: "strength",
+            } as api.Exercise,
+          ],
+        }}
+        navigate={vi.fn()}
+      />
+    </QueryClientProvider>,
+  );
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Exercise progress" }),
+  );
+
+  expect(await screen.findByLabelText("Graph")).toBeInTheDocument();
+  expect(screen.getByLabelText("Overview exercise")).toBeInTheDocument();
+  expect(screen.queryByLabelText("Progress exercise")).not.toBeInTheDocument();
+});
+
+it("combines graphs and records under exercise progress", async () => {
+  vi.mocked(api.getExerciseStats).mockResolvedValue({
+    exercise_id: "bench",
+    date_to: "2026-10-02",
+    groups: [],
+  });
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([]);
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <WorkoutOverview
+        owner="owner"
+        date="2026-10-02"
+        exerciseId="bench"
+        catalog={{
+          categories: [],
+          exercises: [
+            {
+              id: "bench",
+              name: "Bench",
+              tracking_type: "strength",
+            } as api.Exercise,
+          ],
+        }}
+        navigate={vi.fn()}
+      />
+    </QueryClientProvider>,
+  );
+
+  const tabs = screen.getByRole("navigation", {
+    name: "Exercise overview sections",
+  });
+  expect(
+    within(tabs).getByRole("button", { name: "Exercise progress" }),
+  ).toBeInTheDocument();
+  expect(within(tabs).queryByRole("button", { name: "Graphs" })).toBeNull();
+  expect(within(tabs).queryByRole("button", { name: "Records" })).toBeNull();
+
+  await userEvent.click(
+    within(tabs).getByRole("button", { name: "Exercise progress" }),
+  );
+  const graph = screen.getByLabelText("Graph");
+  expect(
+    within(graph).getByRole("option", { name: "Personal records" }),
+  ).toBeInTheDocument();
+  await userEvent.selectOptions(graph, "personal_records");
+  expect(screen.getByLabelText("Progress window")).toHaveValue("90");
+  await userEvent.selectOptions(screen.getByLabelText("Progress window"), "0");
+  expect(screen.getByLabelText("Progress window")).toHaveValue("0");
+});
+
 it.each(["strength", "cardio"] as const)(
-  "opens all-time records for %s without a blank selector or raw workout reads",
+  "keeps %s record options scoped and avoids raw reads in all-time mode",
   async (trackingType) => {
     vi.mocked(api.getExerciseStats).mockResolvedValue({
       exercise_id: "bench",
@@ -201,12 +292,19 @@ it.each(["strength", "cardio"] as const)(
       </QueryClientProvider>,
     );
     await userEvent.click(
-      screen.getByRole("button", { name: "Records", exact: true }),
+      screen.getByRole("button", { name: "Exercise progress", exact: true }),
     );
-    expect(await screen.findByLabelText("Graph")).toHaveValue(
-      "personal_records",
-    );
-    expect(screen.getByLabelText("Progress window")).toHaveValue("0");
-    expect(api.getWorkoutRange).not.toHaveBeenCalled();
+    const graph = await screen.findByLabelText("Graph");
+    if (trackingType === "strength") {
+      await userEvent.selectOptions(graph, "personal_records");
+      await userEvent.selectOptions(screen.getByLabelText("Progress window"), "0");
+      expect(screen.getByLabelText("Progress window")).toHaveValue("0");
+      expect(api.getWorkoutRange).toHaveBeenCalledTimes(1);
+    } else {
+      expect(graph).toHaveValue("max_distance");
+      expect(
+        within(graph).queryByRole("option", { name: "Personal records" }),
+      ).toBeNull();
+    }
   },
 );

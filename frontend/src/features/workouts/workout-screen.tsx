@@ -193,7 +193,7 @@ export function WorkoutScreen({
           }
           description={
             view === "overview"
-              ? "History, graphs, records, statistics and goals for one exercise."
+              ? "Review sessions, progress, statistics and goals for one exercise."
               : view === "exercises"
                 ? search.session
                   ? "Select an exercise to add to this workout, or open one already included."
