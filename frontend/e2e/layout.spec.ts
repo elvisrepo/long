@@ -1071,7 +1071,9 @@ test("theme remains usable when browser storage is unavailable", async ({
 });
 
 test("legacy Sand preference falls back to Dark", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("longevity-theme", "sand"));
+  await page.addInitScript(() =>
+    localStorage.setItem("longevity-theme", "sand"),
+  );
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(page.getByLabel("Color theme")).toHaveValue("dark");

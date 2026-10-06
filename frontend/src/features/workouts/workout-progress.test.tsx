@@ -10,9 +10,9 @@ beforeEach(() => vi.resetAllMocks());
 
 it("shows completed-set scope as a visible progress status", async () => {
   mount([70]);
-  expect(await screen.findByText("Completed sets only", { exact: true })).toHaveClass(
-    "workout-status--completed",
-  );
+  expect(
+    await screen.findByText("Completed sets only", { exact: true }),
+  ).toHaveClass("workout-status--completed");
 });
 
 function mount(

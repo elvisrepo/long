@@ -183,11 +183,16 @@ export function WorkoutTraining({
         <div className="workout-actions">
           <button
             disabled={busy}
-            onClick={() => navigate({ view: "home", date: workout.performed_on })}
+            onClick={() =>
+              navigate({ view: "home", date: workout.performed_on })
+            }
           >
             Workout overview
           </button>
-          <button disabled={busy || !library} onClick={() => setDialog("notes")}>
+          <button
+            disabled={busy || !library}
+            onClick={() => setDialog("notes")}
+          >
             Exercise notes
           </button>
           <button disabled={disabled} onClick={() => setDialog("manage")}>

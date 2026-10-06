@@ -151,11 +151,7 @@ export function WorkoutOverview({
       {exercise && <h2>{exercise.name}</h2>}
       <nav className="workout-tabs" aria-label="Exercise overview sections">
         {overviewSections.map(({ id, label }) => (
-          <button
-            key={id}
-            aria-pressed={tab === id}
-            onClick={() => setTab(id)}
-          >
+          <button key={id} aria-pressed={tab === id} onClick={() => setTab(id)}>
             {label}
           </button>
         ))}

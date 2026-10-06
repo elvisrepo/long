@@ -35,13 +35,11 @@ it("keeps the session on failed deletion and displays the backend validation err
   setAccessToken("access-token");
   vi.stubGlobal(
     "fetch",
-    vi
-      .fn()
-      .mockResolvedValue(
-        new Response(JSON.stringify({ password: ["Password is incorrect."] }), {
-          status: 400,
-        }),
-      ),
+    vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ password: ["Password is incorrect."] }), {
+        status: 400,
+      }),
+    ),
   );
   await expect(deleteAccount("wrong")).rejects.toThrow(
     "Password is incorrect.",

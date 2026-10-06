@@ -170,7 +170,9 @@ it("does not repeat the exercise selector inside exercise progress", async () =>
   vi.mocked(api.getWorkoutRange).mockResolvedValue([]);
   render(
     <QueryClientProvider
-      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
     >
       <WorkoutOverview
         owner="owner"
@@ -209,7 +211,9 @@ it("combines graphs and records under exercise progress", async () => {
   vi.mocked(api.getWorkoutRange).mockResolvedValue([]);
   render(
     <QueryClientProvider
-      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
     >
       <WorkoutOverview
         owner="owner"
@@ -297,7 +301,10 @@ it.each(["strength", "cardio"] as const)(
     const graph = await screen.findByLabelText("Graph");
     if (trackingType === "strength") {
       await userEvent.selectOptions(graph, "personal_records");
-      await userEvent.selectOptions(screen.getByLabelText("Progress window"), "0");
+      await userEvent.selectOptions(
+        screen.getByLabelText("Progress window"),
+        "0",
+      );
       expect(screen.getByLabelText("Progress window")).toHaveValue("0");
       expect(api.getWorkoutRange).toHaveBeenCalledTimes(1);
     } else {

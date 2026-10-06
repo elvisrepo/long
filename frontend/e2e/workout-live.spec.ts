@@ -35,7 +35,8 @@ for (const width of [320, 390, 1440]) {
           ),
         ).toBe(true);
       await page.addStyleTag({
-        content: '[aria-label="Open TanStack Router Devtools"] { display: none !important; }',
+        content:
+          '[aria-label="Open TanStack Router Devtools"] { display: none !important; }',
       });
       await page.screenshot({
         path: `../playground/workout-live-screenshots/${name}-${width}.png`,

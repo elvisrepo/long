@@ -402,7 +402,11 @@ function ProgressCard({
               </g>
             );
           })}
-          <path d={`M80 20V160H${xRight}`} fill="none" stroke="var(--chart-axis)" />
+          <path
+            d={`M80 20V160H${xRight}`}
+            fill="none"
+            stroke="var(--chart-axis)"
+          />
           <polygon
             points={`${points.split(" ")[0].split(",")[0]},160 ${points} ${points.split(" ").at(-1)!.split(",")[0]},160`}
             fill="var(--chart-fill)"

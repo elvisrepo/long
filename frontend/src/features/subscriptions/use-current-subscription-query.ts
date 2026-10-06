@@ -4,7 +4,9 @@ import {
   type CurrentSubscription,
 } from "./subscriptions-api";
 
-export function hasPaidPlan(subscription: CurrentSubscription | undefined): boolean {
+export function hasPaidPlan(
+  subscription: CurrentSubscription | undefined,
+): boolean {
   return (
     subscription !== undefined &&
     subscription.plan.code !== "free" &&
@@ -12,9 +14,9 @@ export function hasPaidPlan(subscription: CurrentSubscription | undefined): bool
   );
 }
 
-export function useCurrentSubscriptionQuery(
-  { confirmCheckout = false }: { confirmCheckout?: boolean } = {},
-) {
+export function useCurrentSubscriptionQuery({
+  confirmCheckout = false,
+}: { confirmCheckout?: boolean } = {}) {
   return useQuery<CurrentSubscription>({
     queryKey: ["current-subscription"],
     queryFn: getCurrentSubscription,
