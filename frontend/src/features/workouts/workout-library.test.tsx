@@ -63,6 +63,9 @@ it("filters favorites and multiple search terms without starting workouts", asyn
     }),
   ).toBeInTheDocument();
   expect(
+    screen.getByText("1 exercise", { selector: "small" }),
+  ).toBeInTheDocument();
+  expect(
     screen.getByText(/3 trained sessions.*2026-09-30/),
   ).toBeInTheDocument();
   await userEvent.click(

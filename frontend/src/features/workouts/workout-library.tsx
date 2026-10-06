@@ -139,12 +139,21 @@ export function WorkoutLibrary({
             );
             if (!exercises.length && (favorites || search.trim())) return null;
             return (
-              <section className="workout-card" key={c.id}>
-                <div className="workout-card-heading">
-                  <h2>
-                    {c.name}
-                    {!c.is_active && <small> · Archived</small>}
-                  </h2>
+              <section
+                className="workout-card workout-library-category"
+                key={c.id}
+              >
+                <div className="workout-card-heading workout-library-category-heading">
+                  <div className="workout-library-category-title">
+                    <h2>
+                      {c.name}
+                      {!c.is_active && <small> · Archived</small>}
+                    </h2>
+                    <small>
+                      {exercises.length}{" "}
+                      {exercises.length === 1 ? "exercise" : "exercises"}
+                    </small>
+                  </div>
                   <button
                     disabled={busy}
                     aria-label={`Edit category ${c.name}`}

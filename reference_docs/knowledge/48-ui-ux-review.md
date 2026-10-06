@@ -142,6 +142,18 @@ No API contracts, routes, schemas, or account data changed in this pass.
 - The ignored Light-theme before/after gallery is
   `.lavish/uiux-review/workout-navigation-before-after/`.
 
+### Workout exercise library scanability (implemented)
+
+- Exercise categories show the number of exercises currently visible after the
+  active search, category, favorite, and archive filters are applied.
+- Category heading, count, and Edit action stay aligned as a single row on
+  mobile. Exercise selection, favorite, and edit actions remain available.
+- Search, selection, favorites, and editing behavior are unchanged. Responsive
+  fixture captures at 390 and 1440 px fit without horizontal overflow; the
+  fixture harness made no API writes.
+- The ignored Light-theme before/after gallery is
+  `.lavish/uiux-review/workout-library-before-after.html`.
+
 Separate dependency follow-up: font installation's audit reported two existing
 high-severity development-only dependency groups (`brace-expansion` via linting
 tools and `undici` via jsdom). The font packages introduce neither group. No

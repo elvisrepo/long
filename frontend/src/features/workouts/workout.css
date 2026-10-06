@@ -334,16 +334,40 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
 }
+.workout-library-category {
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+}
+.workout-library-category-heading {
+  flex-wrap: nowrap;
+}
+.workout-library-category-title {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.workout-library-category-title > small {
+  color: var(--text-dim);
+}
+.workout-library-category .workout-stack {
+  gap: 0.6rem;
+}
 .workout-toolbar > label {
   flex: 1;
   min-width: 180px;
   max-width: 500px;
 }
 .workout-exercise-row {
-  display: flex;
-  gap: 0.5rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.4rem;
   align-items: center;
   min-width: 0;
+}
+.workout-library-category .workout-exercise-row .workout-actions {
+  flex-wrap: nowrap;
+  gap: 0.35rem;
 }
 .workout-exercise-choice {
   display: flex;
