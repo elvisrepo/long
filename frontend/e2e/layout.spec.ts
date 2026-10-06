@@ -104,7 +104,7 @@ test("metric deactivation modal contains focus and restores its opener", async (
   await expect(opener).toBeFocused();
 });
 
-test("workout completion labels meet text contrast in all themes", async ({
+test("workout completion labels meet text contrast in both themes", async ({
   page,
 }) => {
   await page.goto("/workouts");

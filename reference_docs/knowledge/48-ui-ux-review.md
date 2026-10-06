@@ -13,8 +13,10 @@ state. Workouts covered Home, exercise library, Training, History, Routines,
 Calendar, Progress, Overview, overview sub-tabs, and selected dialogs.
 
 The 195 screenshot captures use actual React components with browser-intercepted
-fixture APIs, not the user's account data. Main views were captured in Dark,
-Light, and Sand at 390/1440 px; selected layouts also received 320/768 px probes.
+fixture APIs, not the user's account data. At the time of the original review,
+main views were captured in Dark, Light, and Sand at 390/1440 px; selected
+layouts also received 320/768 px probes. Sand was removed on 6 October 2026, so
+those captures are historical and the supported themes are now Dark and Light.
 No horizontal page overflow was observed in captured layouts. This is not a full
 accessibility audit, entitlement test, or complete interaction regression suite.
 Sparse fixture data, transient loading, and development overlays must not be
@@ -35,9 +37,10 @@ treated as evidence of production defects.
 
 ## Direction and implementation status
 
-Retain the existing identity and all three themes. Light is the recommended
-reference for dense forms and tables; Dark and Sand remain supported choices.
-The review artifact matches the project's existing CSS tokens, not an external kit.
+Retain the existing identity with Dark and Light themes only. Light is the
+recommended reference for dense forms and tables. Previously saved Sand
+preferences fall back to Dark. The review artifact matches the project's
+existing CSS tokens, not an external kit.
 
 The foundation is approved; later page-specific layout changes are tracked below:
 
@@ -71,6 +74,23 @@ The foundation is approved; later page-specific layout changes are tracked below
 
 These rules are implemented in `frontend/src/index.css`, feature styles, and
 `frontend/src/components/modal.tsx`. No API contracts, routes, or schemas changed.
+
+### Theme and accessibility follow-up (6 October 2026)
+
+- Removed Sand from the theme selector and theme tokens. Only Dark and Light are
+  supported; a legacy saved Sand value resolves to Dark.
+- The original metric modal focus issue was subsequently fixed by the shared
+  native Modal. Browser tests cover focus containment, Escape dismissal, and
+  restoring focus to the opener for custom-metric creation and deactivation.
+- Responsive alignment is covered by fixture-backed browser checks across
+  Diet, Recovery, Workouts, and the exercise library at 320, 390, and 1440 px
+  in both supported themes. This is targeted regression coverage, not a complete
+  WCAG audit.
+- Follow-up browser verification passed: all 45 layout tests and all 4 focused
+  Workout browser tests. The covered contrast check is limited to workout
+  completion labels and calendar counts; it does not measure every text/surface
+  pairing in the application. No layout or focus-containment regressions were
+  found in the checked scope.
 
 ### Logging-first mobile pass (implemented)
 
