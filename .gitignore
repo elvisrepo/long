@@ -42,7 +42,9 @@ playground/
 # Local tool artifacts
 .codex
 .firecrawl/
-.lavish/uiux-review/
+.agents/
+.lavish/
+node_modules/
 
 # Backend runtime artifacts
 backend/celerybeat-schedule*
