@@ -25,34 +25,75 @@ The current AWS staging snapshot and its change history are indexed in
 ### Local development
 
 ```mermaid
-flowchart LR
-  subgraph machine[Developer machine]
-    browser[Browser: React app]
-    vite[Vite dev server<br/>:5173 and API proxy]
-    api[Django REST API<br/>Docker :8000]
-    db[(PostgreSQL 16<br/>Docker volume)]
-    stripecli[Stripe CLI]
-    androidtools[Android Studio, Gradle, adb]
-    browser -->|loads app| vite
-    browser -->|relative /api requests| vite
-    vite -->|proxy| api
-    api --> db
-    stripecli -->|sandbox webhooks| api
-  end
-  subgraph phone[Android test phone]
-    app[Android companion app]
-    healthconnect[Health Connect]
-    samsung[Samsung Health]
-    samsung --> healthconnect
-    app -->|permitted health records| healthconnect
-  end
-  androidtools -->|USB install and debug| app
-  app -->|adb reverse to localhost:8000| api
+flowchart TB
+    subgraph PHONE["Physical Android Phone"]
+        localSamsungHealth["Samsung Health"]
+        localAndroidClient["Android Companion App"]
+        localHealthConnect["Health Connect"]
+    end
+
+    subgraph DEV["Developer Machine"]
+        androidTooling["Android Studio + Gradle + adb"]
+        adbReverse["adb reverse Tunnel"]
+        stripeCli["Stripe CLI Listener"]
+        subgraph BROWSER["Browser"]
+            localBrowser["Local Web Browser"]
+            localWebapp["React Web App"]
+        end
+        viteServer["Vite Dev Server<br/>assets + /api proxy"]
+        subgraph DOCKER["Docker Compose"]
+            localApi["Django API<br/>(container)"]
+            localDb[("PostgreSQL / TimescaleDB<br/>(container)")]
+        end
+    end
+
+    localAndroidClient <-->|"adb over USB<br/>install · run · debug"| androidTooling
+    localAndroidClient -->|"localhost:8000"| adbReverse
+    adbReverse -->|":8000"| localApi
+    localSamsungHealth -->|"writes"| localHealthConnect
+    localAndroidClient -->|"reads"| localHealthConnect
+    localBrowser -->|"loads assets"| viteServer
+    localWebapp <-->|"/api calls"| viteServer
+    viteServer -->|"proxy :8000"| localApi
+    stripeCli -->|"webhooks"| localApi
+    localApi -->|"reads / writes"| localDb
+
+    localHealthConnect ~~~ androidTooling
+    localHealthConnect ~~~ adbReverse
+    localHealthConnect ~~~ stripeCli
+    localHealthConnect ~~~ localBrowser
+    localHealthConnect ~~~ localWebapp
+
+    classDef browser fill:#c8e6c9,stroke:#2e7d32,color:#1b3a1e,stroke-width:2px
+    classDef proxy fill:#bbdefb,stroke:#1565c0,color:#0d2f5c,stroke-width:2px
+    classDef stripe fill:#ffe0b2,stroke:#e65100,color:#4a2400,stroke-width:2px
+    classDef tooling fill:#e1bee7,stroke:#6a1b9a,color:#2e0a3d,stroke-width:2px
+    classDef android fill:#fff59d,stroke:#f9a825,color:#4a3b00,stroke-width:2px
+    classDef health fill:#f8bbd0,stroke:#c2185b,color:#4a0f26,stroke-width:2px
+    classDef api fill:#1565c0,stroke:#0d47a1,color:#ffffff,stroke-width:2px
+    classDef db fill:#b2ebf2,stroke:#00838f,color:#00363d,stroke-width:2px
+
+    class localBrowser,localWebapp browser
+    class viteServer proxy
+    class stripeCli stripe
+    class androidTooling,adbReverse tooling
+    class localAndroidClient android
+    class localHealthConnect,localSamsungHealth health
+    class localApi api
+    class localDb db
+
+    style DEV fill:#f4f7fb,stroke:#6f8aa6,stroke-width:2px
+    style BROWSER fill:#eef8ec,stroke:#6ea36a
+    style DOCKER fill:#edf2ff,stroke:#6980c7,stroke-width:2px
+    style PHONE fill:#fffbe6,stroke:#f9a825,stroke-width:2px
+
+    linkStyle 0,1,2 stroke:#6a1b9a,stroke-width:3px
+    linkStyle 3,4 stroke:#c2185b,stroke-width:3px
+    linkStyle 5,6,7 stroke:#2e7d32,stroke-width:3px
+    linkStyle 8 stroke:#e65100,stroke-width:3px
+    linkStyle 9 stroke:#00838f,stroke-width:3px
 ```
 
-The local Compose file also defines Redis, a Celery worker, and Celery Beat as
-prepared background-work infrastructure. Current product flows do not depend on
-them; staging does not run those services.
 
 ### Current AWS staging
 
