@@ -26,6 +26,7 @@ The current AWS staging snapshot and its change history are indexed in
 
 <details>
 <summary>Show local development architecture</summary>
+
 ```mermaid
 flowchart TB
     subgraph PHONE["Physical Android Phone"]
@@ -94,12 +95,18 @@ flowchart TB
     linkStyle 5,6,7 stroke:#2e7d32,stroke-width:3px
     linkStyle 8 stroke:#e65100,stroke-width:3px
     linkStyle 9 stroke:#00838f,stroke-width:3px
-  \</details\>
 ```
-Paste [`longevity-architecture.dsl`](reference_docs/knowledge/diagrams/longevity-architecture.dsl) into https://playground.structurizr.com/   Select Deployment View: Local Development(#local-development-compact)
+</details>
+
+For the canonical C4 view, open [`longevity-architecture.dsl`](reference_docs/knowledge/diagrams/longevity-architecture.dsl)
+in [Structurizr Playground](https://playground.structurizr.com/) and select
+**Local Development** (`local-development-compact`).
 
 
 ### Current AWS staging
+
+<details>
+<summary>Show current AWS staging architecture</summary>
 
 ```mermaid
 flowchart LR
@@ -116,6 +123,7 @@ flowchart LR
   ops[Systems Manager and CloudWatch] -.-> host
   secrets[AWS Secrets Manager] -.-> host
 ```
+</details>
 
 This environment is for presentation and test data. CloudFront and backups do
 not remove the EC2 host as a single point of failure. See the
@@ -123,6 +131,9 @@ not remove the EC2 host as a single point of failure. See the
 for the verified backup, restore, and monitoring details.
 
 ### Future recommended production
+
+<details>
+<summary>Show future recommended production architecture</summary>
 
 ```mermaid
 flowchart LR
@@ -142,6 +153,7 @@ flowchart LR
   taska -.-> monitor[CloudWatch logs and alarms]
   taskb -.-> monitor
 ```
+</details>
 
 This is a future target, not a deployment plan for the current budget. It omits
 some supporting details for readability; the full recommended production view
