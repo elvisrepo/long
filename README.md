@@ -136,8 +136,7 @@ for a deployed environment.
 
 ```bash
 cd backend
-uv sync --group dev
-uv run pytest
+docker compose exec web uv run pytest tests
 ```
 
 ```bash
