@@ -16,39 +16,16 @@ workouts, diet, recovery, subscription settings, and Health Connect sync.
 
 ## Architecture
 
-These Mermaid diagrams are compact summaries for this page. The canonical C4
-model, including detailed deployment views, is
+The canonical architecture source is the Structurizr C4 model in
 [`longevity-architecture.dsl`](reference_docs/knowledge/diagrams/longevity-architecture.dsl).
-The current AWS staging snapshot and its change history are indexed in
-[`current_aws/README.md`](reference_docs/knowledge/diagrams/current_aws/README.md).
+GitHub displays the DSL source rather than rendering it as a diagram, so the
+links below open directly at the named deployment views.
 
 ### Local development
 
-```mermaid
-flowchart LR
-  subgraph machine[Developer machine]
-    browser[Browser: React app]
-    vite[Vite dev server<br/>:5173 and API proxy]
-    api[Django REST API<br/>Docker :8000]
-    db[(PostgreSQL 16<br/>Docker volume)]
-    stripecli[Stripe CLI]
-    androidtools[Android Studio, Gradle, adb]
-    browser -->|loads app| vite
-    browser -->|relative /api requests| vite
-    vite -->|proxy| api
-    api --> db
-    stripecli -->|sandbox webhooks| api
-  end
-  subgraph phone[Android test phone]
-    app[Android companion app]
-    healthconnect[Health Connect]
-    samsung[Samsung Health]
-    samsung --> healthconnect
-    app -->|permitted health records| healthconnect
-  end
-  androidtools -->|USB install and debug| app
-  app -->|adb reverse to localhost:8000| api
-```
+[Open the `local-development-compact` deployment view](reference_docs/knowledge/diagrams/longevity-architecture.dsl#L1967)
+for the developer machine, Docker-backed Django/PostgreSQL, Android phone and
+Health Connect, adb reverse, and Stripe CLI paths.
 
 The local Compose file also defines Redis, a Celery worker, and Celery Beat as
 prepared background-work infrastructure. Current product flows do not depend on
@@ -56,51 +33,25 @@ them; staging does not run those services.
 
 ### Current AWS staging
 
-```mermaid
-flowchart LR
-  user[Browser or Android app] -->|HTTPS| edge[CloudFront]
-  edge -->|static assets via OAC| frontend[Private S3 frontend bucket]
-  edge -->|uncached /api/* over HTTPS| nginx[Nginx TLS proxy<br/>single EC2 host]
-  subgraph host[One EC2 t4g.small host — one failure domain]
-    nginx -->|private Docker network| api[Gunicorn and Django API]
-    api --> db[(PostgreSQL 16)]
-    db --- ebs[Encrypted EBS data volume]
-    backup[Scheduled pg_dump job] -->|reads| db
-  end
-  backup -->|encrypted backup files| backupbucket[Private S3 backup bucket]
-  ops[Systems Manager and CloudWatch] -.-> host
-  secrets[AWS Secrets Manager] -.-> host
-```
+[Open the `readme-current-staging` deployment view](reference_docs/knowledge/diagrams/longevity-architecture.dsl#L2006)
+for CloudFront routing to the private S3 frontend and the single EC2-hosted
+Nginx/Django/PostgreSQL stack.
 
 This environment is for presentation and test data. CloudFront and backups do
 not remove the EC2 host as a single point of failure. See the
 [`V018 current AWS diagram`](reference_docs/knowledge/diagrams/current_aws/v018-automated-backup-restore-monitoring.dsl)
-for the verified backup, restore, and monitoring details.
+for the verified backup, restore, and monitoring details. The current AWS
+snapshot and its change history are indexed in
+[`current_aws/README.md`](reference_docs/knowledge/diagrams/current_aws/README.md).
 
 ### Future recommended production
 
-```mermaid
-flowchart LR
-  clients[Browser and Android clients] --> edge[CloudFront and AWS WAF]
-  edge -->|static| frontend[Private S3 frontend bucket]
-  edge -->|API| alb[HTTPS Application Load Balancer]
-  alb --> tasks
-  subgraph tasks[Private ECS Fargate tasks across two AZs]
-    taska[Django API task A]
-    taskb[Django API task B]
-  end
-  taska --> db[(Amazon RDS PostgreSQL Multi-AZ)]
-  taskb --> db
-  db -->|synchronous replication| standby[Standby and automatic failover]
-  taska -.-> secrets[AWS Secrets Manager]
-  taskb -.-> secrets
-  taska -.-> monitor[CloudWatch logs and alarms]
-  taskb -.-> monitor
-```
+[Open the `readme-recommended-production` deployment view](reference_docs/knowledge/diagrams/longevity-architecture.dsl#L2094)
+for the future CloudFront/WAF, private S3, ALB, multi-AZ Fargate, and RDS
+PostgreSQL Multi-AZ topology.
 
-This is a future target, not a deployment plan for the current budget. It omits
-some supporting details for readability; the full recommended production view
-in the canonical C4 model also includes migrations, private-task egress, and
+This is a future target, not a deployment plan for the current budget. The
+linked canonical view also includes migrations, private-task egress, and
 security boundaries.
 
 ## Run locally
