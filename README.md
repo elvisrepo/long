@@ -251,29 +251,118 @@ for the complete deployment details and change history.
 <details>
 <summary>Show future recommended production architecture</summary>
 
+#### Request path and horizontal application capacity
+
 ```mermaid
 flowchart LR
-  clients[Browser and Android clients] --> edge[CloudFront and AWS WAF]
-  edge -->|static| frontend[Private S3 frontend bucket]
-  edge -->|API| alb[HTTPS Application Load Balancer]
-  alb --> tasks
-  subgraph tasks[Private ECS Fargate tasks across two AZs]
-    taska[Django API task A]
-    taskb[Django API task B]
-  end
-  taska --> db[(Amazon RDS PostgreSQL Multi-AZ)]
-  taskb --> db
-  db -->|synchronous replication| standby[Standby and automatic failover]
-  taska -.-> secrets[AWS Secrets Manager]
-  taskb -.-> secrets
-  taska -.-> monitor[CloudWatch logs and alarms]
-  taskb -.-> monitor
+    B["Browser"]
+    M["Android app"]
+
+    subgraph AWS["AWS"]
+        CF["CloudFront + AWS WAF"]
+        S3["Private S3<br/>React frontend"]
+
+        subgraph VPC["Production VPC · two Availability Zones"]
+            ALB["Public ALB · spans AZs<br/>HTTPS · health-based routing"]
+
+            subgraph AZA["Private app subnet · AZ-a"]
+                A["ECS Fargate task A<br/>Django + Gunicorn"]
+            end
+            subgraph AZB["Private app subnet · AZ-b"]
+                C["ECS Fargate task B<br/>Django + Gunicorn"]
+            end
+
+            subgraph DATA["Private database subnets"]
+                DB[("RDS PostgreSQL<br/>Multi-AZ primary")]
+                STANDBY["Synchronous standby<br/>automatic failover"]
+            end
+        end
+    end
+
+    B -->|"HTTPS"| CF
+    CF -->|"Static / SPA"| S3
+    CF -->|"Uncached /api/* · HTTPS"| ALB
+    M -->|"HTTPS · api.<domain>"| ALB
+    ALB -->|"Healthy targets"| A
+    ALB -->|"Healthy targets"| C
+    A --> DB
+    C --> DB
+    DB -->|"Synchronous replication"| STANDBY
+
+    classDef client fill:#c8e6c9,stroke:#2e7d32,color:#1b3a1e,stroke-width:2px
+    classDef edge fill:#bbdefb,stroke:#1565c0,color:#0d2f5c,stroke-width:2px
+    classDef app fill:#1565c0,stroke:#0d47a1,color:#fff,stroke-width:2px
+    classDef db fill:#b2ebf2,stroke:#00838f,color:#00363d,stroke-width:2px
+
+    class B,M client
+    class CF,S3,ALB edge
+    class A,C app
+    class DB,STANDBY db
+
+    style AWS fill:#f4f7fb,stroke:#6f8aa6,stroke-width:2px
+    style VPC fill:#f4f7fb,stroke:#6f8aa6,stroke-width:2px
+    style AZA fill:#eef8ec,stroke:#6ea36a,stroke-width:2px
+    style AZB fill:#eef8ec,stroke:#6ea36a,stroke-width:2px
+    style DATA fill:#fff5f5,stroke:#c2185b,stroke-width:2px
+```
+
+#### Deployment, private egress, and operations
+
+```mermaid
+flowchart LR
+    subgraph APP["Private application tier · two AZs"]
+        A["Fargate API task A"]
+        B["Fargate API task B"]
+        MIG["One-off migration task"]
+        NAT_A["NAT Gateway A"]
+        NAT_B["NAT Gateway B"]
+    end
+
+    subgraph AWS["AWS managed services"]
+        SM["Secrets Manager"]
+        DB[("RDS PostgreSQL Multi-AZ")]
+        CW["CloudWatch<br/>Logs · metrics · alarms · rollback signals"]
+        BACKUP["RDS automated backups<br/>point-in-time recovery"]
+        IGW["Internet Gateway"]
+    end
+
+    EXT["External APIs<br/>e.g. Stripe / SES"]
+
+    SM -.->|"Task execution role · inject config"| A
+    SM -.->|"Task execution role · inject config"| B
+    SM -.->|"Inject migration config"| MIG
+    MIG -->|"Run migrations before release"| DB
+    A -->|"Application data"| DB
+    B -->|"Application data"| DB
+    A -->|"Logs / metrics"| CW
+    B -->|"Logs / metrics"| CW
+    MIG -->|"Migration result"| CW
+    DB -->|"Managed recovery"| BACKUP
+    A --> NAT_A --> IGW
+    B --> NAT_B --> IGW
+    IGW -->|"Outbound HTTPS"| EXT
+
+    classDef app fill:#1565c0,stroke:#0d47a1,color:#fff,stroke-width:2px
+    classDef ops fill:#e1bee7,stroke:#6a1b9a,color:#2e0a3d,stroke-width:2px
+    classDef db fill:#b2ebf2,stroke:#00838f,color:#00363d,stroke-width:2px
+    classDef edge fill:#bbdefb,stroke:#1565c0,color:#0d2f5c,stroke-width:2px
+
+    class A,B,MIG app
+    class SM,CW ops
+    class DB,BACKUP db
+    class NAT_A,NAT_B,IGW edge
+    class EXT edge
+
+    style APP fill:#eef8ec,stroke:#6ea36a,stroke-width:2px
+    style AWS fill:#f4f7fb,stroke:#6f8aa6,stroke-width:2px
 ```
 </details>
 
-This is a future target, not a deployment plan for the current budget. It omits
-some supporting details for readability; the full recommended production view
-in the canonical C4 model also includes migrations, private-task egress, and
+This is a future recommendation, not deployed infrastructure or a current
+provisioning plan. Two API tasks across AZs provide horizontal application
+capacity and task/AZ resilience; the RDS standby provides failover, not read
+scaling. Autoscaling policies and database read scaling still need design.
+The canonical C4 model contains the full production deployment view and
 security boundaries.
 
 ## Run locally
