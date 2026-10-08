@@ -4,6 +4,36 @@ Longevity is a health and wellness tracking app with a React web client, Django
 REST API, and Android companion app. It brings together personal metrics,
 workouts, diet, recovery, subscription settings, and Health Connect sync.
 
+## Product preview
+
+Screenshots captured from the live staging app using its demo account. The
+visible health and workout values are demo data.
+
+<p><a href="https://staging.syncvitals.space">Open the staging app</a> (sign-in required).</p>
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme/dashboard.jpg"><img src="docs/screenshots/readme/dashboard.jpg" alt="Longevity dashboard with metric summaries, trends, recovery and diet checklists, and workout activity" width="100%"></a><br>
+      <strong>Dashboard</strong> — a snapshot of daily health and training.
+    </td>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme/body-weight.jpg"><img src="docs/screenshots/readme/body-weight.jpg" alt="Body Weight metric history with a trend chart and recent entries" width="100%"></a><br>
+      <strong>Metric history</strong> — review recorded values and trends.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme/workouts.jpg"><img src="docs/screenshots/readme/workouts.jpg" alt="Workout log showing completed exercises, sets, and recent training activity" width="100%"></a><br>
+      <strong>Workouts</strong> — log sets and review recent sessions.
+    </td>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme/workout-progress.jpg"><img src="docs/screenshots/readme/workout-progress.jpg" alt="Deadlift progress view with a maximum logged weight chart and completed set records" width="100%"></a><br>
+      <strong>Workout progress</strong> — follow exercise-specific performance.
+    </td>
+  </tr>
+</table>
+
 ## Project status
 
 - The public AWS environment is **presentation staging**, intended for demo and
