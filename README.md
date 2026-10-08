@@ -138,27 +138,113 @@ in [Structurizr Playground](https://playground.structurizr.com/) and select
 <details>
 <summary>Show current AWS staging architecture</summary>
 
+#### Request and data path
+
 ```mermaid
 flowchart LR
-  user[Browser or Android app] -->|HTTPS| edge[CloudFront]
-  edge -->|static assets via OAC| frontend[Private S3 frontend bucket]
-  edge -->|uncached /api/* over HTTPS| nginx[Nginx TLS proxy<br/>single EC2 host]
-  subgraph host[One EC2 t4g.small host — one failure domain]
-    nginx -->|private Docker network| api[Gunicorn and Django API]
-    api --> db[(PostgreSQL 16)]
-    db --- ebs[Encrypted EBS data volume]
-    backup[Scheduled pg_dump job] -->|reads| db
-  end
-  backup -->|encrypted backup files| backupbucket[Private S3 backup bucket]
-  ops[Systems Manager and CloudWatch] -.-> host
-  secrets[AWS Secrets Manager] -.-> host
+    B["Browser"]
+
+    subgraph AWS["AWS"]
+        CF["CloudFront<br/>Route 53 alias · ACM viewer TLS"]
+        FRONT["Private S3<br/>Frontend"]
+
+        subgraph VPC["Default VPC · 172.31.0.0/16"]
+            subgraph EC2["EC2 · eu-central-1c · t4g.small ARM64<br/>One host / one failure domain"]
+                NG["Host Nginx<br/>Origin TLS · CloudFront-only inbound"]
+                subgraph DOCKER["Docker Compose"]
+                    API["Django + Gunicorn<br/>host loopback :18000 → container :8000"]
+                    DB[("PostgreSQL 16<br/>no host port")]
+                end
+            end
+            EBS["Encrypted EBS<br/>Root + retained PostgreSQL data"]
+        end
+    end
+
+    B -->|"HTTPS"| CF
+    CF -->|"Frontend"| FRONT
+    CF -->|"/api/* · HTTPS origin"| NG
+    NG -->|"127.0.0.1:18000"| API
+    API -->|"Compose network"| DB
+    DB -->|"Persistent data"| EBS
+
+    classDef client fill:#c8e6c9,stroke:#2e7d32,color:#1b3a1e,stroke-width:2px
+    classDef edge fill:#bbdefb,stroke:#1565c0,color:#0d2f5c,stroke-width:2px
+    classDef app fill:#1565c0,stroke:#0d47a1,color:#fff,stroke-width:2px
+    classDef db fill:#b2ebf2,stroke:#00838f,color:#00363d,stroke-width:2px
+    classDef storage fill:#f8bbd0,stroke:#c2185b,color:#4a0f26,stroke-width:2px
+
+    class B client
+    class CF,FRONT edge
+    class NG,API app
+    class DB db
+    class EBS storage
+
+    style AWS fill:#f4f7fb,stroke:#6f8aa6,stroke-width:2px
+    style VPC fill:#f4f7fb,stroke:#6f8aa6,stroke-width:2px
+    style EC2 fill:#eef8ec,stroke:#6ea36a,stroke-width:2px
+    style DOCKER fill:#edf2ff,stroke:#6980c7,stroke-width:2px
+```
+
+#### Host operations and supporting services
+
+```mermaid
+flowchart LR
+    subgraph HOST["EC2 host · instance role"]
+        DEPLOY["Deployment loader"]
+        CERT["Certbot · systemd timer"]
+        NG["Host Nginx"]
+        BACKUP["Daily backup / monthly restore jobs"]
+        MON["CloudWatch Agent"]
+        subgraph DOCKER["Docker Compose"]
+            API["Django + Gunicorn"]
+            DB[("PostgreSQL")]
+        end
+    end
+
+    subgraph AWS["AWS services"]
+        SM["Secrets Manager"]
+        ECR["ECR"]
+        DNS["Route 53"]
+        S3["Private S3<br/>PostgreSQL backups"]
+        CW["CloudWatch<br/>Host / backup / restore metrics + alarms"]
+        SNS["SNS"]
+        EMAIL["Operator email"]
+        SES["SES"]
+    end
+
+    DEPLOY -->|"Fetch AWSCURRENT"| SM
+    DEPLOY -->|"Pull image"| ECR
+    CERT -->|"DNS-01 challenge"| DNS
+    CERT -.->|"Renew / reload"| NG
+    BACKUP -->|"docker exec / pg_dump"| DB
+    BACKUP -->|"Upload / restore read"| S3
+    MON -->|"Host metrics"| CW
+    BACKUP -->|"Backup / restore metrics"| CW
+    CW --> SNS --> EMAIL
+    API -->|"Email · instance role"| SES
+
+    classDef ops fill:#e1bee7,stroke:#6a1b9a,color:#2e0a3d,stroke-width:2px
+    classDef db fill:#b2ebf2,stroke:#00838f,color:#00363d,stroke-width:2px
+    classDef email fill:#ffe0b2,stroke:#e65100,color:#4a2400,stroke-width:2px
+    classDef edge fill:#bbdefb,stroke:#1565c0,color:#0d2f5c,stroke-width:2px
+
+    class DEPLOY,CERT,NG,BACKUP,MON,SM,ECR,DNS,CW,SNS ops
+    class API app
+    class DB db
+    class EMAIL,SES email
+    class S3 edge
+
+    style HOST fill:#eef8ec,stroke:#6ea36a,stroke-width:2px
+    style DOCKER fill:#edf2ff,stroke:#6980c7,stroke-width:2px
+    style AWS fill:#f4f7fb,stroke:#6f8aa6,stroke-width:2px
 ```
 </details>
 
 This environment is for presentation and test data. CloudFront and backups do
-not remove the EC2 host as a single point of failure. See the
+not remove the EC2 host as a single point of failure. The diagrams summarize
+the verified V018 snapshot; see the
 [`V018 current AWS diagram`](reference_docs/knowledge/diagrams/current_aws/v018-automated-backup-restore-monitoring.dsl)
-for the verified backup, restore, and monitoring details.
+for the complete deployment details and change history.
 
 ### Future recommended production
 
