@@ -44,23 +44,7 @@ visible health and workout values are demo data.
   </tr>
 </table>
 
-## Project status
-
-- The public AWS environment is **presentation staging**, intended for demo and
-  test data—not real-user production data.
-- The current staging deployment is deliberately a small, single-host setup.
-  It is not highly available.
-- A separate multi-AZ production architecture is documented below, but it is a
-  future recommendation and is not deployed. Its cost is above the current
-  $15/month AWS budget.
-
 ## Architecture
-
-These Mermaid diagrams are compact summaries for this page. The canonical C4
-model, including detailed deployment views, is
-[`longevity-architecture.dsl`](reference_docs/knowledge/diagrams/longevity-architecture.dsl).
-The current AWS staging snapshot and its change history are indexed in
-[`current_aws/README.md`](reference_docs/knowledge/diagrams/current_aws/README.md).
 
 ### Local development
 
@@ -137,11 +121,6 @@ flowchart TB
     linkStyle 9 stroke:#00838f,stroke-width:3px
 ```
 </details>
-
-For the canonical C4 view, open [`longevity-architecture.dsl`](reference_docs/knowledge/diagrams/longevity-architecture.dsl)
-in [Structurizr Playground](https://playground.structurizr.com/) and select
-**Local Development** (`local-development-compact`).
-
 
 ### Current AWS staging
 
@@ -249,12 +228,6 @@ flowchart LR
     style AWS fill:#f4f7fb,stroke:#6f8aa6,stroke-width:2px
 ```
 </details>
-
-This environment is for presentation and test data. CloudFront and backups do
-not remove the EC2 host as a single point of failure. The diagrams summarize
-the verified V018 snapshot; see the
-[`V018 current AWS diagram`](reference_docs/knowledge/diagrams/current_aws/v018-automated-backup-restore-monitoring.dsl)
-for the complete deployment details and change history.
 
 ### Future recommended production
 
@@ -436,4 +409,4 @@ browser end-to-end tests.
 ## Staging
 
 The presentation environment is available at [staging.syncvitals.space](https://staging.syncvitals.space).
-Treat it as a demo/test environment; do not enter real health data.
+
