@@ -18,6 +18,7 @@ import { Route as RecoveryRouteImport } from './routes/recovery'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as StretchingRouteImport } from './routes/stretching'
 import { Route as WorkoutsRouteImport } from './routes/workouts'
 import { Route as AnalyticsConsistencyRouteImport } from './routes/analytics.consistency'
 import { Route as AnalyticsSleepRouteImport } from './routes/analytics.sleep'
@@ -69,6 +70,11 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StretchingRoute = StretchingRouteImport.update({
+  id: '/stretching',
+  path: '/stretching',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WorkoutsRoute = WorkoutsRouteImport.update({
   id: '/workouts',
   path: '/workouts',
@@ -105,6 +111,7 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
+  '/stretching': typeof StretchingRoute
   '/workouts': typeof WorkoutsRoute
   '/analytics/consistency': typeof AnalyticsConsistencyRoute
   '/analytics/sleep': typeof AnalyticsSleepRoute
@@ -121,6 +128,7 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
+  '/stretching': typeof StretchingRoute
   '/workouts': typeof WorkoutsRoute
   '/analytics/consistency': typeof AnalyticsConsistencyRoute
   '/analytics/sleep': typeof AnalyticsSleepRoute
@@ -138,6 +146,7 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
+  '/stretching': typeof StretchingRoute
   '/workouts': typeof WorkoutsRoute
   '/analytics/consistency': typeof AnalyticsConsistencyRoute
   '/analytics/sleep': typeof AnalyticsSleepRoute
@@ -156,6 +165,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/settings'
+    | '/stretching'
     | '/workouts'
     | '/analytics/consistency'
     | '/analytics/sleep'
@@ -172,6 +182,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/settings'
+    | '/stretching'
     | '/workouts'
     | '/analytics/consistency'
     | '/analytics/sleep'
@@ -188,6 +199,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/settings'
+    | '/stretching'
     | '/workouts'
     | '/analytics/consistency'
     | '/analytics/sleep'
@@ -205,6 +217,7 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SettingsRoute: typeof SettingsRoute
+  StretchingRoute: typeof StretchingRoute
   WorkoutsRoute: typeof WorkoutsRoute
   AnalyticsConsistencyRoute: typeof AnalyticsConsistencyRoute
   AnalyticsSleepRoute: typeof AnalyticsSleepRoute
@@ -276,6 +289,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/stretching': {
+      id: '/stretching'
+      path: '/stretching'
+      fullPath: '/stretching'
+      preLoaderRoute: typeof StretchingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/workouts': {
       id: '/workouts'
       path: '/workouts'
@@ -335,6 +355,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SettingsRoute: SettingsRoute,
+  StretchingRoute: StretchingRoute,
   WorkoutsRoute: WorkoutsRoute,
   AnalyticsConsistencyRoute: AnalyticsConsistencyRoute,
   AnalyticsSleepRoute: AnalyticsSleepRoute,

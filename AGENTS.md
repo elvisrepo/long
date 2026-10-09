@@ -68,6 +68,7 @@ Load only the parts you need. You can load multiple files when useful. Be specif
 - `reference_docs/knowledge/44-diagramming-approach-c4-graphviz-mermaid-plantuml-svg.md` when you need to choose between C4/Structurizr, Graphviz, Mermaid, PlantUML, direct SVG, or manual drawing tools, or when you need the generation and visual-verification workflow for the staging OSI diagram.
 - `reference_docs/knowledge/45-recovery-tracking.md` when you need recovery tools, daily check-offs, Pro creation, archive/downgrade policy, research evidence bars, or recovery export/deletion.
 - `reference_docs/knowledge/46-diet-tracking.md` when you need the Diet food checklist, sections/foods, daily check-offs, ownership, archive/restore, dashboard or export/deletion rules.
+- `reference_docs/knowledge/49-stretching-posture-tracking.md` when you need the Stretching & Posture phases, starter catalog, daily check-offs, reference-content boundary, or account privacy/export rules.
 - `reference_docs/knowledge/47-workout-tracking.md` when you need the agreed Workouts scope, FitNotes references, starter catalog ownership, planned/completed sets, history preservation, or phased implementation plan.
 - `reference_docs/knowledge/48-ui-ux-review.md` when you need the October 2026 cross-page UI/UX findings, proposed design-system cleanup, review limitations, or local visual-review artifact policy.
 - `reference_docs/knowledge/diagrams/diet-erd-comparison.md` when you need the 13-table schema before Diet and the 16-table updated ERD with three new Diet tables highlighted green.

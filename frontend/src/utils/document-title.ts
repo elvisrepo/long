@@ -11,6 +11,7 @@ const staticTitles: Record<string, string> = {
   "/register": "Create account",
   "/reset-password": "Reset password",
   "/settings": "Settings",
+  "/stretching": "Stretching & Posture",
 };
 
 const workoutTitles: Record<string, string> = {

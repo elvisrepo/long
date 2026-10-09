@@ -180,6 +180,9 @@ function AuthenticatedNavigation({
         <Link to="/diet" className="app-nav-link">
           Diet
         </Link>
+        <Link to="/stretching" className="app-nav-link">
+          Stretching &amp; Posture
+        </Link>
         <Link to="/workouts" search={{}} className="app-nav-link">
           Workouts
         </Link>

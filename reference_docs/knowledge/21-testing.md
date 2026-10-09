@@ -447,6 +447,10 @@ step were corrected before the final green runs.
 - `frontend/src/features/recovery/*.test.*`: API bearer/body/error contracts,
   research labels, selected calendar dates, saved/failed check-offs, Pro creation
   and custom-tool archiving. Tests do not equate activity counts with recovery.
+- `backend/tests/test_stretching.py`: authentication, the two ordered starter
+  phases, idempotent account-scoped daily check-offs, and export/deletion.
+- `frontend/src/features/stretching/*.test.*`: bearer/range API contract,
+  phase navigation, and daily check-off requests.
 - Browser layout fixtures exercise recovery at phone and desktop widths.
   Isolated E2E resets restore all six shared recovery tools after flush.
 - Logout regression coverage confirms metric, subscription and recovery caches
