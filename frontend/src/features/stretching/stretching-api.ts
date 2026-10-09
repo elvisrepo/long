@@ -6,6 +6,7 @@ export interface StretchExercise {
   phase: "lower-body" | "upper-body";
   name: string;
   description: string;
+  dosage: string;
   display_order: number;
 }
 

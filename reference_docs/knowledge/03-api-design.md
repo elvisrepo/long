@@ -443,7 +443,7 @@ not medical instructions. No images or article text are stored.
 
 | Method | Endpoint | Contract |
 |---|---|---|
-| GET | `/api/v1/stretching/exercises/` | `{phases: [{slug, name, exercises: [...] }]}`; active shared exercises in display order |
+| GET | `/api/v1/stretching/exercises/` | `{phases: [{slug, name, exercises: [...] }]}`; active shared exercises in display order, with `description` and `dosage` labels |
 | GET | `/api/v1/stretching/entries/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD` | Own entries, inclusive 1–366-day range; invalid/missing bounds `400` |
 | PUT | `/api/v1/stretching/entries/{exercise_uuid}/{YYYY-MM-DD}/` | Empty body; idempotent daily check-off `200`; unknown/inactive exercise `404` |
 | DELETE | `/api/v1/stretching/entries/{exercise_uuid}/{YYYY-MM-DD}/` | Idempotent undo `204`; unknown exercise `404` |

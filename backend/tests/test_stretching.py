@@ -34,11 +34,22 @@ def test_catalog_has_two_ordered_starter_phases() -> None:
     assert len(phases[0]["exercises"]) == 10
     assert len(phases[1]["exercises"]) == 10
     assert phases[0]["exercises"][0]["name"] == "Lunge Stretch"
-    assert all(
-        not exercise["description"]
-        for phase in phases
-        for exercise in phase["exercises"]
-    )
+    assert phases[0]["exercises"][0]["dosage"] == "30 seconds per leg"
+    assert "hip forward" in phases[0]["exercises"][0]["description"].lower()
+    assert [exercise["name"] for exercise in phases[1]["exercises"]] == [
+        "Foam Rolling Thoracic Spine",
+        "Extending Thoracic Spine",
+        "Extending Thoracic Spine (Bench)",
+        "Wall Pec Stretch",
+        "Lats Stretch",
+        "Shoulder Stretch",
+        "Shoulder Dislocations",
+        "Scapular Wall Slide",
+        "Chin tuck",
+        "Reverse Crunch",
+    ]
+    assert phases[1]["exercises"][0]["dosage"] == "10× centered, 10× left, 10× right"
+    assert "foam roll" in phases[1]["exercises"][0]["description"].lower()
 
 
 def test_daily_checkoff_is_idempotent_and_user_scoped() -> None:

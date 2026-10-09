@@ -25,7 +25,8 @@ const phases = [
         slug: "lunge",
         phase: "lower-body" as const,
         name: "Lunge Stretch",
-        description: "",
+        description: "Move the hip forward while keeping the lower back quiet.",
+        dosage: "30 seconds per leg",
         display_order: 1,
       },
     ],
@@ -38,8 +39,10 @@ const phases = [
         id: "neck",
         slug: "neck",
         phase: "upper-body" as const,
-        name: "Neck Mobility",
-        description: "",
+        name: "Chin tuck",
+        description:
+          "Against a wall, gently draw the chin back with a small movement.",
+        dosage: "10 reps",
         display_order: 1,
       },
     ],
@@ -71,13 +74,20 @@ describe("StretchingScreen", () => {
     const user = userEvent.setup();
     renderScreen();
     await screen.findByRole("checkbox", { name: "Lunge Stretch" });
+    expect(screen.getByText("30 seconds per leg")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Move the hip forward while keeping the lower back quiet.",
+      ),
+    ).toBeInTheDocument();
     expect(
       screen.getByText("0 of 1 checked for 2026-10-09"),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: /Upper body & posture/ }));
     expect(
-      await screen.findByRole("checkbox", { name: "Neck Mobility" }),
+      await screen.findByRole("checkbox", { name: /Chin tuck/ }),
     ).toBeInTheDocument();
+    expect(screen.getByText("10 reps")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: /Lower body & hips/ }));
     const lunge = await screen.findByRole("checkbox", {
       name: "Lunge Stretch",

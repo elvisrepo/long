@@ -64,7 +64,7 @@ export function StretchingScreen() {
       <PageHeader
         title="Stretching & Posture"
         eyebrow="DAILY MOVEMENT CHECKLIST"
-        description="Choose a phase and record the mobility activities you did. This checklist is for tracking only, not exercise or medical guidance."
+        description="Choose a phase and record the mobility activities you did. The short cues are general reference material, not personalized medical advice."
       />
       <div className="stretching-date-controls date-navigation">
         <button
@@ -161,6 +161,7 @@ export function StretchingScreen() {
               >
                 <input
                   type="checkbox"
+                  aria-label={exercise.name}
                   checked={checked}
                   disabled={checkoff.isPending || entries.isFetching}
                   onChange={(event) =>
@@ -170,13 +171,21 @@ export function StretchingScreen() {
                     })
                   }
                 />
-                <span>{exercise.name}</span>
+                <span className="stretching-exercise-copy">
+                  <span className="stretching-exercise-heading">
+                    <span>{exercise.name}</span>
+                    {exercise.dosage && <small>{exercise.dosage}</small>}
+                  </span>
+                  {exercise.description && (
+                    <small>{exercise.description}</small>
+                  )}
+                </span>
               </label>
             );
           })}
         </div>
         <p className="stretching-disclaimer">
-          Stop if an activity causes pain. This tracker does not provide medical
+          General reference cues only—not personalized exercise or medical
           advice.
         </p>
       </section>

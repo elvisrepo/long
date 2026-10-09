@@ -14,6 +14,7 @@ class StretchExercise(models.Model):
     phase = models.CharField(max_length=20, choices=Phase.choices)
     name = models.CharField(max_length=120)
     description = models.CharField(max_length=500, blank=True)
+    dosage = models.CharField(max_length=120, blank=True)
     display_order = models.PositiveIntegerField(default=100)
     is_active = models.BooleanField(default=True)
 

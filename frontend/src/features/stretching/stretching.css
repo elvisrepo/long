@@ -102,6 +102,25 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.stretching-exercise-copy {
+  display: grid;
+  gap: 0.3rem;
+  flex: 1 1 auto;
+}
+.stretching-exercise-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.75rem;
+  font-weight: 600;
+}
+.stretching-exercise-copy small {
+  color: var(--text-dim);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.45;
+}
 @media (max-width: 640px) {
   .stretching-phase-tabs,
   .stretching-exercises {

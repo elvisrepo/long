@@ -8,7 +8,15 @@ from .models import StretchEntry, StretchExercise
 class StretchExerciseSerializer(serializers.ModelSerializer):
     class Meta:
         model = StretchExercise
-        fields = ["id", "slug", "phase", "name", "description", "display_order"]
+        fields = [
+            "id",
+            "slug",
+            "phase",
+            "name",
+            "description",
+            "dosage",
+            "display_order",
+        ]
 
 
 class StretchEntrySerializer(serializers.ModelSerializer):
