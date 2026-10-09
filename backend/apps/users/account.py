@@ -214,7 +214,15 @@ def account_export(user: User) -> Iterator[str]:
         .values("id", "tool_id", "performed_on", "created_at"),
         "stretching_entries": StretchEntry.objects.filter(user=user)
         .order_by("id")
-        .values("id", "exercise_id", "performed_on", "created_at"),
+        .values(
+            "id",
+            "exercise_id",
+            "exercise__slug",
+            "exercise__name",
+            "exercise__phase",
+            "performed_on",
+            "created_at",
+        ),
         "metric_definitions": MetricDefinition.objects.filter(
             Q(user=user) | Q(entries__user=user)
         )

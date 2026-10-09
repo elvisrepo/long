@@ -90,6 +90,9 @@ def test_export_includes_checkoffs_and_account_delete_cascades() -> None:
     response = client.get("/api/v1/me/export/")
     data = json.loads(b"".join(response.streaming_content))
     assert data["stretching_entries"][0]["exercise_id"] == str(exercise.pk)
+    assert data["stretching_entries"][0]["exercise__slug"] == exercise.slug
+    assert data["stretching_entries"][0]["exercise__name"] == exercise.name
+    assert data["stretching_entries"][0]["exercise__phase"] == exercise.phase
     assert (
         client.delete(
             "/api/v1/me/", {"password": "account-password-123"}, format="json"

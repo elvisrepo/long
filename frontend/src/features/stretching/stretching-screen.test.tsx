@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -99,5 +105,47 @@ describe("StretchingScreen", () => {
       "2026-10-09",
       true,
     );
+  });
+
+  it("does not show a previous day's check-offs while a new date loads", async () => {
+    let resolveNewDay: (() => void) | undefined;
+    vi.mocked(getStretchEntries)
+      .mockResolvedValueOnce([
+        {
+          id: 1,
+          exercise_id: "lunge",
+          performed_on: "2026-10-09",
+          created_at: "2026-10-09T12:00:00Z",
+        },
+      ])
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveNewDay = () => resolve([]);
+          }),
+      );
+
+    renderScreen();
+    const lunge = await screen.findByRole("checkbox", {
+      name: "Lunge Stretch",
+    });
+    expect(lunge).toBeChecked();
+
+    fireEvent.change(screen.getByLabelText("Tracking date"), {
+      target: { value: "2026-10-10" },
+    });
+
+    await waitFor(() =>
+      expect(getStretchEntries).toHaveBeenCalledWith(
+        "2026-10-10",
+        "2026-10-10",
+      ),
+    );
+    expect(lunge).not.toBeChecked();
+    expect(
+      screen.getByText("0 of 1 checked for 2026-10-10"),
+    ).toBeInTheDocument();
+
+    await act(async () => resolveNewDay?.());
   });
 });

@@ -54,7 +54,11 @@ export function StretchingScreen() {
     phases.find((phase) => phase.slug === phaseSlug) ?? phases[0];
   if (!currentPhase)
     return <PageState message="No stretching exercises are available yet." />;
-  const checkedIds = new Set(entries.data.map((entry) => entry.exercise_id));
+  const checkedIds = new Set(
+    entries.data
+      .filter((entry) => entry.performed_on === day)
+      .map((entry) => entry.exercise_id),
+  );
   const completed = currentPhase.exercises.filter((exercise) =>
     checkedIds.has(exercise.id),
   ).length;
