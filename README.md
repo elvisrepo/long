@@ -4,6 +4,56 @@ Longevity is a health and wellness tracking app with a React web client, Django
 REST API, and Android companion app. It brings together personal metrics,
 workouts, diet, recovery, subscription settings, and Health Connect sync.
 
+<details>
+<summary>Show Longevity system context</summary>
+
+```mermaid
+flowchart LR
+    USER["User"]
+
+    subgraph PHONE["Physical Android phone"]
+        TRACKER["Tracking App"]
+        HC["Health Connect"]
+        ANDROID["Longevity Android app"]
+    end
+
+    subgraph LONGEVITY["Longevity platform"]
+        WEB["React web client"]
+        API["Django REST API<br/>Metrics · workouts · diet · recovery"]
+        DB[("PostgreSQL database")]
+    end
+
+    STRIPE["Stripe"]
+    UPTIME["Uptime monitoring"]
+
+    USER -->|"Uses"| WEB
+    USER -->|"Uses"| ANDROID
+    TRACKER -->|"Writes health records"| HC
+    HC -->|"Permitted health data"| ANDROID
+    WEB -->|"HTTPS API"| API
+    ANDROID -->|"HTTPS API / sync"| API
+    API -->|"Reads / writes"| DB
+    API -->|"Checkout / Portal"| STRIPE
+    STRIPE -->|"Billing webhooks"| API
+    UPTIME -->|"API health checks"| API
+
+    classDef person fill:#c8e6c9,stroke:#2e7d32,color:#1b3a1e,stroke-width:2px
+    classDef platform fill:#1565c0,stroke:#0d47a1,color:#fff,stroke-width:2px
+    classDef external fill:#bbdefb,stroke:#1565c0,color:#0d2f5c,stroke-width:2px
+    classDef billing fill:#ffe0b2,stroke:#e65100,color:#4a2400,stroke-width:2px
+    classDef db fill:#b2ebf2,stroke:#00838f,color:#00363d,stroke-width:2px
+
+    class USER person
+    class WEB,API,ANDROID platform
+    class TRACKER,HC,UPTIME external
+    class STRIPE billing
+    class DB db
+
+    style PHONE fill:#fffbe6,stroke:#f9a825,stroke-width:2px
+    style LONGEVITY fill:#f4f7fb,stroke:#6f8aa6,stroke-width:2px
+```
+</details>
+
 ## Product preview
 
 Screenshots captured from the live staging app using its demo account. The
