@@ -7,60 +7,11 @@ workouts, diet, recovery, subscription settings, and Health Connect sync.
 <details>
 <summary>Show Longevity system context</summary>
 
-```mermaid
----
-config:
-  flowchart:
-    nodeSpacing: 25
-    rankSpacing: 35
-    subGraphTitleMargin:
-      top: 8
-      bottom: 12
----
-flowchart TB
-    USER["User"]
-    UPTIME["Uptime monitoring"]
-
-    subgraph PHONE["Physical Android phone"]
-        ANDROID["Longevity Android app"]
-        TRACKER["Tracking App"]
-        HC["Health Connect"]
-    end
-
-    STRIPE["Stripe"]
-
-    subgraph LONGEVITY["Longevity platform"]
-        API["Django REST API<br/>Metrics · workouts<br/>diet · recovery"]
-        DB[("PostgreSQL database")]
-        WEB["React web client"]
-    end
-
-    API -->|"Checkout<br/>/ Portal"| STRIPE
-    TRACKER -->|"Writes<br/>health records"| HC
-    ANDROID -->|"HTTPS API<br/>/ sync"| API
-    API -->|"Reads<br/>/ writes"| DB
-    USER -->|"Uses"| WEB
-    STRIPE -->|"Billing<br/>webhooks"| API
-    WEB -->|"HTTPS API"| API
-    UPTIME -->|"API health<br/>checks"| API
-    HC -->|"Permitted<br/>health data"| ANDROID
-    USER -->|"Uses"| ANDROID
-
-    classDef person fill:#c8e6c9,stroke:#2e7d32,color:#1b3a1e,stroke-width:2px
-    classDef platform fill:#1565c0,stroke:#0d47a1,color:#fff,stroke-width:2px
-    classDef external fill:#bbdefb,stroke:#1565c0,color:#0d2f5c,stroke-width:2px
-    classDef billing fill:#ffe0b2,stroke:#e65100,color:#4a2400,stroke-width:2px
-    classDef db fill:#b2ebf2,stroke:#00838f,color:#00363d,stroke-width:2px
-
-    class USER person
-    class WEB,API,ANDROID platform
-    class TRACKER,HC,UPTIME external
-    class STRIPE billing
-    class DB db
-
-    style PHONE fill:#fffbe6,stroke:#f9a825,stroke-width:2px
-    style LONGEVITY fill:#f4f7fb,stroke:#6f8aa6,stroke-width:2px
-```
+<p align="center">
+  <a href="docs/screenshots/readme/longevity-system-context.svg">
+    <img src="docs/screenshots/readme/longevity-system-context.svg" alt="Longevity system context showing the user, Android phone and Health Connect, web and Android clients, API, PostgreSQL database, Stripe, and uptime monitoring" width="795">
+  </a>
+</p>
 </details>
 
 ## Product preview
