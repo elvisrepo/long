@@ -12,6 +12,7 @@ from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from apps.metrics.models import MetricDefinition, MetricEntry
 from apps.diet.models import DietEntry, DietFood, DietSection
 from apps.recovery.models import RecoveryEntry, RecoveryTool
+from apps.stretching.models import StretchEntry
 from apps.subscriptions.models import BillingCustomer, CheckoutAttempt, Subscription
 from apps.subscriptions.services import UnresolvedCheckoutError, cancel_account_billing
 from apps.users.models import User
@@ -211,6 +212,9 @@ def account_export(user: User) -> Iterator[str]:
         "recovery_entries": RecoveryEntry.objects.filter(user=user)
         .order_by("id")
         .values("id", "tool_id", "performed_on", "created_at"),
+        "stretching_entries": StretchEntry.objects.filter(user=user)
+        .order_by("id")
+        .values("id", "exercise_id", "performed_on", "created_at"),
         "metric_definitions": MetricDefinition.objects.filter(
             Q(user=user) | Q(entries__user=user)
         )

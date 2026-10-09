@@ -435,6 +435,23 @@ Ownership, slug, order and evidence are not client-writable. Existing custom too
 remain usable after downgrade. Full account JSON export adds recovery sections;
 account deletion removes owned recovery data through database cascades.
 
+## Stretching & posture tracking (implemented locally, 2026-10-09)
+
+All routes require JWT. The catalog is shared and read-only; daily check-offs are
+private to the authenticated account. Exercise names are starter catalog labels,
+not medical instructions. No images or article text are stored.
+
+| Method | Endpoint | Contract |
+|---|---|---|
+| GET | `/api/v1/stretching/exercises/` | `{phases: [{slug, name, exercises: [...] }]}`; active shared exercises in display order |
+| GET | `/api/v1/stretching/entries/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD` | Own entries, inclusive 1–366-day range; invalid/missing bounds `400` |
+| PUT | `/api/v1/stretching/entries/{exercise_uuid}/{YYYY-MM-DD}/` | Empty body; idempotent daily check-off `200`; unknown/inactive exercise `404` |
+| DELETE | `/api/v1/stretching/entries/{exercise_uuid}/{YYYY-MM-DD}/` | Idempotent undo `204`; unknown exercise `404` |
+
+Entry JSON: `{id, exercise_id, performed_on, created_at}`. Client-supplied owner,
+phase, name, order, and timestamps are not accepted. Account export includes
+owned stretching entries; account deletion cascades them.
+
 ## Use When
 - Load this when you need the api design.
 

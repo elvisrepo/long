@@ -1,5 +1,15 @@
 #### Security (OWASP Top 10 addressed)
 
+## Stretching & posture check-offs — 2026-10-09
+
+Stretching check-offs (2026-10-09) use JWT identity only: users cannot submit an
+owner id, and entry reads/writes are scoped to the authenticated account. The
+shared starter exercise catalog is read-only. A database uniqueness constraint
+on user, exercise and local calendar date makes repeated check-offs idempotent;
+the authenticated user row is locked during writes to serialize with account
+deletion. Export includes personal check-offs and account deletion cascades them.
+Catalog labels are not medical advice, and the app stores no article images.
+
 ## Workout tracking boundary — 2026-10-01 backend slice
 
 Combined cardio goals (2026-10-05) reuse JWT ownership, shared user-row locks,
