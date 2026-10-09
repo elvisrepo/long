@@ -91,6 +91,7 @@ def test_e2e_reset_endpoint_flushes_database_and_restores_seed_data():
     from common.testing_views import reset_e2e_database_view
     from apps.metrics.models import MetricDefinition
     from apps.recovery.models import RecoveryTool
+    from apps.stretching.models import StretchExercise
     from apps.subscriptions.models import SubscriptionPlan, SubscriptionPrice
 
     User = get_user_model()
@@ -107,6 +108,13 @@ def test_e2e_reset_endpoint_flushes_database_and_restores_seed_data():
     assert response.status_code == 204
     assert User.objects.count() == 0
     assert RecoveryTool.objects.filter(user=None, is_active=True).count() == 6
+    assert StretchExercise.objects.filter(is_active=True).count() == 20
+    assert StretchExercise.objects.filter(
+        slug="lower-body-lunge-stretch", is_active=True
+    ).exists()
+    assert StretchExercise.objects.filter(
+        slug="upper-body-foam-rolling-thoracic-spine", is_active=True
+    ).exists()
     # The reset endpoint uses flush, which also deletes seed rows; restore the
     # baseline metrics so browser tests see the same app state after each reset.
     assert MetricDefinition.objects.filter(

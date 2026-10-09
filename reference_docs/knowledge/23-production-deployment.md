@@ -41,6 +41,27 @@ Recommended production:
 | Egress | One NAT Gateway per AZ | Resilient private-task outbound access |
 | Configuration/operations | Secrets Manager + CloudWatch | Separate production identities and secrets |
 
+### Production readiness status — 2026-10-08
+
+This production topology is a recommendation, not deployed infrastructure.
+The repository has the backend production container and migration-first smoke
+tests, but no production Terraform, CDK, CloudFormation, or production AWS
+deployment workflow. The currently deployed EC2 environment is presentation
+staging and must remain separate from real-user production data.
+
+Before implementing or applying production infrastructure, agree on:
+
+- a monthly spend ceiling and how promotional credits constrain it;
+- expected launch traffic, database size, and growth assumptions;
+- availability and recovery objectives, including acceptable outage and data
+  loss windows;
+- the production domain, isolated Stripe live configuration, and Android
+  release/signing and distribution plan.
+
+Then implement the production topology as reviewed Terraform, inspect the plan
+and cost estimate, and apply only after explicit approval. No resources should
+be created as part of the planning or plan-review stage.
+
 Production does not need Nginx because CloudFront and ALB own its relevant edge
 and reverse-proxy responsibilities. Redis, Celery Worker, and Celery Beat are
 not baseline requirements; add them only for measured asynchronous workloads.

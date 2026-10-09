@@ -14,7 +14,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         awsSecretsManager = softwareSystem "AWS Secrets Manager" "Stores the canonical staging runtime JSON retrieved once through the EC2 instance role."
 
         longevity = softwareSystem "Longevity Platform" "Tracks user auth, subscriptions, metrics, analytics entitlements, and wearable ingestion." {
-            webapp = container "React Web App" "Implemented browser client for registration, hardened web sessions, dashboard/manual metrics, metric catalog/detail management, and Stripe-backed settings." "React + TypeScript" {
+            webapp = container "React Web App" "Implemented browser client for account management, metrics, workouts, diet, recovery, history/progress, and Stripe-backed subscriptions." "React + TypeScript" {
                 webRoutes = component "Routes and Screens" "TanStack Router pages for registration, login, protected Dashboard, Metrics, Metric Detail, and Settings flows." "React + TanStack Router"
                 webAuth = component "Web Auth Session" "Bootstraps CSRF, keeps the access token in memory, relies on an HttpOnly refresh cookie, shares in-flight refreshes, and uses the browser Lock Manager for cross-tab rotation when available." "TypeScript"
                 webServerState = component "Server State Layer" "Fetches, caches, mutates, and invalidates current-user, metric, and subscription server state." "TanStack Query"
@@ -1964,6 +1964,21 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             autolayout lr
         }
 
+        deployment * localDev "local-development-compact" "[CURRENT / COMPACT] Main local paths: browser to Vite and Django/PostgreSQL; Android phone through adb reverse to Django; Health Connect wearable reads; and Stripe CLI webhook forwarding." {
+            include localDev.developerMachine.localBrowserNode.localBrowser
+            include localDev.developerMachine.localBrowserNode.localWebapp
+            include localDev.developerMachine.viteNode.viteServer
+            include localDev.developerMachine.androidTooling
+            include localDev.developerMachine.adbReverse
+            include localDev.developerMachine.stripeCli
+            include localDev.physicalAndroidPhone.localAndroidClient
+            include localDev.physicalAndroidPhone.localHealthConnect
+            include localDev.physicalAndroidPhone.localSamsungHealth
+            include localDev.dockerCompose.localApiNode.localApi
+            include localDev.dockerCompose.localDbNode.localDb
+            autolayout lr
+        }
+
         deployment * presentationStaging "current-presentation-staging" "[CURRENT] Agreed low-cost presentation staging: one CloudFront entry point, private S3 React origin, uncached /api/* to Let's Encrypt-backed Nginx on one public EC2 host, Gunicorn/Django, self-hosted plain PostgreSQL 16 on encrypted EBS, S3 logical backups, Secrets Manager, Systems Manager, and CloudWatch. ALB, NAT Gateway, TimescaleDB/Timescale Cloud, Redis, Celery Worker, and Celery Beat are absent." {
             include *
             exclude webCallsApi
@@ -1974,6 +1989,21 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         deployment * presentationStaging "current-presentation-staging-compact" "[CURRENT / COMPACT] Request and data path for the agreed presentation environment: browser or Android to CloudFront, private S3 for React, /api/* to Nginx, Gunicorn/Django, and the self-hosted plain PostgreSQL 16 container." {
             include presentationStaging.userDevices.browserNode.browserClient
             include presentationStaging.userDevices.androidNode.androidClient
+            include presentationStaging.aws.globalEdge.cloudFront.endpoint
+            include presentationStaging.aws.globalEdge.cloudFront.staticBehavior
+            include presentationStaging.aws.globalEdge.cloudFront.apiBehavior
+            include presentationStaging.aws.region.frontendOrigin.s3Bucket
+            include presentationStaging.aws.region.vpc.publicSubnet.ec2.nginxNode.nginx
+            include presentationStaging.aws.region.vpc.publicSubnet.ec2.apiNode.gunicorn
+            include presentationStaging.aws.region.vpc.publicSubnet.ec2.apiNode.apiInstance
+            include presentationStaging.aws.region.vpc.publicSubnet.ec2.databaseNode.dbInstance
+            include presentationStaging.aws.region.vpc.publicSubnet.ec2.ebsVolume
+            exclude webCallsApi
+            exclude androidCallsApi
+            autolayout tb
+        }
+
+        deployment * presentationStaging "readme-current-staging" "[CURRENT / README] Compact infrastructure view of CloudFront static/API routing, private frontend S3, the single EC2-hosted Nginx/Django/PostgreSQL stack, and persistent EBS." {
             include presentationStaging.aws.globalEdge.cloudFront.endpoint
             include presentationStaging.aws.globalEdge.cloudFront.staticBehavior
             include presentationStaging.aws.globalEdge.cloudFront.apiBehavior
@@ -2053,6 +2083,23 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
             include recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.gunicornA
             include recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.apiInstanceA
             include recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.gunicornB
+            include recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.apiInstanceB
+            include recommendedProduction.aws.region.vpc.privateDataTier.rdsCluster.dbInstance
+            include recommendedProduction.aws.region.vpc.privateDataTier.rdsCluster.standby
+            exclude webCallsApi
+            exclude androidCallsApi
+            autolayout tb
+        }
+
+        deployment * recommendedProduction "readme-recommended-production" "[FUTURE RECOMMENDATION / README] Compact resilient path: CloudFront/WAF and private S3, ALB to two Fargate API tasks across AZs, then RDS PostgreSQL Multi-AZ." {
+            include recommendedProduction.aws.globalEdge.webAcl
+            include recommendedProduction.aws.globalEdge.cloudFront.endpoint
+            include recommendedProduction.aws.globalEdge.cloudFront.staticBehavior
+            include recommendedProduction.aws.globalEdge.cloudFront.apiBehavior
+            include recommendedProduction.aws.region.frontendOrigin.s3Bucket
+            include recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener
+            include recommendedProduction.aws.region.vpc.publicTier.alb.targetGroup
+            include recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.apiInstanceA
             include recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.apiInstanceB
             include recommendedProduction.aws.region.vpc.privateDataTier.rdsCluster.dbInstance
             include recommendedProduction.aws.region.vpc.privateDataTier.rdsCluster.standby

@@ -7,6 +7,7 @@ from rest_framework.response import Response
 
 from apps.metrics.defaults import seed_default_metric_definitions
 from apps.recovery.defaults import seed_default_recovery_tools
+from apps.stretching.defaults import seed_default_stretch_exercises
 from apps.subscriptions.defaults import seed_default_subscription_plan
 from apps.subscriptions.models import SubscriptionPlan, SubscriptionPrice
 
@@ -22,6 +23,7 @@ def reset_e2e_database_view(request: Request) -> Response:
     call_command("flush", "--no-input", verbosity=0)
     seed_default_metric_definitions()
     seed_default_recovery_tools()
+    seed_default_stretch_exercises()
     seed_default_subscription_plan()
     seed_e2e_subscription_plans()
     return Response(status=status.HTTP_204_NO_CONTENT)

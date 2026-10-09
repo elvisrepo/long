@@ -16,8 +16,13 @@
 
 #### Current AWS foundation
 
-The initial AWS account and workstation access foundation was completed on
-2026-08-20. No Longevity application infrastructure has been provisioned yet.
+The AWS account and workstation access foundation was completed on 2026-08-20.
+Presentation staging is now deployed in `eu-central-1` and uses CloudFront with
+private S3 for the frontend, plus one EC2 host running Nginx, Django/Gunicorn,
+and PostgreSQL on encrypted EBS. It is a demo/test-data environment, not the
+production availability target. Production AWS resources have not been
+provisioned, and this repository currently has no Terraform, CDK, or
+CloudFormation production stack.
 
 | Concern | Current decision |
 |---|---|
@@ -71,9 +76,8 @@ Staging runtime identity and secret contract:
   privileged host or Docker operators; restrict Systems Manager, sudo, and
   Docker access and never print the secret or unredacted Compose configuration
 - `longevity/staging/backend-runtime`, the EC2 instance profile, and the staging
-  instance are provisioned; the local SES slice adds `SES_REGION`,
-  `DEFAULT_FROM_EMAIL`, and `PASSWORD_RESET_URL` to the next runtime snapshot
-  and must not be deployed before that secret version and host bundle match
+  instance are provisioned; the runtime contract includes `SES_REGION`,
+  `DEFAULT_FROM_EMAIL`, and `PASSWORD_RESET_URL` for SES-backed password reset
 
 Staging transactional email:
 - Amazon SES production access is granted in `eu-central-1`
@@ -214,9 +218,11 @@ Current implemented state:
   returns `ScanNotFoundException`; retries reuse an existing scan and the role
   therefore also needs repository-scoped `ecr:StartImageScan`
 - staging-only high-severity exceptions match the exact CVE, package, and
-  reviewed version: zlib `CVE-2026-85091` at `1.3.dfsg+really1.3.1-1`, plus
-  Perl `CVE-2026-82560` at `5.40.1-6+deb13u1`; neither is a production
-  acceptance and a different package or version fails closed
+  reviewed version: zlib `CVE-2026-85091` at `1.3.dfsg+really1.3.1-1`, Perl
+  `CVE-2026-82560` at `5.40.1-6+deb13u1`, and the operator-approved GCC
+  findings `CVE-2026-102010` / `CVE-2026-95619` at `gcc-14` `14.2.0-19`.
+  The GCC exception is staging-only and should be removed when that package
+  version is no longer reported; a different package or version fails closed.
 - frontend releases rerun their complete quality gates and use the tested
   asset-first, application-shell-last uploader; they never delete superseded
   assets, while S3 Versioning retains overwritten object versions
@@ -255,6 +261,12 @@ Current implemented state:
   `d2ad126ef3ae504ad9543e5df7468da21cce89de` with the SES-backed password
   reset flow; every workflow phase passed, and the owner then completed the
   real email, password-change, and new-password login journey
+- automatic run `37468982869` deployed protected staging commit
+  `62b720f4be54a6e8484a7da8486c49ea55655efe` on 2026-10-06 after the
+  operator-approved exact-version image-scan exception; backend image digest
+  `sha256:2984575524eeb12352756c3e8613415ecb3211985226a9c404fb6b0443c8d78b`,
+  frontend upload, and public application checks passed. This changed the
+  application image/assets, not the AWS resource topology.
 - authenticated browser journeys remain manual because the workflow receives
   no user credentials, and host deployment-bundle changes remain a separate
   reviewed manual procedure because the GitHub role cannot install host files
