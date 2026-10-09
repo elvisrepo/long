@@ -8,34 +8,43 @@ workouts, diet, recovery, subscription settings, and Health Connect sync.
 <summary>Show Longevity system context</summary>
 
 ```mermaid
-flowchart LR
+---
+config:
+  flowchart:
+    nodeSpacing: 25
+    rankSpacing: 35
+    subGraphTitleMargin:
+      top: 8
+      bottom: 12
+---
+flowchart TB
     USER["User"]
+    UPTIME["Uptime monitoring"]
 
     subgraph PHONE["Physical Android phone"]
+        ANDROID["Longevity Android app"]
         TRACKER["Tracking App"]
         HC["Health Connect"]
-        ANDROID["Longevity Android app"]
-    end
-
-    subgraph LONGEVITY["Longevity platform"]
-        WEB["React web client"]
-        API["Django REST API<br/>Metrics · workouts · diet · recovery"]
-        DB[("PostgreSQL database")]
     end
 
     STRIPE["Stripe"]
-    UPTIME["Uptime monitoring"]
 
+    subgraph LONGEVITY["Longevity platform"]
+        API["Django REST API<br/>Metrics · workouts<br/>diet · recovery"]
+        DB[("PostgreSQL database")]
+        WEB["React web client"]
+    end
+
+    API -->|"Checkout<br/>/ Portal"| STRIPE
+    TRACKER -->|"Writes<br/>health records"| HC
+    ANDROID -->|"HTTPS API<br/>/ sync"| API
+    API -->|"Reads<br/>/ writes"| DB
     USER -->|"Uses"| WEB
-    USER -->|"Uses"| ANDROID
-    TRACKER -->|"Writes health records"| HC
-    HC -->|"Permitted health data"| ANDROID
+    STRIPE -->|"Billing<br/>webhooks"| API
     WEB -->|"HTTPS API"| API
-    ANDROID -->|"HTTPS API / sync"| API
-    API -->|"Reads / writes"| DB
-    API -->|"Checkout / Portal"| STRIPE
-    STRIPE -->|"Billing webhooks"| API
-    UPTIME -->|"API health checks"| API
+    UPTIME -->|"API health<br/>checks"| API
+    HC -->|"Permitted<br/>health data"| ANDROID
+    USER -->|"Uses"| ANDROID
 
     classDef person fill:#c8e6c9,stroke:#2e7d32,color:#1b3a1e,stroke-width:2px
     classDef platform fill:#1565c0,stroke:#0d47a1,color:#fff,stroke-width:2px
