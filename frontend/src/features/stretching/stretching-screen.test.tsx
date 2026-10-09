@@ -148,4 +148,25 @@ describe("StretchingScreen", () => {
 
     await act(async () => resolveNewDay?.());
   });
+
+  it("clears a failed check-off message when changing dates", async () => {
+    const user = userEvent.setup();
+    vi.mocked(setStretchCheckoff).mockRejectedValueOnce(
+      new Error("Network unavailable"),
+    );
+
+    renderScreen();
+    const lunge = await screen.findByRole("checkbox", {
+      name: "Lunge Stretch",
+    });
+    await user.click(lunge);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Network unavailable",
+    );
+
+    fireEvent.change(screen.getByLabelText("Tracking date"), {
+      target: { value: "2026-10-10" },
+    });
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  });
 });

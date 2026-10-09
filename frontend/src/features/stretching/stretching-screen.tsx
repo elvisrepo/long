@@ -37,11 +37,22 @@ export function StretchingScreen() {
     enabled: !!owner,
   });
   const checkoff = useMutation({
-    mutationFn: ({ id, checked }: { id: string; checked: boolean }) =>
-      setStretchCheckoff(id, day, checked),
+    mutationFn: ({
+      id,
+      day: targetDay,
+      checked,
+    }: {
+      id: string;
+      day: string;
+      checked: boolean;
+    }) => setStretchCheckoff(id, targetDay, checked),
     onSuccess: () =>
       client.invalidateQueries({ queryKey: ["stretching", owner, "entries"] }),
   });
+  const selectDay = (nextDay: string) => {
+    if (nextDay !== day) checkoff.reset();
+    setDay(nextDay);
+  };
   if (catalog.isPending || entries.isPending)
     return <PageState message="Loading stretching checklist…" />;
   if (catalog.isError || entries.isError)
@@ -74,7 +85,7 @@ export function StretchingScreen() {
         <button
           type="button"
           aria-label="Previous day"
-          onClick={() => setDay(shiftDay(day, -1))}
+          onClick={() => selectDay(shiftDay(day, -1))}
         >
           ←
         </button>
@@ -84,18 +95,18 @@ export function StretchingScreen() {
             type="date"
             value={day}
             onChange={(event) =>
-              event.target.value && setDay(event.target.value)
+              event.target.value && selectDay(event.target.value)
             }
           />
         </label>
         <button
           type="button"
           aria-label="Next day"
-          onClick={() => setDay(shiftDay(day, 1))}
+          onClick={() => selectDay(shiftDay(day, 1))}
         >
           →
         </button>
-        <button type="button" onClick={() => setDay(today)}>
+        <button type="button" onClick={() => selectDay(today)}>
           Today
         </button>
       </div>
@@ -171,6 +182,7 @@ export function StretchingScreen() {
                   onChange={(event) =>
                     checkoff.mutate({
                       id: exercise.id,
+                      day,
                       checked: event.target.checked,
                     })
                   }
