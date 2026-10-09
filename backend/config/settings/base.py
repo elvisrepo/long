@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     "apps.users",
     "apps.metrics",
     "apps.recovery",
+    "apps.stretching",
     "apps.diet",
     "apps.workouts",
     "apps.subscriptions",
