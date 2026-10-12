@@ -16,6 +16,7 @@ ACCEPTED_STAGING_HIGH_FINDINGS = {
     "CVE-2026-95619": ("gcc-14", "14.2.0-19"),
     # Operator-approved for presentation staging only; exact package/version.
     "CVE-2026-5435": ("glibc", "2.41-12+deb13u4"),
+    "CVE-2026-19499": ("glibc", "2.41-12+deb13u4"),
 }
 
 
