@@ -28,7 +28,7 @@ const phases = [
     exercises: [
       {
         id: "lunge",
-        slug: "lunge",
+        slug: "lower-body-lunge-stretch",
         phase: "lower-body" as const,
         name: "Lunge Stretch",
         description: "Move the hip forward while keeping the lower back quiet.",
@@ -43,7 +43,7 @@ const phases = [
     exercises: [
       {
         id: "neck",
-        slug: "neck",
+        slug: "upper-body-chin-tuck",
         phase: "upper-body" as const,
         name: "Chin tuck",
         description:
@@ -93,6 +93,9 @@ describe("StretchingScreen", () => {
     expect(
       await screen.findByRole("checkbox", { name: /Chin tuck/ }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: "Illustration of Chin tuck" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("10 reps")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: /Lower body & hips/ }));
     const lunge = await screen.findByRole("checkbox", {
@@ -105,6 +108,14 @@ describe("StretchingScreen", () => {
       "2026-10-09",
       true,
     );
+  });
+
+  it("shows an accessible bundled illustration for curated exercises", async () => {
+    renderScreen();
+
+    expect(
+      await screen.findByRole("img", { name: "Illustration of Lunge Stretch" }),
+    ).toBeInTheDocument();
   });
 
   it("does not show a previous day's check-offs while a new date loads", async () => {

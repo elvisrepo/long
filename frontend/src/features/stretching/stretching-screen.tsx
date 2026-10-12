@@ -15,6 +15,7 @@ import {
   getStretchEntries,
   setStretchCheckoff,
 } from "./stretching-api";
+import { exerciseImages } from "./stretching-images";
 import "./stretching.css";
 
 export function StretchingScreen() {
@@ -169,6 +170,7 @@ export function StretchingScreen() {
         <div className="stretching-exercises">
           {currentPhase.exercises.map((exercise) => {
             const checked = checkedIds.has(exercise.id);
+            const image = exerciseImages[exercise.slug];
             return (
               <label
                 className={`stretching-exercise${checked ? " is-checked" : ""}`}
@@ -187,6 +189,16 @@ export function StretchingScreen() {
                     })
                   }
                 />
+                {image && (
+                  <img
+                    className="stretching-exercise-image"
+                    src={image}
+                    alt={`Illustration of ${exercise.name}`}
+                    loading="lazy"
+                    width="640"
+                    height="480"
+                  />
+                )}
                 <span className="stretching-exercise-copy">
                   <span className="stretching-exercise-heading">
                     <span>{exercise.name}</span>
