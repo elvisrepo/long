@@ -24,6 +24,8 @@ PREVIOUS_DESCRIPTIONS = {
     "upper-body-reverse-crunch": "Lie on your back with knees bent and lift the pelvis in a controlled abdominal curl.",
 }
 
+PREVIOUS_DOSAGES = {"lower-body-glute-bridges": "15 slow repetitions"}
+
 SOURCE_DESCRIPTIONS = {
     "lower-body-lunge-stretch": "Move the hip, not the lower back. Squeeze the glute of the leg behind you. Push the hips forward and rotate slightly from side to side.",
     "lower-body-hip-circuit": "Complete circles in both directions, move the leg sideways for abductions, then kick it up for superdogs.",
@@ -31,7 +33,7 @@ SOURCE_DESCRIPTIONS = {
     "lower-body-cook-hip-lift": "Keep a tennis ball between the working leg and ribcage. Squeeze the other glute and raise several inches, isolating the glute from the lower back and hamstrings.",
     "lower-body-clam": "Keep the spine in one line and raise the upper leg, focusing on the glute muscles.",
     "lower-body-half-squat-half-deadlift": "Bend over and squat down into the pictured position. Move up by using the hips.",
-    "lower-body-cat-and-camel-stretch": "The source advises against traditional back-flexion stretches such as toe touches, saying they may put pressure on spinal discs. This is general source material, not personalized medical advice.",
+    "lower-body-cat-and-camel-stretch": "Move gently between arching your back and rounding it, coordinating the movement with your breath. The source also cautions against toe touches; this is general reference material, not personalized medical advice.",
     "lower-body-dead-bug": "Pull the belly button inward and bring the knees and arms up. Lower the left leg and right arm, then alternate.",
     "lower-body-plank": "Keep the knees slightly bent, brace the abs, and squeeze the glutes. The source cues a slight arch in the lower back.",
     "lower-body-foam-rolling": "Roll over the hips, quads, calves, and IT band.",
@@ -47,17 +49,23 @@ SOURCE_DESCRIPTIONS = {
     "upper-body-reverse-crunch": "Lie on the floor with knees bent. Curl the knees toward the head using the abs, keeping the feet down, legs squeezed, and head on the floor. Lower the pelvis after each rep; work the abs rather than the hip flexors, and do not let the legs pass perpendicular.",
 }
 
+SOURCE_DOSAGES = {"lower-body-glute-bridges": "15 slow movements up and down"}
+
 
 def update_source_cues(apps, schema_editor):
     Exercise = apps.get_model("stretching", "StretchExercise")
     for slug, description in SOURCE_DESCRIPTIONS.items():
         Exercise.objects.filter(slug=slug).update(description=description)
+    for slug, dosage in SOURCE_DOSAGES.items():
+        Exercise.objects.filter(slug=slug).update(dosage=dosage)
 
 
 def restore_previous_cues(apps, schema_editor):
     Exercise = apps.get_model("stretching", "StretchExercise")
     for slug, description in PREVIOUS_DESCRIPTIONS.items():
         Exercise.objects.filter(slug=slug).update(description=description)
+    for slug, dosage in PREVIOUS_DOSAGES.items():
+        Exercise.objects.filter(slug=slug).update(dosage=dosage)
 
 
 class Migration(migrations.Migration):

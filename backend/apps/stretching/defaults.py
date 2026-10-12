@@ -49,7 +49,7 @@ EXERCISES = [
         StretchExercise.Phase.LOWER_BODY,
         "Cat and Camel Stretch",
         "10 repetitions",
-        "The source advises against traditional back-flexion stretches such as toe touches, saying they may put pressure on spinal discs. This is general source material, not personalized medical advice.",
+        "Move gently between arching your back and rounding it, coordinating the movement with your breath. The source also cautions against toe touches; this is general reference material, not personalized medical advice.",
     ),
     (
         "lower-body-dead-bug",
