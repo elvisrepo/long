@@ -94,7 +94,9 @@ describe("StretchingScreen", () => {
       await screen.findByRole("checkbox", { name: /Chin tuck/ }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("img", { name: "Illustration of Chin tuck" }),
+      screen.getByRole("button", {
+        name: "Enlarge illustration of Chin tuck",
+      }),
     ).toBeInTheDocument();
     expect(screen.getByText("10 reps")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: /Lower body & hips/ }));
@@ -110,12 +112,28 @@ describe("StretchingScreen", () => {
     );
   });
 
-  it("shows an accessible bundled illustration for curated exercises", async () => {
+  it("opens an enlarged illustration without checking off the exercise", async () => {
+    const user = userEvent.setup();
     renderScreen();
 
+    const checkbox = await screen.findByRole("checkbox", {
+      name: "Lunge Stretch",
+    });
+    await user.click(
+      screen.getByRole("button", {
+        name: "Enlarge illustration of Lunge Stretch",
+      }),
+    );
+
+    expect(screen.getByRole("dialog", { name: "Lunge Stretch" })).toBeVisible();
     expect(
-      await screen.findByRole("img", { name: "Illustration of Lunge Stretch" }),
-    ).toBeInTheDocument();
+      screen.getByRole("img", { name: "Illustration of Lunge Stretch" }),
+    ).toBeVisible();
+    expect(checkbox).not.toBeChecked();
+
+    await user.click(screen.getByRole("button", { name: "Close image" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(checkbox).not.toBeChecked();
   });
 
   it("does not show a previous day's check-offs while a new date loads", async () => {

@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { Modal } from "../../components/modal";
 import { PageHeader } from "../../components/page-header";
 import { PageState } from "../../components/page-state";
 import { useMeQuery } from "../auth/use-me-query";
@@ -26,6 +27,10 @@ export function StretchingScreen() {
   const [phaseSlug, setPhaseSlug] = useState<"lower-body" | "upper-body">(
     "lower-body",
   );
+  const [selectedImage, setSelectedImage] = useState<{
+    name: string;
+    src: string;
+  } | null>(null);
   const catalog = useQuery({
     queryKey: ["stretching", owner, "catalog"],
     queryFn: getStretchCatalog,
@@ -172,12 +177,13 @@ export function StretchingScreen() {
             const checked = checkedIds.has(exercise.id);
             const image = exerciseImages[exercise.slug];
             return (
-              <label
+              <div
                 className={`stretching-exercise${checked ? " is-checked" : ""}`}
                 key={exercise.id}
               >
                 <input
                   type="checkbox"
+                  id={`stretch-check-${exercise.id}`}
                   aria-label={exercise.name}
                   checked={checked}
                   disabled={checkoff.isPending || entries.isFetching}
@@ -190,16 +196,28 @@ export function StretchingScreen() {
                   }
                 />
                 {image && (
-                  <img
-                    className="stretching-exercise-image"
-                    src={image}
-                    alt={`Illustration of ${exercise.name}`}
-                    loading="lazy"
-                    width="640"
-                    height="480"
-                  />
+                  <button
+                    type="button"
+                    className="stretching-image-button"
+                    aria-label={`Enlarge illustration of ${exercise.name}`}
+                    onClick={() =>
+                      setSelectedImage({ name: exercise.name, src: image })
+                    }
+                  >
+                    <img
+                      className="stretching-exercise-image"
+                      src={image}
+                      alt=""
+                      loading="lazy"
+                      width="640"
+                      height="480"
+                    />
+                  </button>
                 )}
-                <span className="stretching-exercise-copy">
+                <label
+                  className="stretching-exercise-copy"
+                  htmlFor={`stretch-check-${exercise.id}`}
+                >
                   <span className="stretching-exercise-heading">
                     <span>{exercise.name}</span>
                     {exercise.dosage && <small>{exercise.dosage}</small>}
@@ -207,8 +225,8 @@ export function StretchingScreen() {
                   {exercise.description && (
                     <small>{exercise.description}</small>
                   )}
-                </span>
-              </label>
+                </label>
+              </div>
             );
           })}
         </div>
@@ -217,6 +235,31 @@ export function StretchingScreen() {
           advice.
         </p>
       </section>
+      {selectedImage && (
+        <Modal
+          labelledBy="stretch-image-dialog-title"
+          onClose={() => setSelectedImage(null)}
+          closeOnBackdrop
+          className="stretching-image-dialog"
+        >
+          <div className="metric-dialog-header">
+            <h2 id="stretch-image-dialog-title">{selectedImage.name}</h2>
+            <button
+              type="button"
+              className="metric-dialog-close"
+              aria-label="Close image"
+              onClick={() => setSelectedImage(null)}
+            >
+              Close
+            </button>
+          </div>
+          <img
+            className="stretching-image-expanded"
+            src={selectedImage.src}
+            alt={`Illustration of ${selectedImage.name}`}
+          />
+        </Modal>
+      )}
     </section>
   );
 }
