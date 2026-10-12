@@ -126,6 +126,28 @@ it("distinguishes session and set status labels on Home", async () => {
   ).toBe(true);
 });
 
+it("keeps the Home workout list free of the right-side summary stack", async () => {
+  mount({ view: "home", date: workout.performed_on });
+
+  expect(
+    await screen.findByRole("heading", { name: "No workout on this day" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("heading", { name: "Last 7 days" }),
+  ).not.toBeInTheDocument();
+});
+
+it("starts a workout from the empty-state plus button", async () => {
+  mount({ view: "home", date: "2026-10-12" });
+
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Start workout" }),
+  );
+
+  await screen.findByRole("heading", { name: "All exercises" });
+  expect(api.createWorkout).toHaveBeenCalledWith("2026-10-12");
+});
+
 it("opens an export preview from Home without writing or creating a workout", async () => {
   vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
   mount({ view: "home", date: workout.performed_on });
@@ -858,22 +880,16 @@ it.each(["duration", "cardio", "bodyweight"] as const)(
   },
 );
 
-it("keeps seven-day history anchored to today when viewing another date", async () => {
+it("keeps the selected date on Home without a separate week sidebar", async () => {
   vi.setSystemTime(new Date("2026-10-02T12:00:00"));
   try {
     mount({ date: "2026-09-01" });
-    const today = await screen.findByRole("button", {
-      name: "Fri, 2 Oct 2026, 0 sessions",
-    });
-    expect(today).toHaveAttribute("aria-current", "date");
-    await userEvent.click(
-      await screen.findByRole("button", {
-        name: "Sat, 26 Sept 2026, 0 sessions",
-      }),
+    expect(await screen.findByLabelText("Tracking date")).toHaveValue(
+      "2026-09-01",
     );
     expect(
-      screen.getByRole("button", { name: "Fri, 2 Oct 2026, 0 sessions" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("heading", { name: "Last 7 days" }),
+    ).not.toBeInTheDocument();
   } finally {
     vi.useRealTimers();
   }

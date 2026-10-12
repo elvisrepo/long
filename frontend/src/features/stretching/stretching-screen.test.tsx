@@ -28,7 +28,7 @@ const phases = [
     exercises: [
       {
         id: "lunge",
-        slug: "lunge",
+        slug: "lower-body-lunge-stretch",
         phase: "lower-body" as const,
         name: "Lunge Stretch",
         description: "Move the hip forward while keeping the lower back quiet.",
@@ -43,7 +43,7 @@ const phases = [
     exercises: [
       {
         id: "neck",
-        slug: "neck",
+        slug: "upper-body-chin-tuck",
         phase: "upper-body" as const,
         name: "Chin tuck",
         description:
@@ -93,6 +93,11 @@ describe("StretchingScreen", () => {
     expect(
       await screen.findByRole("checkbox", { name: /Chin tuck/ }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Enlarge illustration of Chin tuck",
+      }),
+    ).toBeInTheDocument();
     expect(screen.getByText("10 reps")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: /Lower body & hips/ }));
     const lunge = await screen.findByRole("checkbox", {
@@ -105,6 +110,30 @@ describe("StretchingScreen", () => {
       "2026-10-09",
       true,
     );
+  });
+
+  it("opens an enlarged illustration without checking off the exercise", async () => {
+    const user = userEvent.setup();
+    renderScreen();
+
+    const checkbox = await screen.findByRole("checkbox", {
+      name: "Lunge Stretch",
+    });
+    await user.click(
+      screen.getByRole("button", {
+        name: "Enlarge illustration of Lunge Stretch",
+      }),
+    );
+
+    expect(screen.getByRole("dialog", { name: "Lunge Stretch" })).toBeVisible();
+    expect(
+      screen.getByRole("img", { name: "Illustration of Lunge Stretch" }),
+    ).toBeVisible();
+    expect(checkbox).not.toBeChecked();
+
+    await user.click(screen.getByRole("button", { name: "Close image" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(checkbox).not.toBeChecked();
   });
 
   it("does not show a previous day's check-offs while a new date loads", async () => {
