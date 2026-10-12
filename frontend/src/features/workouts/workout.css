@@ -185,12 +185,6 @@
 .workout-card .workout-card-heading h2 {
   margin: 0;
 }
-.workout-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-  gap: 1.25rem;
-  align-items: start;
-}
 .workout-stack {
   display: grid;
   gap: 1rem;
@@ -275,11 +269,24 @@
   place-items: center;
   width: 60px;
   height: 60px;
+  min-height: 60px;
+  border: 0;
   border-radius: 18px;
   background: var(--accent-dim);
   font-size: 2rem;
   color: var(--accent);
   margin: 0 auto 1.25rem;
+  padding: 0;
+}
+.workout-screen .workout-empty-icon {
+  border: 0;
+  cursor: pointer;
+  min-height: 60px;
+  padding: 0;
+}
+.workout-screen .workout-empty-icon:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--text-on-accent);
 }
 .workout-inset {
   min-width: 0;
@@ -379,26 +386,6 @@
 }
 .workout-calendar-count {
   font-weight: 700;
-}
-.workout-stat {
-  font-size: 2rem;
-  color: var(--text);
-}
-.workout-week {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 0.25rem;
-}
-.workout-week button {
-  min-width: 0;
-  display: grid;
-  gap: 0.2rem;
-  font-size: 0.72rem;
-  padding: 0.55rem 0.1rem;
-}
-.workout-week button[aria-current="date"] {
-  border-color: var(--accent);
-  background: var(--accent-dim);
 }
 .workout-library-grid {
   display: grid;
@@ -583,7 +570,6 @@
   background: var(--accent-dim);
 }
 @media (max-width: 760px) {
-  .workout-layout,
   .workout-training-layout,
   .workout-library-grid {
     grid-template-columns: minmax(0, 1fr);

@@ -78,7 +78,7 @@
 }
 .stretching-exercise {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
   min-width: 0;
   min-height: 3.25rem;
@@ -86,7 +86,6 @@
   border: 1px solid var(--border);
   border-radius: 0.75rem;
   background: var(--surface);
-  cursor: pointer;
 }
 .stretching-exercise.is-checked {
   border-color: var(--accent);
@@ -96,7 +95,34 @@
   flex: 0 0 auto;
   width: 1.2rem;
   height: 1.2rem;
+  margin-top: 0.15rem;
   accent-color: var(--accent);
+}
+.stretching-image-button {
+  display: block;
+  flex: 0 0 7.5rem;
+  width: 7.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  cursor: zoom-in;
+}
+.stretching-image-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.stretching-exercise-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+.stretching-exercise-copy {
+  cursor: pointer;
 }
 .stretching-exercise span {
   min-width: 0;
@@ -121,9 +147,30 @@
   font-weight: 400;
   line-height: 1.45;
 }
+.stretching-image-dialog {
+  width: min(56rem, calc(100% - 2 * var(--page-gutter)));
+}
+.stretching-image-dialog .metric-dialog-header {
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.stretching-image-dialog .metric-dialog-header h2 {
+  margin: 0;
+}
+.stretching-image-expanded {
+  display: block;
+  width: 100%;
+  max-height: min(72vh, 48rem);
+  object-fit: contain;
+  border-radius: 0.5rem;
+}
 @media (max-width: 640px) {
   .stretching-phase-tabs,
   .stretching-exercises {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .stretching-image-button {
+    flex-basis: 6.5rem;
+    width: 6.5rem;
   }
 }

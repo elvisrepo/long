@@ -435,120 +435,54 @@ function WorkoutHome({
 }) {
   const [copyOpen, setCopyOpen] = useState(false);
   return (
-    <div className="workout-layout">
-      <div className="workout-stack">
-        <div className="workout-actions">
-          <button className="primary-button" disabled={busy} onClick={start}>
-            Start new workout
-          </button>
-          <button disabled={busy} onClick={() => setCopyOpen(true)}>
-            Copy previous workout
-          </button>
-        </div>
-        {copyOpen && (
-          <CopyWorkoutPicker
-            owner={owner}
-            destination={day}
+    <div className="workout-stack">
+      <div className="workout-actions">
+        <button className="primary-button" disabled={busy} onClick={start}>
+          Start new workout
+        </button>
+        <button disabled={busy} onClick={() => setCopyOpen(true)}>
+          Copy previous workout
+        </button>
+      </div>
+      {copyOpen && (
+        <CopyWorkoutPicker
+          owner={owner}
+          destination={day}
+          busy={busy}
+          run={run}
+          navigate={navigate}
+          onClose={() => setCopyOpen(false)}
+        />
+      )}
+      {sessions.length ? (
+        sessions.map((w) => (
+          <SessionCard
+            key={w.id}
+            workout={w}
             busy={busy}
             run={run}
             navigate={navigate}
-            onClose={() => setCopyOpen(false)}
           />
-        )}
-        {sessions.length ? (
-          sessions.map((w) => (
-            <SessionCard
-              key={w.id}
-              workout={w}
-              busy={busy}
-              run={run}
-              navigate={navigate}
-            />
-          ))
-        ) : (
-          <section className="workout-card workout-empty">
-            <span aria-hidden="true" className="workout-empty-icon">
-              ＋
-            </span>
-            <h2>No workout on this day</h2>
-            <p>
-              Start a session and choose your first exercise, or copy a previous
-              workout.
-            </p>
-          </section>
-        )}
-      </div>
-      <aside className="workout-stack">
-        <section className="workout-card">
-          <h2>{dayLabel(day)}</h2>
+        ))
+      ) : (
+        <section className="workout-card workout-empty">
+          <button
+            type="button"
+            aria-label="Start workout"
+            className="workout-empty-icon"
+            disabled={busy}
+            onClick={start}
+          >
+            ＋
+          </button>
+          <h2>No workout on this day</h2>
           <p>
-            <strong className="workout-stat">
-              {sessions.reduce((n, w) => n + w.completed_set_count, 0)}
-            </strong>{" "}
-            completed sets
-          </p>
-          <p>
-            {sessions.length} {sessions.length === 1 ? "session" : "sessions"}
+            Start a session and choose your first exercise, or copy a previous
+            workout.
           </p>
         </section>
-        <WorkoutWeek owner={owner} navigate={navigate} busy={busy} />
-      </aside>
-    </div>
-  );
-}
-function WorkoutWeek({
-  owner,
-  navigate,
-  busy,
-}: {
-  owner: string;
-  navigate: NavigateWorkout;
-  busy: boolean;
-}) {
-  const today = localDay(new Date());
-  const from = shiftDay(today, -6);
-  const query = useQuery({
-    queryKey: ["workouts", owner, "week", today],
-    queryFn: () => api.getWorkoutRange(from, today),
-  });
-  return (
-    <section className="workout-card">
-      <h2>Last 7 days</h2>
-      {query.isError ? (
-        <p role="status">History couldn't load.</p>
-      ) : query.isPending ? (
-        <p role="status">Loading history…</p>
-      ) : (
-        <div className="workout-week">
-          {Array.from({ length: 7 }, (_, i) => {
-            const day = shiftDay(today, i - 6);
-            const count = query.data.filter(
-              (w) => w.performed_on === day && w.completed_set_count > 0,
-            ).length;
-            return (
-              <button
-                key={day}
-                disabled={busy}
-                aria-label={`${dayLabel(day)}, ${count} sessions`}
-                aria-current={day === today ? "date" : undefined}
-                onClick={() => navigate({ view: "home", date: day })}
-              >
-                <span>
-                  {new Date(day + "T12:00:00").toLocaleDateString("en-GB", {
-                    weekday: "short",
-                  })}
-                </span>
-                <b>{Number(day.slice(-2))}</b>
-                <span>{count}</span>
-              </button>
-            );
-          })}
-        </div>
       )}
-      <p className="workout-note">
-        Sessions with completed sets, ending today.
-      </p>
-    </section>
+    </div>
   );
 }
 function SessionCard({
