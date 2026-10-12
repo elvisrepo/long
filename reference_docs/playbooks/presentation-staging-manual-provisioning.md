@@ -139,6 +139,20 @@ Additional staging-only scan acceptance recorded on 2026-09-25:
 - this acceptance does not apply to production or environments containing real
   health or personal data.
 
+Additional staging-only scan acceptance recorded on 2026-10-12:
+
+- the staging deploy scan stopped before EC2 or frontend mutation on HIGH
+  `CVE-2026-5435`;
+- ECR attributed the finding (CVSS 3.1 score 7.3) to Debian `glibc`
+  `2.41-12+deb13u4`. Its report describes an out-of-bounds write in deprecated
+  DNS TSIG-record printing functions;
+- the operator explicitly accepted this risk for presentation staging only.
+  The scan gate accepts only this exact CVE, package, and version; it continues
+  to reject critical findings and any changed package/version;
+- reassess and remove this exception when the base image/package is updated.
+  This acceptance does not apply to production or environments containing real
+  health or personal data.
+
 Release verification recorded on 2026-09-19:
 
 - the Sleep ingestion image and its corrective Gunicorn image were both
