@@ -14,6 +14,8 @@ ACCEPTED_STAGING_HIGH_FINDINGS = {
     # Trixie package remains unfixed; exact package/version matching is required.
     "CVE-2026-102010": ("gcc-14", "14.2.0-19"),
     "CVE-2026-95619": ("gcc-14", "14.2.0-19"),
+    # Operator-approved for presentation staging only; exact package/version.
+    "CVE-2026-5435": ("glibc", "2.41-12+deb13u4"),
 }
 
 

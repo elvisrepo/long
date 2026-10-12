@@ -99,6 +99,53 @@ def test_scan_gate_accepts_reported_gcc_findings_for_exact_package_version() -> 
     review_scan_findings(report)
 
 
+def test_scan_gate_accepts_operator_approved_glibc_finding_for_exact_version() -> None:
+    report = {
+        "imageScanStatus": {"status": "COMPLETE"},
+        "imageScanFindings": {
+            "findings": [
+                {
+                    "name": "CVE-2026-5435",
+                    "severity": "HIGH",
+                    "attributes": [
+                        {"key": "package_name", "value": "glibc"},
+                        {
+                            "key": "package_version",
+                            "value": "2.41-12+deb13u4",
+                        },
+                    ],
+                }
+            ]
+        },
+    }
+
+    review_scan_findings(report)
+
+
+def test_scan_gate_rejects_glibc_finding_for_a_different_package_version() -> None:
+    report = {
+        "imageScanStatus": {"status": "COMPLETE"},
+        "imageScanFindings": {
+            "findings": [
+                {
+                    "name": "CVE-2026-5435",
+                    "severity": "HIGH",
+                    "attributes": [
+                        {"key": "package_name", "value": "glibc"},
+                        {"key": "package_version", "value": "2.41-12+deb13u5"},
+                    ],
+                }
+            ]
+        },
+    }
+
+    with pytest.raises(
+        StagingImageError,
+        match="unapproved HIGH finding: CVE-2026-5435",
+    ):
+        review_scan_findings(report)
+
+
 def test_scan_gate_rejects_allowlisted_cve_for_an_unreviewed_package_version() -> None:
     report = {
         "imageScanStatus": {"status": "COMPLETE"},
