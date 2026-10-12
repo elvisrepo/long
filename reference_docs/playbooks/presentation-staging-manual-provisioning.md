@@ -146,9 +146,13 @@ Additional staging-only scan acceptance recorded on 2026-10-12:
 - ECR attributed the finding (CVSS 3.1 score 7.3) to Debian `glibc`
   `2.41-12+deb13u4`. Its report describes an out-of-bounds write in deprecated
   DNS TSIG-record printing functions;
-- the operator explicitly accepted this risk for presentation staging only.
-  The scan gate accepts only this exact CVE, package, and version; it continues
-  to reject critical findings and any changed package/version;
+- a retry scan found HIGH `CVE-2026-19499` on the same exact `glibc` package and
+  version (CVSS 3.1 score 7.7). ECR's report describes an out-of-bounds write
+  in `strfmon`/`strfmon_l` for certain right-justified format strings, and says
+  no network-facing application impact was known at publication;
+- the operator explicitly accepted these risks for presentation staging only.
+  The scan gate accepts only these exact CVE/package/version tuples; it
+  continues to reject critical findings and any changed package/version;
 - reassess and remove this exception when the base image/package is updated.
   This acceptance does not apply to production or environments containing real
   health or personal data.

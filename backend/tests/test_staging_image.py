@@ -146,6 +146,55 @@ def test_scan_gate_rejects_glibc_finding_for_a_different_package_version() -> No
         review_scan_findings(report)
 
 
+def test_scan_gate_accepts_operator_approved_strfmon_finding_for_exact_version() -> (
+    None
+):
+    report = {
+        "imageScanStatus": {"status": "COMPLETE"},
+        "imageScanFindings": {
+            "findings": [
+                {
+                    "name": "CVE-2026-19499",
+                    "severity": "HIGH",
+                    "attributes": [
+                        {"key": "package_name", "value": "glibc"},
+                        {
+                            "key": "package_version",
+                            "value": "2.41-12+deb13u4",
+                        },
+                    ],
+                }
+            ]
+        },
+    }
+
+    review_scan_findings(report)
+
+
+def test_scan_gate_rejects_strfmon_finding_for_a_different_package_version() -> None:
+    report = {
+        "imageScanStatus": {"status": "COMPLETE"},
+        "imageScanFindings": {
+            "findings": [
+                {
+                    "name": "CVE-2026-19499",
+                    "severity": "HIGH",
+                    "attributes": [
+                        {"key": "package_name", "value": "glibc"},
+                        {"key": "package_version", "value": "2.41-12+deb13u5"},
+                    ],
+                }
+            ]
+        },
+    }
+
+    with pytest.raises(
+        StagingImageError,
+        match="unapproved HIGH finding: CVE-2026-19499",
+    ):
+        review_scan_findings(report)
+
+
 def test_scan_gate_rejects_allowlisted_cve_for_an_unreviewed_package_version() -> None:
     report = {
         "imageScanStatus": {"status": "COMPLETE"},
