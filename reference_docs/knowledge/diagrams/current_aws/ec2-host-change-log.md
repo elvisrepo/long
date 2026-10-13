@@ -1236,6 +1236,40 @@ captured.
 - Status: S3, role, runtime secret, and Nginx configuration are prepared;
   application-side verification remains pending.
 
+### EC2-035 — Stretch-image runtime deployment bundle installed
+
+- Date: 2026-10-13.
+- Performed by: the owner through the AWS CLI and an interactive root Systems
+  Manager Session Manager shell; the owner confirmed each step in chat.
+- Execution path: uploaded the reviewed archive to the existing private stretch
+  image bucket under `stretching/_operator-transfer/`, then downloaded it to
+  `/tmp` on EC2 through the instance role.
+- Intent: install the host-side runtime contract that passes the optional
+  `STRETCH_IMAGE_BUCKET` setting to the backend container before advancing the
+  fail-closed staging workflow pin.
+- Source commit: `3b3940b40a448a891bf90c9f0165b763ebb7260f` (the staging merge
+  containing the reviewed bundle files).
+- Pre-change evidence: `.installed_host_bundle_commit` contained
+  `5436f6edd27624fa4b59683be1f1712fbe711abf`; deployment directory was
+  root-owned with mode `0755`; the complete prior directory was retained at
+  `/opt/syncvitals/deployment.rollback-20261013T142311Z`.
+- Files changed: the 12-file allowlisted archive was extracted into
+  `/opt/syncvitals/deployment` with archive ownership disabled, preserving
+  root ownership. No app image, container, database, package, Nginx file,
+  active systemd unit, or persistent data was changed.
+- Artifact verification: archive SHA-256
+  `a6288549b3a6a4566a20db625708ad593edfcdee67a40878453ea969ef85f3e4` matched
+  on the workstation and host; archive paths were inspected before extraction.
+- Runtime verification: Python compilation and `scripts/staging_storage.py`
+  completed without reported errors. The guarded runtime loader then validated
+  the current secret and confirmed the expected bucket reached its child
+  process; no secret value was printed and no deployment command ran.
+- Temporary transfer artifact: S3 object
+  `s3://longevity-staging-stretch-images-173291122778-eu-central-1-an/stretching/_operator-transfer/syncvitals-staging-deployment-3b3940b40a448a891bf90c9f0165b763ebb7260f.tar.gz`
+  remains pending operator cleanup after deployment.
+- Status: bundle files installed and runtime preflight passed; workflow-pin
+  review and application deployment remain pending.
+
 ## Current Known Host-Software State
 
 | Component | State | Evidence |
@@ -1246,7 +1280,7 @@ captured.
 | Certbot and Route 53 DNS plugin | Origin certificate issued; renewal dry-run and Nginx deploy hook passed | EC2-010, EC2-015, and EC2-016 |
 | CloudWatch Agent | Installed and configured through console; memory and root-disk metric delivery verified | EC2-012 console status and graphs; installed version and boot enablement not yet inspected |
 | AWS CLI | Version-pinned native ARM64 v2 installed and signature-verified | EC2-019 |
-| Deployment bundle | Commit `5436f6edd27624fa4b59683be1f1712fbe711abf` installed and byte-verified; previous bundle retained | EC2-033 |
+| Deployment bundle | Commit `3b3940b40a448a891bf90c9f0165b763ebb7260f` installed and runtime-preflight verified; previous bundle retained | EC2-033, EC2-035 |
 | PostgreSQL and Django | Healthy containers; EBS persistence, loopback-only API, and image index `sha256:f2f0d6443cbfce30aa0497b70688768d30f002d18ae9b04942951412bc9318c8` verified | EC2-020 and EC2-032 |
 | Nginx origin proxy | TLS, root-only CloudFront header guard, loopback proxy, and 3 MiB request limit verified | EC2-021 and EC2-034 |
 | Exact EC2-002 APT transaction | Reconciled | `/var/log/apt/history.log` |
