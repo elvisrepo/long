@@ -21,8 +21,18 @@ pytestmark = pytest.mark.django_db
 
 def stretching_client(email: str = "stretching@example.com") -> tuple[APIClient, User]:
     user = User.objects.create_user(email=email, password="account-password-123")
+    free_plan, _ = SubscriptionPlan.objects.get_or_create(
+        code="free",
+        defaults={
+            "name": "Free",
+            "active_custom_metric_limit": 3,
+            "wearable_connection_limit": 1,
+            "sync_interval_minutes": 30,
+            "is_default": True,
+        },
+    )
     Subscription.objects.create(
-        user=user, plan=SubscriptionPlan.objects.get(code="free"), status="active"
+        user=user, plan=free_plan, status="active"
     )
     client = APIClient()
     client.force_authenticate(user)
