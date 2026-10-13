@@ -6,7 +6,10 @@
   per-exercise hiding/restoration, and preservation/export of past check-offs.
   Frontend tests cover the management dialog and preference requests.
 - Custom-stretch coverage verifies owner-private creation, owner-only edit/archive,
-  preserved check-off history, and image normalization/storage outside PostgreSQL.
+  preserved check-off history, image normalization/storage outside PostgreSQL,
+  failure-safe edits, and owner-only image reads through the authenticated API.
+- Frontend editor tests verify that choosing to remove an image clears a pending
+  replacement file before submission.
 - Production must return an unavailable response for image writes until the private
   image bucket is configured; tests use temporary local media storage, not AWS.
 - Run `backend/tests/test_stretching.py` and focused stretching frontend tests

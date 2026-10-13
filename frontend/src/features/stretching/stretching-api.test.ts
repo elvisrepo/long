@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearAccessToken, setAccessToken } from "../auth/auth-session";
 import {
   createCustomStretch,
+  getStretchImage,
   getStretchEntries,
   getStretchPreferences,
   setStretchCheckoff,
@@ -31,6 +32,26 @@ describe("Stretching API", () => {
           Authorization: "Bearer test-access",
         }),
       }),
+    );
+  });
+
+  it("fetches private stretch images with the current bearer token", async () => {
+    const imageBytes = "webp";
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(imageBytes, {
+        status: 200,
+        headers: { "Content-Type": "image/webp" },
+      }),
+    );
+
+    const result = await getStretchImage(
+      "/api/v1/stretching/exercises/custom/image/",
+    );
+    expect(result.type).toBe("image/webp");
+    expect(result.size).toBe(imageBytes.length);
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/v1/stretching/exercises/custom/image/",
+      { headers: { Authorization: "Bearer test-access" } },
     );
   });
 

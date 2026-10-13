@@ -24,6 +24,7 @@ import {
   type StretchExerciseInput,
 } from "./stretching-api";
 import { StretchExerciseEditor } from "./stretch-exercise-editor";
+import { StretchImage } from "./stretch-image";
 import { exerciseImages } from "./stretching-images";
 import "./stretching.css";
 
@@ -293,13 +294,13 @@ export function StretchingScreen() {
                       setSelectedImage({ name: exercise.name, src: image })
                     }
                   >
-                    <img
+                    <StretchImage
                       className="stretching-exercise-image"
                       src={image}
                       alt=""
                       loading="lazy"
-                      width="640"
-                      height="480"
+                      width={640}
+                      height={480}
                     />
                   </button>
                 )}
@@ -475,7 +476,7 @@ export function StretchingScreen() {
               Close
             </button>
           </div>
-          <img
+          <StretchImage
             className="stretching-image-expanded"
             src={selectedImage.src}
             alt={`Illustration of ${selectedImage.name}`}

@@ -1,11 +1,11 @@
 from typing import Any
 from uuid import UUID
 
+from django.urls import reverse
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from .models import StretchEntry, StretchExercise
-from .storage import stretch_image_url
 
 
 class StretchExerciseSerializer(serializers.ModelSerializer):
@@ -43,7 +43,9 @@ class StretchExerciseSerializer(serializers.ModelSerializer):
     def get_image_url(self, exercise: StretchExercise) -> str | None:
         if not exercise.image_key:
             return None
-        return stretch_image_url(exercise.image_key)
+        return reverse(
+            "stretch-exercise-image", kwargs={"exercise_id": exercise.pk}
+        )
 
 
 class CustomStretchExerciseSerializer(serializers.ModelSerializer):

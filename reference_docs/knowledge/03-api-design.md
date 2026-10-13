@@ -449,6 +449,7 @@ cues are not medical instructions.
 |---|---|---|
 | GET/POST | `/api/v1/stretching/exercises/` | GET returns active shared exercises plus all own custom stretches (including archived for management), grouped by phase. Exercise objects include `is_custom`, `is_active`, `image_url`, and account-specific `is_visible`. POST creates an own custom stretch with `{phase, name, description?, dosage?, image?}`; JSON or multipart; `201` |
 | PATCH/DELETE | `/api/v1/stretching/exercises/{exercise_uuid}/` | Own custom exercises only; PATCH edits `phase`, `name`, `description`, `dosage`, optional `image`, `remove_image`, or `is_active` (restore). DELETE archives (`204`) and keeps check-off history. Shared or foreign IDs return `404` |
+| GET | `/api/v1/stretching/exercises/{exercise_uuid}/image/` | Authenticated owner-only WebP image stream; foreign/shared IDs and stretches without an image return `404`. Responses are `private, no-store` and are not presigned bearer links |
 | GET | `/api/v1/stretching/preferences/` | `{show_shared_exercises, hidden_exercise_ids}`; defaults to `true` and `[]` |
 | PATCH | `/api/v1/stretching/preferences/` | Partial update; `show_shared_exercises: boolean` hides/restores all shared exercises, `hidden_exercise_ids: uuid[]` replaces the individually hidden list; IDs must be existing shared exercises |
 | GET | `/api/v1/stretching/entries/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD` | Own entries, inclusive 1–366-day range; invalid/missing bounds `400` |
@@ -458,7 +459,7 @@ cues are not medical instructions.
 Entry JSON: `{id, exercise_id, performed_on, created_at}`. Client-supplied owner,
 slug, order, image key, and timestamps are not accepted. Images are limited to 2 MB
 JPEG/PNG/WebP uploads, normalized to 640×480 WebP, stored in private object storage,
-and read through a 15-minute presigned URL. `STRETCH_IMAGE_BUCKET` must be configured
+and read through the authenticated owner-only image endpoint. `STRETCH_IMAGE_BUCKET` must be configured
 for production uploads; absent storage yields `503` for image writes while text-only
 custom stretches remain available. Account export includes custom stretch metadata,
 entries and visibility preferences; account deletion cascades rows and removes

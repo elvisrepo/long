@@ -31,7 +31,8 @@ Custom entries are visible only to their owner, and built-in visibility preferen
 cannot target custom records. Image data is never stored in PostgreSQL: uploads are
 validated JPEG/PNG/WebP (2 MB maximum), normalized into consistent 640×480 WebP,
 and stored under `stretching/{user_id}/{exercise_id}/...` in private S3. The database
-stores only the object key; reads use short-lived presigned GET URLs. Local DEBUG
+stores only the object key; reads stream through an authenticated, owner-scoped API
+route with `private, no-store` caching. Local DEBUG
 uses Django media storage. Production image uploads return `503` until
 `STRETCH_IMAGE_BUCKET` is configured. Account export includes custom stretch text
 and object key metadata; deleting the account cascades custom rows and schedules

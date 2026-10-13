@@ -54,8 +54,8 @@ and EC2-034 in the host change log:
 The custom-stretch application code is not yet deployed, so image uploads are
 not available in staging yet. After the protected release, verify with a staging
 account: upload a JPEG/PNG/WebP, confirm conversion to 640×480 WebP, confirm the
-object is private under `stretching/<user-id>/`, confirm the browser receives a
-short-lived presigned read URL, and verify image replacement and account
+object is private under `stretching/<user-id>/`, confirm image reads pass through
+the authenticated owner-only API route, and verify image replacement and account
 deletion cleanup. Archive/restore should preserve the image and check-off history.
 Do not test by making the object public. Record successful end-to-end validation
 in a subsequent checkpoint without rewriting V019's historical state.

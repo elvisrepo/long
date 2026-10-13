@@ -81,7 +81,7 @@ def save_stretch_image(upload: BinaryIO, user_id: object, exercise_id: object) -
             )
         return default_storage.save(key, ContentFile(content))
     try:
-        # Keep the bucket private; callers receive short-lived signed read URLs.
+        # Keep the bucket private; reads are streamed only after API owner checks.
         _s3_client(os.environ.get("AWS_REGION", "eu-central-1")).put_object(
             Bucket=bucket,
             Key=key,
@@ -97,23 +97,26 @@ def save_stretch_image(upload: BinaryIO, user_id: object, exercise_id: object) -
     return key
 
 
-def stretch_image_url(key: str) -> str:
+def open_stretch_image(key: str) -> BinaryIO:
     bucket = os.environ.get("STRETCH_IMAGE_BUCKET", "").strip()
     if not bucket:
-        return default_storage.url(key)
+        try:
+            return default_storage.open(key, "rb")
+        except OSError as exc:
+            logger.warning("Stretch image read failed (%s)", type(exc).__name__)
+            raise ImageStorageUnavailable(
+                "Image could not be read. Please retry."
+            ) from exc
     try:
-        # Signed URLs let the browser fetch private images without making the
-        # bucket or its objects publicly readable.
-        return _s3_client(
-            os.environ.get("AWS_REGION", "eu-central-1")
-        ).generate_presigned_url(
-            "get_object",
-            Params={"Bucket": bucket, "Key": key},
-            ExpiresIn=900,
-        )
+        # Keep private images behind the authenticated owner-checking API path.
+        return _s3_client(os.environ.get("AWS_REGION", "eu-central-1")).get_object(
+            Bucket=bucket, Key=key
+        )["Body"]
     except (BotoCoreError, ClientError) as exc:
-        logger.warning("Stretch image URL generation failed (%s)", type(exc).__name__)
-        return ""
+        logger.warning("Stretch image read failed (%s)", type(exc).__name__)
+        raise ImageStorageUnavailable(
+            "Image could not be read. Please retry."
+        ) from exc
 
 
 def delete_stretch_image(key: str) -> None:

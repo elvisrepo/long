@@ -69,6 +69,16 @@ export function getStretchCatalog(): Promise<{ phases: StretchPhase[] }> {
   return request("exercises/");
 }
 
+export async function getStretchImage(imageUrl: string): Promise<Blob> {
+  const token = getAccessToken();
+  if (!token) throw new Error("Authentication required");
+  const response = await fetch(imageUrl, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error("Stretch image could not be loaded.");
+  return response.blob();
+}
+
 export type StretchExerciseInput = {
   phase: StretchExercise["phase"];
   name: string;

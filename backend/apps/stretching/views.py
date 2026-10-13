@@ -1,9 +1,10 @@
 from django.db import transaction
 from django.db.models import Q
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers, status
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException, NotFound
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -19,7 +20,12 @@ from .serializers import (
     StretchPreferencesSerializer,
     StretchRangeSerializer,
 )
-from .storage import ImageStorageUnavailable, delete_stretch_image, save_stretch_image
+from .storage import (
+    ImageStorageUnavailable,
+    delete_stretch_image,
+    open_stretch_image,
+    save_stretch_image,
+)
 
 
 class StretchImageStorageUnavailable(APIException):
@@ -118,25 +124,36 @@ class CustomStretchExerciseDetailView(APIView):
             exercise, data=request.data, partial=True
         )
         serializer.is_valid(raise_exception=True)
-        old_image_key = exercise.image_key
         image = serializer.validated_data.pop("image", None)
         remove_image = serializer.validated_data.pop("remove_image", False)
-        exercise = serializer.save()
+        new_image_key = ""
         if image is not None:
             try:
-                exercise.image_key = save_stretch_image(
-                    image, request.user.pk, exercise.pk
-                )
+                new_image_key = save_stretch_image(image, request.user.pk, exercise.pk)
             except ImageStorageUnavailable as exc:
                 raise StretchImageStorageUnavailable(str(exc)) from exc
             except ValueError as exc:
                 raise serializers.ValidationError({"image": str(exc)}) from exc
-        elif remove_image:
-            exercise.image_key = ""
-        if image is not None or remove_image:
-            exercise.save(update_fields=["image_key"])
-            if old_image_key:
-                delete_stretch_image(old_image_key)
+
+        try:
+            with transaction.atomic():
+                exercise = get_object_or_404(
+                    StretchExercise.objects.select_for_update(),
+                    pk=exercise_id,
+                    user=request.user,
+                )
+                serializer.instance = exercise
+                exercise = serializer.save()
+                if image is not None or remove_image:
+                    old_image_key = exercise.image_key
+                    exercise.image_key = new_image_key if image is not None else ""
+                    exercise.save(update_fields=["image_key"])
+                    if old_image_key:
+                        delete_stretch_image(old_image_key)
+        except Exception:
+            if new_image_key:
+                delete_stretch_image(new_image_key)
+            raise
         return Response(
             StretchExerciseSerializer(
                 exercise, context=StretchExercisesView._catalog_context(request)
@@ -148,6 +165,25 @@ class CustomStretchExerciseDetailView(APIView):
         exercise.is_active = False
         exercise.save(update_fields=["is_active"])
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CustomStretchExerciseImageView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request, exercise_id: str) -> FileResponse:
+        exercise = get_object_or_404(
+            StretchExercise, pk=exercise_id, user=request.user
+        )
+        if not exercise.image_key:
+            raise NotFound("This stretch has no image.")
+        try:
+            image = open_stretch_image(exercise.image_key)
+        except ImageStorageUnavailable as exc:
+            raise StretchImageStorageUnavailable(str(exc)) from exc
+        response = FileResponse(image, content_type="image/webp")
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
 
 
 class StretchPreferencesView(APIView):

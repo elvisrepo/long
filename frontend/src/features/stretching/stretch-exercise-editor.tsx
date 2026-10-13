@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 
 import { Modal } from "../../components/modal";
 import type { StretchExercise, StretchExerciseInput } from "./stretching-api";
+import { StretchImage } from "./stretch-image";
 
 type Props = {
   exercise?: StretchExercise;
@@ -27,6 +28,7 @@ export function StretchExerciseEditor({
   const [image, setImage] = useState<File | null>(null);
   const [removeImage, setRemoveImage] = useState(false);
   const [fileError, setFileError] = useState("");
+  const imageInput = useRef<HTMLInputElement>(null);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -101,7 +103,7 @@ export function StretchExerciseEditor({
           />
         </label>
         {exercise?.image_url && !removeImage && (
-          <img
+          <StretchImage
             className="stretching-editor-preview"
             src={exercise.image_url}
             alt="Current stretch illustration"
@@ -111,6 +113,7 @@ export function StretchExerciseEditor({
           Illustration (JPEG, PNG, or WebP; up to 2 MB)
           <input
             type="file"
+            ref={imageInput}
             accept="image/jpeg,image/png,image/webp"
             onChange={(event) => {
               const file = event.target.files?.[0] ?? null;
@@ -130,7 +133,15 @@ export function StretchExerciseEditor({
             <input
               type="checkbox"
               checked={removeImage}
-              onChange={(event) => setRemoveImage(event.target.checked)}
+              onChange={(event) => {
+                const shouldRemove = event.target.checked;
+                setRemoveImage(shouldRemove);
+                if (shouldRemove) {
+                  setImage(null);
+                  setFileError("");
+                  if (imageInput.current) imageInput.current.value = "";
+                }
+              }}
             />
             Remove current image
           </label>

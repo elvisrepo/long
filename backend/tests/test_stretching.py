@@ -1,11 +1,14 @@
 """Stretching checklist API and personal-data lifecycle tests."""
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from pathlib import Path
+from threading import Barrier, Lock
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import close_old_connections
 from django.test import override_settings
 from PIL import Image
 from rest_framework.test import APIClient
@@ -133,6 +136,7 @@ def test_custom_stretch_image_is_normalized_and_stored_outside_the_database(
     tmp_path: Path,
 ) -> None:
     client, _ = stretching_client()
+    other, _ = stretching_client("other-image-reader@example.com")
     image_data = BytesIO()
     Image.new("RGB", (96, 64), "teal").save(image_data, format="PNG")
     image_data.seek(0)
@@ -150,7 +154,14 @@ def test_custom_stretch_image_is_normalized_and_stored_outside_the_database(
         )
         assert response.status_code == 201
         exercise = response.json()
-        assert exercise["image_url"].startswith("/media/stretching/")
+        assert exercise["image_url"] == (
+            f"/api/v1/stretching/exercises/{exercise['id']}/image/"
+        )
+        image_response = client.get(exercise["image_url"])
+        assert image_response.status_code == 200
+        assert image_response["Content-Type"] == "image/webp"
+        assert image_response["Cache-Control"] == "private, no-store"
+        assert other.get(exercise["image_url"]).status_code == 404
         from apps.stretching.models import StretchExercise
 
         saved = StretchExercise.objects.get(pk=exercise["id"])
@@ -177,6 +188,112 @@ def test_image_upload_requires_durable_storage_outside_debug(
         format="multipart",
     )
     assert response.status_code == 503
+
+
+def test_failed_image_replacement_does_not_save_other_stretch_edits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, _ = stretching_client()
+    created = client.post(
+        "/api/v1/stretching/exercises/",
+        {"phase": "lower-body", "name": "Original name"},
+        format="json",
+    )
+    exercise_id = created.json()["id"]
+
+    def reject_image(*_args: object) -> str:
+        raise ValueError("Image is invalid.")
+
+    monkeypatch.setattr(
+        "apps.stretching.views.save_stretch_image",
+        reject_image,
+    )
+    image_data = BytesIO()
+    Image.new("RGB", (16, 16), "teal").save(image_data, format="PNG")
+
+    response = client.patch(
+        f"/api/v1/stretching/exercises/{exercise_id}/",
+        {
+            "name": "Unexpected saved name",
+            "image": SimpleUploadedFile(
+                "stretch.png", image_data.getvalue(), "image/png"
+            ),
+        },
+        format="multipart",
+    )
+
+    assert response.status_code == 400
+    response = client.get("/api/v1/stretching/exercises/")
+    saved = next(
+        exercise
+        for phase in response.json()["phases"]
+        for exercise in phase["exercises"]
+        if exercise["id"] == exercise_id
+    )
+    assert saved["name"] == "Original name"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_concurrent_image_replacements_clean_up_the_intermediate_object(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, user = stretching_client()
+    created = client.post(
+        "/api/v1/stretching/exercises/",
+        {"phase": "lower-body", "name": "Concurrent replacement"},
+        format="json",
+    )
+    exercise_id = created.json()["id"]
+    from apps.stretching.models import StretchExercise
+
+    exercise = StretchExercise.objects.get(pk=exercise_id)
+    exercise.image_key = "stretching/old.webp"
+    exercise.save(update_fields=["image_key"])
+    upload_barrier = Barrier(2)
+    recorded_deletions: list[str] = []
+    deletion_lock = Lock()
+
+    def save_image(upload: SimpleUploadedFile, *_args: object) -> str:
+        upload_barrier.wait(timeout=5)
+        return f"stretching/{upload.name}.webp"
+
+    def record_deletion(key: str) -> None:
+        with deletion_lock:
+            recorded_deletions.append(key)
+
+    monkeypatch.setattr("apps.stretching.views.save_stretch_image", save_image)
+    monkeypatch.setattr("apps.stretching.views.delete_stretch_image", record_deletion)
+    image_data = BytesIO()
+    Image.new("RGB", (16, 16), "teal").save(image_data, format="PNG")
+    image_bytes = image_data.getvalue()
+
+    def replace_image(filename: str) -> int:
+        close_old_connections()
+        try:
+            request_client = APIClient()
+            request_client.force_authenticate(user)
+            return request_client.patch(
+                f"/api/v1/stretching/exercises/{exercise_id}/",
+                {
+                    "image": SimpleUploadedFile(
+                        filename, image_bytes, "image/png"
+                    )
+                },
+                format="multipart",
+            ).status_code
+        finally:
+            close_old_connections()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        statuses = list(executor.map(replace_image, ["first.png", "second.png"]))
+
+    exercise.refresh_from_db()
+    replacement_keys = {"stretching/first.png.webp", "stretching/second.png.webp"}
+    assert statuses == [200, 200]
+    assert exercise.image_key in replacement_keys
+    assert set(recorded_deletions) == {"stretching/old.webp"} | (
+        replacement_keys - {exercise.image_key}
+    )
 
 
 def test_catalog_has_two_ordered_starter_phases() -> None:

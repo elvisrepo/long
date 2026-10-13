@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     StretchCheckoffView,
     CustomStretchExerciseDetailView,
+    CustomStretchExerciseImageView,
     StretchEntriesView,
     StretchExercisesView,
     StretchPreferencesView,
@@ -10,6 +11,11 @@ from .views import (
 
 urlpatterns = [
     path("exercises/", StretchExercisesView.as_view(), name="stretch-exercises"),
+    path(
+        "exercises/<uuid:exercise_id>/image/",
+        CustomStretchExerciseImageView.as_view(),
+        name="stretch-exercise-image",
+    ),
     path(
         "exercises/<uuid:exercise_id>/",
         CustomStretchExerciseDetailView.as_view(),

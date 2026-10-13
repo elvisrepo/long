@@ -11,9 +11,13 @@ deletion. Export includes personal check-offs and account deletion cascades them
 Catalog labels are not medical advice. Custom illustration uploads are
 owner-scoped and normalized to WebP after image decoding and pixel-size checks;
 production storage must be a private S3 bucket with public access blocked. The
-database stores only the object key and the API returns short-lived presigned GET
-URLs. The EC2 role should have object-level read/write/delete access only to the
-stretching prefix; never grant public bucket access or broad bucket administration.
+database stores only the object key; image reads stream through an authenticated,
+owner-scoped API endpoint with `private, no-store` caching rather than exposing a
+presigned bearer URL. Image replacement locks the exercise row, writes the new
+object before updating the row, and removes old/new objects only after the matching
+database outcome. The EC2 role should have object-level read/write/delete access
+only to the stretching prefix; never grant public bucket access or broad bucket
+administration.
 
 ## Workout tracking boundary — 2026-10-01 backend slice
 
