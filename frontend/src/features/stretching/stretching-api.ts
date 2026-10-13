@@ -8,6 +8,10 @@ export interface StretchExercise {
   description: string;
   dosage: string;
   display_order: number;
+  is_visible: boolean;
+  is_custom: boolean;
+  is_active: boolean;
+  image_url: string | null;
 }
 
 export interface StretchPhase {
@@ -23,6 +27,11 @@ export interface StretchEntry {
   created_at: string;
 }
 
+export interface StretchPreferences {
+  show_shared_exercises: boolean;
+  hidden_exercise_ids: string[];
+}
+
 async function request<T>(
   path: string,
   method = "GET",
@@ -34,9 +43,13 @@ async function request<T>(
     method,
     headers: {
       Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
+      ...(body instanceof FormData
+        ? {}
+        : { "Content-Type": "application/json" }),
     },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    ...(body === undefined
+      ? {}
+      : { body: body instanceof FormData ? body : JSON.stringify(body) }),
   });
   if (!response.ok) {
     const data = await response.json().catch(() => null);
@@ -54,6 +67,70 @@ async function request<T>(
 
 export function getStretchCatalog(): Promise<{ phases: StretchPhase[] }> {
   return request("exercises/");
+}
+
+export async function getStretchImage(imageUrl: string): Promise<Blob> {
+  const token = getAccessToken();
+  if (!token) throw new Error("Authentication required");
+  const response = await fetch(imageUrl, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error("Stretch image could not be loaded.");
+  return response.blob();
+}
+
+export type StretchExerciseInput = {
+  phase: StretchExercise["phase"];
+  name: string;
+  description: string;
+  dosage: string;
+  image?: File | null;
+  remove_image?: boolean;
+  is_active?: boolean;
+};
+
+function exerciseBody(input: StretchExerciseInput): FormData {
+  const data = new FormData();
+  data.set("phase", input.phase);
+  data.set("name", input.name);
+  data.set("description", input.description);
+  data.set("dosage", input.dosage);
+  if (input.image) data.set("image", input.image);
+  if (input.remove_image) data.set("remove_image", "true");
+  if (input.is_active !== undefined)
+    data.set("is_active", String(input.is_active));
+  return data;
+}
+
+export function createCustomStretch(
+  input: StretchExerciseInput,
+): Promise<StretchExercise> {
+  return request("exercises/", "POST", exerciseBody(input));
+}
+
+export function updateCustomStretch(
+  id: string,
+  input: StretchExerciseInput,
+): Promise<StretchExercise> {
+  return request(
+    `exercises/${encodeURIComponent(id)}/`,
+    "PATCH",
+    exerciseBody(input),
+  );
+}
+
+export function archiveCustomStretch(id: string): Promise<void> {
+  return request(`exercises/${encodeURIComponent(id)}/`, "DELETE");
+}
+
+export function getStretchPreferences(): Promise<StretchPreferences> {
+  return request("preferences/");
+}
+
+export function updateStretchPreferences(
+  preferences: Partial<StretchPreferences>,
+): Promise<StretchPreferences> {
+  return request("preferences/", "PATCH", preferences);
 }
 
 export function getStretchEntries(

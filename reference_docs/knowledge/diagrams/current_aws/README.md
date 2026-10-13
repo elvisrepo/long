@@ -47,6 +47,7 @@ do not replace or modify that target; they show verified implementation progress
 | V016 | 2026-09-12 | V015 plus the new digest-pinned ARM64 Django image, installed deployment bundle and reboot-verified Docker/EBS storage guard, AWS CLI v2 prerequisite, healthy PostgreSQL 16 and Django/Gunicorn containers, applied migrations, persistent database bind mount, loopback-only Gunicorn port, root-only Nginx origin-header guard, and CloudFront HTTPS custom origin with uncached `/api/*` routing; public liveness/readiness, API 404 isolation, SPA deep links, and cache misses are verified. Logs, alarms, backups, restore testing, and authenticated browser/Android/Stripe flows remain pending |
 | V017 | 2026-09-15 | V016 plus verified Stripe test Checkout, Portal, signed webhook reconciliation, and period-end cancellation state; a separate private SSE-S3, versioned, HTTPS-only PostgreSQL backup bucket; permanent instance-role write-only access below `postgresql/`; and one checksum-verified custom-format dump restored successfully into an isolated disposable PostgreSQL 16 container with selected source/restored row counts matching. Daily scheduling, retention, backup monitoring, logs, alarms, and Android end-to-end flows remain pending |
 | V018 | 2026-09-17 | V017 plus an enabled daily PostgreSQL backup timer, two verified S3 lifecycle rules (90-day current versions, 30-day noncurrent versions, seven-day incomplete uploads, and delete-marker cleanup), prefix-scoped restore-read IAM access, an enabled monthly isolated restore check, and an enabled six-hour freshness heartbeat. CloudWatch backup/restore metrics and failure/overdue alarms are `OK`; the backup composite alarm and SNS email delivery were verified. A focused backup-operations view accompanies the complete deployment view. Application logs, traces, and Android-to-public-staging sync remain unverified. |
+| V019 | 2026-10-13 | V018 plus private account-regional custom-stretch image bucket `longevity-staging-stretch-images-173291122778-eu-central-1-an` in Frankfurt, Block Public Access, ACLs disabled, versioning disabled, SSE-S3, prefix-scoped Put/Get/Delete permission on `syncvitals-staging-ec2-role`, the `STRETCH_IMAGE_BUCKET` runtime-secret setting, and verified Nginx 3 MiB request limit. Application upload code is not deployed; upload/read/replacement/deletion checks remain pending. |
 
 ## Validation after V018
 
@@ -65,6 +66,15 @@ release was deployed from commit `e932f84776c28a50239bec092ce54b451bc11b15`.
 Its backend image, scan acceptance, rollback, frontend assets, and public checks
 are recorded in EC2-030. This application release also added no AWS resource
 boundary, so V018 remains the latest structural snapshot.
+
+## V019 Checkpoint — 2026-10-13
+
+The owner created the custom-stretch image bucket, added the prefix-scoped S3
+object policy to the staging EC2 role, added the bucket name to the existing
+runtime secret, and raised Nginx's HTTPS request-size limit to 3 MiB. The owner
+verified `nginx -t` and an active Nginx service after reload. These changes are
+captured in V019 and EC2-034. The new application code has not yet been deployed,
+so image uploads and the API-to-S3 request path are not yet verified in staging.
 
 ## Companion Request Flows
 
@@ -89,8 +99,8 @@ image currently used by the project:
 docker run --rm \
   -v "$PWD:/usr/local/structurizr:ro" \
   structurizr/structurizr \
-validate -workspace /usr/local/structurizr/v018-automated-backup-restore-monitoring.dsl
+validate -workspace /usr/local/structurizr/v019-stretch-image-storage-configured.dsl
 ```
 
-The next version should be created only after the next manually provisioned AWS
-resource has been verified.
+Create the next version only after the next manually provisioned AWS resource
+has been verified.

@@ -94,7 +94,18 @@ def test_complete_staging_secret_defines_production_runtime_inventory() -> None:
     runtime_environment = parse_runtime_secret(json.dumps(payload))
 
     assert set(REQUIRED_RUNTIME_KEYS) == EXPECTED_RUNTIME_KEYS
-    assert runtime_environment == payload
+    assert runtime_environment == {**payload, "STRETCH_IMAGE_BUCKET": ""}
+
+
+def test_optional_stretch_bucket_is_forwarded_when_configured() -> None:
+    payload = complete_secret_payload()
+    payload["STRETCH_IMAGE_BUCKET"] = "longevity-staging-stretch-images"
+
+    runtime_environment = parse_runtime_secret(json.dumps(payload))
+
+    assert (
+        runtime_environment["STRETCH_IMAGE_BUCKET"] == payload["STRETCH_IMAGE_BUCKET"]
+    )
 
 
 def test_staging_parser_extends_canonical_production_inventory_once() -> None:
@@ -182,7 +193,7 @@ def test_unexpected_secret_keys_are_not_forwarded() -> None:
 
     runtime_environment = parse_runtime_secret(json.dumps(payload))
 
-    assert set(runtime_environment) == EXPECTED_RUNTIME_KEYS
+    assert set(runtime_environment) == EXPECTED_RUNTIME_KEYS | {"STRETCH_IMAGE_BUCKET"}
     assert "AWS_SECRET_ACCESS_KEY" not in runtime_environment
 
 
@@ -347,7 +358,7 @@ def test_loads_one_secret_snapshot_per_deployment_attempt(
     assert retrievals == [
         ("longevity/staging/backend-runtime", "eu-central-1")
     ]
-    assert runtime_environment == payload
+    assert runtime_environment == {**payload, "STRETCH_IMAGE_BUCKET": ""}
 
 
 def test_deployment_command_receives_snapshot_without_values_in_arguments(

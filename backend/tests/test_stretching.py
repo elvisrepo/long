@@ -1,8 +1,16 @@
 """Stretching checklist API and personal-data lifecycle tests."""
 
 import json
+from concurrent.futures import ThreadPoolExecutor
+from io import BytesIO, StringIO
+from pathlib import Path
+from threading import Barrier, Event, Lock
 
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import DatabaseError, connections, transaction
+from django.test import override_settings
+from PIL import Image
 from rest_framework.test import APIClient
 
 from apps.subscriptions.models import Subscription, SubscriptionPlan
@@ -13,9 +21,17 @@ pytestmark = pytest.mark.django_db
 
 def stretching_client(email: str = "stretching@example.com") -> tuple[APIClient, User]:
     user = User.objects.create_user(email=email, password="account-password-123")
-    Subscription.objects.create(
-        user=user, plan=SubscriptionPlan.objects.get(code="free"), status="active"
+    free_plan, _ = SubscriptionPlan.objects.get_or_create(
+        code="free",
+        defaults={
+            "name": "Free",
+            "active_custom_metric_limit": 3,
+            "wearable_connection_limit": 1,
+            "sync_interval_minutes": 30,
+            "is_default": True,
+        },
     )
+    Subscription.objects.create(user=user, plan=free_plan, status="active")
     client = APIClient()
     client.force_authenticate(user)
     return client, user
@@ -23,6 +39,604 @@ def stretching_client(email: str = "stretching@example.com") -> tuple[APIClient,
 
 def test_catalog_requires_authentication() -> None:
     assert APIClient().get("/api/v1/stretching/exercises/").status_code == 401
+    assert APIClient().get("/api/v1/stretching/preferences/").status_code == 401
+
+
+def test_catalog_preferences_reject_unknown_hidden_exercises() -> None:
+    client, _ = stretching_client()
+    response = client.patch(
+        "/api/v1/stretching/preferences/",
+        {"hidden_exercise_ids": ["00000000-0000-0000-0000-000000000001"]},
+        format="json",
+    )
+    assert response.status_code == 400
+
+
+def test_user_can_create_a_private_custom_stretch() -> None:
+    client, _ = stretching_client()
+    other, _ = stretching_client("other-stretching@example.com")
+    response = client.post(
+        "/api/v1/stretching/exercises/",
+        {
+            "phase": "lower-body",
+            "name": "My hip opener",
+            "description": "A personal movement cue.",
+            "dosage": "30 seconds per side",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    exercise = response.json()
+    assert exercise["is_custom"] is True
+    assert exercise["name"] == "My hip opener"
+    assert exercise["description"] == "A personal movement cue."
+    assert exercise["image_url"] is None
+    assert exercise["is_visible"] is True
+    own_catalog = client.get("/api/v1/stretching/exercises/").json()
+    other_catalog = other.get("/api/v1/stretching/exercises/").json()
+    assert any(
+        item["id"] == exercise["id"]
+        for phase in own_catalog["phases"]
+        for item in phase["exercises"]
+    )
+    assert not any(
+        item["id"] == exercise["id"]
+        for phase in other_catalog["phases"]
+        for item in phase["exercises"]
+    )
+
+
+def test_multipart_custom_stretch_is_active_when_active_flag_is_omitted() -> None:
+    client, _ = stretching_client()
+    response = client.post(
+        "/api/v1/stretching/exercises/",
+        {
+            "phase": "lower-body",
+            "name": "Multipart hip opener",
+            "description": "A personal movement cue.",
+            "dosage": "30 seconds per side",
+        },
+        format="multipart",
+    )
+
+    assert response.status_code == 201
+    assert response.json()["is_active"] is True
+
+
+def test_custom_stretch_mutations_are_owner_scoped_and_archive_preserves_history() -> (
+    None
+):
+    client, _ = stretching_client()
+    other, _ = stretching_client("other-stretching@example.com")
+    created = client.post(
+        "/api/v1/stretching/exercises/",
+        {"phase": "upper-body", "name": "Desk release"},
+        format="json",
+    )
+    exercise_id = created.json()["id"]
+    detail_url = f"/api/v1/stretching/exercises/{exercise_id}/"
+
+    assert other.patch(detail_url, {"name": "Stolen"}, format="json").status_code == 404
+    assert other.delete(detail_url).status_code == 404
+    assert (
+        client.put(
+            f"/api/v1/stretching/entries/{exercise_id}/2026-10-13/", {}, format="json"
+        ).status_code
+        == 200
+    )
+    assert client.delete(detail_url).status_code == 204
+    assert (
+        client.get(
+            "/api/v1/stretching/entries/?date_from=2026-10-13&date_to=2026-10-13"
+        ).json()[0]["exercise_id"]
+        == exercise_id
+    )
+    assert (
+        client.put(
+            f"/api/v1/stretching/entries/{exercise_id}/2026-10-14/", {}, format="json"
+        ).status_code
+        == 404
+    )
+
+
+def test_custom_stretch_image_is_normalized_and_stored_outside_the_database(
+    tmp_path: Path,
+) -> None:
+    client, _ = stretching_client()
+    other, _ = stretching_client("other-image-reader@example.com")
+    image_data = BytesIO()
+    Image.new("RGB", (96, 64), "teal").save(image_data, format="PNG")
+    image_data.seek(0)
+    uploaded = SimpleUploadedFile("stretch.png", image_data.read(), "image/png")
+
+    with override_settings(DEBUG=True, MEDIA_ROOT=tmp_path):
+        response = client.post(
+            "/api/v1/stretching/exercises/",
+            {
+                "phase": "lower-body",
+                "name": "Photo stretch",
+                "image": uploaded,
+            },
+            format="multipart",
+        )
+        assert response.status_code == 201
+        exercise = response.json()
+        assert exercise["image_url"].startswith(
+            f"/api/v1/stretching/exercises/{exercise['id']}/image/?v="
+        )
+        image_response = client.get(exercise["image_url"])
+        assert image_response.status_code == 200
+        assert image_response["Content-Type"] == "image/webp"
+        assert image_response["Cache-Control"] == "private, no-store"
+        assert other.get(exercise["image_url"]).status_code == 404
+        replacement_data = BytesIO()
+        Image.new("RGB", (48, 32), "orange").save(replacement_data, format="PNG")
+        replacement = client.patch(
+            f"/api/v1/stretching/exercises/{exercise['id']}/",
+            {
+                "image": SimpleUploadedFile(
+                    "replacement.png", replacement_data.getvalue(), "image/png"
+                )
+            },
+            format="multipart",
+        )
+        assert replacement.status_code == 200
+        assert replacement.json()["image_url"] != exercise["image_url"]
+        assert client.get(replacement.json()["image_url"]).status_code == 200
+        from apps.stretching.models import StretchExercise
+
+        saved = StretchExercise.objects.get(pk=exercise["id"])
+        assert saved.image_key.endswith(".webp")
+        assert not saved.image_key.startswith("data:")
+
+
+def test_image_upload_requires_durable_storage_outside_debug(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, _ = stretching_client()
+    image_data = BytesIO()
+    Image.new("RGB", (16, 16), "teal").save(image_data, format="PNG")
+    monkeypatch.delenv("STRETCH_IMAGE_BUCKET", raising=False)
+    response = client.post(
+        "/api/v1/stretching/exercises/",
+        {
+            "phase": "lower-body",
+            "name": "Photo stretch",
+            "image": SimpleUploadedFile(
+                "stretch.png", image_data.getvalue(), "image/png"
+            ),
+        },
+        format="multipart",
+    )
+    assert response.status_code == 503
+
+
+def test_decompression_bomb_is_reported_as_invalid_image(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from apps.stretching.storage import _normalized_image
+
+    def reject_image(_upload: BytesIO) -> None:
+        raise Image.DecompressionBombError("too many pixels")
+
+    monkeypatch.setattr("apps.stretching.storage.Image.open", reject_image)
+
+    with pytest.raises(ValueError, match="dimensions are too large"):
+        _normalized_image(BytesIO(b"image"))
+
+
+@pytest.mark.django_db(transaction=True)
+def test_image_cleanup_is_queued_before_referenced_transaction_commits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from apps.stretching.models import StretchImageCleanup
+    from apps.stretching.storage import delete_stretch_image
+
+    def fail_delete(_key: str) -> None:
+        raise ImageStorageUnavailable("temporary outage")
+
+    from apps.stretching.storage import ImageStorageUnavailable
+
+    monkeypatch.setattr(
+        "apps.stretching.storage.delete_stretch_image_object", fail_delete
+    )
+
+    with transaction.atomic():
+        delete_stretch_image("stretching/user/exercise/old.webp")
+        assert StretchImageCleanup.objects.filter(
+            object_key="stretching/user/exercise/old.webp"
+        ).exists()
+
+    cleanup = StretchImageCleanup.objects.get(
+        object_key="stretching/user/exercise/old.webp"
+    )
+    assert cleanup.attempt_count == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_retry_command_keeps_failures_and_removes_successful_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from django.core.management import call_command
+
+    from apps.stretching.models import StretchImageCleanup
+    from apps.stretching.storage import ImageStorageUnavailable
+
+    cleanup = StretchImageCleanup.objects.create(
+        object_key="stretching/user/exercise/retry.webp"
+    )
+
+    def fail_delete(_key: str) -> None:
+        raise ImageStorageUnavailable("temporary outage")
+
+    monkeypatch.setattr(
+        "apps.stretching.management.commands.retry_stretch_image_cleanup.delete_stretch_image_object",
+        fail_delete,
+    )
+    call_command("retry_stretch_image_cleanup", stdout=StringIO())
+
+    cleanup.refresh_from_db()
+    assert cleanup.attempt_count == 1
+    assert cleanup.last_attempt_at is not None
+
+    monkeypatch.setattr(
+        "apps.stretching.management.commands.retry_stretch_image_cleanup.delete_stretch_image_object",
+        lambda _key: None,
+    )
+    call_command("retry_stretch_image_cleanup", stdout=StringIO())
+    assert not StretchImageCleanup.objects.filter(pk=cleanup.pk).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_retry_command_does_not_starve_newer_cleanup_entries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from django.core.management import call_command
+
+    from apps.stretching.models import StretchImageCleanup
+    from apps.stretching.storage import ImageStorageUnavailable
+
+    failing = StretchImageCleanup.objects.create(
+        object_key="stretching/user/exercise/failing.webp"
+    )
+    deletable = StretchImageCleanup.objects.create(
+        object_key="stretching/user/exercise/deletable.webp"
+    )
+
+    def fail_one_key(key: str) -> None:
+        if key == failing.object_key:
+            raise ImageStorageUnavailable("temporary outage")
+
+    monkeypatch.setattr(
+        "apps.stretching.management.commands.retry_stretch_image_cleanup.delete_stretch_image_object",
+        fail_one_key,
+    )
+    call_command("retry_stretch_image_cleanup", limit=1, stdout=StringIO())
+    call_command("retry_stretch_image_cleanup", limit=1, stdout=StringIO())
+
+    assert StretchImageCleanup.objects.filter(pk=failing.pk).exists()
+    assert not StretchImageCleanup.objects.filter(pk=deletable.pk).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_discard_unreferenced_image_tries_storage_before_database_queue(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from apps.stretching.models import StretchImageCleanup
+    from apps.stretching.storage import discard_unreferenced_stretch_image
+
+    deleted_keys: list[str] = []
+
+    def fail_queue(*_args: object, **_kwargs: object) -> None:
+        raise DatabaseError("database unavailable")
+
+    monkeypatch.setattr(
+        "apps.stretching.storage.delete_stretch_image_object", deleted_keys.append
+    )
+    monkeypatch.setattr(StretchImageCleanup.objects, "get_or_create", fail_queue)
+
+    discard_unreferenced_stretch_image("stretching/user/exercise/unreferenced.webp")
+
+    assert deleted_keys == ["stretching/user/exercise/unreferenced.webp"]
+
+
+def test_failed_image_replacement_does_not_save_other_stretch_edits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, _ = stretching_client()
+    created = client.post(
+        "/api/v1/stretching/exercises/",
+        {"phase": "lower-body", "name": "Original name"},
+        format="json",
+    )
+    exercise_id = created.json()["id"]
+
+    def reject_image(*_args: object) -> str:
+        raise ValueError("Image is invalid.")
+
+    monkeypatch.setattr(
+        "apps.stretching.views.save_stretch_image",
+        reject_image,
+    )
+    image_data = BytesIO()
+    Image.new("RGB", (16, 16), "teal").save(image_data, format="PNG")
+
+    response = client.patch(
+        f"/api/v1/stretching/exercises/{exercise_id}/",
+        {
+            "name": "Unexpected saved name",
+            "image": SimpleUploadedFile(
+                "stretch.png", image_data.getvalue(), "image/png"
+            ),
+        },
+        format="multipart",
+    )
+
+    assert response.status_code == 400
+    response = client.get("/api/v1/stretching/exercises/")
+    saved = next(
+        exercise
+        for phase in response.json()["phases"]
+        for exercise in phase["exercises"]
+        if exercise["id"] == exercise_id
+    )
+    assert saved["name"] == "Original name"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_concurrent_image_replacements_clean_up_the_intermediate_object(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, user = stretching_client()
+    created = client.post(
+        "/api/v1/stretching/exercises/",
+        {"phase": "lower-body", "name": "Concurrent replacement"},
+        format="json",
+    )
+    exercise_id = created.json()["id"]
+    from apps.stretching.models import StretchExercise
+
+    exercise = StretchExercise.objects.get(pk=exercise_id)
+    exercise.image_key = "stretching/old.webp"
+    exercise.save(update_fields=["image_key"])
+    upload_barrier = Barrier(2)
+    recorded_deletions: list[str] = []
+    deletion_lock = Lock()
+
+    def save_image(upload: SimpleUploadedFile, *_args: object) -> str:
+        upload_barrier.wait(timeout=5)
+        return f"stretching/{upload.name}.webp"
+
+    def record_deletion(key: str) -> None:
+        with deletion_lock:
+            recorded_deletions.append(key)
+
+    monkeypatch.setattr("apps.stretching.views.save_stretch_image", save_image)
+    monkeypatch.setattr("apps.stretching.views.delete_stretch_image", record_deletion)
+    image_data = BytesIO()
+    Image.new("RGB", (16, 16), "teal").save(image_data, format="PNG")
+    image_bytes = image_data.getvalue()
+
+    def replace_image(filename: str) -> int:
+        connections.close_all()
+        try:
+            request_client = APIClient()
+            request_client.force_authenticate(user)
+            return request_client.patch(
+                f"/api/v1/stretching/exercises/{exercise_id}/",
+                {"image": SimpleUploadedFile(filename, image_bytes, "image/png")},
+                format="multipart",
+            ).status_code
+        finally:
+            connections.close_all()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        statuses = list(executor.map(replace_image, ["first.png", "second.png"]))
+
+    exercise.refresh_from_db()
+    replacement_keys = {"stretching/first.png.webp", "stretching/second.png.webp"}
+    assert statuses == [200, 200]
+    assert exercise.image_key in replacement_keys
+    assert set(recorded_deletions) == {"stretching/old.webp"} | (
+        replacement_keys - {exercise.image_key}
+    )
+
+
+def test_create_cleans_uploaded_image_when_saving_its_key_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, _ = stretching_client()
+    from apps.stretching.models import StretchExercise
+
+    original_save = StretchExercise.save
+    deleted_keys: list[str] = []
+
+    def fail_image_key_save(
+        exercise: StretchExercise, *args: object, **kwargs: object
+    ) -> None:
+        if kwargs.get("update_fields") == ["image_key"]:
+            raise RuntimeError("database write failed")
+        original_save(exercise, *args, **kwargs)
+
+    monkeypatch.setattr(StretchExercise, "save", fail_image_key_save)
+    monkeypatch.setattr(
+        "apps.stretching.views.save_stretch_image",
+        lambda *_args: "stretching/new.webp",
+    )
+    monkeypatch.setattr(
+        "apps.stretching.views.discard_unreferenced_stretch_image",
+        deleted_keys.append,
+    )
+    client.raise_request_exception = False
+    image_data = BytesIO()
+    Image.new("RGB", (16, 16), "teal").save(image_data, format="PNG")
+
+    response = client.post(
+        "/api/v1/stretching/exercises/",
+        {
+            "phase": "lower-body",
+            "name": "Image key write failure",
+            "image": SimpleUploadedFile(
+                "stretch.png", image_data.getvalue(), "image/png"
+            ),
+        },
+        format="multipart",
+    )
+
+    assert response.status_code == 500
+    assert deleted_keys == ["stretching/new.webp"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_account_deletion_waits_for_image_backed_stretch_creation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, user = stretching_client("stretch-delete-race@example.com")
+    from apps.stretching.models import StretchExercise
+    from apps.users.account import delete_account
+
+    upload_started = Event()
+    finish_upload = Event()
+    delete_started = Event()
+    delete_finished = Event()
+    deleted_keys: list[str] = []
+    deleted_keys_lock = Lock()
+
+    def save_image(*_args: object) -> str:
+        upload_started.set()
+        assert finish_upload.wait(timeout=5)
+        return "stretching/race.webp"
+
+    def record_deletion(key: str) -> None:
+        with deleted_keys_lock:
+            deleted_keys.append(key)
+
+    monkeypatch.setattr("apps.stretching.views.save_stretch_image", save_image)
+    monkeypatch.setattr("apps.stretching.views.delete_stretch_image", record_deletion)
+    monkeypatch.setattr("apps.stretching.storage.delete_stretch_image", record_deletion)
+    monkeypatch.setattr("apps.stretching.signals.delete_stretch_image", record_deletion)
+    monkeypatch.setattr(
+        "apps.users.account.cancel_account_billing", lambda **_kwargs: None
+    )
+    image_data = BytesIO()
+    Image.new("RGB", (16, 16), "teal").save(image_data, format="PNG")
+    image_bytes = image_data.getvalue()
+
+    def create_stretch() -> int:
+        connections.close_all()
+        try:
+            request_client = APIClient()
+            request_client.force_authenticate(user)
+            return request_client.post(
+                "/api/v1/stretching/exercises/",
+                {
+                    "phase": "lower-body",
+                    "name": "Deletion race",
+                    "image": SimpleUploadedFile(
+                        "stretch.png", image_bytes, "image/png"
+                    ),
+                },
+                format="multipart",
+            ).status_code
+        finally:
+            connections.close_all()
+
+    def delete_user() -> None:
+        connections.close_all()
+        try:
+            delete_started.set()
+            delete_account(
+                user=User.objects.get(pk=user.pk), password="account-password-123"
+            )
+        finally:
+            delete_finished.set()
+            connections.close_all()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        create_result = executor.submit(create_stretch)
+        assert upload_started.wait(timeout=5)
+        delete_result = executor.submit(delete_user)
+        assert delete_started.wait(timeout=5)
+        assert not delete_finished.wait(timeout=0.1)
+        finish_upload.set()
+        assert create_result.result(timeout=5) == 201
+        delete_result.result(timeout=5)
+
+    assert not User.objects.filter(pk=user.pk).exists()
+    assert not StretchExercise.objects.filter(user_id=user.pk).exists()
+    assert deleted_keys == ["stretching/race.webp"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_archive_waits_for_an_in_flight_checkoff(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, user = stretching_client("stretch-archive-race@example.com")
+    created = client.post(
+        "/api/v1/stretching/exercises/",
+        {"phase": "lower-body", "name": "Archive race"},
+        format="json",
+    )
+    exercise_id = created.json()["id"]
+    from apps.stretching.models import StretchEntry
+
+    insert_started = Event()
+    allow_insert = Event()
+    archive_started = Event()
+    archive_finished = Event()
+    original_get_or_create = StretchEntry.objects.get_or_create
+
+    def pause_before_insert(
+        *args: object, **kwargs: object
+    ) -> tuple[StretchEntry, bool]:
+        insert_started.set()
+        assert allow_insert.wait(timeout=5)
+        return original_get_or_create(*args, **kwargs)
+
+    monkeypatch.setattr(StretchEntry.objects, "get_or_create", pause_before_insert)
+
+    def checkoff() -> int:
+        connections.close_all()
+        try:
+            request_client = APIClient()
+            request_client.force_authenticate(user)
+            return request_client.put(
+                f"/api/v1/stretching/entries/{exercise_id}/2026-10-13/",
+                {},
+                format="json",
+            ).status_code
+        finally:
+            connections.close_all()
+
+    def archive() -> int:
+        connections.close_all()
+        try:
+            request_client = APIClient()
+            request_client.force_authenticate(user)
+            archive_started.set()
+            response = request_client.delete(
+                f"/api/v1/stretching/exercises/{exercise_id}/"
+            )
+            archive_finished.set()
+            return response.status_code
+        finally:
+            connections.close_all()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        checkoff_result = executor.submit(checkoff)
+        assert insert_started.wait(timeout=5)
+        archive_result = executor.submit(archive)
+        assert archive_started.wait(timeout=5)
+        assert not archive_finished.wait(timeout=0.1)
+        allow_insert.set()
+        assert checkoff_result.result(timeout=5) == 200
+        assert archive_result.result(timeout=5) == 204
+
+    from apps.stretching.models import StretchExercise
+
+    assert StretchExercise.objects.get(pk=exercise_id).is_active is False
+    assert StretchEntry.objects.filter(exercise_id=exercise_id).exists()
 
 
 def test_catalog_has_two_ordered_starter_phases() -> None:
@@ -68,6 +682,67 @@ def test_catalog_has_two_ordered_starter_phases() -> None:
         "keep the back of the head against the wall"
         in phases[1]["exercises"][8]["description"].lower()
     )
+    assert all(
+        exercise["is_visible"] for phase in phases for exercise in phase["exercises"]
+    )
+
+
+def test_shared_catalog_visibility_is_private_and_keeps_checkoff_history() -> None:
+    client, _ = stretching_client()
+    other, _ = stretching_client("other-stretching@example.com")
+    catalog = client.get("/api/v1/stretching/exercises/").json()
+    exercise = catalog["phases"][0]["exercises"][0]
+    checkoff_url = f"/api/v1/stretching/entries/{exercise['id']}/2026-10-09/"
+    assert client.put(checkoff_url, {}, format="json").status_code == 200
+
+    preferences_url = "/api/v1/stretching/preferences/"
+    assert (
+        client.patch(
+            preferences_url, {"show_shared_exercises": False}, format="json"
+        ).status_code
+        == 200
+    )
+
+    own_catalog = client.get("/api/v1/stretching/exercises/").json()
+    other_catalog = other.get("/api/v1/stretching/exercises/").json()
+    assert not any(
+        item["is_visible"]
+        for phase in own_catalog["phases"]
+        for item in phase["exercises"]
+    )
+    assert all(
+        item["is_visible"]
+        for phase in other_catalog["phases"]
+        for item in phase["exercises"]
+    )
+    assert (
+        client.get(
+            "/api/v1/stretching/entries/?date_from=2026-10-09&date_to=2026-10-09"
+        ).json()[0]["exercise_id"]
+        == exercise["id"]
+    )
+
+
+def test_user_can_hide_and_restore_individual_shared_exercises() -> None:
+    client, _ = stretching_client()
+    exercise = client.get("/api/v1/stretching/exercises/").json()["phases"][0][
+        "exercises"
+    ][0]
+    preferences_url = "/api/v1/stretching/preferences/"
+
+    hidden = client.patch(
+        preferences_url,
+        {"hidden_exercise_ids": [exercise["id"]]},
+        format="json",
+    )
+    assert hidden.status_code == 200
+    catalog = client.get("/api/v1/stretching/exercises/").json()
+    assert not catalog["phases"][0]["exercises"][0]["is_visible"]
+
+    restored = client.patch(preferences_url, {"hidden_exercise_ids": []}, format="json")
+    assert restored.status_code == 200
+    catalog = client.get("/api/v1/stretching/exercises/").json()
+    assert catalog["phases"][0]["exercises"][0]["is_visible"]
 
 
 def test_daily_checkoff_is_idempotent_and_user_scoped() -> None:
@@ -101,9 +776,24 @@ def test_export_includes_checkoffs_and_account_delete_cascades() -> None:
     from apps.stretching.models import StretchEntry, StretchExercise
 
     client, user = stretching_client()
+    custom = client.post(
+        "/api/v1/stretching/exercises/",
+        {
+            "phase": "upper-body",
+            "name": "Private stretch",
+            "description": "A private cue.",
+        },
+        format="json",
+    )
+    assert custom.status_code == 201
     exercise = StretchExercise.objects.get(slug="lower-body-lunge-stretch")
     client.put(
         f"/api/v1/stretching/entries/{exercise.pk}/2026-10-09/", {}, format="json"
+    )
+    client.patch(
+        "/api/v1/stretching/preferences/",
+        {"show_shared_exercises": False},
+        format="json",
     )
     response = client.get("/api/v1/me/export/")
     data = json.loads(b"".join(response.streaming_content))
@@ -111,6 +801,8 @@ def test_export_includes_checkoffs_and_account_delete_cascades() -> None:
     assert data["stretching_entries"][0]["exercise__slug"] == exercise.slug
     assert data["stretching_entries"][0]["exercise__name"] == exercise.name
     assert data["stretching_entries"][0]["exercise__phase"] == exercise.phase
+    assert data["stretching_preferences"][0]["show_shared_exercises"] is False
+    assert data["custom_stretch_exercises"][0]["name"] == "Private stretch"
     assert (
         client.delete(
             "/api/v1/me/", {"password": "account-password-123"}, format="json"
@@ -118,3 +810,4 @@ def test_export_includes_checkoffs_and_account_delete_cascades() -> None:
         == 204
     )
     assert not StretchEntry.objects.filter(user=user).exists()
+    assert not StretchExercise.objects.filter(user=user).exists()

@@ -1203,6 +1203,39 @@ captured.
   corrected without changing services or data.
 - Status: host bundle and runtime secret verified; workflow pin review remains.
 
+### EC2-034 — Private custom-stretch image storage configured
+
+- Date: 2026-10-13.
+- Performed by: the owner through the AWS console and Systems Manager Session
+  Manager; the owner confirmed each change in chat.
+- Execution path: S3 bucket creation in `eu-central-1`, IAM inline policy update,
+  Secrets Manager update, and an interactive root shell on the staging EC2 host.
+- Intent: enable private S3 storage and browser delivery for custom-stretch
+  illustrations, with enough Nginx request allowance for multipart uploads.
+- AWS resources changed: created general-purpose bucket
+  `longevity-staging-stretch-images-173291122778-eu-central-1-an` with account
+  regional naming, ACLs disabled, Block Public Access enabled, versioning
+  disabled, SSE-S3 default encryption, and Object Lock disabled; added inline
+  policy `StagingStretchImagesObjectAccess` to
+  `syncvitals-staging-ec2-role`, allowing only `s3:PutObject`, `s3:GetObject`,
+  and `s3:DeleteObject` on
+  `arn:aws:s3:::longevity-staging-stretch-images-173291122778-eu-central-1-an/stretching/*`;
+  added `STRETCH_IMAGE_BUCKET` to the existing
+  `longevity/staging/backend-runtime` secret. Secret values are intentionally
+  not recorded.
+- Host file changed: `/etc/nginx/sites-available/origin-staging`; added
+  `client_max_body_size 3m;` to the HTTPS server block. The exact prior file
+  contents were not captured; rollback is to remove this directive, validate,
+  and reload Nginx.
+- Verification: the owner ran `nginx -t`, which reported syntax OK and a
+  successful configuration test, then reloaded Nginx and confirmed
+  `systemctl is-active nginx` returned `active`.
+- Application verification: pending deployment of the custom-stretch code and
+  an end-to-end private image upload/read/delete check. No application
+  deployment was performed as part of this host/configuration change.
+- Status: S3, role, runtime secret, and Nginx configuration are prepared;
+  application-side verification remains pending.
+
 ## Current Known Host-Software State
 
 | Component | State | Evidence |
@@ -1215,7 +1248,7 @@ captured.
 | AWS CLI | Version-pinned native ARM64 v2 installed and signature-verified | EC2-019 |
 | Deployment bundle | Commit `5436f6edd27624fa4b59683be1f1712fbe711abf` installed and byte-verified; previous bundle retained | EC2-033 |
 | PostgreSQL and Django | Healthy containers; EBS persistence, loopback-only API, and image index `sha256:f2f0d6443cbfce30aa0497b70688768d30f002d18ae9b04942951412bc9318c8` verified | EC2-020 and EC2-032 |
-| Nginx origin proxy | TLS, root-only CloudFront header guard, and loopback proxy verified | EC2-021 |
+| Nginx origin proxy | TLS, root-only CloudFront header guard, loopback proxy, and 3 MiB request limit verified | EC2-021 and EC2-034 |
 | Exact EC2-002 APT transaction | Reconciled | `/var/log/apt/history.log` |
 | Nginx | Not installed at the initial host inspection | Earlier SSM inspection |
 | Certbot and Route 53 plugin | Not installed at the initial host inspection | Earlier SSM inspection |

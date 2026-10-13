@@ -27,6 +27,39 @@
   Celery. Reconsider TimescaleDB only after a measured query need and a tested
   migration plan.
 
+## Stretch Image Uploads — AWS Configured, Application Release Pending
+
+The staging-only AWS configuration was completed by the owner on 2026-10-13 and
+is recorded in `knowledge/diagrams/current_aws/v019-stretch-image-storage-configured.dsl`
+and EC2-034 in the host change log:
+
+- Private account-regional S3 bucket
+  `longevity-staging-stretch-images-173291122778-eu-central-1-an` in
+  `eu-central-1`; Block Public Access enabled, ACLs disabled, versioning off,
+  SSE-S3 default encryption, and Object Lock off.
+- Inline policy `StagingStretchImagesObjectAccess` on
+  `syncvitals-staging-ec2-role` grants only `s3:PutObject`, `s3:GetObject`, and
+  `s3:DeleteObject` on
+  `arn:aws:s3:::longevity-staging-stretch-images-173291122778-eu-central-1-an/stretching/*`.
+  No `ListBucket`, ACL, public-read, or bucket-administration permission is
+  granted.
+- `STRETCH_IMAGE_BUCKET` in the existing
+  `longevity/staging/backend-runtime` Secrets Manager JSON names that bucket.
+  The setting is optional in the new deployment runtime contract; never record
+  or share the secret's other values.
+- Host Nginx HTTPS site `/etc/nginx/sites-available/origin-staging` has
+  `client_max_body_size 3m;`; `nginx -t` passed and the reloaded service was
+  confirmed active.
+
+The custom-stretch application code is not yet deployed, so image uploads are
+not available in staging yet. After the protected release, verify with a staging
+account: upload a JPEG/PNG/WebP, confirm conversion to 640×480 WebP, confirm the
+object is private under `stretching/<user-id>/`, confirm image reads pass through
+the authenticated owner-only API route, and verify image replacement and account
+deletion cleanup. Archive/restore should preserve the image and check-off history.
+Do not test by making the object public. Record successful end-to-end validation
+in a subsequent checkpoint without rewriting V019's historical state.
+
 This is a low-cost presentation environment, not a highly available production
 system. Losing the one EC2 host temporarily removes Nginx and Django; losing or
 corrupting its database volume risks data until a tested backup is restored.
