@@ -23,6 +23,17 @@ def stretching_client(email: str = "stretching@example.com") -> tuple[APIClient,
 
 def test_catalog_requires_authentication() -> None:
     assert APIClient().get("/api/v1/stretching/exercises/").status_code == 401
+    assert APIClient().get("/api/v1/stretching/preferences/").status_code == 401
+
+
+def test_catalog_preferences_reject_unknown_hidden_exercises() -> None:
+    client, _ = stretching_client()
+    response = client.patch(
+        "/api/v1/stretching/preferences/",
+        {"hidden_exercise_ids": ["00000000-0000-0000-0000-000000000001"]},
+        format="json",
+    )
+    assert response.status_code == 400
 
 
 def test_catalog_has_two_ordered_starter_phases() -> None:
@@ -68,6 +79,67 @@ def test_catalog_has_two_ordered_starter_phases() -> None:
         "keep the back of the head against the wall"
         in phases[1]["exercises"][8]["description"].lower()
     )
+    assert all(
+        exercise["is_visible"] for phase in phases for exercise in phase["exercises"]
+    )
+
+
+def test_shared_catalog_visibility_is_private_and_keeps_checkoff_history() -> None:
+    client, _ = stretching_client()
+    other, _ = stretching_client("other-stretching@example.com")
+    catalog = client.get("/api/v1/stretching/exercises/").json()
+    exercise = catalog["phases"][0]["exercises"][0]
+    checkoff_url = f"/api/v1/stretching/entries/{exercise['id']}/2026-10-09/"
+    assert client.put(checkoff_url, {}, format="json").status_code == 200
+
+    preferences_url = "/api/v1/stretching/preferences/"
+    assert (
+        client.patch(
+            preferences_url, {"show_shared_exercises": False}, format="json"
+        ).status_code
+        == 200
+    )
+
+    own_catalog = client.get("/api/v1/stretching/exercises/").json()
+    other_catalog = other.get("/api/v1/stretching/exercises/").json()
+    assert not any(
+        item["is_visible"]
+        for phase in own_catalog["phases"]
+        for item in phase["exercises"]
+    )
+    assert all(
+        item["is_visible"]
+        for phase in other_catalog["phases"]
+        for item in phase["exercises"]
+    )
+    assert (
+        client.get(
+            "/api/v1/stretching/entries/?date_from=2026-10-09&date_to=2026-10-09"
+        ).json()[0]["exercise_id"]
+        == exercise["id"]
+    )
+
+
+def test_user_can_hide_and_restore_individual_shared_exercises() -> None:
+    client, _ = stretching_client()
+    exercise = client.get("/api/v1/stretching/exercises/").json()["phases"][0][
+        "exercises"
+    ][0]
+    preferences_url = "/api/v1/stretching/preferences/"
+
+    hidden = client.patch(
+        preferences_url,
+        {"hidden_exercise_ids": [exercise["id"]]},
+        format="json",
+    )
+    assert hidden.status_code == 200
+    catalog = client.get("/api/v1/stretching/exercises/").json()
+    assert not catalog["phases"][0]["exercises"][0]["is_visible"]
+
+    restored = client.patch(preferences_url, {"hidden_exercise_ids": []}, format="json")
+    assert restored.status_code == 200
+    catalog = client.get("/api/v1/stretching/exercises/").json()
+    assert catalog["phases"][0]["exercises"][0]["is_visible"]
 
 
 def test_daily_checkoff_is_idempotent_and_user_scoped() -> None:
@@ -105,12 +177,18 @@ def test_export_includes_checkoffs_and_account_delete_cascades() -> None:
     client.put(
         f"/api/v1/stretching/entries/{exercise.pk}/2026-10-09/", {}, format="json"
     )
+    client.patch(
+        "/api/v1/stretching/preferences/",
+        {"show_shared_exercises": False},
+        format="json",
+    )
     response = client.get("/api/v1/me/export/")
     data = json.loads(b"".join(response.streaming_content))
     assert data["stretching_entries"][0]["exercise_id"] == str(exercise.pk)
     assert data["stretching_entries"][0]["exercise__slug"] == exercise.slug
     assert data["stretching_entries"][0]["exercise__name"] == exercise.name
     assert data["stretching_entries"][0]["exercise__phase"] == exercise.phase
+    assert data["stretching_preferences"][0]["show_shared_exercises"] is False
     assert (
         client.delete(
             "/api/v1/me/", {"password": "account-password-123"}, format="json"

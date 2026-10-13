@@ -19,8 +19,14 @@ source's toe-touch/spinal-disc warning is attributed to the source in the cue.
 Migration `0004_source_cues` updates the shared catalog descriptions for existing
 installations as well as fresh seeded catalogs.
 
+Users can hide individual shared exercises or turn off the shared catalog for
+their account. This changes visibility only: shared catalog rows and past
+check-offs remain intact. The management dialog lists hidden exercises so users
+can restore them. User-owned custom stretches and image uploads are a later slice.
+
 Shared catalog records live in `StretchExercise`; personal daily check-offs live
-in `StretchEntry`, unique by user, exercise, and date. The API uses JWT identity,
+in `StretchEntry`, unique by user, exercise, and date. Per-user catalog visibility
+is stored in `StretchPreferences`. The API uses JWT identity,
 provides owner-scoped history, includes entries in account export, and relies on
 the user foreign key cascade for account deletion. See `03-api-design.md` for
 routes and contracts.

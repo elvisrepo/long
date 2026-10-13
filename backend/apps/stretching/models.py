@@ -22,6 +22,19 @@ class StretchExercise(models.Model):
         ordering = ["phase", "display_order", "name", "id"]
 
 
+class StretchPreferences(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        primary_key=True,
+        on_delete=models.CASCADE,
+        related_name="stretching_preferences",
+    )
+    show_shared_exercises = models.BooleanField(default=True)
+    hidden_exercises = models.ManyToManyField(
+        StretchExercise, related_name="hidden_for_users", blank=True
+    )
+
+
 class StretchEntry(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,

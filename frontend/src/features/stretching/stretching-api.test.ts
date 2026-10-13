@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { clearAccessToken, setAccessToken } from "../auth/auth-session";
-import { getStretchEntries, setStretchCheckoff } from "./stretching-api";
+import {
+  getStretchEntries,
+  getStretchPreferences,
+  setStretchCheckoff,
+  updateStretchPreferences,
+} from "./stretching-api";
 
 describe("Stretching API", () => {
   beforeEach(() => {
@@ -39,6 +44,41 @@ describe("Stretching API", () => {
     expect(fetch).toHaveBeenLastCalledWith(
       "/api/v1/stretching/entries/exercise-id/2026-10-09/",
       expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
+  it("loads and updates the authenticated user's catalog preferences", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          show_shared_exercises: false,
+          hidden_exercise_ids: ["exercise-id"],
+        }),
+        { status: 200 },
+      ),
+    );
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          show_shared_exercises: true,
+          hidden_exercise_ids: ["exercise-id"],
+        }),
+        { status: 200 },
+      ),
+    );
+    await getStretchPreferences();
+    expect(fetch).toHaveBeenLastCalledWith(
+      "/api/v1/stretching/preferences/",
+      expect.objectContaining({ method: "GET" }),
+    );
+
+    await updateStretchPreferences({ show_shared_exercises: true });
+    expect(fetch).toHaveBeenLastCalledWith(
+      "/api/v1/stretching/preferences/",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ show_shared_exercises: true }),
+      }),
     );
   });
 });

@@ -1,5 +1,14 @@
 ## 6. Testing
 
+### Stretch catalog visibility preferences — 2026-10-13
+
+- Backend tests cover default visibility, account-private hide-all and
+  per-exercise hiding/restoration, and preservation/export of past check-offs.
+  Frontend tests cover the management dialog and preference requests.
+- Run `backend/tests/test_stretching.py` and focused stretching frontend tests
+  before broader suites. Database-backed pytest needs PostgreSQL from Compose or
+  a configured `DATABASE_URL`.
+
 ## Shared UI foundation — 2026-10-05
 
 `frontend/e2e/layout.spec.ts` includes fixture-only browser regressions for native

@@ -14,7 +14,9 @@ import { localDay, shiftDay } from "../recovery/recovery-dates";
 import {
   getStretchCatalog,
   getStretchEntries,
+  getStretchPreferences,
   setStretchCheckoff,
+  updateStretchPreferences,
 } from "./stretching-api";
 import { exerciseImages } from "./stretching-images";
 import "./stretching.css";
@@ -31,9 +33,15 @@ export function StretchingScreen() {
     name: string;
     src: string;
   } | null>(null);
+  const [manageCatalog, setManageCatalog] = useState(false);
   const catalog = useQuery({
     queryKey: ["stretching", owner, "catalog"],
     queryFn: getStretchCatalog,
+    enabled: !!owner,
+  });
+  const preferences = useQuery({
+    queryKey: ["stretching", owner, "preferences"],
+    queryFn: getStretchPreferences,
     enabled: !!owner,
   });
   const entries = useQuery({
@@ -55,13 +63,20 @@ export function StretchingScreen() {
     onSuccess: () =>
       client.invalidateQueries({ queryKey: ["stretching", owner, "entries"] }),
   });
+  const savePreferences = useMutation({
+    mutationFn: updateStretchPreferences,
+    onSuccess: (next) => {
+      client.setQueryData(["stretching", owner, "preferences"], next);
+      client.invalidateQueries({ queryKey: ["stretching", owner, "catalog"] });
+    },
+  });
   const selectDay = (nextDay: string) => {
     if (nextDay !== day) checkoff.reset();
     setDay(nextDay);
   };
-  if (catalog.isPending || entries.isPending)
+  if (catalog.isPending || entries.isPending || preferences.isPending)
     return <PageState message="Loading stretching checklist…" />;
-  if (catalog.isError || entries.isError)
+  if (catalog.isError || entries.isError || preferences.isError)
     return (
       <PageState message="Stretching failed to load. Please try again." error />
     );
@@ -76,9 +91,19 @@ export function StretchingScreen() {
       .filter((entry) => entry.performed_on === day)
       .map((entry) => entry.exercise_id),
   );
-  const completed = currentPhase.exercises.filter((exercise) =>
+  const visibleExercises = currentPhase.exercises.filter(
+    (exercise) => exercise.is_visible,
+  );
+  const completed = visibleExercises.filter((exercise) =>
     checkedIds.has(exercise.id),
   ).length;
+  const hiddenExerciseIds = preferences.data.hidden_exercise_ids;
+  const toggleExerciseVisibility = (exerciseId: string) => {
+    const nextHidden = hiddenExerciseIds.includes(exerciseId)
+      ? hiddenExerciseIds.filter((id) => id !== exerciseId)
+      : [...hiddenExerciseIds, exerciseId];
+    savePreferences.mutate({ hidden_exercise_ids: nextHidden });
+  };
 
   return (
     <section className="stretching-screen">
@@ -122,8 +147,11 @@ export function StretchingScreen() {
         aria-label="Stretching phases"
       >
         {phases.map((phase) => {
-          const count = phase.exercises.filter((exercise) =>
-            checkedIds.has(exercise.id),
+          const count = phase.exercises.filter(
+            (exercise) => exercise.is_visible && checkedIds.has(exercise.id),
+          ).length;
+          const visibleCount = phase.exercises.filter(
+            (exercise) => exercise.is_visible,
           ).length;
           return (
             <button
@@ -137,7 +165,7 @@ export function StretchingScreen() {
             >
               <span>{phase.name}</span>
               <small>
-                {count}/{phase.exercises.length} complete
+                {count}/{visibleCount} complete
               </small>
             </button>
           );
@@ -153,16 +181,23 @@ export function StretchingScreen() {
           <div>
             <h2>{currentPhase.name}</h2>
             <p>
-              {completed} of {currentPhase.exercises.length} checked for {day}
+              {completed} of {visibleExercises.length} checked for {day}
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => setManageCatalog(true)}
+            aria-label="Manage stretches"
+          >
+            Manage stretches
+          </button>
           <span
             className="stretching-progress"
-            aria-label={`${completed} of ${currentPhase.exercises.length} complete`}
+            aria-label={`${completed} of ${visibleExercises.length} complete`}
           >
             <span
               style={{
-                width: `${currentPhase.exercises.length ? (completed / currentPhase.exercises.length) * 100 : 0}%`,
+                width: `${visibleExercises.length ? (completed / visibleExercises.length) * 100 : 0}%`,
               }}
             />
           </span>
@@ -173,7 +208,7 @@ export function StretchingScreen() {
           </p>
         )}
         <div className="stretching-exercises">
-          {currentPhase.exercises.map((exercise) => {
+          {visibleExercises.map((exercise) => {
             const checked = checkedIds.has(exercise.id);
             const image = exerciseImages[exercise.slug];
             return (
@@ -229,12 +264,82 @@ export function StretchingScreen() {
               </div>
             );
           })}
+          {visibleExercises.length === 0 && (
+            <p className="stretching-empty-state">
+              No stretches are visible. Use Manage stretches to restore the
+              built-in catalog.
+            </p>
+          )}
         </div>
         <p className="stretching-disclaimer">
           General reference cues only—not personalized exercise or medical
           advice.
         </p>
       </section>
+      {manageCatalog && (
+        <Modal
+          labelledBy="stretch-catalog-dialog-title"
+          onClose={() => setManageCatalog(false)}
+          closeOnBackdrop
+          className="stretching-catalog-dialog"
+        >
+          <div className="metric-dialog-header">
+            <h2 id="stretch-catalog-dialog-title">Manage stretches</h2>
+            <button
+              type="button"
+              className="metric-dialog-close"
+              aria-label="Close stretch management"
+              onClick={() => setManageCatalog(false)}
+            >
+              Close
+            </button>
+          </div>
+          <p>
+            Hide built-in stretches from your daily checklist. This only affects
+            your account; saved check-offs are kept.
+          </p>
+          <label className="stretching-catalog-toggle">
+            <input
+              type="checkbox"
+              aria-label="Show built-in stretches"
+              checked={preferences.data.show_shared_exercises}
+              disabled={savePreferences.isPending}
+              onChange={(event) =>
+                savePreferences.mutate({
+                  show_shared_exercises: event.target.checked,
+                })
+              }
+            />
+            Show built-in stretches
+          </label>
+          {savePreferences.isError && (
+            <p role="alert">{savePreferences.error.message}</p>
+          )}
+          <div className="stretching-catalog-list">
+            {phases.map((phase) => (
+              <section key={phase.slug}>
+                <h3>{phase.name}</h3>
+                {phase.exercises.map((exercise) => {
+                  const hidden = hiddenExerciseIds.includes(exercise.id);
+                  return (
+                    <div className="stretching-catalog-item" key={exercise.id}>
+                      <span>{exercise.name}</span>
+                      <button
+                        type="button"
+                        disabled={savePreferences.isPending}
+                        onClick={() => toggleExerciseVisibility(exercise.id)}
+                        aria-label={`${hidden ? "Show" : "Hide"} ${exercise.name}`}
+                      >
+                        {hidden ? "Show" : "Hide"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </section>
+            ))}
+          </div>
+        </Modal>
+      )}
       {selectedImage && (
         <Modal
           labelledBy="stretch-image-dialog-title"

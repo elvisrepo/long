@@ -12,7 +12,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getStretchCatalog,
   getStretchEntries,
+  getStretchPreferences,
   setStretchCheckoff,
+  updateStretchPreferences,
 } from "./stretching-api";
 import { StretchingScreen } from "./stretching-screen";
 
@@ -34,6 +36,7 @@ const phases = [
         description: "Move the hip forward while keeping the lower back quiet.",
         dosage: "30 seconds per leg",
         display_order: 1,
+        is_visible: true,
       },
     ],
   },
@@ -50,6 +53,7 @@ const phases = [
           "Against a wall, gently draw the chin back with a small movement.",
         dosage: "10 reps",
         display_order: 1,
+        is_visible: true,
       },
     ],
   },
@@ -73,7 +77,15 @@ describe("StretchingScreen", () => {
     vi.resetAllMocks();
     vi.mocked(getStretchCatalog).mockResolvedValue({ phases });
     vi.mocked(getStretchEntries).mockResolvedValue([]);
+    vi.mocked(getStretchPreferences).mockResolvedValue({
+      show_shared_exercises: true,
+      hidden_exercise_ids: [],
+    });
     vi.mocked(setStretchCheckoff).mockResolvedValue();
+    vi.mocked(updateStretchPreferences).mockResolvedValue({
+      show_shared_exercises: true,
+      hidden_exercise_ids: [],
+    });
   });
 
   it("switches phases and saves a selected day's exercise check-off", async () => {
@@ -134,6 +146,30 @@ describe("StretchingScreen", () => {
     await user.click(screen.getByRole("button", { name: "Close image" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(checkbox).not.toBeChecked();
+  });
+
+  it("lets the user hide built-ins individually or hide the whole shared catalog", async () => {
+    const user = userEvent.setup();
+    renderScreen();
+    await screen.findByRole("checkbox", { name: "Lunge Stretch" });
+    await user.click(screen.getByRole("button", { name: "Manage stretches" }));
+    expect(
+      screen.getByRole("dialog", { name: "Manage stretches" }),
+    ).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", { name: "Hide Lunge Stretch" }),
+    );
+    expect(updateStretchPreferences.mock.calls[0][0]).toEqual({
+      hidden_exercise_ids: ["lunge"],
+    });
+
+    await user.click(
+      screen.getByRole("checkbox", { name: "Show built-in stretches" }),
+    );
+    expect(updateStretchPreferences.mock.calls[1][0]).toEqual({
+      show_shared_exercises: false,
+    });
   });
 
   it("does not show a previous day's check-offs while a new date loads", async () => {

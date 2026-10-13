@@ -8,6 +8,7 @@ export interface StretchExercise {
   description: string;
   dosage: string;
   display_order: number;
+  is_visible: boolean;
 }
 
 export interface StretchPhase {
@@ -21,6 +22,11 @@ export interface StretchEntry {
   exercise_id: string;
   performed_on: string;
   created_at: string;
+}
+
+export interface StretchPreferences {
+  show_shared_exercises: boolean;
+  hidden_exercise_ids: string[];
 }
 
 async function request<T>(
@@ -54,6 +60,16 @@ async function request<T>(
 
 export function getStretchCatalog(): Promise<{ phases: StretchPhase[] }> {
   return request("exercises/");
+}
+
+export function getStretchPreferences(): Promise<StretchPreferences> {
+  return request("preferences/");
+}
+
+export function updateStretchPreferences(
+  preferences: Partial<StretchPreferences>,
+): Promise<StretchPreferences> {
+  return request("preferences/", "PATCH", preferences);
 }
 
 export function getStretchEntries(
