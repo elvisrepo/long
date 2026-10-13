@@ -42,4 +42,35 @@ describe("StretchExerciseEditor", () => {
       expect.objectContaining({ image: null, remove_image: true }),
     );
   });
+
+  it("keeps the editor open while a save is pending", () => {
+    const onClose = vi.fn();
+    render(
+      <StretchExerciseEditor
+        exercise={{
+          id: "custom",
+          slug: "",
+          phase: "lower-body",
+          name: "Hip stretch",
+          description: "",
+          dosage: "",
+          display_order: 1,
+          is_visible: true,
+          is_custom: true,
+          is_active: true,
+          image_url: null,
+        }}
+        onClose={onClose}
+        onSave={vi.fn()}
+        pending
+      />,
+    );
+
+    fireEvent(
+      screen.getByRole("dialog"),
+      new Event("cancel", { cancelable: true }),
+    );
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });

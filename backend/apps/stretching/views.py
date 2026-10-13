@@ -75,19 +75,26 @@ class StretchExercisesView(APIView):
         serializer.is_valid(raise_exception=True)
         image = serializer.validated_data.pop("image", None)
         serializer.validated_data.pop("remove_image", None)
-        exercise = serializer.save(user=request.user, slug="", display_order=100)
-        if image is not None:
-            try:
-                exercise.image_key = save_stretch_image(
-                    image, request.user.pk, exercise.pk
+        new_image_key = ""
+        try:
+            with transaction.atomic():
+                user = get_object_or_404(
+                    User.objects.select_for_update(), pk=request.user.pk
                 )
-                exercise.save(update_fields=["image_key"])
-            except ImageStorageUnavailable as exc:
-                exercise.delete()
-                raise StretchImageStorageUnavailable(str(exc)) from exc
-            except ValueError as exc:
-                exercise.delete()
-                raise serializers.ValidationError({"image": str(exc)}) from exc
+                exercise = serializer.save(user=user, slug="", display_order=100)
+                if image is not None:
+                    try:
+                        new_image_key = save_stretch_image(image, user.pk, exercise.pk)
+                        exercise.image_key = new_image_key
+                        exercise.save(update_fields=["image_key"])
+                    except ImageStorageUnavailable as exc:
+                        raise StretchImageStorageUnavailable(str(exc)) from exc
+                    except ValueError as exc:
+                        raise serializers.ValidationError({"image": str(exc)}) from exc
+        except Exception:
+            if new_image_key:
+                delete_stretch_image(new_image_key)
+            raise
         return Response(
             StretchExerciseSerializer(
                 exercise, context=self._catalog_context(request)
@@ -137,6 +144,7 @@ class CustomStretchExerciseDetailView(APIView):
 
         try:
             with transaction.atomic():
+                get_object_or_404(User.objects.select_for_update(), pk=request.user.pk)
                 exercise = get_object_or_404(
                     StretchExercise.objects.select_for_update(),
                     pk=exercise_id,
@@ -161,9 +169,15 @@ class CustomStretchExerciseDetailView(APIView):
         )
 
     def delete(self, request: Request, exercise_id: str) -> Response:
-        exercise = get_object_or_404(StretchExercise, pk=exercise_id, user=request.user)
-        exercise.is_active = False
-        exercise.save(update_fields=["is_active"])
+        with transaction.atomic():
+            get_object_or_404(User.objects.select_for_update(), pk=request.user.pk)
+            exercise = get_object_or_404(
+                StretchExercise.objects.select_for_update(),
+                pk=exercise_id,
+                user=request.user,
+            )
+            exercise.is_active = False
+            exercise.save(update_fields=["is_active"])
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -171,9 +185,7 @@ class CustomStretchExerciseImageView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Request, exercise_id: str) -> FileResponse:
-        exercise = get_object_or_404(
-            StretchExercise, pk=exercise_id, user=request.user
-        )
+        exercise = get_object_or_404(StretchExercise, pk=exercise_id, user=request.user)
         if not exercise.image_key:
             raise NotFound("This stretch has no image.")
         try:
