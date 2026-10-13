@@ -1266,9 +1266,35 @@ captured.
   process; no secret value was printed and no deployment command ran.
 - Temporary transfer artifact: S3 object
   `s3://longevity-staging-stretch-images-173291122778-eu-central-1-an/stretching/_operator-transfer/syncvitals-staging-deployment-3b3940b40a448a891bf90c9f0165b763ebb7260f.tar.gz`
-  remains pending operator cleanup after deployment.
-- Status: bundle files installed and runtime preflight passed; workflow-pin
-  review and application deployment remain pending.
+  remains pending operator cleanup. The host's `.installed_host_bundle_commit`
+  inventory marker was not confirmed updated after installation; it is not
+  consulted by the workflow.
+- Status: bundle installed and runtime preflight passed; staging deployment
+  completed successfully under EC2-036. Authenticated stretch-image lifecycle
+  verification remains pending.
+
+### EC2-036 — Stretch-image application deployed to staging
+
+- Date: 2026-10-13.
+- Performed by: GitHub Actions after the owner-requested promotion PR was merged;
+  AWS credentials were obtained by the workflow through OIDC.
+- Execution path: master PR #47 advanced the installed-host-bundle pin after
+  review; promotion PR #48 merged `master` to `staging` and triggered workflow
+  run `38415551513`.
+- Intent: deploy the backend support for private custom-stretch image storage
+  and the corresponding frontend to presentation staging.
+- Host-bundle gate: passed against installed commit
+  `3b3940b40a448a891bf90c9f0165b763ebb7260f`.
+- Backend image: digest-qualified staging image
+  `sha256:441e126c3cff23690caf09b4990dfdcfb7616441365092a76626475ca2235d66`.
+- Verification: backend CI and frontend CI passed; backend image build and
+  guarded EC2 deployment passed; frontend assets uploaded; public root and deep
+  link matched; public liveness and readiness checks passed.
+- Scope limit: no authenticated custom-stretch image create/read/update/delete
+  journey has yet been run against staging. Public health checks do not prove
+  the S3 image lifecycle works end to end.
+- Status: code deployment succeeded; authenticated image-lifecycle acceptance
+  and temporary transfer-object cleanup remain pending.
 
 ## Current Known Host-Software State
 
@@ -1281,7 +1307,7 @@ captured.
 | CloudWatch Agent | Installed and configured through console; memory and root-disk metric delivery verified | EC2-012 console status and graphs; installed version and boot enablement not yet inspected |
 | AWS CLI | Version-pinned native ARM64 v2 installed and signature-verified | EC2-019 |
 | Deployment bundle | Commit `3b3940b40a448a891bf90c9f0165b763ebb7260f` installed and runtime-preflight verified; previous bundle retained | EC2-033, EC2-035 |
-| PostgreSQL and Django | Healthy containers; EBS persistence, loopback-only API, and image index `sha256:f2f0d6443cbfce30aa0497b70688768d30f002d18ae9b04942951412bc9318c8` verified | EC2-020 and EC2-032 |
+| PostgreSQL and Django | Healthy containers; EBS persistence, loopback-only API, and current image index `sha256:441e126c3cff23690caf09b4990dfdcfb7616441365092a76626475ca2235d66` verified | EC2-020, EC2-032, and EC2-036 |
 | Nginx origin proxy | TLS, root-only CloudFront header guard, loopback proxy, and 3 MiB request limit verified | EC2-021 and EC2-034 |
 | Exact EC2-002 APT transaction | Reconciled | `/var/log/apt/history.log` |
 | Nginx | Not installed at the initial host inspection | Earlier SSM inspection |
