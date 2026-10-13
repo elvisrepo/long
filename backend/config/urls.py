@@ -17,6 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.conf import settings
 from django.urls import include, path
+from django.conf.urls.static import static
 from apps.users.account_views import AccountDeleteView, AccountExportView
 
 from common.views import (
@@ -43,3 +44,6 @@ urlpatterns = [
 if getattr(settings, "ENABLE_E2E_TESTING_API", False):
     # Never mount destructive test helpers outside the dedicated E2E runtime.
     urlpatterns.append(path("api/testing/", include("common.testing_urls")))
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

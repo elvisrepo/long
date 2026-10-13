@@ -10,9 +10,15 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  archiveCustomStretch,
+  createCustomStretch,
   getStretchCatalog,
   getStretchEntries,
+  getStretchPreferences,
   setStretchCheckoff,
+  updateStretchPreferences,
+  updateCustomStretch,
+  type StretchPhase,
 } from "./stretching-api";
 import { StretchingScreen } from "./stretching-screen";
 
@@ -21,7 +27,7 @@ vi.mock("../auth/use-me-query", () => ({
   useMeQuery: () => ({ data: { email: "owner@example.com" } }),
 }));
 
-const phases = [
+const phases: StretchPhase[] = [
   {
     slug: "lower-body" as const,
     name: "Lower body & hips",
@@ -34,6 +40,10 @@ const phases = [
         description: "Move the hip forward while keeping the lower back quiet.",
         dosage: "30 seconds per leg",
         display_order: 1,
+        is_visible: true,
+        is_custom: false,
+        is_active: true,
+        image_url: null,
       },
     ],
   },
@@ -50,6 +60,10 @@ const phases = [
           "Against a wall, gently draw the chin back with a small movement.",
         dosage: "10 reps",
         display_order: 1,
+        is_visible: true,
+        is_custom: false,
+        is_active: true,
+        image_url: null,
       },
     ],
   },
@@ -73,7 +87,52 @@ describe("StretchingScreen", () => {
     vi.resetAllMocks();
     vi.mocked(getStretchCatalog).mockResolvedValue({ phases });
     vi.mocked(getStretchEntries).mockResolvedValue([]);
+    vi.mocked(getStretchPreferences).mockResolvedValue({
+      show_shared_exercises: true,
+      hidden_exercise_ids: [],
+    });
     vi.mocked(setStretchCheckoff).mockResolvedValue();
+    vi.mocked(updateStretchPreferences).mockResolvedValue({
+      show_shared_exercises: true,
+      hidden_exercise_ids: [],
+    });
+    vi.mocked(createCustomStretch).mockResolvedValue({
+      ...phases[0].exercises[0],
+      id: "mine",
+      name: "My stretch",
+      slug: "",
+      is_custom: true,
+      image_url: null,
+    });
+    vi.mocked(updateCustomStretch).mockResolvedValue({
+      ...phases[0].exercises[0],
+      id: "mine",
+      is_custom: true,
+      image_url: null,
+    });
+    vi.mocked(archiveCustomStretch).mockResolvedValue();
+  });
+
+  it("creates, edits, and archives a private stretch from catalog management", async () => {
+    const user = userEvent.setup();
+    renderScreen();
+    await screen.findByRole("checkbox", { name: "Lunge Stretch" });
+    await user.click(screen.getByRole("button", { name: "Manage stretches" }));
+    await user.click(
+      screen.getByRole("button", { name: "Add custom stretch" }),
+    );
+    await user.type(screen.getByLabelText("Title"), "My stretch");
+    await user.click(screen.getByRole("button", { name: "Save stretch" }));
+    await waitFor(() =>
+      expect(createCustomStretch).toHaveBeenCalledWith({
+        phase: "lower-body",
+        name: "My stretch",
+        description: "",
+        dosage: "",
+        image: null,
+        remove_image: false,
+      }),
+    );
   });
 
   it("switches phases and saves a selected day's exercise check-off", async () => {
@@ -134,6 +193,30 @@ describe("StretchingScreen", () => {
     await user.click(screen.getByRole("button", { name: "Close image" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(checkbox).not.toBeChecked();
+  });
+
+  it("lets the user hide built-ins individually or hide the whole shared catalog", async () => {
+    const user = userEvent.setup();
+    renderScreen();
+    await screen.findByRole("checkbox", { name: "Lunge Stretch" });
+    await user.click(screen.getByRole("button", { name: "Manage stretches" }));
+    expect(
+      screen.getByRole("dialog", { name: "Manage stretches" }),
+    ).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", { name: "Hide Lunge Stretch" }),
+    );
+    expect(updateStretchPreferences.mock.calls[0][0]).toEqual({
+      hidden_exercise_ids: ["lunge"],
+    });
+
+    await user.click(
+      screen.getByRole("checkbox", { name: "Show built-in stretches" }),
+    );
+    expect(updateStretchPreferences.mock.calls[1][0]).toEqual({
+      show_shared_exercises: false,
+    });
   });
 
   it("does not show a previous day's check-offs while a new date loads", async () => {

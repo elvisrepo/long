@@ -17,6 +17,8 @@
       "stripe>=15.2.1",
       "gunicorn>=23.0.0",
       "django-anymail[amazon-ses]>=15.1",
+      "pillow>=12.3.0",
+      "boto3>=1.43.103",
 ]
 
   [dependency-groups]

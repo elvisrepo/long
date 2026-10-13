@@ -14,6 +14,7 @@ from scripts.smoke_production_deployment import (
     verify_smoke_liveness,
     verify_smoke_readiness,
 )
+from runtime_contract import OPTIONAL_ENVIRONMENT_VARIABLES
 from scripts.staging_runtime import REQUIRED_RUNTIME_KEYS
 
 
@@ -49,7 +50,9 @@ def test_smoke_deployment_uses_step7_environment_injection(
         "--project-name",
         "longevity-production-smoke",
     ]
-    assert set(runtime_environment) == set(REQUIRED_RUNTIME_KEYS)
+    assert set(runtime_environment) == set(REQUIRED_RUNTIME_KEYS) | set(
+        OPTIONAL_ENVIRONMENT_VARIABLES
+    )
     assert all(value not in command for value in runtime_environment.values())
 
 

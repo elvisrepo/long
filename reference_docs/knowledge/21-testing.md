@@ -1,5 +1,21 @@
 ## 6. Testing
 
+### Stretch catalog visibility preferences — 2026-10-13
+
+- Backend tests cover default visibility, account-private hide-all and
+  per-exercise hiding/restoration, and preservation/export of past check-offs.
+  Frontend tests cover the management dialog and preference requests.
+- Custom-stretch coverage verifies owner-private creation, owner-only edit/archive,
+  preserved check-off history, image normalization/storage outside PostgreSQL,
+  failure-safe edits, and owner-only image reads through the authenticated API.
+- Frontend editor tests verify that choosing to remove an image clears a pending
+  replacement file before submission.
+- Production must return an unavailable response for image writes until the private
+  image bucket is configured; tests use temporary local media storage, not AWS.
+- Run `backend/tests/test_stretching.py` and focused stretching frontend tests
+  before broader suites. Database-backed pytest needs PostgreSQL from Compose or
+  a configured `DATABASE_URL`.
+
 ## Shared UI foundation — 2026-10-05
 
 `frontend/e2e/layout.spec.ts` includes fixture-only browser regressions for native
