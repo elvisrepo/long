@@ -220,6 +220,48 @@
   grid-column: 1 / -1;
   color: var(--text-dim);
 }
+.stretching-editor-form {
+  display: grid;
+  gap: 0.8rem;
+}
+.stretching-editor-form > label {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--text-dim);
+  font-size: 0.875rem;
+}
+.stretching-editor-form input:not([type="file"]),
+.stretching-editor-form textarea,
+.stretching-editor-form select {
+  width: 100%;
+  min-width: 0;
+}
+.stretching-editor-form textarea {
+  resize: vertical;
+}
+.stretching-editor-checkbox {
+  display: flex !important;
+  align-items: center;
+  gap: 0.5rem !important;
+}
+.stretching-editor-preview {
+  width: min(100%, 20rem);
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+.stretching-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.stretching-editor-actions button {
+  min-height: 2.75rem;
+}
+.stretching-catalog-item .stretching-editor-actions {
+  flex: 0 0 auto;
+}
 @media (max-width: 640px) {
   .stretching-phase-tabs,
   .stretching-exercises {

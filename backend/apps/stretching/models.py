@@ -2,6 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 
 
 class StretchExercise(models.Model):
@@ -10,16 +11,31 @@ class StretchExercise(models.Model):
         UPPER_BODY = "upper-body", "Upper body & posture"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    slug = models.SlugField(max_length=80, unique=True)
+    slug = models.SlugField(max_length=80, blank=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="custom_stretch_exercises",
+    )
     phase = models.CharField(max_length=20, choices=Phase.choices)
     name = models.CharField(max_length=120)
     description = models.CharField(max_length=500, blank=True)
     dosage = models.CharField(max_length=120, blank=True)
     display_order = models.PositiveIntegerField(default=100)
     is_active = models.BooleanField(default=True)
+    image_key = models.CharField(max_length=500, blank=True)
 
     class Meta:
         ordering = ["phase", "display_order", "name", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["slug"],
+                condition=Q(user__isnull=True),
+                name="unique_shared_stretch_slug",
+            )
+        ]
 
 
 class StretchPreferences(models.Model):

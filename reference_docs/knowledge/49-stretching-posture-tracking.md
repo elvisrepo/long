@@ -22,14 +22,27 @@ installations as well as fresh seeded catalogs.
 Users can hide individual shared exercises or turn off the shared catalog for
 their account. This changes visibility only: shared catalog rows and past
 check-offs remain intact. The management dialog lists hidden exercises so users
-can restore them. User-owned custom stretches and image uploads are a later slice.
+can restore them.
 
-Shared catalog records live in `StretchExercise`; personal daily check-offs live
-in `StretchEntry`, unique by user, exercise, and date. Per-user catalog visibility
-is stored in `StretchPreferences`. The API uses JWT identity,
-provides owner-scoped history, includes entries in account export, and relies on
-the user foreign key cascade for account deletion. See `03-api-design.md` for
-routes and contracts.
+Users can create private stretches with a title, phase, instructions, suggested
+dosage, and optional illustration. They can edit and archive/restore these entries;
+archive hides the exercise from new daily check-offs but retains existing history.
+Custom entries are visible only to their owner, and built-in visibility preferences
+cannot target custom records. Image data is never stored in PostgreSQL: uploads are
+validated JPEG/PNG/WebP (2 MB maximum), normalized into consistent 640×480 WebP,
+and stored under `stretching/{user_id}/{exercise_id}/...` in private S3. The database
+stores only the object key; reads use short-lived presigned GET URLs. Local DEBUG
+uses Django media storage. Production image uploads return `503` until
+`STRETCH_IMAGE_BUCKET` is configured. Account export includes custom stretch text
+and object key metadata; deleting the account cascades custom rows and schedules
+their objects for deletion after the transaction commits.
+
+Shared and user-owned catalog records live in `StretchExercise`; personal daily
+check-offs live in `StretchEntry`, unique by user, exercise, and date. Per-user
+shared-catalog visibility is stored in `StretchPreferences`. The API uses JWT
+identity, owner-scoped CRUD and history, includes owned metadata in account export,
+and relies on the user foreign key cascade for account deletion. See
+`03-api-design.md` for routes and contracts.
 
 ## Reference
 

@@ -72,6 +72,7 @@ def test_migration_and_api_share_only_canonical_django_environment() -> None:
     assert "x-backend-environment: &backend-environment" in compose
     assert compose.count("environment: *backend-environment") == 2
     assert "env_file:" not in compose
+    assert '  STRETCH_IMAGE_BUCKET: "${STRETCH_IMAGE_BUCKET:-}"' in compose
     for key in REQUIRED_ENVIRONMENT_VARIABLES:
         required = f'  {key}: "${{{key}:?{key} is required}}"'
         assert required in compose

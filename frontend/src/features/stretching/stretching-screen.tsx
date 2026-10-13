@@ -12,12 +12,18 @@ import { PageState } from "../../components/page-state";
 import { useMeQuery } from "../auth/use-me-query";
 import { localDay, shiftDay } from "../recovery/recovery-dates";
 import {
+  archiveCustomStretch,
+  createCustomStretch,
   getStretchCatalog,
   getStretchEntries,
   getStretchPreferences,
   setStretchCheckoff,
+  updateCustomStretch,
   updateStretchPreferences,
+  type StretchExercise,
+  type StretchExerciseInput,
 } from "./stretching-api";
+import { StretchExerciseEditor } from "./stretch-exercise-editor";
 import { exerciseImages } from "./stretching-images";
 import "./stretching.css";
 
@@ -34,6 +40,9 @@ export function StretchingScreen() {
     src: string;
   } | null>(null);
   const [manageCatalog, setManageCatalog] = useState(false);
+  const [editingExercise, setEditingExercise] = useState<
+    StretchExercise | "new" | null
+  >(null);
   const catalog = useQuery({
     queryKey: ["stretching", owner, "catalog"],
     queryFn: getStretchCatalog,
@@ -70,6 +79,39 @@ export function StretchingScreen() {
       client.invalidateQueries({ queryKey: ["stretching", owner, "catalog"] });
     },
   });
+  const saveExercise = useMutation({
+    mutationFn: (input: StretchExerciseInput) =>
+      editingExercise === "new"
+        ? createCustomStretch(input)
+        : updateCustomStretch(editingExercise!.id, input),
+    onSuccess: () => {
+      setEditingExercise(null);
+      client.invalidateQueries({ queryKey: ["stretching", owner, "catalog"] });
+    },
+  });
+  const changeExerciseState = useMutation({
+    mutationFn: async ({
+      exercise,
+      active,
+    }: {
+      exercise: StretchExercise;
+      active: boolean;
+    }): Promise<void> => {
+      if (active) {
+        await updateCustomStretch(exercise.id, {
+            phase: exercise.phase,
+            name: exercise.name,
+            description: exercise.description,
+            dosage: exercise.dosage,
+            is_active: true,
+        });
+      } else {
+        await archiveCustomStretch(exercise.id);
+      }
+    },
+    onSuccess: () =>
+      client.invalidateQueries({ queryKey: ["stretching", owner, "catalog"] }),
+  });
   const selectDay = (nextDay: string) => {
     if (nextDay !== day) checkoff.reset();
     setDay(nextDay);
@@ -92,7 +134,7 @@ export function StretchingScreen() {
       .map((entry) => entry.exercise_id),
   );
   const visibleExercises = currentPhase.exercises.filter(
-    (exercise) => exercise.is_visible,
+    (exercise) => exercise.is_active && exercise.is_visible,
   );
   const completed = visibleExercises.filter((exercise) =>
     checkedIds.has(exercise.id),
@@ -148,10 +190,11 @@ export function StretchingScreen() {
       >
         {phases.map((phase) => {
           const count = phase.exercises.filter(
-            (exercise) => exercise.is_visible && checkedIds.has(exercise.id),
+            (exercise) =>
+              exercise.is_active && exercise.is_visible && checkedIds.has(exercise.id),
           ).length;
           const visibleCount = phase.exercises.filter(
-            (exercise) => exercise.is_visible,
+            (exercise) => exercise.is_active && exercise.is_visible,
           ).length;
           return (
             <button
@@ -191,6 +234,15 @@ export function StretchingScreen() {
           >
             Manage stretches
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              saveExercise.reset();
+              setEditingExercise("new");
+            }}
+          >
+            Add custom stretch
+          </button>
           <span
             className="stretching-progress"
             aria-label={`${completed} of ${visibleExercises.length} complete`}
@@ -210,7 +262,7 @@ export function StretchingScreen() {
         <div className="stretching-exercises">
           {visibleExercises.map((exercise) => {
             const checked = checkedIds.has(exercise.id);
-            const image = exerciseImages[exercise.slug];
+            const image = exercise.image_url || exerciseImages[exercise.slug];
             return (
               <div
                 className={`stretching-exercise${checked ? " is-checked" : ""}`}
@@ -298,6 +350,55 @@ export function StretchingScreen() {
             Hide built-in stretches from your daily checklist. This only affects
             your account; saved check-offs are kept.
           </p>
+          <h3>Your custom stretches</h3>
+          <p>
+            Only you can see these. Archiving removes a stretch from the daily
+            checklist but keeps its past check-offs.
+          </p>
+          <div className="stretching-catalog-list">
+            {phases.flatMap((phase) =>
+              phase.exercises
+                .filter((exercise) => exercise.is_custom)
+                .map((exercise) => (
+                  <div className="stretching-catalog-item" key={exercise.id}>
+                    <span>
+                      {exercise.name}
+                      {!exercise.is_active && " (archived)"}
+                    </span>
+                    <span className="stretching-editor-actions">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setManageCatalog(false);
+                          saveExercise.reset();
+                          setEditingExercise(exercise);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        disabled={changeExerciseState.isPending}
+                        onClick={() =>
+                          changeExerciseState.mutate({
+                            exercise,
+                            active: !exercise.is_active,
+                          })
+                        }
+                      >
+                        {exercise.is_active ? "Archive" : "Restore"}
+                      </button>
+                    </span>
+                  </div>
+                )),
+            )}
+            {!phases.some((phase) =>
+              phase.exercises.some((exercise) => exercise.is_custom)
+            ) && <p>No custom stretches yet.</p>}
+          </div>
+          {changeExerciseState.isError && (
+            <p role="alert">{changeExerciseState.error.message}</p>
+          )}
           <label className="stretching-catalog-toggle">
             <input
               type="checkbox"
@@ -319,7 +420,9 @@ export function StretchingScreen() {
             {phases.map((phase) => (
               <section key={phase.slug}>
                 <h3>{phase.name}</h3>
-                {phase.exercises.map((exercise) => {
+                {phase.exercises
+                  .filter((exercise) => !exercise.is_custom)
+                  .map((exercise) => {
                   const hidden = hiddenExerciseIds.includes(exercise.id);
                   return (
                     <div className="stretching-catalog-item" key={exercise.id}>
@@ -334,11 +437,20 @@ export function StretchingScreen() {
                       </button>
                     </div>
                   );
-                })}
+                  })}
               </section>
             ))}
           </div>
         </Modal>
+      )}
+      {editingExercise && (
+        <StretchExerciseEditor
+          exercise={editingExercise === "new" ? undefined : editingExercise}
+          onClose={() => setEditingExercise(null)}
+          onSave={(input) => saveExercise.mutate(input)}
+          pending={saveExercise.isPending}
+          error={saveExercise.isError ? saveExercise.error.message : undefined}
+        />
       )}
       {selectedImage && (
         <Modal

@@ -14,7 +14,10 @@ import sys
 from collections.abc import Mapping, Sequence
 from urllib.parse import unquote, urlsplit
 
-from runtime_contract import REQUIRED_ENVIRONMENT_VARIABLES
+from runtime_contract import (
+    OPTIONAL_ENVIRONMENT_VARIABLES,
+    REQUIRED_ENVIRONMENT_VARIABLES,
+)
 from scripts import staging_storage
 
 
@@ -140,6 +143,14 @@ def parse_runtime_secret(secret_json: str) -> dict[str, str]:
                 f"staging runtime secret has blank required value: {key}"
             )
         runtime_environment[key] = value
+
+    for key in OPTIONAL_ENVIRONMENT_VARIABLES:
+        value = payload.get(key, "")
+        if not isinstance(value, str):
+            raise StagingRuntimeConfigurationError(
+                f"staging runtime secret has non-string optional value: {key}"
+            )
+        runtime_environment[key] = value.strip()
 
     try:
         database_password = urlsplit(

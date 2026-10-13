@@ -440,23 +440,29 @@ account deletion removes owned recovery data through database cascades.
 All routes require JWT. The starter catalog remains shared and read-only, while
 visibility preferences are private to the authenticated account. Hidden exercises
 remain in the catalog response with `is_visible: false` so they can be restored;
-preferences do not delete catalog rows or past check-offs. Exercise names are
-starter catalog labels, not medical instructions. No images or article text are
-stored.
+preferences do not delete catalog rows or past check-offs. Users may also create
+private stretches. Custom stretches and their images are owner-scoped; deleting a
+custom stretch archives it so past check-offs remain readable. Exercise names and
+cues are not medical instructions.
 
 | Method | Endpoint | Contract |
 |---|---|---|
-| GET | `/api/v1/stretching/exercises/` | `{phases: [{slug, name, exercises: [...] }]}`; active shared exercises in display order, with `description`, `dosage`, and account-specific `is_visible` |
+| GET/POST | `/api/v1/stretching/exercises/` | GET returns active shared exercises plus all own custom stretches (including archived for management), grouped by phase. Exercise objects include `is_custom`, `is_active`, `image_url`, and account-specific `is_visible`. POST creates an own custom stretch with `{phase, name, description?, dosage?, image?}`; JSON or multipart; `201` |
+| PATCH/DELETE | `/api/v1/stretching/exercises/{exercise_uuid}/` | Own custom exercises only; PATCH edits `phase`, `name`, `description`, `dosage`, optional `image`, `remove_image`, or `is_active` (restore). DELETE archives (`204`) and keeps check-off history. Shared or foreign IDs return `404` |
 | GET | `/api/v1/stretching/preferences/` | `{show_shared_exercises, hidden_exercise_ids}`; defaults to `true` and `[]` |
-| PATCH | `/api/v1/stretching/preferences/` | Partial update; `show_shared_exercises: boolean` hides/restores all shared exercises, `hidden_exercise_ids: uuid[]` replaces the individually hidden list; IDs must exist |
+| PATCH | `/api/v1/stretching/preferences/` | Partial update; `show_shared_exercises: boolean` hides/restores all shared exercises, `hidden_exercise_ids: uuid[]` replaces the individually hidden list; IDs must be existing shared exercises |
 | GET | `/api/v1/stretching/entries/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD` | Own entries, inclusive 1–366-day range; invalid/missing bounds `400` |
 | PUT | `/api/v1/stretching/entries/{exercise_uuid}/{YYYY-MM-DD}/` | Empty body; idempotent daily check-off `200`; unknown/inactive exercise `404` |
 | DELETE | `/api/v1/stretching/entries/{exercise_uuid}/{YYYY-MM-DD}/` | Idempotent undo `204`; unknown exercise `404` |
 
 Entry JSON: `{id, exercise_id, performed_on, created_at}`. Client-supplied owner,
-phase, name, order, and timestamps are not accepted. Account export includes
-owned stretching entries and visibility preferences; account deletion cascades
-them.
+slug, order, image key, and timestamps are not accepted. Images are limited to 2 MB
+JPEG/PNG/WebP uploads, normalized to 640×480 WebP, stored in private object storage,
+and read through a 15-minute presigned URL. `STRETCH_IMAGE_BUCKET` must be configured
+for production uploads; absent storage yields `503` for image writes while text-only
+custom stretches remain available. Account export includes custom stretch metadata,
+entries and visibility preferences; account deletion cascades rows and removes
+associated image objects after commit.
 
 ## Use When
 - Load this when you need the api design.

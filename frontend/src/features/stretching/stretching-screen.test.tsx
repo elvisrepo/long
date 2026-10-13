@@ -10,11 +10,15 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  archiveCustomStretch,
+  createCustomStretch,
   getStretchCatalog,
   getStretchEntries,
   getStretchPreferences,
   setStretchCheckoff,
   updateStretchPreferences,
+  updateCustomStretch,
+  type StretchPhase,
 } from "./stretching-api";
 import { StretchingScreen } from "./stretching-screen";
 
@@ -23,7 +27,7 @@ vi.mock("../auth/use-me-query", () => ({
   useMeQuery: () => ({ data: { email: "owner@example.com" } }),
 }));
 
-const phases = [
+const phases: StretchPhase[] = [
   {
     slug: "lower-body" as const,
     name: "Lower body & hips",
@@ -37,6 +41,9 @@ const phases = [
         dosage: "30 seconds per leg",
         display_order: 1,
         is_visible: true,
+        is_custom: false,
+        is_active: true,
+        image_url: null,
       },
     ],
   },
@@ -54,6 +61,9 @@ const phases = [
         dosage: "10 reps",
         display_order: 1,
         is_visible: true,
+        is_custom: false,
+        is_active: true,
+        image_url: null,
       },
     ],
   },
@@ -86,6 +96,39 @@ describe("StretchingScreen", () => {
       show_shared_exercises: true,
       hidden_exercise_ids: [],
     });
+    vi.mocked(createCustomStretch).mockResolvedValue({
+      ...phases[0].exercises[0],
+      id: "mine",
+      name: "My stretch",
+      slug: "",
+      is_custom: true,
+      image_url: null,
+    });
+    vi.mocked(updateCustomStretch).mockResolvedValue({
+      ...phases[0].exercises[0],
+      id: "mine",
+      is_custom: true,
+      image_url: null,
+    });
+    vi.mocked(archiveCustomStretch).mockResolvedValue();
+  });
+
+  it("creates, edits, and archives a private stretch from catalog management", async () => {
+    const user = userEvent.setup();
+    renderScreen();
+    await screen.findByRole("checkbox", { name: "Lunge Stretch" });
+    await user.click(screen.getByRole("button", { name: "Manage stretches" }));
+    await user.click(screen.getByRole("button", { name: "Add custom stretch" }));
+    await user.type(screen.getByLabelText("Title"), "My stretch");
+    await user.click(screen.getByRole("button", { name: "Save stretch" }));
+    await waitFor(() => expect(createCustomStretch).toHaveBeenCalledWith({
+      phase: "lower-body",
+      name: "My stretch",
+      description: "",
+      dosage: "",
+      image: null,
+      remove_image: false,
+    }));
   });
 
   it("switches phases and saves a selected day's exercise check-off", async () => {

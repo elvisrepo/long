@@ -1,8 +1,13 @@
 """Stretching checklist API and personal-data lifecycle tests."""
 
 import json
+from io import BytesIO
+from pathlib import Path
 
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
+from PIL import Image
 from rest_framework.test import APIClient
 
 from apps.subscriptions.models import Subscription, SubscriptionPlan
@@ -34,6 +39,144 @@ def test_catalog_preferences_reject_unknown_hidden_exercises() -> None:
         format="json",
     )
     assert response.status_code == 400
+
+
+def test_user_can_create_a_private_custom_stretch() -> None:
+    client, _ = stretching_client()
+    other, _ = stretching_client("other-stretching@example.com")
+    response = client.post(
+        "/api/v1/stretching/exercises/",
+        {
+            "phase": "lower-body",
+            "name": "My hip opener",
+            "description": "A personal movement cue.",
+            "dosage": "30 seconds per side",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    exercise = response.json()
+    assert exercise["is_custom"] is True
+    assert exercise["name"] == "My hip opener"
+    assert exercise["description"] == "A personal movement cue."
+    assert exercise["image_url"] is None
+    assert exercise["is_visible"] is True
+    own_catalog = client.get("/api/v1/stretching/exercises/").json()
+    other_catalog = other.get("/api/v1/stretching/exercises/").json()
+    assert any(
+        item["id"] == exercise["id"]
+        for phase in own_catalog["phases"]
+        for item in phase["exercises"]
+    )
+    assert not any(
+        item["id"] == exercise["id"]
+        for phase in other_catalog["phases"]
+        for item in phase["exercises"]
+    )
+
+
+def test_multipart_custom_stretch_is_active_when_active_flag_is_omitted() -> None:
+    client, _ = stretching_client()
+    response = client.post(
+        "/api/v1/stretching/exercises/",
+        {
+            "phase": "lower-body",
+            "name": "Multipart hip opener",
+            "description": "A personal movement cue.",
+            "dosage": "30 seconds per side",
+        },
+        format="multipart",
+    )
+
+    assert response.status_code == 201
+    assert response.json()["is_active"] is True
+
+
+def test_custom_stretch_mutations_are_owner_scoped_and_archive_preserves_history() -> (
+    None
+):
+    client, _ = stretching_client()
+    other, _ = stretching_client("other-stretching@example.com")
+    created = client.post(
+        "/api/v1/stretching/exercises/",
+        {"phase": "upper-body", "name": "Desk release"},
+        format="json",
+    )
+    exercise_id = created.json()["id"]
+    detail_url = f"/api/v1/stretching/exercises/{exercise_id}/"
+
+    assert other.patch(detail_url, {"name": "Stolen"}, format="json").status_code == 404
+    assert other.delete(detail_url).status_code == 404
+    assert (
+        client.put(
+            f"/api/v1/stretching/entries/{exercise_id}/2026-10-13/", {}, format="json"
+        ).status_code
+        == 200
+    )
+    assert client.delete(detail_url).status_code == 204
+    assert (
+        client.get(
+            "/api/v1/stretching/entries/?date_from=2026-10-13&date_to=2026-10-13"
+        ).json()[0]["exercise_id"]
+        == exercise_id
+    )
+    assert (
+        client.put(
+            f"/api/v1/stretching/entries/{exercise_id}/2026-10-14/", {}, format="json"
+        ).status_code
+        == 404
+    )
+
+
+def test_custom_stretch_image_is_normalized_and_stored_outside_the_database(
+    tmp_path: Path,
+) -> None:
+    client, _ = stretching_client()
+    image_data = BytesIO()
+    Image.new("RGB", (96, 64), "teal").save(image_data, format="PNG")
+    image_data.seek(0)
+    uploaded = SimpleUploadedFile("stretch.png", image_data.read(), "image/png")
+
+    with override_settings(DEBUG=True, MEDIA_ROOT=tmp_path):
+        response = client.post(
+            "/api/v1/stretching/exercises/",
+            {
+                "phase": "lower-body",
+                "name": "Photo stretch",
+                "image": uploaded,
+            },
+            format="multipart",
+        )
+        assert response.status_code == 201
+        exercise = response.json()
+        assert exercise["image_url"].startswith("/media/stretching/")
+        from apps.stretching.models import StretchExercise
+
+        saved = StretchExercise.objects.get(pk=exercise["id"])
+        assert saved.image_key.endswith(".webp")
+        assert not saved.image_key.startswith("data:")
+
+
+def test_image_upload_requires_durable_storage_outside_debug(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, _ = stretching_client()
+    image_data = BytesIO()
+    Image.new("RGB", (16, 16), "teal").save(image_data, format="PNG")
+    monkeypatch.delenv("STRETCH_IMAGE_BUCKET", raising=False)
+    response = client.post(
+        "/api/v1/stretching/exercises/",
+        {
+            "phase": "lower-body",
+            "name": "Photo stretch",
+            "image": SimpleUploadedFile(
+                "stretch.png", image_data.getvalue(), "image/png"
+            ),
+        },
+        format="multipart",
+    )
+    assert response.status_code == 503
 
 
 def test_catalog_has_two_ordered_starter_phases() -> None:
@@ -173,6 +316,16 @@ def test_export_includes_checkoffs_and_account_delete_cascades() -> None:
     from apps.stretching.models import StretchEntry, StretchExercise
 
     client, user = stretching_client()
+    custom = client.post(
+        "/api/v1/stretching/exercises/",
+        {
+            "phase": "upper-body",
+            "name": "Private stretch",
+            "description": "A private cue.",
+        },
+        format="json",
+    )
+    assert custom.status_code == 201
     exercise = StretchExercise.objects.get(slug="lower-body-lunge-stretch")
     client.put(
         f"/api/v1/stretching/entries/{exercise.pk}/2026-10-09/", {}, format="json"
@@ -189,6 +342,7 @@ def test_export_includes_checkoffs_and_account_delete_cascades() -> None:
     assert data["stretching_entries"][0]["exercise__name"] == exercise.name
     assert data["stretching_entries"][0]["exercise__phase"] == exercise.phase
     assert data["stretching_preferences"][0]["show_shared_exercises"] is False
+    assert data["custom_stretch_exercises"][0]["name"] == "Private stretch"
     assert (
         client.delete(
             "/api/v1/me/", {"password": "account-password-123"}, format="json"
@@ -196,3 +350,4 @@ def test_export_includes_checkoffs_and_account_delete_cascades() -> None:
         == 204
     )
     assert not StretchEntry.objects.filter(user=user).exists()
+    assert not StretchExercise.objects.filter(user=user).exists()

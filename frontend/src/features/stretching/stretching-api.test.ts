@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { clearAccessToken, setAccessToken } from "../auth/auth-session";
 import {
+  createCustomStretch,
   getStretchEntries,
   getStretchPreferences,
   setStretchCheckoff,
@@ -80,5 +81,23 @@ describe("Stretching API", () => {
         body: JSON.stringify({ show_shared_exercises: true }),
       }),
     );
+  });
+
+  it("posts custom stretch fields as authenticated multipart form data", async () => {
+    await createCustomStretch({
+      phase: "upper-body",
+      name: "Desk release",
+      description: "A cue.",
+      dosage: "30 seconds",
+    });
+    const [path, options] = vi.mocked(fetch).mock.calls[0];
+    expect(path).toBe("/api/v1/stretching/exercises/");
+    expect(options?.method).toBe("POST");
+    expect(options?.headers).toEqual({ Authorization: "Bearer test-access" });
+    expect(options?.body).toBeInstanceOf(FormData);
+    const form = options?.body as FormData;
+    expect(form.get("phase")).toBe("upper-body");
+    expect(form.get("name")).toBe("Desk release");
+    expect(form.get("description")).toBe("A cue.");
   });
 });

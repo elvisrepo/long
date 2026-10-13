@@ -27,6 +27,37 @@
   Celery. Reconsider TimescaleDB only after a measured query need and a tested
   migration plan.
 
+## Optional Stretch Image Uploads — Not Yet Provisioned
+
+Custom stretch text works without object storage, but image upload is disabled
+until an operator provisions the following staging-only configuration:
+
+1. Create a dedicated private S3 bucket in `eu-central-1`; do not reuse the
+   frontend or PostgreSQL-backup buckets. Keep all S3 Block Public Access settings
+   enabled, Bucket owner enforced object ownership, and default SSE-S3 encryption.
+2. Add an inline policy to `syncvitals-staging-ec2-role` granting only
+   `s3:PutObject`, `s3:GetObject`, and `s3:DeleteObject` on
+   `arn:aws:s3:::<bucket-name>/stretching/*`. No `ListBucket`, ACL, public-read,
+   or bucket-administration permission is needed.
+3. Add `STRETCH_IMAGE_BUCKET=<bucket-name>` to the existing
+   `longevity/staging/backend-runtime` Secrets Manager JSON. The deploy runtime
+   allowlist treats this as optional, so existing staging secrets remain valid;
+   empty or absent disables image writes. Redeploy the API so the setting is
+   injected into the API and migration containers.
+4. In the host Nginx HTTPS site, set `client_max_body_size 3m;` in the API-facing
+   server/location and validate/reload Nginx. The application accepts image files
+   up to 2 MB; the additional request allowance covers multipart form overhead.
+5. Verify with a staging account: upload a JPEG/PNG/WebP, confirm it is converted
+   to 640×480 WebP, confirm the object is private under `stretching/<user-id>/`,
+   confirm the browser receives a short-lived presigned read URL, and verify edit,
+   archive, restore, and account deletion cleanup. Do not test by making the object
+   public.
+
+This target-state setup is not yet part of the verified current AWS diagram. After
+the operator provisions and verifies it, record the policy and runtime change in
+`knowledge/diagrams/current_aws/ec2-host-change-log.md` and update the next current
+Structurizr snapshot.
+
 This is a low-cost presentation environment, not a highly available production
 system. Losing the one EC2 host temporarily removes Nginx and Django; losing or
 corrupting its database volume risks data until a tested backup is restored.

@@ -12,7 +12,7 @@ from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from apps.metrics.models import MetricDefinition, MetricEntry
 from apps.diet.models import DietEntry, DietFood, DietSection
 from apps.recovery.models import RecoveryEntry, RecoveryTool
-from apps.stretching.models import StretchEntry, StretchPreferences
+from apps.stretching.models import StretchEntry, StretchExercise, StretchPreferences
 from apps.subscriptions.models import BillingCustomer, CheckoutAttempt, Subscription
 from apps.subscriptions.services import UnresolvedCheckoutError, cancel_account_billing
 from apps.users.models import User
@@ -222,6 +222,17 @@ def account_export(user: User) -> Iterator[str]:
             "exercise__phase",
             "performed_on",
             "created_at",
+        ),
+        "custom_stretch_exercises": StretchExercise.objects.filter(user=user)
+        .order_by("id")
+        .values(
+            "id",
+            "phase",
+            "name",
+            "description",
+            "dosage",
+            "is_active",
+            "image_key",
         ),
         "stretching_preferences": StretchPreferences.objects.filter(user=user).values(
             "show_shared_exercises"
