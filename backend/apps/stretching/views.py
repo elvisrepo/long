@@ -22,6 +22,7 @@ from .serializers import (
 )
 from .storage import (
     ImageStorageUnavailable,
+    discard_unreferenced_stretch_image,
     delete_stretch_image,
     open_stretch_image,
     save_stretch_image,
@@ -93,7 +94,7 @@ class StretchExercisesView(APIView):
                         raise serializers.ValidationError({"image": str(exc)}) from exc
         except Exception:
             if new_image_key:
-                delete_stretch_image(new_image_key)
+                discard_unreferenced_stretch_image(new_image_key)
             raise
         return Response(
             StretchExerciseSerializer(
@@ -160,7 +161,7 @@ class CustomStretchExerciseDetailView(APIView):
                         delete_stretch_image(old_image_key)
         except Exception:
             if new_image_key:
-                delete_stretch_image(new_image_key)
+                discard_unreferenced_stretch_image(new_image_key)
             raise
         return Response(
             StretchExerciseSerializer(

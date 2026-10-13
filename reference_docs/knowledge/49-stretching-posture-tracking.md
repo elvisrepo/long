@@ -38,11 +38,12 @@ uses Django media storage. Production image uploads return `503` until
 and object key metadata; deleting the account cascades custom rows and schedules
 their objects for deletion after the transaction commits.
 The object key is first written to the `StretchImageCleanup` transactional
-outbox, so an S3 outage does not lose the cleanup work. The operator can retry
-queued deletions from the backend container with
+outbox, so an S3 outage does not lose the cleanup work. Unreferenced uploads
+are deleted directly first, avoiding a database dependency during rollback
+cleanup. The operator can retry queued deletions from the backend container with
 `uv run python manage.py retry_stretch_image_cleanup`; failed keys remain
-queued and successful keys are removed. This retry is not automatically
-scheduled in staging yet.
+queued, never-attempted keys are prioritized over retries, and successful keys
+are removed. This retry is not automatically scheduled in staging yet.
 
 The AWS bucket, prefix-scoped EC2 role permissions, runtime secret setting, and
 Nginx upload limit are captured in the current verified staging snapshot,

@@ -175,3 +175,34 @@ def delete_stretch_image(key: str) -> None:
     # Don't remove an image if the database transaction that replaced or deleted
     # its reference rolls back. Failed external deletes remain in a retry table.
     transaction.on_commit(delete_after_commit)
+
+
+def discard_unreferenced_stretch_image(key: str) -> None:
+    """Best-effort cleanup for a new upload whose database write rolled back."""
+
+    try:
+        delete_stretch_image_object(key)
+        return
+    except ImageStorageUnavailable:
+        pass
+
+    from .models import StretchImageCleanup
+
+    attempted_at = timezone.now()
+    try:
+        cleanup, created = StretchImageCleanup.objects.get_or_create(
+            object_key=key,
+            defaults={"attempt_count": 1, "last_attempt_at": attempted_at},
+        )
+        if not created:
+            StretchImageCleanup.objects.filter(pk=cleanup.pk).update(
+                attempt_count=F("attempt_count") + 1,
+                last_attempt_at=attempted_at,
+            )
+    except DatabaseError as exc:
+        # Preserve the original request failure; if both S3 and PostgreSQL are
+        # unavailable there is no durable queue available for this orphan.
+        logger.critical(
+            "Unreferenced stretch image could not be deleted or queued (%s)",
+            type(exc).__name__,
+        )

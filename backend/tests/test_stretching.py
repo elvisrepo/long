@@ -8,7 +8,7 @@ from threading import Barrier, Event, Lock
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.db import connections, transaction
+from django.db import DatabaseError, connections, transaction
 from django.test import override_settings
 from PIL import Image
 from rest_framework.test import APIClient
@@ -288,6 +288,59 @@ def test_retry_command_keeps_failures_and_removes_successful_cleanup(
     assert not StretchImageCleanup.objects.filter(pk=cleanup.pk).exists()
 
 
+@pytest.mark.django_db(transaction=True)
+def test_retry_command_does_not_starve_newer_cleanup_entries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from django.core.management import call_command
+
+    from apps.stretching.models import StretchImageCleanup
+    from apps.stretching.storage import ImageStorageUnavailable
+
+    failing = StretchImageCleanup.objects.create(
+        object_key="stretching/user/exercise/failing.webp"
+    )
+    deletable = StretchImageCleanup.objects.create(
+        object_key="stretching/user/exercise/deletable.webp"
+    )
+
+    def fail_one_key(key: str) -> None:
+        if key == failing.object_key:
+            raise ImageStorageUnavailable("temporary outage")
+
+    monkeypatch.setattr(
+        "apps.stretching.management.commands.retry_stretch_image_cleanup.delete_stretch_image_object",
+        fail_one_key,
+    )
+    call_command("retry_stretch_image_cleanup", limit=1, stdout=StringIO())
+    call_command("retry_stretch_image_cleanup", limit=1, stdout=StringIO())
+
+    assert StretchImageCleanup.objects.filter(pk=failing.pk).exists()
+    assert not StretchImageCleanup.objects.filter(pk=deletable.pk).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_discard_unreferenced_image_tries_storage_before_database_queue(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from apps.stretching.models import StretchImageCleanup
+    from apps.stretching.storage import discard_unreferenced_stretch_image
+
+    deleted_keys: list[str] = []
+
+    def fail_queue(*_args: object, **_kwargs: object) -> None:
+        raise DatabaseError("database unavailable")
+
+    monkeypatch.setattr(
+        "apps.stretching.storage.delete_stretch_image_object", deleted_keys.append
+    )
+    monkeypatch.setattr(StretchImageCleanup.objects, "get_or_create", fail_queue)
+
+    discard_unreferenced_stretch_image("stretching/user/exercise/unreferenced.webp")
+
+    assert deleted_keys == ["stretching/user/exercise/unreferenced.webp"]
+
+
 def test_failed_image_replacement_does_not_save_other_stretch_edits(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -412,7 +465,8 @@ def test_create_cleans_uploaded_image_when_saving_its_key_fails(
         lambda *_args: "stretching/new.webp",
     )
     monkeypatch.setattr(
-        "apps.stretching.views.delete_stretch_image", deleted_keys.append
+        "apps.stretching.views.discard_unreferenced_stretch_image",
+        deleted_keys.append,
     )
     client.raise_request_exception = False
     image_data = BytesIO()

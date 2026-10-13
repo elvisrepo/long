@@ -3,6 +3,7 @@ from typing import Any
 from django.core.management.base import BaseCommand, CommandError
 from django.core.management.base import CommandParser
 from django.db import transaction
+from django.db.models import F
 from django.utils import timezone
 
 from apps.stretching.models import StretchImageCleanup
@@ -29,9 +30,9 @@ class Command(BaseCommand):
             raise CommandError("--limit must be at least 1.")
 
         cleanup_ids = list(
-            StretchImageCleanup.objects.order_by("queued_at", "id").values_list(
-                "id", flat=True
-            )[:limit]
+            StretchImageCleanup.objects.order_by(
+                F("last_attempt_at").asc(nulls_first=True), "queued_at", "id"
+            ).values_list("id", flat=True)[:limit]
         )
         deleted = 0
         failed = 0
