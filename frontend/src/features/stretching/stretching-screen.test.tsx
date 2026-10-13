@@ -118,17 +118,21 @@ describe("StretchingScreen", () => {
     renderScreen();
     await screen.findByRole("checkbox", { name: "Lunge Stretch" });
     await user.click(screen.getByRole("button", { name: "Manage stretches" }));
-    await user.click(screen.getByRole("button", { name: "Add custom stretch" }));
+    await user.click(
+      screen.getByRole("button", { name: "Add custom stretch" }),
+    );
     await user.type(screen.getByLabelText("Title"), "My stretch");
     await user.click(screen.getByRole("button", { name: "Save stretch" }));
-    await waitFor(() => expect(createCustomStretch).toHaveBeenCalledWith({
-      phase: "lower-body",
-      name: "My stretch",
-      description: "",
-      dosage: "",
-      image: null,
-      remove_image: false,
-    }));
+    await waitFor(() =>
+      expect(createCustomStretch).toHaveBeenCalledWith({
+        phase: "lower-body",
+        name: "My stretch",
+        description: "",
+        dosage: "",
+        image: null,
+        remove_image: false,
+      }),
+    );
   });
 
   it("switches phases and saves a selected day's exercise check-off", async () => {

@@ -99,11 +99,11 @@ export function StretchingScreen() {
     }): Promise<void> => {
       if (active) {
         await updateCustomStretch(exercise.id, {
-            phase: exercise.phase,
-            name: exercise.name,
-            description: exercise.description,
-            dosage: exercise.dosage,
-            is_active: true,
+          phase: exercise.phase,
+          name: exercise.name,
+          description: exercise.description,
+          dosage: exercise.dosage,
+          is_active: true,
         });
       } else {
         await archiveCustomStretch(exercise.id);
@@ -191,7 +191,9 @@ export function StretchingScreen() {
         {phases.map((phase) => {
           const count = phase.exercises.filter(
             (exercise) =>
-              exercise.is_active && exercise.is_visible && checkedIds.has(exercise.id),
+              exercise.is_active &&
+              exercise.is_visible &&
+              checkedIds.has(exercise.id),
           ).length;
           const visibleCount = phase.exercises.filter(
             (exercise) => exercise.is_active && exercise.is_visible,
@@ -393,7 +395,7 @@ export function StretchingScreen() {
                 )),
             )}
             {!phases.some((phase) =>
-              phase.exercises.some((exercise) => exercise.is_custom)
+              phase.exercises.some((exercise) => exercise.is_custom),
             ) && <p>No custom stretches yet.</p>}
           </div>
           {changeExerciseState.isError && (
@@ -423,20 +425,23 @@ export function StretchingScreen() {
                 {phase.exercises
                   .filter((exercise) => !exercise.is_custom)
                   .map((exercise) => {
-                  const hidden = hiddenExerciseIds.includes(exercise.id);
-                  return (
-                    <div className="stretching-catalog-item" key={exercise.id}>
-                      <span>{exercise.name}</span>
-                      <button
-                        type="button"
-                        disabled={savePreferences.isPending}
-                        onClick={() => toggleExerciseVisibility(exercise.id)}
-                        aria-label={`${hidden ? "Show" : "Hide"} ${exercise.name}`}
+                    const hidden = hiddenExerciseIds.includes(exercise.id);
+                    return (
+                      <div
+                        className="stretching-catalog-item"
+                        key={exercise.id}
                       >
-                        {hidden ? "Show" : "Hide"}
-                      </button>
-                    </div>
-                  );
+                        <span>{exercise.name}</span>
+                        <button
+                          type="button"
+                          disabled={savePreferences.isPending}
+                          onClick={() => toggleExerciseVisibility(exercise.id)}
+                          aria-label={`${hidden ? "Show" : "Hide"} ${exercise.name}`}
+                        >
+                          {hidden ? "Show" : "Hide"}
+                        </button>
+                      </div>
+                    );
                   })}
               </section>
             ))}

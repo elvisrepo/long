@@ -1,10 +1,7 @@
 import { useState, type FormEvent } from "react";
 
 import { Modal } from "../../components/modal";
-import type {
-  StretchExercise,
-  StretchExerciseInput,
-} from "./stretching-api";
+import type { StretchExercise, StretchExerciseInput } from "./stretching-api";
 
 type Props = {
   exercise?: StretchExercise;

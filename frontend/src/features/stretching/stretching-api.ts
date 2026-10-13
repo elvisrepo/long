@@ -43,7 +43,9 @@ async function request<T>(
     method,
     headers: {
       Authorization: `Bearer ${token}`,
-      ...(body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+      ...(body instanceof FormData
+        ? {}
+        : { "Content-Type": "application/json" }),
     },
     ...(body === undefined
       ? {}
@@ -85,11 +87,14 @@ function exerciseBody(input: StretchExerciseInput): FormData {
   data.set("dosage", input.dosage);
   if (input.image) data.set("image", input.image);
   if (input.remove_image) data.set("remove_image", "true");
-  if (input.is_active !== undefined) data.set("is_active", String(input.is_active));
+  if (input.is_active !== undefined)
+    data.set("is_active", String(input.is_active));
   return data;
 }
 
-export function createCustomStretch(input: StretchExerciseInput): Promise<StretchExercise> {
+export function createCustomStretch(
+  input: StretchExerciseInput,
+): Promise<StretchExercise> {
   return request("exercises/", "POST", exerciseBody(input));
 }
 
@@ -97,7 +102,11 @@ export function updateCustomStretch(
   id: string,
   input: StretchExerciseInput,
 ): Promise<StretchExercise> {
-  return request(`exercises/${encodeURIComponent(id)}/`, "PATCH", exerciseBody(input));
+  return request(
+    `exercises/${encodeURIComponent(id)}/`,
+    "PATCH",
+    exerciseBody(input),
+  );
 }
 
 export function archiveCustomStretch(id: string): Promise<void> {
