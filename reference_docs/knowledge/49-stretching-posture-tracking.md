@@ -37,6 +37,19 @@ uses Django media storage. Production image uploads return `503` until
 `STRETCH_IMAGE_BUCKET` is configured. Account export includes custom stretch text
 and object key metadata; deleting the account cascades custom rows and schedules
 their objects for deletion after the transaction commits.
+The object key is first written to the `StretchImageCleanup` transactional
+outbox, so an S3 outage does not lose the cleanup work. Unreferenced uploads
+are deleted directly first, avoiding a database dependency during rollback
+cleanup. The operator can retry queued deletions from the backend container with
+`uv run python manage.py retry_stretch_image_cleanup`; failed keys remain
+queued, never-attempted keys are prioritized over retries, and successful keys
+are removed. This retry is not automatically scheduled in staging yet.
+
+The AWS bucket, prefix-scoped EC2 role permissions, runtime secret setting, and
+Nginx upload limit are captured in the current verified staging snapshot,
+[`v019-stretch-image-storage-configured.dsl`](diagrams/current_aws/v019-stretch-image-storage-configured.dsl).
+The API-to-S3 request path remains unverified until the application release is
+deployed and exercised on staging.
 
 Shared and user-owned catalog records live in `StretchExercise`; personal daily
 check-offs live in `StretchEntry`, unique by user, exercise, and date. Per-user

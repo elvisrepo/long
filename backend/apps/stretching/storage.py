@@ -13,7 +13,9 @@ from botocore.exceptions import BotoCoreError, ClientError
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.db import transaction
+from django.db import DatabaseError, transaction
+from django.db.models import F
+from django.utils import timezone
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 logger = logging.getLogger(__name__)
@@ -53,6 +55,8 @@ def _normalized_image(upload: BinaryIO) -> bytes:
             output = io.BytesIO()
             canvas.save(output, format="WEBP", quality=82, method=6)
             return output.getvalue()
+    except Image.DecompressionBombError as exc:
+        raise ValueError("Image dimensions are too large.") from exc
     except (UnidentifiedImageError, OSError) as exc:
         raise ValueError("Upload a valid JPEG, PNG, or WebP image.") from exc
 
@@ -114,24 +118,91 @@ def open_stretch_image(key: str) -> BinaryIO:
         )["Body"]
     except (BotoCoreError, ClientError) as exc:
         logger.warning("Stretch image read failed (%s)", type(exc).__name__)
+        raise ImageStorageUnavailable("Image could not be read. Please retry.") from exc
+
+
+def delete_stretch_image_object(key: str) -> None:
+    """Delete one object now, raising a safe error so cleanup can be retried."""
+
+    bucket = os.environ.get("STRETCH_IMAGE_BUCKET", "").strip()
+    try:
+        if bucket:
+            _s3_client(os.environ.get("AWS_REGION", "eu-central-1")).delete_object(
+                Bucket=bucket, Key=key
+            )
+        else:
+            default_storage.delete(key)
+    except (BotoCoreError, ClientError, OSError) as exc:
+        logger.warning("Stretch image cleanup failed (%s)", type(exc).__name__)
         raise ImageStorageUnavailable(
-            "Image could not be read. Please retry."
+            "Image cleanup failed and is queued for retry."
         ) from exc
 
 
 def delete_stretch_image(key: str) -> None:
-    def delete() -> None:
-        bucket = os.environ.get("STRETCH_IMAGE_BUCKET", "").strip()
+    from .models import StretchImageCleanup
+
+    # Persist the key in the caller's transaction before the exercise reference
+    # is replaced or deleted. A rollback then preserves both the image and its
+    # reference, while a commit leaves a durable retry record if S3 is down.
+    cleanup, _ = StretchImageCleanup.objects.get_or_create(object_key=key)
+
+    def delete_after_commit() -> None:
         try:
-            if bucket:
-                _s3_client(os.environ.get("AWS_REGION", "eu-central-1")).delete_object(
-                    Bucket=bucket, Key=key
+            delete_stretch_image_object(key)
+        except ImageStorageUnavailable:
+            try:
+                StretchImageCleanup.objects.filter(pk=cleanup.pk).update(
+                    attempt_count=F("attempt_count") + 1,
+                    last_attempt_at=timezone.now(),
                 )
-            else:
-                default_storage.delete(key)
-        except (BotoCoreError, ClientError, OSError) as exc:
-            logger.warning("Stretch image cleanup failed (%s)", type(exc).__name__)
+            except DatabaseError as exc:
+                logger.error(
+                    "Stretch image retry metadata update failed (%s)",
+                    type(exc).__name__,
+                )
+            return
+        try:
+            StretchImageCleanup.objects.filter(pk=cleanup.pk).delete()
+        except DatabaseError as exc:
+            # DeleteObject is idempotent, so a later retry can safely remove
+            # both the already-absent object and its lingering outbox row.
+            logger.error(
+                "Stretch image retry record removal failed (%s)",
+                type(exc).__name__,
+            )
 
     # Don't remove an image if the database transaction that replaced or deleted
-    # its reference rolls back.
-    transaction.on_commit(delete)
+    # its reference rolls back. Failed external deletes remain in a retry table.
+    transaction.on_commit(delete_after_commit)
+
+
+def discard_unreferenced_stretch_image(key: str) -> None:
+    """Best-effort cleanup for a new upload whose database write rolled back."""
+
+    try:
+        delete_stretch_image_object(key)
+        return
+    except ImageStorageUnavailable:
+        pass
+
+    from .models import StretchImageCleanup
+
+    attempted_at = timezone.now()
+    try:
+        cleanup, created = StretchImageCleanup.objects.get_or_create(
+            object_key=key,
+            defaults={"attempt_count": 1, "last_attempt_at": attempted_at},
+        )
+        if not created:
+            StretchImageCleanup.objects.filter(pk=cleanup.pk).update(
+                attempt_count=F("attempt_count") + 1,
+                last_attempt_at=attempted_at,
+            )
+    except DatabaseError as exc:
+        # Preserve the original request failure; if both S3 and PostgreSQL are
+        # unavailable there is no durable queue available for this orphan.
+        logger.critical(
+            "Unreferenced stretch image could not be deleted or queued (%s)",
+            type(exc).__name__,
+        )

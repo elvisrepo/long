@@ -38,6 +38,16 @@ class StretchExercise(models.Model):
         ]
 
 
+class StretchImageCleanup(models.Model):
+    object_key = models.CharField(max_length=500, unique=True)
+    queued_at = models.DateTimeField(auto_now_add=True)
+    attempt_count = models.PositiveIntegerField(default=0)
+    last_attempt_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["queued_at", "id"]
+
+
 class StretchPreferences(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,

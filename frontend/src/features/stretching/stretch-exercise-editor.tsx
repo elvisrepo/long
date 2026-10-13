@@ -46,6 +46,7 @@ export function StretchExerciseEditor({
     <Modal
       labelledBy="stretch-editor-title"
       onClose={onClose}
+      busy={pending}
       closeOnBackdrop={!pending}
       className="stretching-catalog-dialog"
     >

@@ -1,3 +1,4 @@
+from hashlib import sha256
 from typing import Any
 from uuid import UUID
 
@@ -43,9 +44,11 @@ class StretchExerciseSerializer(serializers.ModelSerializer):
     def get_image_url(self, exercise: StretchExercise) -> str | None:
         if not exercise.image_key:
             return None
-        return reverse(
+        image_url = reverse(
             "stretch-exercise-image", kwargs={"exercise_id": exercise.pk}
         )
+        version = sha256(exercise.image_key.encode("utf-8")).hexdigest()[:12]
+        return f"{image_url}?v={version}"
 
 
 class CustomStretchExerciseSerializer(serializers.ModelSerializer):
