@@ -6,8 +6,7 @@ import {
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 
 import { PageHeader } from "../components/page-header";
 import { ThemeToggle } from "../components/theme-toggle";
@@ -18,6 +17,14 @@ import { getDocumentTitle } from "../utils/document-title";
 interface RouterContext {
   queryClient: QueryClient;
 }
+
+const RouterDevtools = import.meta.env.DEV
+  ? lazy(() =>
+      import("@tanstack/react-router-devtools").then(({ TanStackRouterDevtools }) => ({
+        default: TanStackRouterDevtools,
+      })),
+    )
+  : null;
 
 function RootLayout() {
   const location = useRouterState({ select: (state) => state.location });
@@ -53,7 +60,11 @@ function RootLayout() {
       <main className={isPublicAuthRoute ? "app-main auth-main" : "app-main"}>
         <Outlet />
       </main>
-      <TanStackRouterDevtools />
+      {RouterDevtools ? (
+        <Suspense fallback={null}>
+          <RouterDevtools />
+        </Suspense>
+      ) : null}
     </div>
   );
 }
