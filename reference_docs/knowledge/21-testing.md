@@ -1,5 +1,24 @@
 ## 6. Testing
 
+### Personal info and estimated BMR — 2026-10-16
+
+- `test_personal_info.py` covers authenticated encrypted profile roundtrip,
+  partial edits/clearing, atomic validation, field ownership, reference male/female
+  Mifflin–St Jeor results, completed birthday age, latest owned nonfuture system kg
+  weight, custom/other-user exclusion, weight corrections/deletion, missing inputs,
+  under-18 handling and account export. Existing account lifecycle tests retain
+  deletion and credential exclusion checks with the additive profile export.
+- Profile frontend tests cover API authorization/validation-safe errors, explicit
+  saves, clearing and estimate cache refresh, retry and preservation of a failed
+  save's draft. Dashboard tests verify the separate derived card, formula, Settings
+  link and absence of an entry-add control; Settings/metric mutation regressions
+  verify existing flows. Profile reads poll every minute while active for phone
+  weight syncs; entry create/update/delete invalidate the profile query.
+- Run the focused profile/account suites, then relevant metric/auth frontend and
+  backend tests, lint/type checks and the frontend build. Use the isolated E2E
+  runtime for browser checks; never seed made-up personal details into a real
+  user's profile.
+
 ### Stretch catalog visibility preferences — 2026-10-13
 
 - Backend tests cover default visibility, account-private hide-all and

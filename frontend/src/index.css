@@ -573,6 +573,38 @@ button {
   gap: 18px;
 }
 
+.personal-info-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: 16px;
+  border: 0;
+  padding: 0;
+  margin: 0 0 12px;
+  min-width: 0;
+}
+
+.personal-info-fields label {
+  display: grid;
+  gap: var(--field-gap);
+  min-width: 0;
+  align-content: start;
+  font-size: var(--label-font-size);
+}
+
+.personal-info-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--action-gap);
+}
+
+.personal-info-estimate {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
 .settings-header {
   display: flex;
   align-items: end;

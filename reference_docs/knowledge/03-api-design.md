@@ -528,10 +528,47 @@ Refresh concurrency behavior:
 #### User & Profile (JWT required)
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
-| GET | `/api/auth/me/` | Current user email | Implemented; the previously planned `GET /api/v1/me/` is not mounted |
-| PATCH | `/api/v1/me/` | Update profile (partial) | Planned, not implemented |
+| GET | `/api/auth/me/` | Current user email | Implemented; unchanged authentication bootstrap contract |
+| GET | `/api/v1/me/` | Personal info and current estimated BMR | Implemented locally; owner-only, every plan, `Cache-Control: no-store` |
+| PATCH | `/api/v1/me/` | Update personal info (partial) | Implemented locally; optional nullable `date_of_birth`, `sex`, `height_cm`; returns the same representation as GET |
 | GET | `/api/v1/me/export/` | Account-wide app data export | Implemented locally; streams a `200` JSON attachment on every plan, not an asynchronous job |
 | DELETE | `/api/v1/me/` | Delete account and live app data | Implemented locally; confirms immediate Stripe cancellation first; requires current password; returns `204` and invalidates sessions |
+
+Personal info and estimated BMR (2026-10-16, local):
+- GET/PATCH return `{date_of_birth,sex,height_cm,age,estimated_bmr}`. Date of birth
+  is an ISO date, nonfuture and within 120 calendar years; sex is `male`, `female`
+  or null (the formula coefficient, optional); height is finite centimetres from
+  50 through 250. Unknown input fields reject with `400`; nullable fields can be
+  cleared individually. PATCH merges omitted fields under the account row lock
+  used by deletion. Reads do not persist defaults or calculated entries.
+- `age` is completed years on the server's current UTC date. `estimated_bmr`
+  contains `{value,unit:"kcal/day",formula:"mifflin_st_jeor",missing_fields,reason,weight}`.
+  `weight` is null or `{value,recorded_at,source,entry_id}` from the latest
+  caller-owned active system `body_weight` definition in kg, ordered by
+  `recorded_at DESC,id DESC`, excluding future readings and custom definitions.
+- The whole-kcal estimate is `10*kg + 6.25*cm - 5*age + coefficient`, with +5 for
+  male and -161 for female; no activity multiplier. Missing inputs return null
+  with `reason:"missing_information"` and required field names (including
+  `body_weight`). Fully supplied profiles under 18 return `adult_only`;
+  nonfinite/out-of-range weight (20–400 kg) returns `invalid_weight`
+  (nonfinite supporting weights are omitted to preserve valid JSON). Nonpositive
+  results return `invalid_inputs`. Otherwise reason is null and missing fields []
+  (Python's nearest-integer rounding). The original study included ages 19–78;
+  this feature estimates adult resting energy, not measured BMR or a calorie goal.
+  Formula source: [Mifflin et al., 1990](https://pubmed.ncbi.nlm.nih.gov/2305711/).
+- Settings → Personal info saves/clears details and displays the estimate.
+  Dashboard includes a separate Estimated BMR card, with formula and supporting
+  weight date/source. The estimate recalculates on read after profile/weight
+  changes or birthdays; frontend entry mutations invalidate its query and an
+  active page refreshes it every minute for phone syncs. No stale-weight cutoff
+  is imposed; the weight date remains visible. Missing data links to Settings
+  and Body Weight. It creates no MetricEntry rows, does not affect Total Calories
+  Burned, and does not write to Health Connect.
+- All three fields are stored together as encrypted JSON in
+  `User.personal_info_encrypted` using the existing Fernet PII key. Account JSON
+  export adds plaintext `profile.personal_info` with the three nullable fields,
+  excluding ciphertext; deletion removes them with the user. Migration
+  `users.0004_user_personal_info_encrypted` is additive, with empty existing profiles.
 
 Account lifecycle checkpoint — 2026-09-30 (local, not deployed):
 - Settings offers **Download account data** independently of the Pro CSV export.

@@ -1,5 +1,18 @@
 #### Security (OWASP Top 10 addressed)
 
+Personal info and estimated BMR (2026-10-16): authenticated owner-only GET/PATCH
+at `/api/v1/me/` is available on all plans, with successful responses marked
+`Cache-Control: no-store`. Birth date, formula sex and height are encrypted as a
+single JSON payload using the existing Fernet PII key, without searchable copies.
+Inputs are optional/clearable, bounded and reject unknown fields; updates merge
+under the user-row lock shared with deletion. Estimates select only that user's
+nonfuture system kg weight. Account export explicitly includes the decoded fields
+and excludes ciphertext; account deletion removes the profile. Query data follows
+the existing private-cache clearing on logout/deletion. Estimates are derived at
+read time, carry formula/weight provenance, create no imported records and are
+never written to Health Connect. They describe adult resting energy, without
+activity multipliers or dietary recommendations.
+
 ## Stretching & posture check-offs — 2026-10-09
 
 Stretching check-offs (2026-10-09) use JWT identity only: users cannot submit an

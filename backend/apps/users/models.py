@@ -117,6 +117,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     email_lookup_hash: str = models.CharField(max_length=64, unique=True, editable=False)
     is_active: bool = models.BooleanField(default=True)
     is_staff: bool = models.BooleanField(default=False)
+    personal_info_encrypted = models.TextField(default="", blank=True, editable=False)
     sleep_target_minutes: int = models.PositiveSmallIntegerField(
         default=450,
         validators=[MinValueValidator(60), MaxValueValidator(1439)],

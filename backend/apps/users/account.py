@@ -16,6 +16,7 @@ from apps.stretching.models import StretchEntry, StretchExercise, StretchPrefere
 from apps.subscriptions.models import BillingCustomer, CheckoutAttempt, Subscription
 from apps.subscriptions.services import UnresolvedCheckoutError, cancel_account_billing
 from apps.users.models import User
+from apps.users.personal_info import personal_info
 from apps.wearables.models import SyncRun, WearableConnection
 from apps.workouts.models import (
     Exercise,
@@ -56,6 +57,7 @@ def account_export(user: User) -> Iterator[str]:
             "id": user.pk,
             "email": user.email,
             "sleep_target_minutes": user.sleep_target_minutes,
+            "personal_info": personal_info(user),
             "last_login": user.last_login,
         },
     }

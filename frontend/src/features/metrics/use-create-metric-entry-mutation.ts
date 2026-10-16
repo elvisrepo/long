@@ -11,6 +11,7 @@ export function useCreateMetricEntryMutation() {
   return useMutation<MetricEntry, Error, CreateMetricEntryInput>({
     mutationFn: (input) => createMetricEntry(input),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["personal-info"] });
       queryClient.invalidateQueries({ queryKey: ["metric-entries"] });
       queryClient.invalidateQueries({ queryKey: ["consistency-analytics"] });
     },

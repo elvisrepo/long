@@ -7,6 +7,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load";
 import { DashboardMetricCard } from "../features/metrics/dashboard-metric-card";
+import { EstimatedBmrCard } from "../features/profile/estimated-bmr-card";
 import {
   formatMetricEntryRecordedAt,
   formatMetricEntrySource,
@@ -94,12 +95,19 @@ function DashboardRoute() {
     if (rightIndex < 0) return -1;
     return leftIndex - rightIndex;
   });
+  const orderedCards = [
+    ...orderedDefinitions.map((definition) => ({
+      key: definition.id,
+      definition,
+    })),
+    { key: "estimated-bmr", definition: null },
+  ];
   const metricPages = Array.from(
     {
-      length: Math.ceil(orderedDefinitions.length / DASHBOARD_METRICS_PER_PAGE),
+      length: Math.ceil(orderedCards.length / DASHBOARD_METRICS_PER_PAGE),
     },
     (_, index) =>
-      orderedDefinitions.slice(
+      orderedCards.slice(
         index * DASHBOARD_METRICS_PER_PAGE,
         (index + 1) * DASHBOARD_METRICS_PER_PAGE,
       ),
@@ -157,26 +165,30 @@ function DashboardRoute() {
         >
           {metricPages.map((page, pageIndex) => (
             <div
-              key={page[0].id}
+              key={page[0].key}
               className="dashboard-metric-page"
               role="group"
               aria-label={`Metrics page ${pageIndex + 1} of ${metricPages.length}`}
             >
-              {page.map((definition) => (
-                <DashboardMetricCard
-                  key={definition.id}
-                  category={definition.category}
-                  onAddEntry={() => setEntryDefinition(definition)}
-                  latestEntry={latestEntriesByMetric.get(definition.slug)}
-                  name={definition.name}
-                  slug={definition.slug}
-                  unit={definition.unit}
-                  trendValues={getMetricTrendValues(
-                    cardMetricEntries,
-                    definition.slug,
-                  )}
-                />
-              ))}
+              {page.map(({ key, definition }) =>
+                definition ? (
+                  <DashboardMetricCard
+                    key={definition.id}
+                    category={definition.category}
+                    onAddEntry={() => setEntryDefinition(definition)}
+                    latestEntry={latestEntriesByMetric.get(definition.slug)}
+                    name={definition.name}
+                    slug={definition.slug}
+                    unit={definition.unit}
+                    trendValues={getMetricTrendValues(
+                      cardMetricEntries,
+                      definition.slug,
+                    )}
+                  />
+                ) : (
+                  <EstimatedBmrCard key={key} />
+                ),
+              )}
             </div>
           ))}
         </div>

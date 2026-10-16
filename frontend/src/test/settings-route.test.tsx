@@ -49,6 +49,10 @@ import {
 } from "../features/subscriptions/subscriptions-api";
 import { renderRoute } from "./render-route";
 
+vi.mock("../features/profile/use-personal-info-query", () => ({
+  usePersonalInfoQuery: () => ({ isPending: true, isError: false }),
+}));
+
 vi.mock("../features/metrics/metric-entry-export-api", () => ({
   downloadMetricEntriesCsv: vi.fn(),
 }));
