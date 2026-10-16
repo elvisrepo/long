@@ -19,6 +19,15 @@ describe("sleep duration formatting", () => {
   });
 });
 
+describe("activity metric formatting", () => {
+  it("preserves metre-scale distance and fractional active calories", () => {
+    expect(formatMetricValueWithUnit(0.491, "distance", "km")).toBe("0.491 km");
+    expect(
+      formatMetricValueWithUnit(0.3, "total_calories_burned", "kcal"),
+    ).toBe("0.3 kcal");
+  });
+});
+
 describe("chart axis tick formatting", () => {
   it("trims binary float noise for custom metrics without changing integers", () => {
     expect(

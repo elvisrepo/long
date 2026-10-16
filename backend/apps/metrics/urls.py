@@ -4,6 +4,8 @@ from apps.metrics.views import (
     ConsistencyAnalyticsView,
     DailyHrvSummaryView,
     DailyStepsSummaryView,
+    DailyDistanceSummaryView,
+    DailyTotalCaloriesSummaryView,
     MetricDefinitionDetailView,
     MetricDefinitionListView,
     MetricEntryCsvExportView,
@@ -17,6 +19,16 @@ from apps.metrics.views import (
 
 
 urlpatterns = [
+      path(
+          "entries/daily-total-calories/",
+          DailyTotalCaloriesSummaryView.as_view(),
+          name="daily-total-calories-summaries",
+      ),
+      path(
+          "entries/daily-distance/",
+          DailyDistanceSummaryView.as_view(),
+          name="daily-distance-summaries",
+      ),
       path(
           "analytics/consistency/",
           ConsistencyAnalyticsView.as_view(),

@@ -32,6 +32,14 @@ class WearableRecordConflictError(WearableIngestionConflictError):
     """A provider record ID already represents different normalized data."""
 
 
+def _entry_context(entry: Mapping[str, Any]) -> dict[str, Any]:
+    if entry.get("aggregation") == "health_connect":
+        return {"aggregation": "health_connect", "has_data": entry["has_data"]}
+    if entry.get("source_package_name"):
+        return {"source_package_name": entry["source_package_name"]}
+    return {}
+
+
 def _matches_normalized_entry(
     existing_entry: MetricEntry,
     incoming_entry: Mapping[str, Any],
@@ -50,6 +58,7 @@ def _matches_normalized_entry(
         and existing_entry.recorded_at
         == cast(datetime, incoming_entry["recorded_at"])
         and existing_entry.source == str(incoming_entry["source"])
+        and existing_entry.context == _entry_context(incoming_entry)
     )
 
 
@@ -83,6 +92,9 @@ def _has_same_source_record_kind(
     return (
         existing_entry.metric_definition_id == definition.id
         and existing_entry.source == str(incoming_entry["source"])
+        and existing_entry.context.get("source_package_name")
+        == incoming_entry.get("source_package_name")
+        and existing_entry.context.get("aggregation") == incoming_entry.get("aggregation")
     )
 
 
@@ -180,6 +192,7 @@ def process_wearable_upload(
                     datetime,
                     entry["recorded_at"],
                 )
+                existing_entry.context = _entry_context(entry)
                 existing_entry.source_record_modified_at = cast(
                     datetime,
                     entry["source_record_modified_at"],
@@ -190,6 +203,7 @@ def process_wearable_upload(
                         "period_start",
                         "recorded_at",
                         "source_record_modified_at",
+                        "context",
                     ),
                 )
                 entries_updated += 1
@@ -212,6 +226,7 @@ def process_wearable_upload(
             period_start=cast(datetime | None, entry.get("period_start")),
             recorded_at=entry["recorded_at"],
             source=str(entry["source"]),
+            context=_entry_context(entry),
             source_connection=locked_connection,
             external_source_id=external_source_id,
             source_record_modified_at=cast(

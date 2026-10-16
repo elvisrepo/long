@@ -963,7 +963,7 @@ Current implementation status:
 - `GET /api/v1/metrics/entries/daily-hrv/` returns authenticated caller-owned HRV as one median value per local calendar date, using the same one-source-per-day precedence, active-default-definition boundary, input validation, and whole-local-date filter semantics. Each result includes its `local_date`. The endpoint uses PostgreSQL `PERCENTILE_CONT(0.5)`, caps the positive `limit` at 366 days, and leaves raw samples unchanged for provenance, provider corrections, and export.
 - `MetricEntry` has nullable `source_connection`, `period_start`, and `source_record_modified_at` fields. Instantaneous metrics leave `period_start` null; interval metrics use `recorded_at` as the interval end. PostgreSQL requires a non-null period start to precede `recorded_at` and enforces at most one non-null `(source_connection, external_source_id)` pair. The ingestion service skips identical records, updates mutable content only when the provider timestamp is newer, permits one timestamped upgrade of a legacy null-version row, and rejects stale or inconsistent versions.
 - Metric history exposes each entry's trusted `source`. The web UI labels imported rows by source and withholds manual Edit/Delete controls; the backend independently rejects direct mutation attempts with `409`.
-- `WearableUploadEntrySerializer` is the live nested-entry boundary. It accepts active system `body_weight`, `steps`, `sleep_duration`, `resting_hr`, and `hrv` definitions, enforces each configured value range, rejects non-finite numbers, parses record and optional provider-modification timestamps, accepts Fitbit and legacy Samsung Health provenance, and requires a nonblank external source ID. Steps and Sleep require `period_start < recorded_at`; instantaneous Weight, resting heart rate, and HRV reject a supplied period start. Current Android uploads always send Health Connect's `metadata.lastModifiedTime` as `source_record_modified_at`; omission remains accepted for backward compatibility but cannot authorize changed content.
+- `WearableUploadEntrySerializer` is the live nested-entry boundary. It accepts active system `body_weight`, `steps`, `sleep_duration`, `resting_hr`, `hrv`, `distance`, and `total_calories_burned` definitions, enforces each configured value range, rejects non-finite numbers, parses record and optional provider-modification timestamps, accepts Fitbit, legacy Samsung Health, and generic Health Connect provenance, and requires a nonblank external source ID. Steps, Sleep, Distance, and Total Calories Burned require `period_start < recorded_at`; instantaneous Weight, resting heart rate, and HRV reject a supplied period start. Current Android uploads always send Health Connect's `metadata.lastModifiedTime` as `source_record_modified_at`; omission remains accepted for backward compatibility but cannot authorize changed content.
 - `WearableUploadBatchSerializer` is the live request boundary. It composes `connection_id`, `upload_id`, and a required list of `1–100` normalized entries, rejects undeclared fields at both levels, and rejects repeated `external_source_id` values within one batch.
 - The server-side canonical payload-hash helper fingerprints validated entries with schema version `1`, stable external-record ordering, UTC timestamps, and SHA-256. The live ingestion service uses it to reuse exact retries and reject conflicting upload identity reuse.
 - Connection-state mutations will belong to trusted ingestion/resync services rather than a generic client `PATCH` endpoint.
@@ -976,6 +976,8 @@ Current implementation status:
 | GET | `/api/v1/wearables/connections/{id}/status/` | Fetch sync state for one connection | Implemented; JWT required and owner-scoped; includes `provider`, `status`, `last_synced_at`, and `last_error`; unowned or unknown UUIDs return `404` |
 | POST | `/api/v1/wearables/uploads/` | Process a normalized wearable batch | Implemented synchronously; JWT required; accepts `connection_id`, `upload_id`, and `1–100` entries; validates active caller ownership; returns terminal counters with `201` for new work, `200` for an exact retry, `409` for upload/record conflicts, and `400` for invalid input |
 | GET | `/api/v1/metrics/entries/daily-steps/` | Read daily Steps totals | JWT required; selects one preferred source per requested local date, sums its caller-owned intervals, supports `from`, `to`, and `limit`, and preserves raw rows |
+| GET | `/api/v1/metrics/entries/daily-distance/` | Read daily Distance totals | JWT required; caller-owned Health Connect platform totals; kilometres |
+| GET | `/api/v1/metrics/entries/daily-total-calories/` | Read daily Total Calories totals | JWT required; caller-owned Health Connect platform totals; kilocalories including resting expenditure |
 | GET | `/api/v1/metrics/entries/daily-hrv/` | Read daily HRV medians | JWT required; selects one preferred source per requested local date, calculates its caller-owned median, supports `from`, `to`, and `limit`, and preserves raw rows |
 | DELETE | `/api/v1/wearables/connections/{id}/` | Disconnect provider | Implemented; JWT required; caller-owned active rows return `204` and become inactive; unknown, unowned, or already-inactive rows return `404`; repeated calls remain state-idempotent |
 | POST | `/api/v1/wearables/connections/{id}/resync/` | Request replay / resync from the client | Returns 202 Accepted — backend records replay intent and the Android client performs the upload |
@@ -1083,3 +1085,87 @@ Content-Type: application/json
 ws://host/ws/metrics/stream/
 ```
 Not REST — persistent WebSocket connection. Ticket-based auth (short-lived token from REST endpoint, included in WS handshake). Used for live dashboard updates when new manual or wearable data lands; not for direct device-to-server streaming in MVP.
+
+
+### Activity metrics and Health Connect totals (2026-10-16)
+
+Shared activity definitions are `distance` in kilometres (`km`) and `total_calories_burned` in
+kilocalories. Total energy includes resting expenditure; active energy does not.
+Both accept nonnegative finite values up to 1,000,000 per entry. Every user
+sees these definitions even without readings; custom metrics remain supported.
+
+Android reads raw Distance and TotalCaloriesBurned records
+from all writer apps and preserves their IDs, intervals, package identities and
+provider modification timestamps. These raw uploads use `source="health_connect"`
+and a validated `source_package_name` of at most 255 characters. Provenance is
+stored in entry context, participates in payload hashing and cannot change under
+a stable external record ID, even with a newer provider version.
+
+Android also calls Health Connect's `aggregateGroupByDuration` with no writer
+filter, allowing the platform to apply the user's Activity source priorities.
+UTC-aligned 15-minute snapshots support regrouping into current IANA local days
+without choosing an arbitrary app or summing overlapping raw records. These use
+the existing bounded upload API with:
+
+- `aggregation="health_connect"` and `has_data=true|false`;
+- no single `source_package_name`, since the platform combines writers;
+- `external_source_id="health_connect:aggregate:<metric_slug>:<UTC bucket start>"`;
+- `period_start` aligned to a UTC 15-minute boundary and an exclusive
+  `recorded_at` end no more than 15 minutes later (the current bucket may be partial);
+- `source_record_modified_at` equal to the device's snapshot observation time,
+  at or after the bucket end. This is a snapshot version, not a raw record's
+  provider modification timestamp.
+
+Snapshots live in MetricEntry with explicit aggregation/has-data context. Raw
+and derived identities cannot replace each other. An empty bucket is uploaded
+as zero with `has_data=false` to clear a previously stored aggregate, but it does
+not create a reading or consistency-tracking day. Payload hashing includes these
+fields. Identical replays skip, newer corrections replace the snapshot, and stale
+changed content returns `409`. Existing raw uploads remain backward compatible.
+
+Daily endpoints are `/api/v1/metrics/entries/daily-distance/` and
+`/api/v1/metrics/entries/daily-total-calories/`. All require JWT ownership and
+share valid IANA `timezone`, whole-local-date `from`/`to`, descending date order,
+default 30 result days and maximum 366 result days. They sum present platform
+buckets, assign an exclusive midnight end to the preceding day, and return
+`context.aggregation="health_connect_daily"`. Dates lacking a platform total may
+show manual/CSV/legacy source data. Raw generic Health Connect records are never
+used as a fallback: missing snapshots remain empty until the device syncs.
+
+Dashboard cards and detail charts use daily endpoints. Raw entry history and
+metric CSV exports exclude snapshots; account export/deletion retains the full
+stored dataset through the existing MetricEntry lifecycle. Synthetic daily IDs
+remain presentation-only and never supply mutation IDs.
+
+The v4 activity cursor namespace forces a bounded initial 30-day backfill.
+Later syncs use the existing 24-hour overlap. Historical priority changes or
+provider corrections outside that window need a fresh bounded backfill; live
+Health Connect aggregation is unavailable to the server without the phone.
+
+The initial implementation chose an alphabetically first package for daily
+activity totals. That was incorrect for the intended product behavior and is
+superseded by the platform snapshots above. The original five Android metric
+planners still filter Fitbit; this change applies to these two activity types.
+
+
+Platform totals may have different coverage from raw source-app exports. In the
+verified local dataset, Health Connect returned total-energy aggregates for dates
+without imported Fitbit total-energy records. Preserve the platform result as a
+platform calculation; do not label it as a Fitbit-authored reading or promise
+identical Fitbit monthly totals. The official record definition includes active
+and basal energy: https://developer.android.com/reference/kotlin/androidx/health/connect/client/records/TotalCaloriesBurnedRecord
+
+
+### Active Calories removed by product decision (2026-10-16)
+
+Total Calories Burned is the only system calorie metric. Migration 0011 sets the
+shared `active_calories_burned` definition inactive without deleting its entries.
+Runtime default seeding no longer recreates/reactivates it. The catalog and
+standard entry feed hide inactive system metrics; full metric CSV/account export
+and account deletion retain their existing ownership and history semantics.
+New wearable Active Calories uploads are rejected. The daily-active-calories
+route has been removed (404). Android no longer reads that type, schedules its
+coordinator, or declares/requests READ_ACTIVE_CALORIES_BURNED. This does not
+restrict user-owned custom metrics or remove Distance. Current Android sync
+requires the original five read permissions plus Distance and Total Calories.
+Earlier Active Calories acceptance notes describe historical implementation.

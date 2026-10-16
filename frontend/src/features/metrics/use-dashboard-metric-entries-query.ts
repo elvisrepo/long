@@ -4,7 +4,12 @@ import { getMetricEntries, type MetricEntry } from "./metric-entries-api";
 
 const DASHBOARD_ENTRIES_PER_METRIC = 7;
 const DASHBOARD_RAW_ENTRY_LIMIT = 50;
-const DAILY_PRESENTATION_METRICS = new Set(["hrv", "steps"]);
+const DAILY_PRESENTATION_METRICS = new Set([
+  "hrv",
+  "steps",
+  "distance",
+  "total_calories_burned",
+]);
 
 export function useDashboardMetricEntriesQuery(metricSlugs: string[]) {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";

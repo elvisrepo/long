@@ -3,6 +3,22 @@ from apps.metrics.models import MetricDefinition
 
 DEFAULT_METRIC_DEFINITIONS = [
     {
+        "name": "Total Calories Burned",
+        "slug": "total_calories_burned",
+        "unit": "kcal",
+        "category": MetricDefinition.Category.ACTIVITY,
+        "min_value": 0,
+        "max_value": 1_000_000,
+    },
+    {
+        "name": "Distance",
+        "slug": "distance",
+        "unit": "km",
+        "category": MetricDefinition.Category.ACTIVITY,
+        "min_value": 0,
+        "max_value": 1_000_000,
+    },
+    {
         "name": "Resting Heart Rate",
         "slug": "resting_hr",
         "unit": "bpm",

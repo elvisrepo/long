@@ -1,5 +1,6 @@
 const metricEntrySourceLabels: Record<string, string> = {
   manual: "Manual entry",
+  health_connect: "Health Connect",
   samsung_health: "Samsung Health",
   garmin: "Garmin",
   fitbit: "Fitbit",
@@ -43,6 +44,8 @@ export function formatMetricEntryRecordedAt(recordedAt: string): string {
 
 const metricMaximumFractionDigits: Record<string, number> = {
   body_weight: 1,
+  distance: 3,
+  total_calories_burned: 1,
 };
 
 export function formatMetricValue(value: number, metricSlug: string): string {

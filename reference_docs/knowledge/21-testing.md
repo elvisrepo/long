@@ -1575,3 +1575,77 @@ Removed public Celery diagnostic regression:
 - `tests/test_prod_runtime.py` protects the `celerybeat-schedule*`
   Docker-context exclusion; Git's own `check-ignore` verifies repository ignore
   behavior for schedule, `.db`, `.dat`, `.bak`, `.dir`, `-shm`, and `-wal`
+
+
+### Distance and active-calorie coverage (2026-10-16)
+
+- `backend/tests/test_distance_calories.py` covers shared definitions and units,
+  arbitrary Health Connect origins, interval persistence, retry skipping, newer
+  corrections, immutable origin, origin-sensitive upload hashes, negative and
+  nonfinite values, invalid/missing intervals and package identifiers, daily
+  timezone grouping, cross-user and same-slug-custom isolation, raw-row
+  preservation, authentication and invalid daily filters.
+- Android activity reader tests cover SDK unit normalization, pagination,
+  timestamps and metadata. Coordinator and upload-contract tests cover all
+  origins, bounded initial reads, backend-sized batches, and exact normalized
+  JSON for both record types.
+- Frontend tests cover the daily API endpoints, dashboard query selection and
+  daily detail-chart queries. Existing raw history/mutation tests remain the
+  regression boundary for synthetic daily IDs.
+- Physical-device acceptance results must be recorded separately from unit
+  tests; a passing JVM suite does not prove Health Connect permission grants or
+  live phone-to-Django ingestion.
+
+
+Physical acceptance on 2026-10-16: updated debug app installed on the authorized
+Xiaomi 17 Ultra with `adb reverse tcp:8000 tcp:8000`. Device instrumentation
+confirmed local readiness HTTP 200 and real reads of both new types. After the
+operator signed in to the local debug account, all three explicit acceptance
+tests passed. Replaying the same fixed-window import skipped 5,994 Distance
+records and 1,912 Active Calories records with zero imports/updates on replay.
+The test logs counts only. `ActivityMetricsDeviceTest` requires the explicit
+instrumentation argument `activityMetricsAcceptance=true`; ordinary connected
+test runs skip these real-health-data acceptance cases.
+
+
+### Platform-prioritized activity totals and total energy follow-up
+
+`test_health_connect_activity_aggregates.py` reproduces the alphabetical-source
+bug and proves platform totals win without mixing raw writers, local midnight
+closes the preceding day, snapshots stay out of raw history, replay/correction
+and empty-bucket clearing work, invalid identities/buckets/versions reject, and
+empty snapshots never create coverage days. CSV tests preserve raw-only export.
+Total Calories Burned has its own shared definition and daily endpoint.
+
+Android tests cover raw TotalCaloriesBurned mapping, normalized kcal, aligned
+15-minute platform snapshots, partial final buckets, explicit empty buckets,
+permission/transport failures and aggregate JSON without a false single writer.
+The opt-in device acceptance test uploads raw records plus snapshots, replays
+with no duplicate writes, then compares each daily API value with an independent
+Health Connect aggregate request for yesterday using identical local boundaries.
+Physical results are recorded after that test runs; previous acceptance figures
+above describe the earlier raw-only implementation.
+
+
+Physical follow-up acceptance on 2026-10-16 passed all three opt-in device tests.
+For each of Distance, Active Calories and Total Calories, yesterday's daily API
+value matched an independent Health Connect `aggregate` read over the same
+Europe/Tirane day, within 0.000001 normalized units. Replay skipped 8,882 Distance,
+4,793 Active Calories and 5,193 Total Calories raw/snapshot entries with zero new
+imports or updates. These counts include empty reconciliation buckets and must
+not be interpreted as numbers of health measurements. The 30-day physical test
+took 216 seconds; two successful read/network tests alone are insufficient proof
+of complete sync. Regression checks: 208 affected backend tests, 143 frontend
+tests, and 187 Android JVM tests passed; web build/lint and backend static checks
+also passed.
+
+
+### Active Calories removal
+
+The user chose Total Calories only. `test_retired_active_calories.py` verifies
+that the shared Active Calories definition disappears from the catalog and
+standard entry feed, previous entries remain stored, and new wearable uploads
+reject. Current activity ingestion, reader, upload, frontend daily-query and
+chart tests cover Distance and Total Calories. Prior three-metric physical
+acceptance notes are retained as history; Active Calories is no longer supported
+by the current Android permission set, runtime readers or daily endpoint.

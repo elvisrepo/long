@@ -40,6 +40,8 @@ describe("useDashboardMetricEntriesQuery", () => {
           "steps",
           "hrv",
           "body_weight",
+          "distance",
+          "total_calories_burned",
         ]),
       { wrapper },
     );
@@ -63,8 +65,25 @@ describe("useDashboardMetricEntriesQuery", () => {
       limit: 50,
     });
     expect(result.current.data.map((entry) => entry.metric_definition)).toEqual(
-      ["steps", "hrv", "body_weight"],
+      [
+        "steps",
+        "hrv",
+        "body_weight",
+        "distance",
+        "total_calories_burned",
+      ],
     );
-    expect(getMetricEntries).toHaveBeenCalledTimes(3);
+    for (const metric of [
+      "distance",
+      "total_calories_burned",
+    ]) {
+      expect(getMetricEntries).toHaveBeenCalledWith({
+        metric,
+        daily: true,
+        limit: 7,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+      });
+    }
+    expect(getMetricEntries).toHaveBeenCalledTimes(5);
   });
 });

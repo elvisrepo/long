@@ -1,6 +1,8 @@
 package com.viridiandome.longevity.wearables.network
 
 import com.viridiandome.longevity.wearables.HealthConnectWeightSample
+import com.viridiandome.longevity.wearables.HealthConnectActivityMetric
+import com.viridiandome.longevity.wearables.HealthConnectActivitySample
 import com.viridiandome.longevity.wearables.HealthConnectStepsSample
 import com.viridiandome.longevity.wearables.HealthConnectSleepSample
 import com.viridiandome.longevity.wearables.HealthConnectInstantMetric
@@ -14,6 +16,57 @@ import org.junit.Test
 import java.time.Instant
 
 class WearableUploadRequestTest {
+    @Test
+    fun platform_snapshot_serializes_without_claiming_a_single_writer() {
+        val sample = HealthConnectActivitySample(
+            metric = HealthConnectActivityMetric.TOTAL_CALORIES,
+            recordId = "aggregate", value = 25.3,
+            periodStart = Instant.parse("2026-10-16T08:00:00Z"),
+            periodEnd = Instant.parse("2026-10-16T08:15:00Z"),
+            sourcePackageName = null,
+            sourceRecordModifiedAt = Instant.parse("2026-10-16T09:00:00Z"),
+            isAggregate = true,
+        )
+        val actual = Json.parseToJsonElement(
+            Json.encodeToString(WearableUploadEntryRequest.from(sample)),
+        ).jsonObject
+        assertEquals(Json.parseToJsonElement("""{
+            "metric_definition": "total_calories_burned", "value": 25.3,
+            "period_start": "2026-10-16T08:00:00Z", "recorded_at": "2026-10-16T08:15:00Z",
+            "source": "health_connect", "aggregation": "health_connect", "has_data": true,
+            "external_source_id": "health_connect:aggregate:total_calories_burned:2026-10-16T08:00:00Z",
+            "source_record_modified_at": "2026-10-16T09:00:00Z"
+        }""").jsonObject, actual)
+    }
+
+    @Test
+    fun activity_samples_serialize_any_origin_without_losing_units_or_identity() {
+        for (metric in HealthConnectActivityMetric.entries) {
+            val sample = HealthConnectActivitySample(
+                metric, "activity-record", 0.3,
+                Instant.parse("2026-10-16T08:00:00Z"),
+                Instant.parse("2026-10-16T08:01:00Z"),
+                "com.example.health", Instant.parse("2026-10-16T09:00:00Z"),
+            )
+            val actual = Json.parseToJsonElement(
+                Json.encodeToString(WearableUploadEntryRequest.from(sample)),
+            ).jsonObject
+            val expected = Json.parseToJsonElement("""{
+                "metric_definition": "${metric.metricSlug}",
+                "value": 0.3,
+                "period_start": "2026-10-16T08:00:00Z",
+                "recorded_at": "2026-10-16T08:01:00Z",
+                "source": "health_connect",
+                "source_package_name": "com.example.health",
+                "external_source_id": "health_connect:${metric.recordTypeName}:activity-record",
+                "source_record_modified_at": "2026-10-16T09:00:00Z"
+            }""").jsonObject
+            assertEquals(expected, actual)
+            assertFalse(sample.toString().contains("activity-record"))
+            assertFalse(sample.toString().contains("0.3"))
+        }
+    }
+
     @Test
     fun weight_sample_serializes_to_django_upload_contract() {
         val sample = HealthConnectWeightSample(

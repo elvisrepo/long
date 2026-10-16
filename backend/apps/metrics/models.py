@@ -55,6 +55,7 @@ class MetricDefinition(models.Model):
 class MetricEntry(models.Model):
     class Source(models.TextChoices):
         MANUAL = "manual", "Manual"
+        HEALTH_CONNECT = "health_connect", "Health Connect"
         SAMSUNG_HEALTH = "samsung_health", "Samsung Health"
         GARMIN = "garmin", "Garmin"
         FITBIT = "fitbit", "Fitbit"

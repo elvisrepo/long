@@ -274,6 +274,60 @@ describe("metric detail route", () => {
     expect(screen.getByRole("button", { name: "1y" })).toBeInTheDocument();
   });
 
+  it.each([
+    ["distance", "Distance", "km"],
+    ["total_calories_burned", "Total Calories Burned", "kcal"],
+  ])("loads %s charts as daily totals", async (slug, name, unit) => {
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+      data: [
+        {
+          id: "hrv-id",
+          name,
+          slug,
+          unit,
+          category: "cardiovascular",
+          min_value: 1,
+          max_value: 300,
+          is_default: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useMetricDefinitionsQuery>);
+    mockLoadedMetricEntries([
+      {
+        id: 1,
+        metric_definition: slug,
+        value: 52.5,
+        period_start: null,
+        recorded_at: "2026-09-28T06:35:00Z",
+        source: "fitbit",
+        context: { aggregation: "daily" },
+        created_at: "2026-09-28T06:36:00Z",
+      },
+    ]);
+    mockMetricEntryMutations();
+
+    renderRoute(`/metrics/${slug}`);
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name,
+      }),
+    ).toBeInTheDocument();
+    expect(useMetricEntriesQuery).toHaveBeenCalledWith({
+      metric: slug,
+      from: expect.any(String),
+      to: expect.any(String),
+      limit: 366,
+      daily: true,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    });
+    expect(screen.getByRole("button", { name: "1y" })).toBeInTheDocument();
+  });
+
   it("keeps raw manual HRV records editable while charting the daily summary", async () => {
     vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
     vi.mocked(useMetricDefinitionsQuery).mockReturnValue({

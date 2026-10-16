@@ -128,7 +128,7 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Sign in to sync Fitbit through Health Connect.",
+            text = "Sign in to sync your health data through Health Connect.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -356,11 +356,11 @@ private fun HealthConnectCard(
                 }
 
                 WearableConnectionUiState.PermissionRequired -> {
-                    Text(text = "Weight read permission is required.")
+                    Text(text = "Health Connect read permissions are required.")
                 }
 
                 WearableConnectionUiState.PermissionDenied -> {
-                    Text(text = "Weight permission was not granted.")
+                    Text(text = "Health Connect permissions were not granted.")
 
                     Button(
                         onClick = onRetry,
@@ -677,7 +677,7 @@ private fun InitialWeightSyncContent(
         }
 
         InitialWeightSyncUiState.NoData -> {
-            Text(text = "No new Fitbit records found in the last 30 days.")
+            Text(text = "No health records found in the sync window.")
             Button(
                 onClick = onSync,
                 enabled = canSync,

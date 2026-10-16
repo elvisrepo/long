@@ -51,7 +51,12 @@ const metricEntryRanges = [
 
 const METRIC_DETAIL_ENTRY_LIMIT = 50;
 const METRIC_DETAIL_HISTORY_PREVIEW_COUNT = 5;
-const DAILY_PRESENTATION_METRICS = new Set(["hrv", "steps"]);
+const DAILY_PRESENTATION_METRICS = new Set([
+  "hrv",
+  "steps",
+  "distance",
+  "total_calories_burned",
+]);
 
 type MetricEntryRange = (typeof metricEntryRanges)[number];
 

@@ -416,3 +416,23 @@ Current Stripe credential and traffic boundary:
   recovery data; account deletion cascades it without deleting shared defaults.
 - Recovery query keys include the owner. Successful logout cancels outstanding
   requests and clears all query caches, including metric/subscription state.
+
+
+### Health Connect activity provenance and aggregates (2026-10-16)
+
+Distance and Total Calories use the authenticated owner-scoped
+bounded ingestion path. Raw records require validated writer-package attribution;
+platform snapshots explicitly have no single writer. Both are client-supplied
+claims rather than independent proof of origin. Snapshot validation restricts
+metric/source, aligned bucket start, exclusive end, observation time, stable
+identity and empty-bucket semantics. Raw and aggregate record kinds cannot change
+under one external ID; only newer versions may correct snapshot content.
+
+The platform applies Activity source priorities on the phone. Django uses its
+snapshots rather than blindly combining overlapping apps or selecting an
+alphabetical writer. Empty markers remain stored for reconciliation but create
+neither readings nor coverage days. Raw history/CSV excludes snapshots; full
+account export/deletion retains them through the existing MetricEntry lifecycle.
+The combined Android request adds Distance and READ_TOTAL_CALORIES_BURNED
+to the original five reads. Active Calories is no longer read or requested. Independent per-metric opt-in remains
+future work. The v4 activity cursor namespace is excluded from backup/transfer.

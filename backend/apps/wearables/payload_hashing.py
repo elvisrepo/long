@@ -42,6 +42,11 @@ def calculate_wearable_payload_hash(
             "source": str(entry["source"]),
             "value": cast(float, entry["value"]),
         }
+        if entry.get("source_package_name"):
+            canonical_entry["source_package_name"] = entry["source_package_name"]
+        if entry.get("aggregation"):
+            canonical_entry["aggregation"] = entry["aggregation"]
+            canonical_entry["has_data"] = entry["has_data"]
         # Keep the canonical form of existing instantaneous Weight payloads
         # unchanged so a retry spanning this deployment still matches.
         if period_start is not None:

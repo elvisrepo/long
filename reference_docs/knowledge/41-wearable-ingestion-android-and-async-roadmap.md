@@ -673,3 +673,63 @@ Then add, one behavior at a time:
 - account deletion still removes user-owned wearable data according to the eventual GDPR deletion contract.
 
 Do not add the upload endpoint, `MetricEntry` writes, or Celery in the first model test.
+
+
+## Distance and active calories expansion (2026-10-16)
+
+The Android foreground and periodic runner now also imports `DistanceRecord`
+(kilometres) and `ActiveCaloriesBurnedRecord` (kilocalories) from **all** Health
+Connect writer apps. The original five metric planners retain their Fitbit
+filter; this slice does not broaden those readers. Both additions preserve raw
+intervals, modification versions, stable external IDs, and source package names.
+Django exposes daily totals using platform-prioritized aggregate snapshots;
+see `03-api-design.md` for the deterministic fallback and its limitations.
+
+The existing combined permission request now includes READ_DISTANCE and
+READ_ACTIVE_CALORIES_BURNED. All eight permissions must be granted for the current
+connection flow; personal sync selection and partial-permission operation remain
+future work. The `longevity_health_connect_sync_cursors_activity_v4` namespace
+forces a bounded 30-day initial read for the expanded metric set. Subsequent
+runs retain the 24-hour overlap and only advance after complete success.
+
+
+Physical acceptance: the updated debug app read both types on the authorized
+Xiaomi device and uploaded them through the local ADB reverse tunnel. Three
+opt-in instrumentation checks passed; identical fixed-window replays skipped
+5,994 Distance and 1,912 Active Calories records without duplicate inserts or
+updates. This is local debug evidence, not a staging deployment. That initial acceptance covered raw imports; the platform aggregation follow-up below supersedes its source-selection fallback.
+
+
+### Platform aggregation and total calories follow-up
+
+The user approved following Health Connect's combined Activity totals and adding
+`TotalCaloriesBurnedRecord` separately from active energy. All three activity
+readers now upload raw provenance plus UTC-aligned 15-minute platform snapshots.
+Django sums these into local days and excludes derived snapshots from raw history
+and metric CSV export. Empty markers clear stale summary buckets without creating
+fake data or coverage. The v4 cursor namespace forces the initial bounded
+backfill; periodic refresh retains the 24-hour overlap. READ_TOTAL_CALORIES_BURNED
+joins the combined request. Full details are canonical in `03-api-design.md`.
+
+
+Physical follow-up: all three platform-backed daily APIs matched independent
+Health Connect daily reads on the authorized Xiaomi phone after the debug build
+was updated and Total Calories permission was granted. The same records and
+snapshots replayed without imports/updates. Over 17 September–16 October, the
+corrected Distance snapshots summed to approximately 136.94 km; the prior
+alphabetical-app presentation produced about 98.75 km. This now follows Health
+Connect's combined totals, not a promise of identical Fitbit-only summaries.
+Health Connect returned Total Calories aggregate values on September 17–21 even
+though no raw Fitbit Total Calories records were imported for those dates;
+platform totals and source-app history therefore have different coverage.
+
+
+### Current activity scope after product decision (2026-10-16)
+
+The user removed Active Calories Burned in favor of Total Calories Burned.
+Android now imports Distance and Total Calories with raw provenance and platform
+aggregates, alongside the original five metrics. It no longer declares/requests
+READ_ACTIVE_CALORIES_BURNED or reads/uploads that type. The combined request has
+seven read permissions. Django deactivates only the shared Active Calories
+definition and preserves imported history for export/deletion. Older sections
+above record the chronology and are superseded by this current scope.
