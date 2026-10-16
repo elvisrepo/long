@@ -8,6 +8,19 @@ import {
   formatMetricValueWithUnit,
 } from "../features/metrics/metric-entry-formatters";
 
+// Regression scenarios: noisy HRV values, fractional readings, integer readings,
+// and consistent formatting in value labels, units and chart ticks.
+describe("HRV formatting", () => {
+  it("keeps floating-point noise out of HRV values and chart labels", () => {
+    const value = 48.900000000000006;
+    expect(formatMetricValue(value, "hrv")).toBe("48.9");
+    expect(formatMetricValueWithUnit(value, "hrv", "ms")).toBe("48.9 ms");
+    expect(formatChartAxisTick(value, "hrv", "ms")).toBe("48.9 ms");
+    expect(formatMetricValue(48.96, "hrv")).toBe("49");
+    expect(formatMetricValue(52, "hrv")).toBe("52");
+  });
+});
+
 describe("sleep duration formatting", () => {
   it("renders decimal hours as hours and rounded minutes", () => {
     expect(formatMetricValue(7.5, "sleep_duration")).toBe("7h 30m");
