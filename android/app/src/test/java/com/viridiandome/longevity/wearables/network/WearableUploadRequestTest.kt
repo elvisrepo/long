@@ -16,6 +16,18 @@ import org.junit.Test
 import java.time.Instant
 
 class WearableUploadRequestTest {
+    @Test fun new_vitals_preserve_generic_writer_and_stable_record_identity() {
+        for (metric in listOf(HealthConnectInstantMetric.RESPIRATORY_RATE, HealthConnectInstantMetric.SKIN_TEMPERATURE)) {
+            val sample = HealthConnectInstantMetricSample(metric, "record-1", -0.3,
+                Instant.parse("2026-10-16T08:00:00Z"), "com.example.health",
+                Instant.parse("2026-10-16T09:00:00Z"))
+            val actual = WearableUploadEntryRequest.from(sample)
+            assertEquals("health_connect", actual.source)
+            assertEquals("com.example.health", actual.sourcePackageName)
+            assertEquals("health_connect:${metric.recordTypeName}:record-1", actual.externalSourceId)
+            assertEquals(metric.metricSlug, actual.metricDefinition)
+        }
+    }
     @Test
     fun platform_snapshot_serializes_without_claiming_a_single_writer() {
         val sample = HealthConnectActivitySample(

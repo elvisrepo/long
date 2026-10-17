@@ -461,10 +461,11 @@ class DailyTotalCaloriesSummaryView(DailyHealthConnectActivitySummaryView):
     metric_slug = "total_calories_burned"
 
 
-class DailyHrvSummaryView(APIView):
-    """Return preferred-source HRV as one median value per local date."""
+class DailyMedianSummaryView(APIView):
+    """Return one preferred-source median per metric and local date."""
 
     permission_classes = [IsAuthenticated]
+    metric_slug = "hrv"
 
     def get(self, request: Request) -> Response:
         timezone_name = request.query_params.get("timezone", "UTC")
@@ -486,7 +487,7 @@ class DailyHrvSummaryView(APIView):
 
         entries = MetricEntry.objects.filter(
             user=request.user,
-            metric_definition__slug="hrv",
+            metric_definition__slug=self.metric_slug,
             metric_definition__user__isnull=True,
             metric_definition__is_default=True,
             metric_definition__is_active=True,
@@ -516,7 +517,7 @@ class DailyHrvSummaryView(APIView):
             [
                 {
                     "id": summary["id"],
-                    "metric_definition": "hrv",
+                    "metric_definition": self.metric_slug,
                     "value": summary["value"],
                     "local_date": summary["local_date"].isoformat(),
                     "period_start": None,
@@ -532,6 +533,18 @@ class DailyHrvSummaryView(APIView):
                 for summary in summaries
             ]
         )
+
+
+class DailyHrvSummaryView(DailyMedianSummaryView):
+    metric_slug = "hrv"
+
+
+class DailyRespiratoryRateSummaryView(DailyMedianSummaryView):
+    metric_slug = "respiratory_rate"
+
+
+class DailySkinTemperatureSummaryView(DailyMedianSummaryView):
+    metric_slug = "skin_temperature"
 
 
 class MetricEntryCsvExportView(APIView):

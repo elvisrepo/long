@@ -27,7 +27,7 @@ import com.viridiandome.longevity.wearables.WearableConnectionViewModelFactory
 import com.viridiandome.longevity.wearables.WearableConnectionUiState
 import com.viridiandome.longevity.wearables.healthconnect.BACKGROUND_READ_PERMISSION
 import com.viridiandome.longevity.wearables.healthconnect.BACKGROUND_READ_PERMISSIONS
-import com.viridiandome.longevity.wearables.healthconnect.SUPPORTED_METRIC_READ_PERMISSIONS
+import com.viridiandome.longevity.wearables.healthconnect.supportedMetricReadPermissions
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncUiState
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncViewModel
 import com.viridiandome.longevity.wearables.sync.InitialWeightSyncViewModelFactory
@@ -80,7 +80,7 @@ class MainActivity : ComponentActivity() {
     ) { grantedPermissions ->
         wearableConnectionViewModel.onWeightReadPermissionResult(
             isGranted = grantedPermissions.containsAll(
-                SUPPORTED_METRIC_READ_PERMISSIONS,
+                supportedMetricReadPermissions(this),
             ),
         )
     }
@@ -208,7 +208,7 @@ class MainActivity : ComponentActivity() {
                         WearableConnectionUiState.PermissionRequired
                     ) {
                         healthPermissionLauncher.launch(
-                            SUPPORTED_METRIC_READ_PERMISSIONS,
+                            supportedMetricReadPermissions(this@MainActivity),
                         )
                     }
                 }

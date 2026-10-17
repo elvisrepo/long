@@ -56,6 +56,8 @@ const DAILY_PRESENTATION_METRICS = new Set([
   "steps",
   "distance",
   "total_calories_burned",
+  "respiratory_rate",
+  "skin_temperature",
 ]);
 
 type MetricEntryRange = (typeof metricEntryRanges)[number];
@@ -252,6 +254,9 @@ function MetricDetailContent({ slug }: { slug: string }) {
           <p className="metric-detail-meta">
             {metricDefinition.category.replaceAll("_", " ")} ·{" "}
             {metricDefinition.unit}
+            {metricDefinition.slug === "skin_temperature"
+              ? " · Change from source baseline, not absolute temperature"
+              : null}
           </p>
         }
         actions={

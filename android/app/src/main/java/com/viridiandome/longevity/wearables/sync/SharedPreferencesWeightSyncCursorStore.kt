@@ -66,7 +66,7 @@ class SharedPreferencesWeightSyncCursorStore(
     private companion object {
         // A new metric set must backfill instead of inheriting an old cursor.
         const val DEFAULT_PREFERENCES_NAME =
-            "longevity_health_connect_sync_cursors_activity_v4"
+            "longevity_health_connect_sync_cursors_vitals_v5"
         const val CURSOR_KEY_PREFIX = "connection_cursor_"
     }
 }

@@ -7,6 +7,8 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.WeightRecord
+import androidx.health.connect.client.records.RespiratoryRateRecord
+import androidx.health.connect.client.records.SkinTemperatureRecord
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.request.AggregateGroupByDurationRequest
@@ -46,6 +48,7 @@ val HEART_RATE_VARIABILITY_READ_PERMISSION: String =
     HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class)
 
 val SUPPORTED_METRIC_READ_PERMISSIONS: Set<String> = setOf(
+    HealthPermission.getReadPermission(RespiratoryRateRecord::class),
     HealthPermission.getReadPermission(DistanceRecord::class),
     HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
     WEIGHT_READ_PERMISSION,
@@ -53,6 +56,16 @@ val SUPPORTED_METRIC_READ_PERMISSIONS: Set<String> = setOf(
     SLEEP_READ_PERMISSION,
     RESTING_HEART_RATE_READ_PERMISSION,
     HEART_RATE_VARIABILITY_READ_PERMISSION,
+)
+
+val SKIN_TEMPERATURE_READ_PERMISSION: String = HealthPermission.getReadPermission(SkinTemperatureRecord::class)
+
+internal fun resolveSupportedMetricReadPermissions(skinTemperatureAvailable: Boolean): Set<String> =
+    SUPPORTED_METRIC_READ_PERMISSIONS + if (skinTemperatureAvailable) setOf(SKIN_TEMPERATURE_READ_PERMISSION) else emptySet()
+
+fun supportedMetricReadPermissions(context: Context): Set<String> = resolveSupportedMetricReadPermissions(
+    HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE &&
+        HealthConnectClient.getOrCreate(context).features.getFeatureStatus(HealthConnectFeatures.FEATURE_SKIN_TEMPERATURE) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE,
 )
 
 val BACKGROUND_READ_PERMISSION: String =
@@ -109,7 +122,7 @@ class AndroidHealthConnectAccess(
             HealthConnectClient.SDK_AVAILABLE -> {
                 val grantedPermissions =
                     client.permissionController.getGrantedPermissions()
-                resolveSupportedMetricReadAccess(grantedPermissions)
+                resolveSupportedMetricReadAccess(grantedPermissions, supportedMetricReadPermissions(context))
             }
 
             HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED ->
@@ -183,13 +196,22 @@ class AndroidHealthConnectAccess(
             endTime = endTime,
             readPage = client::readRecords,
         )
+
+    override suspend fun readRespiratoryRateSamples(startTime: Instant, endTime: Instant): List<HealthConnectInstantMetricSample> =
+        readHealthConnectRespiratoryRateSamples(startTime, endTime, client::readRecords)
+
+    override suspend fun readSkinTemperatureSamples(startTime: Instant, endTime: Instant): List<HealthConnectInstantMetricSample> =
+        if (SKIN_TEMPERATURE_READ_PERMISSION in supportedMetricReadPermissions(context))
+            readHealthConnectSkinTemperatureSamples(startTime, endTime, client::readRecords)
+        else emptyList()
 }
 
 /** All metrics presented by the current sync UI must be readable together. */
 internal fun resolveSupportedMetricReadAccess(
     grantedPermissions: Set<String>,
+    requiredPermissions: Set<String> = SUPPORTED_METRIC_READ_PERMISSIONS,
 ): WeightReadAccess =
-    if (grantedPermissions.containsAll(SUPPORTED_METRIC_READ_PERMISSIONS)) {
+    if (grantedPermissions.containsAll(requiredPermissions)) {
         WeightReadAccess.Granted
     } else {
         WeightReadAccess.PermissionRequired

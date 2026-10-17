@@ -43,6 +43,8 @@ export function formatMetricEntryRecordedAt(recordedAt: string): string {
 }
 
 const metricMaximumFractionDigits: Record<string, number> = {
+  respiratory_rate: 1,
+  skin_temperature: 1,
   body_weight: 1,
   hrv: 1,
   distance: 3,

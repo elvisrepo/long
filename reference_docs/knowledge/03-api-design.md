@@ -1,5 +1,38 @@
 ### 1.7 API Design
 
+## Respiratory rate and skin temperature change — 2026-10-17
+
+- Shared active definitions: `respiratory_rate` (Respiratory Rate, breaths/min,
+  respiratory, 0–1000) and `skin_temperature` (Skin Temperature Change, °C,
+  biomarker, -30–30), seeded by `metrics.0012_respiratory_rate_skin_temperature`.
+  These are ingestion bounds, not clinical reference ranges. Both also accept
+  manual entries through the existing metric API; skin entries mean changes.
+- Wearable ingestion accepts both slugs through the existing upload route.
+  Android uploads `source:"health_connect"`, actual `source_package_name`,
+  provider last-modified time and stable `health_connect:<record type>:<record id>`
+  identity for any writer. Existing deduplication, mutable-record corrections,
+  finite/range validation, CSV/account export and deletion behavior apply.
+- RespiratoryRateRecord.rate becomes breaths/min at its measurement time.
+  SkinTemperatureRecord becomes one normalized value: the arithmetic mean of
+  its delta samples in Celsius, without adding or inventing a baseline. Empty
+  records are skipped. Its timestamp is the exclusive record end minus 1 ns
+  (stored at microsecond precision), attributing midnight endings to the prior day.
+  This is a per-record summary; individual delta samples, optional absolute baseline
+  and measurement location are not copied into MetricEntry. Original data remains
+  in Health Connect. Skin temperature change is not absolute skin/core temperature.
+  SDK reference: https://developer.android.com/reference/androidx/health/connect/client/records/SkinTemperatureRecord
+- New authenticated GET routes `/api/v1/metrics/entries/daily-respiratory-rate/`
+  and `/api/v1/metrics/entries/daily-skin-temperature/` return the existing daily
+  entry shape with `local_date`, `period_start:null` and
+  `context:{aggregation:"daily_median"}`. They share HRV's timezone, whole-date
+  from/to filters, positive limit (maximum 366), active-system-definition and
+  caller-only boundaries. Each day selects one source with existing precedence
+  and a deterministic writer fallback, then computes its median; skin medians
+  are medians of record means. No records from competing writers are combined.
+- Dashboard and detail graphs use these daily endpoints, with at most one decimal
+  in values/ticks. Raw history remains available. The Skin Temperature Change
+  detail explains that the values are relative to the source baseline.
+
 ## Workout tracking backend — 2026-10-01
 
 All routes require JWT and work on every plan. Basic UI integration is implemented

@@ -3,6 +3,8 @@ package com.viridiandome.longevity.wearables.healthconnect
 import android.os.RemoteException
 import androidx.health.connect.client.records.HeartRateVariabilityRmssdRecord
 import androidx.health.connect.client.records.Record
+import androidx.health.connect.client.records.RespiratoryRateRecord
+import androidx.health.connect.client.records.SkinTemperatureRecord
 import androidx.health.connect.client.records.RestingHeartRateRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.response.ReadRecordsResponse
@@ -63,6 +65,37 @@ internal suspend fun readHealthConnectHrvSamples(
     )
 }
 
+internal suspend fun readHealthConnectRespiratoryRateSamples(
+    startTime: Instant, endTime: Instant,
+    readPage: suspend (ReadRecordsRequest<RespiratoryRateRecord>) -> ReadRecordsResponse<RespiratoryRateRecord>,
+): List<HealthConnectInstantMetricSample> = readInstantMetricSamples(
+    startTime, endTime, RespiratoryRateRecord::class, readPage,
+) { record ->
+    HealthConnectInstantMetricSample(
+        metric = HealthConnectInstantMetric.RESPIRATORY_RATE,
+        recordId = record.metadata.id, value = record.rate, recordedAt = record.time,
+        sourcePackageName = record.metadata.dataOrigin.packageName,
+        sourceRecordModifiedAt = record.metadata.lastModifiedTime,
+    )
+}
+
+internal suspend fun readHealthConnectSkinTemperatureSamples(
+    startTime: Instant, endTime: Instant,
+    readPage: suspend (ReadRecordsRequest<SkinTemperatureRecord>) -> ReadRecordsResponse<SkinTemperatureRecord>,
+): List<HealthConnectInstantMetricSample> = readInstantMetricSamples(
+    startTime, endTime, SkinTemperatureRecord::class, readPage,
+) { record ->
+    if (record.deltas.isEmpty()) null else HealthConnectInstantMetricSample(
+        metric = HealthConnectInstantMetric.SKIN_TEMPERATURE,
+        recordId = record.metadata.id,
+        value = record.deltas.map { it.delta.inCelsius }.average(),
+        // Attribute an exclusive midnight end to the preceding day.
+        recordedAt = record.endTime.minusNanos(1),
+        sourcePackageName = record.metadata.dataOrigin.packageName,
+        sourceRecordModifiedAt = record.metadata.lastModifiedTime,
+    )
+}
+
 private suspend fun <RecordType : Record> readInstantMetricSamples(
     startTime: Instant,
     endTime: Instant,
@@ -70,7 +103,7 @@ private suspend fun <RecordType : Record> readInstantMetricSamples(
     readPage: suspend (
         ReadRecordsRequest<RecordType>,
     ) -> ReadRecordsResponse<RecordType>,
-    mapRecord: (RecordType) -> HealthConnectInstantMetricSample,
+    mapRecord: (RecordType) -> HealthConnectInstantMetricSample?,
 ): List<HealthConnectInstantMetricSample> {
     val samples = mutableListOf<HealthConnectInstantMetricSample>()
     var pageToken: String? = null
@@ -93,7 +126,7 @@ private suspend fun <RecordType : Record> readInstantMetricSamples(
         } catch (exception: IllegalStateException) {
             throw InstantMetricReadUnavailableException(exception)
         }
-        samples += response.records.map(mapRecord)
+        samples += response.records.mapNotNull(mapRecord)
         pageToken = response.pageToken
     } while (pageToken != null)
     return samples

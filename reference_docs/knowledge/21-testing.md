@@ -1,5 +1,31 @@
 ## 6. Testing
 
+### Respiratory rate and skin temperature change — 2026-10-17
+
+- Physical-device verification completed on 2026-10-17: 22 respiratory-rate and
+  19 skin-temperature records were read and imported from the connected phone;
+  replays skipped every entry without imports/updates. Both daily endpoints
+  returned seven days and the user confirmed both displayed correctly. The
+  complete app runner subsequently passed from an empty v5 cursor, finishing
+  209 upload batches in about 35 seconds. These checks use real existing data,
+  never fabricated Health Connect readings. A lost USB reverse mapping caused
+  one diagnostic connection failure; restoring port 8000 resolved that failure.
+
+- `test_respiratory_skin_temperature.py` covers definition seeding, arbitrary
+  writer uploads, negative deltas, replay/corrections, daily medians, account
+  isolation, authentication and invalid timezone. Shared HRV regressions cover
+  the reused daily-median implementation's day filters and limits.
+- Android VitalsReader tests cover pagination, respiratory units, skin record
+  delta means with/without baseline, empty-record skipping, identity/time/version
+  preservation and feature-dependent permission sets. Planner/payload tests
+  preserve arbitrary writers and split batches at 100 entries. Existing metric
+  coordinator and permission tests remain applicable.
+- Frontend vital tests cover daily endpoint selection and display precision;
+  dashboard/detail suites cover daily graph routing. `VitalsDeviceTest` is an
+  opt-in physical-device upload/replay check (`-e vitalsAcceptance true`), requires
+  existing app sign-in, connection and permissions, and never writes fabricated
+  Health Connect data. Empty actual data is reported as empty, not fabricated.
+
 ### Personal info and estimated BMR — 2026-10-16
 
 - `test_personal_info.py` covers authenticated encrypted profile roundtrip,

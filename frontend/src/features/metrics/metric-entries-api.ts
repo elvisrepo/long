@@ -37,6 +37,8 @@ export interface GetMetricEntriesFilters {
 }
 
 const DAILY_METRIC_ENDPOINTS: Record<string, string> = {
+  respiratory_rate: "/api/v1/metrics/entries/daily-respiratory-rate/",
+  skin_temperature: "/api/v1/metrics/entries/daily-skin-temperature/",
   distance: "/api/v1/metrics/entries/daily-distance/",
   total_calories_burned: "/api/v1/metrics/entries/daily-total-calories/",
   hrv: "/api/v1/metrics/entries/daily-hrv/",

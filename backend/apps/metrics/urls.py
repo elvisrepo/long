@@ -1,6 +1,8 @@
 from django.urls import path
 
 from apps.metrics.views import (
+    DailyRespiratoryRateSummaryView,
+    DailySkinTemperatureSummaryView,
     ConsistencyAnalyticsView,
     DailyHrvSummaryView,
     DailyStepsSummaryView,
@@ -19,6 +21,8 @@ from apps.metrics.views import (
 
 
 urlpatterns = [
+      path("entries/daily-respiratory-rate/", DailyRespiratoryRateSummaryView.as_view(), name="daily-respiratory-rate-summaries"),
+      path("entries/daily-skin-temperature/", DailySkinTemperatureSummaryView.as_view(), name="daily-skin-temperature-summaries"),
       path(
           "entries/daily-total-calories/",
           DailyTotalCaloriesSummaryView.as_view(),

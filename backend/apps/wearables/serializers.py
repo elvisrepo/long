@@ -38,6 +38,7 @@ SUPPORTED_WEARABLE_METRIC_SLUGS = frozenset(
     {
         "body_weight", "hrv", "resting_hr", "sleep_duration", "steps",
         "distance", "total_calories_burned",
+        "respiratory_rate", "skin_temperature",
     }
 )
 INTERVAL_WEARABLE_METRIC_SLUGS = frozenset(

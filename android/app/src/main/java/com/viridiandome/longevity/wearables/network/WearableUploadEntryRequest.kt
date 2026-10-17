@@ -5,6 +5,7 @@ import com.viridiandome.longevity.wearables.HealthConnectSleepSample
 import com.viridiandome.longevity.wearables.HealthConnectWeightSample
 import com.viridiandome.longevity.wearables.HealthConnectActivitySample
 import com.viridiandome.longevity.wearables.HealthConnectInstantMetricSample
+import com.viridiandome.longevity.wearables.acceptsAnyOrigin
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -87,7 +88,8 @@ internal data class WearableUploadEntryRequest(
                 metricDefinition = sample.metric.metricSlug,
                 value = sample.value,
                 recordedAt = sample.recordedAt.toString(),
-                source = sourceForPackage(sample.sourcePackageName),
+                source = if (sample.metric.acceptsAnyOrigin) "health_connect" else sourceForPackage(sample.sourcePackageName),
+                sourcePackageName = if (sample.metric.acceptsAnyOrigin) sample.sourcePackageName else null,
                 externalSourceId =
                     "health_connect:${sample.metric.recordTypeName}:${sample.recordId}",
                 sourceRecordModifiedAt = sample.sourceRecordModifiedAt.toString(),

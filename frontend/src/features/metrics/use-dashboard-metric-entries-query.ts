@@ -5,6 +5,8 @@ import { getMetricEntries, type MetricEntry } from "./metric-entries-api";
 const DASHBOARD_ENTRIES_PER_METRIC = 7;
 const DASHBOARD_RAW_ENTRY_LIMIT = 50;
 const DAILY_PRESENTATION_METRICS = new Set([
+  "respiratory_rate",
+  "skin_temperature",
   "hrv",
   "steps",
   "distance",

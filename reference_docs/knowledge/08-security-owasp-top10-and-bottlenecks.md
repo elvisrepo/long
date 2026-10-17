@@ -1,5 +1,15 @@
 #### Security (OWASP Top 10 addressed)
 
+Respiratory rate / skin temperature change (2026-10-17): both shared definitions
+use the existing authenticated, bounded, owner-scoped upload pipeline and exports.
+Daily median endpoints filter caller-owned active system metrics and preserve
+the existing timezone/366-day response bound and one-writer-per-day rule.
+Negative skin deltas are valid; nonfinite/out-of-range values reject. Android
+declares respiratory and skin read permissions but requests/requires skin only
+when FEATURE_SKIN_TEMPERATURE is available. Unsupported devices skip this reader
+without blocking other metrics. No health writes are requested. Cursor namespace
+vitals_v5 triggers bounded backfill and is excluded from backup/device transfer.
+
 Personal info and estimated BMR (2026-10-16): authenticated owner-only GET/PATCH
 at `/api/v1/me/` is available on all plans, with successful responses marked
 `Cache-Control: no-store`. Birth date, formula sex and height are encrypted as a

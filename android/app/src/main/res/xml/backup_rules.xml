@@ -13,4 +13,5 @@
     <exclude domain="sharedpref" path="longevity_health_connect_sync_cursors_fitbit_v2.xml" />
     <exclude domain="sharedpref" path="longevity_health_connect_sync_cursors_activity_v3.xml" />
     <exclude domain="sharedpref" path="longevity_health_connect_sync_cursors_activity_v4.xml" />
+    <exclude domain="sharedpref" path="longevity_health_connect_sync_cursors_vitals_v5.xml" />
 </full-backup-content>

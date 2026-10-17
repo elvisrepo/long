@@ -1,4 +1,6 @@
 const metricSymbols: Record<string, string> = {
+  respiratory_rate: "◌",
+  skin_temperature: "♨",
   steps: "↗",
   distance: "↗",
   total_calories_burned: "♨",

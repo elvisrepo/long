@@ -1,5 +1,19 @@
 # Android Sync Coordination, WorkManager, and Celery
 
+## Current vitals extension — 2026-10-17
+
+AllMetricsSyncRunner now includes InstantMetricSyncCoordinator instances for
+`RESPIRATORY_RATE` and `SKIN_TEMPERATURE`. The instant planner accepts arbitrary
+origins for these two types; existing Fitbit-only HRV/RHR behavior is unchanged.
+Their payloads use generic Health Connect source plus actual writer package.
+Skin reads return no samples when FEATURE_SKIN_TEMPERATURE is unavailable;
+otherwise missing permissions interrupt sync normally. Permission requests and
+readiness use the same device-dependent set, preventing an unsupported skin
+feature from blocking the other metrics. New v5 cursor storage backfills 30 days
+and is excluded from backup/transfer; shared cursor advancement still requires
+all supported readers/uploads to finish. Neither Celery responsibility nor
+background scheduling policy changes.
+
 ## When to use this document
 
 Use this document when:

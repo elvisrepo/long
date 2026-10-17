@@ -747,42 +747,49 @@ describe("metric detail route", () => {
     expect(rawFilters.at(-1)).toEqual({ metric: "resting_hr", limit: 50 });
   });
 
-  it("requests ninety daily HRV values for the ninety-day chart", async () => {
-    const user = userEvent.setup();
-    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
-    vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
-      data: [
-        {
-          id: "hrv-id",
-          name: "Heart Rate Variability",
-          slug: "hrv",
-          unit: "ms",
-          category: "cardiovascular",
-          min_value: 1,
-          max_value: 300,
-          is_default: true,
-        },
-      ],
-      isLoading: false,
-      isError: false,
-    } as ReturnType<typeof useMetricDefinitionsQuery>);
-    mockLoadedMetricEntries([]);
-    mockMetricEntryMutations();
+  it.each([
+    ["hrv", "Heart Rate Variability", "ms"],
+    ["respiratory_rate", "Respiratory Rate", "breaths/min"],
+    ["skin_temperature", "Skin Temperature Change", "°C"],
+  ])(
+    "requests ninety daily %s values for the ninety-day chart",
+    async (slug, name, unit) => {
+      const user = userEvent.setup();
+      vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+      vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+        data: [
+          {
+            id: `${slug}-id`,
+            name,
+            slug,
+            unit,
+            category: "cardiovascular",
+            min_value: 1,
+            max_value: 300,
+            is_default: true,
+          },
+        ],
+        isLoading: false,
+        isError: false,
+      } as ReturnType<typeof useMetricDefinitionsQuery>);
+      mockLoadedMetricEntries([]);
+      mockMetricEntryMutations();
 
-    renderRoute("/metrics/hrv");
-    await screen.findByRole("heading", {
-      level: 1,
-      name: /heart rate variability/i,
-    });
-    await user.click(screen.getByRole("button", { name: /90d/i }));
+      renderRoute(`/metrics/${slug}`);
+      await screen.findByRole("heading", {
+        level: 1,
+        name,
+      });
+      await user.click(screen.getByRole("button", { name: /90d/i }));
 
-    const dailyFilters = vi
-      .mocked(useMetricEntriesQuery)
-      .mock.calls.map(([filters]) => filters)
-      .filter((filters) => filters.daily)
-      .at(-1);
-    expect(dailyFilters?.limit).toBe(90);
-  });
+      const dailyFilters = vi
+        .mocked(useMetricEntriesQuery)
+        .mock.calls.map(([filters]) => filters)
+        .filter((filters) => filters.daily)
+        .at(-1);
+      expect(dailyFilters?.limit).toBe(90);
+    },
+  );
 
   it("filters to a linked UTC date and prefills a manual entry on that date", async () => {
     const user = userEvent.setup();

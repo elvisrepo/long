@@ -1,5 +1,23 @@
 # Wearable Ingestion, Android, and Async Processing Roadmap
 
+## Current extension — respiratory rate and skin temperature, 2026-10-17
+
+The foreground/WorkManager pipeline now adds Respiratory Rate and Skin Temperature
+Change to its seven previous metrics (nine on skin-capable devices). These two
+accept any Health Connect writer via generic `health_connect` provenance. Skin is
+feature-gated; unsupported phones skip it. SkinTemperatureRecord is normalized
+to the mean delta per record, not an absolute temperature. Both use existing
+instant-metric batching, upload identity/correction and owner isolation, with new
+daily-median presentation endpoints documented in `03-api-design.md`.
+
+Cursor preferences move to `longevity_health_connect_sync_cursors_vitals_v5` so
+existing installs perform a bounded 30-day initial read for the enlarged metric
+set. Subsequent reads retain the existing 24-hour overlap. History access still
+depends on Health Connect permissions; no extended history permission is added.
+Provider deletions or delta removal that leaves an empty skin record are not
+propagated as deletions by this read/upload path. A feature becoming available
+later uses the then-current cursor; history outside the overlap needs a backfill.
+
 ## Use When
 
 - Planning or implementing `SyncRun`, wearable upload idempotency, or normalized `MetricEntry` ingestion.

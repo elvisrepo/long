@@ -42,6 +42,8 @@ describe("useDashboardMetricEntriesQuery", () => {
           "body_weight",
           "distance",
           "total_calories_burned",
+          "respiratory_rate",
+          "skin_temperature",
         ]),
       { wrapper },
     );
@@ -71,11 +73,15 @@ describe("useDashboardMetricEntriesQuery", () => {
         "body_weight",
         "distance",
         "total_calories_burned",
+        "respiratory_rate",
+        "skin_temperature",
       ],
     );
     for (const metric of [
       "distance",
       "total_calories_burned",
+      "respiratory_rate",
+      "skin_temperature",
     ]) {
       expect(getMetricEntries).toHaveBeenCalledWith({
         metric,
@@ -84,6 +90,6 @@ describe("useDashboardMetricEntriesQuery", () => {
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
       });
     }
-    expect(getMetricEntries).toHaveBeenCalledTimes(5);
+    expect(getMetricEntries).toHaveBeenCalledTimes(7);
   });
 });

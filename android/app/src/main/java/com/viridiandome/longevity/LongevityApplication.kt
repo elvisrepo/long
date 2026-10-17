@@ -169,6 +169,14 @@ class LongevityApplication : Application(), Configuration.Provider {
                     sleepCoordinator,
                     restingHeartRateCoordinator,
                     hrvCoordinator,
+                    InstantMetricSyncCoordinator(
+                        planner = IncrementalInstantMetricSyncPlanner(androidHealthConnectAccess, HealthConnectInstantMetric.RESPIRATORY_RATE, weightSyncCursorStore),
+                        uploadRepository = wearableUploadRepository,
+                    ),
+                    InstantMetricSyncCoordinator(
+                        planner = IncrementalInstantMetricSyncPlanner(androidHealthConnectAccess, HealthConnectInstantMetric.SKIN_TEMPERATURE, weightSyncCursorStore),
+                        uploadRepository = wearableUploadRepository,
+                    ),
                     ActivitySyncCoordinator(
                         reader = androidHealthConnectAccess,
                         metric = HealthConnectActivityMetric.DISTANCE,
