@@ -1,5 +1,11 @@
 #### Security (OWASP Top 10 addressed)
 
+- AI data periods (2026-10-18): GET/POST timeframe is allowlisted to day/week/month
+  (1/7/30 completed local dates), default week. Preview/history remain owner-scoped
+  and history is filtered by selected timeframe. Period changes make no provider
+  call; generation still requires explicit sharing consent. Queued snapshots keep
+  the exact selected period encrypted. No application AI quota/cooldown added.
+
 - Staging AI release (2026-10-18): production default cache now uses private Redis
   with a separate key prefix, so existing login/reset throttles share counters
   across Gunicorn workers. AI quotas/cooldowns remain absent. Identity throttles

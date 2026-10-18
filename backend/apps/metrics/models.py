@@ -150,6 +150,11 @@ class WeeklyAiReview(models.Model):
         related_name="weekly_ai_reviews",
     )
     model = models.CharField(max_length=150)
+    timeframe = models.CharField(
+        max_length=5,
+        choices=[("day", "Day"), ("week", "Week"), ("month", "Month")],
+        default="week",
+    )
     timezone = models.CharField(max_length=100)
     period_start = models.DateField()
     period_end = models.DateField()

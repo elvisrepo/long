@@ -3533,3 +3533,14 @@ body:has(dialog[open]) {
 .ai-model-picker p {
   overflow-wrap: anywhere;
 }
+
+.ai-review-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+@media (max-width: 640px) {
+  .ai-review-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

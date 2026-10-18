@@ -82,6 +82,7 @@ def generate_weekly_review_task(
                 user=owner,
                 defaults={
                     "model": selected_model,
+                    "timeframe": payload["snapshot"].get("timeframe", "week"),
                     "timezone": timezone_name,
                     "period_start": payload["snapshot"]["period"]["from"],
                     "period_end": payload["snapshot"]["period"]["to"],

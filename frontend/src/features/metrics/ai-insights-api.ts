@@ -14,7 +14,11 @@ export interface InsightEvidence {
   series: { date: string; value: number | null }[];
 }
 
+export type AiTimeframe = "day" | "week" | "month";
+
 export interface InsightSnapshot {
+  timeframe?: AiTimeframe;
+  days?: number;
   timezone: string;
   period: { from: string; to: string };
   previous_period: { from: string; to: string };
@@ -75,6 +79,7 @@ async function aiRequest<T>(
 }
 
 export interface SavedReviewSummary {
+  timeframe?: AiTimeframe;
   id: string;
   model: string;
   generated_at: string;
@@ -89,7 +94,10 @@ export function getSavedAiReview(reviewId: string) {
   );
 }
 
-export function getAiPreview(timezone: string) {
+export function getAiPreview(
+  timezone: string,
+  timeframe: AiTimeframe = "week",
+) {
   return aiRequest<{
     available: boolean;
     model?: string;
@@ -98,13 +106,14 @@ export function getAiPreview(timezone: string) {
     review_history?: SavedReviewSummary[];
     snapshot: InsightSnapshot;
   }>(
-    `/api/v1/metrics/analytics/ai-weekly/?timezone=${encodeURIComponent(timezone)}`,
+    `/api/v1/metrics/analytics/ai-weekly/?timezone=${encodeURIComponent(timezone)}&timeframe=${timeframe}`,
   );
 }
 
 export async function generateAiReview(
   timezone: string,
   model?: string,
+  timeframe: AiTimeframe = "week",
 ): Promise<AiReviewResult> {
   const started = await aiRequest<{ job_id: string }>(
     "/api/v1/metrics/analytics/ai-weekly/",
@@ -113,6 +122,7 @@ export async function generateAiReview(
       body: JSON.stringify({
         timezone,
         consent: true,
+        timeframe,
         ...(model ? { model } : {}),
       }),
     },

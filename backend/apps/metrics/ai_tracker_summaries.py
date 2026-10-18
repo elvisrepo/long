@@ -78,7 +78,7 @@ def _details(
         )
         item[
             "current_logged_days"
-            if row["performed_on"] >= dates[7]
+            if row["performed_on"] >= dates[len(dates) // 2]
             else "previous_logged_days"
         ] += 1
         item["logged_dates"].append(row["performed_on"].isoformat())
@@ -118,7 +118,10 @@ def workout_details(user: AbstractBaseUser, dates: list[date]) -> dict[str, Any]
         user=user, performed_on__range=(dates[0], dates[-1])
     )
     sessions: dict[str, Any] = {}
-    for period_name, days in [("previous", dates[:7]), ("current", dates[7:])]:
+    for period_name, days in [
+        ("previous", dates[: len(dates) // 2]),
+        ("current", dates[len(dates) // 2 :]),
+    ]:
         period = workouts.filter(performed_on__range=(days[0], days[-1]))
         finished = period.filter(is_finished=True)
         durations = list(
@@ -160,7 +163,9 @@ def workout_details(user: AbstractBaseUser, dates: list[date]) -> dict[str, Any]
                 "current": _set_period(),
                 "previous": _set_period(),
             }
-        period = grouped[key]["current" if day >= dates[7] else "previous"]
+        period = grouped[key][
+            "current" if day >= dates[len(dates) // 2] else "previous"
+        ]
         period["completed_sets"] += 1
         period["logged_dates"] = sorted(set(period["logged_dates"]) | {day.isoformat()})
         for field in ("reps", "distance", "duration_seconds"):

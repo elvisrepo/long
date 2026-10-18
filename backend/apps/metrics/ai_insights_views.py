@@ -22,7 +22,11 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.metrics.ai_insights import build_weekly_snapshot, available_review_models
+from apps.metrics.ai_insights import (
+    build_weekly_snapshot,
+    available_review_models,
+    TIMEFRAME_DAYS,
+)
 from apps.metrics.models import WeeklyAiReview
 from apps.metrics.tasks import generate_weekly_review_task, review_job_key
 from apps.subscriptions.services import get_current_subscription_plan
@@ -38,6 +42,7 @@ class WeeklyReviewInput(serializers.Serializer):
     timezone = serializers.CharField(max_length=100)
     consent = serializers.BooleanField()
     model = serializers.CharField(max_length=150, required=False)
+    timeframe = serializers.ChoiceField(choices=list(TIMEFRAME_DAYS), default="week")
 
     def validate_model(self, value: str) -> str:
         if value not in {item["id"] for item in available_review_models()}:
@@ -45,7 +50,7 @@ class WeeklyReviewInput(serializers.Serializer):
         return value
 
     def validate(self, attrs: dict) -> dict:
-        if set(self.initial_data) - {"timezone", "consent", "model"}:
+        if set(self.initial_data) - {"timezone", "consent", "model", "timeframe"}:
             raise serializers.ValidationError("Unexpected input fields.")
         if attrs["consent"] is not True:
             raise serializers.ValidationError(
@@ -112,7 +117,10 @@ class WeeklyAiInsightsView(APIView):
             if job.get("status") == "pending":
                 return self._response({"status": "pending"})
             return self._response(job)
-        reviews = WeeklyAiReview.objects.filter(user=request.user)
+        timeframe = request.query_params.get("timeframe", "week")
+        if timeframe not in TIMEFRAME_DAYS:
+            raise ValidationError({"timeframe": ["Choose day, week or month."]})
+        reviews = WeeklyAiReview.objects.filter(user=request.user, timeframe=timeframe)
         latest = reviews.first()
         return self._response(
             {
@@ -122,6 +130,7 @@ class WeeklyAiInsightsView(APIView):
                     for row in reviews.values(
                         "id",
                         "model",
+                        "timeframe",
                         "generated_at",
                         "timezone",
                         "period_start",
@@ -134,7 +143,10 @@ class WeeklyAiInsightsView(APIView):
                 "model": settings.NVIDIA_INSIGHTS_MODEL,
                 "models": available_review_models(),
                 "snapshot": build_weekly_snapshot(
-                    user=request.user, zone=zone, now=timezone.now()
+                    user=request.user,
+                    zone=zone,
+                    now=timezone.now(),
+                    timeframe=timeframe,
                 ),
             }
         )
@@ -146,14 +158,17 @@ class WeeklyAiInsightsView(APIView):
         if not request.user.ai_api_key_encrypted and not settings.NVIDIA_API_KEY:
             raise WeeklyReviewUnavailable()
         snapshot = build_weekly_snapshot(
-            user=request.user, zone=zone, now=timezone.now()
+            user=request.user,
+            zone=zone,
+            now=timezone.now(),
+            timeframe=serializer.validated_data["timeframe"],
         )
         if not any(
             row["current"].get("observed_days", row["current"].get("logged_days", 0))
             for row in snapshot["evidence"].values()
         ):
             raise ValidationError(
-                {"detail": "No tracker data in the last seven completed days yet."}
+                {"detail": "No tracker data in the selected completed period yet."}
             )
         cache = caches["ai_insights"]
         job_id = str(uuid.uuid4())

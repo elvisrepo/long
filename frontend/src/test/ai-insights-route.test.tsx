@@ -202,6 +202,7 @@ describe("Weekly AI insights", () => {
     expect(generateAiReview).toHaveBeenCalledWith(
       expect.any(String),
       "deepseek-ai/deepseek-v4.1-flash",
+      "week",
     );
     expect(selector).toHaveValue("deepseek-ai/deepseek-v4.1-flash");
   });
@@ -348,4 +349,54 @@ it("loads an older saved review with its original evidence", async () => {
     screen.getByRole("combobox", { name: "Saved reviews" }),
   ).toHaveTextContent("Generated:");
   expect(generateAiReview).not.toHaveBeenCalled();
+});
+
+it("uses the selected data period for preview, generation and coverage without retaining another period's suggestions", async () => {
+  vi.clearAllMocks();
+  vi.mocked(getPersonalAiKey).mockResolvedValue({ has_personal_key: true });
+  vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+  vi.mocked(getAiPreview).mockImplementation(
+    async (_zone, timeframe = "week") => ({
+      available: true,
+      snapshot: {
+        ...snapshot,
+        timeframe,
+        days: timeframe === "day" ? 1 : timeframe === "month" ? 30 : 7,
+      },
+    }),
+  );
+  vi.mocked(generateAiReview).mockResolvedValue({
+    snapshot: { ...snapshot, timeframe: "month", days: 30 },
+    generated_at: "2026-10-18T12:00:00Z",
+    review: {
+      suggestions: [
+        { text: "A monthly routine suggestion.", evidence_keys: ["hrv"] },
+      ],
+    },
+  });
+  renderRoute("/analytics/ai");
+  const period = await screen.findByRole("combobox", { name: "Data period" });
+  expect(period).toHaveValue("week");
+  fireEvent.change(period, { target: { value: "month" } });
+  await waitFor(() =>
+    expect(getAiPreview).toHaveBeenLastCalledWith(expect.any(String), "month"),
+  );
+  expect(await screen.findByText("44 ms · 1/30 days")).toBeInTheDocument();
+  expect(window.location.search).toContain("timeframe=month");
+  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(screen.getByRole("button", { name: "Generate suggestions" }));
+  expect(
+    await screen.findByText("A monthly routine suggestion."),
+  ).toBeInTheDocument();
+  expect(generateAiReview).toHaveBeenCalledWith(
+    expect.any(String),
+    undefined,
+    "month",
+  );
+  fireEvent.change(period, { target: { value: "day" } });
+  expect(await screen.findByText("44 ms · 1/1 day")).toBeInTheDocument();
+  expect(
+    screen.queryByText("A monthly routine suggestion."),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole("checkbox")).not.toBeChecked();
 });
