@@ -17,15 +17,16 @@
 - CloudFront is the only public application entry point.
 - Frontend: private S3 bucket reached through CloudFront Origin Access Control.
 - API origin: Nginx on one public ARM64 EC2 host, reached only from CloudFront.
-- Application: one Gunicorn/Django container plus a one-off migration container.
+- Application: Gunicorn/Django, one Celery AI worker, and a one-off migration container.
 - Database: **plain PostgreSQL 16** on the EC2 host, persisted on encrypted EBS.
 - Operations: Systems Manager, not public SSH.
 - Secrets: one validated Secrets Manager JSON snapshot; no production `.env`.
 - Backups: monitored `pg_dump` uploads to a separate private, encrypted,
   versioned S3 bucket, followed by a restore drill.
-- Not in presentation staging: ALB, NAT Gateway, RDS, TimescaleDB, Redis, or
-  Celery. Reconsider TimescaleDB only after a measured query need and a tested
-  migration plan.
+- AI jobs use private, non-persistent Redis on the existing host; successful
+  suggestions remain encrypted in PostgreSQL. No Redis host port or Celery Beat.
+- Not in presentation staging: ALB, NAT Gateway, RDS or TimescaleDB. Reconsider
+  TimescaleDB only after a measured query need and a tested migration plan.
 
 ## Stretch Image Uploads — AWS Configured, Application Release Pending
 

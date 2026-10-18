@@ -8,7 +8,7 @@ Scenario list:
 - run migrations and API with one canonical runtime environment
 - wait for PostgreSQL health and probe Django readiness
 - restart long-running services without turning migration into a daemon
-- exclude Redis, Celery, development builds, and persistent env files
+- keep the AI worker and Redis private; exclude development builds and env files
 """
 
 from pathlib import Path
@@ -41,7 +41,7 @@ def test_migration_and_api_pull_same_required_backend_image() -> None:
     compose = STAGING_COMPOSE_FILE.read_text()
 
     assert 'image: "${BACKEND_IMAGE:?BACKEND_IMAGE is required}"' in compose
-    assert compose.count("<<: *backend-image") == 2
+    assert compose.count("<<: *backend-image") == 3
     assert "build:" not in compose
 
 
@@ -70,7 +70,7 @@ def test_migration_and_api_share_only_canonical_django_environment() -> None:
     api = service_block(compose, "api")
 
     assert "x-backend-environment: &backend-environment" in compose
-    assert compose.count("environment: *backend-environment") == 2
+    assert compose.count("environment: *backend-environment") == 3
     assert "env_file:" not in compose
     assert '  STRETCH_IMAGE_BUCKET: "${STRETCH_IMAGE_BUCKET:-}"' in compose
     for key in REQUIRED_ENVIRONMENT_VARIABLES:
@@ -85,7 +85,7 @@ def test_migration_and_api_wait_for_healthy_postgresql() -> None:
     database = service_block(compose, "database")
 
     assert "pg_isready -U longevity -d longevity" in database
-    assert compose.count("condition: service_healthy") == 2
+    assert compose.count("condition: service_healthy") == 5
 
 
 def test_api_health_check_uses_database_readiness_and_https_metadata() -> None:
@@ -106,5 +106,20 @@ def test_only_required_long_running_services_restart() -> None:
     assert "restart: unless-stopped" in database
     assert "restart: unless-stopped" in api
     assert "restart:" not in migration
-    assert "redis:" not in compose
-    assert "celery" not in compose
+    assert "restart: unless-stopped" in service_block(compose, "redis")
+    assert "restart: unless-stopped" in service_block(compose, "worker")
+
+
+def test_ai_worker_and_broker_are_private_and_gate_api_startup() -> None:
+    compose = STAGING_COMPOSE_FILE.read_text()
+    worker = service_block(compose, "worker")
+    redis = service_block(compose, "redis")
+    api = service_block(compose, "api")
+    assert "ports:" not in redis and "ports:" not in worker
+    assert "<<: *backend-image" in worker
+    assert "environment: *backend-environment" in worker
+    assert "celery" in worker and "--concurrency=1" in worker
+    assert "worker:" in api and "condition: service_healthy" in api
+    assert "redis://redis:6379/0" in compose
+    assert "redis-cli" in redis and "ping" in redis
+    assert "healthcheck:" in worker

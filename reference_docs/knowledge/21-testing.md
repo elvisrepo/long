@@ -1801,3 +1801,10 @@ reject. Current activity ingestion, reader, upload, frontend daily-query and
 chart tests cover Distance and Total Calories. Prior three-metric physical
 acceptance notes are retained as history; Active Calories is no longer supported
 by the current Android permission set, runtime readers or daily endpoint.
+
+### Staging AI runtime release — 2026-10-18
+
+Staging Compose now includes pinned private Redis and an AI Celery worker sharing
+the API image/environment. API startup depends on worker health. Regression checks
+cover no public broker/worker ports, database dependencies, worker health, matching
+images, and the existing migration-first deployment and bundle compatibility gates.
