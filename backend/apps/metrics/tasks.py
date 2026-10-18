@@ -2,7 +2,6 @@
 
 import json
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from celery import shared_task
 from django.conf import settings
@@ -13,7 +12,6 @@ from django.utils import timezone
 from celery.exceptions import SoftTimeLimitExceeded
 
 from apps.metrics.ai_insights import (
-    build_weekly_snapshot,
     generate_weekly_review,
     WeeklyReviewFailed,
 )
@@ -24,7 +22,7 @@ def review_job_key(user_id: str, job_id: str) -> str:
     return f"ai-weekly-job:{user_id}:{job_id}"
 
 
-@shared_task(ignore_result=True, soft_time_limit=110, time_limit=120, expires=120)
+@shared_task(ignore_result=True, soft_time_limit=110, time_limit=120, expires=3600)
 def generate_weekly_review_task(
     user_id: str, timezone_name: str, job_id: str, model: str | None = None
 ) -> None:
@@ -32,7 +30,8 @@ def generate_weekly_review_task(
     selected_model = model or settings.NVIDIA_INSIGHTS_MODEL
     key = review_job_key(user_id, job_id)
     # An expired/cancelled job must not initiate a provider request.
-    if not cache.get(key):
+    pending = cache.get(key)
+    if not pending:
         return
     saved = WeeklyAiReview.objects.filter(pk=job_id, user_id=user_id).first()
     if saved is not None:
@@ -55,9 +54,7 @@ def generate_weekly_review_task(
         )
         if not api_key:
             raise ValueError("No configured key")
-        snapshot = build_weekly_snapshot(
-            user=user, zone=ZoneInfo(timezone_name), now=timezone.now()
-        )
+        snapshot = json.loads(decrypt_value(pending))["snapshot"]
         review = generate_weekly_review(snapshot, api_key=api_key, model=selected_model)
         result = {
             "status": "ready",

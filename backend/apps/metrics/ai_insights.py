@@ -66,7 +66,7 @@ that table. Return JSON only, using this exact shape:
 Aim for 150-250 words total. Each suggestion must offer a concrete optional action,
 a brief reason grounded in their actual week, and a simple way to evaluate it next
 week. Use the strongest opportunities across trackers; do not force a suggestion
-for every tracker or manufacture connections. Cite supplied evidence keys for each.
+for every tracker or manufacture connections. Cite supplied evidence keys for each, including at least one with recorded data.
 Prefer qualitative reasons supported by supplied records, rather than quoting
 exact dates or extrema. Do not name weekdays. If a number is essential, verify it
 against the supplied series/trend; never substitute a different day's value.
@@ -226,6 +226,17 @@ def validate_review(review: Any, snapshot: dict[str, Any]) -> dict[str, Any]:
                 or len(set(keys)) != len(keys)
             ):
                 raise ValueError("Unknown or missing evidence")
+            if not any(
+                snapshot["evidence"][key]
+                .get(period, {})
+                .get(
+                    "observed_days",
+                    snapshot["evidence"][key].get(period, {}).get("logged_days", 0),
+                )
+                for key in keys
+                for period in ("current", "previous")
+            ):
+                raise ValueError("Empty supporting evidence")
         return review
     if snapshot.get("prompt_version") == "weekly-v2":
         return _validate_comprehensive_review(review, snapshot)

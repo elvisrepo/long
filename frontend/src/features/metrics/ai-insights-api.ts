@@ -117,7 +117,7 @@ export async function generateAiReview(
       }),
     },
   );
-  for (let attempt = 0; attempt < 120; attempt++) {
+  for (let attempt = 0; attempt < 1800; attempt++) {
     await new Promise((resolve) => setTimeout(resolve, 2000));
     // Logout cancels further polling through aiRequest's token check.
     const job = await aiRequest<{

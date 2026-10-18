@@ -862,3 +862,60 @@ def test_suggestions_only_review_rejects_recaps_and_requires_real_evidence() -> 
     ]:
         with pytest.raises(ValueError):
             validate_review(invalid, snapshot)
+
+
+@override_settings(NVIDIA_API_KEY="test-only-not-a-real-key")
+def test_queued_review_uses_the_exact_requested_snapshot_after_midnight() -> None:
+    from apps.metrics.tasks import generate_weekly_review_task
+
+    client, user = pro_client()
+    snapshot = {
+        "prompt_version": "weekly-v3",
+        "timezone": "Europe/Tirane",
+        "period": {"from": "2026-10-10", "to": "2026-10-16"},
+        "previous_period": {"from": "2026-10-03", "to": "2026-10-09"},
+        "evidence": {"hrv": {"current": {"observed_days": 1}}},
+    }
+    with (
+        patch(
+            "apps.metrics.ai_insights_views.build_weekly_snapshot",
+            return_value=snapshot,
+        ),
+        patch("apps.metrics.ai_insights_views.generate_weekly_review_task.delay"),
+    ):
+        response = client.post(
+            URL, {"timezone": "Europe/Tirane", "consent": True}, format="json"
+        )
+    with patch(
+        "apps.metrics.tasks.generate_weekly_review", return_value=suggestions_review()
+    ) as provider:
+        generate_weekly_review_task(
+            str(user.pk), "Europe/Tirane", response.data["job_id"]
+        )
+    assert provider.call_args.args[0] == snapshot
+    result = client.get(URL, {"job_id": response.data["job_id"]})
+    assert result.data["result"]["snapshot"] == snapshot
+
+
+def test_suggestions_cannot_cite_only_empty_trackers() -> None:
+    from apps.metrics.ai_insights import validate_review
+
+    snapshot = {
+        "prompt_version": "weekly-v3",
+        "evidence": {
+            "sleep_duration": {
+                "current": {"observed_days": 0},
+                "previous": {"observed_days": 0},
+            },
+            "hrv": {"current": {"observed_days": 2}},
+        },
+    }
+    report = {
+        "suggestions": [
+            {"text": "Try a familiar routine.", "evidence_keys": ["sleep_duration"]}
+        ]
+    }
+    with pytest.raises(ValueError):
+        validate_review(report, snapshot)
+    report["suggestions"][0]["evidence_keys"].append("hrv")
+    assert validate_review(report, snapshot) == report

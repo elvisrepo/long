@@ -10,7 +10,11 @@ class IdentityRateThrottle(SimpleRateThrottle):
     identity_field = "email"
 
     def get_cache_key(self, request: Request, view: object) -> str | None:
-        value = request.data.get(self.identity_field)
+        value = (
+            request.data.get(self.identity_field)
+            if isinstance(request.data, dict)
+            else None
+        )
         if isinstance(value, str) and value.strip():
             identity = build_email_lookup_hash(value)
         else:

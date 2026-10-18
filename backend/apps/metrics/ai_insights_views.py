@@ -108,7 +108,10 @@ class WeeklyAiInsightsView(APIView):
                         "detail": "Review expired. Generate a new review.",
                     }
                 )
-            return self._response(json.loads(decrypt_value(stored)))
+            job = json.loads(decrypt_value(stored))
+            if job.get("status") == "pending":
+                return self._response({"status": "pending"})
+            return self._response(job)
         reviews = WeeklyAiReview.objects.filter(user=request.user)
         latest = reviews.first()
         return self._response(
@@ -157,7 +160,9 @@ class WeeklyAiInsightsView(APIView):
         key = review_job_key(str(request.user.pk), job_id)
         try:
             cache.set(
-                key, encrypt_value(json.dumps({"status": "pending"})), timeout=240
+                key,
+                encrypt_value(json.dumps({"status": "pending", "snapshot": snapshot})),
+                timeout=3600,
             )
             generate_weekly_review_task.delay(
                 str(request.user.pk),

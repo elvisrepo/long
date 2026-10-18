@@ -1808,3 +1808,9 @@ Staging Compose now includes pinned private Redis and an AI Celery worker sharin
 the API image/environment. API startup depends on worker health. Regression checks
 cover no public broker/worker ports, database dependencies, worker health, matching
 images, and the existing migration-first deployment and bundle compatibility gates.
+
+Release review regressions reproduce and fix queued jobs shifting the selected
+week, non-object auth JSON, empty-only AI evidence, and exact birth-date bounds.
+Production-settings subprocess tests verify shared Redis counters with separate
+cache prefixes. Frontend fake timers verify polling survives a five-minute queue
+wait. Provider execution bounds remain separate from the one-hour queue window.

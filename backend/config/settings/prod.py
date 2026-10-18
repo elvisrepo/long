@@ -7,10 +7,23 @@ from urllib.parse import urlparse
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F403
+from .base import CACHES as BASE_CACHES, REDIS_URL as BASE_REDIS_URL
 from .production_environment import REQUIRED_ENVIRONMENT_VARIABLES
 
 
 DEBUG = False
+
+# Gunicorn workers must share authentication/reset attempt counters.
+CACHES = {
+    **BASE_CACHES,
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": BASE_REDIS_URL,
+        "KEY_PREFIX": "longevity-default",
+        "OPTIONS": {"socket_connect_timeout": 2, "socket_timeout": 2},
+    },
+}
+
 
 # The ALB terminates TLS before forwarding requests to Django. The application
 # host must therefore accept web traffic only from that trusted proxy.
@@ -48,16 +61,12 @@ ANYMAIL = {
 if SES_REGION != "eu-central-1":  # noqa: F405
     raise ImproperlyConfigured("SES_REGION must be eu-central-1")
 if parseaddr(DEFAULT_FROM_EMAIL)[1].lower() != "no-reply@syncvitals.space":  # noqa: F405
-    raise ImproperlyConfigured(
-        "DEFAULT_FROM_EMAIL must use no-reply@syncvitals.space"
-    )
+    raise ImproperlyConfigured("DEFAULT_FROM_EMAIL must use no-reply@syncvitals.space")
 
 # The deployed data store is managed PostgreSQL; local SQLite is intentionally
 # supported only by non-production settings.
 if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":  # noqa: F405
-    raise ImproperlyConfigured(
-        "DATABASE_URL must use PostgreSQL in production"
-    )
+    raise ImproperlyConfigured("DATABASE_URL must use PostgreSQL in production")
 
 STRIPE_RETURN_URL_VARIABLES = (
     "STRIPE_CHECKOUT_SUCCESS_URL",

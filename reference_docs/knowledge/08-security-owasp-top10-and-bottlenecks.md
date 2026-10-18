@@ -1,5 +1,12 @@
 #### Security (OWASP Top 10 addressed)
 
+- Staging AI release (2026-10-18): production default cache now uses private Redis
+  with a separate key prefix, so existing login/reset throttles share counters
+  across Gunicorn workers. AI quotas/cooldowns remain absent. Identity throttles
+  treat non-object JSON as malformed input and fall back to the caller address,
+  letting serializers return 400 rather than raising a server error. Pending AI
+  snapshots stay encrypted and owner-scoped; polling does not expose that payload.
+
 - Suggestions-only update (2026-10-17): current `weekly-v3` generation returns
   `review: {suggestions: [{text, evidence_keys}]}`. The prompt asks for three useful
   actions in 150–250 words total, each with a reason grounded in actual tracker

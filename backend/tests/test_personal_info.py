@@ -219,3 +219,23 @@ def test_invalid_stored_weight_does_not_break_profile_response(value: float) -> 
     assert response.status_code == 200
     assert response.json()["estimated_bmr"]["reason"] == "invalid_weight"
     assert response.json()["estimated_bmr"]["value"] is None
+
+
+def test_birth_date_uses_exact_120_year_boundary() -> None:
+    client, _ = profile_client()
+    with patch(
+        "apps.users.personal_info.timezone.now",
+        return_value=datetime(2026, 10, 18, tzinfo=UTC),
+    ):
+        assert (
+            client.patch(
+                "/api/v1/me/", {"date_of_birth": "1906-10-17"}, format="json"
+            ).status_code
+            == 400
+        )
+        assert (
+            client.patch(
+                "/api/v1/me/", {"date_of_birth": "1906-10-18"}, format="json"
+            ).status_code
+            == 200
+        )

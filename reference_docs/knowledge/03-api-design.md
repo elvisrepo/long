@@ -1,5 +1,13 @@
 ### 1.7 API Design
 
+- Staging release correction (2026-10-18): POST captures the exact consented
+  snapshot in the encrypted pending-job cache; the worker reuses it rather than
+  rebuilding at execution time. Queue messages still contain identifiers only.
+  Pending-job and broker expiry are one hour, independently of 110/120-second
+  execution bounds and the 90-second provider timeout. Frontend polling matches
+  the one-hour queue window. There are no AI daily caps or cooldowns. Each
+  suggestion must cite at least one tracker with current or previous actual data.
+
 - AI saved-review dates (2026-10-18): reviewed periods are the last seven completed
   local dates, not the generation date or a Monday–Sunday calendar week. UI labels
   the saved period "Based on data" and timestamps "Generated". Timestamps use the
@@ -57,7 +65,7 @@
   Poll GET same path with `job_id` and `timezone` returns `pending`, `ready`
   (with `result:{snapshot,review,generated_at,model}`), `failed` (safe detail), or
   `expired`. Job identifiers are UUIDs and reads are caller-scoped. Pending TTL
-  240s, ready/failed TTL one hour; cache payloads are encrypted. There is no
+  one hour, ready/failed TTL one hour; cache payloads are encrypted. There is no
   permanent cache retention. Successful results are separately persisted in
   `WeeklyAiReview`: job UUID primary key, cascading owner FK, model/timezone/period
   dates/generated_at metadata, encrypted JSON containing the original snapshot and

@@ -22,7 +22,11 @@ class PersonalInfoSerializer(serializers.Serializer):
 
     def validate_date_of_birth(self, value: date | None) -> date | None:
         today = timezone.now().date()
-        if value is not None and (value > today or today.year - value.year > 120):
+        try:
+            earliest = today.replace(year=today.year - 120)
+        except ValueError:
+            earliest = today.replace(year=today.year - 120, day=28)
+        if value is not None and not earliest <= value <= today:
             raise serializers.ValidationError(
                 "Enter a date of birth within the past 120 years."
             )

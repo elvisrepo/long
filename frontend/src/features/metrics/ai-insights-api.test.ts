@@ -40,6 +40,36 @@ describe("AI insights requests", () => {
     expect(fetchMock.mock.calls[1][0]).toContain("job_id=job-id");
   });
 
+  it("keeps polling when a queued review waits longer than four minutes", async () => {
+    vi.useFakeTimers();
+    setAccessToken("test-access");
+    const result = { generated_at: "2026-10-18", review: { suggestions: [] } };
+    let polls = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((_url, options) => {
+        if (options?.method === "POST")
+          return Promise.resolve(
+            new Response(JSON.stringify({ job_id: "queued" }), { status: 202 }),
+          );
+        polls++;
+        return Promise.resolve(
+          new Response(
+            JSON.stringify(
+              polls > 150 ? { status: "ready", result } : { status: "pending" },
+            ),
+          ),
+        );
+      }),
+    );
+    const completed = generateAiReview("UTC").then(
+      (result) => ({ result }),
+      (error) => ({ error: error.message }),
+    );
+    await vi.advanceTimersByTimeAsync(304000);
+    expect(await completed).toEqual({ result });
+  });
+
   it("sends a personal key in the authenticated body, never the URL", async () => {
     setAccessToken("test-access");
     const fetchMock = vi
