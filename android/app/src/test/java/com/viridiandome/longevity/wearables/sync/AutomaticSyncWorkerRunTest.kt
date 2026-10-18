@@ -1,5 +1,6 @@
 package com.viridiandome.longevity.wearables.sync
 
+import androidx.work.Data
 import androidx.work.ListenableWorker
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -22,6 +23,21 @@ class AutomaticSyncWorkerRunTest {
         assertEquals(AutomaticSyncOutcome.Retry, diagnostics.latestBackgroundAttempt()?.outcome)
         assertEquals(null, diagnostics.latestForegroundAttempt())
     }
+    @Test
+    fun success_and_failure_preserve_output_data_and_diagnostic_outcome() = runTest {
+        val output = Data.Builder().putString("result", "recorded").build()
+        for ((expected, outcome) in listOf(
+            ListenableWorker.Result.success(output) to AutomaticSyncOutcome.Success,
+            ListenableWorker.Result.failure(output) to AutomaticSyncOutcome.Failure,
+        )) {
+            val diagnostics = AutomaticSyncDiagnostics(WorkerRunDiagnosticStore())
+            val actual = runAutomaticSyncWithDiagnostics(diagnostics, appVisible = false) { expected }
+            assertEquals(expected, actual)
+            assertEquals(output, actual.outputData)
+            assertEquals(outcome, diagnostics.latestBackgroundAttempt()?.outcome)
+        }
+    }
+
 }
 
 private class WorkerRunDiagnosticStore : DiagnosticStore {

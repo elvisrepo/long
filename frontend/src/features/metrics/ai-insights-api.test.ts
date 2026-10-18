@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { clearAccessToken, setAccessToken } from "../auth/auth-session";
-import { generateAiReview, savePersonalAiKey } from "./ai-insights-api";
+import {
+  generateAiReview,
+  getAiPreview,
+  savePersonalAiKey,
+} from "./ai-insights-api";
 
 describe("AI insights requests", () => {
   afterEach(() => {
@@ -28,16 +32,33 @@ describe("AI insights requests", () => {
         new Response(JSON.stringify({ status: "ready", result })),
       );
     vi.stubGlobal("fetch", fetchMock);
-    const review = generateAiReview("Europe/Tirane", "z-ai/glm-5.3-flash");
+    const review = generateAiReview(
+      "Europe/Tirane",
+      "z-ai/glm-5.3-flash",
+      "month",
+    );
     await vi.advanceTimersByTimeAsync(4000);
     expect(await review).toEqual(result);
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
       timezone: "Europe/Tirane",
       consent: true,
+      timeframe: "month",
       model: "z-ai/glm-5.3-flash",
     });
     expect(fetchMock.mock.calls[1][0]).toContain("job_id=job-id");
+  });
+
+  it("requests the selected period when loading tracker data and saved history", async () => {
+    setAccessToken("test-access");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ available: true })));
+    vi.stubGlobal("fetch", fetchMock);
+    await getAiPreview("Europe/Tirane", "day");
+    const url = new URL(fetchMock.mock.calls[0][0], "http://localhost");
+    expect(url.searchParams.get("timeframe")).toBe("day");
+    expect(url.searchParams.get("timezone")).toBe("Europe/Tirane");
   });
 
   it("keeps polling when a queued review waits longer than four minutes", async () => {

@@ -10,10 +10,21 @@ import {
   getSavedAiReview,
   generateAiReview,
   type InsightEvidence,
+  type AiTimeframe,
 } from "../features/metrics/ai-insights-api";
 
 export const Route = createFileRoute("/analytics/ai")({
   beforeLoad: requireAuthBeforeLoad,
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { timeframe?: AiTimeframe } => ({
+    timeframe:
+      search.timeframe === "day" ||
+      search.timeframe === "week" ||
+      search.timeframe === "month"
+        ? search.timeframe
+        : undefined,
+  }),
   component: AiInsightsRoute,
 });
 
@@ -33,28 +44,31 @@ function formatGeneratedAt(timestamp: string, timezone: string): string {
 function formatPeriod(
   period: InsightEvidence["current"],
   unit: string,
+  days: number,
 ): string {
   if (period.observed_days !== undefined) {
     return period.daily_average == null
       ? "No measurements"
-      : `${period.daily_average.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${unit} · ${period.observed_days}/7 days`;
+      : `${period.daily_average.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${unit} · ${period.observed_days}/${days} ${days === 1 ? "day" : "days"}`;
   }
-  return `${period.count ?? 0} logged · ${period.logged_days ?? 0}/7 days`;
+  return `${period.count ?? 0} logged · ${period.logged_days ?? 0}/${days} ${days === 1 ? "day" : "days"}`;
 }
 
 function AiInsightsRoute() {
   const queryClient = useQueryClient();
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
+  const timeframe = Route.useSearch().timeframe ?? "week";
+  const navigate = Route.useNavigate();
   const [consent, setConsent] = useState(false);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const preview = useQuery({
-    queryKey: ["ai-insights-preview", timezone],
-    queryFn: () => getAiPreview(timezone),
+    queryKey: ["ai-insights-preview", timezone, timeframe],
+    queryFn: () => getAiPreview(timezone, timeframe),
   });
   const generation = useMutation({
     mutationFn: (model: string | undefined) =>
-      generateAiReview(timezone, model),
+      generateAiReview(timezone, model, timeframe),
     retry: false,
     onSuccess: () => {
       setSelectedReviewId(null);
@@ -88,7 +102,7 @@ function AiInsightsRoute() {
     <section className="sleep-insights-screen ai-insights-screen">
       <PageHeader
         title="AI Insights"
-        eyebrow="Pro Insights · Weekly suggestions"
+        eyebrow="Pro Insights · AI suggestions"
         breadcrumb={
           <Link className="metric-detail-breadcrumb" to="/">
             ← Dashboard
@@ -96,31 +110,61 @@ function AiInsightsRoute() {
         }
         description={
           <p>
-            Your last seven completed days, compared with the previous seven. A
-            set of three practical suggestions informed by all your trackers.
+            Choose a day, week or month of completed tracker data for three
+            practical suggestions, with the preceding period for comparison.
           </p>
         }
       />
       <AiApiKeySettings busy={generation.isPending} />
-      {models.length ? (
+      <div className="ai-review-controls">
+        {models.length ? (
+          <div className="ai-model-picker">
+            <label htmlFor="review-model">Review model</label>
+            <select
+              id="review-model"
+              value={model ?? ""}
+              disabled={generation.isPending}
+              onChange={(event) => setSelectedModel(event.target.value)}
+            >
+              {models.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <p>Model: {model}</p>
+            <p>Availability and usage limits depend on your NVIDIA account.</p>
+          </div>
+        ) : null}
         <div className="ai-model-picker">
-          <label htmlFor="review-model">Review model</label>
+          <label htmlFor="review-timeframe">Data period</label>
           <select
-            id="review-model"
-            value={model ?? ""}
+            id="review-timeframe"
+            value={timeframe}
             disabled={generation.isPending}
-            onChange={(event) => setSelectedModel(event.target.value)}
+            onChange={(event) => {
+              void navigate({
+                search: { timeframe: event.target.value as AiTimeframe },
+                replace: true,
+              });
+              setSelectedReviewId(null);
+              setConsent(false);
+              generation.reset();
+            }}
           >
-            {models.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
+            <option value="day">Day</option>
+            <option value="week">Week</option>
+            <option value="month">Month</option>
           </select>
-          <p>Model: {model}</p>
-          <p>Availability and usage limits depend on your NVIDIA account.</p>
+          <p>
+            {timeframe === "day"
+              ? "Yesterday, compared with the day before."
+              : timeframe === "week"
+                ? "Last 7 completed days, compared with the preceding 7."
+                : "Last 30 completed days, compared with the preceding 30."}
+          </p>
         </div>
-      ) : null}
+      </div>
       {preview.isPending ? (
         <p role="status">Preparing your tracker summary…</p>
       ) : null}
@@ -156,7 +200,7 @@ function AiInsightsRoute() {
               </p>
             ) : null}
             {!hasData ? (
-              <p>No tracker data in the last seven completed days yet.</p>
+              <p>No tracker data in the selected completed period yet.</p>
             ) : null}
             <label>
               <input
@@ -165,8 +209,8 @@ function AiInsightsRoute() {
                 disabled={generation.isPending}
                 onChange={(event) => setConsent(event.target.checked)}
               />{" "}
-              Share these tracker summaries with NVIDIA to generate my weekly
-              suggestions.
+              Share these tracker summaries with NVIDIA to generate suggestions
+              for the selected period.
             </label>
             <p>
               Includes logged food and routine names. Profile fields, personal
@@ -228,10 +272,17 @@ function AiInsightsRoute() {
           {displayedReview ? (
             <section
               className="sleep-insights-card"
-              aria-label="Your weekly AI suggestions"
+              aria-label="Your AI suggestions"
               aria-live="polite"
             >
-              <h2>Weekly suggestions</h2>
+              <h2>
+                {displayedReview.snapshot.timeframe === "day"
+                  ? "Daily"
+                  : displayedReview.snapshot.timeframe === "month"
+                    ? "Monthly"
+                    : "Weekly"}{" "}
+                suggestions
+              </h2>
               <p>
                 Based on data: {displayedReview.snapshot.period.from} –{" "}
                 {displayedReview.snapshot.period.to} ·{" "}
@@ -276,8 +327,8 @@ function AiInsightsRoute() {
                 <thead>
                   <tr>
                     <th scope="col">Tracker</th>
-                    <th scope="col">Current week</th>
-                    <th scope="col">Previous week</th>
+                    <th scope="col">Selected period</th>
+                    <th scope="col">Previous period</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -285,8 +336,20 @@ function AiInsightsRoute() {
                     ([key, row]) => (
                       <tr key={key}>
                         <th scope="row">{row.label}</th>
-                        <td>{formatPeriod(row.current, row.unit)}</td>
-                        <td>{formatPeriod(row.previous, row.unit)}</td>
+                        <td>
+                          {formatPeriod(
+                            row.current,
+                            row.unit,
+                            summarySnapshot.days ?? 7,
+                          )}
+                        </td>
+                        <td>
+                          {formatPeriod(
+                            row.previous,
+                            row.unit,
+                            summarySnapshot.days ?? 7,
+                          )}
+                        </td>
                       </tr>
                     ),
                   )}
