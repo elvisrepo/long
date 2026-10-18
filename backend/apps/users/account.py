@@ -9,7 +9,7 @@ from django.utils import timezone
 from rest_framework.exceptions import APIException, ValidationError
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 
-from apps.metrics.models import MetricDefinition, MetricEntry
+from apps.metrics.models import MetricDefinition, MetricEntry, WeeklyAiReview
 from apps.diet.models import DietEntry, DietFood, DietSection
 from apps.recovery.models import RecoveryEntry, RecoveryTool
 from apps.stretching.models import StretchEntry, StretchExercise, StretchPreferences
@@ -360,6 +360,14 @@ def account_export(user: User) -> Iterator[str]:
             )
             separator = ",\n"
         yield "\n  ]"
+    yield ',\n  "ai_weekly_reviews": ['
+    separator = "\n"
+    for review in WeeklyAiReview.objects.filter(user=user).iterator(chunk_size=1000):
+        yield separator + "\n".join(
+            "    " + line for line in encoder.encode(review.as_result()).splitlines()
+        )
+        separator = ",\n"
+    yield "\n  ]"
     yield "\n}\n"
 
 

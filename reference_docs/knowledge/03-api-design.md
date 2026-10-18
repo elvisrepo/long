@@ -1,5 +1,139 @@
 ### 1.7 API Design
 
+- AI saved-review dates (2026-10-18): reviewed periods are the last seven completed
+  local dates, not the generation date or a Monday–Sunday calendar week. UI labels
+  the saved period "Based on data" and timestamps "Generated". Timestamps use the
+  saved review's IANA timezone and year-month-day format. Selecting saved history
+  also selects its original tracker table and exact daily-summary JSON, so current
+  data cannot be mistaken for that historical review's evidence. Route tests cover
+  historical table/date alignment and generation near midnight in a different zone.
+
+- Suggestions-only update (2026-10-17): current `weekly-v3` generation returns
+  `review: {suggestions: [{text, evidence_keys}]}`. The prompt asks for three useful
+  actions in 150–250 words total, each with a reason grounded in actual tracker
+  records and a next-week check. It considers every tracker without generating a
+  numerical recap. Validation requires 1–5 nonempty suggestions and known, distinct
+  evidence keys. No app quota or cooldown is added. Existing saved v2 reviews show
+  only their priorities; v1 shows its suggestion. Original saved payloads remain
+  intact, with supporting numbers from their original snapshots. The existing
+  tracker table, encrypted persistence and owner access rules are unchanged.
+
+## Weekly AI insights and personal NVIDIA keys — 2026-10-17
+
+- Frontend `/analytics/ai`, linked from Dashboard → Pro Insights, displays actual
+  tracker summaries and an explicit Generate action. No production demo data or
+  fabricated fallback review. Current slice is weekly only: seven completed local
+  dates compared with the preceding seven; browser supplies an IANA timezone.
+- JWT + Pro `analytics_enabled`: GET `/api/v1/metrics/analytics/ai-weekly/`
+  (`timezone`, default UTC) returns `{available,model,models:[{id,label}],snapshot,latest_review,review_history}` without calling an LLM.
+  Snapshot includes period/previous_period/timezone/prompt_version and evidence
+  keyed by system metric or tracker. Each metric has label/unit/daily_method,
+  current/previous `{observed_days,daily_average}`, absolute mean change, and 14
+  daily points. Missing measurements remain null; averages exclude missing days.
+  Steps/sleep use existing preferred-source sums, other instantaneous metrics use
+  medians; distance/total calories reuse platform-prioritized Health Connect
+  aggregates. No raw competing writer totals are added to these aggregates.
+- Recovery/diet/stretching contain daily logged-entry counts; workouts count only
+  finished sessions, plus completed sets from both finished and unfinished sessions.
+  Snapshot v2 includes bounded food/tool/stretch/exercise names and group/type labels,
+  per-item current/previous counts and dates, configured catalog sizes, last logged
+  dates and omitted-detail counts (20 items per tracker). Configured items are not
+  prescribed daily targets. Workout details retain frozen type/units and separate
+  kg/lb and km/mi; include recorded reps, load volume, max load, distance and time.
+  Session metadata distinguishes unfinished records and known finished durations.
+  Personal notes/comments, identity/profile fields, BMR and images are excluded.
+  Check-offs do not establish nutrient intake or effects. Skin values remain baseline
+  changes. Metrics also include observed-day range, first/last dated values and
+  within-week change, with explicit dated minima/maxima; a single observation has no within-week change.
+- POST same path accepts `{timezone,consent:true,model?}`. Optional model must match
+  the server allowlist (or trusted configured default); invalid values reject before
+  queue. Options: `nvidia/nemotron-3.5-super-vl-120b-a12b`,
+  `deepseek-ai/deepseek-v4.1-flash`, `z-ai/glm-5.3-flash`, and the existing
+  `nvidia/nemotron-3-super-120b-a12b`. Omitted model preserves the backend default.
+  UI selection lasts for the mounted page, is disabled during generation, and does
+  not change a previous report's model label. Requires current data
+  and a configured key. Returns 202 `{job_id,status:"pending"}`; Celery receives
+  only owner id/timezone/job id/validated model id, builds the actual snapshot and calls NVIDIA.
+  Poll GET same path with `job_id` and `timezone` returns `pending`, `ready`
+  (with `result:{snapshot,review,generated_at,model}`), `failed` (safe detail), or
+  `expired`. Job identifiers are UUIDs and reads are caller-scoped. Pending TTL
+  240s, ready/failed TTL one hour; cache payloads are encrypted. There is no
+  permanent cache retention. Successful results are separately persisted in
+  `WeeklyAiReview`: job UUID primary key, cascading owner FK, model/timezone/period
+  dates/generated_at metadata, encrypted JSON containing the original snapshot and
+  report. `(user,-generated_at)` index serves history reads. Preview restores the
+  newest saved success and returns owner-only metadata history; GET same path with
+  `review_id` returns `{status:"ready",result}` or owner-safe 404. Successful result
+  includes `id`; `job_id` reads fall back to the saved record after cache expiry.
+  New successes append, failures leave history unchanged, duplicate task deliveries
+  reuse existing saved results. Refresh restores the newest successful review;
+  in-progress request polling is still page-local. History selection preserves the
+  original period/evidence while the generation preview remains current. Reports
+  are included as decrypted `ai_weekly_reviews` in account export and cascade with
+  deletion. No browser storage or automatic provider call is used for restoration.
+- Generation has no application daily quota, cooldown or replacement concurrency
+  limiter, per explicit user instruction. Legacy quota/cooldown Redis keys are
+  ignored. Redis stores encrypted temporary job state; successful history is stored in PostgreSQL. Empty data/invalid
+  inputs are 400, non-Pro 403, unavailable configuration/queue 503. NVIDIA's own
+  provider-side quota/errors can still be returned. Provider network timeout 90s;
+  worker soft/hard limits 110s/120s and task expiry 120s keep calls off web workers.
+- Backend-only fixed provider URL `https://integrate.api.nvidia.com/v1/chat/completions`,
+  model from validated selection or backend `NVIDIA_INSIGHTS_MODEL` (fallback `deepseek-ai/deepseek-v4.1-flash`),
+  bounded output 8000 tokens and 128KiB
+  response limit. Legacy `weekly-v2` output is JSON with `overview`, exactly six `sections`
+  (`key,text,evidence_keys`, keys health/activity/workouts/diet/recovery/stretching),
+  0–4 `connections` and 1–5 `priorities` (`text,evidence_keys`). Domain sections
+  must cite their own evidence; absent-data sections are required. Connections
+  require at least two distinct keys with current data. The legacy prompt targeted 350–500
+  words total, all six domains and three practical suggestions, with aligned-date comparisons,
+  explicit uncertainty and concrete next-week actions. All labels are untrusted data.
+  Frontend keeps legacy v1 cached reports readable. Evidence shown with sections is
+  server-computed; schema checks cannot prove the generated prose is correct.
+- Timeout remediation: the local/model example configuration uses
+  `nvidia/nemotron-3-super-120b-a12b`, verified with a real weekly report. For that
+  model and Nemotron 3.5 Super VL send `chat_template_kwargs:{enable_thinking:false}` and temperature 1.0,
+  per NVIDIA documentation; statistical calculations already happen in the app.
+  Reports and previews identify the configured model, with no silent provider
+  fallback. DeepSeek remains selectable in backend configuration. HTTP 502/503/504
+  errors explain upstream model unavailability without reflecting provider bodies.
+  https://docs.api.nvidia.com/nim/reference/nvidia-nemotron-3-super-120b-a12b
+- Model IDs verified against the live NVIDIA `/v1/models` catalog on 2026-10-17.
+  Nemotron 3.5 produced a real six-section, 508-word review with three suggestions
+  in 35.5s. Tiny DeepSeek and GLM connectivity checks timed out at 25s; this does
+  not prove failure at the app's 90s bound. No silent fallback or free/unlimited
+  usage promise; provider access/quota depends on the NVIDIA account.
+- Reviews are independent one-request/one-reply calls. No prior review or chat
+  messages are sent, and the encrypted temporary result cache is not conversation
+  memory. NVIDIA chat completions can accept a message history; conversational and
+  across-visit memory require an explicit app history feature, not added here.
+  https://docs.api.nvidia.com/nim/reference/z-ai-glm-5-3-flash-infer
+- Provider timeout diagnosis (follow-up): GLM defaults to reasoning_effort=max;
+  requests now use `low`. DeepSeek V4.1 uses numeric reasoning effort 1 and
+  temperature 1.0, retaining the configured model without fallback. In tiny streamed
+  probes with those settings, Nemotron returned headers in 0.5s and content in 1.7s;
+  GLM/DeepSeek produced no response headers before 45s. This rules out tracker-input
+  size as a requirement for the stall, but does not identify provider-side queue,
+  load or inference state. Timeouts identify the chosen model and retain saved reviews.
+  https://docs.api.nvidia.com/nim/reference/z-ai-glm-5-3-flash
+  https://docs.api.nvidia.com/nim/reference/nvidia-deepseek-v4_1-flash
+- JWT on every plan: GET `/api/v1/metrics/analytics/ai-key/` returns only
+  `{has_personal_key:boolean}`. PUT accepts only `{api_key:"nvapi-..."}` (12–512
+  characters; NVIDIA token alphabet), encrypts under the existing PII key in
+  `User.ai_api_key_encrypted`. DELETE clears it. Neither operation contacts NVIDIA
+  or proves key validity. A personal key takes precedence over backend
+  `NVIDIA_API_KEY`; invalid personal keys do not silently fall back. Removing a
+  personal key restores the app fallback when configured. Responses never return
+  the credential. `users.0005_user_ai_api_key_encrypted` adds the column.
+- The UI has Save/Replace/Remove controls with a password input, no browser
+  persistence, and clears the draft after successful saving. All successful AI
+  responses use `private, no-store`. Personal keys are omitted from account exports
+  and deleted with the user. Tests/E2E do not inherit the developer's provider key.
+- Hosting caveat: NVIDIA catalog trial terms §§1.2/1.4 restrict production use;
+  §4.3 restricts health-data uploads unless expressly permitted. User consent does
+  not change those provider terms. Confirm a suitable service agreement before
+  public deployment; the local integration is not deployment approval.
+  https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf
+
 ## Respiratory rate and skin temperature change — 2026-10-17
 
 - Shared active definitions: `respiratory_rate` (Respiratory Rate, breaths/min,

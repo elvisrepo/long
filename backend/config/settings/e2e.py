@@ -34,6 +34,7 @@ JWT_SIGNING_KEY = os.environ.get(
 # are deliberately inert and fixed: browser E2E must not become a Stripe
 # sandbox integration suite merely because a local .env contains valid keys.
 STRIPE_OUTBOUND_API_ENABLED = False
+NVIDIA_API_KEY = ""
 STRIPE_SECRET_KEY = "e2e-stripe-api-disabled"
 STRIPE_WEBHOOK_SECRET = "e2e-webhook-disabled"
 STRIPE_CHECKOUT_SUCCESS_URL = "http://127.0.0.1:5173/settings?checkout=success"

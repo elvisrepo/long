@@ -26,6 +26,12 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-insecure-secret-key")
 PII_ENCRYPTION_KEY = os.environ.get("PII_ENCRYPTION_KEY", "").strip()
 EMAIL_LOOKUP_KEY = os.environ.get("EMAIL_LOOKUP_KEY", "").strip()
 
+# Backend-only credentials; never expose through frontend configuration.
+NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY", "").strip()
+NVIDIA_INSIGHTS_MODEL = os.environ.get(
+    "NVIDIA_INSIGHTS_MODEL", "deepseek-ai/deepseek-v4.1-flash"
+).strip()
+
 # Local reset emails are printed by the backend container for development.
 EMAIL_BACKEND = os.environ.get(
     "EMAIL_BACKEND",
@@ -119,6 +125,15 @@ DATABASES = {
     )
 }
 REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")
+CACHES = {
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    "ai_insights": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+        "KEY_PREFIX": "longevity-ai",
+        "OPTIONS": {"socket_connect_timeout": 2, "socket_timeout": 2},
+    },
+}
 CELERY_BROKER_URL = REDIS_URL
 
 # Localhost return URLs support the Vite development server. Production requires

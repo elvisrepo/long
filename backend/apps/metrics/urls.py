@@ -1,4 +1,5 @@
 from django.urls import path
+from apps.metrics.ai_insights_views import WeeklyAiInsightsView, AiApiKeyView
 
 from apps.metrics.views import (
     DailyRespiratoryRateSummaryView,
@@ -21,6 +22,8 @@ from apps.metrics.views import (
 
 
 urlpatterns = [
+      path("analytics/ai-key/", AiApiKeyView.as_view(), name="ai-api-key"),
+      path("analytics/ai-weekly/", WeeklyAiInsightsView.as_view(), name="ai-weekly-insights"),
       path("entries/daily-respiratory-rate/", DailyRespiratoryRateSummaryView.as_view(), name="daily-respiratory-rate-summaries"),
       path("entries/daily-skin-temperature/", DailySkinTemperatureSummaryView.as_view(), name="daily-skin-temperature-summaries"),
       path(

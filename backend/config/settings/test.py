@@ -8,6 +8,13 @@ from .base import SIMPLE_JWT as BASE_SIMPLE_JWT
 # Automated tests must never use credentials loaded from a developer's .env file.
 STRIPE_SECRET_KEY = "sk_test_fake"
 STRIPE_WEBHOOK_SECRET = "whsec_fake"
+NVIDIA_API_KEY = ""
+NVIDIA_INSIGHTS_MODEL = "deepseek-ai/deepseek-v4.1-flash"
+CELERY_TASK_ALWAYS_EAGER = True
+CACHES = {
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    "ai_insights": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "ai-test"},
+}
 STRIPE_CHECKOUT_SUCCESS_URL = (
       "http://localhost:5173/settings?checkout=success"
   )

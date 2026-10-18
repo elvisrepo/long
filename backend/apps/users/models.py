@@ -118,6 +118,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active: bool = models.BooleanField(default=True)
     is_staff: bool = models.BooleanField(default=False)
     personal_info_encrypted = models.TextField(default="", blank=True, editable=False)
+    ai_api_key_encrypted = models.TextField(default="", blank=True, editable=False)
     sleep_target_minutes: int = models.PositiveSmallIntegerField(
         default=450,
         validators=[MinValueValidator(60), MaxValueValidator(1439)],

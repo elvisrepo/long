@@ -20,6 +20,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as StretchingRouteImport } from './routes/stretching'
 import { Route as WorkoutsRouteImport } from './routes/workouts'
+import { Route as AnalyticsAiRouteImport } from './routes/analytics.ai'
 import { Route as AnalyticsConsistencyRouteImport } from './routes/analytics.consistency'
 import { Route as AnalyticsSleepRouteImport } from './routes/analytics.sleep'
 import { Route as AnalyticsWeightStepsRouteImport } from './routes/analytics.weight-steps'
@@ -80,6 +81,11 @@ const WorkoutsRoute = WorkoutsRouteImport.update({
   path: '/workouts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AnalyticsAiRoute = AnalyticsAiRouteImport.update({
+  id: '/analytics/ai',
+  path: '/analytics/ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AnalyticsConsistencyRoute = AnalyticsConsistencyRouteImport.update({
   id: '/analytics/consistency',
   path: '/analytics/consistency',
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/stretching': typeof StretchingRoute
   '/workouts': typeof WorkoutsRoute
+  '/analytics/ai': typeof AnalyticsAiRoute
   '/analytics/consistency': typeof AnalyticsConsistencyRoute
   '/analytics/sleep': typeof AnalyticsSleepRoute
   '/analytics/weight-steps': typeof AnalyticsWeightStepsRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/stretching': typeof StretchingRoute
   '/workouts': typeof WorkoutsRoute
+  '/analytics/ai': typeof AnalyticsAiRoute
   '/analytics/consistency': typeof AnalyticsConsistencyRoute
   '/analytics/sleep': typeof AnalyticsSleepRoute
   '/analytics/weight-steps': typeof AnalyticsWeightStepsRoute
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/stretching': typeof StretchingRoute
   '/workouts': typeof WorkoutsRoute
+  '/analytics/ai': typeof AnalyticsAiRoute
   '/analytics/consistency': typeof AnalyticsConsistencyRoute
   '/analytics/sleep': typeof AnalyticsSleepRoute
   '/analytics/weight-steps': typeof AnalyticsWeightStepsRoute
@@ -167,6 +176,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/stretching'
     | '/workouts'
+    | '/analytics/ai'
     | '/analytics/consistency'
     | '/analytics/sleep'
     | '/analytics/weight-steps'
@@ -184,6 +194,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/stretching'
     | '/workouts'
+    | '/analytics/ai'
     | '/analytics/consistency'
     | '/analytics/sleep'
     | '/analytics/weight-steps'
@@ -201,6 +212,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/stretching'
     | '/workouts'
+    | '/analytics/ai'
     | '/analytics/consistency'
     | '/analytics/sleep'
     | '/analytics/weight-steps'
@@ -219,6 +231,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   StretchingRoute: typeof StretchingRoute
   WorkoutsRoute: typeof WorkoutsRoute
+  AnalyticsAiRoute: typeof AnalyticsAiRoute
   AnalyticsConsistencyRoute: typeof AnalyticsConsistencyRoute
   AnalyticsSleepRoute: typeof AnalyticsSleepRoute
   AnalyticsWeightStepsRoute: typeof AnalyticsWeightStepsRoute
@@ -303,6 +316,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkoutsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/analytics/ai': {
+      id: '/analytics/ai'
+      path: '/analytics/ai'
+      fullPath: '/analytics/ai'
+      preLoaderRoute: typeof AnalyticsAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/analytics/consistency': {
       id: '/analytics/consistency'
       path: '/analytics/consistency'
@@ -357,6 +377,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   StretchingRoute: StretchingRoute,
   WorkoutsRoute: WorkoutsRoute,
+  AnalyticsAiRoute: AnalyticsAiRoute,
   AnalyticsConsistencyRoute: AnalyticsConsistencyRoute,
   AnalyticsSleepRoute: AnalyticsSleepRoute,
   AnalyticsWeightStepsRoute: AnalyticsWeightStepsRoute,

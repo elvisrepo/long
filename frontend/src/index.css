@@ -1862,6 +1862,14 @@ button {
   padding: 20px;
 }
 
+.ai-insights-screen .sleep-insights-card { min-width: 0; }
+.ai-insights-screen table { width: 100%; border-collapse: collapse; text-align: left; }
+.ai-insights-screen th, .ai-insights-screen td { padding: 0.75rem; border-bottom: 1px solid var(--border); }
+.ai-insights-screen caption { text-align: left; padding-bottom: 1rem; color: var(--text-dim); }
+.ai-insights-screen article { padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+.ai-insights-screen label { display: flex; align-items: flex-start; gap: 0.75rem; }
+.ai-insights-screen input[type="checkbox"] { width: 1.2rem; min-width: 1.2rem; height: 1.2rem; }
+
 .sleep-target-control {
   display: grid;
   grid-template-columns: minmax(0, 360px) auto;
@@ -3467,3 +3475,12 @@ body:has(dialog[open]) {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+.ai-weekly-review { max-width: 76ch; min-width: 0; overflow-wrap: anywhere; }
+.ai-weekly-review p { line-height: 1.65; }
+.ai-weekly-review article { padding-block: 0.5rem 1.25rem; }
+.ai-weekly-review details { margin-block: 0.75rem; font-size: 0.9rem; color: var(--text-dim); }
+.ai-weekly-review summary { cursor: pointer; }
+.ai-weekly-review > ol > li, .ai-weekly-review > ul > li { margin-block: 1.25rem; }
+.ai-model-picker { min-width: 0; }
+.ai-model-picker select { max-width: 100%; width: min(100%, 28rem); }
+.ai-model-picker p { overflow-wrap: anywhere; }

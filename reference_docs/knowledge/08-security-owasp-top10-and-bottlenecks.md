@@ -1,5 +1,53 @@
 #### Security (OWASP Top 10 addressed)
 
+- Suggestions-only update (2026-10-17): current `weekly-v3` generation returns
+  `review: {suggestions: [{text, evidence_keys}]}`. The prompt asks for three useful
+  actions in 150–250 words total, each with a reason grounded in actual tracker
+  records and a next-week check. It considers every tracker without generating a
+  numerical recap. Validation requires 1–5 nonempty suggestions and known, distinct
+  evidence keys. No app quota or cooldown is added. Existing saved v2 reviews show
+  only their priorities; v1 shows its suggestion. Original saved payloads remain
+  intact, with supporting numbers from their original snapshots. The existing
+  tracker table, encrypted persistence and owner access rules are unchanged.
+
+Weekly AI insights (2026-10-17): all summaries/jobs use JWT ownership and the Pro
+analytics entitlement. Model selection is restricted to a server allowlist or trusted
+backend default, validated before queue and checked again before provider calls.
+The selected ID travels with the job and appears in its result; personal API keys still go only to the fixed
+NVIDIA HTTPS endpoint. Provider 502/503/504 return safe service-unavailable details.
+No provider response body is reflected.
+
+BYOK settings are owner-only on all plans, encrypted with
+the existing Fernet PII key, never returned or exported, and cascade with account
+deletion. Credential changes lock the user row to serialize with deletion. Keys
+are accepted only by PUT, never query strings. UI password drafts are not stored
+in local storage or React Query mutation variables. E2E/test settings explicitly
+disable inherited developer keys. Pending worker messages carry owner/job/timezone identifiers and a validated model ID only;
+encrypted Redis results expire after one hour, pending state after 240s. The
+worker checks account existence before generating/storing; deleted-user jobs do
+not initiate new generation. A request already sent to NVIDIA cannot be recalled.
+Revoking/replacing a key affects subsequent jobs, not an in-flight provider call.
+
+Only allowlisted system metric summaries and owner-scoped tracker details are sent
+to the fixed NVIDIA HTTPS endpoint. V2 includes bounded food/tool/exercise names
+and grouping/type labels (20 detail items per tracker), treated as untrusted data
+in the system prompt. No identity/profile fields, raw notes/comments, images,
+connection credentials or another user's data are sent. User action and affirmative
+sharing confirmation are required. Unknown input fields reject. Provider responses
+are size/time/token bounded, parsed as JSON, evidence-key checked and rendered as
+React text. No tools, HTML execution, external URLs, medical diagnosis, inferred
+nutrients, or arbitrary endpoint/model selection. Generated prose is not guaranteed
+truthful by schema validation; the UI shows supporting server-computed evidence.
+There is no application generation quota or cooldown, per explicit user instruction;
+legacy counter/lock keys are ignored. Redis holds encrypted job state. Provider failure bodies/credentials are not reflected to clients or task
+logs. Successful reports now persist in owner-scoped WeeklyAiReview rows with encrypted
+result JSON, original evidence and model/date metadata. Saved-review reads enforce
+JWT/Pro ownership; unknown or foreign IDs return 404. Writes serialize with account
+deletion on the existing user row lock, outside the provider call. Exports include
+decrypted owned reports but never keys/ciphertext; deletion cascades. Failure and
+cache expiry do not erase saved successes. Browser storage is not used. See API doc for provider
+terms restrictions that remain applicable before public deployment.
+
 Respiratory rate / skin temperature change (2026-10-17): both shared definitions
 use the existing authenticated, bounded, owner-scoped upload pipeline and exports.
 Daily median endpoints filter caller-owned active system metrics and preserve
