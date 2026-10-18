@@ -13,12 +13,10 @@ it.each([
   ["skin_temperature", "daily-skin-temperature"],
 ])("loads %s daily medians", async (metric, endpoint) => {
   setAccessToken("token");
-  const fetchMock = vi
-    .spyOn(globalThis, "fetch")
-    .mockResolvedValue({
-      ok: true,
-      json: async () => [],
-    } as unknown as Response);
+  const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+    ok: true,
+    json: async () => [],
+  } as unknown as Response);
   await getMetricEntries({ metric, daily: true, timezone: "UTC", limit: 7 });
   expect(fetchMock).toHaveBeenCalledWith(
     `/api/v1/metrics/entries/${endpoint}/?timezone=UTC&limit=7`,

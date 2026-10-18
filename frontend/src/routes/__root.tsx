@@ -20,9 +20,11 @@ interface RouterContext {
 
 const RouterDevtools = import.meta.env.DEV
   ? lazy(() =>
-      import("@tanstack/react-router-devtools").then(({ TanStackRouterDevtools }) => ({
-        default: TanStackRouterDevtools,
-      })),
+      import("@tanstack/react-router-devtools").then(
+        ({ TanStackRouterDevtools }) => ({
+          default: TanStackRouterDevtools,
+        }),
+      ),
     )
   : null;
 

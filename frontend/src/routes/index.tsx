@@ -214,7 +214,9 @@ function DashboardRoute() {
             <div className="insight-navigation">
               <Link className="insight-destination" to="/analytics/ai">
                 <strong>AI Insights →</strong>
-                <span className="insight-preview">Your weekly tracker review</span>
+                <span className="insight-preview">
+                  Your weekly tracker review
+                </span>
               </Link>
               <Link className="insight-destination" to="/analytics/sleep">
                 <strong>Sleep Insights →</strong>
