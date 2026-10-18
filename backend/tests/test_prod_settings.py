@@ -66,9 +66,7 @@ def valid_prod_environment() -> dict[str, str]:
         "STRIPE_CHECKOUT_CANCEL_URL": (
             "https://staging.example.com/settings?checkout=cancelled"
         ),
-        "STRIPE_CUSTOMER_PORTAL_RETURN_URL": (
-            "https://staging.example.com/settings"
-        ),
+        "STRIPE_CUSTOMER_PORTAL_RETURN_URL": ("https://staging.example.com/settings"),
         "SES_REGION": "eu-central-1",
         "DEFAULT_FROM_EMAIL": "Longevity <no-reply@syncvitals.space>",
         "PASSWORD_RESET_URL": "https://staging.example.com/reset-password",
@@ -85,9 +83,7 @@ def import_prod_settings(
     """Import production settings in an isolated child process."""
 
     command = (
-        IMPORT_PROD_SETTINGS_WITHOUT_DOTENV
-        if without_dotenv
-        else IMPORT_PROD_SETTINGS
+        IMPORT_PROD_SETTINGS_WITHOUT_DOTENV if without_dotenv else IMPORT_PROD_SETTINGS
     )
     return subprocess.run(
         [sys.executable, "-c", command],
@@ -180,10 +176,7 @@ def test_prod_settings_reject_sender_not_allowed_by_instance_role() -> None:
     result = import_prod_settings(environment)
 
     assert result.returncode != 0
-    assert (
-        "DEFAULT_FROM_EMAIL must use no-reply@syncvitals.space"
-        in result.stderr
-    )
+    assert "DEFAULT_FROM_EMAIL must use no-reply@syncvitals.space" in result.stderr
 
 
 @pytest.mark.parametrize(
@@ -248,8 +241,7 @@ def test_prod_settings_reject_unsafe_stripe_return_url(
 
     assert result.returncode != 0
     assert (
-        f"{variable_name} must use a non-local HTTPS URL in production"
-        in result.stderr
+        f"{variable_name} must use a non-local HTTPS URL in production" in result.stderr
     )
 
 
@@ -332,3 +324,20 @@ def test_prod_settings_configure_application_and_django_log_levels() -> None:
     logging = json.loads(result.stdout)
     assert logging["root"]["level"] == "WARNING"
     assert logging["loggers"]["django"]["level"] == "ERROR"
+
+
+def test_production_auth_limits_use_the_shared_redis_cache() -> None:
+    env = valid_prod_environment()
+    env["REDIS_URL"] = "redis://redis:6379/0"
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import config.settings.prod as p; assert p.CACHES['default']['BACKEND'] == 'django.core.cache.backends.redis.RedisCache'; assert p.CACHES['default']['LOCATION'] == 'redis://redis:6379/0'; assert p.CACHES['default']['KEY_PREFIX'] != p.CACHES['ai_insights']['KEY_PREFIX']",
+        ],
+        cwd=BACKEND_DIR,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr

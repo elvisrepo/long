@@ -9,13 +9,14 @@ from django.utils import timezone
 from rest_framework.exceptions import APIException, ValidationError
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 
-from apps.metrics.models import MetricDefinition, MetricEntry
+from apps.metrics.models import MetricDefinition, MetricEntry, WeeklyAiReview
 from apps.diet.models import DietEntry, DietFood, DietSection
 from apps.recovery.models import RecoveryEntry, RecoveryTool
 from apps.stretching.models import StretchEntry, StretchExercise, StretchPreferences
 from apps.subscriptions.models import BillingCustomer, CheckoutAttempt, Subscription
 from apps.subscriptions.services import UnresolvedCheckoutError, cancel_account_billing
 from apps.users.models import User
+from apps.users.personal_info import personal_info
 from apps.wearables.models import SyncRun, WearableConnection
 from apps.workouts.models import (
     Exercise,
@@ -56,6 +57,7 @@ def account_export(user: User) -> Iterator[str]:
             "id": user.pk,
             "email": user.email,
             "sleep_target_minutes": user.sleep_target_minutes,
+            "personal_info": personal_info(user),
             "last_login": user.last_login,
         },
     }
@@ -358,6 +360,14 @@ def account_export(user: User) -> Iterator[str]:
             )
             separator = ",\n"
         yield "\n  ]"
+    yield ',\n  "ai_weekly_reviews": ['
+    separator = "\n"
+    for review in WeeklyAiReview.objects.filter(user=user).iterator(chunk_size=1000):
+        yield separator + "\n".join(
+            "    " + line for line in encoder.encode(review.as_result()).splitlines()
+        )
+        separator = ",\n"
+    yield "\n  ]"
     yield "\n}\n"
 
 

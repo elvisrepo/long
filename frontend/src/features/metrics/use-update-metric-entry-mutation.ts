@@ -17,6 +17,7 @@ export function useUpdateMetricEntryMutation() {
     mutationFn: ({ id, input }: UpdateMetricEntryMutationInput) =>
       updateMetricEntry(id, input),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["personal-info"] });
       queryClient.invalidateQueries({ queryKey: ["consistency-analytics"] });
       return queryClient.invalidateQueries({ queryKey: ["metric-entries"] });
     },

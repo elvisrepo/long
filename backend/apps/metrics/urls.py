@@ -1,9 +1,14 @@
 from django.urls import path
+from apps.metrics.ai_insights_views import WeeklyAiInsightsView, AiApiKeyView
 
 from apps.metrics.views import (
+    DailyRespiratoryRateSummaryView,
+    DailySkinTemperatureSummaryView,
     ConsistencyAnalyticsView,
     DailyHrvSummaryView,
     DailyStepsSummaryView,
+    DailyDistanceSummaryView,
+    DailyTotalCaloriesSummaryView,
     MetricDefinitionDetailView,
     MetricDefinitionListView,
     MetricEntryCsvExportView,
@@ -17,6 +22,20 @@ from apps.metrics.views import (
 
 
 urlpatterns = [
+      path("analytics/ai-key/", AiApiKeyView.as_view(), name="ai-api-key"),
+      path("analytics/ai-weekly/", WeeklyAiInsightsView.as_view(), name="ai-weekly-insights"),
+      path("entries/daily-respiratory-rate/", DailyRespiratoryRateSummaryView.as_view(), name="daily-respiratory-rate-summaries"),
+      path("entries/daily-skin-temperature/", DailySkinTemperatureSummaryView.as_view(), name="daily-skin-temperature-summaries"),
+      path(
+          "entries/daily-total-calories/",
+          DailyTotalCaloriesSummaryView.as_view(),
+          name="daily-total-calories-summaries",
+      ),
+      path(
+          "entries/daily-distance/",
+          DailyDistanceSummaryView.as_view(),
+          name="daily-distance-summaries",
+      ),
       path(
           "analytics/consistency/",
           ConsistencyAnalyticsView.as_view(),

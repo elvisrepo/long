@@ -1331,3 +1331,19 @@ captured.
 - Recovery or rollback:
 - Status:
 ```
+
+### EC2-037 — AI deployment bundle installed and preflight verified
+
+- Date: 2026-10-18.
+- Execution path: AWS Systems Manager Run Command on `i-08fbc9f0c53265b63`.
+- Installed bundle source: `d2fb29a` (AI worker and private Redis Compose services).
+- Archive SHA-256: `dd3a07081a32a38e903c16b1ca7ae0f87c2e3b4d42e4ef1a451c614e377c955b`.
+- Compose SHA-256: `90945ba6138839882c89edf1d3a6629004091fabd6874c28cb3daeb2ae1d23f0`.
+- Verified prior Compose hash, acquired deployment lock, retained the entire previous
+  root-owned bundle at `/opt/syncvitals/deployment-before-ai-d2fb29a`, extracted the
+  allowlisted archive and checked Python compilation. The instance-role runtime
+  loader validated the existing secret and rendered Compose without printing values.
+- Verified services: api/database/migration/redis/worker; private broker address,
+  no published Redis port. Host had 1020 MiB available memory and 7.8 GiB free root.
+- Application promotion is pending CI; no containers were replaced by this command.
+- Recovery: restore the retained bundle before rolling back to the older topology.

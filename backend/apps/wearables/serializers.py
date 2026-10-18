@@ -2,7 +2,7 @@
 
 import math
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 from django.contrib.auth import get_user_model
@@ -35,12 +35,19 @@ SERVER_MANAGED_FIELD_MESSAGE = "This field is server-managed."
 # Every supported record type uses the shared ingestion path, while retaining
 # metric-specific time semantics during normalization.
 SUPPORTED_WEARABLE_METRIC_SLUGS = frozenset(
-    {"body_weight", "hrv", "resting_hr", "sleep_duration", "steps"}
+    {
+        "body_weight", "hrv", "resting_hr", "sleep_duration", "steps",
+        "distance", "total_calories_burned",
+        "respiratory_rate", "skin_temperature",
+    }
 )
-INTERVAL_WEARABLE_METRIC_SLUGS = frozenset({"sleep_duration", "steps"})
+INTERVAL_WEARABLE_METRIC_SLUGS = frozenset(
+    {"sleep_duration", "steps", "distance", "total_calories_burned"}
+)
 
 # Keep future synchronous ingestion requests small and predictable.
 MAX_WEARABLE_UPLOAD_ENTRIES = 100
+AGGREGATED_ACTIVITY_METRICS = frozenset({"distance", "total_calories_burned"})
 
 UNSUPPORTED_FIELD_MESSAGE = "This field is not supported."
 DUPLICATE_EXTERNAL_SOURCE_ID_MESSAGE = (
@@ -190,13 +197,21 @@ class WearableUploadEntrySerializer(StrictFieldsSerializer):
         ),
     )
     value = serializers.FloatField()
+    aggregation = serializers.ChoiceField(choices=("health_connect",), required=False)
+    has_data = serializers.BooleanField(required=False)
     period_start = serializers.DateTimeField(required=False, allow_null=True)
     recorded_at = serializers.DateTimeField()
     source = serializers.ChoiceField(
         choices=(
             MetricEntry.Source.SAMSUNG_HEALTH,
             MetricEntry.Source.FITBIT,
+            MetricEntry.Source.HEALTH_CONNECT,
         ),
+    )
+    source_package_name = serializers.RegexField(
+        r"^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+$",
+        max_length=255,
+        required=False,
     )
     external_source_id = serializers.CharField(
         max_length=255,
@@ -217,6 +232,67 @@ class WearableUploadEntrySerializer(StrictFieldsSerializer):
         value = cast(float, attrs["value"])
         period_start = cast(datetime | None, attrs.get("period_start"))
         recorded_at = cast(datetime, attrs["recorded_at"])
+
+        is_aggregate = attrs.get("aggregation") == "health_connect"
+        if is_aggregate:
+            if (
+                definition.slug not in AGGREGATED_ACTIVITY_METRICS
+                or attrs["source"] != MetricEntry.Source.HEALTH_CONNECT
+            ):
+                raise serializers.ValidationError(
+                    {"aggregation": "Unsupported aggregate metric or source."}
+                )
+            if attrs.get("source_package_name"):
+                raise serializers.ValidationError(
+                    {
+                        "source_package_name": "Platform aggregates have no single writer package."
+                    }
+                )
+            modified = attrs.get("source_record_modified_at")
+            if modified is None or modified < recorded_at:
+                raise serializers.ValidationError(
+                    {
+                        "source_record_modified_at": "An aggregate observation time at or after its end is required."
+                    }
+                )
+            if (
+                period_start is None
+                or period_start.microsecond
+                or int(period_start.timestamp()) % 900 != 0
+                or not (
+                    period_start < recorded_at <= period_start + timedelta(minutes=15)
+                )
+            ):
+                raise serializers.ValidationError(
+                    {
+                        "period_start": "Aggregates require a UTC-aligned bucket of at most 15 minutes."
+                    }
+                )
+            expected_id = f"health_connect:aggregate:{definition.slug}:{period_start.astimezone(UTC).isoformat().replace('+00:00', 'Z')}"
+            if attrs["external_source_id"] != expected_id:
+                raise serializers.ValidationError(
+                    {
+                        "external_source_id": "Aggregate identity must match its metric and bucket start."
+                    }
+                )
+            attrs.setdefault("has_data", True)
+            if not attrs["has_data"] and value != 0:
+                raise serializers.ValidationError(
+                    {"value": "An empty aggregate must have value zero."}
+                )
+        elif "has_data" in attrs:
+            raise serializers.ValidationError(
+                {"has_data": "Only supported for platform aggregates."}
+            )
+
+        if (
+            not is_aggregate
+            and attrs["source"] == MetricEntry.Source.HEALTH_CONNECT
+            and not attrs.get("source_package_name")
+        ):
+            raise serializers.ValidationError(
+                {"source_package_name": "This field is required for Health Connect."}
+            )
 
         if not math.isfinite(value):
             raise serializers.ValidationError(

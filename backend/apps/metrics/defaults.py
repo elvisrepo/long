@@ -3,6 +3,38 @@ from apps.metrics.models import MetricDefinition
 
 DEFAULT_METRIC_DEFINITIONS = [
     {
+        "name": "Respiratory Rate",
+        "slug": "respiratory_rate",
+        "unit": "breaths/min",
+        "category": MetricDefinition.Category.RESPIRATORY,
+        "min_value": 0,
+        "max_value": 1000,
+    },
+    {
+        "name": "Skin Temperature Change",
+        "slug": "skin_temperature",
+        "unit": "°C",
+        "category": MetricDefinition.Category.BIOMARKER,
+        "min_value": -30,
+        "max_value": 30,
+    },
+    {
+        "name": "Total Calories Burned",
+        "slug": "total_calories_burned",
+        "unit": "kcal",
+        "category": MetricDefinition.Category.ACTIVITY,
+        "min_value": 0,
+        "max_value": 1_000_000,
+    },
+    {
+        "name": "Distance",
+        "slug": "distance",
+        "unit": "km",
+        "category": MetricDefinition.Category.ACTIVITY,
+        "min_value": 0,
+        "max_value": 1_000_000,
+    },
+    {
         "name": "Resting Heart Rate",
         "slug": "resting_hr",
         "unit": "bpm",

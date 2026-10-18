@@ -8,7 +8,12 @@ enum class HealthConnectInstantMetric(
 ) {
     RESTING_HEART_RATE("resting_hr", "RestingHeartRateRecord"),
     HRV_RMSSD("hrv", "HeartRateVariabilityRmssdRecord"),
+    RESPIRATORY_RATE("respiratory_rate", "RespiratoryRateRecord"),
+    SKIN_TEMPERATURE("skin_temperature", "SkinTemperatureRecord"),
 }
+
+val HealthConnectInstantMetric.acceptsAnyOrigin: Boolean
+    get() = this == HealthConnectInstantMetric.RESPIRATORY_RATE || this == HealthConnectInstantMetric.SKIN_TEMPERATURE
 
 /** One normalized instantaneous cardiovascular Health Connect record. */
 data class HealthConnectInstantMetricSample(

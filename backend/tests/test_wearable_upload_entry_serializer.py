@@ -152,7 +152,7 @@ def test_wearable_upload_entry_rejects_unsupported_source():
             "metric_definition": "body_weight",
             "value": 78.4,
             "recorded_at": "2026-07-27T08:00:00Z",
-            "source": "health_connect",
+            "source": "unknown_provider",
             "external_source_id": (
                 "health_connect:WeightRecord:record-unsupported-source"
             ),
@@ -161,7 +161,7 @@ def test_wearable_upload_entry_rejects_unsupported_source():
 
     assert serializer.is_valid() is False
     assert serializer.errors == {
-        "source": ['"health_connect" is not a valid choice.'],
+        "source": ['"unknown_provider" is not a valid choice.'],
     }
 
 

@@ -12,6 +12,8 @@ import com.viridiandome.longevity.subscriptions.SyncPolicyRepository
 import com.viridiandome.longevity.subscriptions.network.HttpSyncPolicyRepository
 import com.viridiandome.longevity.wearables.DisconnectingWearableConnectionRepository
 import com.viridiandome.longevity.wearables.HealthConnectInstantMetric
+import com.viridiandome.longevity.wearables.HealthConnectActivityMetric
+import com.viridiandome.longevity.wearables.sync.ActivitySyncCoordinator
 import com.viridiandome.longevity.wearables.HealthConnectAccess
 import com.viridiandome.longevity.wearables.WearableConnectionRepository
 import com.viridiandome.longevity.wearables.healthconnect.AndroidHealthConnectAccess
@@ -167,6 +169,26 @@ class LongevityApplication : Application(), Configuration.Provider {
                     sleepCoordinator,
                     restingHeartRateCoordinator,
                     hrvCoordinator,
+                    InstantMetricSyncCoordinator(
+                        planner = IncrementalInstantMetricSyncPlanner(androidHealthConnectAccess, HealthConnectInstantMetric.RESPIRATORY_RATE, weightSyncCursorStore),
+                        uploadRepository = wearableUploadRepository,
+                    ),
+                    InstantMetricSyncCoordinator(
+                        planner = IncrementalInstantMetricSyncPlanner(androidHealthConnectAccess, HealthConnectInstantMetric.SKIN_TEMPERATURE, weightSyncCursorStore),
+                        uploadRepository = wearableUploadRepository,
+                    ),
+                    ActivitySyncCoordinator(
+                        reader = androidHealthConnectAccess,
+                        metric = HealthConnectActivityMetric.DISTANCE,
+                        cursorStore = weightSyncCursorStore,
+                        uploadRepository = wearableUploadRepository,
+                    ),
+                    ActivitySyncCoordinator(
+                        reader = androidHealthConnectAccess,
+                        metric = HealthConnectActivityMetric.TOTAL_CALORIES,
+                        cursorStore = weightSyncCursorStore,
+                        uploadRepository = wearableUploadRepository,
+                    ),
                 ),
             ),
             cursorStore = weightSyncCursorStore,

@@ -18,7 +18,7 @@ from django.contrib import admin
 from django.conf import settings
 from django.urls import include, path
 from django.conf.urls.static import static
-from apps.users.account_views import AccountDeleteView, AccountExportView
+from apps.users.account_views import AccountView, AccountExportView
 
 from common.views import (
     liveness_view,
@@ -31,7 +31,7 @@ urlpatterns = [
     path("api/v1/health/ready/", readiness_view, name="health-ready"),
     path("api/auth/", include("apps.users.urls")),
     path("api/v1/me/export/", AccountExportView.as_view(), name="account-export"),
-    path("api/v1/me/", AccountDeleteView.as_view(), name="account-delete"),
+    path("api/v1/me/", AccountView.as_view(), name="account-delete"),
     path("api/v1/metrics/", include("apps.metrics.urls")),
     path("api/v1/recovery/", include("apps.recovery.urls")),
     path("api/v1/stretching/", include("apps.stretching.urls")),

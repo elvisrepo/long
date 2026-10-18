@@ -8,6 +8,11 @@ from rest_framework.views import APIView
 
 from apps.users.account import account_export, delete_account
 from apps.users.views import REFRESH_TOKEN_COOKIE_NAME
+from apps.users.personal_info import (
+    PersonalInfoSerializer,
+    profile_response,
+    update_personal_info,
+)
 
 
 class AccountExportThrottle(UserRateThrottle):
@@ -26,9 +31,28 @@ class AccountDeleteSerializer(serializers.Serializer):
     )
 
 
-class AccountDeleteView(APIView):
+class AccountView(APIView):
     permission_classes = [IsAuthenticated]
-    throttle_classes = [AccountDeleteThrottle]
+
+    def get_throttles(self) -> list[UserRateThrottle]:
+        return (
+            [AccountDeleteThrottle()]
+            if self.request.method == "DELETE"
+            else super().get_throttles()
+        )
+
+    def get(self, request: Request) -> Response:
+        response = Response(profile_response(request.user))
+        response["Cache-Control"] = "no-store"
+        return response
+
+    def patch(self, request: Request) -> Response:
+        serializer = PersonalInfoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = update_personal_info(request.user, serializer.validated_data)
+        response = Response(profile_response(user))
+        response["Cache-Control"] = "no-store"
+        return response
 
     def delete(self, request: Request) -> Response:
         serializer = AccountDeleteSerializer(data=request.data)

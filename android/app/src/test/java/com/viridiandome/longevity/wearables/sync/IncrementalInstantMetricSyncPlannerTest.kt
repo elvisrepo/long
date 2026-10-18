@@ -11,6 +11,19 @@ import java.time.Instant
 import java.time.ZoneOffset
 
 class IncrementalInstantMetricSyncPlannerTest {
+    @Test fun new_vitals_keep_any_writer_and_split_uploads_into_bounded_batches() = runTest {
+        for (metric in listOf(HealthConnectInstantMetric.RESPIRATORY_RATE, HealthConnectInstantMetric.SKIN_TEMPERATURE)) {
+            val samples = (1..101).map { sample("vital-$it", metric, "com.example.health") }
+            val planner = IncrementalInstantMetricSyncPlanner(
+                reader = RecordingInstantMetricReader(vitalSamples = samples), metric = metric,
+                cursorStore = FixedInstantMetricCursorStore(null),
+                clock = Clock.fixed(Instant.parse("2026-09-28T12:00:00Z"), ZoneOffset.UTC),
+            )
+            val batches = planner.readBatches(CONNECTION_ID)
+            assertEquals(listOf(100, 1), batches.map { it.size })
+            assertEquals(samples, batches.flatten())
+        }
+    }
     @Test
     fun resting_heart_rate_planner_keeps_only_fitbit_rhr_in_cursor_window() = runTest {
         val now = Instant.parse("2026-09-28T12:00:00Z")
@@ -100,7 +113,10 @@ class IncrementalInstantMetricSyncPlannerTest {
 private class RecordingInstantMetricReader(
     private val restingHeartRateSamples: List<HealthConnectInstantMetricSample> = emptyList(),
     private val hrvSamples: List<HealthConnectInstantMetricSample> = emptyList(),
+    private val vitalSamples: List<HealthConnectInstantMetricSample> = emptyList(),
 ) : HealthConnectInstantMetricReader {
+    override suspend fun readRespiratoryRateSamples(startTime: Instant, endTime: Instant): List<HealthConnectInstantMetricSample> = vitalSamples
+    override suspend fun readSkinTemperatureSamples(startTime: Instant, endTime: Instant): List<HealthConnectInstantMetricSample> = vitalSamples
     var rhrStartTime: Instant? = null
         private set
     var rhrEndTime: Instant? = null

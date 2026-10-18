@@ -3,6 +3,9 @@ package com.viridiandome.longevity.wearables
 import java.time.Instant
 
 interface HealthConnectInstantMetricReader {
+    suspend fun readRespiratoryRateSamples(startTime: Instant, endTime: Instant): List<HealthConnectInstantMetricSample>
+
+    suspend fun readSkinTemperatureSamples(startTime: Instant, endTime: Instant): List<HealthConnectInstantMetricSample>
     suspend fun readRestingHeartRateSamples(
         startTime: Instant,
         endTime: Instant,

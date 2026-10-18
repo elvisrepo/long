@@ -51,7 +51,14 @@ const metricEntryRanges = [
 
 const METRIC_DETAIL_ENTRY_LIMIT = 50;
 const METRIC_DETAIL_HISTORY_PREVIEW_COUNT = 5;
-const DAILY_PRESENTATION_METRICS = new Set(["hrv", "steps"]);
+const DAILY_PRESENTATION_METRICS = new Set([
+  "hrv",
+  "steps",
+  "distance",
+  "total_calories_burned",
+  "respiratory_rate",
+  "skin_temperature",
+]);
 
 type MetricEntryRange = (typeof metricEntryRanges)[number];
 
@@ -247,6 +254,9 @@ function MetricDetailContent({ slug }: { slug: string }) {
           <p className="metric-detail-meta">
             {metricDefinition.category.replaceAll("_", " ")} ·{" "}
             {metricDefinition.unit}
+            {metricDefinition.slug === "skin_temperature"
+              ? " · Change from source baseline, not absolute temperature"
+              : null}
           </p>
         }
         actions={

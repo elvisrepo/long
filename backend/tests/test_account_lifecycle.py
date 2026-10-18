@@ -65,6 +65,7 @@ def test_free_account_export_contains_owned_data_without_credentials():
         "id": str(user.pk),
         "email": user.email,
         "sleep_target_minutes": 450,
+        "personal_info": {"date_of_birth": None, "sex": None, "height_cm": None},
         "last_login": None,
     }
     assert [entry["value"] for entry in data["metric_entries"]] == [80]

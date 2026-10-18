@@ -1,5 +1,19 @@
 # Android Sync Coordination, WorkManager, and Celery
 
+## Current vitals extension — 2026-10-17
+
+AllMetricsSyncRunner now includes InstantMetricSyncCoordinator instances for
+`RESPIRATORY_RATE` and `SKIN_TEMPERATURE`. The instant planner accepts arbitrary
+origins for these two types; existing Fitbit-only HRV/RHR behavior is unchanged.
+Their payloads use generic Health Connect source plus actual writer package.
+Skin reads return no samples when FEATURE_SKIN_TEMPERATURE is unavailable;
+otherwise missing permissions interrupt sync normally. Permission requests and
+readiness use the same device-dependent set, preventing an unsupported skin
+feature from blocking the other metrics. New v5 cursor storage backfills 30 days
+and is excluded from backup/transfer; shared cursor advancement still requires
+all supported readers/uploads to finish. Neither Celery responsibility nor
+background scheduling policy changes.
+
 ## When to use this document
 
 Use this document when:
@@ -9,7 +23,7 @@ Use this document when:
 - separating initial backfill from incremental background synchronization;
 - deciding when Android WorkManager, Django, Redis, Celery, or Celery Beat should run work.
 
-This document describes the implemented Android flow and agreed next architecture. The current Android slice synchronizes Fitbit-originated Weight, Steps, Sleep, Resting Heart Rate, and HRV/RMSSD records through one user action and one periodic worker path. The 2026-09-19 Samsung Health acceptance notes below remain historical evidence for the same Health Connect bridge.
+This document describes the implemented Android flow and agreed next architecture. The current Android slice synchronizes Fitbit-originated Weight, Steps, Sleep, Resting Heart Rate, and HRV/RMSSD, plus Distance and Total Calories Burned from all Health Connect origins, through one user action and one periodic worker path. The 2026-09-19 Samsung Health acceptance notes below remain historical evidence for the same Health Connect bridge.
 
 Physical hosted-path acceptance on 2026-09-19 used signed pilot 1.2 on the
 authorized Xiaomi 17 Ultra. Health Connect returned the preceding night's
@@ -332,7 +346,7 @@ Stable WorkManager `2.11.2` and `work-testing` are now configured. The implement
 
 `MainActivity` applies a pure, tested scheduling decision. It schedules only when the local session is authenticated, the caller-owned connection is Ready, background access is granted, and server policy enables automatic sync. A manual-only policy cancels tagged work, closing the normal downgrade path. It does nothing during startup session or policy checking because WorkManager state survives process restarts; treating temporary unresolved state as logout would incorrectly erase valid work. A confirmed successful logout cancels every tagged weight-sync request. Connection-disconnect cancellation remains pending until the Android disconnect action exists.
 
-The worker receives a `SubscriptionAwareWeightSyncRunner` whose wrapped application runner synchronizes all five supported metrics. It fetches the current policy again immediately before device access. Therefore stale queued work that races with a downgrade stops before reading Health Connect. A transient policy failure maps to retry; a manual-only policy maps to permanent failure for that execution.
+The worker receives a `SubscriptionAwareWeightSyncRunner` whose wrapped application runner synchronizes all seven supported metrics. It fetches the current policy again immediately before device access. Therefore stale queued work that races with a downgrade stops before reading Health Connect. A transient policy failure maps to retry; a manual-only policy maps to permanent failure for that execution.
 
 Periodic WorkManager execution is inexact. Android may delay work because of Doze, battery optimization, and other constraints. The platform has a 15-minute minimum periodic interval, but a 15-minute request is not a guarantee that work runs exactly every 15 minutes.
 
@@ -439,3 +453,38 @@ Celery processes data after it reaches the backend.
 10. ~~Cancel the user's unique background work and remove its local cursor after confirmed connection disconnect.~~ Implemented, covered at the Compose/cursor boundaries, and manually proven against live local Django on 2026-08-17.
 11. Review Honor/MagicOS background-launch and battery settings, then repeat the normal Home test. Require a new Django `SyncRun` before reopening Longevity; foreground-triggered execution does not prove background ingestion.
 12. Add Celery/Redis ingestion only after synchronous backend processing becomes a measured bottleneck or requires server-independent retries.
+
+
+### Activity metrics extension (2026-10-16)
+
+`ActivitySyncCoordinator` uses the same connection cursor, 30-day initial window,
+24-hour overlap, batches of at most 100, upload receipt and failure contract as
+the original coordinators. Two instances are wired into `AllMetricsSyncRunner`
+for Distance and Active Calories Burned. Android maps metres to kilometres and
+energy to kilocalories, and uploads every writer package for these two metrics.
+The complete runner remains wrapped by `IncrementalWeightSyncRunner`, so any
+interrupted metric prevents advancement of the shared cursor. The new cursor
+namespace forces backfill for existing installations. Both new read permissions
+join the existing combined grant; per-metric selection is not implemented yet.
+
+
+### Platform aggregation follow-up
+
+Three ActivitySyncCoordinator instances now upload raw provenance and platform
+aggregate snapshots for Distance, Active Calories and Total Calories. The adapter
+calls aggregateGroupByDuration in aligned 15-minute UTC buckets so Health Connect
+applies source priorities before values leave the phone. Stable snapshot IDs and
+observation timestamps support safe corrections. Explicit empty buckets clear
+old values. Django derives daily charts from these snapshots, keeping raw entry
+history/CSV separate. The new v4 cursor triggers the initial bounded backfill;
+the same shared runner only advances after all eight metrics finish. Earlier
+one-source daily activity presentation is superseded by platform totals.
+
+
+### Active Calories removal
+
+Current ActivitySyncCoordinator instances cover only Distance and Total Calories.
+The user removed Active Calories; Android no longer reads, requests permission
+for, or uploads it. The complete shared runner now covers seven metrics. The v4
+cursor remains valid because this change removes a type rather than adding data
+that could be skipped. Previous three-activity-metric notes are historical.

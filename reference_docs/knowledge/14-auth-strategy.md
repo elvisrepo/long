@@ -13,6 +13,26 @@
 - **Future cloud-provider sync auth** = hosted link flow + signed webhooks through an aggregator or direct provider OAuth where appropriate
 - **Rate limiting** on auth endpoints (5 login attempts/min)
 
+### Auth Endpoint Rate Limits
+
+The API applies these request limits using Django REST Framework throttles:
+
+- Web and mobile login: 5 attempts per minute per keyed, normalized email.
+- Registration: 5 attempts per hour per keyed email and 10 per hour per source
+  address.
+- Password-reset request: 3 per hour per source address and 3 per hour per
+  keyed email, retaining the same generic response for unknown accounts.
+- Password-reset confirmation: 10 attempts per hour per reset UID.
+
+Identity values are keyed before they become cache keys, so raw emails and reset
+UIDs are not stored in throttle keys. The current deployment does not configure
+a shared Django cache; the default in-memory cache is process-local. Therefore
+these application limits are best-effort across the two Gunicorn workers, not a
+globally exact quota or a substitute for edge-level rate limiting. Configure a
+trusted shared cache or AWS edge rate-based rules before relying on them against
+distributed abuse. Source-address throttles also depend on the trusted proxy
+chain supplying the real client address.
+
 ### Django Auth Foundation
 
 - Use Django's built-in auth framework for the user model integration, password hashing, permissions, admin compatibility, and authentication plumbing.

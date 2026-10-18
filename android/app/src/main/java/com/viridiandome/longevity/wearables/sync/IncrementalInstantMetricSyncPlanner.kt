@@ -3,6 +3,7 @@ package com.viridiandome.longevity.wearables.sync
 import com.viridiandome.longevity.wearables.HealthConnectInstantMetric
 import com.viridiandome.longevity.wearables.HealthConnectInstantMetricReader
 import com.viridiandome.longevity.wearables.HealthConnectInstantMetricSample
+import com.viridiandome.longevity.wearables.acceptsAnyOrigin
 import java.time.Clock
 import java.time.Duration
 
@@ -26,12 +27,14 @@ class IncrementalInstantMetricSyncPlanner(
 
             HealthConnectInstantMetric.HRV_RMSSD ->
                 reader.readHrvSamples(startTime, endTime)
+            HealthConnectInstantMetric.RESPIRATORY_RATE -> reader.readRespiratoryRateSamples(startTime, endTime)
+            HealthConnectInstantMetric.SKIN_TEMPERATURE -> reader.readSkinTemperatureSamples(startTime, endTime)
         }
 
         return samples
             .filter { sample ->
                 sample.metric == metric &&
-                    sample.sourcePackageName == HealthConnectDataOrigin.FITBIT_PACKAGE_NAME
+                    (metric.acceptsAnyOrigin || sample.sourcePackageName == HealthConnectDataOrigin.FITBIT_PACKAGE_NAME)
             }
             .chunked(MAX_UPLOAD_ENTRIES)
     }
