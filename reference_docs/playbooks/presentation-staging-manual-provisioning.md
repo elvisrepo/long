@@ -11,6 +11,15 @@
   including failed or partial package, repository, service, configuration, and
   persistent filesystem changes.
 
+## Latest release checkpoint — 2026-10-18
+
+Release `58f76e4` is live through workflow `39126522111`. API, worker, private Redis
+and PostgreSQL are healthy. The exact verified bundle is pinned at `d2fb29a`.
+Real-account NVIDIA generation produced three suggestions and persisted/restored
+successfully. Personal NVIDIA keys are stored encrypted per account; there is no
+shared environment key. See EC2-037/038 and current-AWS V020 for hashes, checks,
+capacity and recovery. Earlier dated checkpoints below remain historical.
+
 ## Fixed Architecture Decisions
 
 - Public application hostname: `staging.syncvitals.space`.

@@ -1347,3 +1347,31 @@ captured.
   no published Redis port. Host had 1020 MiB available memory and 7.8 GiB free root.
 - Application promotion is pending CI; no containers were replaced by this command.
 - Recovery: restore the retained bundle before rolling back to the older topology.
+
+### EC2-038 — Tracker AI release deployed and verified
+
+- Date: 2026-10-18. Release PR #50; protected staging promotion PR #51.
+- Workflow: https://github.com/elvisrepo/long/actions/runs/39126522111 (success).
+- Staging commit: `58f76e483eca181c7181d796b40184d15fd894a9`.
+- API/worker index digest: `sha256:5eba106ed50eea325663c35ef820fe3f1b6e8170f9127c888f2651f6890e362a`.
+- Previous image: `sha256:441e126c3cff23690caf09b4990dfdcfb7616441365092a76626475ca2235d66`.
+- Registry prefix: `173291122778.dkr.ecr.eu-central-1.amazonaws.com/syncvitals/staging/backend`.
+- SSM installed the verified EC2-037 bundle; Redis image was pre-pulled and ARM64
+  verified. CI subsequently performed image approval, migration-first deployment,
+  public readiness, and frontend assets/shell publication. PostgreSQL remained on
+  its original retained EBS directory; no new AWS resources or shared NVIDIA key.
+- API, worker, Redis, PostgreSQL all healthy. API/worker images equal the verified
+  image pointer. Worker and Redis publish no ports; worker ping and cache check
+  pass. Host still has 863 MiB available memory after startup.
+- Existing real Pro account preview passed. User then supplied a personal NVIDIA
+  key; it was encrypted locally with staging's key before SSM transfer and saved
+  encrypted for the uniquely identified Pro account with real tracker records.
+  No plaintext key was embedded in Run Command or printed. No account data copied.
+- Real `nvidia/nemotron-3-super-120b-a12b` job generated three suggestions from
+  October 11–17 data; saved PostgreSQL result and latest-review restoration passed.
+- Public AI SPA and readiness return 200; anonymous AI API access returns 401.
+- 986 backend tests passed; frontend/format/build/lint and production smoke gates
+  passed. Known release review findings were fixed and regression-tested.
+- Recovery: retain previous image and `/opt/syncvitals/deployment-before-ai-d2fb29a`;
+  database migrations are additive and are not automatically reversed on rollback.
+- Topology: `v020-ai-worker-live.dsl`. Status: deployed and independently verified.
