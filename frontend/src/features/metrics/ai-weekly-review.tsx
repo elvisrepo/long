@@ -1,6 +1,7 @@
 import type { AiReviewResult, ReviewPoint } from "./ai-insights-api";
 
 export function AiWeeklyReview({ result }: { result: AiReviewResult }) {
+  const days = result.snapshot.days ?? 7;
   function evidence(keys: string[]) {
     return (
       <details>
@@ -13,8 +14,8 @@ export function AiWeeklyReview({ result }: { result: AiReviewResult }) {
               period.observed_days !== undefined
                 ? period.daily_average == null
                   ? "No measurements"
-                  : `${period.daily_average.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${row.unit} · ${period.observed_days}/7 days`
-                : `${period.count ?? 0} logged · ${period.logged_days ?? 0}/7 days`;
+                  : `${period.daily_average.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${row.unit} · ${period.observed_days}/${days} ${days === 1 ? "day" : "days"}`
+                : `${period.count ?? 0} logged · ${period.logged_days ?? 0}/${days} ${days === 1 ? "day" : "days"}`;
             return (
               <li key={key}>
                 <strong>{row.label}:</strong> {format(row.current)}; previous:{" "}

@@ -36,7 +36,7 @@ export function AiApiKeySettings({ busy }: { busy: boolean }) {
     <section className="sleep-insights-card" aria-label="AI provider settings">
       <h2>Your API key</h2>
       <p>
-        Use your own NVIDIA API key for weekly insights. Requests use your
+        Use your own NVIDIA API key for AI suggestions. Requests use your
         provider account and its quota.
       </p>
       <p>

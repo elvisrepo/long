@@ -1,6 +1,19 @@
 ## 6. Testing
 
-- AI saved-review dates (2026-10-18): reviewed periods are the last seven completed
+- AI period selector (2026-10-18): regression tests cover 1/7/30 completed-day
+  boundaries and equal preceding comparisons, actual owned metric/diet/workout
+  aggregation, exclusion of today/outside-window entries, API validation, queued
+  round trips and timeframe-scoped persistence/history. Frontend tests cover period
+  preview/submission, dynamic coverage denominators, URL persistence, clearing old
+  results/consent on switch, and legacy seven-day snapshots.
+  Validation: 992 backend and 606 frontend tests pass; Ruff, mypy, ESLint,
+  Prettier and production build pass. Additive migration applied locally with no
+  drift. Live desktop/390px browser checks use the existing synced account: all
+  three previews return 15 tracker summaries, Month persists after refresh,
+  weekly history remains available, and zero generation requests occur on switch.
+  No synthetic tracker data or provider-output fixtures used for browser checks.
+
+- AI saved-review dates (2026-10-18): reviewed periods are the selected 1, 7 or 30 completed
   local dates, not the generation date or a Monday–Sunday calendar week. UI labels
   the saved period "Based on data" and timestamps "Generated". Timestamps use the
   saved review's IANA timezone and year-month-day format. Selecting saved history
@@ -11,7 +24,7 @@
 - Suggestions-only update (2026-10-17): current `weekly-v3` generation returns
   `review: {suggestions: [{text, evidence_keys}]}`. The prompt asks for three useful
   actions in 150–250 words total, each with a reason grounded in actual tracker
-  records and a next-week check. It considers every tracker without generating a
+  records and a next-period check. It considers every tracker without generating a
   numerical recap. Validation requires 1–5 nonempty suggestions and known, distinct
   evidence keys. No app quota or cooldown is added. Existing saved v2 reviews show
   only their priorities; v1 shows its suggestion. Original saved payloads remain

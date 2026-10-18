@@ -8,7 +8,7 @@
   the one-hour queue window. There are no AI daily caps or cooldowns. Each
   suggestion must cite at least one tracker with current or previous actual data.
 
-- AI saved-review dates (2026-10-18): reviewed periods are the last seven completed
+- AI saved-review dates (2026-10-18): reviewed periods are the selected 1, 7 or 30 completed
   local dates, not the generation date or a Monday–Sunday calendar week. UI labels
   the saved period "Based on data" and timestamps "Generated". Timestamps use the
   saved review's IANA timezone and year-month-day format. Selecting saved history
@@ -19,24 +19,29 @@
 - Suggestions-only update (2026-10-17): current `weekly-v3` generation returns
   `review: {suggestions: [{text, evidence_keys}]}`. The prompt asks for three useful
   actions in 150–250 words total, each with a reason grounded in actual tracker
-  records and a next-week check. It considers every tracker without generating a
+  records and a next-period check. It considers every tracker without generating a
   numerical recap. Validation requires 1–5 nonempty suggestions and known, distinct
   evidence keys. No app quota or cooldown is added. Existing saved v2 reviews show
   only their priorities; v1 shows its suggestion. Original saved payloads remain
   intact, with supporting numbers from their original snapshots. The existing
   tracker table, encrypted persistence and owner access rules are unchanged.
 
-## Weekly AI insights and personal NVIDIA keys — 2026-10-17
+- Period selector (2026-10-18): migration `0014_weeklyaireview_timeframe` defaults
+  existing saved reviews to `week`; legacy snapshots without `days` render as seven
+  days. Selecting a period only fetches the data preview/history, without an LLM call.
+
+## AI insights and personal NVIDIA keys — 2026-10-17
 
 - Frontend `/analytics/ai`, linked from Dashboard → Pro Insights, displays actual
   tracker summaries and an explicit Generate action. No production demo data or
-  fabricated fallback review. Current slice is weekly only: seven completed local
-  dates compared with the preceding seven; browser supplies an IANA timezone.
+  fabricated fallback review. Day uses yesterday, Week the last seven completed local dates, and Month the
+  last 30 completed local dates, each compared with the preceding equal period.
+  Browser supplies an IANA timezone; today is excluded.
 - JWT + Pro `analytics_enabled`: GET `/api/v1/metrics/analytics/ai-weekly/`
-  (`timezone`, default UTC) returns `{available,model,models:[{id,label}],snapshot,latest_review,review_history}` without calling an LLM.
-  Snapshot includes period/previous_period/timezone/prompt_version and evidence
+  (`timezone`, default UTC; `timeframe=day|week|month`, default `week`) returns `{available,model,models:[{id,label}],snapshot,latest_review,review_history}` without calling an LLM.
+  Snapshot includes timeframe/days/period/previous_period/timezone/prompt_version and evidence
   keyed by system metric or tracker. Each metric has label/unit/daily_method,
-  current/previous `{observed_days,daily_average}`, absolute mean change, and 14
+  current/previous `{observed_days,daily_average}`, absolute mean change, and 2, 14 or 60
   daily points. Missing measurements remain null; averages exclude missing days.
   Steps/sleep use existing preferred-source sums, other instantaneous metrics use
   medians; distance/total calories reuse platform-prioritized Health Connect
@@ -52,29 +57,33 @@
   Personal notes/comments, identity/profile fields, BMR and images are excluded.
   Check-offs do not establish nutrient intake or effects. Skin values remain baseline
   changes. Metrics also include observed-day range, first/last dated values and
-  within-week change, with explicit dated minima/maxima; a single observation has no within-week change.
-- POST same path accepts `{timezone,consent:true,model?}`. Optional model must match
+  change across the selected window (historical JSON key `within_week_change`),
+  with explicit dated minima/maxima; a single observation has no change.
+- POST same path accepts `{timezone,consent:true,model?,timeframe?}`. Optional model must match
   the server allowlist (or trusted configured default); invalid values reject before
   queue. Options: `nvidia/nemotron-3.5-super-vl-120b-a12b`,
   `deepseek-ai/deepseek-v4.1-flash`, `z-ai/glm-5.3-flash`, and the existing
   `nvidia/nemotron-3-super-120b-a12b`. Omitted model preserves the backend default.
   UI selection lasts for the mounted page, is disabled during generation, and does
   not change a previous report's model label. Requires current data
-  and a configured key. Returns 202 `{job_id,status:"pending"}`; Celery receives
-  only owner id/timezone/job id/validated model id, builds the actual snapshot and calls NVIDIA.
+  and a configured key. Timeframe uses the same allowlist/default as GET. Returns 202 `{job_id,status:"pending"}`; Celery receives
+  only owner id/timezone/job id/validated model id; the worker reuses the exact
+  encrypted snapshot captured by POST and calls NVIDIA.
   Poll GET same path with `job_id` and `timezone` returns `pending`, `ready`
   (with `result:{snapshot,review,generated_at,model}`), `failed` (safe detail), or
   `expired`. Job identifiers are UUIDs and reads are caller-scoped. Pending TTL
   one hour, ready/failed TTL one hour; cache payloads are encrypted. There is no
   permanent cache retention. Successful results are separately persisted in
-  `WeeklyAiReview`: job UUID primary key, cascading owner FK, model/timezone/period
+  `WeeklyAiReview`: job UUID primary key, cascading owner FK, model/timezone/timeframe/period
   dates/generated_at metadata, encrypted JSON containing the original snapshot and
   report. `(user,-generated_at)` index serves history reads. Preview restores the
-  newest saved success and returns owner-only metadata history; GET same path with
+  newest saved success for the selected timeframe and returns owner-only metadata
+  history for that timeframe; GET same path with
   `review_id` returns `{status:"ready",result}` or owner-safe 404. Successful result
   includes `id`; `job_id` reads fall back to the saved record after cache expiry.
   New successes append, failures leave history unchanged, duplicate task deliveries
-  reuse existing saved results. Refresh restores the newest successful review;
+  reuse existing saved results. The selected timeframe persists in the page URL. Changing it clears the displayed
+  review and sharing checkbox. Refresh restores the newest success for that timeframe;
   in-progress request polling is still page-local. History selection preserves the
   original period/evidence while the generation preview remains current. Reports
   are included as decrypted `ai_weekly_reviews` in account export and cascade with
@@ -84,7 +93,7 @@
   ignored. Redis stores encrypted temporary job state; successful history is stored in PostgreSQL. Empty data/invalid
   inputs are 400, non-Pro 403, unavailable configuration/queue 503. NVIDIA's own
   provider-side quota/errors can still be returned. Provider network timeout 90s;
-  worker soft/hard limits 110s/120s and task expiry 120s keep calls off web workers.
+  worker soft/hard limits 110s/120s and broker expiry one hour keep calls off web workers.
 - Backend-only fixed provider URL `https://integrate.api.nvidia.com/v1/chat/completions`,
   model from validated selection or backend `NVIDIA_INSIGHTS_MODEL` (fallback `deepseek-ai/deepseek-v4.1-flash`),
   bounded output 8000 tokens and 128KiB

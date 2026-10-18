@@ -49,6 +49,8 @@ do not replace or modify that target; they show verified implementation progress
 | V018 | 2026-09-17 | V017 plus an enabled daily PostgreSQL backup timer, two verified S3 lifecycle rules (90-day current versions, 30-day noncurrent versions, seven-day incomplete uploads, and delete-marker cleanup), prefix-scoped restore-read IAM access, an enabled monthly isolated restore check, and an enabled six-hour freshness heartbeat. CloudWatch backup/restore metrics and failure/overdue alarms are `OK`; the backup composite alarm and SNS email delivery were verified. A focused backup-operations view accompanies the complete deployment view. Application logs, traces, and Android-to-public-staging sync remain unverified. |
 | V019 | 2026-10-13 | V018 plus private account-regional custom-stretch image bucket `longevity-staging-stretch-images-173291122778-eu-central-1-an` in Frankfurt, Block Public Access, ACLs disabled, versioning disabled, SSE-S3, prefix-scoped Put/Get/Delete permission on `syncvitals-staging-ec2-role`, the `STRETCH_IMAGE_BUCKET` runtime-secret setting, and verified Nginx 3 MiB request limit. Application upload code is not deployed; upload/read/replacement/deletion checks remain pending. |
 
+| V020 | 2026-10-18 | V019 plus healthy private Redis and a Celery AI worker on the existing EC2 host. Release `58f76e4` deployed API and frontend through workflow `39126522111`; migrations, readiness, actual Pro-account preview, real NVIDIA generation, encrypted saving and restoration passed. No new AWS-managed resources. |
+
 ## Validation after V018
 
 On 2026-09-17 the operator reported that the Android staging app connects to

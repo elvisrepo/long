@@ -29,8 +29,8 @@ suspend fun runAutomaticSyncWithDiagnostics(
     return try {
         val result = run()
         val outcome = when (result) {
-            is ListenableWorker.Result.Success -> AutomaticSyncOutcome.Success
-            is ListenableWorker.Result.Retry -> AutomaticSyncOutcome.Retry
+            ListenableWorker.Result.success(result.outputData) -> AutomaticSyncOutcome.Success
+            ListenableWorker.Result.retry() -> AutomaticSyncOutcome.Retry
             else -> AutomaticSyncOutcome.Failure
         }
         diagnostics.finished(appVisible, outcome)

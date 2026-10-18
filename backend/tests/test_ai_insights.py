@@ -919,3 +919,104 @@ def test_suggestions_cannot_cite_only_empty_trackers() -> None:
         validate_review(report, snapshot)
     report["suggestions"][0]["evidence_keys"].append("hrv")
     assert validate_review(report, snapshot) == report
+
+
+@pytest.mark.parametrize("timeframe,days", [("day", 1), ("week", 7), ("month", 30)])
+def test_selected_timeframe_covers_completed_days_and_matching_previous_period(
+    timeframe: str, days: int
+) -> None:
+    from datetime import timedelta
+    from apps.diet.models import DietEntry, DietFood, DietSection
+    from apps.workouts.models import Workout
+
+    user = User.objects.create_user(email="period@example.com", password="test")
+    end = datetime(2026, 10, 17, tzinfo=UTC).date()
+    current_start = end - timedelta(days=days - 1)
+    previous_start = current_start - timedelta(days=days)
+    definition = MetricDefinition.objects.get(user=None, slug="hrv")
+    section = DietSection.objects.create(user=user, name="Meals")
+    food = DietFood.objects.create(section=section, name="Rice")
+    for day, value in [
+        (current_start, 50),
+        (current_start - timedelta(days=1), 40),
+        (previous_start - timedelta(days=1), 10),
+        (end + timedelta(days=1), 90),
+    ]:
+        MetricEntry.objects.create(
+            user=user,
+            metric_definition=definition,
+            value=value,
+            recorded_at=datetime.combine(day, datetime.min.time(), tzinfo=UTC),
+        )
+        DietEntry.objects.create(user=user, food=food, performed_on=day)
+        Workout.objects.create(user=user, performed_on=day, is_finished=True)
+    snapshot = build_weekly_snapshot(
+        user=user,
+        zone=ZoneInfo("UTC"),
+        now=datetime(2026, 10, 18, 12, tzinfo=UTC),
+        timeframe=timeframe,
+    )
+    assert snapshot["timeframe"] == timeframe
+    assert snapshot["period"] == {
+        "from": current_start.isoformat(),
+        "to": end.isoformat(),
+    }
+    assert snapshot["previous_period"] == {
+        "from": previous_start.isoformat(),
+        "to": (current_start - timedelta(days=1)).isoformat(),
+    }
+    assert len(snapshot["evidence"]["hrv"]["series"]) == 2 * days
+    assert snapshot["evidence"]["hrv"]["current"]["daily_average"] == 50
+    assert snapshot["evidence"]["hrv"]["previous"]["daily_average"] == 40
+    assert snapshot["evidence"]["diet"]["current"]["count"] == 1
+    assert snapshot["evidence"]["diet"]["previous"]["count"] == 1
+    assert snapshot["evidence"]["workouts"]["current"]["count"] == 1
+    assert snapshot["evidence"]["workouts"]["sessions"]["current"]["recorded"] == 1
+
+
+@override_settings(NVIDIA_API_KEY="test-only-not-a-real-key")
+@pytest.mark.parametrize("timeframe,days", [("day", 1), ("week", 7), ("month", 30)])
+def test_timeframe_roundtrip_and_history_are_scoped_to_selected_period(
+    timeframe: str, days: int
+) -> None:
+    from datetime import timedelta
+    from django.utils import timezone
+    from apps.metrics.models import WeeklyAiReview
+
+    client, user = pro_client()
+    MetricEntry.objects.create(
+        user=user,
+        metric_definition=MetricDefinition.objects.get(user=None, slug="hrv"),
+        value=44,
+        recorded_at=timezone.now() - timedelta(days=1),
+    )
+    preview = client.get(URL, {"timeframe": timeframe})
+    assert preview.status_code == 200
+    assert preview.data["snapshot"]["timeframe"] == timeframe
+    assert len(preview.data["snapshot"]["evidence"]["hrv"]["series"]) == days * 2
+    with patch(
+        "apps.metrics.tasks.generate_weekly_review", return_value=suggestions_review()
+    ):
+        response = client.post(
+            URL,
+            {"timezone": "UTC", "consent": True, "timeframe": timeframe},
+            format="json",
+        )
+    assert response.status_code == 202
+    saved = WeeklyAiReview.objects.get(pk=response.data["job_id"])
+    assert saved.timeframe == timeframe
+    selected = client.get(URL, {"timeframe": timeframe}).data
+    assert selected["latest_review"]["id"] == str(saved.pk)
+    assert selected["review_history"][0]["timeframe"] == timeframe
+    other = "day" if timeframe != "day" else "month"
+    assert client.get(URL, {"timeframe": other}).data["latest_review"] is None
+    assert client.get(URL, {"timeframe": other}).data["review_history"] == []
+    assert client.get(URL, {"timeframe": "invalid"}).status_code == 400
+    assert (
+        client.post(
+            URL,
+            {"timezone": "UTC", "consent": True, "timeframe": "invalid"},
+            format="json",
+        ).status_code
+        == 400
+    )
