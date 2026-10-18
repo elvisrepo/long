@@ -3,7 +3,9 @@ package com.viridiandome.longevity.wearables.network
 import com.viridiandome.longevity.wearables.HealthConnectStepsSample
 import com.viridiandome.longevity.wearables.HealthConnectSleepSample
 import com.viridiandome.longevity.wearables.HealthConnectWeightSample
+import com.viridiandome.longevity.wearables.HealthConnectActivitySample
 import com.viridiandome.longevity.wearables.HealthConnectInstantMetricSample
+import com.viridiandome.longevity.wearables.acceptsAnyOrigin
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -22,8 +24,29 @@ internal data class WearableUploadEntryRequest(
     val externalSourceId: String,
     @SerialName("source_record_modified_at")
     val sourceRecordModifiedAt: String,
+    @SerialName("source_package_name")
+    val sourcePackageName: String? = null,
+    val aggregation: String? = null,
+    @SerialName("has_data")
+    val hasData: Boolean? = null,
 ) {
     companion object {
+        fun from(sample: HealthConnectActivitySample): WearableUploadEntryRequest =
+            WearableUploadEntryRequest(
+                metricDefinition = sample.metric.metricSlug,
+                value = sample.value,
+                periodStart = sample.periodStart.toString(),
+                recordedAt = sample.periodEnd.toString(),
+                source = "health_connect",
+                sourcePackageName = sample.sourcePackageName,
+                aggregation = if (sample.isAggregate) "health_connect" else null,
+                hasData = if (sample.isAggregate) sample.hasData else null,
+                externalSourceId = if (sample.isAggregate)
+                    "health_connect:aggregate:${sample.metric.metricSlug}:${sample.periodStart}"
+                    else "health_connect:${sample.metric.recordTypeName}:${sample.recordId}",
+                sourceRecordModifiedAt = sample.sourceRecordModifiedAt.toString(),
+            )
+
         /** Map a sample already selected by the active weight-sync planner. */
         fun from(sample: HealthConnectWeightSample): WearableUploadEntryRequest =
             WearableUploadEntryRequest(
@@ -65,7 +88,8 @@ internal data class WearableUploadEntryRequest(
                 metricDefinition = sample.metric.metricSlug,
                 value = sample.value,
                 recordedAt = sample.recordedAt.toString(),
-                source = sourceForPackage(sample.sourcePackageName),
+                source = if (sample.metric.acceptsAnyOrigin) "health_connect" else sourceForPackage(sample.sourcePackageName),
+                sourcePackageName = if (sample.metric.acceptsAnyOrigin) sample.sourcePackageName else null,
                 externalSourceId =
                     "health_connect:${sample.metric.recordTypeName}:${sample.recordId}",
                 sourceRecordModifiedAt = sample.sourceRecordModifiedAt.toString(),

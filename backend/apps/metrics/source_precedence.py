@@ -6,6 +6,7 @@ from apps.metrics.models import MetricEntry
 DAILY_SOURCE_PRECEDENCE: tuple[str, ...] = (
     str(MetricEntry.Source.FITBIT),
     str(MetricEntry.Source.SAMSUNG_HEALTH),
+    str(MetricEntry.Source.HEALTH_CONNECT),
     str(MetricEntry.Source.MANUAL),
     str(MetricEntry.Source.CSV_IMPORT),
     str(MetricEntry.Source.GARMIN),

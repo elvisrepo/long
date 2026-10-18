@@ -1,5 +1,6 @@
 const metricEntrySourceLabels: Record<string, string> = {
   manual: "Manual entry",
+  health_connect: "Health Connect",
   samsung_health: "Samsung Health",
   garmin: "Garmin",
   fitbit: "Fitbit",
@@ -42,7 +43,12 @@ export function formatMetricEntryRecordedAt(recordedAt: string): string {
 }
 
 const metricMaximumFractionDigits: Record<string, number> = {
+  respiratory_rate: 1,
+  skin_temperature: 1,
   body_weight: 1,
+  hrv: 1,
+  distance: 3,
+  total_calories_burned: 1,
 };
 
 export function formatMetricValue(value: number, metricSlug: string): string {
@@ -77,10 +83,9 @@ export function formatMetricValueWithUnit(
   return `${formattedValue} ${unit}`;
 }
 
-// Chart.js generates axis ticks by interpolating between data bounds, so tick
-// values carry binary floating-point noise (e.g. 6.6000000000000005) that
-// stored entry values never have. This keeps the stored-value display contract
-// in formatMetricValue untouched and only cleans the derived tick labels.
+// Metrics with defined display precision share it across values and axis ticks.
+// For other metrics, remove interpolation noise from derived ticks without
+// changing the precision of recorded values.
 export function formatChartAxisTick(
   value: number,
   metricSlug: string,

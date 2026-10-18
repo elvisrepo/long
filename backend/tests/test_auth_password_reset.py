@@ -235,6 +235,54 @@ def test_authenticated_client_cannot_bypass_password_reset_limit():
     assert [response.status_code for response in responses] == [202, 202, 202, 429]
 
 
+def test_password_reset_request_is_limited_per_email_across_source_addresses():
+    client = APIClient()
+    payload = {"email": "limited@example.com"}
+
+    responses = [
+        client.post(
+            "/api/auth/password/request/",
+            payload,
+            format="json",
+            REMOTE_ADDR=f"192.0.2.{index}",
+        )
+        for index in range(1, 4)
+    ]
+    blocked_response = client.post(
+        "/api/auth/password/request/",
+        payload,
+        format="json",
+        REMOTE_ADDR="192.0.2.4",
+    )
+
+    assert all(
+        response.status_code == status.HTTP_202_ACCEPTED for response in responses
+    )
+    assert blocked_response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+
+
+def test_password_reset_confirmation_is_limited_per_account():
+    client = APIClient()
+    payload = {
+        "uid": "invalid-user-id",
+        "token": "invalid-token",
+        "new_password": "new-strong-password-456",
+    }
+
+    responses = [
+        client.post("/api/auth/password/confirm/", payload, format="json")
+        for _ in range(10)
+    ]
+    blocked_response = client.post(
+        "/api/auth/password/confirm/", payload, format="json"
+    )
+
+    assert all(
+        response.status_code == status.HTTP_400_BAD_REQUEST for response in responses
+    )
+    assert blocked_response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+
+
 def test_password_reset_confirm_rejects_weak_password(mailoutbox):
     user = get_user_model().objects.create_user(
         email="person@example.com",

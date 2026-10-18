@@ -1,5 +1,180 @@
 ### 1.7 API Design
 
+- Staging release correction (2026-10-18): POST captures the exact consented
+  snapshot in the encrypted pending-job cache; the worker reuses it rather than
+  rebuilding at execution time. Queue messages still contain identifiers only.
+  Pending-job and broker expiry are one hour, independently of 110/120-second
+  execution bounds and the 90-second provider timeout. Frontend polling matches
+  the one-hour queue window. There are no AI daily caps or cooldowns. Each
+  suggestion must cite at least one tracker with current or previous actual data.
+
+- AI saved-review dates (2026-10-18): reviewed periods are the last seven completed
+  local dates, not the generation date or a Monday–Sunday calendar week. UI labels
+  the saved period "Based on data" and timestamps "Generated". Timestamps use the
+  saved review's IANA timezone and year-month-day format. Selecting saved history
+  also selects its original tracker table and exact daily-summary JSON, so current
+  data cannot be mistaken for that historical review's evidence. Route tests cover
+  historical table/date alignment and generation near midnight in a different zone.
+
+- Suggestions-only update (2026-10-17): current `weekly-v3` generation returns
+  `review: {suggestions: [{text, evidence_keys}]}`. The prompt asks for three useful
+  actions in 150–250 words total, each with a reason grounded in actual tracker
+  records and a next-week check. It considers every tracker without generating a
+  numerical recap. Validation requires 1–5 nonempty suggestions and known, distinct
+  evidence keys. No app quota or cooldown is added. Existing saved v2 reviews show
+  only their priorities; v1 shows its suggestion. Original saved payloads remain
+  intact, with supporting numbers from their original snapshots. The existing
+  tracker table, encrypted persistence and owner access rules are unchanged.
+
+## Weekly AI insights and personal NVIDIA keys — 2026-10-17
+
+- Frontend `/analytics/ai`, linked from Dashboard → Pro Insights, displays actual
+  tracker summaries and an explicit Generate action. No production demo data or
+  fabricated fallback review. Current slice is weekly only: seven completed local
+  dates compared with the preceding seven; browser supplies an IANA timezone.
+- JWT + Pro `analytics_enabled`: GET `/api/v1/metrics/analytics/ai-weekly/`
+  (`timezone`, default UTC) returns `{available,model,models:[{id,label}],snapshot,latest_review,review_history}` without calling an LLM.
+  Snapshot includes period/previous_period/timezone/prompt_version and evidence
+  keyed by system metric or tracker. Each metric has label/unit/daily_method,
+  current/previous `{observed_days,daily_average}`, absolute mean change, and 14
+  daily points. Missing measurements remain null; averages exclude missing days.
+  Steps/sleep use existing preferred-source sums, other instantaneous metrics use
+  medians; distance/total calories reuse platform-prioritized Health Connect
+  aggregates. No raw competing writer totals are added to these aggregates.
+- Recovery/diet/stretching contain daily logged-entry counts; workouts count only
+  finished sessions, plus completed sets from both finished and unfinished sessions.
+  Snapshot v2 includes bounded food/tool/stretch/exercise names and group/type labels,
+  per-item current/previous counts and dates, configured catalog sizes, last logged
+  dates and omitted-detail counts (20 items per tracker). Configured items are not
+  prescribed daily targets. Workout details retain frozen type/units and separate
+  kg/lb and km/mi; include recorded reps, load volume, max load, distance and time.
+  Session metadata distinguishes unfinished records and known finished durations.
+  Personal notes/comments, identity/profile fields, BMR and images are excluded.
+  Check-offs do not establish nutrient intake or effects. Skin values remain baseline
+  changes. Metrics also include observed-day range, first/last dated values and
+  within-week change, with explicit dated minima/maxima; a single observation has no within-week change.
+- POST same path accepts `{timezone,consent:true,model?}`. Optional model must match
+  the server allowlist (or trusted configured default); invalid values reject before
+  queue. Options: `nvidia/nemotron-3.5-super-vl-120b-a12b`,
+  `deepseek-ai/deepseek-v4.1-flash`, `z-ai/glm-5.3-flash`, and the existing
+  `nvidia/nemotron-3-super-120b-a12b`. Omitted model preserves the backend default.
+  UI selection lasts for the mounted page, is disabled during generation, and does
+  not change a previous report's model label. Requires current data
+  and a configured key. Returns 202 `{job_id,status:"pending"}`; Celery receives
+  only owner id/timezone/job id/validated model id, builds the actual snapshot and calls NVIDIA.
+  Poll GET same path with `job_id` and `timezone` returns `pending`, `ready`
+  (with `result:{snapshot,review,generated_at,model}`), `failed` (safe detail), or
+  `expired`. Job identifiers are UUIDs and reads are caller-scoped. Pending TTL
+  one hour, ready/failed TTL one hour; cache payloads are encrypted. There is no
+  permanent cache retention. Successful results are separately persisted in
+  `WeeklyAiReview`: job UUID primary key, cascading owner FK, model/timezone/period
+  dates/generated_at metadata, encrypted JSON containing the original snapshot and
+  report. `(user,-generated_at)` index serves history reads. Preview restores the
+  newest saved success and returns owner-only metadata history; GET same path with
+  `review_id` returns `{status:"ready",result}` or owner-safe 404. Successful result
+  includes `id`; `job_id` reads fall back to the saved record after cache expiry.
+  New successes append, failures leave history unchanged, duplicate task deliveries
+  reuse existing saved results. Refresh restores the newest successful review;
+  in-progress request polling is still page-local. History selection preserves the
+  original period/evidence while the generation preview remains current. Reports
+  are included as decrypted `ai_weekly_reviews` in account export and cascade with
+  deletion. No browser storage or automatic provider call is used for restoration.
+- Generation has no application daily quota, cooldown or replacement concurrency
+  limiter, per explicit user instruction. Legacy quota/cooldown Redis keys are
+  ignored. Redis stores encrypted temporary job state; successful history is stored in PostgreSQL. Empty data/invalid
+  inputs are 400, non-Pro 403, unavailable configuration/queue 503. NVIDIA's own
+  provider-side quota/errors can still be returned. Provider network timeout 90s;
+  worker soft/hard limits 110s/120s and task expiry 120s keep calls off web workers.
+- Backend-only fixed provider URL `https://integrate.api.nvidia.com/v1/chat/completions`,
+  model from validated selection or backend `NVIDIA_INSIGHTS_MODEL` (fallback `deepseek-ai/deepseek-v4.1-flash`),
+  bounded output 8000 tokens and 128KiB
+  response limit. Legacy `weekly-v2` output is JSON with `overview`, exactly six `sections`
+  (`key,text,evidence_keys`, keys health/activity/workouts/diet/recovery/stretching),
+  0–4 `connections` and 1–5 `priorities` (`text,evidence_keys`). Domain sections
+  must cite their own evidence; absent-data sections are required. Connections
+  require at least two distinct keys with current data. The legacy prompt targeted 350–500
+  words total, all six domains and three practical suggestions, with aligned-date comparisons,
+  explicit uncertainty and concrete next-week actions. All labels are untrusted data.
+  Frontend keeps legacy v1 cached reports readable. Evidence shown with sections is
+  server-computed; schema checks cannot prove the generated prose is correct.
+- Timeout remediation: the local/model example configuration uses
+  `nvidia/nemotron-3-super-120b-a12b`, verified with a real weekly report. For that
+  model and Nemotron 3.5 Super VL send `chat_template_kwargs:{enable_thinking:false}` and temperature 1.0,
+  per NVIDIA documentation; statistical calculations already happen in the app.
+  Reports and previews identify the configured model, with no silent provider
+  fallback. DeepSeek remains selectable in backend configuration. HTTP 502/503/504
+  errors explain upstream model unavailability without reflecting provider bodies.
+  https://docs.api.nvidia.com/nim/reference/nvidia-nemotron-3-super-120b-a12b
+- Model IDs verified against the live NVIDIA `/v1/models` catalog on 2026-10-17.
+  Nemotron 3.5 produced a real six-section, 508-word review with three suggestions
+  in 35.5s. Tiny DeepSeek and GLM connectivity checks timed out at 25s; this does
+  not prove failure at the app's 90s bound. No silent fallback or free/unlimited
+  usage promise; provider access/quota depends on the NVIDIA account.
+- Reviews are independent one-request/one-reply calls. No prior review or chat
+  messages are sent, and the encrypted temporary result cache is not conversation
+  memory. NVIDIA chat completions can accept a message history; conversational and
+  across-visit memory require an explicit app history feature, not added here.
+  https://docs.api.nvidia.com/nim/reference/z-ai-glm-5-3-flash-infer
+- Provider timeout diagnosis (follow-up): GLM defaults to reasoning_effort=max;
+  requests now use `low`. DeepSeek V4.1 uses numeric reasoning effort 1 and
+  temperature 1.0, retaining the configured model without fallback. In tiny streamed
+  probes with those settings, Nemotron returned headers in 0.5s and content in 1.7s;
+  GLM/DeepSeek produced no response headers before 45s. This rules out tracker-input
+  size as a requirement for the stall, but does not identify provider-side queue,
+  load or inference state. Timeouts identify the chosen model and retain saved reviews.
+  https://docs.api.nvidia.com/nim/reference/z-ai-glm-5-3-flash
+  https://docs.api.nvidia.com/nim/reference/nvidia-deepseek-v4_1-flash
+- JWT on every plan: GET `/api/v1/metrics/analytics/ai-key/` returns only
+  `{has_personal_key:boolean}`. PUT accepts only `{api_key:"nvapi-..."}` (12–512
+  characters; NVIDIA token alphabet), encrypts under the existing PII key in
+  `User.ai_api_key_encrypted`. DELETE clears it. Neither operation contacts NVIDIA
+  or proves key validity. A personal key takes precedence over backend
+  `NVIDIA_API_KEY`; invalid personal keys do not silently fall back. Removing a
+  personal key restores the app fallback when configured. Responses never return
+  the credential. `users.0005_user_ai_api_key_encrypted` adds the column.
+- The UI has Save/Replace/Remove controls with a password input, no browser
+  persistence, and clears the draft after successful saving. All successful AI
+  responses use `private, no-store`. Personal keys are omitted from account exports
+  and deleted with the user. Tests/E2E do not inherit the developer's provider key.
+- Hosting caveat: NVIDIA catalog trial terms §§1.2/1.4 restrict production use;
+  §4.3 restricts health-data uploads unless expressly permitted. User consent does
+  not change those provider terms. Confirm a suitable service agreement before
+  public deployment; the local integration is not deployment approval.
+  https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf
+
+## Respiratory rate and skin temperature change — 2026-10-17
+
+- Shared active definitions: `respiratory_rate` (Respiratory Rate, breaths/min,
+  respiratory, 0–1000) and `skin_temperature` (Skin Temperature Change, °C,
+  biomarker, -30–30), seeded by `metrics.0012_respiratory_rate_skin_temperature`.
+  These are ingestion bounds, not clinical reference ranges. Both also accept
+  manual entries through the existing metric API; skin entries mean changes.
+- Wearable ingestion accepts both slugs through the existing upload route.
+  Android uploads `source:"health_connect"`, actual `source_package_name`,
+  provider last-modified time and stable `health_connect:<record type>:<record id>`
+  identity for any writer. Existing deduplication, mutable-record corrections,
+  finite/range validation, CSV/account export and deletion behavior apply.
+- RespiratoryRateRecord.rate becomes breaths/min at its measurement time.
+  SkinTemperatureRecord becomes one normalized value: the arithmetic mean of
+  its delta samples in Celsius, without adding or inventing a baseline. Empty
+  records are skipped. Its timestamp is the exclusive record end minus 1 ns
+  (stored at microsecond precision), attributing midnight endings to the prior day.
+  This is a per-record summary; individual delta samples, optional absolute baseline
+  and measurement location are not copied into MetricEntry. Original data remains
+  in Health Connect. Skin temperature change is not absolute skin/core temperature.
+  SDK reference: https://developer.android.com/reference/androidx/health/connect/client/records/SkinTemperatureRecord
+- New authenticated GET routes `/api/v1/metrics/entries/daily-respiratory-rate/`
+  and `/api/v1/metrics/entries/daily-skin-temperature/` return the existing daily
+  entry shape with `local_date`, `period_start:null` and
+  `context:{aggregation:"daily_median"}`. They share HRV's timezone, whole-date
+  from/to filters, positive limit (maximum 366), active-system-definition and
+  caller-only boundaries. Each day selects one source with existing precedence
+  and a deterministic writer fallback, then computes its median; skin medians
+  are medians of record means. No records from competing writers are combined.
+- Dashboard and detail graphs use these daily endpoints, with at most one decimal
+  in values/ticks. Raw history remains available. The Skin Temperature Change
+  detail explains that the values are relative to the source baseline.
+
 ## Workout tracking backend — 2026-10-01
 
 All routes require JWT and work on every plan. Basic UI integration is implemented
@@ -528,10 +703,47 @@ Refresh concurrency behavior:
 #### User & Profile (JWT required)
 | Method | Endpoint | Description | Notes |
 |---|---|---|---|
-| GET | `/api/auth/me/` | Current user email | Implemented; the previously planned `GET /api/v1/me/` is not mounted |
-| PATCH | `/api/v1/me/` | Update profile (partial) | Planned, not implemented |
+| GET | `/api/auth/me/` | Current user email | Implemented; unchanged authentication bootstrap contract |
+| GET | `/api/v1/me/` | Personal info and current estimated BMR | Implemented locally; owner-only, every plan, `Cache-Control: no-store` |
+| PATCH | `/api/v1/me/` | Update personal info (partial) | Implemented locally; optional nullable `date_of_birth`, `sex`, `height_cm`; returns the same representation as GET |
 | GET | `/api/v1/me/export/` | Account-wide app data export | Implemented locally; streams a `200` JSON attachment on every plan, not an asynchronous job |
 | DELETE | `/api/v1/me/` | Delete account and live app data | Implemented locally; confirms immediate Stripe cancellation first; requires current password; returns `204` and invalidates sessions |
+
+Personal info and estimated BMR (2026-10-16, local):
+- GET/PATCH return `{date_of_birth,sex,height_cm,age,estimated_bmr}`. Date of birth
+  is an ISO date, nonfuture and within 120 calendar years; sex is `male`, `female`
+  or null (the formula coefficient, optional); height is finite centimetres from
+  50 through 250. Unknown input fields reject with `400`; nullable fields can be
+  cleared individually. PATCH merges omitted fields under the account row lock
+  used by deletion. Reads do not persist defaults or calculated entries.
+- `age` is completed years on the server's current UTC date. `estimated_bmr`
+  contains `{value,unit:"kcal/day",formula:"mifflin_st_jeor",missing_fields,reason,weight}`.
+  `weight` is null or `{value,recorded_at,source,entry_id}` from the latest
+  caller-owned active system `body_weight` definition in kg, ordered by
+  `recorded_at DESC,id DESC`, excluding future readings and custom definitions.
+- The whole-kcal estimate is `10*kg + 6.25*cm - 5*age + coefficient`, with +5 for
+  male and -161 for female; no activity multiplier. Missing inputs return null
+  with `reason:"missing_information"` and required field names (including
+  `body_weight`). Fully supplied profiles under 18 return `adult_only`;
+  nonfinite/out-of-range weight (20–400 kg) returns `invalid_weight`
+  (nonfinite supporting weights are omitted to preserve valid JSON). Nonpositive
+  results return `invalid_inputs`. Otherwise reason is null and missing fields []
+  (Python's nearest-integer rounding). The original study included ages 19–78;
+  this feature estimates adult resting energy, not measured BMR or a calorie goal.
+  Formula source: [Mifflin et al., 1990](https://pubmed.ncbi.nlm.nih.gov/2305711/).
+- Settings → Personal info saves/clears details and displays the estimate.
+  Dashboard includes a separate Estimated BMR card, with formula and supporting
+  weight date/source. The estimate recalculates on read after profile/weight
+  changes or birthdays; frontend entry mutations invalidate its query and an
+  active page refreshes it every minute for phone syncs. No stale-weight cutoff
+  is imposed; the weight date remains visible. Missing data links to Settings
+  and Body Weight. It creates no MetricEntry rows, does not affect Total Calories
+  Burned, and does not write to Health Connect.
+- All three fields are stored together as encrypted JSON in
+  `User.personal_info_encrypted` using the existing Fernet PII key. Account JSON
+  export adds plaintext `profile.personal_info` with the three nullable fields,
+  excluding ciphertext; deletion removes them with the user. Migration
+  `users.0004_user_personal_info_encrypted` is additive, with empty existing profiles.
 
 Account lifecycle checkpoint — 2026-09-30 (local, not deployed):
 - Settings offers **Download account data** independently of the Pro CSV export.
@@ -963,7 +1175,7 @@ Current implementation status:
 - `GET /api/v1/metrics/entries/daily-hrv/` returns authenticated caller-owned HRV as one median value per local calendar date, using the same one-source-per-day precedence, active-default-definition boundary, input validation, and whole-local-date filter semantics. Each result includes its `local_date`. The endpoint uses PostgreSQL `PERCENTILE_CONT(0.5)`, caps the positive `limit` at 366 days, and leaves raw samples unchanged for provenance, provider corrections, and export.
 - `MetricEntry` has nullable `source_connection`, `period_start`, and `source_record_modified_at` fields. Instantaneous metrics leave `period_start` null; interval metrics use `recorded_at` as the interval end. PostgreSQL requires a non-null period start to precede `recorded_at` and enforces at most one non-null `(source_connection, external_source_id)` pair. The ingestion service skips identical records, updates mutable content only when the provider timestamp is newer, permits one timestamped upgrade of a legacy null-version row, and rejects stale or inconsistent versions.
 - Metric history exposes each entry's trusted `source`. The web UI labels imported rows by source and withholds manual Edit/Delete controls; the backend independently rejects direct mutation attempts with `409`.
-- `WearableUploadEntrySerializer` is the live nested-entry boundary. It accepts active system `body_weight`, `steps`, `sleep_duration`, `resting_hr`, and `hrv` definitions, enforces each configured value range, rejects non-finite numbers, parses record and optional provider-modification timestamps, accepts Fitbit and legacy Samsung Health provenance, and requires a nonblank external source ID. Steps and Sleep require `period_start < recorded_at`; instantaneous Weight, resting heart rate, and HRV reject a supplied period start. Current Android uploads always send Health Connect's `metadata.lastModifiedTime` as `source_record_modified_at`; omission remains accepted for backward compatibility but cannot authorize changed content.
+- `WearableUploadEntrySerializer` is the live nested-entry boundary. It accepts active system `body_weight`, `steps`, `sleep_duration`, `resting_hr`, `hrv`, `distance`, and `total_calories_burned` definitions, enforces each configured value range, rejects non-finite numbers, parses record and optional provider-modification timestamps, accepts Fitbit, legacy Samsung Health, and generic Health Connect provenance, and requires a nonblank external source ID. Steps, Sleep, Distance, and Total Calories Burned require `period_start < recorded_at`; instantaneous Weight, resting heart rate, and HRV reject a supplied period start. Current Android uploads always send Health Connect's `metadata.lastModifiedTime` as `source_record_modified_at`; omission remains accepted for backward compatibility but cannot authorize changed content.
 - `WearableUploadBatchSerializer` is the live request boundary. It composes `connection_id`, `upload_id`, and a required list of `1–100` normalized entries, rejects undeclared fields at both levels, and rejects repeated `external_source_id` values within one batch.
 - The server-side canonical payload-hash helper fingerprints validated entries with schema version `1`, stable external-record ordering, UTC timestamps, and SHA-256. The live ingestion service uses it to reuse exact retries and reject conflicting upload identity reuse.
 - Connection-state mutations will belong to trusted ingestion/resync services rather than a generic client `PATCH` endpoint.
@@ -976,6 +1188,8 @@ Current implementation status:
 | GET | `/api/v1/wearables/connections/{id}/status/` | Fetch sync state for one connection | Implemented; JWT required and owner-scoped; includes `provider`, `status`, `last_synced_at`, and `last_error`; unowned or unknown UUIDs return `404` |
 | POST | `/api/v1/wearables/uploads/` | Process a normalized wearable batch | Implemented synchronously; JWT required; accepts `connection_id`, `upload_id`, and `1–100` entries; validates active caller ownership; returns terminal counters with `201` for new work, `200` for an exact retry, `409` for upload/record conflicts, and `400` for invalid input |
 | GET | `/api/v1/metrics/entries/daily-steps/` | Read daily Steps totals | JWT required; selects one preferred source per requested local date, sums its caller-owned intervals, supports `from`, `to`, and `limit`, and preserves raw rows |
+| GET | `/api/v1/metrics/entries/daily-distance/` | Read daily Distance totals | JWT required; caller-owned Health Connect platform totals; kilometres |
+| GET | `/api/v1/metrics/entries/daily-total-calories/` | Read daily Total Calories totals | JWT required; caller-owned Health Connect platform totals; kilocalories including resting expenditure |
 | GET | `/api/v1/metrics/entries/daily-hrv/` | Read daily HRV medians | JWT required; selects one preferred source per requested local date, calculates its caller-owned median, supports `from`, `to`, and `limit`, and preserves raw rows |
 | DELETE | `/api/v1/wearables/connections/{id}/` | Disconnect provider | Implemented; JWT required; caller-owned active rows return `204` and become inactive; unknown, unowned, or already-inactive rows return `404`; repeated calls remain state-idempotent |
 | POST | `/api/v1/wearables/connections/{id}/resync/` | Request replay / resync from the client | Returns 202 Accepted — backend records replay intent and the Android client performs the upload |
@@ -1083,3 +1297,87 @@ Content-Type: application/json
 ws://host/ws/metrics/stream/
 ```
 Not REST — persistent WebSocket connection. Ticket-based auth (short-lived token from REST endpoint, included in WS handshake). Used for live dashboard updates when new manual or wearable data lands; not for direct device-to-server streaming in MVP.
+
+
+### Activity metrics and Health Connect totals (2026-10-16)
+
+Shared activity definitions are `distance` in kilometres (`km`) and `total_calories_burned` in
+kilocalories. Total energy includes resting expenditure; active energy does not.
+Both accept nonnegative finite values up to 1,000,000 per entry. Every user
+sees these definitions even without readings; custom metrics remain supported.
+
+Android reads raw Distance and TotalCaloriesBurned records
+from all writer apps and preserves their IDs, intervals, package identities and
+provider modification timestamps. These raw uploads use `source="health_connect"`
+and a validated `source_package_name` of at most 255 characters. Provenance is
+stored in entry context, participates in payload hashing and cannot change under
+a stable external record ID, even with a newer provider version.
+
+Android also calls Health Connect's `aggregateGroupByDuration` with no writer
+filter, allowing the platform to apply the user's Activity source priorities.
+UTC-aligned 15-minute snapshots support regrouping into current IANA local days
+without choosing an arbitrary app or summing overlapping raw records. These use
+the existing bounded upload API with:
+
+- `aggregation="health_connect"` and `has_data=true|false`;
+- no single `source_package_name`, since the platform combines writers;
+- `external_source_id="health_connect:aggregate:<metric_slug>:<UTC bucket start>"`;
+- `period_start` aligned to a UTC 15-minute boundary and an exclusive
+  `recorded_at` end no more than 15 minutes later (the current bucket may be partial);
+- `source_record_modified_at` equal to the device's snapshot observation time,
+  at or after the bucket end. This is a snapshot version, not a raw record's
+  provider modification timestamp.
+
+Snapshots live in MetricEntry with explicit aggregation/has-data context. Raw
+and derived identities cannot replace each other. An empty bucket is uploaded
+as zero with `has_data=false` to clear a previously stored aggregate, but it does
+not create a reading or consistency-tracking day. Payload hashing includes these
+fields. Identical replays skip, newer corrections replace the snapshot, and stale
+changed content returns `409`. Existing raw uploads remain backward compatible.
+
+Daily endpoints are `/api/v1/metrics/entries/daily-distance/` and
+`/api/v1/metrics/entries/daily-total-calories/`. All require JWT ownership and
+share valid IANA `timezone`, whole-local-date `from`/`to`, descending date order,
+default 30 result days and maximum 366 result days. They sum present platform
+buckets, assign an exclusive midnight end to the preceding day, and return
+`context.aggregation="health_connect_daily"`. Dates lacking a platform total may
+show manual/CSV/legacy source data. Raw generic Health Connect records are never
+used as a fallback: missing snapshots remain empty until the device syncs.
+
+Dashboard cards and detail charts use daily endpoints. Raw entry history and
+metric CSV exports exclude snapshots; account export/deletion retains the full
+stored dataset through the existing MetricEntry lifecycle. Synthetic daily IDs
+remain presentation-only and never supply mutation IDs.
+
+The v4 activity cursor namespace forces a bounded initial 30-day backfill.
+Later syncs use the existing 24-hour overlap. Historical priority changes or
+provider corrections outside that window need a fresh bounded backfill; live
+Health Connect aggregation is unavailable to the server without the phone.
+
+The initial implementation chose an alphabetically first package for daily
+activity totals. That was incorrect for the intended product behavior and is
+superseded by the platform snapshots above. The original five Android metric
+planners still filter Fitbit; this change applies to these two activity types.
+
+
+Platform totals may have different coverage from raw source-app exports. In the
+verified local dataset, Health Connect returned total-energy aggregates for dates
+without imported Fitbit total-energy records. Preserve the platform result as a
+platform calculation; do not label it as a Fitbit-authored reading or promise
+identical Fitbit monthly totals. The official record definition includes active
+and basal energy: https://developer.android.com/reference/kotlin/androidx/health/connect/client/records/TotalCaloriesBurnedRecord
+
+
+### Active Calories removed by product decision (2026-10-16)
+
+Total Calories Burned is the only system calorie metric. Migration 0011 sets the
+shared `active_calories_burned` definition inactive without deleting its entries.
+Runtime default seeding no longer recreates/reactivates it. The catalog and
+standard entry feed hide inactive system metrics; full metric CSV/account export
+and account deletion retain their existing ownership and history semantics.
+New wearable Active Calories uploads are rejected. The daily-active-calories
+route has been removed (404). Android no longer reads that type, schedules its
+coordinator, or declares/requests READ_ACTIVE_CALORIES_BURNED. This does not
+restrict user-owned custom metrics or remove Distance. Current Android sync
+requires the original five read permissions plus Distance and Total Calories.
+Earlier Active Calories acceptance notes describe historical implementation.

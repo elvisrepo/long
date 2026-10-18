@@ -1,5 +1,157 @@
 ## 6. Testing
 
+- AI saved-review dates (2026-10-18): reviewed periods are the last seven completed
+  local dates, not the generation date or a Monday–Sunday calendar week. UI labels
+  the saved period "Based on data" and timestamps "Generated". Timestamps use the
+  saved review's IANA timezone and year-month-day format. Selecting saved history
+  also selects its original tracker table and exact daily-summary JSON, so current
+  data cannot be mistaken for that historical review's evidence. Route tests cover
+  historical table/date alignment and generation near midnight in a different zone.
+
+- Suggestions-only update (2026-10-17): current `weekly-v3` generation returns
+  `review: {suggestions: [{text, evidence_keys}]}`. The prompt asks for three useful
+  actions in 150–250 words total, each with a reason grounded in actual tracker
+  records and a next-week check. It considers every tracker without generating a
+  numerical recap. Validation requires 1–5 nonempty suggestions and known, distinct
+  evidence keys. No app quota or cooldown is added. Existing saved v2 reviews show
+  only their priorities; v1 shows its suggestion. Original saved payloads remain
+  intact, with supporting numbers from their original snapshots. The existing
+  tracker table, encrypted persistence and owner access rules are unchanged.
+
+### Weekly AI insights and personal keys — 2026-10-17
+
+- Saved-review follow-up: regression tests cover successful encrypted persistence,
+  restore after Redis expiry, owner-only latest/history/by-ID reads, duplicate task
+  delivery, failed attempts preserving the last success, account export and cascade
+  deletion. Frontend tests restore without generation and select older reports using
+  their original evidence. `metrics.0013_weekly_ai_review` adds the history table.
+  Three real successful reports were recovered from the synced account's temporary
+  cache without re-generating or fabricating data. Tiny streamed low-reasoning probes
+  returned Nemotron content at 1.7s; GLM/DeepSeek returned no headers within 45s.
+  Those results do not prove a particular cause inside NVIDIA infrastructure.
+  Final validation: 119 relevant backend/account checks and all 603 frontend checks,
+  lint/build/Ruff/mypy pass; migration drift check is clean. A real browser using
+  the synced account restored the newest review after reload and opened an older
+  saved review: three recovered reports, zero generation requests, no page errors
+  or horizontal overflow on desktop/390px phone. No provider/output fixtures were
+  used for this browser history check.
+
+- Application AI quota/cooldown removed at the user's explicit request. Regression
+  tests seed an exhausted legacy daily counter and active legacy cooldown, then
+  submit three successive model requests; all return 202. Repeated real transport
+  mocks also reach the provider immediately. No replacement limiter is introduced.
+
+- Model selector/concise suggestions follow-up: 87 relevant backend checks and all
+  601 frontend checks pass. Tests prove unsupported IDs reject before queue, all
+  three requested model IDs survive queue → provider → result metadata, Nemotron
+  3.5 thinking is disabled, frontend selected-model submission and API payloads.
+  Lint/build/Ruff/mypy pass. Live catalog lists all three requested IDs. Nemotron
+  3.5 produced 508 words, six sections and three suggestions on actual account data
+  in 35.5s. Small DeepSeek and GLM calls timed out at 25s; no silent fallback.
+  Review generation remains independent per request; conversation memory is not
+  implemented. Models are not represented as unlimited/free regardless of quota.
+
+- Comprehensive v2 review: tests cover actual food names/groups and weekly counts,
+  owner isolation, completed workout sets in unfinished sessions, separate kg/lb
+  load volumes, excluded notes/comments, metric observed-day ranges and dated
+  within-week changes. Contract validation requires all six tracker sections and
+  permits honest absent-log discussion; connections require distinct current data.
+  Frontend checks all six sections, overview, connections, priorities and legacy
+  cached report rendering. Empty planned workouts cannot advance last completed-set
+  dates. Final relevant backend suite: 83 checks; full frontend suite: 600 checks.
+  Lint, build, Ruff and mypy passed. Live v2 calls returned six-section reports,
+  with the final prompt producing approximately 823 words in 31 seconds. A queued
+  v2 job also reached ready. The initial browser run hit a local proxy socket
+  hang-up while polling and timed out before displaying that job; its actual saved output was replayed for desktop/390px presentation
+  checks, which showed six sections, no page errors and no horizontal overflow.
+  Provider prose can still contain factual mistakes; schema validation verifies
+  structure/evidence references, not sentence-level accuracy. No synthetic records
+  or replacement production reports were introduced.
+
+
+- Follow-up timeout investigation isolated DeepSeek: the saved key receives a
+  response from Nemotron Super in under a second, whereas even an eight-token
+  DeepSeek request stalls. With `NVCF-POLL-SECONDS:5`, DeepSeek returns HTTP 504;
+  there is no asynchronous request ID to poll. A full real-data Nemotron review
+  with thinking disabled passed schema/evidence validation with three observations
+  in 4.5s. Local configuration now uses Nemotron explicitly; model identifiers are
+  displayed with previews/reports. The actual queued endpoint subsequently returned
+  a ready report with three observations and the Nemotron model identifier. New
+  regression tests cover gateway errors, non-thinking requests and model metadata.
+
+- `tests/test_ai_insights.py` covers actual owned local-date summaries, missing
+  days, median/source selection, platform totals versus duplicate raw records,
+  logged diet and finished workout counts, JWT/Pro boundaries, explicit consent,
+  invalid timezone/unknown fields, missing configuration, no data, evidence-key
+  validation, provider failure, repeated generation despite legacy quota/cooldown, background jobs and encrypted
+  write-only personal key save/read status/delete/isolation. Provider transport
+  is mocked in automated tests; those tests never call a real LLM. User-facing
+  summary generation has no synthetic-data fallback.
+- Frontend AI route tests cover preview before generation, affirmative action,
+  observed-day evidence, configured/unconfigured state, password-key save/clear
+  and removal. API tests cover owner token headers and asynchronous polling.
+- Apply `users.0005_user_ai_api_key_encrypted` locally and restart Celery after
+  adding its task. Verify on an existing synced account without printing keys
+  or raw health records. Background generation prevents the default 30s Gunicorn
+  request timeout from killing slow provider calls. Tests/E2E cannot inherit a
+  real developer NVIDIA key. A live model success and exact checks run must be
+  reported separately from mocked automation success.
+- Local verification: 72 relevant backend checks passed after remediation,
+  including 18 AI checks; five focused frontend API/route checks, lint, build,
+  Ruff and mypy passed. All 599 frontend tests passed before this follow-up.
+  Desktop and 390px phone render checks used the real synced account and confirmed
+  actual summaries/saved-key status, no JavaScript errors and no page overflow.
+  DeepSeek's repeated live timeouts remain an external model-service issue;
+  Nemotron has succeeded with actual data through the configured queue/poll path.
+  The latest temporary key remains encrypted on the account and the shared
+  fallback stays empty. The last diagnostic API request's cooldown was cleared
+  and its single quota use refunded so the user can immediately try the fix.
+
+### Respiratory rate and skin temperature change — 2026-10-17
+
+- Physical-device verification completed on 2026-10-17: 22 respiratory-rate and
+  19 skin-temperature records were read and imported from the connected phone;
+  replays skipped every entry without imports/updates. Both daily endpoints
+  returned seven days and the user confirmed both displayed correctly. The
+  complete app runner subsequently passed from an empty v5 cursor, finishing
+  209 upload batches in about 35 seconds. These checks use real existing data,
+  never fabricated Health Connect readings. A lost USB reverse mapping caused
+  one diagnostic connection failure; restoring port 8000 resolved that failure.
+
+- `test_respiratory_skin_temperature.py` covers definition seeding, arbitrary
+  writer uploads, negative deltas, replay/corrections, daily medians, account
+  isolation, authentication and invalid timezone. Shared HRV regressions cover
+  the reused daily-median implementation's day filters and limits.
+- Android VitalsReader tests cover pagination, respiratory units, skin record
+  delta means with/without baseline, empty-record skipping, identity/time/version
+  preservation and feature-dependent permission sets. Planner/payload tests
+  preserve arbitrary writers and split batches at 100 entries. Existing metric
+  coordinator and permission tests remain applicable.
+- Frontend vital tests cover daily endpoint selection and display precision;
+  dashboard/detail suites cover daily graph routing. `VitalsDeviceTest` is an
+  opt-in physical-device upload/replay check (`-e vitalsAcceptance true`), requires
+  existing app sign-in, connection and permissions, and never writes fabricated
+  Health Connect data. Empty actual data is reported as empty, not fabricated.
+
+### Personal info and estimated BMR — 2026-10-16
+
+- `test_personal_info.py` covers authenticated encrypted profile roundtrip,
+  partial edits/clearing, atomic validation, field ownership, reference male/female
+  Mifflin–St Jeor results, completed birthday age, latest owned nonfuture system kg
+  weight, custom/other-user exclusion, weight corrections/deletion, missing inputs,
+  under-18 handling and account export. Existing account lifecycle tests retain
+  deletion and credential exclusion checks with the additive profile export.
+- Profile frontend tests cover API authorization/validation-safe errors, explicit
+  saves, clearing and estimate cache refresh, retry and preservation of a failed
+  save's draft. Dashboard tests verify the separate derived card, formula, Settings
+  link and absence of an entry-add control; Settings/metric mutation regressions
+  verify existing flows. Profile reads poll every minute while active for phone
+  weight syncs; entry create/update/delete invalidate the profile query.
+- Run the focused profile/account suites, then relevant metric/auth frontend and
+  backend tests, lint/type checks and the frontend build. Use the isolated E2E
+  runtime for browser checks; never seed made-up personal details into a real
+  user's profile.
+
 ### Stretch catalog visibility preferences — 2026-10-13
 
 - Backend tests cover default visibility, account-private hide-all and
@@ -1575,3 +1727,90 @@ Removed public Celery diagnostic regression:
 - `tests/test_prod_runtime.py` protects the `celerybeat-schedule*`
   Docker-context exclusion; Git's own `check-ignore` verifies repository ignore
   behavior for schedule, `.db`, `.dat`, `.bak`, `.dir`, `-shm`, and `-wal`
+
+
+### Distance and active-calorie coverage (2026-10-16)
+
+- `backend/tests/test_distance_calories.py` covers shared definitions and units,
+  arbitrary Health Connect origins, interval persistence, retry skipping, newer
+  corrections, immutable origin, origin-sensitive upload hashes, negative and
+  nonfinite values, invalid/missing intervals and package identifiers, daily
+  timezone grouping, cross-user and same-slug-custom isolation, raw-row
+  preservation, authentication and invalid daily filters.
+- Android activity reader tests cover SDK unit normalization, pagination,
+  timestamps and metadata. Coordinator and upload-contract tests cover all
+  origins, bounded initial reads, backend-sized batches, and exact normalized
+  JSON for both record types.
+- Frontend tests cover the daily API endpoints, dashboard query selection and
+  daily detail-chart queries. Existing raw history/mutation tests remain the
+  regression boundary for synthetic daily IDs.
+- Physical-device acceptance results must be recorded separately from unit
+  tests; a passing JVM suite does not prove Health Connect permission grants or
+  live phone-to-Django ingestion.
+
+
+Physical acceptance on 2026-10-16: updated debug app installed on the authorized
+Xiaomi 17 Ultra with `adb reverse tcp:8000 tcp:8000`. Device instrumentation
+confirmed local readiness HTTP 200 and real reads of both new types. After the
+operator signed in to the local debug account, all three explicit acceptance
+tests passed. Replaying the same fixed-window import skipped 5,994 Distance
+records and 1,912 Active Calories records with zero imports/updates on replay.
+The test logs counts only. `ActivityMetricsDeviceTest` requires the explicit
+instrumentation argument `activityMetricsAcceptance=true`; ordinary connected
+test runs skip these real-health-data acceptance cases.
+
+
+### Platform-prioritized activity totals and total energy follow-up
+
+`test_health_connect_activity_aggregates.py` reproduces the alphabetical-source
+bug and proves platform totals win without mixing raw writers, local midnight
+closes the preceding day, snapshots stay out of raw history, replay/correction
+and empty-bucket clearing work, invalid identities/buckets/versions reject, and
+empty snapshots never create coverage days. CSV tests preserve raw-only export.
+Total Calories Burned has its own shared definition and daily endpoint.
+
+Android tests cover raw TotalCaloriesBurned mapping, normalized kcal, aligned
+15-minute platform snapshots, partial final buckets, explicit empty buckets,
+permission/transport failures and aggregate JSON without a false single writer.
+The opt-in device acceptance test uploads raw records plus snapshots, replays
+with no duplicate writes, then compares each daily API value with an independent
+Health Connect aggregate request for yesterday using identical local boundaries.
+Physical results are recorded after that test runs; previous acceptance figures
+above describe the earlier raw-only implementation.
+
+
+Physical follow-up acceptance on 2026-10-16 passed all three opt-in device tests.
+For each of Distance, Active Calories and Total Calories, yesterday's daily API
+value matched an independent Health Connect `aggregate` read over the same
+Europe/Tirane day, within 0.000001 normalized units. Replay skipped 8,882 Distance,
+4,793 Active Calories and 5,193 Total Calories raw/snapshot entries with zero new
+imports or updates. These counts include empty reconciliation buckets and must
+not be interpreted as numbers of health measurements. The 30-day physical test
+took 216 seconds; two successful read/network tests alone are insufficient proof
+of complete sync. Regression checks: 208 affected backend tests, 143 frontend
+tests, and 187 Android JVM tests passed; web build/lint and backend static checks
+also passed.
+
+
+### Active Calories removal
+
+The user chose Total Calories only. `test_retired_active_calories.py` verifies
+that the shared Active Calories definition disappears from the catalog and
+standard entry feed, previous entries remain stored, and new wearable uploads
+reject. Current activity ingestion, reader, upload, frontend daily-query and
+chart tests cover Distance and Total Calories. Prior three-metric physical
+acceptance notes are retained as history; Active Calories is no longer supported
+by the current Android permission set, runtime readers or daily endpoint.
+
+### Staging AI runtime release — 2026-10-18
+
+Staging Compose now includes pinned private Redis and an AI Celery worker sharing
+the API image/environment. API startup depends on worker health. Regression checks
+cover no public broker/worker ports, database dependencies, worker health, matching
+images, and the existing migration-first deployment and bundle compatibility gates.
+
+Release review regressions reproduce and fix queued jobs shifting the selected
+week, non-object auth JSON, empty-only AI evidence, and exact birth-date bounds.
+Production-settings subprocess tests verify shared Redis counters with separate
+cache prefixes. Frontend fake timers verify polling survives a five-minute queue
+wait. Provider execution bounds remain separate from the one-hour queue window.

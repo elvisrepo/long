@@ -1,11 +1,17 @@
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from rest_framework.test import APIClient
 from apps.subscriptions.models import Subscription, SubscriptionPlan
 from apps.users.models import build_email_lookup_hash
 
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture(autouse=True)
+def clear_registration_throttle_cache():
+      cache.clear()
 
 
 def test_register_creates_user_and_returns_201():
@@ -150,3 +156,50 @@ def test_register_rolls_back_user_when_free_plan_is_unavailable():
       assert not get_user_model().objects.filter(
           email_lookup_hash=build_email_lookup_hash("rollback@example.com"),
       ).exists()
+
+
+def test_registration_is_limited_per_email():
+      client = APIClient()
+      payload = {
+          "email": "limited@example.com",
+          "password": "strong-password-123",
+      }
+
+      responses = [
+          client.post("/api/auth/register/", payload, format="json")
+          for _ in range(5)
+      ]
+      blocked_response = client.post(
+          "/api/auth/register/", payload, format="json"
+      )
+
+      assert responses[0].status_code == 201
+      assert all(response.status_code in {201, 400} for response in responses)
+      assert blocked_response.status_code == 429
+
+
+def test_registration_is_limited_per_source_address():
+      client = APIClient()
+
+      responses = [
+          client.post(
+              "/api/auth/register/",
+              {
+                  "email": f"signup-{index}@example.com",
+                  "password": "strong-password-123",
+              },
+              format="json",
+          )
+          for index in range(10)
+      ]
+      blocked_response = client.post(
+          "/api/auth/register/",
+          {
+              "email": "signup-last@example.com",
+              "password": "strong-password-123",
+          },
+          format="json",
+      )
+
+      assert all(response.status_code == 201 for response in responses)
+      assert blocked_response.status_code == 429

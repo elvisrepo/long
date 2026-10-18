@@ -2,6 +2,7 @@ import { PageHeader } from "../components/page-header";
 import { PageState } from "../components/page-state";
 import { useQueryClient } from "@tanstack/react-query";
 import { AccountPanel } from "../features/auth/account-panel";
+import { PersonalInfoPanel } from "../features/profile/personal-info-panel";
 import { useEffect, useState } from "react";
 import { MetricExportPanel } from "../features/metrics/metric-export-panel";
 import {
@@ -122,6 +123,8 @@ function SettingsRoute() {
         eyebrow="Account"
         description={`Signed in as ${meQuery.data.email}`}
       />
+
+      <PersonalInfoPanel />
 
       {checkoutStatus === "success" ? (
         <p className="settings-alert" role="status">

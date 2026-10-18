@@ -13,6 +13,28 @@ import { useMetricEntriesQuery } from "../features/metrics/use-metric-entries-qu
 import { useCurrentSubscriptionQuery } from "../features/subscriptions/use-current-subscription-query";
 import { renderRoute } from "./render-route";
 
+vi.mock("../features/profile/use-personal-info-query", () => ({
+  usePersonalInfoQuery: () => ({
+    isPending: false,
+    isError: false,
+    data: {
+      estimated_bmr: {
+        value: 1780,
+        unit: "kcal/day",
+        formula: "mifflin_st_jeor",
+        missing_fields: [],
+        reason: null,
+        weight: {
+          value: 80,
+          recorded_at: "2026-10-15T12:00:00Z",
+          source: "manual",
+          entry_id: 1,
+        },
+      },
+    },
+  }),
+}));
+
 vi.mock("../features/auth/auth-me-api", () => ({
   getMe: vi.fn(),
 }));
@@ -291,7 +313,18 @@ describe("dashboard route", () => {
     const rail = await screen.findByRole("region", { name: "Health metrics" });
     expect(rail).toHaveClass("dashboard-metric-rail");
     expect(within(rail).getAllByRole("group")).toHaveLength(1);
-    expect(within(rail).getAllByRole("article")).toHaveLength(2);
+    expect(within(rail).getAllByRole("article")).toHaveLength(3);
+    const estimate = within(rail).getByRole("article", {
+      name: "Estimated BMR",
+    });
+    expect(within(estimate).getByText("1,780")).toBeInTheDocument();
+    expect(within(estimate).getByText(/Mifflin–St Jeor/)).toBeInTheDocument();
+    expect(
+      within(estimate).getByRole("link", { name: /Estimated BMR/ }),
+    ).toHaveAttribute("href", "/settings#personal-info");
+    expect(
+      within(estimate).queryByRole("button", { name: /add/i }),
+    ).not.toBeInTheDocument();
     expect(
       within(rail).getByRole("link", { name: /body weight/i }),
     ).toHaveAttribute("href", "/metrics/body_weight");
@@ -299,7 +332,12 @@ describe("dashboard route", () => {
       within(rail).getByRole("button", { name: /add body weight entry/i }),
     ).toBeInTheDocument();
     expect(within(rail).queryByText(/latest reading/i)).not.toBeInTheDocument();
-    expect(within(rail).queryByText(/manual entry/i)).not.toBeInTheDocument();
+    const weightCard = within(rail)
+      .getByRole("button", { name: /add body weight entry/i })
+      .closest("article")!;
+    expect(
+      within(weightCard).queryByText(/manual entry/i),
+    ).not.toBeInTheDocument();
 
     expect(
       screen.queryByRole("button", { name: "Scroll metrics right" }),
@@ -331,7 +369,7 @@ describe("dashboard route", () => {
     const pages = within(rail).getAllByRole("group");
     expect(pages).toHaveLength(2);
     expect(within(pages[0]).getAllByRole("article")).toHaveLength(6);
-    expect(within(pages[1]).getAllByRole("article")).toHaveLength(1);
+    expect(within(pages[1]).getAllByRole("article")).toHaveLength(2);
 
     Object.defineProperty(rail, "clientWidth", { value: 400 });
     const scrollBy = vi.fn();

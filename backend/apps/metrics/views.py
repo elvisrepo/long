@@ -1,12 +1,13 @@
 import csv
 import json
 from collections.abc import Iterable
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import NotRequired, TypedDict, cast
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from django.db.models import Aggregate, FloatField, Max, Min, Q, QuerySet, Sum
+from django.db.models import Aggregate, F, FloatField, Max, Min, Q, QuerySet, Sum, Value, CharField
 from django.db.models.functions import TruncDate
+from django.db.models.fields.json import KeyTextTransform
 from django.http import StreamingHttpResponse
 from django.utils.dateparse import parse_datetime
 from rest_framework import generics
@@ -26,10 +27,7 @@ from apps.metrics.serializers import (
       MetricEntrySerializer,
       SleepTargetPreferenceSerializer,
   )
-from apps.metrics.source_precedence import (
-    DAILY_SOURCE_PRECEDENCE,
-    preferred_metric_source,
-)
+from apps.metrics.source_precedence import preferred_metric_source
 
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -67,6 +65,8 @@ class DailyMetricSummary(TypedDict):
     id: object
     local_date: date
     source: str
+    source_package_name: str | None
+    aggregation: NotRequired[str]
     value: float
     period_start: NotRequired[datetime | None]
     recorded_at: datetime | None
@@ -86,7 +86,8 @@ def daily_metric_summaries(
     """Aggregate one preferred source per local day without mixing providers."""
 
     annotated_entries = entries.annotate(
-        local_date=TruncDate("recorded_at", tzinfo=timezone)
+        local_date=TruncDate("recorded_at", tzinfo=timezone),
+        source_package_name=KeyTextTransform("source_package_name", "context"),
     )
     if local_date_from is not None:
         annotated_entries = annotated_entries.filter(
@@ -96,29 +97,37 @@ def daily_metric_summaries(
         annotated_entries = annotated_entries.filter(
             local_date__lte=local_date_to
         )
-    source_days = (
-        annotated_entries.values("local_date", "source")
-        .distinct()
-        .order_by("-local_date")[: limit * len(DAILY_SOURCE_PRECEDENCE)]
+    latest_dates = (
+        annotated_entries.values("local_date").distinct()
+        .order_by("-local_date")[:limit]
     )
-    sources_by_date: dict[date, list[str]] = {}
+    source_days = annotated_entries.filter(local_date__in=latest_dates).values(
+        "local_date", "source", "source_package_name"
+    ).distinct()
+    sources_by_date: dict[date, list[tuple[str, str | None]]] = {}
     for source_day in source_days:
         sources_by_date.setdefault(source_day["local_date"], []).append(
-            source_day["source"]
+            (source_day["source"], source_day["source_package_name"])
         )
 
-    chosen_sources = {
-        local_date: preferred_metric_source(sources)
-        for local_date, sources in sorted(
-            sources_by_date.items(), reverse=True
-        )[:limit]
-    }
+    chosen_sources: dict[date, tuple[str, str | None]] = {}
+    for local_date, origins in sources_by_date.items():
+        source = preferred_metric_source(origin[0] for origin in origins)
+        # Deterministic conservative fallback until users can choose a source.
+        chosen_sources[local_date] = min(
+            (origin for origin in origins if origin[0] == source),
+            key=lambda origin: origin[1] or "",
+        )
     if not chosen_sources:
         return []
 
     chosen_filter = Q(pk__in=[])
-    for local_date, source in chosen_sources.items():
-        chosen_filter |= Q(local_date=local_date, source=source)
+    for local_date, (source, package) in chosen_sources.items():
+        origin_filter = (
+            Q(source_package_name__isnull=True) if package is None
+            else Q(source_package_name=package)
+        )
+        chosen_filter |= Q(local_date=local_date, source=source) & origin_filter
 
     annotations: dict[str, object] = {
         "id": Max("id"),
@@ -133,10 +142,72 @@ def daily_metric_summaries(
         list[DailyMetricSummary],
         list(
             annotated_entries.filter(chosen_filter)
-            .values("local_date", "source")
+            .values("local_date", "source", "source_package_name")
             .annotate(**annotations)
             .order_by("-local_date")
         ),
+    )
+
+
+def health_connect_activity_summaries(
+    *,
+    entries: QuerySet[MetricEntry],
+    timezone: ZoneInfo,
+    limit: int,
+    value_aggregate: Aggregate,
+    include_period_start: bool,
+    local_date_from: date | None = None,
+    local_date_to: date | None = None,
+) -> list[DailyMetricSummary]:
+    """Use platform-prioritized buckets, never an arbitrary raw Health Connect app."""
+    snapshots = entries.filter(
+        source=MetricEntry.Source.HEALTH_CONNECT,
+        context__aggregation="health_connect",
+        context__has_data=True,
+    ).annotate(
+        # Aggregate intervals have an exclusive end; midnight closes yesterday.
+        local_date=TruncDate(
+            F("recorded_at") - timedelta(microseconds=1), tzinfo=timezone
+        ),
+    )
+    if local_date_from is not None:
+        snapshots = snapshots.filter(local_date__gte=local_date_from)
+    if local_date_to is not None:
+        snapshots = snapshots.filter(local_date__lte=local_date_to)
+    rows = list(
+        snapshots.values("local_date", "source")
+        .annotate(
+            id=Max("id"),
+            value=Sum("value"),
+            period_start=Min("period_start"),
+            recorded_at=Max("recorded_at"),
+            created_at=Max("created_at"),
+            source_package_name=Value(None, output_field=CharField()),
+        )
+        .order_by("-local_date")[:limit]
+    )
+    by_date: dict[date, DailyMetricSummary] = {
+        row["local_date"]: cast(
+            DailyMetricSummary, {**row, "aggregation": "health_connect_daily"}
+        )
+        for row in rows
+    }
+    # Retain manual/CSV/legacy data on dates without a platform total. Raw
+    # multi-origin Health Connect records are history, never summed as a proxy.
+    fallback = daily_metric_summaries(
+        entries=entries.exclude(source=MetricEntry.Source.HEALTH_CONNECT),
+        timezone=timezone,
+        limit=limit,
+        value_aggregate=value_aggregate,
+        include_period_start=include_period_start,
+        local_date_from=local_date_from,
+        local_date_to=local_date_to,
+    )
+    for row in fallback:
+        by_date.setdefault(row["local_date"], row)
+    return cast(
+        list[DailyMetricSummary],
+        [by_date[day] for day in sorted(by_date, reverse=True)[:limit]],
     )
 
 
@@ -256,6 +327,8 @@ class MetricEntryListCreateView(generics.ListCreateAPIView):
       def get_queryset(self):
           queryset = (
               MetricEntry.objects.filter(user=self.request.user)
+              .exclude(metric_definition__is_default=True, metric_definition__is_active=False)
+              .filter(Q(context__aggregation__isnull=True) | ~Q(context__aggregation="health_connect"))
               .select_related("metric_definition")
               .order_by("-recorded_at", "-id")
           )
@@ -287,10 +360,12 @@ class MetricEntryListCreateView(generics.ListCreateAPIView):
           return queryset
 
 
-class DailyStepsSummaryView(APIView):
-    """Return preferred-source Steps as one sum per requested local date."""
+class DailySumSummaryView(APIView):
+    """Return a system metric's preferred-origin sum per local date."""
 
     permission_classes = [IsAuthenticated]
+    metric_slug: str
+    summary_function = staticmethod(daily_metric_summaries)
 
     def get(self, request: Request) -> Response:
         timezone_name = request.query_params.get("timezone", "UTC")
@@ -312,7 +387,7 @@ class DailyStepsSummaryView(APIView):
 
         entries = MetricEntry.objects.filter(
             user=request.user,
-            metric_definition__slug="steps",
+            metric_definition__slug=self.metric_slug,
             metric_definition__user__isnull=True,
             metric_definition__is_default=True,
             metric_definition__is_active=True,
@@ -328,7 +403,7 @@ class DailyStepsSummaryView(APIView):
             timezone=timezone,
         )
 
-        summaries = daily_metric_summaries(
+        summaries = self.summary_function(
             entries=entries,
             timezone=timezone,
             limit=limit,
@@ -342,7 +417,7 @@ class DailyStepsSummaryView(APIView):
             [
                 {
                     "id": summary["id"],
-                    "metric_definition": "steps",
+                    "metric_definition": self.metric_slug,
                     "value": float(summary["value"]),
                     "local_date": summary["local_date"].isoformat(),
                     "period_start": format_export_timestamp(
@@ -352,7 +427,11 @@ class DailyStepsSummaryView(APIView):
                         summary["recorded_at"]
                     ),
                     "source": summary["source"],
-                    "context": {"aggregation": "daily"},
+                    "context": {
+                        "aggregation": summary.get("aggregation", "daily"),
+                        **({"source_package_name": summary["source_package_name"]}
+                           if summary["source_package_name"] else {}),
+                    },
                     "created_at": format_export_timestamp(
                         summary["created_at"]
                     ),
@@ -362,10 +441,31 @@ class DailyStepsSummaryView(APIView):
         )
 
 
-class DailyHrvSummaryView(APIView):
-    """Return preferred-source HRV as one median value per local date."""
+class DailyStepsSummaryView(DailySumSummaryView):
+    metric_slug = "steps"
+
+
+class DailyHealthConnectActivitySummaryView(DailySumSummaryView):
+    summary_function = staticmethod(health_connect_activity_summaries)
+
+
+class DailyDistanceSummaryView(DailyHealthConnectActivitySummaryView):
+    """Daily kilometres from platform-prioritized activity snapshots."""
+
+    metric_slug = "distance"
+
+
+class DailyTotalCaloriesSummaryView(DailyHealthConnectActivitySummaryView):
+    """Daily total energy, including resting metabolism, in kcal."""
+
+    metric_slug = "total_calories_burned"
+
+
+class DailyMedianSummaryView(APIView):
+    """Return one preferred-source median per metric and local date."""
 
     permission_classes = [IsAuthenticated]
+    metric_slug = "hrv"
 
     def get(self, request: Request) -> Response:
         timezone_name = request.query_params.get("timezone", "UTC")
@@ -387,7 +487,7 @@ class DailyHrvSummaryView(APIView):
 
         entries = MetricEntry.objects.filter(
             user=request.user,
-            metric_definition__slug="hrv",
+            metric_definition__slug=self.metric_slug,
             metric_definition__user__isnull=True,
             metric_definition__is_default=True,
             metric_definition__is_active=True,
@@ -417,7 +517,7 @@ class DailyHrvSummaryView(APIView):
             [
                 {
                     "id": summary["id"],
-                    "metric_definition": "hrv",
+                    "metric_definition": self.metric_slug,
                     "value": summary["value"],
                     "local_date": summary["local_date"].isoformat(),
                     "period_start": None,
@@ -435,6 +535,18 @@ class DailyHrvSummaryView(APIView):
         )
 
 
+class DailyHrvSummaryView(DailyMedianSummaryView):
+    metric_slug = "hrv"
+
+
+class DailyRespiratoryRateSummaryView(DailyMedianSummaryView):
+    metric_slug = "respiratory_rate"
+
+
+class DailySkinTemperatureSummaryView(DailyMedianSummaryView):
+    metric_slug = "skin_temperature"
+
+
 class MetricEntryCsvExportView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -445,6 +557,7 @@ class MetricEntryCsvExportView(APIView):
 
         entries = (
             MetricEntry.objects.filter(user=request.user)
+            .filter(Q(context__aggregation__isnull=True) | ~Q(context__aggregation="health_connect"))
             .select_related("metric_definition")
             .order_by("recorded_at", "id")
         )

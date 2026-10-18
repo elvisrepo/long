@@ -67,6 +67,21 @@ def test_csv_export_requires_authentication():
     assert response.status_code == 401
 
 
+def test_csv_history_excludes_derived_platform_snapshots() -> None:
+    client, user = authenticate_client_for("raw-activity-export@example.com")
+    definition = MetricDefinition.objects.get(user=None, slug="distance")
+    for context in ({"source_package_name": "com.example.health"}, {"aggregation": "health_connect", "has_data": True}):
+        MetricEntry.objects.create(
+            user=user, metric_definition=definition, value=1,
+            recorded_at="2026-10-15T10:00:00Z", source="health_connect", context=context,
+        )
+    response = client.get("/api/v1/metrics/entries/export/?metric=distance")
+    assert response.status_code == 200
+    rows = read_csv_response(response)
+    assert len(rows) == 1
+    assert json.loads(rows[0]["context"]) == {"source_package_name": "com.example.health"}
+
+
 def test_authenticated_user_can_export_their_metric_entries_as_csv():
     client, user = authenticate_client_for("alice@example.com")
     weight = MetricDefinition.objects.get(slug="body_weight")

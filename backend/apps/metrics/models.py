@@ -1,4 +1,5 @@
 import uuid
+from typing import Any
 
 from django.conf import settings
 from django.db import models
@@ -55,6 +56,7 @@ class MetricDefinition(models.Model):
 class MetricEntry(models.Model):
     class Source(models.TextChoices):
         MANUAL = "manual", "Manual"
+        HEALTH_CONNECT = "health_connect", "Health Connect"
         SAMSUNG_HEALTH = "samsung_health", "Samsung Health"
         GARMIN = "garmin", "Garmin"
         FITBIT = "fitbit", "Fitbit"
@@ -136,3 +138,34 @@ class MetricEntry(models.Model):
             and self.source_connection_id is None
             and self.external_source_id is None
         )
+
+
+class WeeklyAiReview(models.Model):
+    """A successful review and its original evidence, encrypted at rest."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="weekly_ai_reviews",
+    )
+    model = models.CharField(max_length=150)
+    timezone = models.CharField(max_length=100)
+    period_start = models.DateField()
+    period_end = models.DateField()
+    generated_at = models.DateTimeField()
+    result_encrypted = models.TextField()
+
+    class Meta:
+        ordering = ["-generated_at", "-id"]
+        indexes = [
+            models.Index(
+                fields=["user", "-generated_at"], name="ai_review_user_generated_idx"
+            )
+        ]
+
+    def as_result(self) -> dict[str, Any]:
+        import json
+        from apps.users.models import decrypt_value
+
+        return json.loads(decrypt_value(self.result_encrypted))

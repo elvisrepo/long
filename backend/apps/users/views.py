@@ -23,7 +23,14 @@ from apps.users.services import (
     rotate_refresh_token,
     send_password_reset_email,
 )
-from apps.users.throttles import PasswordResetRequestThrottle
+from apps.users.throttles import (
+    LoginThrottle,
+    PasswordResetConfirmThrottle,
+    PasswordResetEmailThrottle,
+    PasswordResetRequestThrottle,
+    RegistrationIPThrottle,
+    RegistrationThrottle,
+)
 
 import logging
 
@@ -82,6 +89,7 @@ def authenticate_login_request(
       
 
 @api_view(["POST"])
+@throttle_classes([RegistrationThrottle, RegistrationIPThrottle])
 def register_view(request: Request) -> Response:
       serializer = RegisterSerializer(data=request.data)
 
@@ -99,7 +107,7 @@ def register_view(request: Request) -> Response:
 
 
 @api_view(["POST"])
-@throttle_classes([PasswordResetRequestThrottle])
+@throttle_classes([PasswordResetRequestThrottle, PasswordResetEmailThrottle])
 def password_reset_request_view(request: Request) -> Response:
     serializer = PasswordResetRequestSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -123,6 +131,7 @@ def password_reset_request_view(request: Request) -> Response:
 
 
 @api_view(["POST"])
+@throttle_classes([PasswordResetConfirmThrottle])
 def password_reset_confirm_view(request: Request) -> Response:
     serializer = PasswordResetConfirmSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -140,6 +149,7 @@ def password_reset_confirm_view(request: Request) -> Response:
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 @api_view(["POST"])
+@throttle_classes([LoginThrottle])
 def mobile_login_view(request: Request) -> Response:
       user, error_response = authenticate_login_request(request)
       if error_response is not None:
@@ -158,6 +168,7 @@ def mobile_login_view(request: Request) -> Response:
       )
 
 @api_view(["POST"])
+@throttle_classes([LoginThrottle])
 def web_login_view(request: Request) -> Response:
       user, error_response = authenticate_login_request(request)
       if error_response is not None:

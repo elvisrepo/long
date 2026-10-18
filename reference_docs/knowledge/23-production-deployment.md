@@ -18,7 +18,8 @@ Current presentation staging:
 |---|---|---|
 | Frontend and browser edge | CloudFront + private S3/OAC | One public browser origin; cached static files and uncached `/api/*` |
 | API origin | Nginx on one public `t4g.small` EC2 host | Origin TLS, secret-origin-header validation, reverse proxy to Gunicorn |
-| Application | Gunicorn/Django container | Long-running API; no development server |
+| Application | Gunicorn/Django plus one Celery worker | API and async NVIDIA reviews; no development server |
+| AI job transport/cache | Private Redis container on the same host | Temporary encrypted job payloads; no host port; saved reviews remain in PostgreSQL |
 | Database | Plain PostgreSQL 16 on the EC2 host | Persistent encrypted EBS volume; not highly available; TimescaleDB is deferred |
 | Migrations | One-off container from the backend image | Must succeed before API replacement |
 | Secrets | AWS Secrets Manager | One validated `.env`-free runtime snapshot |
@@ -63,8 +64,12 @@ and cost estimate, and apply only after explicit approval. No resources should
 be created as part of the planning or plan-review stage.
 
 Production does not need Nginx because CloudFront and ALB own its relevant edge
-and reverse-proxy responsibilities. Redis, Celery Worker, and Celery Beat are
-not baseline requirements; add them only for measured asynchronous workloads.
+and reverse-proxy responsibilities. Redis and one Celery worker are now required by asynchronous AI reviews on
+staging. Celery Beat is not required. Worker concurrency is one to fit the existing
+host; no daily request quotas or application cooldowns are introduced. The API
+waits for worker health; all backend containers share the same image and runtime
+environment. Personal NVIDIA keys are stored encrypted per account, with no shared
+NVIDIA key installed on staging.
 
 The previous ALB + one EC2 + Timescale Cloud staging proposal and the earlier
 two-EC2/Fargate evolution are preserved as **legacy / superseded** C4 views.

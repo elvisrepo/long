@@ -2,7 +2,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import TypedDict
 
 from django.contrib.auth.models import AbstractBaseUser
-from django.db.models import Max, Q
+from django.db.models import Case, DateTimeField, F, Max, Q, When
 from django.utils import timezone
 
 from apps.metrics.models import MetricDefinition, MetricEntry
@@ -103,24 +103,35 @@ def get_consistency_analytics(
     presence_by_definition: dict[object, set[date]] = {
         definition_id: set() for definition_id in definition_ids
     }
-    window_entries = MetricEntry.objects.filter(
-        user=user,
-        metric_definition_id__in=definition_ids,
-        recorded_at__gte=period_start,
-        recorded_at__lte=now,
-    ).values_list("metric_definition_id", "recorded_at")
+    coverage_entries = (
+        MetricEntry.objects.filter(
+            user=user,
+            metric_definition_id__in=definition_ids,
+        )
+        .filter(Q(context__has_data__isnull=True) | Q(context__has_data=True))
+        .annotate(
+            coverage_at=Case(
+                When(
+                    context__aggregation="health_connect",
+                    then=F("recorded_at") - timedelta(microseconds=1),
+                ),
+                default=F("recorded_at"),
+                output_field=DateTimeField(),
+            )
+        )
+    )
+    window_entries = coverage_entries.filter(
+        coverage_at__gte=period_start,
+        coverage_at__lte=now,
+    ).values_list("metric_definition_id", "coverage_at")
     for definition_id, recorded_at in window_entries:
         presence_by_definition[definition_id].add(recorded_at.astimezone(UTC).date())
 
     latest_by_definition = {
         row["metric_definition_id"]: row["last_recorded_at"]
-        for row in MetricEntry.objects.filter(
-            user=user,
-            metric_definition_id__in=definition_ids,
-            recorded_at__lte=now,
-        )
+        for row in coverage_entries.filter(coverage_at__lte=now)
         .values("metric_definition_id")
-        .annotate(last_recorded_at=Max("recorded_at"))
+        .annotate(last_recorded_at=Max("coverage_at"))
     }
 
     metrics: list[ConsistencyMetric] = []
