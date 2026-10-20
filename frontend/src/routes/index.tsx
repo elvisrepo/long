@@ -33,6 +33,7 @@ const DASHBOARD_PREVIEW_DAYS = 7;
 
 function DashboardRoute() {
   const metricRailRef = useRef<HTMLDivElement>(null);
+  const [metricPage, setMetricPage] = useState(0);
   const [selectedMetricSlug, setSelectedMetricSlug] = useState("");
   const [entryDefinition, setEntryDefinition] =
     useState<MetricDefinition | null>(null);
@@ -134,29 +135,24 @@ function DashboardRoute() {
 
       <div className="dashboard-overview">
         <section className="dashboard-metrics">
-          <div className="dashboard-metrics-heading">
-            <h2 className="dashboard-section-title">Your metrics</h2>
-            {metricPages.length > 1 ? (
-              <div className="dashboard-rail-controls">
-                <button
-                  type="button"
-                  aria-label="Scroll metrics left"
-                  onClick={() => scrollMetrics(-1)}
-                >
-                  ←
-                </button>
-                <button
-                  type="button"
-                  aria-label="Scroll metrics right"
-                  onClick={() => scrollMetrics(1)}
-                >
-                  →
-                </button>
-              </div>
-            ) : null}
-          </div>
           <div
             ref={metricRailRef}
+            onScroll={(event) => {
+              const rail = event.currentTarget;
+              const pageWidth =
+                (rail.scrollWidth - rail.clientWidth) /
+                (metricPages.length - 1);
+              if (pageWidth > 0)
+                setMetricPage(
+                  Math.max(
+                    0,
+                    Math.min(
+                      metricPages.length - 1,
+                      Math.round(rail.scrollLeft / pageWidth),
+                    ),
+                  ),
+                );
+            }}
             className="dashboard-metric-rail"
             role="region"
             aria-label="Health metrics"
@@ -191,16 +187,44 @@ function DashboardRoute() {
               </div>
             ))}
           </div>
+          {metricPages.length > 1 ? (
+            <div
+              className="dashboard-rail-controls"
+              role="group"
+              aria-label="Metric pages"
+            >
+              <button
+                type="button"
+                aria-label="Scroll metrics left"
+                onClick={() => scrollMetrics(-1)}
+              >
+                ←
+              </button>
+              <span role="status" aria-label="Metric page" aria-live="polite">
+                {Math.min(metricPage + 1, metricPages.length)} of{" "}
+                {metricPages.length}
+              </span>
+              <button
+                type="button"
+                aria-label="Scroll metrics right"
+                onClick={() => scrollMetrics(1)}
+              >
+                →
+              </button>
+            </div>
+          ) : null}
         </section>
 
         <DashboardDailyTrackers />
       </div>
 
       <section className="insights-card" aria-label="Pro insights">
-        <div className="entries-toolbar">
+        <div className="entries-toolbar dashboard-insights-heading">
           <div>
-            <p className="eyebrow">Analytics</p>
             <h2>Pro Insights</h2>
+            <p className="dashboard-insights-description">
+              Explore patterns across your trackers.
+            </p>
           </div>
           <span className="status-pill">Pro</span>
         </div>
@@ -208,27 +232,44 @@ function DashboardRoute() {
         {analyticsEnabled ? (
           <>
             <div className="insight-navigation">
-              <Link className="insight-destination" to="/analytics/ai">
-                <strong>AI Insights →</strong>
+              <Link
+                className="insight-destination"
+                data-insight="ai"
+                to="/analytics/ai"
+              >
+                <InsightIcon kind="ai" />
+                <strong>AI suggestions</strong>
                 <span className="insight-preview">
-                  Your weekly tracker review
+                  Suggestions from a day, week or month of data
                 </span>
               </Link>
-              <Link className="insight-destination" to="/analytics/sleep">
-                <strong>Sleep Insights →</strong>
+              <Link
+                className="insight-destination"
+                data-insight="sleep"
+                to="/analytics/sleep"
+              >
+                <InsightIcon kind="sleep" />
+                <strong>Sleep Insights</strong>
                 <span className="insight-preview">{insightPreviews.sleep}</span>
               </Link>
               <Link
                 className="insight-destination"
+                data-insight="weight"
                 to="/analytics/weight-steps"
               >
-                <strong>Weight × Steps →</strong>
+                <InsightIcon kind="weight" />
+                <strong>Weight × Steps</strong>
                 <span className="insight-preview">
                   {insightPreviews.weightSteps}
                 </span>
               </Link>
-              <Link className="insight-destination" to="/analytics/consistency">
-                <strong>Consistency →</strong>
+              <Link
+                className="insight-destination"
+                data-insight="consistency"
+                to="/analytics/consistency"
+              >
+                <InsightIcon kind="consistency" />
+                <strong>Consistency</strong>
                 <span className="insight-preview">{consistencyPreview}</span>
               </Link>
             </div>
@@ -322,6 +363,34 @@ function DashboardRoute() {
         />
       ) : null}
     </section>
+  );
+}
+
+const insightIconPaths = {
+  ai: "m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Zm7 0v4m-2-2h4",
+  sleep: "M20.5 14A9 9 0 0 1 10 3.5 9 9 0 1 0 20.5 14Z",
+  weight: "M4 4v16h16M7 14l4-5 4 3 5-7",
+  consistency:
+    "M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm2-3v6m10-6v6M3 11h18m-13 5 3 3 5-5",
+};
+
+function InsightIcon({ kind }: { kind: keyof typeof insightIconPaths }) {
+  return (
+    <span className="dashboard-insight-icon" aria-hidden="true">
+      <svg
+        viewBox="0 0 24 24"
+        width="24"
+        height="24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        focusable="false"
+      >
+        <path d={insightIconPaths[kind]} />
+      </svg>
+    </span>
   );
 }
 

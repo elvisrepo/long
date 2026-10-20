@@ -963,6 +963,35 @@ button {
   background: transparent;
   box-shadow: none;
 }
+@media (min-width: 1001px) {
+  .dashboard-overview {
+    grid-template-rows: auto auto;
+    gap: 10px 24px;
+    align-items: stretch;
+  }
+  .dashboard-overview .dashboard-metrics {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    display: grid;
+    grid-template-rows: subgrid;
+  }
+  .dashboard-overview .dashboard-metric-rail {
+    padding: 0;
+    scrollbar-width: none;
+  }
+  .dashboard-overview .dashboard-metric-rail::-webkit-scrollbar {
+    display: none;
+  }
+  .dashboard-overview .dashboard-metric-page {
+    grid-template-rows: repeat(2, minmax(132px, 1fr));
+  }
+  .dashboard-overview .dashboard-daily-trackers {
+    grid-column: 2;
+    grid-row: 1;
+    display: grid;
+    grid-template-rows: auto repeat(4, minmax(80px, 1fr));
+  }
+}
 @media (max-width: 1000px) {
   .dashboard-overview {
     grid-template-columns: minmax(0, 1fr);
@@ -3359,21 +3388,18 @@ body:has(dialog[open]) {
   gap: 10px;
 }
 
-.dashboard-metrics-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.dashboard-metrics .dashboard-section-title {
-  margin: 0;
-  font-size: 17px;
-}
-
 .dashboard-rail-controls {
   display: flex;
-  gap: 6px;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+}
+.dashboard-rail-controls [role="status"] {
+  min-width: 48px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
 }
 
 .dashboard-rail-controls button {
@@ -3544,20 +3570,96 @@ body:has(dialog[open]) {
 }
 
 .dashboard-screen .insights-card {
-  gap: 8px;
-  padding: 17px 20px;
+  gap: 18px;
+  padding: 22px;
 }
-
+.dashboard-insights-heading {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+.dashboard-insights-heading > div {
+  min-width: 0;
+}
+.dashboard-insights-heading h2 {
+  margin: 0;
+}
+.dashboard-insights-description {
+  margin: 6px 0 0;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.dashboard-insights-heading .status-pill {
+  flex: none;
+  width: auto;
+  background: #f0eafa;
+  color: #7653ac;
+  border: 1px solid #ded1f1;
+}
 .dashboard-screen .insight-navigation {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
-
 .dashboard-screen .insight-destination {
-  padding: 12px 0 0;
+  --insight-color: #7653ac;
+  --insight-tint: #f0eafa;
+  position: relative;
+  min-width: 0;
+  align-content: start;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--insight-color) 23%, var(--border));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--insight-tint) 45%, var(--surface-high));
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
 }
-
+.dashboard-screen .insight-destination[data-insight="sleep"] {
+  --insight-color: #4267a9;
+  --insight-tint: #e8effc;
+}
+.dashboard-screen .insight-destination[data-insight="weight"] {
+  --insight-color: #087c69;
+  --insight-tint: #e1f3ed;
+}
+.dashboard-screen .insight-destination[data-insight="consistency"] {
+  --insight-color: #a34c25;
+  --insight-tint: #fff0e5;
+}
+.dashboard-screen .insight-destination::after {
+  content: "↗";
+  position: absolute;
+  top: 20px;
+  right: 18px;
+  color: var(--insight-color);
+}
+.dashboard-screen .insight-destination .dashboard-insight-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--insight-tint);
+  color: var(--insight-color);
+}
 .dashboard-screen .insight-destination strong {
-  font-size: 14px;
+  color: var(--text);
+  font-size: 15px;
+}
+.dashboard-screen .insight-destination:hover,
+.dashboard-screen .insight-destination:active {
+  border-color: var(--insight-color);
+  background: color-mix(in srgb, var(--insight-tint) 75%, var(--surface-high));
+}
+.dashboard-screen .insight-destination:focus-visible {
+  outline: 2px solid var(--insight-color);
+  outline-offset: 3px;
+}
+@media (max-width: 1000px) and (min-width: 681px) {
+  .dashboard-screen .insight-navigation {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 900px) {
@@ -3604,6 +3706,22 @@ body:has(dialog[open]) {
 
   .dashboard-screen .insight-navigation {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .dashboard-screen .insights-card {
+    padding: 18px;
+  }
+  .dashboard-screen .insight-destination {
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 4px 14px;
+    padding: 16px 36px 16px 14px;
+  }
+  .dashboard-screen .dashboard-insight-icon {
+    grid-row: 1 / 3;
+    align-self: center;
+  }
+  .dashboard-screen .insight-destination::after {
+    top: 18px;
+    right: 14px;
   }
 }
 .ai-weekly-review {
