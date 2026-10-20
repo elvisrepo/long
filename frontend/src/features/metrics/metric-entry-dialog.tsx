@@ -45,6 +45,7 @@ export function MetricEntryDialog({
   );
   const [notes, setNotes] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const isDistance = metricDefinition.slug === "distance";
   const isSleepDuration = metricDefinition.slug === "sleep_duration";
   const sleepDurationHours = getSleepDurationHours(bedtime, wakeTime);
 
@@ -122,6 +123,7 @@ export function MetricEntryDialog({
 
   return (
     <Modal
+      className={isDistance ? "distance-entry-dialog" : ""}
       labelledBy="add-metric-entry-title"
       onClose={closeWhenIdle}
       busy={isPending}
@@ -129,7 +131,9 @@ export function MetricEntryDialog({
       <div className="metric-dialog-header">
         <div>
           <p className="eyebrow">Manual entry</p>
-          <h2 id="add-metric-entry-title">Add {metricDefinition.name} entry</h2>
+          <h2 id="add-metric-entry-title">
+            {isDistance ? "Add distance" : `Add ${metricDefinition.name} entry`}
+          </h2>
         </div>
         <button
           aria-label="Close dialog"
@@ -145,7 +149,9 @@ export function MetricEntryDialog({
       <p className="metric-dialog-copy">
         {isSleepDuration
           ? "Record bedtime and wake time. Sleep duration is calculated automatically."
-          : `Record a value in ${metricDefinition.unit}. The date and time can be adjusted for an earlier measurement.`}
+          : isDistance
+            ? "Add a manual record in kilometres. Your synced records stay available in source history."
+            : `Record a value in ${metricDefinition.unit}. The date and time can be adjusted for an earlier measurement.`}
       </p>
 
       <form className="metric-add-entry-form" onSubmit={handleSubmit}>
@@ -180,7 +186,7 @@ export function MetricEntryDialog({
         ) : (
           <>
             <label>
-              {metricDefinition.name} value
+              {isDistance ? "Distance (km)" : `${metricDefinition.name} value`}
               <input
                 autoFocus
                 inputMode="decimal"
@@ -195,7 +201,7 @@ export function MetricEntryDialog({
             </label>
 
             <label>
-              Recorded at
+              {isDistance ? "Date and time" : "Recorded at"}
               <input
                 required
                 type="datetime-local"
@@ -207,11 +213,18 @@ export function MetricEntryDialog({
         )}
 
         <label className="metric-add-entry-notes">
-          {metricDefinition.name} notes
-          <input
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-          />
+          {isDistance ? "Notes (optional)" : `${metricDefinition.name} notes`}
+          {isDistance ? (
+            <textarea
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+            />
+          ) : (
+            <input
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+            />
+          )}
         </label>
 
         {formError ? (
@@ -241,6 +254,7 @@ export function MetricEntryDialog({
 }
 
 function getSaveEntryActionLabel(metricDefinition: MetricDefinition) {
+  if (metricDefinition.slug === "distance") return "Save distance";
   if (metricDefinition.slug === "body_weight") {
     return "Save weight entry";
   }

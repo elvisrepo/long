@@ -282,3 +282,50 @@ Review and implementation browser checks cover Light at 320/390/768/1440px,
 filtering, archive visibility, modal focus, cancelled edits, identifier generation,
 and invalid ranges. The review artifact remains a proposal snapshot; the app is the
 implemented source of truth. Metric-detail charts were outside this review's scope.
+
+## Distance detail — 20 October 2026 (proposals 02–04 implemented)
+
+The local Light-theme review is `.lavish/distance-review/index.html`, with real
+account captures and an interactive proposal. The owner approved proposals 02
+(chart and summary), 03 (daily history), and 04 (manual-entry wording). Proposal
+01 was initially excluded. A follow-up request now reduces the visible header to
+Metrics / Distance and the existing Add Distance entry action; the repeated title,
+category and loaded-record badge are removed. A visually hidden h1 remains.
+
+- Distance defaults to 30 local calendar days. Its chart spans the first through last recorded
+  dates in the selected range, trimming empty leading/trailing dates. Internal
+  missing dates stay null, measured zero stays zero, and lines do not bridge gaps.
+  The summary and coverage denominator still describe the full selected range.
+  The owner initially restored the smooth green line and fill, then selected a
+  bar chart. Distance now uses soft green daily bars with rounded tops. Missing
+  dates stay blank; a minimum-height mark keeps measured zero visible. Transition
+  animation remains disabled for Distance.
+  Other metrics retain their existing chart mode and default range.
+- Recorded total, daily average and recorded-day coverage replace Distance's
+  Oldest/Latest/Delta cards. Total and average are rounded to one and two decimal
+  places; individual readings retain the existing distance precision. Missing
+  dates are excluded from the average; partial recorded days are disclosed.
+- Daily history reuses the backend's existing daily summaries, newest first,
+  with five days initially shown and expansion reset on range changes. Source
+  records are a separate collapsed disclosure; its count describes loaded
+  records (at most 50). Source timestamps remain explicitly UTC. Existing manual
+  Edit/Delete, confirmation, numeric limits and backend source priority remain.
+- Distance's shared native add dialog uses Add distance, Distance (km), Date and
+  time, Notes (optional), and Save distance. Notes use a textarea. Submission,
+  pending/error behavior, native focus containment and return are preserved;
+  dialogs for other metrics keep their wording.
+- Selected-date links retain their existing UTC semantics. Local calendar date
+  iteration handles daylight-saving boundaries without adding or losing dates.
+
+Validation: all 622 frontend tests pass, including ten additional Distance checks;
+ESLint and production build pass. Read-only browser checks at 320/390/768/1440px
+verify the actual account's 30-day totals, 7d/1y switching, daily/source expansion,
+UTC date links, native add-dialog focus containment/return, and unchanged HRV
+presentation. No API writes, page errors or horizontal overflow occurred. The
+normal account was not seeded or reset. No API contracts, routes or schema changed.
+
+Follow-up visual refinements: the range filter sits to the right of Daily distance,
+with exact date bounds below. Source-record labels, timestamps and values align
+left on both mobile and desktop. The 44px range controls stay beside the heading
+at 320px; the heading may wrap there. Focused validation covers 57 Distance/detail
+checks; lint, build and real-account responsive checks pass.

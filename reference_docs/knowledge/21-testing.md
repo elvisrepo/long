@@ -1,5 +1,16 @@
 ## 6. Testing
 
+- Distance detail proposals 02–04 (2026-10-20): 30-day defaults, recorded-day
+  averages, missing-date/null versus measured-zero chart values, DST calendar
+  iteration, UTC date links, daily-history expansion/reset, source disclosure,
+  retained manual Edit/Delete, optional notes and unchanged create payload are
+  covered. Empty/error daily fetches do not appear as zero totals. All 622
+  frontend tests pass; lint/build pass. Read-only real-account browser checks at
+  320/390/768/1440px verify summary values, range changes, daily/source expansion,
+  linked dates, add-dialog focus containment/return, and unchanged HRV behavior.
+  No records are created, edited, deleted, seeded or reset by those browser checks.
+
+
 - Metrics catalog refinement (2026-10-20): route tests cover active/archived filter
   counts, custom-first ordering, full-row detail links, custom edit/archive dialogs,
   existing restore operations, auto-generated identifiers avoiding archived names,

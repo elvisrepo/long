@@ -132,6 +132,28 @@ function mockAnalyticsEntitlement(analyticsEnabled: boolean) {
   } as ReturnType<typeof useCurrentSubscriptionQuery>);
 }
 
+function mockDistance() {
+  vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+  vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+    data: [
+      {
+        id: "distance-id",
+        name: "Distance",
+        slug: "distance",
+        unit: "km",
+        category: "activity",
+        min_value: 0,
+        max_value: 1000000,
+        is_default: true,
+        is_active: true,
+      },
+    ],
+    isLoading: false,
+    isError: false,
+  } as ReturnType<typeof useMetricDefinitionsQuery>);
+  mockMetricEntryMutations();
+}
+
 describe("metric detail route", () => {
   beforeEach(() => {
     mockAnalyticsEntitlement(false);
@@ -141,6 +163,214 @@ describe("metric detail route", () => {
     vi.resetAllMocks();
     vi.unstubAllEnvs();
     vi.useRealTimers();
+  });
+
+  it("keeps only the breadcrumb and add action in the visible Distance header", async () => {
+    mockDistance();
+    mockLoadedMetricEntries([]);
+    renderRoute("/metrics/distance");
+    const breadcrumb = await screen.findByRole("navigation", {
+      name: "Breadcrumb",
+    });
+    const header = breadcrumb.closest("header")!;
+    expect(
+      within(header).getByRole("link", { name: "Metrics" }),
+    ).toBeInTheDocument();
+    expect(
+      within(header).getByRole("button", { name: "Add Distance entry" }),
+    ).toBeInTheDocument();
+    expect(within(header).queryByText("Metric detail")).not.toBeInTheDocument();
+    expect(within(header).queryByText("activity · km")).not.toBeInTheDocument();
+    expect(within(header).queryByText("0 entries")).not.toBeInTheDocument();
+    expect(
+      within(header).getByRole("heading", { level: 1, name: "Distance" }),
+    ).toHaveClass("visually-hidden");
+  });
+
+  it("starts Distance at 30 days and summarizes recorded days without treating gaps as zero", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-20T12:00:00Z"));
+    mockDistance();
+    mockLoadedMetricEntries([
+      {
+        id: 2,
+        metric_definition: "distance",
+        value: 6,
+        local_date: "2026-10-19",
+        period_start: null,
+        recorded_at: "2026-10-19T12:00:00Z",
+        source: "health_connect",
+        context: {},
+        created_at: "2026-10-19T12:00:00Z",
+      },
+      {
+        id: 1,
+        metric_definition: "distance",
+        value: 2,
+        local_date: "2026-10-17",
+        period_start: null,
+        recorded_at: "2026-10-17T12:00:00Z",
+        source: "health_connect",
+        context: {},
+        created_at: "2026-10-17T12:00:00Z",
+      },
+    ]);
+    renderRoute("/metrics/distance");
+    const trend = await screen.findByRole("region", { name: "Daily distance" });
+    expect(screen.getByRole("button", { name: "30d" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(within(trend).getByText("8 km")).toBeInTheDocument();
+    expect(within(trend).getByText("4 km")).toBeInTheDocument();
+    expect(within(trend).getByText("2 / 30")).toBeInTheDocument();
+    expect(within(trend).queryByText("Delta")).not.toBeInTheDocument();
+    expect(useMetricEntriesQuery).toHaveBeenCalledWith(
+      expect.objectContaining({ metric: "distance", daily: true, limit: 30 }),
+    );
+  });
+
+  it("shows Distance daily totals before a collapsed source history and preserves manual editing", async () => {
+    const user = userEvent.setup();
+    mockDistance();
+    const entry = {
+      id: 10,
+      metric_definition: "distance",
+      value: 0.25,
+      period_start: null,
+      recorded_at: new Date().toISOString(),
+      source: "manual",
+      context: {},
+      created_at: new Date().toISOString(),
+    };
+    vi.mocked(useMetricEntriesQuery).mockImplementation(
+      (filters) =>
+        ({
+          data: filters.daily
+            ? [{ ...entry, value: 8, local_date: undefined }]
+            : [entry],
+          isLoading: false,
+          isError: false,
+        }) as ReturnType<typeof useMetricEntriesQuery>,
+    );
+    renderRoute("/metrics/distance");
+    const history = await screen.findByRole("region", {
+      name: "Daily distance history",
+    });
+    expect(within(history).getByText("8 km")).toBeVisible();
+    const edit = within(history).getByRole("button", {
+      name: "Edit Distance entry",
+      hidden: true,
+    });
+    expect(edit).not.toBeVisible();
+    await user.click(within(history).getByText("Source records · 1 loaded"));
+    expect(edit).toBeVisible();
+    expect(within(history).getByText("0.25 km")).toBeVisible();
+    await user.click(edit);
+    fireEvent.change(within(history).getByLabelText("Distance value"), {
+      target: { value: "0.5" },
+    });
+    await user.click(
+      within(history).getByRole("button", { name: "Save Distance entry" }),
+    );
+    expect(updateMetricEntryMutateAsyncMock).toHaveBeenCalledWith({
+      id: 10,
+      input: {
+        value: 0.5,
+        recordedAt: entry.recorded_at,
+        context: { notes: "" },
+      },
+    });
+    await user.click(
+      within(history).getByRole("button", { name: "Delete Distance entry" }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Delete Distance entry?" }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Keep it" }));
+    expect(deleteMetricEntryMutateAsyncMock).not.toHaveBeenCalled();
+  });
+
+  it("adds Distance with kilometre units and optional notes using the existing payload", async () => {
+    const user = userEvent.setup();
+    mockDistance();
+    mockLoadedMetricEntries([]);
+    renderRoute("/metrics/distance");
+    await user.click(
+      await screen.findByRole("button", { name: "Add Distance entry" }),
+    );
+    const dialog = screen.getByRole("dialog", { name: "Add distance" });
+    expect(
+      within(dialog).getByLabelText("Notes (optional)"),
+    ).not.toBeRequired();
+    await user.type(within(dialog).getByLabelText("Distance (km)"), "1.234");
+    fireEvent.change(within(dialog).getByLabelText("Date and time"), {
+      target: { value: "2026-10-19T09:15" },
+    });
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save distance" }),
+    );
+    expect(createMetricEntryMutateAsyncMock).toHaveBeenCalledWith({
+      metricDefinition: "distance",
+      value: 1.234,
+      recordedAt: new Date("2026-10-19T09:15").toISOString(),
+      context: { notes: "" },
+    });
+  });
+
+  it("collapses expanded Distance daily history when the range changes", async () => {
+    const user = userEvent.setup();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-20T12:00:00Z"));
+    mockDistance();
+    mockLoadedMetricEntries(
+      Array.from({ length: 6 }, (_, i) => ({
+        id: i,
+        metric_definition: "distance",
+        value: i + 1,
+        period_start: null,
+        local_date: `2026-10-${20 - i}`,
+        recorded_at: `2026-10-${20 - i}T12:00:00Z`,
+        source: "health_connect",
+        context: {},
+        created_at: `2026-10-${20 - i}T12:00:00Z`,
+      })),
+    );
+    renderRoute("/metrics/distance");
+    const more = await screen.findByRole("button", {
+      name: "Show all 6 recorded days",
+    });
+    await user.click(more);
+    expect(
+      screen.getByRole("button", { name: "Show fewer days" }),
+    ).toHaveAttribute("aria-expanded", "true");
+    await user.click(screen.getByRole("button", { name: "7d" }));
+    expect(
+      screen.getByRole("button", { name: "Show all 6 recorded days" }),
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByText("6 / 7")).toBeInTheDocument();
+  });
+
+  it("keeps a linked Distance date in UTC and returns to the 30-day view when cleared", async () => {
+    const user = userEvent.setup();
+    mockDistance();
+    mockLoadedMetricEntries([]);
+    renderRoute("/metrics/distance?date=2026-09-16");
+    await screen.findByRole("heading", { level: 1, name: "Distance" });
+    expect(useMetricEntriesQuery).toHaveBeenCalledWith({
+      metric: "distance",
+      from: "2026-09-16T00:00:00.000Z",
+      to: "2026-09-16T23:59:59.999Z",
+      limit: 1,
+      daily: true,
+      timezone: "UTC",
+    });
+    expect(screen.getByText("0 / 1")).toBeInTheDocument();
+    await user.click(screen.getByRole("link", { name: "Clear selected date" }));
+    expect(await screen.findByRole("button", { name: "30d" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   it("leads with the trend and omits the summary section", async () => {
@@ -321,7 +551,7 @@ describe("metric detail route", () => {
       metric: slug,
       from: expect.any(String),
       to: expect.any(String),
-      limit: 366,
+      limit: slug === "distance" ? 30 : 366,
       daily: true,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     });

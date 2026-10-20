@@ -1,3 +1,8 @@
+import { distanceCalendarDates } from "../features/metrics/distance-calendar";
+import {
+  DistanceTrend,
+  DistanceHistory,
+} from "../features/metrics/distance-detail";
 import { PageState } from "../components/page-state";
 import { PageHeader } from "../components/page-header";
 import { MetricEntryDialog } from "../features/metrics/metric-entry-dialog";
@@ -70,12 +75,17 @@ function MetricDetailRoute() {
 function MetricDetailContent({ slug }: { slug: string }) {
   const { date: selectedDate } = Route.useSearch();
   const isDailyPresentationMetric = DAILY_PRESENTATION_METRICS.has(slug);
+  const isDistance = slug === "distance";
   const [selectedRange, setSelectedRange] = useState<MetricEntryRange>(
-    metricEntryRanges[3],
+    isDistance ? metricEntryRanges[1] : metricEntryRanges[3],
   );
   const [selectedRangeFrom, setSelectedRangeFrom] = useState<
     string | undefined
-  >(() => (isDailyPresentationMetric ? getLocalRangeStartIso(366) : undefined));
+  >(() =>
+    isDailyPresentationMetric
+      ? getLocalRangeStartIso(isDistance ? 30 : 366)
+      : undefined,
+  );
   useEffect(() => {
     if (!isDailyPresentationMetric) return;
 
@@ -236,203 +246,261 @@ function MetricDetailContent({ slug }: { slug: string }) {
     }
   }
 
+  const rangeControls = selectedDate ? (
+    <div className="metric-selected-date">
+      <span>Entries for {formatUtcDate(selectedDate)} (UTC)</span>
+      <Link
+        aria-label="Clear selected date"
+        params={{ slug }}
+        search={{ date: undefined }}
+        to="/metrics/$slug"
+      >
+        Clear date
+      </Link>
+    </div>
+  ) : (
+    <div className="range-toggle" aria-label="Metric entry range">
+      {metricEntryRanges.map((range) => (
+        <button
+          aria-pressed={selectedRange.label === range.label}
+          key={range.label}
+          onClick={() => handleRangeSelect(range)}
+          type="button"
+        >
+          {range.days === null && isDailyPresentationMetric
+            ? "1y"
+            : range.label}
+        </button>
+      ))}
+    </div>
+  );
+  const distanceTimeZone = selectedDate
+    ? "UTC"
+    : Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const distanceDates = isDistance
+    ? distanceCalendarDates(
+        metricEntryFilters.from!,
+        metricEntryFilters.to!,
+        distanceTimeZone,
+      )
+    : [];
+  const sourceRecords = (
+    <>
+      {rawEntriesAreLoading ||
+      (!isDistance && presentationEntriesAreLoading) ? (
+        <p>Loading metric entries...</p>
+      ) : null}
+      {rawEntriesFailed || (!isDistance && presentationEntriesFailed) ? (
+        <p>Metric entries failed to load</p>
+      ) : null}
+      {entryActionError && !entryPendingDeletion ? (
+        <p className="form-error">{entryActionError}</p>
+      ) : null}
+      {rawEntries.length === 0 ? (
+        <div className="empty-state">
+          <h3>No entries recorded yet</h3>
+          <p>
+            Use {getAddEntryActionLabel(metricDefinition)} above to record your
+            first value.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="entry-list">
+            {(historyExpanded
+              ? rawEntries
+              : rawEntries.slice(0, METRIC_DETAIL_HISTORY_PREVIEW_COUNT)
+            ).map((entry) => (
+              <MetricEntryHistoryRow
+                entry={entry}
+                isDeleting={deleteMetricEntryMutation.isPending}
+                isEditing={editingEntryId === entry.id}
+                isUpdating={updateMetricEntryMutation.isPending}
+                key={entry.id}
+                maxValue={metricDefinition.max_value}
+                metricName={metricDefinition.name}
+                metricSlug={metricDefinition.slug}
+                minValue={metricDefinition.min_value}
+                onCancelEdit={() => setEditingEntryId(null)}
+                onDelete={() => {
+                  setEntryActionError(null);
+                  setEntryPendingDeletion(entry);
+                }}
+                onEdit={() => {
+                  setEntryActionError(null);
+                  setEditingEntryId(entry.id);
+                }}
+                onUpdate={(input) => handleUpdateEntry(entry, input)}
+                unit={metricDefinition.unit}
+              />
+            ))}
+          </div>
+          {rawEntries.length > METRIC_DETAIL_HISTORY_PREVIEW_COUNT ? (
+            <button
+              aria-expanded={historyExpanded}
+              className="metrics-secondary-action entry-history-toggle"
+              type="button"
+              onClick={() =>
+                setExpandedHistoryKey((current) =>
+                  current === historyFilterKey ? null : historyFilterKey,
+                )
+              }
+            >
+              {historyExpanded
+                ? "Show fewer"
+                : `Show all ${formatMetricEntryCount(rawEntries.length)}`}
+            </button>
+          ) : null}
+        </>
+      )}
+    </>
+  );
+
   return (
     <section
       className={`metric-detail-screen metric-detail-screen-${metricDefinition.slug}`}
     >
-      <PageHeader
-        title={metricDefinition.name}
-        eyebrow="Metric detail"
-        breadcrumb={
+      {isDistance ? (
+        <header className="distance-page-header">
+          <h1 className="visually-hidden">Distance</h1>
           <nav aria-label="Breadcrumb" className="metric-detail-breadcrumb">
             <Link to="/metrics">Metrics</Link>
             <span aria-hidden="true">/</span>
-            <span>{metricDefinition.name}</span>
+            <span>Distance</span>
           </nav>
-        }
-        description={
-          <p className="metric-detail-meta">
-            {metricDefinition.category.replaceAll("_", " ")} ·{" "}
-            {metricDefinition.unit}
-            {metricDefinition.slug === "skin_temperature"
-              ? " · Change from source baseline, not absolute temperature"
-              : null}
-          </p>
-        }
-        actions={
-          <div className="metric-detail-hero-actions">
-            <button
-              className="metrics-primary-action"
-              type="button"
-              onClick={() => setIsAddingMetricEntry(true)}
-            >
-              {getAddEntryActionLabel(metricDefinition)}
-            </button>
-            {metricDefinition.slug === "body_weight" ||
-            metricDefinition.slug === "steps" ||
-            metricDefinition.slug === "sleep_duration" ? (
-              <MetricAnalyticsLink metricSlug={metricDefinition.slug} />
-            ) : null}
-            <div className="status-pill">
-              {formatMetricEntryCount(rawEntries.length)}
-            </div>
-          </div>
-        }
-      />
-
-      <section className="trend-card" aria-label="Trend overview">
-        <div className="entries-toolbar">
-          <div>
-            <p className="eyebrow">Selected range</p>
-            <h2>Trend Overview</h2>
-          </div>
-          {selectedDate ? (
-            <div className="metric-selected-date">
-              <span>Entries for {formatUtcDate(selectedDate)} (UTC)</span>
-              <Link
-                aria-label="Clear selected date"
-                params={{ slug }}
-                search={{ date: undefined }}
-                to="/metrics/$slug"
-              >
-                Clear date
-              </Link>
-            </div>
-          ) : (
-            <div className="range-toggle" aria-label="Metric entry range">
-              {metricEntryRanges.map((range) => (
-                <button
-                  aria-pressed={selectedRange.label === range.label}
-                  key={range.label}
-                  onClick={() => handleRangeSelect(range)}
-                  type="button"
-                >
-                  {range.days === null && isDailyPresentationMetric
-                    ? "1y"
-                    : range.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <MetricTrendChart
-          entries={presentationEntries}
-          metricName={metricDefinition.name}
-          metricSlug={metricDefinition.slug}
-          unit={metricDefinition.unit}
-        />
-
-        <div className="trend-grid">
-          <article>
-            <p className="meta-label">Oldest</p>
-            <p className="trend-value">
-              {oldestEntry
-                ? formatMetricValueWithUnit(
-                    oldestEntry.value,
-                    metricDefinition.slug,
-                    metricDefinition.unit,
-                  )
-                : "—"}
+          <button
+            className="metrics-primary-action"
+            type="button"
+            onClick={() => setIsAddingMetricEntry(true)}
+          >
+            Add Distance entry
+          </button>
+        </header>
+      ) : (
+        <PageHeader
+          title={metricDefinition.name}
+          eyebrow="Metric detail"
+          breadcrumb={
+            <nav aria-label="Breadcrumb" className="metric-detail-breadcrumb">
+              <Link to="/metrics">Metrics</Link>
+              <span aria-hidden="true">/</span>
+              <span>{metricDefinition.name}</span>
+            </nav>
+          }
+          description={
+            <p className="metric-detail-meta">
+              {metricDefinition.category.replaceAll("_", " ")} ·{" "}
+              {metricDefinition.unit}
+              {metricDefinition.slug === "skin_temperature"
+                ? " · Change from source baseline, not absolute temperature"
+                : null}
             </p>
-          </article>
-
-          <article>
-            <p className="meta-label">Latest</p>
-            <p className="trend-value">
-              {latestEntry
-                ? formatMetricValueWithUnit(
-                    latestEntry.value,
-                    metricDefinition.slug,
-                    metricDefinition.unit,
-                  )
-                : "—"}
-            </p>
-          </article>
-
-          <article>
-            <p className="meta-label">Delta</p>
-            <p className="trend-value trend-delta">{formattedTrendDelta}</p>
-          </article>
-        </div>
-      </section>
-
-      <section className="entries-card" aria-label="Metric entry history">
-        <div className="entries-toolbar">
-          <div>
-            <p className="eyebrow">Manual and synced records</p>
-            <h2>Entry History</h2>
-          </div>
-        </div>
-
-        {presentationEntriesAreLoading || rawEntriesAreLoading ? (
-          <p>Loading metric entries...</p>
-        ) : null}
-        {presentationEntriesFailed || rawEntriesFailed ? (
-          <p>Metric entries failed to load</p>
-        ) : null}
-        {entryActionError && !entryPendingDeletion ? (
-          <p className="form-error">{entryActionError}</p>
-        ) : null}
-
-        {rawEntries.length === 0 ? (
-          <div className="empty-state">
-            <h3>No entries recorded yet</h3>
-            <p>
-              Use {getAddEntryActionLabel(metricDefinition)} above to record
-              your first value.
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="entry-list">
-              {(historyExpanded
-                ? rawEntries
-                : rawEntries.slice(0, METRIC_DETAIL_HISTORY_PREVIEW_COUNT)
-              ).map((entry) => (
-                <MetricEntryHistoryRow
-                  entry={entry}
-                  isDeleting={deleteMetricEntryMutation.isPending}
-                  isEditing={editingEntryId === entry.id}
-                  isUpdating={updateMetricEntryMutation.isPending}
-                  key={entry.id}
-                  maxValue={metricDefinition.max_value}
-                  metricName={metricDefinition.name}
-                  metricSlug={metricDefinition.slug}
-                  minValue={metricDefinition.min_value}
-                  onCancelEdit={() => setEditingEntryId(null)}
-                  onDelete={() => {
-                    setEntryActionError(null);
-                    setEntryPendingDeletion(entry);
-                  }}
-                  onEdit={() => {
-                    setEntryActionError(null);
-                    setEditingEntryId(entry.id);
-                  }}
-                  onUpdate={(input) => handleUpdateEntry(entry, input)}
-                  unit={metricDefinition.unit}
-                />
-              ))}
-            </div>
-            {rawEntries.length > METRIC_DETAIL_HISTORY_PREVIEW_COUNT ? (
+          }
+          actions={
+            <div className="metric-detail-hero-actions">
               <button
-                aria-expanded={historyExpanded}
-                className="metrics-secondary-action entry-history-toggle"
+                className="metrics-primary-action"
                 type="button"
-                onClick={() =>
-                  setExpandedHistoryKey((current) =>
-                    current === historyFilterKey ? null : historyFilterKey,
-                  )
-                }
+                onClick={() => setIsAddingMetricEntry(true)}
               >
-                {historyExpanded
-                  ? "Show fewer"
-                  : `Show all ${formatMetricEntryCount(rawEntries.length)}`}
+                {getAddEntryActionLabel(metricDefinition)}
               </button>
-            ) : null}
-          </>
-        )}
-      </section>
+              {metricDefinition.slug === "body_weight" ||
+              metricDefinition.slug === "steps" ||
+              metricDefinition.slug === "sleep_duration" ? (
+                <MetricAnalyticsLink metricSlug={metricDefinition.slug} />
+              ) : null}
+              <div className="status-pill">
+                {formatMetricEntryCount(rawEntries.length)}
+              </div>
+            </div>
+          }
+        />
+      )}
+
+      {isDistance ? (
+        <DistanceTrend
+          entries={presentationEntries}
+          dates={distanceDates}
+          timeZone={distanceTimeZone}
+          controls={rangeControls}
+          loading={presentationEntriesAreLoading}
+          failed={presentationEntriesFailed}
+        />
+      ) : (
+        <section className="trend-card" aria-label="Trend overview">
+          <div className="entries-toolbar">
+            <div>
+              <p className="eyebrow">Selected range</p>
+              <h2>Trend Overview</h2>
+            </div>
+            {rangeControls}
+          </div>
+
+          <MetricTrendChart
+            entries={presentationEntries}
+            metricName={metricDefinition.name}
+            metricSlug={metricDefinition.slug}
+            unit={metricDefinition.unit}
+          />
+
+          <div className="trend-grid">
+            <article>
+              <p className="meta-label">Oldest</p>
+              <p className="trend-value">
+                {oldestEntry
+                  ? formatMetricValueWithUnit(
+                      oldestEntry.value,
+                      metricDefinition.slug,
+                      metricDefinition.unit,
+                    )
+                  : "—"}
+              </p>
+            </article>
+
+            <article>
+              <p className="meta-label">Latest</p>
+              <p className="trend-value">
+                {latestEntry
+                  ? formatMetricValueWithUnit(
+                      latestEntry.value,
+                      metricDefinition.slug,
+                      metricDefinition.unit,
+                    )
+                  : "—"}
+              </p>
+            </article>
+
+            <article>
+              <p className="meta-label">Delta</p>
+              <p className="trend-value trend-delta">{formattedTrendDelta}</p>
+            </article>
+          </div>
+        </section>
+      )}
+
+      {isDistance ? (
+        <DistanceHistory
+          key={historyFilterKey}
+          entries={presentationEntries}
+          timeZone={distanceTimeZone}
+          loading={presentationEntriesAreLoading}
+          failed={presentationEntriesFailed}
+          rawCount={rawEntries.length}
+          sourceRecords={sourceRecords}
+        />
+      ) : (
+        <section className="entries-card" aria-label="Metric entry history">
+          <div className="entries-toolbar">
+            <div>
+              <p className="eyebrow">Manual and synced records</p>
+              <h2>Entry History</h2>
+            </div>
+          </div>
+
+          {sourceRecords}
+        </section>
+      )}
 
       {isAddingMetricEntry
         ? createPortal(
