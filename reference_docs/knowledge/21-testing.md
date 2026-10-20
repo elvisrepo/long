@@ -1,5 +1,19 @@
 ## 6. Testing
 
+- Metrics catalog refinement (2026-10-20): route tests cover active/archived filter
+  counts, custom-first ordering, full-row detail links, custom edit/archive dialogs,
+  existing restore operations, auto-generated identifiers avoiding archived names,
+  manual identifier preservation, range validation, server-error draft retention,
+  and unchanged quota feedback. Light-theme browser checks use the existing account
+  read-only at 320/390/768/1440px and verify modal focus containment/return, cancelled
+  edit reset, filters and archived definitions. Browser mutation flows use the
+  separate E2E database; never reset or seed the normal local account for UI checks.
+  Validation: all 612 frontend tests, both real-backend custom-metric browser flows,
+  and three focused modal browser tests pass; lint, formatting and production build
+  pass. An ignored Compose override keeps the E2E database internal because host
+  port 5433 belongs to another project.
+
+
 - AI period selector (2026-10-18): regression tests cover 1/7/30 completed-day
   boundaries and equal preceding comparisons, actual owned metric/diet/workout
   aggregation, exclusion of today/outside-window entries, API validation, queued

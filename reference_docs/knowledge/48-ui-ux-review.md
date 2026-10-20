@@ -245,3 +245,36 @@ and mobile tracker-first order are choices, with six cards/metrics-first offered
 for feedback. Preserve quick-add controls, all metric records and all five
 visible source entries. No invented scores, targets, physiological conclusions,
 or uniform seven-day labels for unequal sparkline samples.
+
+## Metrics catalog refinement — 20 October 2026 (approved and implemented)
+
+The owner approved all four recommendations in the local Light-theme review at
+`.lavish/metrics-review/index.html`. The screenshots use the existing local account's
+10 built-in, one active custom, and three archived custom definitions; no account
+records were changed during the review or subsequent real-account browser checks.
+
+- Compact white rows replace dashboard-style catalog cards. Family colors remain
+  in icon tiles; the main row opens history. Desktop uses two columns and mobile
+  uses one column so long names and units fit. The mobile list can be longer;
+  readability and custom-metric access are the intended improvements.
+- All / Built-in / Custom / Archived filters include counts. All starts with custom
+  metrics. The catalog reads definitions including inactive records through the
+  existing endpoint so counts and generated identifiers include archives. The
+  headline says “available”, not “tracked”; it counts definitions, not logged data.
+  Existing custom-metric usage/quota is beside the create action.
+- Custom rows have a labeled native disclosure for Edit and Archive. Edit opens a
+  shared native modal; cancelling discards drafts. Archive keeps confirmation and
+  the existing deactivation behavior: preserve history, stop logging, free a slot.
+  Restore invokes the existing reactivation operation. Modal focus returns to the
+  persistent management disclosure, rather than a hidden menu action.
+- Creation leads with Name and Unit, then required numeric minimum/maximum with
+  “Allowed entry range, not a health target.” Identifiers are generated from the
+  name, capped at 80 characters, and suffixed to avoid existing active/archived
+  definitions. Advanced allows manual editing. Server uniqueness validation remains
+  authoritative; identifier errors reveal Advanced and preserve the draft. No API
+  contracts, route paths, database schema, quota rules, or existing identifiers change.
+
+Review and implementation browser checks cover Light at 320/390/768/1440px,
+filtering, archive visibility, modal focus, cancelled edits, identifier generation,
+and invalid ranges. The review artifact remains a proposal snapshot; the app is the
+implemented source of truth. Metric-detail charts were outside this review's scope.

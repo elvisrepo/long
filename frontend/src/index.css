@@ -3753,3 +3753,303 @@ body:has(dialog[open]) {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Metric catalog: compact navigation, with management separate from history. */
+.metrics-screen > .page-header .eyebrow {
+  display: none;
+}
+.metrics-screen > .page-header h1 {
+  font-size: 36px;
+}
+.metrics-screen .metrics-creation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-high);
+}
+.metrics-creation strong {
+  display: block;
+  font-size: 15px;
+}
+.metrics-creation .custom-metric-usage {
+  margin-top: 5px;
+  text-align: left;
+  font-size: 12px;
+}
+.metrics-creation .metrics-primary-action {
+  white-space: nowrap;
+}
+.metrics-catalog-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.metrics-catalog-filters button {
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 9px 14px;
+  background: var(--surface-high);
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.metrics-catalog-filters button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.metrics-catalog-filters button:last-child {
+  margin-left: auto;
+}
+.metrics-screen .metrics-cards-grid {
+  gap: 10px;
+}
+.metrics-screen .metrics-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 0;
+  padding: 0;
+}
+.metrics-screen .metrics-section-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.metrics-section-header small {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.metric-catalog-row {
+  --metric-accent: #93a1b0;
+  position: relative;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-high);
+}
+.metric-catalog-row[data-category="activity"] {
+  --metric-accent: #30bfb2;
+}
+.metric-catalog-row[data-category="biomarker"] {
+  --metric-accent: #25957d;
+}
+.metric-catalog-row[data-category="body_composition"] {
+  --metric-accent: #6b9bea;
+}
+.metric-catalog-row[data-category="cardiovascular"] {
+  --metric-accent: #df879b;
+}
+.metric-catalog-row[data-category="recovery"] {
+  --metric-accent: #a77ce4;
+}
+.metric-catalog-row[data-category="respiratory"] {
+  --metric-accent: #d9a05b;
+}
+.metric-catalog-open {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 76px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  color: var(--text);
+  text-decoration: none;
+}
+.metric-catalog-row[data-custom] .metric-catalog-open {
+  padding-right: 62px;
+}
+a.metric-catalog-open:hover {
+  background: var(--surface);
+}
+a.metric-catalog-open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.metric-catalog-open .metric-card-symbol {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  font-size: 19px;
+}
+.metric-catalog-label {
+  min-width: 0;
+}
+.metric-catalog-label h2 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.metric-catalog-label p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+.metric-catalog-arrow {
+  margin-left: auto;
+  color: var(--text-dim);
+}
+.metric-catalog-row-archived button {
+  flex: none;
+  margin-left: auto;
+  padding: 8px 12px;
+}
+.metric-catalog-row > .form-error {
+  padding: 0 16px 12px;
+  font-size: 13px;
+}
+.metric-catalog-menu {
+  position: absolute;
+  top: 16px;
+  right: 10px;
+  z-index: 1;
+}
+.metric-catalog-menu[open] {
+  z-index: 2;
+}
+.metric-catalog-menu summary {
+  display: grid;
+  place-items: center;
+  list-style: none;
+  width: 44px;
+  height: 44px;
+  cursor: pointer;
+  border-radius: 10px;
+  font-size: 24px;
+}
+.metric-catalog-menu summary::-webkit-details-marker {
+  display: none;
+}
+.metric-catalog-menu summary:hover {
+  background: var(--surface);
+}
+.metric-catalog-menu > div {
+  position: absolute;
+  top: 46px;
+  right: 0;
+  display: grid;
+  min-width: 170px;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-high);
+  box-shadow: 0 8px 24px #172c381a;
+}
+.metric-catalog-menu button {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+.metric-catalog-menu button:hover {
+  background: var(--surface);
+}
+.metric-catalog-dialog {
+  max-width: 520px;
+}
+.metric-catalog-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+}
+.metric-catalog-form label {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+.metric-catalog-form input {
+  width: 100%;
+  min-width: 0;
+}
+.metric-catalog-range {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.metric-field-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+.metric-catalog-advanced {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.metric-catalog-advanced summary {
+  padding: 8px 0;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.metric-catalog-advanced label {
+  margin-top: 10px;
+}
+@media (max-width: 680px) {
+  .metrics-screen > .page-header h1 {
+    font-size: 30px;
+  }
+  .metrics-screen .metrics-creation {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px;
+  }
+  .metrics-creation .metrics-primary-action {
+    width: 100%;
+  }
+  .metrics-catalog-filters {
+    gap: 6px;
+  }
+  .metrics-catalog-filters button {
+    padding: 8px 11px;
+    font-size: 12px;
+  }
+  .metrics-catalog-filters button:last-child {
+    margin-left: 0;
+  }
+  .metrics-screen .metrics-cards-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .metric-catalog-open {
+    min-height: 70px;
+    padding: 11px 13px;
+  }
+  .metric-catalog-menu {
+    top: 13px;
+  }
+}
+
+.metrics-screen .page-header-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px 16px;
+}
+.metrics-screen .page-header-copy {
+  display: contents;
+}
+.metrics-screen .page-header-main h1 {
+  grid-column: 1;
+  grid-row: 1;
+}
+.metrics-screen .page-header-actions {
+  grid-column: 2;
+  grid-row: 1;
+  width: auto;
+}
+.metrics-screen .page-header-actions .status-pill {
+  white-space: nowrap;
+}
+.metrics-screen .page-description {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 14px;
+}

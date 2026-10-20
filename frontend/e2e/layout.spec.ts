@@ -87,11 +87,13 @@ test("metric deactivation modal contains focus and restores its opener", async (
   page,
 }) => {
   await page.goto("/metrics");
-  const opener = page.getByRole("button", {
-    name: "Deactivate Personal wellbeing and energy score",
+  const opener = page.getByText("⋯", { exact: true });
+  await opener.click();
+  const archive = page.getByRole("button", {
+    name: "Archive Personal wellbeing and energy score",
     exact: true,
   });
-  await opener.click();
+  await archive.click();
   const dialog = page.getByRole("dialog");
   for (let i = 0; i < 10; i++) {
     await page.keyboard.press("Shift+Tab");
@@ -1221,10 +1223,12 @@ for (const { width, theme } of [
       ["/metrics/body_weight", "Add weight entry"],
       ["/metrics/sleep_duration", "Add Sleep Duration entry"],
       ["/metrics", "+ New custom metric"],
-      ["/metrics", "Deactivate Personal wellbeing and energy score"],
+      ["/metrics", "Archive Personal wellbeing and energy score"],
       ["/settings", "Export health data"],
     ]) {
       await page.goto(path);
+      if (action.startsWith("Archive "))
+        await page.getByText("⋯", { exact: true }).click();
       await page.getByRole("button", { name: action, exact: true }).click();
       const dialog = page.getByRole("dialog");
       await expect(dialog).toBeVisible();
