@@ -329,3 +329,30 @@ with exact date bounds below. Source-record labels, timestamps and values align
 left on both mobile and desktop. The 44px range controls stay beside the heading
 at 320px; the heading may wrap there. Focused validation covers 57 Distance/detail
 checks; lint, build and real-account responsive checks pass.
+
+## Steps detail — 20 October 2026 (all four proposals implemented)
+
+The approved Light-theme review is `.lavish/steps-review/index.html`. Steps now
+shares the activity layout/calendar helpers with Distance; Distance retains daily
+bars at every range and its existing entry wording.
+
+- The compact header shows Metrics / Steps, Add steps, and the existing Pro-only
+  Compare with Weight action. A hidden h1 preserves the page heading.
+- The default is 30d. The 7d/30d views use daily green bars; 90d/1y sum daily
+  records into Monday-based weekly bars. Tooltips show exact totals and recorded
+  day counts; partial weeks are identified. Empty outer dates are trimmed,
+  internal missing periods remain blank, and measured zero stays visible.
+- Recorded steps, rounded daily average, and recorded-day coverage describe the
+  entire selected range. Missing days are excluded from the average. Daily
+  history remains daily even when the chart groups weeks, starts with five rows,
+  and resets expansion when the range changes. Source records remain collapsed,
+  left aligned, capped at 50 loaded records, and explicitly timestamped in UTC.
+- The native Add steps dialog uses integer input, Date and time, optional notes,
+  and Save steps. Existing validation, focus behavior, manual Edit/Delete, API
+  payloads, source selection, and UTC selected-date links are preserved.
+
+Validation: 629 frontend tests pass; lint and production build pass. Real-account
+Steps browser checks at 320/390/768/1440px cover range switching, summaries,
+history/source expansion, dialog focus, fractional-input rejection, selected-date
+links, and unchanged HRV presentation. No API writes, page errors, or horizontal
+overflow occurred. No API contracts, routes, schema, or normal-account data changed.

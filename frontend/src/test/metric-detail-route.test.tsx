@@ -154,6 +154,27 @@ function mockDistance() {
   mockMetricEntryMutations();
 }
 
+function mockSteps() {
+  mockDistance();
+  vi.mocked(useMetricDefinitionsQuery).mockReturnValue({
+    data: [
+      {
+        id: "steps-id",
+        name: "Steps",
+        slug: "steps",
+        unit: "steps",
+        category: "activity",
+        min_value: 0,
+        max_value: 200000,
+        is_default: true,
+        is_active: true,
+      },
+    ],
+    isLoading: false,
+    isError: false,
+  } as ReturnType<typeof useMetricDefinitionsQuery>);
+}
+
 describe("metric detail route", () => {
   beforeEach(() => {
     mockAnalyticsEntitlement(false);
@@ -163,6 +184,159 @@ describe("metric detail route", () => {
     vi.resetAllMocks();
     vi.unstubAllEnvs();
     vi.useRealTimers();
+  });
+
+  it("starts Steps with a compact header and recorded-day summaries for 30 days", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-20T12:00:00Z"));
+    mockSteps();
+    mockLoadedMetricEntries([
+      {
+        id: 2,
+        metric_definition: "steps",
+        value: 2230,
+        local_date: "2026-10-17",
+        period_start: null,
+        recorded_at: "2026-10-17T08:32:00Z",
+        source: "fitbit",
+        context: {},
+        created_at: "2026-10-17T09:17:00Z",
+      },
+      {
+        id: 1,
+        metric_definition: "steps",
+        value: 4405,
+        local_date: "2026-10-16",
+        period_start: null,
+        recorded_at: "2026-10-16T22:00:00Z",
+        source: "fitbit",
+        context: {},
+        created_at: "2026-10-17T09:17:00Z",
+      },
+    ]);
+    renderRoute("/metrics/steps");
+    const trend = await screen.findByRole("region", { name: "Daily steps" });
+    expect(screen.getByRole("button", { name: "30d" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(within(trend).getByText("6,635")).toBeInTheDocument();
+    expect(within(trend).getByText("3,318")).toBeInTheDocument();
+    expect(within(trend).getByText("2 / 30")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Add steps" }),
+    ).toBeInTheDocument();
+    const header = screen
+      .getByRole("navigation", { name: "Breadcrumb" })
+      .closest("header")!;
+    expect(within(header).queryByText("Metric detail")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Compare with Weight" }),
+    ).not.toBeInTheDocument();
+    expect(useMetricEntriesQuery).toHaveBeenCalledWith(
+      expect.objectContaining({ metric: "steps", limit: 30, daily: true }),
+    );
+  });
+
+  it("adds whole Steps with optional notes and keeps the existing create payload", async () => {
+    const user = userEvent.setup();
+    mockSteps();
+    mockLoadedMetricEntries([]);
+    renderRoute("/metrics/steps");
+    await user.click(await screen.findByRole("button", { name: "Add steps" }));
+    const dialog = screen.getByRole("dialog", { name: "Add steps" });
+    const value = within(dialog).getByLabelText("Steps");
+    expect(value).toHaveAttribute("step", "1");
+    expect(
+      within(dialog).getByLabelText("Notes (optional)"),
+    ).not.toBeRequired();
+    fireEvent.change(value, { target: { value: "1.5" } });
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save steps" }),
+    );
+    expect(createMetricEntryMutateAsyncMock).not.toHaveBeenCalled();
+    fireEvent.change(value, { target: { value: "1000" } });
+    fireEvent.change(within(dialog).getByLabelText("Date and time"), {
+      target: { value: "2026-10-19T09:15" },
+    });
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save steps" }),
+    );
+    expect(createMetricEntryMutateAsyncMock).toHaveBeenCalledWith({
+      metricDefinition: "steps",
+      value: 1000,
+      recordedAt: new Date("2026-10-19T09:15").toISOString(),
+      context: { notes: "" },
+    });
+  });
+
+  it("switches Steps to weekly bars while keeping daily history and summaries", async () => {
+    const user = userEvent.setup();
+    mockSteps();
+    mockLoadedMetricEntries([]);
+    renderRoute("/metrics/steps");
+    await user.click(await screen.findByRole("button", { name: "90d" }));
+    const weekly = screen.getByRole("region", { name: "Weekly steps" });
+    expect(within(weekly).getByText("0 / 90")).toBeInTheDocument();
+    expect(
+      within(weekly).getByText(/edge weeks and recorded days may be partial/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Daily steps history" }),
+    ).toHaveTextContent("Daily totals behind the weekly bars");
+    await user.click(screen.getByRole("button", { name: "7d" }));
+    expect(
+      screen.getByRole("region", { name: "Daily steps" }),
+    ).toHaveTextContent("0 / 7");
+  });
+
+  it("keeps raw manual Steps editable below daily history", async () => {
+    const user = userEvent.setup();
+    mockSteps();
+    const raw = {
+      id: 10,
+      metric_definition: "steps",
+      value: 8,
+      local_date: "2026-10-17",
+      period_start: null,
+      recorded_at: "2026-10-17T08:32:00Z",
+      source: "manual",
+      context: {},
+      created_at: "2026-10-17T09:00:00Z",
+    };
+    vi.mocked(useMetricEntriesQuery).mockImplementation(
+      (filters) =>
+        ({
+          data: [{ ...raw, value: filters.daily ? 2230 : 8 }],
+          isLoading: false,
+          isError: false,
+        }) as ReturnType<typeof useMetricEntriesQuery>,
+    );
+    renderRoute("/metrics/steps");
+    const history = await screen.findByRole("region", {
+      name: "Daily steps history",
+    });
+    expect(within(history).getByText("2,230 steps")).toBeVisible();
+    expect(
+      within(history).getByRole("button", {
+        name: "Edit Steps entry",
+        hidden: true,
+      }),
+    ).not.toBeVisible();
+    await user.click(within(history).getByText("Source records · 1 loaded"));
+    await user.click(
+      within(history).getByRole("button", { name: "Edit Steps entry" }),
+    );
+    const input = within(history).getByLabelText("Steps value");
+    expect(input).toHaveAttribute("step", "1");
+    fireEvent.change(input, { target: { value: "10" } });
+    await user.click(
+      within(history).getByRole("button", { name: "Save Steps entry" }),
+    );
+    expect(updateMetricEntryMutateAsyncMock).toHaveBeenCalledWith({
+      id: 10,
+      input: { value: 10, recordedAt: raw.recorded_at, context: { notes: "" } },
+    });
   });
 
   it("keeps only the breadcrumb and add action in the visible Distance header", async () => {

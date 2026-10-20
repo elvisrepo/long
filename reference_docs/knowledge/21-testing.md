@@ -1852,3 +1852,18 @@ week, non-object auth JSON, empty-only AI evidence, and exact birth-date bounds.
 Production-settings subprocess tests verify shared Redis counters with separate
 cache prefixes. Frontend fake timers verify polling survives a five-minute queue
 wait. Provider execution bounds remain separate from the one-hour queue window.
+
+### Steps activity detail — 2026-10-20
+
+The frontend suite passes 629 tests across 103 files. Focused activity/detail
+coverage checks default 30d, compact Steps actions and Pro gating, daily versus
+Monday-based weekly bars, weekly totals/coverage tooltips, missing periods versus
+measured zero, daily/source history separation, integer creation/editing, and
+unchanged Distance behavior. Chart mocks include registered bar controllers and
+elements alongside the existing line chart exports.
+
+Read-only browser checks use the existing account at 320/390/768/1440px, checking
+real Steps totals and all ranges, native dialog focus containment/return,
+fractional-input rejection, UTC date links, history expansion, no horizontal
+overflow, and unchanged HRV presentation. No API writes or page errors occurred.
+Local verification scripts/screenshots remain ignored under playground and /tmp.

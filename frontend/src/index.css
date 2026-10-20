@@ -4040,55 +4040,55 @@ a.metric-catalog-open:focus-visible {
 }
 
 /* Distance detail: daily summaries first, source records secondary. */
-.distance-trend h2,
-.distance-history h2 {
+.activity-trend h2,
+.activity-history h2 {
   margin: 0;
   font-size: 19px;
 }
-.distance-range-dates,
-.distance-explanation {
+.activity-range-dates,
+.activity-explanation {
   margin: 4px 0 0;
   color: var(--text-dim);
   font-size: 12px;
   line-height: 1.6;
 }
-.distance-summary {
+.activity-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
-.distance-summary article {
+.activity-summary article {
   min-width: 0;
   padding-right: 12px;
   border-right: 1px solid var(--border);
 }
-.distance-summary article:last-child {
+.activity-summary article:last-child {
   border: 0;
 }
-.distance-summary p {
+.activity-summary p {
   margin: 0;
   color: var(--text-dim);
   font-size: 12px;
 }
-.distance-summary strong {
+.activity-summary strong {
   display: block;
   margin: 5px 0;
   font-size: 25px;
 }
-.distance-summary small {
+.activity-summary small {
   color: var(--text-dim);
   font-size: 11px;
 }
-.distance-trend .metric-trend-chart {
+.activity-trend .metric-trend-chart {
   height: 220px;
   padding: 0;
   border: 0;
   background: transparent;
 }
-.distance-trend .metric-trend-chart canvas {
+.activity-trend .metric-trend-chart canvas {
   height: 100% !important;
 }
-.distance-day {
+.activity-day {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -4097,116 +4097,116 @@ a.metric-catalog-open:focus-visible {
   border-top: 1px solid var(--border);
   font-size: 14px;
 }
-.distance-day small {
+.activity-day small {
   display: block;
   margin-top: 3px;
   color: var(--text-dim);
   font-size: 12px;
 }
-.distance-day strong {
+.activity-day strong {
   font-size: 18px;
 }
-.distance-source-records {
+.activity-source-records {
   border-top: 1px solid var(--border);
   padding-top: 14px;
   margin-top: 16px;
 }
-.distance-source-records summary {
+.activity-source-records summary {
   padding: 6px 0;
   color: var(--text-dim);
   font-size: 14px;
   cursor: pointer;
 }
-.distance-source-records .distance-explanation {
+.activity-source-records .activity-explanation {
   margin: 10px 0;
 }
-.distance-source-records .entry-row {
+.activity-source-records .entry-row {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
   padding: 12px 0;
 }
-.distance-source-records .entry-label {
+.activity-source-records .entry-label {
   display: none;
 }
-.distance-source-records .meta-label {
+.activity-source-records .meta-label {
   margin: 0 0 4px;
   font-family: var(--font-sans);
   font-size: 12px;
   letter-spacing: 0;
   text-transform: none;
 }
-.distance-source-records time {
+.activity-source-records time {
   font-size: 13px;
 }
-.distance-source-records .entry-value {
+.activity-source-records .entry-value {
   font-size: 16px;
 }
-.distance-source-records .entry-row-editing {
+.activity-source-records .entry-row-editing {
   display: block;
 }
-.distance-entry-dialog {
+.activity-entry-dialog {
   max-width: 440px;
 }
-.distance-entry-dialog textarea {
+.activity-entry-dialog textarea {
   min-height: 80px;
   resize: vertical;
 }
 @media (max-width: 680px) {
-  .distance-trend,
-  .distance-history {
+  .activity-trend,
+  .activity-history {
     padding: 16px;
   }
-  .distance-summary {
+  .activity-summary {
     gap: 8px;
   }
-  .distance-summary article {
+  .activity-summary article {
     padding-right: 6px;
   }
-  .distance-summary strong {
+  .activity-summary strong {
     font-size: 20px;
   }
-  .distance-trend .metric-trend-chart {
+  .activity-trend .metric-trend-chart {
     height: 190px;
   }
-  .distance-source-records .entry-row:has(.entry-actions) {
+  .activity-source-records .entry-row:has(.entry-actions) {
     align-items: stretch;
     flex-direction: column;
   }
 }
 
-.distance-page-header {
+.activity-page-header {
   display: grid;
   justify-items: start;
   gap: 18px;
 }
-.distance-source-records .entry-row-side {
+.activity-source-records .entry-row-side {
   justify-items: start;
   text-align: left;
 }
-.distance-source-records .entry-actions {
+.activity-source-records .entry-actions {
   justify-content: flex-start;
 }
-.distance-trend .entries-toolbar {
+.activity-trend .entries-toolbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 6px 8px;
 }
-.distance-trend .entries-toolbar > div:first-child {
+.activity-trend .entries-toolbar > div:first-child {
   display: contents;
 }
-.distance-trend .entries-toolbar h2 {
+.activity-trend .entries-toolbar h2 {
   grid-column: 1;
   grid-row: 1;
   min-width: 0;
 }
-.distance-trend .distance-range-dates {
+.activity-trend .activity-range-dates {
   grid-column: 1 / -1;
   grid-row: 2;
 }
-.distance-trend .range-toggle {
+.activity-trend .range-toggle {
   grid-column: 2;
   grid-row: 1;
   justify-self: end;
@@ -4214,24 +4214,39 @@ a.metric-catalog-open:focus-visible {
   padding: 2px;
   gap: 0;
 }
-.distance-trend .range-toggle button {
+.activity-trend .range-toggle button {
   min-width: 44px;
   padding-inline: 7px;
 }
-.distance-trend .metric-selected-date {
+.activity-trend .metric-selected-date {
   grid-column: 1 / -1;
   grid-row: 3;
 }
 @media (max-width: 680px) {
-  .distance-page-header {
+  .activity-page-header {
     justify-items: stretch;
   }
-  .distance-trend .entries-toolbar h2 {
+  .activity-trend .entries-toolbar h2 {
     font-size: 18px;
   }
 }
 @media (max-width: 360px) {
-  .distance-trend .entries-toolbar h2 {
+  .activity-trend .entries-toolbar h2 {
     font-size: 16px;
+  }
+}
+
+.activity-page-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.activity-page-actions .metric-pro-insight-link {
+  width: auto;
+}
+@media (max-width: 680px) {
+  .metric-detail-screen-distance .activity-page-actions > button {
+    flex: 1;
   }
 }

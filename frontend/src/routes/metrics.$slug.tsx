@@ -1,8 +1,8 @@
-import { distanceCalendarDates } from "../features/metrics/distance-calendar";
+import { activityCalendarDates } from "../features/metrics/activity-calendar";
 import {
-  DistanceTrend,
-  DistanceHistory,
-} from "../features/metrics/distance-detail";
+  ActivityTrend,
+  ActivityHistory,
+} from "../features/metrics/activity-detail";
 import { PageState } from "../components/page-state";
 import { PageHeader } from "../components/page-header";
 import { MetricEntryDialog } from "../features/metrics/metric-entry-dialog";
@@ -76,14 +76,16 @@ function MetricDetailContent({ slug }: { slug: string }) {
   const { date: selectedDate } = Route.useSearch();
   const isDailyPresentationMetric = DAILY_PRESENTATION_METRICS.has(slug);
   const isDistance = slug === "distance";
+  const isSteps = slug === "steps";
+  const isActivity = isDistance || isSteps;
   const [selectedRange, setSelectedRange] = useState<MetricEntryRange>(
-    isDistance ? metricEntryRanges[1] : metricEntryRanges[3],
+    isActivity ? metricEntryRanges[1] : metricEntryRanges[3],
   );
   const [selectedRangeFrom, setSelectedRangeFrom] = useState<
     string | undefined
   >(() =>
     isDailyPresentationMetric
-      ? getLocalRangeStartIso(isDistance ? 30 : 366)
+      ? getLocalRangeStartIso(isActivity ? 30 : 366)
       : undefined,
   );
   useEffect(() => {
@@ -274,23 +276,23 @@ function MetricDetailContent({ slug }: { slug: string }) {
       ))}
     </div>
   );
-  const distanceTimeZone = selectedDate
+  const activityTimeZone = selectedDate
     ? "UTC"
     : Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  const distanceDates = isDistance
-    ? distanceCalendarDates(
+  const activityDates = isActivity
+    ? activityCalendarDates(
         metricEntryFilters.from!,
         metricEntryFilters.to!,
-        distanceTimeZone,
+        activityTimeZone,
       )
     : [];
   const sourceRecords = (
     <>
       {rawEntriesAreLoading ||
-      (!isDistance && presentationEntriesAreLoading) ? (
+      (!isActivity && presentationEntriesAreLoading) ? (
         <p>Loading metric entries...</p>
       ) : null}
-      {rawEntriesFailed || (!isDistance && presentationEntriesFailed) ? (
+      {rawEntriesFailed || (!isActivity && presentationEntriesFailed) ? (
         <p>Metric entries failed to load</p>
       ) : null}
       {entryActionError && !entryPendingDeletion ? (
@@ -360,21 +362,24 @@ function MetricDetailContent({ slug }: { slug: string }) {
     <section
       className={`metric-detail-screen metric-detail-screen-${metricDefinition.slug}`}
     >
-      {isDistance ? (
-        <header className="distance-page-header">
-          <h1 className="visually-hidden">Distance</h1>
+      {isActivity ? (
+        <header className="activity-page-header">
+          <h1 className="visually-hidden">{metricDefinition.name}</h1>
           <nav aria-label="Breadcrumb" className="metric-detail-breadcrumb">
             <Link to="/metrics">Metrics</Link>
             <span aria-hidden="true">/</span>
-            <span>Distance</span>
+            <span>{metricDefinition.name}</span>
           </nav>
-          <button
-            className="metrics-primary-action"
-            type="button"
-            onClick={() => setIsAddingMetricEntry(true)}
-          >
-            Add Distance entry
-          </button>
+          <div className="activity-page-actions">
+            <button
+              className="metrics-primary-action"
+              type="button"
+              onClick={() => setIsAddingMetricEntry(true)}
+            >
+              {isSteps ? "Add steps" : "Add Distance entry"}
+            </button>
+            {isSteps ? <MetricAnalyticsLink metricSlug="steps" /> : null}
+          </div>
         </header>
       ) : (
         <PageHeader
@@ -418,11 +423,12 @@ function MetricDetailContent({ slug }: { slug: string }) {
         />
       )}
 
-      {isDistance ? (
-        <DistanceTrend
+      {isActivity ? (
+        <ActivityTrend
+          metricSlug={isSteps ? "steps" : "distance"}
           entries={presentationEntries}
-          dates={distanceDates}
-          timeZone={distanceTimeZone}
+          dates={activityDates}
+          timeZone={activityTimeZone}
           controls={rangeControls}
           loading={presentationEntriesAreLoading}
           failed={presentationEntriesFailed}
@@ -479,11 +485,17 @@ function MetricDetailContent({ slug }: { slug: string }) {
         </section>
       )}
 
-      {isDistance ? (
-        <DistanceHistory
+      {isActivity ? (
+        <ActivityHistory
+          metricSlug={isSteps ? "steps" : "distance"}
+          weekly={
+            isSteps &&
+            !selectedDate &&
+            (selectedRange.days === 90 || selectedRange.days === null)
+          }
           key={historyFilterKey}
           entries={presentationEntries}
-          timeZone={distanceTimeZone}
+          timeZone={activityTimeZone}
           loading={presentationEntriesAreLoading}
           failed={presentationEntriesFailed}
           rawCount={rawEntries.length}
@@ -762,7 +774,13 @@ function MetricEntryHistoryRow({
                 inputMode="decimal"
                 max={maxValue}
                 min={minValue}
-                step={metricSlug === "body_weight" ? 0.1 : "any"}
+                step={
+                  metricSlug === "body_weight"
+                    ? 0.1
+                    : metricSlug === "steps"
+                      ? 1
+                      : "any"
+                }
                 type="number"
                 value={value}
                 onChange={(event) => setValue(event.target.value)}

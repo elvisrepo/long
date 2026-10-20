@@ -1,3 +1,4 @@
+import { activityBars } from "./activity-calendar";
 import {
   BarController,
   BarElement,
@@ -44,6 +45,7 @@ interface MetricTrendChartProps {
   metricSlug: string;
   unit: string;
   calendarDates?: string[];
+  weekly?: boolean;
 }
 
 export function MetricTrendChart({
@@ -52,10 +54,11 @@ export function MetricTrendChart({
   metricSlug,
   unit,
   calendarDates,
+  weekly = false,
 }: MetricTrendChartProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const theme = useTheme();
-  const isDistance = metricSlug === "distance";
+  const isActivity = metricSlug === "distance" || metricSlug === "steps";
   // The chart is a daily trend, not a raw event plot. Entry History still shows
   // every manual or synced record, but the chart uses the latest value per day.
   const chartEntries = useMemo(() => getLatestEntriesByDay(entries), [entries]);
@@ -95,15 +98,12 @@ export function MetricTrendChart({
     const dailyValues = new Map(
       chartEntries.map((entry) => [getMetricEntryDateKey(entry), entry.value]),
     );
-    const firstRecordedDate = getMetricEntryDateKey(chartEntries[0]);
-    const lastRecordedDate = getMetricEntryDateKey(chartEntries.at(-1)!);
-    const labels = calendarDates
-      ? calendarDates.filter(
-          (date) => date >= firstRecordedDate && date <= lastRecordedDate,
-        )
-      : chartEntries.map(getMetricEntryDateKey);
+    const bars = calendarDates
+      ? activityBars(calendarDates, dailyValues, weekly)
+      : undefined;
+    const labels = bars?.dates ?? chartEntries.map(getMetricEntryDateKey);
     const chartConfig: ChartConfiguration<"line" | "bar"> = {
-      type: isDistance ? "bar" : "line",
+      type: isActivity ? "bar" : "line",
       data: {
         labels: labels.map((date) =>
           new Intl.DateTimeFormat("en", {
@@ -114,13 +114,11 @@ export function MetricTrendChart({
         datasets: [
           {
             label: metricName,
-            data: calendarDates
-              ? labels.map((date) => dailyValues.get(date) ?? null)
-              : values,
+            data: bars?.values ?? values,
             borderColor: colors.line,
-            backgroundColor: isDistance ? colors.lineDim : colors.fill,
-            borderWidth: isDistance ? 1 : 3,
-            ...(isDistance
+            backgroundColor: isActivity ? colors.lineDim : colors.fill,
+            borderWidth: isActivity ? 1 : 3,
+            ...(isActivity
               ? {
                   borderRadius: 4,
                   maxBarThickness: 32,
@@ -154,12 +152,27 @@ export function MetricTrendChart({
             borderColor: colors.axis,
             borderWidth: 1,
             callbacks: {
+              ...(weekly
+                ? {
+                    title: (items) => {
+                      const index = items[0]?.dataIndex;
+                      return index === undefined
+                        ? ""
+                        : `Week of ${new Intl.DateTimeFormat("en-GB", { dateStyle: "medium" }).format(new Date(`${labels[index]}T12:00:00`))}`;
+                    },
+                  }
+                : {}),
               label: (tooltipItem) => {
                 const value = tooltipItem.parsed.y;
 
-                return value === null
-                  ? "No value"
-                  : formatMetricValueWithUnit(value, metricSlug, unit);
+                if (value === null) return "No value";
+                const formatted =
+                  metricSlug === "steps"
+                    ? `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value)} steps`
+                    : formatMetricValueWithUnit(value, metricSlug, unit);
+                if (!weekly) return formatted;
+                const count = bars?.recordedDays[tooltipItem.dataIndex] ?? 0;
+                return `${formatted} · ${count} recorded ${count === 1 ? "day" : "days"}${count < 7 ? " (partial week)" : ""}`;
               },
             },
           },
@@ -181,7 +194,12 @@ export function MetricTrendChart({
               color: colors.text,
               callback: (value) =>
                 typeof value === "number"
-                  ? formatChartAxisTick(value, metricSlug, unit)
+                  ? metricSlug === "steps"
+                    ? new Intl.NumberFormat("en-US", {
+                        notation: "compact",
+                        maximumFractionDigits: 1,
+                      }).format(value)
+                    : formatChartAxisTick(value, metricSlug, unit)
                   : `${value} ${unit}`,
             },
           },
@@ -202,7 +220,8 @@ export function MetricTrendChart({
     values,
     theme,
     calendarDates,
-    isDistance,
+    isActivity,
+    weekly,
   ]);
 
   if (chartEntries.length === 0) {
@@ -211,7 +230,11 @@ export function MetricTrendChart({
 
   return (
     <div
-      aria-label={`${metricName} trend chart`}
+      aria-label={
+        isActivity
+          ? `${metricName} ${weekly ? "weekly" : "daily"} bar chart`
+          : `${metricName} trend chart`
+      }
       className="chart-surface metric-trend-chart"
       role="img"
     >

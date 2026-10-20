@@ -1,7 +1,10 @@
-import { distanceCalendarDates } from "../features/metrics/distance-calendar";
+import {
+  activityCalendarDates,
+  activityBars,
+} from "../features/metrics/activity-calendar";
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DistanceTrend } from "../features/metrics/distance-detail";
+import { ActivityTrend } from "../features/metrics/activity-detail";
 import { MetricTrendChart } from "../features/metrics/metric-trend-chart";
 import type { MetricEntry } from "../features/metrics/metric-entries-api";
 
@@ -39,10 +42,10 @@ const entry: MetricEntry = {
   created_at: "2026-10-18T12:00:00Z",
 };
 
-describe("Distance daily presentation", () => {
+describe("Activity chart presentation", () => {
   it("keeps local calendar dates across the autumn daylight-saving change", () => {
     expect(
-      distanceCalendarDates(
+      activityCalendarDates(
         "2026-10-23T22:00:00Z",
         "2026-10-26T22:59:59Z",
         "Europe/Tirane",
@@ -50,9 +53,33 @@ describe("Distance daily presentation", () => {
     ).toEqual(["2026-10-24", "2026-10-25", "2026-10-26"]);
   });
 
+  it("sums recorded days into Monday weeks without filling missing weeks or dropping zero", () => {
+    const dates = activityCalendarDates(
+      "2026-10-01T00:00:00Z",
+      "2026-10-20T23:59:59Z",
+      "UTC",
+    );
+    expect(
+      activityBars(
+        dates,
+        new Map([
+          ["2026-10-04", 0],
+          ["2026-10-12", 2000],
+          ["2026-10-13", 0],
+          ["2026-10-14", 3000],
+        ]),
+        true,
+      ),
+    ).toEqual({
+      dates: ["2026-09-28", "2026-10-05", "2026-10-12"],
+      values: [0, null, 5000],
+      recordedDays: [1, 0, 3],
+    });
+  });
+
   it("keeps a single linked UTC date despite the viewer's offset", () => {
     expect(
-      distanceCalendarDates(
+      activityCalendarDates(
         "2026-10-17T00:00:00Z",
         "2026-10-17T23:59:59.999Z",
         "UTC",
@@ -92,9 +119,60 @@ describe("Distance daily presentation", () => {
     expect(screen.queryByText("Daily latest values")).not.toBeInTheDocument();
   });
 
+  it("renders weekly Steps bars with recorded-day counts in tooltips", () => {
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
+      {} as CanvasRenderingContext2D,
+    );
+    render(
+      <MetricTrendChart
+        entries={[
+          {
+            ...entry,
+            metric_definition: "steps",
+            local_date: "2026-10-14",
+            value: 3000,
+          },
+          {
+            ...entry,
+            id: 2,
+            metric_definition: "steps",
+            local_date: "2026-10-12",
+            value: 2000,
+          },
+          {
+            ...entry,
+            id: 3,
+            metric_definition: "steps",
+            local_date: "2026-10-04",
+            value: 0,
+          },
+        ]}
+        metricName="Steps"
+        metricSlug="steps"
+        unit="steps"
+        calendarDates={activityCalendarDates(
+          "2026-10-01T00:00:00Z",
+          "2026-10-20T23:59:59Z",
+          "UTC",
+        )}
+        weekly
+      />,
+    );
+    const config = chartConfig.mock.lastCall![0];
+    expect(config.type).toBe("bar");
+    expect(config.data.datasets[0].data).toEqual([0, null, 5000]);
+    expect(
+      config.options.plugins.tooltip.callbacks.label({
+        parsed: { y: 5000 },
+        dataIndex: 2,
+      }),
+    ).toBe("5,000 steps · 2 recorded days (partial week)");
+    expect(config.options.scales.y.beginAtZero).toBe(true);
+  });
+
   it("does not show zero totals or an average when no days were recorded", () => {
     render(
-      <DistanceTrend
+      <ActivityTrend
         entries={[]}
         dates={["2026-10-20"]}
         timeZone="UTC"
@@ -110,7 +188,7 @@ describe("Distance daily presentation", () => {
 
   it("shows a daily fetch failure instead of fabricated zero coverage", () => {
     render(
-      <DistanceTrend
+      <ActivityTrend
         entries={[]}
         dates={["2026-10-20"]}
         timeZone="UTC"

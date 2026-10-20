@@ -1,4 +1,4 @@
-import { calendarDate } from "./distance-calendar";
+import { calendarDate } from "./activity-calendar";
 import { useState, type ReactNode } from "react";
 import type { MetricEntry } from "./metric-entries-api";
 import {
@@ -14,7 +14,8 @@ function displayDate(date: string): string {
   }).format(new Date(`${date}T12:00:00Z`));
 }
 
-export function DistanceTrend({
+export function ActivityTrend({
+  metricSlug = "distance",
   entries,
   dates,
   timeZone,
@@ -22,6 +23,7 @@ export function DistanceTrend({
   loading,
   failed,
 }: {
+  metricSlug?: "distance" | "steps";
   entries: MetricEntry[];
   dates: string[];
   timeZone: string;
@@ -29,30 +31,36 @@ export function DistanceTrend({
   loading: boolean;
   failed: boolean;
 }) {
+  const isSteps = metricSlug === "steps";
+  const metricName = isSteps ? "Steps" : "Distance";
+  const weekly = isSteps && dates.length >= 90;
+  const title = weekly ? "Weekly steps" : `Daily ${metricName.toLowerCase()}`;
   const total = entries.reduce((sum, entry) => sum + entry.value, 0);
   return (
-    <section className="trend-card distance-trend" aria-label="Daily distance">
+    <section className="trend-card activity-trend" aria-label={title}>
       <div className="entries-toolbar">
         <div>
-          <h2>Daily distance</h2>
-          <p className="distance-range-dates">
+          <h2>{title}</h2>
+          <p className="activity-range-dates">
             {displayDate(dates[0])} – {displayDate(dates.at(-1)!)}
           </p>
         </div>
         {controls}
       </div>
       {loading ? (
-        <p role="status">Loading daily distance...</p>
+        <p role="status">Loading {title.toLowerCase()}...</p>
       ) : failed ? (
-        <p role="alert">Daily distance failed to load.</p>
+        <p role="alert">{title} failed to load.</p>
       ) : (
         <>
-          <div className="distance-summary">
+          <div className="activity-summary">
             <article>
-              <p>Recorded total</p>
+              <p>{isSteps ? "Recorded steps" : "Recorded total"}</p>
               <strong>
                 {entries.length
-                  ? `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(total)} km`
+                  ? isSteps
+                    ? new Intl.NumberFormat("en-US").format(total)
+                    : `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(total)} km`
                   : "—"}
               </strong>
               <small>Recorded days only</small>
@@ -61,7 +69,11 @@ export function DistanceTrend({
               <p>Daily average</p>
               <strong>
                 {entries.length
-                  ? `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(total / entries.length)} km`
+                  ? isSteps
+                    ? new Intl.NumberFormat("en-US", {
+                        maximumFractionDigits: 0,
+                      }).format(total / entries.length)
+                    : `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(total / entries.length)} km`
                   : "—"}
               </strong>
               <small>Missing days excluded</small>
@@ -76,14 +88,18 @@ export function DistanceTrend({
           </div>
           <MetricTrendChart
             entries={entries}
-            metricName="Distance"
-            metricSlug="distance"
-            unit="km"
+            metricName={metricName}
+            metricSlug={metricSlug}
+            unit={isSteps ? "steps" : "km"}
+            weekly={weekly}
             calendarDates={dates}
           />
-          <p className="distance-explanation">
-            Daily totals · {timeZone}. Blank dates mean no data, not zero
-            distance. Recorded days may be partial.
+          <p className="activity-explanation">
+            {weekly
+              ? "Weekly totals · weeks start Monday; edge weeks and recorded days may be partial."
+              : "Daily totals · recorded days may be partial."}{" "}
+            {timeZone}. Blank periods mean no data, not zero{" "}
+            {isSteps ? "steps" : "distance"}.
           </p>
         </>
       )}
@@ -91,7 +107,9 @@ export function DistanceTrend({
   );
 }
 
-export function DistanceHistory({
+export function ActivityHistory({
+  metricSlug = "distance",
+  weekly = false,
   entries,
   loading,
   failed,
@@ -99,24 +117,28 @@ export function DistanceHistory({
   sourceRecords,
   rawCount,
 }: {
+  metricSlug?: "distance" | "steps";
   entries: MetricEntry[];
   loading: boolean;
   failed: boolean;
   timeZone: string;
+  weekly?: boolean;
   sourceRecords: ReactNode;
   rawCount: number;
 }) {
   const [expanded, setExpanded] = useState(false);
   return (
     <section
-      className="entries-card distance-history"
-      aria-label="Daily distance history"
+      className="entries-card activity-history"
+      aria-label={`Daily ${metricSlug} history`}
     >
       <div className="entries-toolbar">
         <div>
           <h2>Daily history</h2>
-          <p className="distance-range-dates">
-            Same totals as the chart · newest first
+          <p className="activity-range-dates">
+            {weekly
+              ? "Daily totals behind the weekly bars · newest first"
+              : "Same totals as the chart · newest first"}
           </p>
         </div>
       </div>
@@ -128,10 +150,10 @@ export function DistanceHistory({
         <p>No recorded days in this range.</p>
       ) : (
         <>
-          <div className="distance-day-list">
+          <div className="activity-day-list">
             {(expanded ? entries : entries.slice(0, 5)).map((entry) => (
               <article
-                className="distance-day"
+                className="activity-day"
                 key={entry.local_date ?? entry.id}
               >
                 <div>
@@ -151,7 +173,9 @@ export function DistanceHistory({
                   </small>
                 </div>
                 <strong>
-                  {formatMetricValueWithUnit(entry.value, "distance", "km")}
+                  {metricSlug === "steps"
+                    ? `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(entry.value)} steps`
+                    : formatMetricValueWithUnit(entry.value, "distance", "km")}
                 </strong>
               </article>
             ))}
@@ -170,12 +194,12 @@ export function DistanceHistory({
           ) : null}
         </>
       )}
-      <details className="distance-source-records">
+      <details className="activity-source-records">
         <summary>
           Source records ·{" "}
           {rawCount === 50 ? "latest 50 loaded" : `${rawCount} loaded`}
         </summary>
-        <p className="distance-explanation">
+        <p className="activity-explanation">
           Individual records, not daily totals. Daily summaries use
           source-selection rules; do not add these records to the totals above.
           Source timestamps are shown in UTC. Only manual records can be edited
