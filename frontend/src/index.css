@@ -3601,38 +3601,24 @@ body:has(dialog[open]) {
   gap: 12px;
 }
 .dashboard-screen .insight-destination {
-  --insight-color: #7653ac;
-  --insight-tint: #f0eafa;
   position: relative;
   min-width: 0;
   align-content: start;
   gap: 12px;
   padding: 18px;
-  border: 1px solid color-mix(in srgb, var(--insight-color) 23%, var(--border));
+  border: 1px solid var(--border);
   border-radius: 16px;
-  background: color-mix(in srgb, var(--insight-tint) 45%, var(--surface-high));
+  background: var(--surface-high);
   transition:
     background-color 160ms ease,
     border-color 160ms ease;
-}
-.dashboard-screen .insight-destination[data-insight="sleep"] {
-  --insight-color: #4267a9;
-  --insight-tint: #e8effc;
-}
-.dashboard-screen .insight-destination[data-insight="weight"] {
-  --insight-color: #087c69;
-  --insight-tint: #e1f3ed;
-}
-.dashboard-screen .insight-destination[data-insight="consistency"] {
-  --insight-color: #a34c25;
-  --insight-tint: #fff0e5;
 }
 .dashboard-screen .insight-destination::after {
   content: "↗";
   position: absolute;
   top: 20px;
   right: 18px;
-  color: var(--insight-color);
+  color: var(--text);
 }
 .dashboard-screen .insight-destination .dashboard-insight-icon {
   display: grid;
@@ -3640,8 +3626,8 @@ body:has(dialog[open]) {
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  background: var(--insight-tint);
-  color: var(--insight-color);
+  background: var(--surface);
+  color: var(--text);
 }
 .dashboard-screen .insight-destination strong {
   color: var(--text);
@@ -3649,11 +3635,10 @@ body:has(dialog[open]) {
 }
 .dashboard-screen .insight-destination:hover,
 .dashboard-screen .insight-destination:active {
-  border-color: var(--insight-color);
-  background: color-mix(in srgb, var(--insight-tint) 75%, var(--surface-high));
+  border-color: var(--accent);
 }
 .dashboard-screen .insight-destination:focus-visible {
-  outline: 2px solid var(--insight-color);
+  outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
 @media (max-width: 1000px) and (min-width: 681px) {
