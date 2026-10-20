@@ -1906,3 +1906,18 @@ Two-column mobile follow-up: real-account responsive checks now assert three
 desktop columns and two at 768/390/320px, including popup bounds in both columns.
 Both 320/1440px creation/management journeys and production build pass. No account
 writes or new page errors occurred.
+
+### Stretching compact checklist — 2026-10-20
+
+All 643 frontend tests across 103 files pass, including 21 Stretching tests.
+Added behavior coverage verifies week navigation and hidden/archived record counts,
+full date navigation beyond the strip, confirmed save/undo refreshing both daily
+and week counts, independent history errors/retry, instruction expansion without
+check-offs, grouped custom/archive management with restore/edit, and selected-phase
+custom creation. Existing date-loading, failed-save, visibility and image tests pass.
+
+Read-only real-account Light browser checks pass at 320/390/768/1440px: one/two-column
+list behavior, side-by-side phases, full date selection, actual past-day counts,
+instruction disclosure, image enlargement, management tabs and selected-phase forms.
+No horizontal overflow, browser errors or tracker writes occurred. ESLint and the
+production build pass. No backend or public API changes are included.

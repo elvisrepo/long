@@ -58,6 +58,27 @@ identity, owner-scoped CRUD and history, includes owned metadata in account expo
 and relies on the user foreign key cascade for account deletion. See
 `03-api-design.md` for routes and contracts.
 
+## Compact checklist (2026-10-20)
+
+The approved A layout groups the selected date and daily record count above a
+seven-day history strip. Full date navigation remains available outside that
+strip. History counts include hidden and archived exercises, while phase tabs
+show visible exercises as “logged · available”; catalog size is not a daily target.
+The week is anchored to today and uses the existing bounded entries endpoint.
+History has independent loading/error/retry states so it cannot block daily logging.
+Confirmed check-offs invalidate both daily and weekly entries.
+
+Exercise rows use contained thumbnails, visible dosage labels and expandable
+instructions. Image enlargement remains separate from check-offs. The full
+existing reference cues are preserved. The list uses one column below 1000px and
+two on desktop, with both phase choices side by side on narrow screens.
+
+Management separates Built-in, Custom (active) and Archived tabs, with collapsible
+phase groups for built-ins. Existing hide/show, edit, archive and restore actions
+remain available and preserve history. New custom stretches start in the selected
+phase, with Title first and optional instructions, dosage and image fields.
+No API contracts, routes, routines, timers or exercise prescriptions changed.
+
 ## Reference
 
 - https://tr-70d.pages.dev/#stretching (reviewed 2026-10-09)

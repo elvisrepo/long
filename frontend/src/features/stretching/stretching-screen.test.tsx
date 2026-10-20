@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -113,11 +114,215 @@ describe("StretchingScreen", () => {
     vi.mocked(archiveCustomStretch).mockResolvedValue();
   });
 
-  it("creates, edits, and archives a private stretch from catalog management", async () => {
+  it("shows seven-day records including archived stretches and selects a recorded day", async () => {
     const user = userEvent.setup();
+    const recorded = [
+      {
+        id: 1,
+        exercise_id: "lunge",
+        performed_on: "2026-10-08",
+        created_at: "2026-10-08T12:00:00Z",
+      },
+      {
+        id: 2,
+        exercise_id: "archived",
+        performed_on: "2026-10-08",
+        created_at: "2026-10-08T12:00:00Z",
+      },
+    ];
+    vi.mocked(getStretchEntries).mockImplementation(async (from, to) =>
+      recorded.filter((e) => e.performed_on >= from && e.performed_on <= to),
+    );
+    renderScreen();
+    const history = await screen.findByRole("group", { name: "Last 7 days" });
+    expect(getStretchEntries).toHaveBeenCalledWith("2026-10-03", "2026-10-09");
+    await user.click(
+      within(history).getByRole("button", {
+        name: "2026-10-08: 2 stretches recorded",
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("checkbox", { name: "Lunge Stretch" }),
+      ).toBeChecked(),
+    );
+    expect(
+      screen.getByText("2 stretches recorded · both phases"),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("tab", { name: /Lower body & hips/ }),
+    ).toHaveTextContent("1 logged · 1 available");
+    expect(screen.queryByText(/complete/)).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Tracking date"), {
+      target: { value: "2026-09-01" },
+    });
+    await waitFor(() =>
+      expect(getStretchEntries).toHaveBeenCalledWith(
+        "2026-09-01",
+        "2026-09-01",
+      ),
+    );
+    expect(
+      within(history)
+        .getAllByRole("button")
+        .every((b) => b.getAttribute("aria-pressed") === "false"),
+    ).toBe(true);
+  });
+
+  it("refreshes daily and week counts after a confirmed save", async () => {
+    const user = userEvent.setup();
+    const records: {
+      id: number;
+      exercise_id: string;
+      performed_on: string;
+      created_at: string;
+    }[] = [];
+    vi.mocked(getStretchEntries).mockImplementation(async (from, to) =>
+      records.filter((e) => e.performed_on >= from && e.performed_on <= to),
+    );
+    vi.mocked(setStretchCheckoff).mockImplementation(
+      async (id, day, checked) => {
+        if (checked)
+          records.push({
+            id: 1,
+            exercise_id: id,
+            performed_on: day,
+            created_at: "2026-10-09T12:00:00Z",
+          });
+        else records.length = 0;
+      },
+    );
+    renderScreen();
+    const checkbox = await screen.findByRole("checkbox", {
+      name: "Lunge Stretch",
+    });
+    await user.click(checkbox);
+    await waitFor(() =>
+      expect(
+        screen.getByText("1 stretch recorded · both phases"),
+      ).toBeVisible(),
+    );
+    expect(
+      screen.getByRole("button", { name: "2026-10-09: 1 stretch recorded" }),
+    ).toBeVisible();
+    expect(checkbox).toBeChecked();
+    await user.click(checkbox);
+    await waitFor(() =>
+      expect(
+        screen.getByText("0 stretches recorded · both phases"),
+      ).toBeVisible(),
+    );
+    expect(
+      screen.getByRole("button", { name: "2026-10-09: 0 stretches recorded" }),
+    ).toBeVisible();
+  });
+
+  it("keeps daily logging usable if recent history fails and supports retry", async () => {
+    const user = userEvent.setup();
+    let failHistory = true;
+    vi.mocked(getStretchEntries).mockImplementation(async (from, to) => {
+      if (from !== to && failHistory) throw new Error("History unavailable");
+      return [];
+    });
+    renderScreen();
+    expect(
+      await screen.findByRole("checkbox", { name: "Lunge Stretch" }),
+    ).toBeEnabled();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Recent records could not be loaded",
+    );
+    expect(
+      screen.queryByRole("button", { name: /2026-10-09: 0 stretches/ }),
+    ).not.toBeInTheDocument();
+    failHistory = false;
+    await user.click(
+      screen.getByRole("button", { name: "Retry recent records" }),
+    );
+    expect(
+      await screen.findByRole("button", {
+        name: "2026-10-09: 0 stretches recorded",
+      }),
+    ).toBeVisible();
+  });
+
+  it("separates active custom stretches from archives and preserves restore and edit", async () => {
+    const user = userEvent.setup();
+    const custom = {
+      ...phases[0].exercises[0],
+      id: "mine",
+      slug: "",
+      name: "My stretch",
+      is_custom: true,
+    };
+    const archived = {
+      ...custom,
+      id: "old",
+      name: "Old stretch",
+      is_active: false,
+    };
+    vi.mocked(getStretchCatalog).mockResolvedValue({
+      phases: [
+        { ...phases[0], exercises: [...phases[0].exercises, custom, archived] },
+        phases[1],
+      ],
+    });
     renderScreen();
     await screen.findByRole("checkbox", { name: "Lunge Stretch" });
     await user.click(screen.getByRole("button", { name: "Manage stretches" }));
+    const dialog = screen.getByRole("dialog", { name: "Manage stretches" });
+    expect(within(dialog).queryByText("Old stretch")).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("tab", { name: "Custom (1)" }));
+    expect(within(dialog).getByText("My stretch")).toBeVisible();
+    await user.click(
+      within(dialog).getByRole("button", { name: "Archive My stretch" }),
+    );
+    await waitFor(() =>
+      expect(archiveCustomStretch).toHaveBeenCalledWith("mine"),
+    );
+    await user.click(within(dialog).getByRole("tab", { name: "Archived (1)" }));
+    await user.click(
+      within(dialog).getByRole("button", { name: "Restore Old stretch" }),
+    );
+    await waitFor(() =>
+      expect(updateCustomStretch).toHaveBeenCalledWith(
+        "old",
+        expect.objectContaining({ is_active: true }),
+      ),
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Edit Old stretch" }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Edit your stretch" }),
+    ).toBeVisible();
+  });
+
+  it("starts a new custom stretch in the selected phase", async () => {
+    const user = userEvent.setup();
+    renderScreen();
+    await user.click(
+      await screen.findByRole("tab", { name: /Upper body & posture/ }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Add custom stretch" }),
+    );
+    expect(screen.getByLabelText("Phase")).toHaveValue("upper-body");
+    await user.type(screen.getByLabelText("Title"), "My upper stretch");
+    await user.click(screen.getByRole("button", { name: "Save stretch" }));
+    await waitFor(() =>
+      expect(createCustomStretch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          phase: "upper-body",
+          name: "My upper stretch",
+        }),
+      ),
+    );
+  });
+
+  it("creates a private stretch from the checklist toolbar", async () => {
+    const user = userEvent.setup();
+    renderScreen();
+    await screen.findByRole("checkbox", { name: "Lunge Stretch" });
     await user.click(
       screen.getByRole("button", { name: "Add custom stretch" }),
     );
@@ -146,7 +351,7 @@ describe("StretchingScreen", () => {
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("0 of 1 checked for 2026-10-09"),
+      screen.getByText("0 stretches recorded · both phases"),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: /Upper body & posture/ }));
     expect(
@@ -169,6 +374,23 @@ describe("StretchingScreen", () => {
       "2026-10-09",
       true,
     );
+  });
+
+  it("expands instructions without recording a stretch", async () => {
+    const user = userEvent.setup();
+    renderScreen();
+    const checkbox = await screen.findByRole("checkbox", {
+      name: "Lunge Stretch",
+    });
+    const cue = screen.getByText(
+      "Move the hip forward while keeping the lower back quiet.",
+    );
+    expect(cue).not.toBeVisible();
+    await user.click(screen.getByText("Instructions"));
+    expect(cue).toBeVisible();
+    expect(checkbox).not.toBeChecked();
+    expect(setStretchCheckoff).not.toHaveBeenCalled();
+    expect(screen.getByText("30 seconds per leg")).toBeVisible();
   });
 
   it("opens an enlarged illustration without checking off the exercise", async () => {
@@ -221,21 +443,21 @@ describe("StretchingScreen", () => {
 
   it("does not show a previous day's check-offs while a new date loads", async () => {
     let resolveNewDay: (() => void) | undefined;
-    vi.mocked(getStretchEntries)
-      .mockResolvedValueOnce([
-        {
-          id: 1,
-          exercise_id: "lunge",
-          performed_on: "2026-10-09",
-          created_at: "2026-10-09T12:00:00Z",
-        },
-      ])
-      .mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            resolveNewDay = () => resolve([]);
-          }),
-      );
+    vi.mocked(getStretchEntries).mockImplementation((from, to) => {
+      if (from !== to) return Promise.resolve([]);
+      if (from === "2026-10-09")
+        return Promise.resolve([
+          {
+            id: 1,
+            exercise_id: "lunge",
+            performed_on: from,
+            created_at: "2026-10-09T12:00:00Z",
+          },
+        ]);
+      return new Promise((resolve) => {
+        resolveNewDay = () => resolve([]);
+      });
+    });
 
     renderScreen();
     const lunge = await screen.findByRole("checkbox", {
@@ -254,9 +476,7 @@ describe("StretchingScreen", () => {
       ),
     );
     expect(lunge).not.toBeChecked();
-    expect(
-      screen.getByText("0 of 1 checked for 2026-10-10"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Loading stretches…")).toBeInTheDocument();
 
     await act(async () => resolveNewDay?.());
   });
