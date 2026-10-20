@@ -132,7 +132,7 @@ async function fillCustomMetricForm(user: ReturnType<typeof userEvent.setup>) {
 async function openCustomMetricDialog(
   user: ReturnType<typeof userEvent.setup>,
 ) {
-  await user.click(screen.getByRole("button", { name: /new custom metric/i }));
+  await user.click(screen.getByRole("button", { name: /new metric/i }));
 
   return screen.getByRole("dialog", { name: /create custom metric/i });
 }
@@ -199,7 +199,12 @@ describe("metrics route", () => {
     renderRoute("/metrics");
     const all = await screen.findByRole("button", { name: "All (2)" });
     expect(all).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText("2 available")).toBeInTheDocument();
+    expect(screen.queryByText("2 available")).not.toBeInTheDocument();
+    const create = within(
+      screen.getByRole("navigation", { name: "Metric catalog filters" }),
+    ).getByRole("button", { name: "+ New metric" });
+    expect(create.previousElementSibling).toHaveTextContent("Archived (1)");
+    expect(create).not.toHaveAttribute("aria-pressed");
     const rows = screen.getAllByRole("article");
     expect(rows[0]).toHaveTextContent("Mood");
     await user.click(screen.getByRole("button", { name: "Built-in (1)" }));
@@ -307,6 +312,12 @@ describe("metrics route", () => {
       name: "Custom metrics",
     });
     expect(
+      screen.getByRole("button", { name: "+ New metric" }),
+    ).toHaveAttribute("aria-haspopup", "dialog");
+    expect(
+      screen.queryByText("Track something of your own"),
+    ).not.toBeInTheDocument();
+    expect(
       within(customSection).getByText(/no custom metrics yet/i),
     ).toBeInTheDocument();
   });
@@ -382,7 +393,9 @@ describe("metrics route", () => {
     renderRoute("/metrics");
 
     expect(
-      await screen.findByText(/2 of 5 custom metrics used/i),
+      await screen.findByRole("status", {
+        name: /2 of 5 custom metrics used/i,
+      }),
     ).toBeInTheDocument();
     expect(screen.queryByText(/slots available/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edit Mood" })).toHaveTextContent(
@@ -406,9 +419,7 @@ describe("metrics route", () => {
     await screen.findByRole("heading", { level: 1, name: "Metrics" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
-    await user.click(
-      screen.getByRole("button", { name: /new custom metric/i }),
-    );
+    await user.click(screen.getByRole("button", { name: /new metric/i }));
 
     expect(
       screen.getByRole("dialog", { name: /create custom metric/i }),

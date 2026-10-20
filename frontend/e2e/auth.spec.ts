@@ -242,7 +242,7 @@ test("user can create a custom metric and log it from the dashboard", async ({
     page.getByRole("heading", { level: 1, name: "Metrics", exact: true }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: /new custom metric/i }).click();
+  await page.getByRole("button", { name: /new metric/i }).click();
   const customMetricDialog = page.getByRole("dialog", {
     name: /create custom metric/i,
   });
@@ -297,7 +297,7 @@ test("user can archive and reactivate a custom metric", async ({ page }) => {
     page.getByRole("heading", { level: 1, name: "Metrics", exact: true }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: /new custom metric/i }).click();
+  await page.getByRole("button", { name: /new metric/i }).click();
   const customMetricDialog = page.getByRole("dialog", {
     name: /create custom metric/i,
   });

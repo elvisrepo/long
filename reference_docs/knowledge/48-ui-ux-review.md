@@ -260,8 +260,12 @@ records were changed during the review or subsequent real-account browser checks
 - All / Built-in / Custom / Archived filters include counts. All starts with custom
   metrics. The catalog reads definitions including inactive records through the
   existing endpoint so counts and generated identifiers include archives. The
-  headline says “available”, not “tracked”; it counts definitions, not logged data.
-  Existing custom-metric usage/quota is beside the create action.
+  All count represents available definitions, not logged data.
+  Creation uses a compact outlined rectangular “+ New metric” button directly
+  after Archived in the filter row, wrapping naturally on narrow screens. The
+  redundant available-count badge is removed. Creation stays accessible under
+  every filter. Usage/quota remains beneath the Custom metrics
+  heading (“1 of 10 used”). The standalone promotional creation panel was removed.
 - Custom rows have a labeled native disclosure for Edit and Archive. Edit opens a
   shared native modal; cancelling discards drafts. Archive keeps confirmation and
   the existing deactivation behavior: preserve history, stop logging, free a slot.

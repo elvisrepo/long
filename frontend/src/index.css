@@ -3761,34 +3761,36 @@ body:has(dialog[open]) {
 .metrics-screen > .page-header h1 {
   font-size: 36px;
 }
-.metrics-screen .metrics-creation {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 18px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: var(--surface-high);
-}
-.metrics-creation strong {
-  display: block;
-  font-size: 15px;
-}
-.metrics-creation .custom-metric-usage {
-  margin-top: 5px;
+.metrics-screen .metrics-section-header .custom-metric-usage {
+  margin: 4px 0 0;
   text-align: left;
   font-size: 12px;
 }
-.metrics-creation .metrics-primary-action {
+.metrics-create-action {
+  min-height: 44px;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface-high));
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
   white-space: nowrap;
+}
+.metrics-catalog-filters .metrics-create-action {
+  margin-left: 4px;
+}
+.metrics-create-action:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 24%, var(--surface-high));
 }
 .metrics-catalog-filters {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-.metrics-catalog-filters button {
+.metrics-catalog-filters button[aria-pressed] {
   border: 1px solid var(--border);
   border-radius: 99px;
   padding: 9px 14px;
@@ -3801,16 +3803,13 @@ body:has(dialog[open]) {
   background: var(--accent-dim);
   color: var(--accent);
 }
-.metrics-catalog-filters button:last-child {
-  margin-left: auto;
-}
 .metrics-screen .metrics-cards-grid {
   gap: 10px;
 }
 .metrics-screen .metrics-section-header {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: 12px;
   margin-bottom: 0;
   padding: 0;
@@ -3996,23 +3995,12 @@ a.metric-catalog-open:focus-visible {
   .metrics-screen > .page-header h1 {
     font-size: 30px;
   }
-  .metrics-screen .metrics-creation {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 16px;
-  }
-  .metrics-creation .metrics-primary-action {
-    width: 100%;
-  }
   .metrics-catalog-filters {
     gap: 6px;
   }
-  .metrics-catalog-filters button {
+  .metrics-catalog-filters button[aria-pressed] {
     padding: 8px 11px;
     font-size: 12px;
-  }
-  .metrics-catalog-filters button:last-child {
-    margin-left: 0;
   }
   .metrics-screen .metrics-cards-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -4044,9 +4032,6 @@ a.metric-catalog-open:focus-visible {
   grid-column: 2;
   grid-row: 1;
   width: auto;
-}
-.metrics-screen .page-header-actions .status-pill {
-  white-space: nowrap;
 }
 .metrics-screen .page-description {
   grid-column: 1 / -1;

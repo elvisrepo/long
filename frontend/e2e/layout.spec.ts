@@ -65,7 +65,7 @@ test("custom metric modal contains keyboard focus and restores its opener", asyn
 }) => {
   await page.goto("/metrics");
   const opener = page.getByRole("button", {
-    name: "+ New custom metric",
+    name: "+ New metric",
     exact: true,
   });
   await opener.click();
@@ -209,7 +209,7 @@ test("metric dialogs retain backdrop dismissal without dismissing on dialog padd
 }) => {
   await page.goto("/metrics");
   const opener = page.getByRole("button", {
-    name: "+ New custom metric",
+    name: "+ New metric",
     exact: true,
   });
   await opener.click();
@@ -1222,7 +1222,7 @@ for (const { width, theme } of [
     for (const [path, action] of [
       ["/metrics/body_weight", "Add weight entry"],
       ["/metrics/sleep_duration", "Add Sleep Duration entry"],
-      ["/metrics", "+ New custom metric"],
+      ["/metrics", "+ New metric"],
       ["/metrics", "Archive Personal wellbeing and energy score"],
       ["/settings", "Export health data"],
     ]) {

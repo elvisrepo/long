@@ -80,33 +80,7 @@ function MetricsCatalog() {
         title="Metrics"
         eyebrow="Metric catalog"
         description="Choose a metric to view its history and log entries."
-        actions={
-          <span className="status-pill">
-            {activeMetricDefinitions.length} available
-          </span>
-        }
       />
-
-      <section className="metrics-creation" aria-label="Custom metric creation">
-        <div>
-          <strong>Track something of your own</strong>
-          <p
-            aria-label={`${used} of ${limit} custom metrics used`}
-            className={`custom-metric-usage ${used >= limit ? "custom-metric-usage-limit" : ""}`}
-            role="status"
-          >
-            {used} of {limit} custom metrics used
-          </p>
-        </div>
-        <button
-          aria-haspopup="dialog"
-          className="metrics-primary-action"
-          type="button"
-          onClick={() => setIsCreateDialogOpen(true)}
-        >
-          + New custom metric
-        </button>
-      </section>
 
       <nav
         className="metrics-catalog-filters"
@@ -132,6 +106,14 @@ function MetricsCatalog() {
             {label}
           </button>
         ))}
+        <button
+          aria-haspopup="dialog"
+          className="metrics-create-action"
+          type="button"
+          onClick={() => setIsCreateDialogOpen(true)}
+        >
+          + New metric
+        </button>
       </nav>
 
       {isCreateDialogOpen ? (
@@ -176,8 +158,16 @@ function MetricsCatalog() {
       {filter === "all" || filter === "custom" ? (
         <section aria-label="Custom metrics" className="metrics-cards-grid">
           <div className="metrics-section-header">
-            <h2>Custom metrics</h2>
-            <small>{customMetricDefinitions.length} available</small>
+            <div>
+              <h2>Custom metrics</h2>
+              <p
+                aria-label={`${used} of ${limit} custom metrics used`}
+                className={`custom-metric-usage ${used >= limit ? "custom-metric-usage-limit" : ""}`}
+                role="status"
+              >
+                {used} of {limit} used
+              </p>
+            </div>
           </div>
           {customMetricDefinitions.length === 0 ? (
             <p className="metrics-empty">
