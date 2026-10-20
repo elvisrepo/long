@@ -17,7 +17,7 @@ const trackers = [
     name: "Diet",
     to: "/diet",
     key: "diet",
-    icon: "◒",
+    icon: "M4 10h16a8 8 0 0 1-16 0ZM8 20h8M9 3v3m6-3v3",
     singular: "food",
     plural: "foods",
     load: getDietEntries,
@@ -26,7 +26,7 @@ const trackers = [
     name: "Stretching",
     to: "/stretching",
     key: "stretching",
-    icon: "↔",
+    icon: "M12 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm-8 3 8 1 8-3M12 11l-2 5-5 4m5-4 7 4",
     singular: "stretch logged",
     plural: "stretches logged",
     load: getStretchEntries,
@@ -35,7 +35,7 @@ const trackers = [
     name: "Recovery",
     to: "/recovery",
     key: "recovery",
-    icon: "◌",
+    icon: "M20 4C12 3 5 7 5 13a6 6 0 0 0 10 4c4-4 5-9 5-13ZM4 21l11-11",
     singular: "activity",
     plural: "activities",
     load: getRecoveryEntries,
@@ -44,7 +44,7 @@ const trackers = [
     name: "Workouts",
     to: "/workouts",
     key: "workouts",
-    icon: "↗",
+    icon: "m7 7 10 10M3 7l4-4m10 18 4-4M2 6l4-4m12 20 4-4M5 9l4-4m6 14 4-4",
     singular: "completed set",
     plural: "completed sets",
     load: getWorkoutRange,
@@ -69,9 +69,6 @@ export function DashboardDailyTrackers() {
       {trackers.map((tracker) => (
         <TrackerRow key={tracker.key} tracker={tracker} today={today} />
       ))}
-      <p className="dashboard-daily-note">
-        Logs show what you recorded, not completion targets.
-      </p>
     </section>
   );
 }
@@ -105,9 +102,26 @@ function TrackerRow({
       .map((record) => record.performed_on),
   ).size;
   return (
-    <Link to={tracker.to} search={{}} className="dashboard-tracker-row">
+    <Link
+      to={tracker.to}
+      search={{}}
+      className="dashboard-tracker-row"
+      data-tracker={tracker.key}
+    >
       <span className="dashboard-tracker-icon" aria-hidden="true">
-        {tracker.icon}
+        <svg
+          viewBox="0 0 24 24"
+          width="22"
+          height="22"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          focusable="false"
+        >
+          <path d={tracker.icon} />
+        </svg>
       </span>
       <span>
         <strong>{tracker.name}</strong>
@@ -119,10 +133,10 @@ function TrackerRow({
           <small role="status">Loading {tracker.name.toLowerCase()}…</small>
         ) : (
           <>
-            <small>
+            <small className="dashboard-tracker-today">
               {count} {count === 1 ? tracker.singular : tracker.plural} today
             </small>
-            <small>
+            <small className="dashboard-tracker-week">
               {days} of 7 days {workouts ? "trained" : "recorded"}
             </small>
           </>

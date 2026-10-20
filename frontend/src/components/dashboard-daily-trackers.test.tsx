@@ -53,10 +53,10 @@ it("groups all four trackers with today's counts and links in one block", async 
     expect(await within(row).findByText(count)).toBeInTheDocument();
   }
   expect(
-    within(block).getByText(
+    within(block).queryByText(
       "Logs show what you recorded, not completion targets.",
     ),
-  ).toBeInTheDocument();
+  ).not.toBeInTheDocument();
 });
 
 it("counts stretching days once and counts completed sets from unfinished workouts", async () => {
