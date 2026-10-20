@@ -402,3 +402,9 @@ dashboard journeys at 320 and 1440px. The browser fixture now supplies the profi
 existing estimated_bmr contract and selects the current Today's logs Diet row.
 Real-account checks at 320/390/768/1440px have no writes, page errors or overflow.
 No API, route, schema or backend changes were made.
+
+Diet follow-up: the owner requested two section columns on smaller views too.
+Tablet/mobile now retain two columns while desktop stays at three. Narrow layouts
+hide initial tiles, stack section actions, wrap food names, and anchor each column's
+management menus inward. Real-account checks at 320/390/768/1440px show no overflow
+or writes; both focused creation/management browser journeys and build pass.

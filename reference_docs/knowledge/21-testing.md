@@ -1897,7 +1897,12 @@ plus complete creation/edit/archive/restore/history/dashboard journeys at 320 an
 uses Today's logs rather than the retired dashboard panel and waits for the actual
 archived label before restoring. This fixes fixture drift, not production APIs.
 
-Read-only real-account checks cover 320/390/768/1440px, 3/2/1 section columns,
+Read-only real-account checks initially covered 320/390/768/1440px, 3/2/1 section columns,
 19 existing foods, actual current/past-day counts, full date navigation, menu bounds,
 cancelled creation/edit forms and modal focus. No API writes, page errors or
 horizontal overflow occurred. ESLint and production build pass.
+
+Two-column mobile follow-up: real-account responsive checks now assert three
+desktop columns and two at 768/390/320px, including popup bounds in both columns.
+Both 320/1440px creation/management journeys and production build pass. No account
+writes or new page errors occurred.

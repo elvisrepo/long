@@ -86,8 +86,9 @@ Recorded foods list. Recorded rows include their section and labeled undo action
 archived-food undo stays available. While a selected day loads, the summary says
 Loading foods rather than presenting zero. Counts remain records, not targets.
 
-All sections stay expanded. Desktop uses three compact section lists, tablet two,
-and mobile one column. Rows replace nested food cards; checked rows have a subtle
+All sections stay expanded. Desktop uses three compact section lists; tablet and
+mobile use two columns after the owner's follow-up request. Rows replace nested
+food cards; checked rows have a subtle
 warm tint. Section headings show visible food counts and recorded counts, initials,
 and a nearby Add food action. Add section sits beside Manage checklist.
 
@@ -104,3 +105,8 @@ journeys verify date alignment/context order and creation/edit/archive/restore/
 dashboard behavior. Read-only real-account checks at 320/390/768/1440px verify the
 existing 19 foods, selected-day records, menu bounds, dialog focus and full date
 navigation, with no API writes, page errors or horizontal overflow.
+
+Two-column mobile follow-up: narrower gaps/rows, wrapping food names and stacked
+section actions retain usable controls. Below 600px initial tiles are hidden to
+leave room for names; management menus anchor inward in each column. Read-only
+320/390/768/1440px checks and the 320/1440px management journeys pass; build passes.
