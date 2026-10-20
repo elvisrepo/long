@@ -241,7 +241,7 @@ test("Diet date buttons align with the input rather than its label", async ({
   expect(input.height).toBeCloseTo(44, 0);
 });
 
-test("mobile Diet puts the food checklist before its daily summary", async ({
+test("mobile Diet puts daily context before its food checklist", async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -275,10 +275,10 @@ test("mobile Diet puts the food checklist before its daily summary", async ({
   await page.goto("/diet");
 
   const food = page.getByRole("checkbox", { name: "Beans", exact: true });
-  const summary = page.getByRole("heading", { name: "Today", exact: true });
+  const summary = page.getByRole("region", { name: "Daily tracking" });
   await expect(food).toBeVisible();
   await expect(summary).toBeVisible();
-  expect((await food.boundingBox())!.y).toBeLessThan(
+  expect((await food.boundingBox())!.y).toBeGreaterThan(
     (await summary.boundingBox())!.y,
   );
   await page.screenshot({
@@ -535,7 +535,21 @@ async function mockApi(page: Page) {
     else if (url.pathname.endsWith("/refresh/"))
       json = { access: "layout-fixture" };
     else if (url.pathname.endsWith("/me/"))
-      json = { email: "layout@example.test" };
+      json = {
+        email: "layout@example.test",
+        date_of_birth: null,
+        sex: null,
+        height_cm: null,
+        age: null,
+        estimated_bmr: {
+          value: null,
+          unit: "kcal/day",
+          formula: "mifflin_st_jeor",
+          reason: "missing_information",
+          missing_fields: ["date_of_birth", "sex", "height_cm"],
+          weight: null,
+        },
+      };
     else if (url.pathname.endsWith("/definitions/")) json = definitions;
     else if (url.pathname === "/api/v1/recovery/tools/")
       json = { tools: [], can_create_custom: false };
@@ -967,27 +981,35 @@ for (const width of [320, 1440]) {
     await page
       .getByRole("button", { name: "Manage checklist", exact: true })
       .click();
+    await page.getByLabel("Actions for Chicken", { exact: true }).click();
     await page
       .getByRole("button", { name: "Edit Chicken", exact: true })
       .click();
     await page.getByLabel("Food name").fill("Eggs");
     await page.getByLabel("Display order").fill("0");
     await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByLabel("Actions for Eggs", { exact: true }).click();
     await page
       .getByRole("button", { name: "Archive Eggs", exact: true })
       .click();
+    await expect(
+      page.getByRole("checkbox", { name: "Eggs · Archived", exact: true }),
+    ).toBeDisabled();
+    await page.getByLabel("Actions for Eggs", { exact: true }).click();
     await expect(
       page.getByRole("button", { name: "Restore Eggs", exact: true }),
     ).toBeVisible();
     await page
       .getByRole("button", { name: "Restore Eggs", exact: true })
       .click();
+    await page.getByLabel("Actions for Protein", { exact: true }).click();
     await page
       .getByRole("button", { name: "Archive Protein", exact: true })
       .click();
     await expect(
       page.getByRole("checkbox", { name: "Eggs", exact: true }),
     ).toBeDisabled();
+    await page.getByLabel("Actions for Protein", { exact: true }).click();
     await page
       .getByRole("button", { name: "Restore Protein", exact: true })
       .click();
@@ -1006,12 +1028,14 @@ for (const width of [320, 1440]) {
       fullPage: true,
     });
     await page.goto("/");
-    const panel = page.getByRole("region", { name: "Diet checklist" });
+    const panel = page
+      .getByRole("region", { name: "Today's logs" })
+      .locator('[data-tracker="diet"]');
     await expect(
       panel.getByText("1 food today", { exact: true }),
     ).toBeVisible();
     await expect(panel.getByText("1 of 7 days recorded")).toBeVisible();
-    await panel.getByRole("link", { name: "Track foods →" }).click();
+    await panel.click();
     await page.getByRole("checkbox", { name: "Eggs", exact: true }).click();
     await expect(
       page.getByText("0 foods recorded · 0 sections represented"),

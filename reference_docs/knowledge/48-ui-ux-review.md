@@ -379,3 +379,26 @@ browser checks at 320/390/768/1440px cover the context-before-tools order, colla
 research, past-day records, full date navigation, cancelled creation and modal focus.
 No API writes, page errors or horizontal overflow occurred. The proposal artifact
 remains the design comparison; the app is the implemented source of truth.
+
+## Diet — 20 October 2026 (proposal A implemented)
+
+The Light review at `.lavish/diet-review/index.html` compares actual screenshots
+with compact sections (A) and a section browser (B). The owner approved all of A.
+One combined date/count/week/Recorded foods panel precedes the checklist. Expanded
+section lists use three columns on desktop, two on tablet and one on mobile.
+Warm accents distinguish Diet from Recovery's blue; checked rows have a subtle
+tint. Food creation stays at the section heading, section creation beside checklist
+management. No food names, ordering, category membership or nutrition measures
+are invented or changed.
+
+Manage checklist reveals compact native item menus. Existing name/order editing,
+archive/restore, archived-record undo and all-account creation remain; check-offs
+are disabled in management mode. Edit dialogs return focus to the persistent menu
+summary. Selected-day loading is explicit and the recent week stays today-anchored.
+
+Validation: all 637 frontend tests, lint and production build pass. Focused browser
+checks cover date alignment/context order and full Diet management/history/
+dashboard journeys at 320 and 1440px. The browser fixture now supplies the profile's
+existing estimated_bmr contract and selects the current Today's logs Diet row.
+Real-account checks at 320/390/768/1440px have no writes, page errors or overflow.
+No API, route, schema or backend changes were made.

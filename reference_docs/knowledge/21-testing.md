@@ -1882,3 +1882,22 @@ the full date picker, context placement, no overflow, closed/open research, and
 native modal focus containment/return. The 390px date controls fit on one row;
 narrower controls may wrap. Browser verification makes no account writes. ESLint
 and production build pass; no API, route or backend changes are included.
+
+### Diet compact sections — 2026-10-20
+
+All 637 frontend tests across 103 files pass. Four additional Diet component tests
+cover context-before-checklist with archived-record undo, management menus and
+edit-dialog focus/name/order payload, selected-day loading instead of zero, and
+restoring a section before its food. Existing creation, selected-date/history and
+failed-write tests remain green.
+
+Focused Playwright checks cover 390px date control alignment and context order,
+plus complete creation/edit/archive/restore/history/dashboard journeys at 320 and
+1440px. The shared profile fixture now includes estimated_bmr; the Diet journey
+uses Today's logs rather than the retired dashboard panel and waits for the actual
+archived label before restoring. This fixes fixture drift, not production APIs.
+
+Read-only real-account checks cover 320/390/768/1440px, 3/2/1 section columns,
+19 existing foods, actual current/past-day counts, full date navigation, menu bounds,
+cancelled creation/edit forms and modal focus. No API writes, page errors or
+horizontal overflow occurred. ESLint and production build pass.

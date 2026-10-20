@@ -76,3 +76,31 @@ date ranges, JWT, idempotency and account lifecycle; UI and isolated Chromium
 fixtures cover creation, selected-day tracking, history, management and dashboard.
 
 See [13→16-table ERD](diagrams/diet-erd-comparison.md).
+
+## Compact sections — 20 October 2026
+
+The owner approved all of proposal A from `.lavish/diet-review/index.html`.
+The page now begins with a short header and one date/context panel containing the
+selected-day count, full date picker/navigation, today-anchored week and collapsed
+Recorded foods list. Recorded rows include their section and labeled undo actions;
+archived-food undo stays available. While a selected day loads, the summary says
+Loading foods rather than presenting zero. Counts remain records, not targets.
+
+All sections stay expanded. Desktop uses three compact section lists, tablet two,
+and mobile one column. Rows replace nested food cards; checked rows have a subtle
+warm tint. Section headings show visible food counts and recorded counts, initials,
+and a nearby Add food action. Add section sits beside Manage checklist.
+
+Management reveals native per-section/per-food action disclosures, with Edit and
+Archive/Restore. Check-offs are disabled while managing. Edits keep the existing
+name and numeric display-order form; closing returns focus to the persistent menu
+summary. The native modal handles initial focus, avoiding render-time autofocus
+capturing the wrong return target. All-account creation, validation/error drafts,
+archive history and restore-section-before-food rules remain unchanged.
+
+No API paths/contracts, schema, backend rules or account data were changed.
+Validation: 637 frontend tests, lint and production build pass. Focused browser
+journeys verify date alignment/context order and creation/edit/archive/restore/
+dashboard behavior. Read-only real-account checks at 320/390/768/1440px verify the
+existing 19 foods, selected-day records, menu bounds, dialog focus and full date
+navigation, with no API writes, page errors or horizontal overflow.
