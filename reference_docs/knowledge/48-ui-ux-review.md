@@ -221,3 +221,27 @@ The working index alone depends on sibling screenshots. Keep the portable snapsh
 outside Git because it contains the large visual archive. The ignored files are
 local artifacts, not a backed-up or shared record; retain a separate backup if
 long-term preservation is required.
+
+
+## Dashboard review — 20 October 2026
+
+The owner requests Light theme only for UI/UX work from now on. Use Light for
+future reviews, mockups and proposed layouts. This preference does not itself
+remove Dark mode from the implemented application.
+
+The dashboard review artifact is local and ignored at
+`.lavish/dashboard-review/index.html`, with a separate interactive
+`proposed.html`. It uses the current app's tokens, bundled DM Sans/DM Mono and
+actual existing local Pro-account tracker data. Current screenshots are from
+1440px desktop and 390px mobile; additional layout checks cover 320px/768px.
+No application changes or account-data edits are approved or implied by this
+review. Feedback controls queue choices only on explicit submission.
+
+Recommendations: show each measurement's date; replace the unlabeled carousel
+with explicit metric discovery; compact daily tracker access and include
+Stretching; update the AI link to describe Day/Week/Month suggestions; explain
+and collapse individual source-entry history. The proposed three primary cards
+and mobile tracker-first order are choices, with six cards/metrics-first offered
+for feedback. Preserve quick-add controls, all metric records and all five
+visible source entries. No invented scores, targets, physiological conclusions,
+or uniform seven-day labels for unequal sparkline samples.

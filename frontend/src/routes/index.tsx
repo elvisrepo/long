@@ -1,8 +1,6 @@
 import { PageHeader } from "../components/page-header";
 import { PageState } from "../components/page-state";
-import { DashboardRecoveryPanel } from "../features/recovery/dashboard-recovery-panel";
-import { DashboardDietPanel } from "../features/diet/dashboard-diet-panel";
-import { DashboardWorkoutPanel } from "../features/workouts/dashboard-workout-panel";
+import { DashboardDailyTrackers } from "../components/dashboard-daily-trackers";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { requireAuthBeforeLoad } from "../features/auth/require-auth-before-load";
@@ -134,70 +132,68 @@ function DashboardRoute() {
     <section className="dashboard-screen">
       <PageHeader title="Dashboard" eyebrow={formatDashboardDate()} />
 
-      <section className="dashboard-metrics">
-        <div className="dashboard-metrics-heading">
-          <h2 className="dashboard-section-title">Your metrics</h2>
-          {metricPages.length > 1 ? (
-            <div className="dashboard-rail-controls">
-              <button
-                type="button"
-                aria-label="Scroll metrics left"
-                onClick={() => scrollMetrics(-1)}
+      <div className="dashboard-overview">
+        <section className="dashboard-metrics">
+          <div className="dashboard-metrics-heading">
+            <h2 className="dashboard-section-title">Your metrics</h2>
+            {metricPages.length > 1 ? (
+              <div className="dashboard-rail-controls">
+                <button
+                  type="button"
+                  aria-label="Scroll metrics left"
+                  onClick={() => scrollMetrics(-1)}
+                >
+                  ←
+                </button>
+                <button
+                  type="button"
+                  aria-label="Scroll metrics right"
+                  onClick={() => scrollMetrics(1)}
+                >
+                  →
+                </button>
+              </div>
+            ) : null}
+          </div>
+          <div
+            ref={metricRailRef}
+            className="dashboard-metric-rail"
+            role="region"
+            aria-label="Health metrics"
+            tabIndex={0}
+          >
+            {metricPages.map((page, pageIndex) => (
+              <div
+                key={page[0].key}
+                className="dashboard-metric-page"
+                role="group"
+                aria-label={`Metrics page ${pageIndex + 1} of ${metricPages.length}`}
               >
-                ←
-              </button>
-              <button
-                type="button"
-                aria-label="Scroll metrics right"
-                onClick={() => scrollMetrics(1)}
-              >
-                →
-              </button>
-            </div>
-          ) : null}
-        </div>
-        <div
-          ref={metricRailRef}
-          className="dashboard-metric-rail"
-          role="region"
-          aria-label="Health metrics"
-          tabIndex={0}
-        >
-          {metricPages.map((page, pageIndex) => (
-            <div
-              key={page[0].key}
-              className="dashboard-metric-page"
-              role="group"
-              aria-label={`Metrics page ${pageIndex + 1} of ${metricPages.length}`}
-            >
-              {page.map(({ key, definition }) =>
-                definition ? (
-                  <DashboardMetricCard
-                    key={definition.id}
-                    category={definition.category}
-                    onAddEntry={() => setEntryDefinition(definition)}
-                    latestEntry={latestEntriesByMetric.get(definition.slug)}
-                    name={definition.name}
-                    slug={definition.slug}
-                    unit={definition.unit}
-                    trendValues={getMetricTrendValues(
-                      cardMetricEntries,
-                      definition.slug,
-                    )}
-                  />
-                ) : (
-                  <EstimatedBmrCard key={key} />
-                ),
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
+                {page.map(({ key, definition }) =>
+                  definition ? (
+                    <DashboardMetricCard
+                      key={definition.id}
+                      category={definition.category}
+                      onAddEntry={() => setEntryDefinition(definition)}
+                      latestEntry={latestEntriesByMetric.get(definition.slug)}
+                      name={definition.name}
+                      slug={definition.slug}
+                      unit={definition.unit}
+                      trendValues={getMetricTrendValues(
+                        cardMetricEntries,
+                        definition.slug,
+                      )}
+                    />
+                  ) : (
+                    <EstimatedBmrCard key={key} />
+                  ),
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
 
-      <div className="dashboard-tracking-summaries">
-        <DashboardRecoveryPanel />
-        <DashboardDietPanel />
-        <DashboardWorkoutPanel />
+        <DashboardDailyTrackers />
       </div>
 
       <section className="insights-card" aria-label="Pro insights">
@@ -247,62 +243,76 @@ function DashboardRoute() {
         )}
       </section>
 
-      <section className="entries-card" aria-label="Metric entries">
-        <div className="entries-toolbar">
-          <div>
-            <h2>Recent Entries</h2>
+      <details className="dashboard-source-history">
+        <summary>
+          Recent source entries ({recentMetricEntries.length})
+          <small>Individual records · expand to inspect</small>
+        </summary>
+        <p className="dashboard-source-context">
+          Some imported records cover part of a day. Use the metric summaries
+          above for daily totals.
+        </p>
+        <section className="entries-card" aria-label="Metric entries">
+          <div className="entries-toolbar">
+            <div>
+              <h2>Recent source entries</h2>
+            </div>
+
+            <div className="entries-controls">
+              <label className="entries-filter">
+                Filter recent entries by metric
+                <select
+                  value={selectedMetricSlug}
+                  onChange={(event) =>
+                    setSelectedMetricSlug(event.target.value)
+                  }
+                >
+                  <option value="">All metrics</option>
+                  {metricDefinitions.map((definition) => (
+                    <option key={definition.id} value={definition.slug}>
+                      {definition.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           </div>
 
-          <div className="entries-controls">
-            <label className="entries-filter">
-              Filter recent entries by metric
-              <select
-                value={selectedMetricSlug}
-                onChange={(event) => setSelectedMetricSlug(event.target.value)}
-              >
-                <option value="">All metrics</option>
-                {metricDefinitions.map((definition) => (
-                  <option key={definition.id} value={definition.slug}>
-                    {definition.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+          {cardMetricEntriesAreLoading || metricEntriesAreLoading ? (
+            <p>Loading metric entries...</p>
+          ) : null}
+          {cardMetricEntriesFailed || metricEntriesFailed ? (
+            <p>Metric entries failed to load</p>
+          ) : null}
+
+          {!metricEntriesAreLoading &&
+          !metricEntriesFailed &&
+          recentMetricEntries.length === 0 ? (
+            <p className="empty-state">
+              No entries yet{selectedMetricSlug ? " for this metric" : ""}. Use
+              Add entry on a metric card to get started.
+            </p>
+          ) : null}
+          <div className="entry-list">
+            {recentMetricEntries.map((entry) => (
+              <MetricEntrySummary
+                key={entry.id}
+                metricName={
+                  metricDefinitionsBySlug.get(entry.metric_definition)?.name ??
+                  entry.metric_definition
+                }
+                metricSlug={entry.metric_definition}
+                recordedAt={entry.recorded_at}
+                source={entry.source}
+                unit={
+                  metricDefinitionsBySlug.get(entry.metric_definition)?.unit
+                }
+                value={entry.value}
+              />
+            ))}
           </div>
-        </div>
-
-        {cardMetricEntriesAreLoading || metricEntriesAreLoading ? (
-          <p>Loading metric entries...</p>
-        ) : null}
-        {cardMetricEntriesFailed || metricEntriesFailed ? (
-          <p>Metric entries failed to load</p>
-        ) : null}
-
-        {!metricEntriesAreLoading &&
-        !metricEntriesFailed &&
-        recentMetricEntries.length === 0 ? (
-          <p className="empty-state">
-            No entries yet{selectedMetricSlug ? " for this metric" : ""}. Use
-            Add entry on a metric card to get started.
-          </p>
-        ) : null}
-        <div className="entry-list">
-          {recentMetricEntries.map((entry) => (
-            <MetricEntrySummary
-              key={entry.id}
-              metricName={
-                metricDefinitionsBySlug.get(entry.metric_definition)?.name ??
-                entry.metric_definition
-              }
-              metricSlug={entry.metric_definition}
-              recordedAt={entry.recorded_at}
-              source={entry.source}
-              unit={metricDefinitionsBySlug.get(entry.metric_definition)?.unit}
-              value={entry.value}
-            />
-          ))}
-        </div>
-      </section>
+        </section>
+      </details>
       {entryDefinition ? (
         <MetricEntryDialog
           metricDefinition={entryDefinition}

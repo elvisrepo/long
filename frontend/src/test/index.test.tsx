@@ -710,7 +710,7 @@ describe("dashboard route", () => {
       0,
     );
     expect(
-      screen.getByRole("heading", { name: /recent entries/i }),
+      screen.getByRole("heading", { name: /recent source entries/i }),
     ).toBeInTheDocument();
     expect(
       within(screen.getByRole("region", { name: /metric entries/i })).getByText(
@@ -976,6 +976,27 @@ describe("dashboard route", () => {
     expect(
       within(insights).getByRole("link", { name: /consistency/i }),
     ).toHaveTextContent(/no recent data/i);
+  });
+
+  it("keeps source entries collapsed until requested and explains partial-day records", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    mockLoadedMetricDefinitions();
+    renderRoute("/");
+    await screen.findByRole("heading", { name: /dashboard/i });
+    const summary = screen.getByText(/Recent source entries \(/);
+    expect(summary.closest("details")).not.toHaveAttribute("open");
+    expect(
+      screen.getByRole("region", { name: /metric entries/i }),
+    ).not.toBeVisible();
+    await userEvent.setup().click(summary);
+    expect(
+      screen.getByRole("region", { name: /metric entries/i }),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        "Some imported records cover part of a day. Use the metric summaries above for daily totals.",
+      ),
+    ).toBeVisible();
   });
 
   it("limits recent entries on the dashboard", async () => {
