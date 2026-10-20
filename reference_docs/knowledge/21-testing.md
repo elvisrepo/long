@@ -1867,3 +1867,18 @@ real Steps totals and all ranges, native dialog focus containment/return,
 fractional-input rejection, UTC date links, history expansion, no horizontal
 overflow, and unchanged HRV presentation. No API writes or page errors occurred.
 Local verification scripts/screenshots remain ignored under playground and /tmp.
+
+### Recovery compact checklist — 2026-10-20
+
+All 633 frontend tests across 103 files pass, including four new Recovery checks:
+date/history context before tools, collapsed bars and exact evidence, distinct
+recorded-day counts including archived tools without inflating the active-tool
+daily count, and disabled check-offs/loading copy during selected-day fetching.
+Existing tests retain check-off/undo/error, Pro creation, downgrade restrictions,
+archive/history, full date navigation and cancelled-dialog focus/draft coverage.
+
+Real-account Light browser checks cover 320/390/768/1440px, actual past-day records,
+the full date picker, context placement, no overflow, closed/open research, and
+native modal focus containment/return. The 390px date controls fit on one row;
+narrower controls may wrap. Browser verification makes no account writes. ESLint
+and production build pass; no API, route or backend changes are included.

@@ -356,3 +356,26 @@ Steps browser checks at 320/390/768/1440px cover range switching, summaries,
 history/source expansion, dialog focus, fractional-input rejection, selected-date
 links, and unchanged HRV presentation. No API writes, page errors, or horizontal
 overflow occurred. No API contracts, routes, schema, or normal-account data changed.
+
+## Recovery — 20 October 2026 (proposal A implemented)
+
+The Light review at `.lavish/recovery-review/index.html` compares the actual page
+with A (compact checklist) and B (visual cards). The owner approved all of A.
+The implemented page has a short header, one combined date/count/recent-days panel
+above tools at every width, a single shared-tool checklist with blue icon tiles,
+per-tool collapsed research, and a compact custom-tools panel with nearby Add tool.
+The separate sidebar and repeated introductory research explanations are removed.
+One About the research disclosure retains the source and interpretation limits.
+
+The date picker keeps its full range. History stays anchored to today, includes
+archived activity counts, and now explicitly shows distinct days with records.
+The selected count still describes active-tool check-offs only. Loading is stated
+while changing dates; writes remain confirmed by the server. Existing Pro creation,
+custom logging after downgrade, modal draft/error/focus behavior and archive/restore
+are preserved. No new target, readiness score, quota or backend contract is added.
+
+Validation: all 633 frontend tests, ESLint and production build pass. Real-account
+browser checks at 320/390/768/1440px cover the context-before-tools order, collapsed
+research, past-day records, full date navigation, cancelled creation and modal focus.
+No API writes, page errors or horizontal overflow occurred. The proposal artifact
+remains the design comparison; the app is the implemented source of truth.

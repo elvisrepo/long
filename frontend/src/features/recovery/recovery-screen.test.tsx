@@ -67,6 +67,20 @@ describe("Recovery", () => {
   });
   afterEach(() => vi.useRealTimers());
 
+  it("keeps date controls and recent days together before the checklist", async () => {
+    renderRecovery();
+    const checkbox = await screen.findByRole("checkbox", { name: "Massage" });
+    const daily = screen.getByRole("region", { name: "Daily tracking" });
+    expect(within(daily).getByLabelText("Tracking date")).toBeInTheDocument();
+    expect(
+      within(daily).getAllByRole("button", { name: /activities recorded/ }),
+    ).toHaveLength(7);
+    expect(
+      daily.compareDocumentPosition(checkbox) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("shows soreness evidence, the source and Free custom-tool restriction", async () => {
     renderRecovery();
     expect(
@@ -84,6 +98,21 @@ describe("Recovery", () => {
     expect(
       screen.queryByRole("button", { name: "Add tool" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("keeps the soreness bar and exact evidence inside the tool disclosure", async () => {
+    renderRecovery();
+    await screen.findByRole("checkbox", { name: "Massage" });
+    const details = screen.getByText("Research details").closest("details")!;
+    const bar = document.querySelector(".recovery-evidence-bar")!;
+    expect(details).toContainElement(bar as HTMLElement);
+    expect(details).not.toHaveAttribute("open");
+    expect(bar).not.toBeVisible();
+    await userEvent.click(screen.getByText("Research details"));
+    expect(bar).toBeVisible();
+    expect(
+      within(details).getByText(/158 subjects · 14 experimental groups/),
+    ).toBeVisible();
   });
 
   it("saves and undoes the selected day's check-off", async () => {
@@ -264,7 +293,74 @@ describe("Recovery", () => {
         name: "2026-09-28: 1 activities recorded",
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText("No activities recorded")).toBeInTheDocument();
+    expect(
+      await screen.findByText("No activities recorded"),
+    ).toBeInTheDocument();
+  });
+
+  it("counts recorded days once and includes archived tools only in history", async () => {
+    const entries = [
+      {
+        id: 1,
+        tool_id: massage.id,
+        performed_on: "2026-09-30",
+        created_at: "2026-09-30T10:00:00Z",
+      },
+      {
+        id: 2,
+        tool_id: "archived-id",
+        performed_on: "2026-09-30",
+        created_at: "2026-09-30T10:00:00Z",
+      },
+      {
+        id: 3,
+        tool_id: "archived-id",
+        performed_on: "2026-09-28",
+        created_at: "2026-09-28T10:00:00Z",
+      },
+    ];
+    vi.mocked(getRecoveryEntries).mockImplementation(async (from, to) =>
+      entries.filter(
+        (entry) => entry.performed_on >= from && entry.performed_on <= to,
+      ),
+    );
+    renderRecovery();
+    expect(
+      await screen.findByRole("checkbox", { name: "Massage" }),
+    ).toBeChecked();
+    expect(
+      screen.getByText(/Last 7 days · 2 days with records/),
+    ).toBeInTheDocument();
+    expect(screen.getByText("1 activity recorded")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "2026-09-30: 2 activities recorded" }),
+    ).toBeInTheDocument();
+  });
+
+  it("disables check-offs and shows loading while a selected day is fetching", async () => {
+    let resolveDay!: (entries: []) => void;
+    vi.mocked(getRecoveryEntries).mockImplementation(async (from, to) => {
+      if (from === "2026-09-20" && to === from)
+        return new Promise<[]>((resolve) => {
+          resolveDay = resolve;
+        });
+      return [];
+    });
+    renderRecovery();
+    const checkbox = await screen.findByRole("checkbox", { name: "Massage" });
+    fireEvent.change(screen.getByLabelText("Tracking date"), {
+      target: { value: "2026-09-20" },
+    });
+    expect(await screen.findByText("Loading activities…")).toBeInTheDocument();
+    expect(checkbox).toBeDisabled();
+    expect(
+      screen.queryByText("No activities recorded"),
+    ).not.toBeInTheDocument();
+    resolveDay([]);
+    expect(
+      await screen.findByText("No activities recorded"),
+    ).toBeInTheDocument();
+    expect(checkbox).toBeEnabled();
   });
 
   it("preserves the name when custom creation is refused", async () => {
