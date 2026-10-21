@@ -546,9 +546,9 @@ group labels to both occurrence models without a new group table.
 
 ### Home compact session hub — 2026-10-21
 
-Approved proposal A applies to Home only: title first, compact six-destination
-navigation (3×2 on phones), and a selected-date/session-count panel with full date
-navigation. Loading and failed reads do not masquerade as an empty day. Creation
+Approved proposal A applies to Home only, with a selected-date/session-count
+panel and full date navigation. A follow-up restores the original bordered
+six-destination navigation above the title, wrapping naturally on phones. Loading and failed reads do not masquerade as an empty day. Creation
 appears once per state; starting a session still opens the existing exercise picker
 without starting timing. The previously removed statistics/week sidebar stays absent.
 

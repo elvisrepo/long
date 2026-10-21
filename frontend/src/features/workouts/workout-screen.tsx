@@ -153,12 +153,6 @@ export function WorkoutScreen({
   );
   return (
     <div className={`workout-screen${view === "home" ? " workout-home" : ""}`}>
-      {view === "home" && (
-        <header className="workout-home-heading">
-          <h1>Workouts</h1>
-          <p>Choose a session to view or continue your training.</p>
-        </header>
-      )}
       <nav className="workout-tabs" aria-label="Workout navigation">
         {(
           [
@@ -185,6 +179,12 @@ export function WorkoutScreen({
           </button>
         ))}
       </nav>
+      {view === "home" && (
+        <header className="workout-home-heading">
+          <h1>Workouts</h1>
+          <p>Choose a session to view or continue your training.</p>
+        </header>
+      )}
       {mutation.isError && (
         <p role="alert" className="workout-error">
           {mutation.error.message}

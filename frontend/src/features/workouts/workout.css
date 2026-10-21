@@ -632,18 +632,6 @@
 .workout-home-heading p {
   margin: 0.5rem 0 0;
 }
-.workout-home .workout-tabs button {
-  background: transparent;
-  border-color: transparent;
-  color: var(--text-dim);
-  padding: 0.5rem 0.75rem;
-  font-size: 0.8125rem;
-}
-.workout-home .workout-tabs button[aria-pressed="true"] {
-  background: var(--accent-dim);
-  border-color: var(--accent);
-  color: var(--accent);
-}
 .workout-home-context {
   padding: 1.25rem;
   border: 1px solid var(--border);
@@ -852,16 +840,6 @@
   .workout-home-heading h1 {
     font-size: 1.75rem;
   }
-  .workout-home .workout-tabs {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.25rem;
-  }
-  .workout-home .workout-tabs button {
-    min-width: 0;
-    font-size: 0.75rem;
-    padding: 0.4375rem 0.5rem;
-  }
   .workout-home-context,
   .workout-home-session {
     padding: 1rem;
@@ -875,12 +853,9 @@
   }
 }
 
-.workout-home button:not(.primary-button) {
+.workout-home button:not(.primary-button):not([aria-pressed]) {
   background: var(--panel-bg);
 }
 .workout-home-menu > summary {
   background: var(--panel-bg);
-}
-.workout-home .workout-tabs button[aria-pressed="false"] {
-  background: transparent;
 }
