@@ -344,6 +344,9 @@ for (const width of [320, 390, 1440])
       }),
     ).toBeVisible();
     await page.getByText("More actions ···", { exact: true }).click();
+    await page
+      .getByRole("button", { name: "Manage workout", exact: true })
+      .click();
     await page.getByRole("button", { name: "Save as routine day" }).click();
     await page.getByLabel("New routine name").fill("Weekly plan");
     await page.getByLabel("Day name", { exact: true }).fill("Push");
@@ -374,7 +377,7 @@ for (const width of [320, 390, 1440])
     ).toBeVisible();
     await page.getByText("More actions ···", { exact: true }).click();
     await page
-      .getByRole("button", { name: "Session notes", exact: true })
+      .getByRole("button", { name: "Edit workout", exact: true })
       .click();
     await expect(
       page.getByRole("textbox", { name: /Session notes/ }),

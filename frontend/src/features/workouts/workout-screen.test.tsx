@@ -126,10 +126,10 @@ it("reveals Home exercise management deliberately and keeps delete confirmation"
     }),
   ).not.toBeInTheDocument();
   expect(
-    screen.getByRole("button", { name: "Delete workout", exact: true }),
-  ).not.toBeVisible();
+    screen.queryByRole("button", { name: "Delete workout", exact: true }),
+  ).not.toBeInTheDocument();
   await user.click(screen.getByText("More actions ···"));
-  await user.click(screen.getByRole("button", { name: "Manage exercises" }));
+  await user.click(screen.getByRole("button", { name: "Manage workout" }));
   expect(
     screen.getByRole("button", {
       name: "Remove Barbell bench press from workout",
@@ -142,6 +142,7 @@ it("reveals Home exercise management deliberately and keeps delete confirmation"
     }),
   ).not.toBeInTheDocument();
   await user.click(screen.getByText("More actions ···"));
+  await user.click(screen.getByRole("button", { name: "Manage workout" }));
   await user.click(
     screen.getByRole("button", { name: "Delete workout", exact: true }),
   );
@@ -160,10 +161,13 @@ it("opens Home duration correction from More actions without starting timing", a
   mount({ date: workout.performed_on });
   await screen.findByRole("heading", { name: "Workout", exact: true });
   expect(
-    screen.getByRole("button", { name: "Correct duration" }),
-  ).not.toBeVisible();
+    screen.queryByRole("button", { name: "Correct duration" }),
+  ).not.toBeInTheDocument();
   expect(screen.queryByRole("timer")).not.toBeInTheDocument();
   await user.click(screen.getByText("More actions ···"));
+  await user.click(
+    screen.getByRole("button", { name: "Time workout", exact: true }),
+  );
   await user.click(screen.getByRole("button", { name: "Correct duration" }));
   expect(
     screen.getByRole("dialog", { name: "Correct workout duration" }),
@@ -176,8 +180,11 @@ it("opens Home duration correction from More actions without starting timing", a
     }),
   );
   await waitFor(() =>
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    expect(
+      screen.queryByRole("dialog", { name: "Correct workout duration" }),
+    ).not.toBeInTheDocument(),
   );
+  expect(screen.getByRole("dialog", { name: "Time workout" })).toBeVisible();
 });
 
 it("keeps Home date controls without repeated headings or session count", async () => {
@@ -213,15 +220,15 @@ it.each([false, true])(
     mount({ date: workout.performed_on });
     await user.click(
       await screen.findByRole("button", {
-        name: finished ? "View workout" : "Continue workout",
+        name: "Open Barbell bench press",
       }),
     );
     expect(
-      await screen.findByRole("button", { name: "Open Barbell bench press" }),
+      await screen.findByRole("heading", {
+        name: "Barbell bench press",
+        exact: true,
+      }),
     ).toBeVisible();
-    expect(
-      screen.queryByRole("button", { name: "Save completed set" }),
-    ).not.toBeInTheDocument();
     expect(api.updateWorkout).not.toHaveBeenCalled();
     expect(api.createWorkout).not.toHaveBeenCalled();
     expect(api.addWorkoutExercise).not.toHaveBeenCalled();
@@ -234,7 +241,7 @@ it("opens the exercise picker for an empty saved Home session", async () => {
   ]);
   mount({ date: workout.performed_on });
   await userEvent.click(
-    await screen.findByRole("button", { name: "Continue workout" }),
+    await screen.findByRole("button", { name: "Add exercise", exact: true }),
   );
   expect(
     await screen.findByRole("heading", { name: "All exercises" }),
@@ -342,9 +349,7 @@ it("moves a Home exercise and reloads the server-confirmed order", async () => {
   });
   mount({ date: workout.performed_on });
   await userEvent.click(await screen.findByText("More actions ···"));
-  await userEvent.click(
-    screen.getByRole("button", { name: "Manage exercises" }),
-  );
+  await userEvent.click(screen.getByRole("button", { name: "Manage workout" }));
   await userEvent.click(
     await screen.findByRole("button", { name: "Move exercise 2 (Row) up" }),
   );
@@ -714,15 +719,15 @@ it("offers confirmed exercise removal on the workout overview", async () => {
   vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
   mount({ date: "2026-10-02" });
   await userEvent.click(await screen.findByText("More actions ···"));
-  await userEvent.click(
-    screen.getByRole("button", { name: "Manage exercises" }),
-  );
+  await userEvent.click(screen.getByRole("button", { name: "Manage workout" }));
   await userEvent.click(
     await screen.findByRole("button", {
       name: "Remove Barbell bench press from workout",
     }),
   );
-  expect(screen.getByRole("dialog")).toHaveTextContent("sets");
+  expect(
+    screen.getByRole("dialog", { name: "Remove Barbell bench press?" }),
+  ).toHaveTextContent("sets");
   expect(api.deleteWorkoutItem).not.toHaveBeenCalled();
   await userEvent.click(
     screen.getByRole("button", { name: "Confirm exercise removal" }),
@@ -739,9 +744,7 @@ it("cancels removal without deleting data", async () => {
   vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
   mount({ date: workout.performed_on });
   await userEvent.click(await screen.findByText("More actions ···"));
-  await userEvent.click(
-    screen.getByRole("button", { name: "Manage exercises" }),
-  );
+  await userEvent.click(screen.getByRole("button", { name: "Manage workout" }));
   await userEvent.click(
     await screen.findByRole("button", {
       name: "Remove Barbell bench press from workout",
@@ -751,7 +754,9 @@ it("cancels removal without deleting data", async () => {
     screen.getByRole("button", { name: "Cancel", exact: true }),
   );
   expect(api.deleteWorkoutItem).not.toHaveBeenCalled();
-  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("dialog", { name: "Remove Barbell bench press?" }),
+  ).not.toBeInTheDocument();
 });
 
 it("keeps the confirmation and error visible if removal fails", async () => {
@@ -761,9 +766,7 @@ it("keeps the confirmation and error visible if removal fails", async () => {
   );
   mount({ date: workout.performed_on });
   await userEvent.click(await screen.findByText("More actions ···"));
-  await userEvent.click(
-    screen.getByRole("button", { name: "Manage exercises" }),
-  );
+  await userEvent.click(screen.getByRole("button", { name: "Manage workout" }));
   await userEvent.click(
     await screen.findByRole("button", {
       name: "Remove Barbell bench press from workout",
@@ -773,7 +776,9 @@ it("keeps the confirmation and error visible if removal fails", async () => {
     screen.getByRole("button", { name: "Confirm exercise removal" }),
   );
   expect(await screen.findByRole("alert")).toHaveTextContent("Removal failed");
-  expect(screen.getByRole("dialog")).toBeInTheDocument();
+  expect(
+    screen.getByRole("dialog", { name: "Remove Barbell bench press?" }),
+  ).toBeInTheDocument();
 });
 
 it("requires reopening a finished workout before removing an exercise", async () => {
@@ -782,9 +787,7 @@ it("requires reopening a finished workout before removing an exercise", async ()
   ]);
   mount({ date: workout.performed_on });
   await userEvent.click(await screen.findByText("More actions ···"));
-  await userEvent.click(
-    screen.getByRole("button", { name: "Manage exercises" }),
-  );
+  await userEvent.click(screen.getByRole("button", { name: "Manage workout" }));
   expect(
     await screen.findByRole("button", {
       name: "Remove Barbell bench press from workout",
@@ -1150,13 +1153,13 @@ it("opens timing help from the Home session menu without starting the clock", as
   expect(
     screen.queryByText("Keep the last rep controlled"),
   ).not.toBeInTheDocument();
-  expect(screen.getByText("About workout timing")).not.toBeVisible();
+  expect(screen.queryByText("About workout timing")).not.toBeInTheDocument();
   await userEvent.click(screen.getByText("More actions ···"));
   await userEvent.click(
-    screen.getByRole("button", { name: "About workout timing" }),
+    screen.getByRole("button", { name: "Time workout", exact: true }),
   );
   expect(
-    screen.getByRole("dialog", { name: "About workout timing" }),
+    screen.getByRole("dialog", { name: "Time workout" }),
   ).toHaveTextContent("Rest between sets counts unless paused");
   expect(api.updateWorkout).not.toHaveBeenCalled();
 });
@@ -1206,8 +1209,8 @@ it("keeps the Home overview to exercise logs and opens timing through its menu",
     screen.queryByRole("button", { name: "Start timer" }),
   ).not.toBeInTheDocument();
   expect(
-    screen.getByRole("button", { name: "Continue workout" }),
-  ).not.toBeVisible();
+    screen.queryByRole("button", { name: "Continue workout" }),
+  ).not.toBeInTheDocument();
   await userEvent.click(screen.getByText("More actions ···"));
   await userEvent.click(
     screen.getByRole("button", { name: "Time workout", exact: true }),
@@ -1283,4 +1286,35 @@ it("steps exercise values and clears the draft without writing sets", async () =
   expect(screen.getByLabelText("Weight (kg)")).toHaveValue(null);
   expect(screen.getByLabelText("Reps")).toHaveValue(null);
   expect(api.saveWorkoutSet).not.toHaveBeenCalled();
+});
+
+it("offers six workout actions with secondary actions inside Manage workout", async () => {
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
+  mount({ date: workout.performed_on });
+  await userEvent.click(await screen.findByText("More actions ···"));
+  const menu = screen.getByLabelText("Actions for Workout").parentElement!;
+  expect(
+    Array.from(menu.querySelectorAll("button")).map((button) =>
+      button.textContent?.trim(),
+    ),
+  ).toEqual([
+    "Edit workout",
+    "Time workout",
+    "Copy workout",
+    "Export workout",
+    "Finish workout",
+    "Manage workout",
+  ]);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Manage workout", exact: true }),
+  );
+  const management = screen.getByRole("dialog", { name: "Manage workout" });
+  expect(management).toHaveTextContent("Save as routine day");
+  expect(management).toHaveTextContent("Delete workout");
+  expect(
+    screen.getByRole("button", {
+      name: "Remove Barbell bench press from workout",
+    }),
+  ).toBeVisible();
+  expect(api.updateWorkout).not.toHaveBeenCalled();
 });

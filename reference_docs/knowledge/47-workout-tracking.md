@@ -658,3 +658,15 @@ to the entry form; an existing comment is retained when editing. The menu suppor
 Close and Escape; planned submission closes it. Numeric order is preserved on
 edit; reordering stays in management. Graph opens existing exercise progress.
 The minimal workout log remains the default on opening or refreshing its URL.
+
+
+### Compact workout actions — 2026-10-21
+
+The workout log overflow has six actions: Edit workout, Time workout, Copy
+workout, Export workout, Finish/Reopen workout, and Manage workout. Add exercise
+stays next to the overflow. Tapping exercise cards opens editing directly.
+Edit workout combines name, date and notes. Time workout contains timer controls,
+duration correction and timing help. Manage workout contains exercise ordering
+and confirmed removal, Save as routine day, and confirmed workout deletion.
+Finished workouts must be reopened before their exercises can be changed.
+No route or API contract changes.

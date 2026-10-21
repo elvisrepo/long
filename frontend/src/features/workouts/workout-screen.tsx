@@ -603,15 +603,7 @@ function SessionCard({
 }) {
   const [managing, setManaging] = useState(false);
   const [dialog, setDialog] = useState<
-    | "edit"
-    | "delete"
-    | "copy"
-    | "routine"
-    | "export"
-    | "duration"
-    | "timing-help"
-    | "time"
-    | null
+    "edit" | "delete" | "copy" | "routine" | "export" | "time" | null
   >(null);
   return (
     <section className="workout-card workout-home-session">
@@ -658,31 +650,17 @@ function SessionCard({
             <span>More actions ···</span>
           </summary>
           <div className="workout-home-menu-items">
-            {" "}
-            <button
-              disabled={busy}
-              onClick={() => {
-                const first = w.exercises[0];
-                navigate(
-                  first
-                    ? {
-                        view: "training",
-                        date: w.performed_on,
-                        session: w.id,
-                        exercise: first.id,
-                      }
-                    : {
-                        view: "exercises",
-                        date: w.performed_on,
-                        session: w.id,
-                      },
-                );
-              }}
-            >
-              {w.is_finished ? "View workout" : "Continue workout"}
+            <button disabled={busy} onClick={() => setDialog("edit")}>
+              Edit workout
             </button>
             <button disabled={busy} onClick={() => setDialog("time")}>
               Time workout
+            </button>
+            <button disabled={busy} onClick={() => setDialog("copy")}>
+              Copy workout
+            </button>
+            <button disabled={busy} onClick={() => setDialog("export")}>
+              Export workout
             </button>
             <button
               disabled={busy}
@@ -696,54 +674,12 @@ function SessionCard({
             >
               {w.is_finished ? "Reopen workout" : "Finish workout"}
             </button>
-            <button disabled={busy} onClick={() => setDialog("edit")}>
-              Session details
-            </button>
-            <button disabled={busy} onClick={() => setDialog("edit")}>
-              Session notes
-            </button>
-            <button disabled={busy} onClick={() => setDialog("copy")}>
-              Copy workout
-            </button>
-            <button disabled={busy} onClick={() => setDialog("export")}>
-              Export workout
-            </button>
-            <button
-              disabled={busy || !w.exercises.length}
-              onClick={() => setDialog("routine")}
-            >
-              Save as routine day
-            </button>
-            <button disabled={busy} onClick={() => setDialog("timing-help")}>
-              About workout timing
-            </button>
-            <button disabled={busy} onClick={() => setDialog("duration")}>
-              Correct duration
-            </button>
             <button disabled={busy} onClick={() => setManaging(true)}>
-              Manage exercises
-            </button>
-            <button
-              className="workout-danger"
-              disabled={busy}
-              onClick={() => setDialog("delete")}
-            >
-              Delete workout
+              Manage workout
             </button>
           </div>
         </details>
       </div>
-      <WorkoutTiming
-        workout={w}
-        busy={busy}
-        run={run}
-        compact
-        controlsHidden
-        correctionOpen={dialog === "duration"}
-        onCorrectionClose={() => setDialog(null)}
-        helpOpen={dialog === "timing-help"}
-        onHelpClose={() => setDialog(null)}
-      />
       {dialog === "time" && (
         <Modal
           labelledBy={`workout-time-${w.id}`}
@@ -758,7 +694,7 @@ function SessionCard({
         </Modal>
       )}
       <div className="workout-home-exercises">
-        {w.exercises.map((item, index) => (
+        {w.exercises.map((item) => (
           <div
             key={item.id}
             className={`workout-home-exercise${item.group_name ? " workout-group-mark" : ""}`}
@@ -825,35 +761,65 @@ function SessionCard({
                 )}
               </span>
             </button>
-            {managing && (
-              <div className="workout-home-management">
-                <WorkoutOrderControls
-                  kind="session-exercises"
-                  id={item.id}
-                  label={`exercise ${index + 1} (${item.exercise_name})`}
-                  index={index}
-                  count={w.exercises.length}
-                  disabled={busy || w.is_finished}
-                  run={run}
-                />
-                <RemoveWorkoutExercise
-                  item={item}
-                  finished={w.is_finished}
-                  busy={busy}
-                  run={run}
-                />
-              </div>
-            )}
           </div>
         ))}
       </div>
       {managing && (
-        <button
-          className="workout-home-done"
-          onClick={() => setManaging(false)}
+        <Modal
+          labelledBy={`workout-manage-${w.id}`}
+          busy={busy}
+          onClose={() => setManaging(false)}
         >
-          Done managing
-        </button>
+          <h2 id={`workout-manage-${w.id}`}>Manage workout</h2>
+          {w.exercises.map((item, index) => (
+            <section className="workout-inset" key={item.id}>
+              <h3>{item.exercise_name}</h3>
+              <WorkoutOrderControls
+                kind="session-exercises"
+                id={item.id}
+                label={`exercise ${index + 1} (${item.exercise_name})`}
+                index={index}
+                count={w.exercises.length}
+                disabled={busy || w.is_finished}
+                run={run}
+              />
+              <RemoveWorkoutExercise
+                item={item}
+                finished={w.is_finished}
+                busy={busy}
+                run={run}
+              />
+            </section>
+          ))}
+          {!w.exercises.length && <p>No exercises in this workout yet.</p>}
+          {w.is_finished && (
+            <p>Reopen this workout to reorder or remove exercises.</p>
+          )}
+          <div className="workout-actions">
+            <button
+              disabled={busy || !w.exercises.length}
+              onClick={() => {
+                setManaging(false);
+                setDialog("routine");
+              }}
+            >
+              Save as routine day
+            </button>
+            <button
+              className="workout-danger"
+              disabled={busy}
+              onClick={() => {
+                setManaging(false);
+                setDialog("delete");
+              }}
+            >
+              Delete workout
+            </button>
+            <button disabled={busy} onClick={() => setManaging(false)}>
+              Done managing
+            </button>
+          </div>
+        </Modal>
       )}
       {dialog === "routine" && (
         <SaveRoutineDayDialog
@@ -883,7 +849,7 @@ function SessionCard({
           onClose={() => setDialog(null)}
         >
           <h2 id={`session-dialog-${w.id}`}>
-            {dialog === "delete" ? "Delete workout?" : "Session details"}
+            {dialog === "delete" ? "Delete workout?" : "Edit workout"}
           </h2>
           {dialog === "delete" ? (
             <>

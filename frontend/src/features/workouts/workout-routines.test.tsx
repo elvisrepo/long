@@ -105,6 +105,10 @@ it("captures a saved workout as a named day in a new routine", async () => {
     exercises: [],
   });
   mount();
+  await userEvent.click(await screen.findByText("More actions ···"));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Manage workout", exact: true }),
+  );
   await userEvent.click(
     await screen.findByRole("button", { name: "Save as routine day" }),
   );
@@ -146,6 +150,10 @@ it("retains a confirmed new routine after its day save fails, and retries withou
       exercises: [],
     });
   mount();
+  await userEvent.click(await screen.findByText("More actions ···"));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Manage workout", exact: true }),
+  );
   await userEvent.click(
     await screen.findByRole("button", { name: "Save as routine day" }),
   );

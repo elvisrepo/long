@@ -2009,3 +2009,13 @@ JS errors or tracker writes. The phone menu stays within the viewport and suppor
 Close/Escape; planned-set submission closes it. Build and lint pass.
 The four mocked workout browser journeys pass through Save, Clear, editing,
 comments and planned entry via the menu, completion, copy/export and routines.
+
+
+### Compact workout menu — 2026-10-21
+
+The menu regression asserts exactly six actions and verifies management opens
+without writes. Existing tests follow Manage workout into removal, cancellation,
+failed-removal handling, ordering and routine capture/retry. Duration correction
+and timing help are reached through Time workout; exercise cards open the editor
+directly. All 656 frontend tests, four mocked workout browser journeys at mobile
+and desktop widths, ESLint and the production build pass.
