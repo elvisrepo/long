@@ -286,7 +286,9 @@ for (const width of [320, 390, 1440])
     ).toBe(true);
     await page.getByText("Workout options", { exact: true }).click();
     await page.getByRole("button", { name: "Workout overview" }).click();
+    await page.getByText("More actions ···", { exact: true }).click();
     await page.getByRole("button", { name: "Finish workout" }).click();
+    await page.getByText("More actions ···", { exact: true }).click();
     await expect(
       page.getByRole("button", { name: "Reopen workout" }),
     ).toBeVisible();
@@ -324,8 +326,9 @@ for (const width of [320, 390, 1440])
       .click();
     await page.getByRole("button", { name: "Create planned workout" }).click();
     await expect(
-      page.getByText("0 completed sets · 1 exercise", { exact: true }),
+      page.getByText(/^0 completed sets · \d+ planned · 1 exercise$/),
     ).toBeVisible();
+    await page.getByText("More actions ···", { exact: true }).click();
     await page.getByRole("button", { name: "Save as routine day" }).click();
     await page.getByLabel("New routine name").fill("Weekly plan");
     await page.getByLabel("Day name", { exact: true }).fill("Push");
@@ -349,8 +352,9 @@ for (const width of [320, 390, 1440])
       page.getByRole("heading", { name: "Weekly plan · Push" }),
     ).toBeVisible();
     await expect(
-      page.getByText("0 completed sets · 1 exercise", { exact: true }),
+      page.getByText(/^0 completed sets · \d+ planned · 1 exercise$/),
     ).toBeVisible();
+    await page.getByText("Session notes", { exact: true }).click();
     await expect(
       page.getByText("Warm up first", { exact: true }),
     ).toBeVisible();

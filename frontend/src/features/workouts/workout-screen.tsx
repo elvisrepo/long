@@ -117,8 +117,48 @@ export function WorkoutScreen({
         ? { exercise: search.exercise }
         : {}),
     });
+  const dateControls = (
+    <div className="workout-date-controls date-navigation">
+      <button
+        aria-label="Previous day"
+        disabled={busy}
+        onClick={() => selectDate(shiftDay(day, -1))}
+      >
+        ←
+      </button>
+      <label>
+        <span className={view === "home" ? "visually-hidden" : undefined}>
+          Tracking date
+        </span>
+        <input
+          type="date"
+          value={day}
+          disabled={busy}
+          onChange={(e) => {
+            if (e.target.value) selectDate(e.target.value);
+          }}
+        />
+      </label>
+      <button
+        aria-label="Next day"
+        disabled={busy}
+        onClick={() => selectDate(shiftDay(day, 1))}
+      >
+        →
+      </button>
+      <button disabled={busy} onClick={() => selectDate(localDay(new Date()))}>
+        Today
+      </button>
+    </div>
+  );
   return (
-    <div className="workout-screen">
+    <div className={`workout-screen${view === "home" ? " workout-home" : ""}`}>
+      {view === "home" && (
+        <header className="workout-home-heading">
+          <h1>Workouts</h1>
+          <p>Choose a session to view or continue your training.</p>
+        </header>
+      )}
       <nav className="workout-tabs" aria-label="Workout navigation">
         {(
           [
@@ -171,7 +211,7 @@ export function WorkoutScreen({
           disabled={busy}
         />
       </div>
-      {view !== "training" && (
+      {view !== "training" && view !== "home" && (
         <PageHeader
           title={
             view === "overview"
@@ -210,40 +250,29 @@ export function WorkoutScreen({
           }
         />
       )}
-      {view !== "training" && (
-        <div className="workout-date-controls date-navigation">
-          <button
-            aria-label="Previous day"
-            disabled={busy}
-            onClick={() => selectDate(shiftDay(day, -1))}
-          >
-            ←
-          </button>
-          <label>
-            Tracking date
-            <input
-              type="date"
-              value={day}
-              disabled={busy}
-              onChange={(e) => {
-                if (e.target.value) selectDate(e.target.value);
-              }}
-            />
-          </label>
-          <button
-            aria-label="Next day"
-            disabled={busy}
-            onClick={() => selectDate(shiftDay(day, 1))}
-          >
-            →
-          </button>
-          <button
-            disabled={busy}
-            onClick={() => selectDate(localDay(new Date()))}
-          >
-            Today
-          </button>
-        </div>
+      {view === "home" ? (
+        <section className="workout-home-context" aria-label="Daily sessions">
+          <div>
+            <h2>
+              {day === localDay(new Date()) ? "Today, " : ""}
+              {new Date(`${day}T12:00:00`).toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            </h2>
+            <p role="status">
+              {sessions.isFetching
+                ? "Loading sessions…"
+                : sessions.isError
+                  ? "Sessions unavailable"
+                  : `${sessions.data?.length ?? 0} ${sessions.data?.length === 1 ? "session" : "sessions"} on this day`}
+            </p>
+          </div>
+          {dateControls}
+        </section>
+      ) : (
+        view !== "training" && dateControls
       )}
       {view === "home" &&
         (sessions.isPending ? (
@@ -436,14 +465,28 @@ function WorkoutHome({
   const [copyOpen, setCopyOpen] = useState(false);
   return (
     <div className="workout-stack">
-      <div className="workout-actions">
-        <button className="primary-button" disabled={busy} onClick={start}>
-          Start new workout
-        </button>
-        <button disabled={busy} onClick={() => setCopyOpen(true)}>
-          Copy previous workout
-        </button>
-      </div>
+      {sessions.length > 0 && (
+        <div className="workout-home-toolbar">
+          <h2>Sessions</h2>{" "}
+          <div className="workout-actions">
+            <button
+              className="primary-button"
+              aria-label="Start new workout"
+              disabled={busy}
+              onClick={start}
+            >
+              + New workout
+            </button>
+            <button
+              aria-label="Copy previous workout"
+              disabled={busy}
+              onClick={() => setCopyOpen(true)}
+            >
+              Copy previous
+            </button>
+          </div>
+        </div>
+      )}
       {copyOpen && (
         <CopyWorkoutPicker
           owner={owner}
@@ -466,20 +509,31 @@ function WorkoutHome({
         ))
       ) : (
         <section className="workout-card workout-empty">
-          <button
-            type="button"
-            aria-label="Start workout"
-            className="workout-empty-icon"
-            disabled={busy}
-            onClick={start}
-          >
-            ＋
-          </button>
+          <span className="workout-home-empty-icon" aria-hidden="true">
+            ↗
+          </span>
           <h2>No workout on this day</h2>
           <p>
             Start a session and choose your first exercise, or copy a previous
-            workout.
+            workout. Creating a session does not start its timer.
           </p>
+          <div className="workout-actions">
+            <button
+              className="primary-button"
+              aria-label="Start new workout"
+              disabled={busy}
+              onClick={start}
+            >
+              + New workout
+            </button>
+            <button
+              aria-label="Copy previous workout"
+              disabled={busy}
+              onClick={() => setCopyOpen(true)}
+            >
+              Copy previous
+            </button>
+          </div>
         </section>
       )}
     </div>
@@ -496,11 +550,12 @@ function SessionCard({
   run: RunAction;
   navigate: NavigateWorkout;
 }) {
+  const [managing, setManaging] = useState(false);
   const [dialog, setDialog] = useState<
-    "edit" | "delete" | "copy" | "routine" | "export" | null
+    "edit" | "delete" | "copy" | "routine" | "export" | "duration" | null
   >(null);
   return (
-    <section className="workout-card">
+    <section className="workout-card workout-home-session">
       <div className="workout-card-heading">
         <h2>{w.name}</h2>
         <span
@@ -511,14 +566,27 @@ function SessionCard({
       </div>
       <p>
         {w.completed_set_count} completed{" "}
-        {w.completed_set_count === 1 ? "set" : "sets"} · {w.exercises.length}{" "}
+        {w.completed_set_count === 1 ? "set" : "sets"} ·{" "}
+        {
+          w.exercises.flatMap((e) => e.sets).filter((s) => !s.is_completed)
+            .length
+        }{" "}
+        planned · {w.exercises.length}{" "}
         {w.exercises.length === 1 ? "exercise" : "exercises"}
       </p>
-      <div className="workout-stack">
+      <WorkoutTiming
+        workout={w}
+        busy={busy}
+        run={run}
+        compact
+        correctionOpen={dialog === "duration"}
+        onCorrectionClose={() => setDialog(null)}
+      />
+      <div className="workout-home-exercises">
         {w.exercises.map((item, index) => (
           <div
             key={item.id}
-            className={`workout-inset${item.group_name ? " workout-group-mark" : ""}`}
+            className={`workout-home-exercise${item.group_name ? " workout-group-mark" : ""}`}
             style={
               item.group_name
                 ? { borderInlineStartColor: item.group_colour ?? "#007f68" }
@@ -542,81 +610,159 @@ function SessionCard({
             {item.group_name && (
               <span className="workout-badge">{item.group_name}</span>
             )}
-            {item.sets.map((s, i) => (
-              <div className="workout-summary-row" key={s.id}>
-                <span>
-                  {i + 1}. {setLabel(item, s)}
-                </span>
-                <span
-                  className={`workout-badge workout-status workout-status--${s.is_completed ? "completed" : "planned"}`}
-                >
-                  {s.is_completed ? "Completed" : "Planned"}
-                </span>
+            <p className="workout-note">
+              {item.sets.filter((s) => s.is_completed).length} completed ·{" "}
+              {item.sets.filter((s) => !s.is_completed).length} planned
+            </p>
+            <details className="workout-home-sets">
+              <summary>Set details ({item.sets.length})</summary>
+              {item.sets.map((s, i) => (
+                <div className="workout-summary-row" key={s.id}>
+                  <span>
+                    {i + 1}. {setLabel(item, s)}
+                  </span>
+                  <span
+                    className={`workout-badge workout-status workout-status--${s.is_completed ? "completed" : "planned"}`}
+                  >
+                    {s.is_completed ? "Completed" : "Planned"}
+                  </span>
+                </div>
+              ))}
+              {!item.sets.length && <p>No sets yet</p>}
+            </details>
+            {managing && (
+              <div className="workout-home-management">
+                <WorkoutOrderControls
+                  kind="session-exercises"
+                  id={item.id}
+                  label={`exercise ${index + 1} (${item.exercise_name})`}
+                  index={index}
+                  count={w.exercises.length}
+                  disabled={busy || w.is_finished}
+                  run={run}
+                />
+                <RemoveWorkoutExercise
+                  item={item}
+                  finished={w.is_finished}
+                  busy={busy}
+                  run={run}
+                />
               </div>
-            ))}
-            {!item.sets.length && <p>No sets yet</p>}
-            <WorkoutOrderControls
-              kind="session-exercises"
-              id={item.id}
-              label={`exercise ${index + 1} (${item.exercise_name})`}
-              index={index}
-              count={w.exercises.length}
-              disabled={busy || w.is_finished}
-              run={run}
-            />
-            <RemoveWorkoutExercise
-              item={item}
-              finished={w.is_finished}
-              busy={busy}
-              run={run}
-            />
+            )}
           </div>
         ))}
       </div>
-      {w.notes && <p className="workout-note">{w.notes}</p>}
-      <WorkoutTiming workout={w} busy={busy} run={run} />
-      <div className="workout-actions">
-        <button
-          disabled={busy}
-          onClick={() =>
-            navigate({ view: "exercises", date: w.performed_on, session: w.id })
-          }
+      {w.notes && (
+        <details className="workout-home-notes">
+          <summary>Session notes</summary>
+          <p className="workout-note">{w.notes}</p>
+        </details>
+      )}
+      <div className="workout-home-footer">
+        <div className="workout-actions">
+          <button
+            className="primary-button"
+            disabled={busy}
+            onClick={() => {
+              const first = w.exercises[0];
+              navigate(
+                first
+                  ? {
+                      view: "training",
+                      date: w.performed_on,
+                      session: w.id,
+                      exercise: first.id,
+                    }
+                  : { view: "exercises", date: w.performed_on, session: w.id },
+              );
+            }}
+          >
+            {w.is_finished ? "View workout" : "Continue workout"}
+          </button>
+          <button
+            disabled={busy}
+            onClick={() =>
+              navigate({
+                view: "exercises",
+                date: w.performed_on,
+                session: w.id,
+              })
+            }
+          >
+            Add exercise
+          </button>
+        </div>
+        <details
+          className="workout-home-menu"
+          onClick={(event) => {
+            if (
+              event.target instanceof Element &&
+              event.target.closest("button")
+            ) {
+              event.currentTarget.querySelector("summary")?.focus();
+              event.currentTarget.open = false;
+            }
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.currentTarget.open = false;
+              event.currentTarget.querySelector("summary")?.focus();
+            }
+          }}
         >
-          Add exercise
-        </button>
-        <button
-          disabled={busy}
-          onClick={() =>
-            run(async () => {
-              await api.updateWorkout(w.id, { is_finished: !w.is_finished });
-            })
-          }
-        >
-          {w.is_finished ? "Reopen workout" : "Finish workout"}
-        </button>
-        <button disabled={busy} onClick={() => setDialog("edit")}>
-          Session details
-        </button>
-        <button disabled={busy} onClick={() => setDialog("copy")}>
-          Copy workout
-        </button>
-        <button disabled={busy} onClick={() => setDialog("export")}>
-          Export workout
-        </button>
-        <button
-          disabled={busy || !w.exercises.length}
-          onClick={() => setDialog("routine")}
-        >
-          Save as routine day
-        </button>
-        <button
-          className="workout-danger"
-          disabled={busy}
-          onClick={() => setDialog("delete")}
-        >
-          Delete workout
-        </button>
+          <summary>More actions ···</summary>
+          <div className="workout-home-menu-items">
+            <button
+              disabled={busy}
+              onClick={() =>
+                run(async () => {
+                  await api.updateWorkout(w.id, {
+                    is_finished: !w.is_finished,
+                  });
+                })
+              }
+            >
+              {w.is_finished ? "Reopen workout" : "Finish workout"}
+            </button>
+            <button disabled={busy} onClick={() => setDialog("edit")}>
+              Session details
+            </button>
+            <button disabled={busy} onClick={() => setDialog("copy")}>
+              Copy workout
+            </button>
+            <button disabled={busy} onClick={() => setDialog("export")}>
+              Export workout
+            </button>
+            <button
+              disabled={busy || !w.exercises.length}
+              onClick={() => setDialog("routine")}
+            >
+              Save as routine day
+            </button>
+            <button disabled={busy} onClick={() => setDialog("duration")}>
+              Correct duration
+            </button>
+            <button disabled={busy} onClick={() => setManaging(true)}>
+              Manage exercises
+            </button>
+            <button
+              className="workout-danger"
+              disabled={busy}
+              onClick={() => setDialog("delete")}
+            >
+              Delete workout
+            </button>
+          </div>
+        </details>
       </div>
+      {managing && (
+        <button
+          className="workout-home-done"
+          onClick={() => setManaging(false)}
+        >
+          Done managing
+        </button>
+      )}
       {dialog === "routine" && (
         <SaveRoutineDayDialog
           workout={w}

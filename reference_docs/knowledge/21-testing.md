@@ -1921,3 +1921,21 @@ list behavior, side-by-side phases, full date selection, actual past-day counts,
 instruction disclosure, image enlargement, management tabs and selected-phase forms.
 No horizontal overflow, browser errors or tracker writes occurred. ESLint and the
 production build pass. No backend or public API changes are included.
+
+### Workouts Home compact session hub — 2026-10-21
+
+All 650 frontend tests across 103 files pass; the Workouts slice has 176 tests.
+New Home behavior coverage verifies collapsed exact sets without writes, deliberate
+exercise management, deletion confirmation/cancel, duration correction from More
+actions without starting timing, one empty-state creation action, existing-session
+View/Continue navigation and the empty-session picker. Existing copy, export,
+reorder/removal, status, errors and timing tests remain green. Tests now open the
+Home menu/management mode before invoking the actions moved there.
+
+The focused Playwright fixture journey passes at 320/390/1440px through logging,
+editing, finishing, export/download, copying and routine creation; the fourth test
+also preserves Training's logging-before-management order. Real-account Light
+checks at 320/390/768/1440px cover actual finished/in-progress and multi-session
+records, a real empty date, set disclosure, menu bounds, duration/export dialogs,
+focus return and Training navigation. No horizontal overflow, browser errors or
+tracker writes occurred. ESLint and the production build pass.

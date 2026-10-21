@@ -34,10 +34,16 @@ export function WorkoutTiming({
   workout,
   busy,
   run,
+  compact = false,
+  correctionOpen = false,
+  onCorrectionClose,
 }: {
   workout: Workout;
   busy: boolean;
   run: RunAction;
+  compact?: boolean;
+  correctionOpen?: boolean;
+  onCorrectionClose?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
@@ -45,6 +51,11 @@ export function WorkoutTiming({
   const [message, setMessage] = useState("");
   const locked = busy || pending;
   const running = !!workout.timer_started_at;
+  const showEditor = editing || correctionOpen;
+  function closeEditor() {
+    setEditing(false);
+    onCorrectionClose?.();
+  }
   function save(data: Parameters<typeof updateWorkout>[1], correction = false) {
     if (locked) return;
     setPending(true);
@@ -53,7 +64,7 @@ export function WorkoutTiming({
     run(async () => {
       try {
         await updateWorkout(workout.id, data);
-        if (correction) setEditing(false);
+        if (correction) closeEditor();
         setMessage(
           correction
             ? "Duration saved; timer paused."
@@ -71,53 +82,77 @@ export function WorkoutTiming({
     });
   }
   const saved = workout.elapsed_seconds ?? workout.duration_seconds ?? 0;
+  const timingHelp = (
+    <p className="workout-note">
+      {running
+        ? "Running"
+        : workout.duration_seconds == null
+          ? "Not started"
+          : "Paused"}
+      . Saved across refreshes. Rest between sets counts unless paused. Finish
+      stops the timer; reopening does not restart it. Maximum 7 days.
+    </p>
+  );
   return (
-    <section className="workout-inset" aria-label="Workout duration">
-      <h3>
-        Workout duration ·{" "}
-        <DurationClock
-          key={`${workout.id}:${workout.timer_server_now}:${workout.timer_started_at}:${workout.duration_seconds}`}
-          workout={workout}
-        />
-      </h3>
-      <div className="workout-actions">
-        <button
-          disabled={locked || workout.is_finished}
-          onClick={() => save({ timer_action: running ? "pause" : "start" })}
-        >
-          {running
-            ? "Pause timer"
-            : workout.duration_seconds == null
-              ? "Start timer"
-              : "Resume timer"}
-        </button>
-        <button
-          disabled={locked}
-          onClick={() => {
-            setEditing(true);
-            setError("");
-          }}
-        >
-          Correct duration
-        </button>
+    <section
+      className={compact ? "workout-home-timing" : "workout-inset"}
+      aria-label="Workout duration"
+    >
+      <div className={compact ? "workout-home-duration" : undefined}>
+        <div>
+          <h3>
+            {compact ? "Duration" : "Workout duration"} ·{" "}
+            <DurationClock
+              key={`${workout.id}:${workout.timer_server_now}:${workout.timer_started_at}:${workout.duration_seconds}`}
+              workout={workout}
+            />
+          </h3>
+          {compact && (
+            <p className="workout-home-timer-state">
+              {running
+                ? "Running"
+                : workout.duration_seconds == null
+                  ? "Timer not started"
+                  : "Paused"}
+            </p>
+          )}
+        </div>
+        <div className="workout-actions">
+          <button
+            disabled={locked || workout.is_finished}
+            onClick={() => save({ timer_action: running ? "pause" : "start" })}
+          >
+            {running
+              ? "Pause timer"
+              : workout.duration_seconds == null
+                ? "Start timer"
+                : "Resume timer"}
+          </button>
+          {!compact && (
+            <button
+              disabled={locked}
+              onClick={() => {
+                setEditing(true);
+                setError("");
+              }}
+            >
+              Correct duration
+            </button>
+          )}
+        </div>
       </div>
-      <p className="workout-note">
-        {running
-          ? "Running"
-          : workout.duration_seconds == null
-            ? "Not started"
-            : "Paused"}
-        . Saved across refreshes. Rest between sets counts unless paused. Finish
-        stops the timer; reopening does not restart it. Maximum 7 days.
-      </p>
-      {error && !editing && <p role="alert">{error}</p>}
+      {compact ? (
+        <details className="workout-home-timing-help">
+          <summary>About workout timing</summary>
+          {timingHelp}
+        </details>
+      ) : (
+        timingHelp
+      )}
+      {error && !showEditor && <p role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}
-      {editing && (
-        <Modal
-          labelledBy="duration-title"
-          busy={locked}
-          onClose={() => setEditing(false)}
-        >
+      {showEditor && (
+        <Modal labelledBy="duration-title" busy={locked} onClose={closeEditor}>
           <h2 id="duration-title">Correct workout duration</h2>
           <p>
             Replace the total elapsed time and pause the timer. This does not
@@ -187,7 +222,7 @@ export function WorkoutTiming({
             >
               Clear duration
             </button>
-            <button disabled={locked} onClick={() => setEditing(false)}>
+            <button disabled={locked} onClick={closeEditor}>
               Cancel
             </button>
           </div>

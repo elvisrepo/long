@@ -81,6 +81,152 @@ beforeEach(() => {
   vi.mocked(api.createWorkout).mockResolvedValue({ ...workout, exercises: [] });
   vi.mocked(api.addWorkoutExercise).mockResolvedValue(item);
 });
+it("keeps exact Home sets collapsed until requested without changing data", async () => {
+  const user = userEvent.setup();
+  const set: api.WorkoutSet = {
+    id: "s",
+    display_order: 1,
+    weight: "80.000",
+    reps: 5,
+    distance: null,
+    duration_seconds: null,
+    comment: "",
+    is_completed: false,
+  };
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([
+    { ...workout, exercises: [{ ...item, sets: [set] }] },
+  ]);
+  mount({ date: workout.performed_on });
+  const value = await screen.findByText("1. 80 kg · 5 reps");
+  expect(value).not.toBeVisible();
+  await user.click(screen.getByText("Set details (1)"));
+  expect(value).toBeVisible();
+  expect(screen.getByText("0 completed · 1 planned")).toBeVisible();
+  expect(api.updateWorkout).not.toHaveBeenCalled();
+});
+
+it("reveals Home exercise management deliberately and keeps delete confirmation", async () => {
+  const user = userEvent.setup();
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
+  mount({ date: workout.performed_on });
+  await screen.findByRole("heading", { name: "Workout", exact: true });
+  expect(
+    screen.queryByRole("button", {
+      name: "Remove Barbell bench press from workout",
+    }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Delete workout", exact: true }),
+  ).not.toBeVisible();
+  await user.click(screen.getByText("More actions ···"));
+  await user.click(screen.getByRole("button", { name: "Manage exercises" }));
+  expect(
+    screen.getByRole("button", {
+      name: "Remove Barbell bench press from workout",
+    }),
+  ).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Done managing" }));
+  expect(
+    screen.queryByRole("button", {
+      name: "Remove Barbell bench press from workout",
+    }),
+  ).not.toBeInTheDocument();
+  await user.click(screen.getByText("More actions ···"));
+  await user.click(
+    screen.getByRole("button", { name: "Delete workout", exact: true }),
+  );
+  expect(screen.getByRole("dialog", { name: "Delete workout?" })).toBeVisible();
+  expect(api.deleteWorkoutItem).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "Cancel", exact: true }));
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
+it("opens Home duration correction from More actions without starting timing", async () => {
+  const user = userEvent.setup();
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([
+    { ...workout, is_finished: true },
+  ]);
+  vi.mocked(api.updateWorkout).mockResolvedValue(workout);
+  mount({ date: workout.performed_on });
+  await screen.findByRole("heading", { name: "Workout", exact: true });
+  expect(
+    screen.getByRole("button", { name: "Correct duration" }),
+  ).not.toBeVisible();
+  expect(screen.getByRole("timer")).toHaveTextContent("Not tracked");
+  await user.click(screen.getByText("More actions ···"));
+  await user.click(screen.getByRole("button", { name: "Correct duration" }));
+  expect(
+    screen.getByRole("dialog", { name: "Correct workout duration" }),
+  ).toBeVisible();
+  expect(api.updateWorkout).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "Clear duration" }));
+  await waitFor(() =>
+    expect(api.updateWorkout).toHaveBeenCalledWith("w", {
+      duration_seconds: null,
+    }),
+  );
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
+});
+
+it("shows Home date context and one creation action on an empty day", async () => {
+  mount({ view: "home", date: "2026-10-12" });
+  await screen.findByRole("heading", { name: "No workout on this day" });
+  expect(
+    screen.getByRole("region", { name: "Daily sessions" }),
+  ).toHaveTextContent("12 October 2026");
+  expect(screen.getByText("0 sessions on this day")).toBeVisible();
+  expect(
+    screen.getAllByRole("button", { name: "Start new workout" }),
+  ).toHaveLength(1);
+  expect(
+    screen.queryByRole("button", { name: "Start workout", exact: true }),
+  ).not.toBeInTheDocument();
+  expect(api.createWorkout).not.toHaveBeenCalled();
+  expect(api.updateWorkout).not.toHaveBeenCalled();
+});
+
+it.each([false, true])(
+  "opens an existing Home session without starting its timer (finished=%s)",
+  async (finished) => {
+    const user = userEvent.setup();
+    const saved = { ...workout, is_finished: finished };
+    vi.mocked(api.getWorkoutRange).mockResolvedValue([saved]);
+    vi.mocked(api.getWorkout).mockResolvedValue(saved);
+    mount({ date: workout.performed_on });
+    await user.click(
+      await screen.findByRole("button", {
+        name: finished ? "View workout" : "Continue workout",
+      }),
+    );
+    expect(
+      await screen.findByRole("heading", {
+        name: "Barbell bench press",
+        level: 1,
+      }),
+    ).toBeVisible();
+    expect(api.updateWorkout).not.toHaveBeenCalled();
+    expect(api.createWorkout).not.toHaveBeenCalled();
+    expect(api.addWorkoutExercise).not.toHaveBeenCalled();
+  },
+);
+
+it("opens the exercise picker for an empty saved Home session", async () => {
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([
+    { ...workout, exercises: [] },
+  ]);
+  mount({ date: workout.performed_on });
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Continue workout" }),
+  );
+  expect(
+    await screen.findByRole("heading", { name: "All exercises" }),
+  ).toBeVisible();
+  expect(api.createWorkout).not.toHaveBeenCalled();
+  expect(api.updateWorkout).not.toHaveBeenCalled();
+});
+
 it("distinguishes session and set status labels on Home", async () => {
   const completedSet: api.WorkoutSet = {
     id: "completed",
@@ -137,11 +283,11 @@ it("keeps the Home workout list free of the right-side summary stack", async () 
   ).not.toBeInTheDocument();
 });
 
-it("starts a workout from the empty-state plus button", async () => {
+it("starts a workout from the single empty-state action", async () => {
   mount({ view: "home", date: "2026-10-12" });
 
   await userEvent.click(
-    await screen.findByRole("button", { name: "Start workout" }),
+    await screen.findByRole("button", { name: "Start new workout" }),
   );
 
   await screen.findByRole("heading", { name: "All exercises" });
@@ -151,6 +297,7 @@ it("starts a workout from the empty-state plus button", async () => {
 it("opens an export preview from Home without writing or creating a workout", async () => {
   vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
   mount({ view: "home", date: workout.performed_on });
+  await userEvent.click(await screen.findByText("More actions ···"));
   await userEvent.click(
     await screen.findByRole("button", { name: "Export workout" }),
   );
@@ -178,6 +325,10 @@ it("moves a Home exercise and reloads the server-confirmed order", async () => {
     return moved;
   });
   mount({ date: workout.performed_on });
+  await userEvent.click(await screen.findByText("More actions ···"));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Manage exercises" }),
+  );
   await userEvent.click(
     await screen.findByRole("button", { name: "Move exercise 2 (Row) up" }),
   );
@@ -283,6 +434,8 @@ it.each(["home", "history"] as const)(
       results: [workout],
     });
     mount({ view, date: workout.performed_on });
+    if (view === "home")
+      await userEvent.click(await screen.findByText("More actions ···"));
     await userEvent.click(
       await screen.findByRole("button", { name: "Copy workout", exact: true }),
     );
@@ -534,6 +687,10 @@ it("opens an existing exercise rather than adding another occurrence", async () 
 it("offers confirmed exercise removal on the workout overview", async () => {
   vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
   mount({ date: "2026-10-02" });
+  await userEvent.click(await screen.findByText("More actions ···"));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Manage exercises" }),
+  );
   await userEvent.click(
     await screen.findByRole("button", {
       name: "Remove Barbell bench press from workout",
@@ -555,6 +712,10 @@ it("offers confirmed exercise removal on the workout overview", async () => {
 it("cancels removal without deleting data", async () => {
   vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
   mount({ date: workout.performed_on });
+  await userEvent.click(await screen.findByText("More actions ···"));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Manage exercises" }),
+  );
   await userEvent.click(
     await screen.findByRole("button", {
       name: "Remove Barbell bench press from workout",
@@ -573,6 +734,10 @@ it("keeps the confirmation and error visible if removal fails", async () => {
     new Error("Removal failed"),
   );
   mount({ date: workout.performed_on });
+  await userEvent.click(await screen.findByText("More actions ···"));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Manage exercises" }),
+  );
   await userEvent.click(
     await screen.findByRole("button", {
       name: "Remove Barbell bench press from workout",
@@ -590,6 +755,10 @@ it("requires reopening a finished workout before removing an exercise", async ()
     { ...workout, is_finished: true },
   ]);
   mount({ date: workout.performed_on });
+  await userEvent.click(await screen.findByText("More actions ···"));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Manage exercises" }),
+  );
   expect(
     await screen.findByRole("button", {
       name: "Remove Barbell bench press from workout",

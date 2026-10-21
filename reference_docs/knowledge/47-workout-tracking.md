@@ -543,3 +543,30 @@ group labels to both occurrence models without a new group table.
   Visual review also caught generic button padding overriding mobile calendar
   padding; a cell-height regression guards it. Date changes preserve History/
   Progress exercise selection, and confirmed template set saves reset the draft.
+
+### Home compact session hub — 2026-10-21
+
+Approved proposal A applies to Home only: title first, compact six-destination
+navigation (3×2 on phones), and a selected-date/session-count panel with full date
+navigation. Loading and failed reads do not masquerade as an empty day. Creation
+appears once per state; starting a session still opens the existing exercise picker
+without starting timing. The previously removed statistics/week sidebar stays absent.
+
+Session cards distinguish Finished/In progress from completed/planned set counts.
+Exercise summaries retain grouping and use expandable exact set rows, preserving
+saved units and duplicate occurrences. View/Continue opens the first saved exercise
+in Training; a session without exercises opens its picker. Navigation performs no
+writes. Notes are a disclosure; Add exercise remains visible.
+
+More actions groups session details, finish/reopen, copy, export, routine capture,
+duration correction, exercise management and deletion. Manage exercises deliberately
+reveals the existing ordering/removal controls; Done managing hides them. Finished
+sessions still require reopening before changes to sets/removal. Existing delete
+confirmation, export opt-ins, copy previews, pending locks and server errors remain.
+Menu selection closes it and focuses its summary so dialogs can return focus.
+
+Home uses the existing timing behavior in a compact row, with visible running/
+paused/untracked state, explicit Start/Pause/Resume, and expandable timing help.
+Correct duration opens the same editor from More actions; Training retains its
+normal timing presentation. Not tracked is distinct from zero. No public API,
+route, schema or timing semantics changed, and this slice was not deployed.
