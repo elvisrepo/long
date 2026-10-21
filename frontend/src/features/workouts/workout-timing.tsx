@@ -35,6 +35,7 @@ export function WorkoutTiming({
   busy,
   run,
   compact = false,
+  controlsHidden = false,
   correctionOpen = false,
   helpOpen = false,
   onHelpClose,
@@ -44,6 +45,7 @@ export function WorkoutTiming({
   busy: boolean;
   run: RunAction;
   compact?: boolean;
+  controlsHidden?: boolean;
   correctionOpen?: boolean;
   helpOpen?: boolean;
   onHelpClose?: () => void;
@@ -99,48 +101,58 @@ export function WorkoutTiming({
   );
   return (
     <section
-      className={compact ? "workout-home-timing" : "workout-inset"}
+      className={
+        controlsHidden
+          ? "workout-timing-dialogs"
+          : compact
+            ? "workout-home-timing"
+            : "workout-inset"
+      }
       aria-label="Workout duration"
     >
-      <div className={compact ? "workout-home-duration" : undefined}>
-        <div>
-          <h3>
-            {compact ? "Duration" : "Workout duration"} ·{" "}
-            <DurationClock
-              key={`${workout.id}:${workout.timer_server_now}:${workout.timer_started_at}:${workout.duration_seconds}`}
-              workout={workout}
-            />
-          </h3>
-          {compact && (running || workout.duration_seconds != null) && (
-            <p className="workout-home-timer-state">
-              {running ? "Running" : "Paused"}
-            </p>
-          )}
-        </div>
-        <div className="workout-actions">
-          <button
-            disabled={locked || workout.is_finished}
-            onClick={() => save({ timer_action: running ? "pause" : "start" })}
-          >
-            {running
-              ? "Pause timer"
-              : workout.duration_seconds == null
-                ? "Start timer"
-                : "Resume timer"}
-          </button>
-          {!compact && (
+      {!controlsHidden && (
+        <div className={compact ? "workout-home-duration" : undefined}>
+          <div>
+            <h3>
+              {compact ? "Duration" : "Workout duration"} ·{" "}
+              <DurationClock
+                key={`${workout.id}:${workout.timer_server_now}:${workout.timer_started_at}:${workout.duration_seconds}`}
+                workout={workout}
+              />
+            </h3>
+            {compact && (running || workout.duration_seconds != null) && (
+              <p className="workout-home-timer-state">
+                {running ? "Running" : "Paused"}
+              </p>
+            )}
+          </div>
+          <div className="workout-actions">
             <button
-              disabled={locked}
-              onClick={() => {
-                setEditing(true);
-                setError("");
-              }}
+              disabled={locked || workout.is_finished}
+              onClick={() =>
+                save({ timer_action: running ? "pause" : "start" })
+              }
             >
-              Correct duration
+              {running
+                ? "Pause timer"
+                : workout.duration_seconds == null
+                  ? "Start timer"
+                  : "Resume timer"}
             </button>
-          )}
+            {!compact && (
+              <button
+                disabled={locked}
+                onClick={() => {
+                  setEditing(true);
+                  setError("");
+                }}
+              >
+                Correct duration
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
       {!compact && timingHelp}
       {helpOpen && (
         <Modal

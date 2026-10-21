@@ -162,7 +162,7 @@ it("opens Home duration correction from More actions without starting timing", a
   expect(
     screen.getByRole("button", { name: "Correct duration" }),
   ).not.toBeVisible();
-  expect(screen.getByRole("timer")).toHaveTextContent("Not tracked");
+  expect(screen.queryByRole("timer")).not.toBeInTheDocument();
   await user.click(screen.getByText("More actions ···"));
   await user.click(screen.getByRole("button", { name: "Correct duration" }));
   expect(
@@ -217,11 +217,11 @@ it.each([false, true])(
       }),
     );
     expect(
-      await screen.findByRole("heading", {
-        name: "Barbell bench press",
-        level: 1,
-      }),
+      await screen.findByRole("button", { name: "Open Barbell bench press" }),
     ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Save completed set" }),
+    ).not.toBeInTheDocument();
     expect(api.updateWorkout).not.toHaveBeenCalled();
     expect(api.createWorkout).not.toHaveBeenCalled();
     expect(api.addWorkoutExercise).not.toHaveBeenCalled();
@@ -397,6 +397,15 @@ it("reorders training sets and sidebar exercises without changing the selected o
     exercise: item.id,
   });
   await userEvent.click(
+    await screen.findByRole("button", {
+      name: "Open Barbell bench press",
+      exact: true,
+    }),
+  );
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Manage sets" }),
+  );
+  await userEvent.click(
     await screen.findByRole("button", { name: "Move set 2 up" }),
   );
   expect(api.moveWorkoutItem).toHaveBeenCalledWith("sets", "s2", "up");
@@ -406,8 +415,9 @@ it("reorders training sets and sidebar exercises without changing the selected o
     ).toBeDisabled(),
   );
   const values = document.querySelectorAll(".workout-set-values");
-  expect(values[0]).toHaveTextContent("80 kg");
+  expect(values[0]).toHaveTextContent("80");
   expect(values[1]).toHaveTextContent("Keep me");
+  await userEvent.click(screen.getByText("Manage workout", { exact: true }));
   await userEvent.click(
     screen.getByRole("button", { name: "Move exercise 2 (Row) up" }),
   );
@@ -786,6 +796,12 @@ it("includes the current session in exercise history", async () => {
   mount({ view: "training", date: "2026-10-02", session: "w", exercise: "i" });
   await userEvent.click(
     await screen.findByRole("button", {
+      name: "Open Barbell bench press",
+      exact: true,
+    }),
+  );
+  await userEvent.click(
+    await screen.findByRole("button", {
       name: "Exercise history",
       exact: true,
     }),
@@ -839,6 +855,12 @@ it("shows one history link per session and prefers an entry with sets", async ()
   });
   await userEvent.click(
     await screen.findByRole("button", {
+      name: "Open Barbell bench press",
+      exact: true,
+    }),
+  );
+  await userEvent.click(
+    await screen.findByRole("button", {
       name: "Exercise history",
       exact: true,
     }),
@@ -859,6 +881,12 @@ it("switching to All exercises clears the workout selection context", async () =
     session: "w",
     exercise: "i",
   });
+  await userEvent.click(
+    await screen.findByRole("button", {
+      name: "Open Barbell bench press",
+      exact: true,
+    }),
+  );
   await screen.findByRole("heading", { name: "Barbell bench press", level: 1 });
   await userEvent.click(
     screen.getByRole("button", { name: "All exercises", exact: true }),
@@ -923,8 +951,15 @@ it("saves a completed set with snapshot units and shows server-confirmed values"
     return set;
   });
   mount({ view: "training", date: "2026-10-02", session: "w", exercise: "i" });
+  await userEvent.click(
+    await screen.findByRole("button", {
+      name: "Open Barbell bench press",
+      exact: true,
+    }),
+  );
   await userEvent.type(await screen.findByLabelText("Weight (kg)"), "60");
   await userEvent.type(screen.getByLabelText("Reps"), "8");
+  await userEvent.click(screen.getByText("+ Comment", { exact: true }));
   await userEvent.type(screen.getByLabelText("Set comment"), "Good set");
   await userEvent.click(
     screen.getByRole("button", { name: "Save completed set" }),
@@ -941,7 +976,9 @@ it("saves a completed set with snapshot units and shows server-confirmed values"
       }),
     ),
   );
-  expect(await screen.findByText("60 kg · 8 reps")).toBeInTheDocument();
+  expect(
+    await screen.findByRole("button", { name: "Edit set 1" }),
+  ).toHaveTextContent("60");
   expect(screen.getByLabelText("Set 1 completed")).toBeChecked();
 });
 
@@ -957,6 +994,12 @@ it("allows an empty planned set, without recording it as completed", async () =>
     is_completed: false,
   });
   mount({ view: "training", session: "w", exercise: "i" });
+  await userEvent.click(
+    await screen.findByRole("button", {
+      name: "Open Barbell bench press",
+      exact: true,
+    }),
+  );
   await userEvent.click(
     await screen.findByRole("button", { name: "Add planned set" }),
   );
@@ -995,6 +1038,12 @@ it("does not mark a planned set completed when the server rejects it", async () 
     new Error("reps: This field is required."),
   );
   mount({ view: "training", session: "w", exercise: "i" });
+  await userEvent.click(
+    await screen.findByRole("button", {
+      name: "Open Barbell bench press",
+      exact: true,
+    }),
+  );
   const checkbox = await screen.findByLabelText("Set 1 completed");
   await userEvent.click(checkbox);
   expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -1010,6 +1059,12 @@ it("disables edits in a finished workout until it is reopened", async () => {
   });
   vi.mocked(api.updateWorkout).mockResolvedValue(workout);
   mount({ view: "training", session: "w", exercise: "i" });
+  await userEvent.click(
+    await screen.findByRole("button", {
+      name: "Open Barbell bench press",
+      exact: true,
+    }),
+  );
   expect(
     await screen.findByRole("button", { name: "Save completed set" }),
   ).toBeDisabled();
@@ -1054,6 +1109,12 @@ it.each(["duration", "cardio", "bodyweight"] as const)(
       ],
     });
     mount({ view: "training", session: "w", exercise: "i" });
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: "Open Barbell bench press",
+        exact: true,
+      }),
+    );
     await screen.findByRole("heading", { name: "Record a set" });
     if (type === "bodyweight")
       expect(screen.getByLabelText("Weight (lb)")).toBeInTheDocument();
@@ -1085,7 +1146,10 @@ it("opens timing help from the Home session menu without starting the clock", as
     { ...workout, notes: "Keep the last rep controlled" },
   ]);
   mount({ date: workout.performed_on });
-  expect(await screen.findByText("Keep the last rep controlled")).toBeVisible();
+  await screen.findByRole("button", { name: "Open Barbell bench press" });
+  expect(
+    screen.queryByText("Keep the last rep controlled"),
+  ).not.toBeInTheDocument();
   expect(screen.getByText("About workout timing")).not.toBeVisible();
   await userEvent.click(screen.getByText("More actions ···"));
   await userEvent.click(
@@ -1095,4 +1159,128 @@ it("opens timing help from the Home session menu without starting the clock", as
     screen.getByRole("dialog", { name: "About workout timing" }),
   ).toHaveTextContent("Rest between sets counts unless paused");
   expect(api.updateWorkout).not.toHaveBeenCalled();
+});
+
+it("keeps Training reorder controls secondary to editing and completion", async () => {
+  const set: api.WorkoutSet = {
+    id: "s",
+    display_order: 1,
+    weight: "80",
+    reps: 5,
+    distance: null,
+    duration_seconds: null,
+    comment: "",
+    is_completed: false,
+  };
+  vi.mocked(api.getWorkout).mockResolvedValue({
+    ...workout,
+    exercises: [{ ...item, sets: [set] }],
+  });
+  mount({
+    view: "training",
+    session: "w",
+    exercise: "i",
+    date: workout.performed_on,
+  });
+  await userEvent.click(
+    await screen.findByRole("button", {
+      name: "Open Barbell bench press",
+      exact: true,
+    }),
+  );
+  const edit = await screen.findByRole("button", { name: "Edit set 1" });
+  expect(edit).toHaveTextContent("80");
+  expect(
+    screen.queryByRole("button", { name: "Move set 1 up" }),
+  ).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Manage sets" }));
+  expect(screen.getByRole("button", { name: "Move set 1 up" })).toBeVisible();
+  expect(api.saveWorkoutSet).not.toHaveBeenCalled();
+});
+
+it("keeps the Home overview to exercise logs and opens timing through its menu", async () => {
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
+  mount({ date: workout.performed_on });
+  await screen.findByRole("button", { name: "Open Barbell bench press" });
+  expect(
+    screen.queryByRole("button", { name: "Start timer" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Continue workout" }),
+  ).not.toBeVisible();
+  await userEvent.click(screen.getByText("More actions ···"));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Time workout", exact: true }),
+  );
+  expect(screen.getByRole("dialog", { name: "Time workout" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Start timer" })).toBeVisible();
+  expect(api.updateWorkout).not.toHaveBeenCalled();
+});
+
+it("opens a workout URL as the complete exercise log before entering an exercise", async () => {
+  vi.mocked(api.getWorkout).mockResolvedValue({
+    ...workout,
+    exercises: [
+      item,
+      { ...item, id: "press", exercise_name: "Overhead press" },
+    ],
+  });
+  mount({
+    view: "training",
+    session: "w",
+    exercise: "i",
+    date: workout.performed_on,
+  });
+  expect(
+    await screen.findByRole("button", { name: "Open Barbell bench press" }),
+  ).toBeVisible();
+  expect(
+    screen.getByRole("button", { name: "Open Overhead press" }),
+  ).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: "Save completed set" }),
+  ).not.toBeInTheDocument();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Open Overhead press" }),
+  );
+  expect(
+    await screen.findByRole("heading", { name: "Overhead press", level: 1 }),
+  ).toBeVisible();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Back to workout" }),
+  );
+  expect(
+    screen.getByRole("button", { name: "Open Barbell bench press" }),
+  ).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: "Save completed set" }),
+  ).not.toBeInTheDocument();
+  expect(api.saveWorkoutSet).not.toHaveBeenCalled();
+});
+
+it("steps exercise values and clears the draft without writing sets", async () => {
+  mount({
+    view: "training",
+    session: "w",
+    exercise: "i",
+    date: workout.performed_on,
+  });
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Open Barbell bench press" }),
+  );
+  await userEvent.type(screen.getByLabelText("Weight (kg)"), "70");
+  await userEvent.click(
+    screen.getByRole("button", { name: "Increase Weight (kg)" }),
+  );
+  expect(screen.getByLabelText("Weight (kg)")).toHaveValue(72.5);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Decrease Weight (kg)" }),
+  );
+  expect(screen.getByLabelText("Weight (kg)")).toHaveValue(70);
+  await userEvent.click(screen.getByRole("button", { name: "Increase Reps" }));
+  expect(screen.getByLabelText("Reps")).toHaveValue(1);
+  await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+  expect(screen.getByLabelText("Weight (kg)")).toHaveValue(null);
+  expect(screen.getByLabelText("Reps")).toHaveValue(null);
+  expect(api.saveWorkoutSet).not.toHaveBeenCalled();
 });

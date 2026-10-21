@@ -597,3 +597,64 @@ Add exercise is the primary footer action; View/Continue remains available.
 New workout and Copy previous are under Day actions on populated dates. The
 approved empty state and bordered navigation remain. No API, route or schema
 changes; drag-and-drop, selective export and partial moves remain future options.
+
+
+### Compact Training log — 2026-10-21
+
+Training now leads with a compact exercise selector and the saved-set table.
+Strength rows show saved unit, weight and reps in columns; other tracking types
+retain exact value labels. Tapping values edits that row; the separate checkbox
+updates completion. Editing keeps existing completion rather than completing a
+planned set. Manage sets reveals the existing order controls explicitly.
+
+The entry form follows the log, with primary Save completed set, secondary Add
+planned set, and an optional Comment disclosure (existing edit comments open).
+Numeric defaults omit redundant trailing zeros. Calculators stay collapsed below
+the entry form. Manage workout replaces the always-visible exercise panel with
+an explicit disclosure retaining grouping, ordering, adding and removing exercises.
+Rest/session timing, frozen units, comments, pending/error behavior and confirmed-
+completion-only group advancement remain. No API, route or backend changes.
+
+
+### Minimal workout overview — 2026-10-21
+
+The owner further simplified populated Home to the exercise log: each card shows
+its exercise name and saved weight/reps or the other tracking type's exact values.
+Set numbering/status/comments remain available to assistive technology and in
+Training, while visible counts, badges, notes, timing row and footer actions are
+removed. The compact session toolbar keeps its name for multi-session context,
+plus Add exercise and an accessible ellipsis menu. Tapping an exercise enters
+Training. Timing opens in a Time workout dialog; notes, copy, export, finish/reopen,
+management and correction remain in the session menu. No timing starts merely by
+opening a dialog. This supersedes A's visible timing/notes/status presentation.
+
+
+### Workout URL opens the log — 2026-10-21
+
+A saved `view=training` URL now opens the selected session's complete exercise
+log, even when it includes an exercise UUID. It no longer opens set-entry controls
+on initial load or refresh. Tapping a card explicitly opens its exercise editor;
+Back to workout returns to the same log. The editor is a separate in-page view,
+keeping the mounted rest timer's state across internal navigation. Its selector
+and group advancement still switch the active editor. Explicit exercise selection
+from the library also opens editing; merely opening a workout does not. Home
+cards use the same explicit exercise-entry callback. No route names or API paths
+change. This corrects the prior mismatch between minimal Home and workout URLs.
+
+
+### FitNotes-style exercise editor — 2026-10-21
+
+After tapping an exercise, the light editor leads with Track / History / Graph,
+stacked numeric controls with minus/plus buttons, Save and Clear, then compact
+saved rows with original units. Weight buttons use the library weight increment;
+other fields use their existing validated step/minimum. Clear resets only the
+unsaved draft and editing selection; no record is written or deleted. Saving an
+edited row still preserves completion status. Completion checkboxes retain the
+explicit planned-set workflow.
+
+The ellipsis menu contains planned-set entry, previous/repeat shortcuts, comments,
+calculators, timing, exercise selection and management. Menu inputs remain linked
+to the entry form; an existing comment is retained when editing. The menu supports
+Close and Escape; planned submission closes it. Numeric order is preserved on
+edit; reordering stays in management. Graph opens existing exercise progress.
+The minimal workout log remains the default on opening or refreshing its URL.

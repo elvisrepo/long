@@ -133,6 +133,7 @@ for (const width of [320, 390, 1440]) {
     await page
       .getByRole("button", { name: "Open Barbell bench press", exact: true })
       .click();
+    await page.getByText("Manage workout", { exact: true }).click();
     await page
       .getByRole("button", { name: "Add to group", exact: true })
       .click();
@@ -151,11 +152,11 @@ for (const width of [320, 390, 1440]) {
     await page.getByRole("button", { name: "Save group", exact: true }).click();
     await expect(
       page
-        .getByRole("complementary")
+        .getByRole("group", { name: "Workout exercise management" })
         .getByRole("button", { name: /^Dumbbell incline press/ }),
     ).toHaveCSS("border-left-color", "rgb(219, 39, 119)");
     await page
-      .getByRole("complementary")
+      .getByRole("group", { name: "Workout exercise management" })
       .getByRole("button", { name: /^Barbell bench press/ })
       .click();
     await page.getByRole("timer", { name: "Rest remaining" }).click();

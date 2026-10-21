@@ -256,21 +256,30 @@ for (const width of [320, 390, 1440])
     ).toBeVisible();
     await page.getByRole("button", { name: "Start new workout" }).click();
     await page.getByRole("button", { name: "Add Barbell bench press" }).click();
+
     await page.getByLabel("Weight (kg)", { exact: true }).fill("60");
     await page.getByLabel("Reps", { exact: true }).fill("8");
+    await page.getByLabel("Exercise options", { exact: true }).click();
+    await page.getByText("+ Comment", { exact: true }).click();
     await page.getByLabel("Set comment").fill("Steady pace");
+    await page.getByRole("button", { name: "Close menu", exact: true }).click();
     await page.getByRole("button", { name: "Save completed set" }).click();
     await expect(
-      page.getByText("60 kg · 8 reps", { exact: true }),
-    ).toBeVisible();
+      page
+        .getByRole("button", { name: "Edit set 1", exact: true })
+        .locator(".workout-strength-values"),
+    ).toHaveText(/60\s*kg8\s*reps/);
     await page.getByRole("button", { name: "Edit set 1" }).click();
     await page.getByLabel("Weight (kg)", { exact: true }).fill("65");
     await page.getByRole("button", { name: "Update set" }).click();
     await expect(
-      page.getByText("65 kg · 8 reps", { exact: true }),
-    ).toBeVisible();
+      page
+        .getByRole("button", { name: "Edit set 1", exact: true })
+        .locator(".workout-strength-values"),
+    ).toHaveText(/65\s*kg8\s*reps/);
     await page.getByLabel("Weight (kg)", { exact: true }).fill("");
     await page.getByLabel("Reps", { exact: true }).fill("");
+    await page.getByLabel("Exercise options", { exact: true }).click();
     await page.getByRole("button", { name: "Add planned set" }).click();
     await expect(page.getByLabel("Set 2 completed")).not.toBeChecked();
     await page.getByRole("button", { name: "Edit set 2" }).click();
@@ -287,7 +296,7 @@ for (const width of [320, 390, 1440])
         () => document.documentElement.scrollWidth <= innerWidth,
       ),
     ).toBe(true);
-    await page.getByText("Workout options", { exact: true }).click();
+    await page.getByLabel("Exercise options", { exact: true }).click();
     await page.getByRole("button", { name: "Workout overview" }).click();
     await page.getByText("More actions ···", { exact: true }).click();
     await page.getByRole("button", { name: "Finish workout" }).click();
@@ -329,7 +338,10 @@ for (const width of [320, 390, 1440])
       .click();
     await page.getByRole("button", { name: "Create planned workout" }).click();
     await expect(
-      page.getByText(/^0 completed sets · \d+ planned · 1 exercise$/),
+      page.getByRole("button", {
+        name: "Open Barbell bench press",
+        exact: true,
+      }),
     ).toBeVisible();
     await page.getByText("More actions ···", { exact: true }).click();
     await page.getByRole("button", { name: "Save as routine day" }).click();
@@ -355,11 +367,19 @@ for (const width of [320, 390, 1440])
       page.getByRole("heading", { name: "Weekly plan · Push" }),
     ).toBeVisible();
     await expect(
-      page.getByText(/^0 completed sets · \d+ planned · 1 exercise$/),
+      page.getByRole("button", {
+        name: "Open Barbell bench press",
+        exact: true,
+      }),
     ).toBeVisible();
+    await page.getByText("More actions ···", { exact: true }).click();
+    await page
+      .getByRole("button", { name: "Session notes", exact: true })
+      .click();
     await expect(
-      page.getByText("Warm up first", { exact: true }),
-    ).toBeVisible();
+      page.getByRole("textbox", { name: /Session notes/ }),
+    ).toHaveValue("Warm up first");
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
     await page.getByRole("button", { name: "Routines", exact: true }).click();
     await page.getByRole("button", { name: "Archive routine" }).click();
     await page.getByLabel("Show archived routines").check();
@@ -399,7 +419,7 @@ for (const width of [320, 390, 1440])
     ).toBeVisible();
   });
 
-test("mobile training puts set logging before exercise management", async ({
+test("mobile exercise editor leads with stepped inputs and Save/Clear", async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -415,25 +435,21 @@ test("mobile training puts set logging before exercise management", async ({
     name: "Save completed set",
     exact: true,
   });
-  const exerciseSwitcher = page.getByRole("heading", {
-    name: "This workout",
-    exact: true,
-  });
-  const setsHeading = page.getByRole("heading", { name: "Sets", exact: true });
   await expect(saveSet).toBeVisible();
-  await expect(setsHeading).toBeVisible();
-  await expect(exerciseSwitcher).toBeVisible();
-  expect((await saveSet.boundingBox())!.y).toBeLessThan(
-    (await exerciseSwitcher.boundingBox())!.y,
-  );
-  expect((await setsHeading.boundingBox())!.y).toBeLessThan(
-    (await exerciseSwitcher.boundingBox())!.y,
-  );
   await expect(
-    page.getByRole("button", { name: "Exercise notes", exact: true }),
+    page.getByRole("button", { name: "Clear", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Increase Weight (kg)", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Graph", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel("Exercise in this workout", { exact: true }),
   ).not.toBeVisible();
   await expect(
-    page.getByText("Workout options", { exact: true }),
+    page.getByLabel("Exercise options", { exact: true }),
   ).toBeVisible();
   await page.screenshot({
     path: testInfo.outputPath("training-mobile-light.png"),

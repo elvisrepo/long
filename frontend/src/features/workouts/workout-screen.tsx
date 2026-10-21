@@ -41,6 +41,14 @@ export function WorkoutScreen({
   const day = search.date || localDay(new Date());
   const view = search.view || "home";
   const restTimer = useRef<RestTimerHandle>(null);
+  const [editor, setEditor] = useState<{
+    session: string;
+    exercise: string;
+  } | null>(null);
+  const editingExercise =
+    view === "training" && editor && editor.session === search.session
+      ? editor.exercise
+      : null;
   const catalog = useQuery({
     queryKey: ["workouts", owner, "catalog"],
     queryFn: api.getWorkoutCatalog,
@@ -72,6 +80,7 @@ export function WorkoutScreen({
   const run: RunAction = (action) => mutation.mutate(action);
   const navigate: NavigateWorkout = (next) => {
     mutation.reset();
+    if (next.view !== "training") setEditor(null);
     onNavigate(next);
   };
   if (!owner || catalog.isPending)
@@ -95,6 +104,7 @@ export function WorkoutScreen({
         matches.find((i) => i.sets.length > 0) ??
         matches[0] ??
         (await api.addWorkoutExercise(session.id, id));
+      setEditor({ session: session.id, exercise: item.id });
       onNavigate({
         view: "training",
         date: session.performed_on,
@@ -184,18 +194,19 @@ export function WorkoutScreen({
           {mutation.error.message}
         </p>
       )}
-      <div hidden={view !== "training"}>
+      <div hidden={!editingExercise}>
         <RestTimer
           ref={restTimer}
           seconds={
             catalog.data.exercises.find(
               (e) =>
                 e.id ===
-                detail.data?.exercises.find((i) => i.id === search.exercise)
-                  ?.exercise_id,
+                detail.data?.exercises.find(
+                  (i) => i.id === (editingExercise ?? search.exercise),
+                )?.exercise_id,
             )?.rest_seconds ?? 90
           }
-          context={search.exercise ?? ""}
+          context={editingExercise ?? search.exercise ?? ""}
           autoStart={catalog.data.preferences?.auto_start_rest ?? false}
           onAutoStartChange={(enabled) =>
             run(async () => {
@@ -277,6 +288,10 @@ export function WorkoutScreen({
             busy={busy}
             run={run}
             navigate={navigate}
+            openExercise={(next) => {
+              setEditor({ session: next.session!, exercise: next.exercise! });
+              navigate(next);
+            }}
           />
         ))}
       {view === "exercises" && (
@@ -345,35 +360,70 @@ export function WorkoutScreen({
             <button onClick={() => void detail.refetch()}>Retry workout</button>
           </div>
         ) : detail.data ? (
-          <WorkoutTraining
-            key={`${detail.data.id}:${search.exercise}`}
-            onCompleted={() => restTimer.current?.completed()}
-            autoAdvance={catalog.data.preferences?.auto_advance_groups ?? true}
-            onAutoAdvance={(enabled) =>
-              run(async () => {
-                await api.saveWorkoutPreferences({
-                  auto_advance_groups: enabled,
-                });
-              })
-            }
-            saveEquipment={async (data) => {
-              await mutation.mutateAsync(async () => {
-                await api.saveWorkoutPreferences(data);
-              });
-            }}
-            savePlanned={async (itemId, data) => {
-              await mutation.mutateAsync(async () => {
-                await api.saveWorkoutSet(itemId, undefined, data);
-              });
-            }}
-            workout={detail.data}
-            itemId={search.exercise || ""}
-            catalog={catalog.data}
-            owner={owner}
-            busy={busy}
-            run={run}
-            navigate={navigate}
-          />
+          !editingExercise ? (
+            <div className="workout-home">
+              <SessionCard
+                workout={detail.data}
+                busy={busy}
+                run={run}
+                navigate={navigate}
+                openExercise={(next) =>
+                  setEditor({
+                    session: detail.data.id,
+                    exercise: next.exercise!,
+                  })
+                }
+              />
+            </div>
+          ) : (
+            <>
+              <button
+                className="workout-back"
+                disabled={busy}
+                onClick={() => setEditor(null)}
+              >
+                Back to workout
+              </button>
+              <WorkoutTraining
+                key={`${detail.data.id}:${editingExercise}`}
+                onCompleted={() => restTimer.current?.completed()}
+                autoAdvance={
+                  catalog.data.preferences?.auto_advance_groups ?? true
+                }
+                onAutoAdvance={(enabled) =>
+                  run(async () => {
+                    await api.saveWorkoutPreferences({
+                      auto_advance_groups: enabled,
+                    });
+                  })
+                }
+                saveEquipment={async (data) => {
+                  await mutation.mutateAsync(async () => {
+                    await api.saveWorkoutPreferences(data);
+                  });
+                }}
+                savePlanned={async (itemId, data) => {
+                  await mutation.mutateAsync(async () => {
+                    await api.saveWorkoutSet(itemId, undefined, data);
+                  });
+                }}
+                workout={detail.data}
+                itemId={editingExercise}
+                catalog={catalog.data}
+                owner={owner}
+                busy={busy}
+                run={run}
+                navigate={(next) => {
+                  if (next.view === "training" && next.exercise)
+                    setEditor({
+                      session: next.session!,
+                      exercise: next.exercise,
+                    });
+                  navigate(next);
+                }}
+              />
+            </>
+          )
         ) : null)}
       {view === "history" && (
         <WorkoutHistory
@@ -427,6 +477,7 @@ export function WorkoutScreen({
 }
 
 function WorkoutHome({
+  openExercise,
   dateControls,
   sessions,
   day,
@@ -436,6 +487,7 @@ function WorkoutHome({
   run,
   navigate,
 }: {
+  openExercise: NavigateWorkout;
   dateControls: ReactNode;
   sessions: api.Workout[];
   day: string;
@@ -490,6 +542,7 @@ function WorkoutHome({
           <SessionCard
             key={w.id}
             workout={w}
+            openExercise={openExercise}
             busy={busy}
             run={run}
             navigate={navigate}
@@ -536,12 +589,14 @@ function WorkoutHome({
   );
 }
 function SessionCard({
+  openExercise,
   workout: w,
   busy,
   run,
   navigate,
 }: {
   workout: api.Workout;
+  openExercise?: NavigateWorkout;
   busy: boolean;
   run: RunAction;
   navigate: NavigateWorkout;
@@ -555,6 +610,7 @@ function SessionCard({
     | "export"
     | "duration"
     | "timing-help"
+    | "time"
     | null
   >(null);
   return (
@@ -562,10 +618,24 @@ function SessionCard({
       <div className="workout-card-heading">
         <h2>{w.name}</h2>
         <span
-          className={`workout-badge workout-status workout-status--${w.is_finished ? "finished" : "in-progress"}`}
+          className={`visually-hidden workout-badge workout-status workout-status--${w.is_finished ? "finished" : "in-progress"}`}
         >
           {w.is_finished ? "Finished" : "In progress"}
         </span>
+        <button
+          className="workout-home-add"
+          aria-label="Add exercise"
+          disabled={busy}
+          onClick={() =>
+            navigate({
+              view: "exercises",
+              date: w.performed_on,
+              session: w.id,
+            })
+          }
+        >
+          <span aria-hidden="true">＋</span>
+        </button>
         <details
           className="workout-home-menu"
           onClick={(event) => {
@@ -588,6 +658,32 @@ function SessionCard({
             <span>More actions ···</span>
           </summary>
           <div className="workout-home-menu-items">
+            {" "}
+            <button
+              disabled={busy}
+              onClick={() => {
+                const first = w.exercises[0];
+                navigate(
+                  first
+                    ? {
+                        view: "training",
+                        date: w.performed_on,
+                        session: w.id,
+                        exercise: first.id,
+                      }
+                    : {
+                        view: "exercises",
+                        date: w.performed_on,
+                        session: w.id,
+                      },
+                );
+              }}
+            >
+              {w.is_finished ? "View workout" : "Continue workout"}
+            </button>
+            <button disabled={busy} onClick={() => setDialog("time")}>
+              Time workout
+            </button>
             <button
               disabled={busy}
               onClick={() =>
@@ -637,31 +733,29 @@ function SessionCard({
           </div>
         </details>
       </div>
-      <p>
-        {w.completed_set_count} completed{" "}
-        {w.completed_set_count === 1 ? "set" : "sets"} ·{" "}
-        {
-          w.exercises.flatMap((e) => e.sets).filter((s) => !s.is_completed)
-            .length
-        }{" "}
-        planned · {w.exercises.length}{" "}
-        {w.exercises.length === 1 ? "exercise" : "exercises"}
-      </p>
       <WorkoutTiming
         workout={w}
         busy={busy}
         run={run}
         compact
+        controlsHidden
         correctionOpen={dialog === "duration"}
         onCorrectionClose={() => setDialog(null)}
         helpOpen={dialog === "timing-help"}
         onHelpClose={() => setDialog(null)}
       />
-      {w.notes && (
-        <div className="workout-home-notes">
-          <h3>Session notes</h3>
-          <p className="workout-note">{w.notes}</p>
-        </div>
+      {dialog === "time" && (
+        <Modal
+          labelledBy={`workout-time-${w.id}`}
+          busy={busy}
+          onClose={() => setDialog(null)}
+        >
+          <h2 id={`workout-time-${w.id}`}>Time workout</h2>
+          <WorkoutTiming workout={w} busy={busy} run={run} />
+          <button disabled={busy} onClick={() => setDialog(null)}>
+            Close
+          </button>
+        </Modal>
       )}
       <div className="workout-home-exercises">
         {w.exercises.map((item, index) => (
@@ -680,7 +774,7 @@ function SessionCard({
               aria-describedby={`home-sets-${item.id}`}
               disabled={busy}
               onClick={() =>
-                navigate({
+                (openExercise ?? navigate)({
                   view: "training",
                   date: w.performed_on,
                   session: w.id,
@@ -690,51 +784,37 @@ function SessionCard({
             >
               <span className="workout-home-exercise-heading">
                 <strong>{item.exercise_name}</strong>
-                <span aria-hidden="true">→</span>
               </span>
               {item.group_name && (
                 <span className="workout-badge">{item.group_name}</span>
               )}
               <span id={`home-sets-${item.id}`} className="workout-home-sets">
-                {item.sets.length > 0 && (
-                  <span
-                    className={`workout-home-set-row is-heading${item.tracking_type === "strength" ? " is-strength" : ""}`}
-                  >
-                    <span>Set</span>
-                    {item.tracking_type === "strength" ? (
-                      <>
-                        <span>{item.weight_unit}</span>
-                        <span>Reps</span>
-                      </>
-                    ) : (
-                      <span>Recorded values</span>
-                    )}
-                    <span>Status</span>
-                  </span>
-                )}
                 {item.sets.map((set, i) => (
                   <span
                     className={`workout-home-set-row${item.tracking_type === "strength" ? " is-strength" : ""}`}
                     key={set.id}
                   >
-                    <span>{i + 1}</span>
+                    <span className="visually-hidden">Set {i + 1}</span>
                     {item.tracking_type === "strength" ? (
                       <>
                         <strong>
-                          {set.weight == null ? "—" : Number(set.weight)}
+                          {set.weight == null ? "—" : Number(set.weight)}{" "}
+                          <small>{item.weight_unit}</small>
                         </strong>
-                        <span>{set.reps ?? "—"}</span>
+                        <span>
+                          <b>{set.reps ?? "—"}</b> <small>reps</small>
+                        </span>
                       </>
                     ) : (
                       <strong>{setLabel(item, set)}</strong>
                     )}
                     <span
-                      className={`workout-home-set-status workout-status--${set.is_completed ? "completed" : "planned"}`}
+                      className={`visually-hidden workout-home-set-status workout-status--${set.is_completed ? "completed" : "planned"}`}
                     >
                       {set.is_completed ? "Completed" : "Planned"}
                     </span>
                     {set.comment && (
-                      <span className="workout-home-set-comment">
+                      <span className="visually-hidden workout-home-set-comment">
                         {set.comment}
                       </span>
                     )}
@@ -766,41 +846,6 @@ function SessionCard({
             )}
           </div>
         ))}
-      </div>
-      <div className="workout-home-footer">
-        <div className="workout-actions">
-          <button
-            className="primary-button"
-            disabled={busy}
-            onClick={() =>
-              navigate({
-                view: "exercises",
-                date: w.performed_on,
-                session: w.id,
-              })
-            }
-          >
-            Add exercise
-          </button>
-          <button
-            disabled={busy}
-            onClick={() => {
-              const first = w.exercises[0];
-              navigate(
-                first
-                  ? {
-                      view: "training",
-                      date: w.performed_on,
-                      session: w.id,
-                      exercise: first.id,
-                    }
-                  : { view: "exercises", date: w.performed_on, session: w.id },
-              );
-            }}
-          >
-            {w.is_finished ? "View workout" : "Continue workout"}
-          </button>
-        </div>
       </div>
       {managing && (
         <button

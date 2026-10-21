@@ -1,6 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { PageHeader } from "../../components/page-header";
 import { Modal } from "../../components/modal";
 import * as api from "./workout-api";
 import { WorkoutTools } from "./workout-tools";
@@ -48,13 +47,16 @@ export function WorkoutTraining({
   const client = useQueryClient();
   const item = workout.exercises.find((i) => i.id === itemId);
   const [tab, setTab] = useState<"track" | "history">("track");
+  const [managingSets, setManagingSets] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<
     "notes" | "delete-set" | "manage" | "groups" | "bulk" | null
   >(null);
   const [version, setVersion] = useState(0);
+  const [cleared, setCleared] = useState(false);
   const [draft, setDraft] = useState<api.WorkoutSet | null>(null);
   const form = useRef<HTMLFormElement>(null);
+  const options = useRef<HTMLDetailsElement>(null);
   const history = useQuery({
     queryKey: [
       "workouts",
@@ -97,7 +99,7 @@ export function WorkoutTraining({
       });
   };
   const disabled = busy || workout.is_finished;
-  const source = editing || draft || item.sets.at(-1);
+  const source = editing || draft || (cleared ? undefined : item.sets.at(-1));
   const previous = history.data?.results
     .filter((w) => w.id !== workout.id)
     .flatMap((w) => w.exercises)
@@ -159,71 +161,275 @@ export function WorkoutTraining({
           ];
   return (
     <>
-      <PageHeader
-        title={item.exercise_name}
-        eyebrow={item.category_name}
-        description={`${dayLabel(workout.performed_on)} · ${workout.name}`}
-      />
-      <details className="workout-card workout-training-options">
-        <summary>Workout options</summary>
-        <WorkoutTiming workout={workout} busy={busy} run={run} />
-        {item.group_name && (
-          <div className="workout-actions">
-            <span className="workout-badge">{item.group_name}</span>
-            <label className="workout-check">
-              <input
-                type="checkbox"
-                checked={autoAdvance}
-                onChange={(e) => onAutoAdvance(e.target.checked)}
-              />
-              Advance within group after completion
+      <header className="workout-exercise-toolbar">
+        <h1>{item.exercise_name}</h1>
+        <details
+          ref={options}
+          className="workout-training-options"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.stopPropagation();
+              event.currentTarget.open = false;
+              event.currentTarget.querySelector("summary")?.focus();
+            }
+          }}
+        >
+          <summary aria-label="Exercise options">
+            <span>Workout options</span>
+          </summary>
+          <div className="workout-exercise-menu">
+            <button
+              type="button"
+              onClick={() => {
+                if (options.current) {
+                  options.current.open = false;
+                  options.current.querySelector("summary")?.focus();
+                }
+              }}
+            >
+              Close menu
+            </button>
+            <button
+              disabled={disabled}
+              type="submit"
+              form={`set-entry-${item.id}`}
+              name="completion"
+              value="planned"
+              formNoValidate
+            >
+              Add planned set
+            </button>
+            {item.sets.length > 0 && (
+              <button
+                disabled={disabled}
+                onClick={() => {
+                  const s = item.sets.at(-1)!;
+                  run(async () => {
+                    await api.saveWorkoutSet(item.id, undefined, {
+                      weight: s.weight,
+                      reps: s.reps,
+                      distance: s.distance,
+                      duration_seconds: s.duration_seconds,
+                      comment: "",
+                      is_completed: true,
+                    });
+                    advance();
+                  });
+                }}
+              >
+                Repeat last as completed
+              </button>
+            )}{" "}
+            <WorkoutTools
+              item={item}
+              busy={disabled}
+              onAdd={(data) => savePlanned(item.id, data)}
+              preferences={catalog.preferences}
+              onSaveEquipment={saveEquipment}
+            />{" "}
+            <details
+              className="workout-set-comment"
+              key={`${editing?.id || "new"}:${version}`}
+              open={editing?.comment ? true : undefined}
+            >
+              <summary>+ Comment</summary>
+              <label>
+                Set comment
+                <input
+                  name="comment"
+                  form={`set-entry-${item.id}`}
+                  maxLength={2000}
+                  defaultValue={editing?.comment || ""}
+                  disabled={disabled}
+                  placeholder="Optional: effort, form, assistance…"
+                />
+              </label>
+            </details>{" "}
+            {previous && !editing && (
+              <button
+                disabled={disabled}
+                onClick={() => {
+                  fields.forEach((f) =>
+                    input(f.name, String(previous[f.name] ?? "")),
+                  );
+                }}
+              >
+                Use previous set
+              </button>
+            )}
+            <WorkoutTiming workout={workout} busy={busy} run={run} />
+            {item.group_name && (
+              <div className="workout-actions">
+                <span className="workout-badge">{item.group_name}</span>
+                <label className="workout-check">
+                  <input
+                    type="checkbox"
+                    checked={autoAdvance}
+                    onChange={(e) => onAutoAdvance(e.target.checked)}
+                  />
+                  Advance within group after completion
+                </label>
+              </div>
+            )}
+            <div className="workout-actions">
+              <button
+                disabled={busy}
+                onClick={() =>
+                  navigate({ view: "home", date: workout.performed_on })
+                }
+              >
+                Workout overview
+              </button>
+              <button
+                disabled={busy || !library}
+                onClick={() => setDialog("notes")}
+              >
+                Exercise notes
+              </button>
+              <button disabled={disabled} onClick={() => setDialog("manage")}>
+                Manage exercise
+              </button>
+              <button
+                disabled={busy}
+                onClick={() =>
+                  navigate({
+                    view: "progress",
+                    date: workout.performed_on,
+                    exercise: item.exercise_id,
+                  })
+                }
+              >
+                Exercise progress
+              </button>
+              <button
+                disabled={busy}
+                onClick={() =>
+                  navigate({
+                    view: "overview",
+                    date: workout.performed_on,
+                    exercise: item.exercise_id,
+                  })
+                }
+              >
+                Exercise overview
+              </button>
+            </div>
+            <label className="workout-training-picker">
+              Exercise in this workout
+              <select
+                aria-label="Exercise in this workout"
+                value={item.id}
+                disabled={busy}
+                onChange={(event) =>
+                  navigate({
+                    view: "training",
+                    date: workout.performed_on,
+                    session: workout.id,
+                    exercise: event.target.value,
+                  })
+                }
+              >
+                {workout.exercises.map((exercise, index) => (
+                  <option key={exercise.id} value={exercise.id}>
+                    {index + 1}. {exercise.exercise_name}
+                    {exercise.group_name ? ` · ${exercise.group_name}` : ""}
+                  </option>
+                ))}
+              </select>
             </label>
+            <details
+              className="workout-card workout-training-sidebar"
+              aria-label="Workout exercise management"
+            >
+              <summary>Manage workout</summary>
+              <h2>This workout</h2>
+              <div className="workout-stack">
+                {workout.exercises.map((i, index) => (
+                  <div key={i.id} className="workout-sidebar-exercise">
+                    <button
+                      disabled={busy}
+                      aria-pressed={i.id === item.id}
+                      className={
+                        i.group_name ? "workout-group-mark" : undefined
+                      }
+                      style={
+                        i.group_name
+                          ? {
+                              borderInlineStartColor:
+                                i.group_colour ?? "#007f68",
+                            }
+                          : undefined
+                      }
+                      onClick={() =>
+                        navigate({
+                          view: "training",
+                          date: workout.performed_on,
+                          session: workout.id,
+                          exercise: i.id,
+                        })
+                      }
+                    >
+                      <span>
+                        {i.exercise_name}
+                        {i.group_name && (
+                          <small style={{ display: "block" }}>
+                            {i.group_name}
+                          </small>
+                        )}
+                        <small style={{ display: "block" }}>
+                          {i.sets.filter((s) => s.is_completed).length}/
+                          {i.sets.length} sets completed
+                        </small>
+                      </span>
+                    </button>
+                    <WorkoutOrderControls
+                      kind="session-exercises"
+                      id={i.id}
+                      label={`exercise ${index + 1} (${i.exercise_name})`}
+                      index={index}
+                      count={workout.exercises.length}
+                      disabled={disabled}
+                      run={run}
+                    />
+                  </div>
+                ))}
+              </div>
+              <button
+                disabled={disabled}
+                style={{ marginTop: 12 }}
+                onClick={() =>
+                  navigate({
+                    view: "exercises",
+                    date: workout.performed_on,
+                    session: workout.id,
+                  })
+                }
+              >
+                Add exercise
+              </button>
+              <button disabled={disabled} onClick={() => setDialog("groups")}>
+                {item.group_name ? "Edit group" : "Add to group"}
+              </button>
+              <RemoveWorkoutExercise
+                item={item}
+                finished={workout.is_finished}
+                busy={busy}
+                run={run}
+                onRemoved={() =>
+                  navigate({ view: "home", date: workout.performed_on })
+                }
+              />
+            </details>{" "}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setManagingSets(!managingSets)}
+            >
+              {managingSets ? "Done managing sets" : "Manage sets"}
+            </button>{" "}
           </div>
-        )}
-        <div className="workout-actions">
-          <button
-            disabled={busy}
-            onClick={() =>
-              navigate({ view: "home", date: workout.performed_on })
-            }
-          >
-            Workout overview
-          </button>
-          <button
-            disabled={busy || !library}
-            onClick={() => setDialog("notes")}
-          >
-            Exercise notes
-          </button>
-          <button disabled={disabled} onClick={() => setDialog("manage")}>
-            Manage exercise
-          </button>
-          <button
-            disabled={busy}
-            onClick={() =>
-              navigate({
-                view: "progress",
-                date: workout.performed_on,
-                exercise: item.exercise_id,
-              })
-            }
-          >
-            Exercise progress
-          </button>
-          <button
-            disabled={busy}
-            onClick={() =>
-              navigate({
-                view: "overview",
-                date: workout.performed_on,
-                exercise: item.exercise_id,
-              })
-            }
-          >
-            Exercise overview
-          </button>
-        </div>
-      </details>
+        </details>
+      </header>
       {workout.is_finished && (
         <div className="workout-context">
           This workout is finished. Reopen it to edit sets.{" "}
@@ -240,86 +446,7 @@ export function WorkoutTraining({
         </div>
       )}
       <div className="workout-training-layout">
-        <aside className="workout-card workout-training-sidebar">
-          <h2>This workout</h2>
-          <div className="workout-stack">
-            {workout.exercises.map((i, index) => (
-              <div key={i.id} className="workout-sidebar-exercise">
-                <button
-                  disabled={busy}
-                  aria-pressed={i.id === item.id}
-                  className={i.group_name ? "workout-group-mark" : undefined}
-                  style={
-                    i.group_name
-                      ? { borderInlineStartColor: i.group_colour ?? "#007f68" }
-                      : undefined
-                  }
-                  onClick={() =>
-                    navigate({
-                      view: "training",
-                      date: workout.performed_on,
-                      session: workout.id,
-                      exercise: i.id,
-                    })
-                  }
-                >
-                  <span>
-                    {i.exercise_name}
-                    {i.group_name && (
-                      <small style={{ display: "block" }}>{i.group_name}</small>
-                    )}
-                    <small style={{ display: "block" }}>
-                      {i.sets.filter((s) => s.is_completed).length}/
-                      {i.sets.length} sets completed
-                    </small>
-                  </span>
-                </button>
-                <WorkoutOrderControls
-                  kind="session-exercises"
-                  id={i.id}
-                  label={`exercise ${index + 1} (${i.exercise_name})`}
-                  index={index}
-                  count={workout.exercises.length}
-                  disabled={disabled}
-                  run={run}
-                />
-              </div>
-            ))}
-          </div>
-          <button
-            disabled={disabled}
-            style={{ marginTop: 12 }}
-            onClick={() =>
-              navigate({
-                view: "exercises",
-                date: workout.performed_on,
-                session: workout.id,
-              })
-            }
-          >
-            Add exercise
-          </button>
-          <button disabled={disabled} onClick={() => setDialog("groups")}>
-            {item.group_name ? "Edit group" : "Add to group"}
-          </button>
-          <RemoveWorkoutExercise
-            item={item}
-            finished={workout.is_finished}
-            busy={busy}
-            run={run}
-            onRemoved={() =>
-              navigate({ view: "home", date: workout.performed_on })
-            }
-          />
-        </aside>
-        <section className="workout-card workout-training-main">
-          <WorkoutTools
-            item={item}
-            busy={disabled}
-            onAdd={(data) => savePlanned(item.id, data)}
-            preferences={catalog.preferences}
-            onSaveEquipment={saveEquipment}
-          />
+        <section className="workout-card workout-training-main workout-exercise-editor">
           <div className="workout-subtabs">
             <button
               disabled={busy}
@@ -330,35 +457,41 @@ export function WorkoutTraining({
             </button>
             <button
               disabled={busy}
+              aria-label="Exercise history"
               aria-pressed={tab === "history"}
               onClick={() => setTab("history")}
             >
-              Exercise history
+              History
+            </button>
+            <button
+              disabled={busy}
+              onClick={() =>
+                navigate({
+                  view: "progress",
+                  date: workout.performed_on,
+                  exercise: item.exercise_id,
+                })
+              }
+            >
+              Graph
             </button>
           </div>
           {tab === "track" ? (
             <>
               <div className="workout-card-heading">
-                <h2>{editing ? "Edit set" : "Record a set"}</h2>
-                {previous && !editing && (
-                  <button
-                    disabled={disabled}
-                    onClick={() => {
-                      fields.forEach((f) =>
-                        input(f.name, String(previous[f.name] ?? "")),
-                      );
-                    }}
-                  >
-                    Use previous set
-                  </button>
-                )}
+                <h2 className="visually-hidden">
+                  {editing ? "Edit set" : "Record a set"}
+                </h2>
               </div>
               <form
+                className="workout-set-entry"
+                id={`set-entry-${item.id}`}
                 noValidate
                 key={`${editing?.id || "new"}:${version}`}
                 ref={form}
                 onSubmit={(e) => {
                   e.preventDefault();
+                  if (options.current) options.current.open = false;
                   const fd = new FormData(e.currentTarget);
                   const submitter = (e.nativeEvent as SubmitEvent).submitter;
                   const completed = editing
@@ -386,6 +519,7 @@ export function WorkoutTraining({
                       data,
                     );
                     setDraft(saved);
+                    setCleared(false);
                     if (completed && (!editing || !editing.is_completed))
                       advance();
                     setEditingId(null);
@@ -395,49 +529,121 @@ export function WorkoutTraining({
               >
                 <div className="workout-fields">
                   {fields.map((f) => (
-                    <label key={f.name}>
-                      {f.label}
-                      <input
-                        name={f.name}
-                        type="number"
-                        min={f.min}
-                        max={
-                          f.name === "reps"
-                            ? 100000
-                            : f.name === "duration_seconds"
-                              ? 2147483647
-                              : 9999999.999
-                        }
-                        step={f.step}
-                        required={f.required}
-                        defaultValue={source?.[f.name] ?? ""}
-                        disabled={disabled}
-                      />
-                    </label>
+                    <div className="workout-step-field" key={f.name}>
+                      <label htmlFor={`entry-${item.id}-${f.name}`}>
+                        {f.label}
+                      </label>
+                      <div className="workout-step-controls">
+                        <button
+                          type="button"
+                          disabled={disabled}
+                          aria-label={`Decrease ${f.label}`}
+                          onClick={() => {
+                            const field = form.current?.elements.namedItem(
+                              f.name,
+                            ) as HTMLInputElement;
+                            const step =
+                              f.name === "weight"
+                                ? Number(library?.weight_increment || "2.5")
+                                : Number(f.step);
+                            input(
+                              f.name,
+                              String(
+                                Math.max(
+                                  f.min,
+                                  Number(
+                                    (Number(field.value || 0) - step).toFixed(
+                                      3,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }}
+                        >
+                          −
+                        </button>
+                        <input
+                          id={`entry-${item.id}-${f.name}`}
+                          name={f.name}
+                          type="number"
+                          min={f.min}
+                          max={
+                            f.name === "reps"
+                              ? 100000
+                              : f.name === "duration_seconds"
+                                ? 2147483647
+                                : 9999999.999
+                          }
+                          step={f.step}
+                          required={f.required}
+                          defaultValue={
+                            source?.[f.name] == null
+                              ? ""
+                              : Number(source[f.name])
+                          }
+                          disabled={disabled}
+                        />
+                        <button
+                          type="button"
+                          disabled={disabled}
+                          aria-label={`Increase ${f.label}`}
+                          onClick={() => {
+                            const field = form.current?.elements.namedItem(
+                              f.name,
+                            ) as HTMLInputElement;
+                            const step =
+                              f.name === "weight"
+                                ? Number(library?.weight_increment || "2.5")
+                                : Number(f.step);
+                            input(
+                              f.name,
+                              String(
+                                Math.max(
+                                  f.min,
+                                  Number(
+                                    (Number(field.value || 0) + step).toFixed(
+                                      3,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }}
+                        >
+                          ＋
+                        </button>
+                      </div>
+                    </div>
                   ))}
                 </div>
                 {editing && (
-                  <label>
-                    Set order
-                    <input
-                      name="order"
-                      type="number"
-                      min="0"
-                      max="2147483647"
-                      step="1"
-                      defaultValue={editing.display_order}
-                      required
-                      disabled={disabled}
-                    />
-                  </label>
+                  <input
+                    type="hidden"
+                    name="order"
+                    value={editing.display_order}
+                  />
                 )}
                 <div className="workout-actions" style={{ marginTop: 16 }}>
                   <button
                     className="primary-button"
+                    aria-label={editing ? "Update set" : "Save completed set"}
                     disabled={disabled}
                     formNoValidate={!!editing && !editing.is_completed}
                   >
-                    {editing ? "Update set" : "Save completed set"}
+                    {editing ? "Update set" : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => {
+                      setEditingId(null);
+                      setDraft(null);
+                      setCleared(true);
+                      setVersion((v) => v + 1);
+                    }}
+                  >
+                    Clear
                   </button>
                   {editing ? (
                     <>
@@ -457,56 +663,73 @@ export function WorkoutTraining({
                         Delete set
                       </button>
                     </>
-                  ) : (
-                    <button
-                      disabled={disabled}
-                      type="submit"
-                      name="completion"
-                      value="planned"
-                      formNoValidate
-                    >
-                      Add planned set
-                    </button>
-                  )}
+                  ) : null}
                 </div>
-                <label>
-                  Set comment
-                  <input
-                    name="comment"
-                    maxLength={2000}
-                    defaultValue={editing?.comment || ""}
-                    disabled={disabled}
-                    placeholder="Optional: effort, form, assistance…"
-                  />
-                </label>
               </form>
               <div className="workout-set-list">
                 <div className="workout-card-heading">
                   <h2>Sets</h2>
+
                   <small>
                     {item.sets.filter((s) => s.is_completed).length} of{" "}
                     {item.sets.length} completed
                   </small>
                 </div>
+                <p className="workout-note workout-set-legend">
+                  Tap values to edit · Check to complete · Unchecked sets are
+                  planned
+                </p>
+                {item.sets.length > 0 && (
+                  <div
+                    className={`workout-set-columns${item.tracking_type === "strength" ? " is-strength" : ""}`}
+                    aria-hidden="true"
+                  >
+                    <span>Set</span>
+                    <span>
+                      {item.tracking_type === "strength"
+                        ? item.weight_unit
+                        : "Values"}
+                    </span>
+                    {item.tracking_type === "strength" && <span>Reps</span>}
+                    <span>Done</span>
+                  </div>
+                )}
                 {item.sets.length ? (
                   item.sets.map((s, n) => (
                     <div className="workout-set-row" key={s.id}>
                       <strong>{n + 1}</strong>
-                      <div className="workout-set-values">
-                        <span>{setLabel(item, s)}</span>
-                        {s.comment && <small>{s.comment}</small>}
-                        <span
-                          className={`workout-badge ${s.is_completed ? "" : "muted"}`}
-                        >
-                          {s.is_completed ? "Completed" : "Planned"}
-                        </span>
-                      </div>
                       <button
+                        className="workout-set-edit"
                         disabled={disabled}
                         aria-label={`Edit set ${n + 1}`}
-                        onClick={() => setEditingId(s.id)}
+                        onClick={() => {
+                          setEditingId(s.id);
+                          requestAnimationFrame(() =>
+                            form.current?.scrollIntoView?.({
+                              block: "center",
+                              behavior: "smooth",
+                            }),
+                          );
+                        }}
                       >
-                        Edit
+                        <span className="workout-set-values">
+                          {item.tracking_type === "strength" ? (
+                            <span className="workout-strength-values">
+                              <span>
+                                <strong>
+                                  {s.weight == null ? "—" : Number(s.weight)}
+                                </strong>{" "}
+                                <small>{item.weight_unit}</small>
+                              </span>
+                              <span>
+                                <b>{s.reps ?? "—"}</b> <small>reps</small>
+                              </span>
+                            </span>
+                          ) : (
+                            <span>{setLabel(item, s)}</span>
+                          )}
+                          {s.comment && <small>{s.comment}</small>}
+                        </span>
                       </button>
                       <input
                         type="checkbox"
@@ -523,40 +746,21 @@ export function WorkoutTraining({
                           });
                         }}
                       />
-                      <WorkoutOrderControls
-                        kind="sets"
-                        id={s.id}
-                        label={`set ${n + 1}`}
-                        index={n}
-                        count={item.sets.length}
-                        disabled={disabled}
-                        run={run}
-                      />
+                      {managingSets && (
+                        <WorkoutOrderControls
+                          kind="sets"
+                          id={s.id}
+                          label={`set ${n + 1}`}
+                          index={n}
+                          count={item.sets.length}
+                          disabled={disabled}
+                          run={run}
+                        />
+                      )}
                     </div>
                   ))
                 ) : (
                   <p>No sets yet. Record the first when you're ready.</p>
-                )}
-                {item.sets.length > 0 && (
-                  <button
-                    disabled={disabled}
-                    onClick={() => {
-                      const s = item.sets.at(-1)!;
-                      run(async () => {
-                        await api.saveWorkoutSet(item.id, undefined, {
-                          weight: s.weight,
-                          reps: s.reps,
-                          distance: s.distance,
-                          duration_seconds: s.duration_seconds,
-                          comment: "",
-                          is_completed: true,
-                        });
-                        advance();
-                      });
-                    }}
-                  >
-                    Repeat last as completed
-                  </button>
                 )}
               </div>
             </>

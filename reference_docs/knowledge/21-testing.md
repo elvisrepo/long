@@ -1958,3 +1958,54 @@ E2E startup encountered port 5433 owned by the unrelated leet-anki database;
 these API-mocked journeys were run with the existing frontend-only configuration
 instead, without stopping that service. Their obsolete Home-title and notes-
 disclosure steps were updated for the approved layout.
+
+
+### Compact Training log — 2026-10-21
+
+All 652 frontend tests pass. The new regression covers value-row editing and
+explicitly enabled set management without writes; group-management coverage opens
+the new disclosure. Existing set-save, edit, comment, ordering and completion
+assertions use the compact columns. Four mocked workout browser journeys pass at
+320/390/1440px, including save, edit, completion, export, copy and routine capture.
+The mobile layout check verifies exercise selection before sets before entry.
+Lint and production build pass. Read-only real-account checks inspect
+320/390/768/1440px, row edit/cancel, comments, management and exercise selection.
+
+
+### Minimal workout overview — 2026-10-21
+
+The new component regression checks the overview omits visible timer/footer
+controls and Time workout opens the existing timer without writes. Existing
+correction/help tests no longer expect an inline clock or notes. All 653 frontend
+tests pass. Real-account read-only checks at 320/390/768/1440px confirm minimal
+cards, timing dialog, focus return and Training navigation without overflow,
+errors or writes. A browser check caught CSS overriding the hidden timer flag;
+controls are now conditionally rendered instead. Build and lint pass.
+The four mocked workout journeys also pass, including notes opened through the
+menu, export, copying and routine creation. Notes assertions use the textbox's
+accessible name; the overview no longer exposes a permanent notes block.
+
+
+### Workout entry-point regression — 2026-10-21
+
+A new component test opens a saved training URL with an exercise UUID and verifies
+both exercise cards appear without set-entry controls, then enters the second
+exercise and returns without writes. Existing editor tests explicitly tap a card;
+Home session opening now expects the log. All 45 screen tests pass. Real-account
+browser checks at 320/390/768/1440px verify the exact training URL, exercise entry,
+Back to workout and refresh, with no overflow, JS errors or tracker writes.
+Final validation: all 654 frontend tests, the four mocked workout browser
+journeys, ESLint and the production build pass. The editor's explicit library
+selection, save/edit, copy/export and routine journeys remain covered.
+
+
+### FitNotes-style exercise editor — 2026-10-21
+
+All 655 frontend tests pass. The new regression steps weight up/down, increments
+reps and clears the draft without writes. Existing save/edit/completion and comment
+coverage remains. Read-only browser checks at 320/390/768/1440px verify input-before-
+rows order, plus/minus, Clear, menu/comment access and History with no overflow,
+JS errors or tracker writes. The phone menu stays within the viewport and supports
+Close/Escape; planned-set submission closes it. Build and lint pass.
+The four mocked workout browser journeys pass through Save, Clear, editing,
+comments and planned entry via the menu, completion, copy/export and routines.
