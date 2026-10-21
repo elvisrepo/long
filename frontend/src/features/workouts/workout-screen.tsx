@@ -117,6 +117,8 @@ export function WorkoutScreen({
         ? { exercise: search.exercise }
         : {}),
     });
+  const emptyHome =
+    view === "home" && sessions.isSuccess && sessions.data.length === 0;
   const dateControls = (
     <div className="workout-date-controls date-navigation">
       <button
@@ -179,12 +181,6 @@ export function WorkoutScreen({
           </button>
         ))}
       </nav>
-      {view === "home" && (
-        <header className="workout-home-heading">
-          <h1>Workouts</h1>
-          <p>Choose a session to view or continue your training.</p>
-        </header>
-      )}
       {mutation.isError && (
         <p role="alert" className="workout-error">
           {mutation.error.message}
@@ -251,24 +247,10 @@ export function WorkoutScreen({
         />
       )}
       {view === "home" ? (
-        <section className="workout-home-context" aria-label="Daily sessions">
-          <div>
-            <h2>
-              {day === localDay(new Date()) ? "Today, " : ""}
-              {new Date(`${day}T12:00:00`).toLocaleDateString("en-GB", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
-            </h2>
-            <p role="status">
-              {sessions.isFetching
-                ? "Loading sessions…"
-                : sessions.isError
-                  ? "Sessions unavailable"
-                  : `${sessions.data?.length ?? 0} ${sessions.data?.length === 1 ? "session" : "sessions"} on this day`}
-            </p>
-          </div>
+        <section
+          className={`workout-home-context${emptyHome ? " is-empty" : ""}`}
+          aria-label="Daily sessions"
+        >
           {dateControls}
         </section>
       ) : (
@@ -508,32 +490,40 @@ function WorkoutHome({
           />
         ))
       ) : (
-        <section className="workout-card workout-empty">
-          <span className="workout-home-empty-icon" aria-hidden="true">
-            ↗
-          </span>
-          <h2>No workout on this day</h2>
-          <p>
-            Start a session and choose your first exercise, or copy a previous
-            workout. Creating a session does not start its timer.
-          </p>
-          <div className="workout-actions">
-            <button
-              className="primary-button"
-              aria-label="Start new workout"
-              disabled={busy}
-              onClick={start}
+        <section
+          className="workout-home-empty"
+          aria-labelledby="workout-empty-title"
+        >
+          <h2 id="workout-empty-title">No workout on this day</h2>
+          <button
+            className="workout-home-start"
+            aria-label="Start new workout"
+            disabled={busy}
+            onClick={start}
+          >
+            <span aria-hidden="true">＋</span>
+            Start new workout
+          </button>
+          <button
+            className="workout-home-copy"
+            aria-label="Copy previous workout"
+            disabled={busy}
+            onClick={() => setCopyOpen(true)}
+          >
+            <svg
+              aria-hidden="true"
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
             >
-              + New workout
-            </button>
-            <button
-              aria-label="Copy previous workout"
-              disabled={busy}
-              onClick={() => setCopyOpen(true)}
-            >
-              Copy previous
-            </button>
-          </div>
+              <rect x="8" y="8" width="12" height="13" rx="2" />
+              <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3" />
+            </svg>
+            Copy previous workout
+          </button>
         </section>
       )}
     </div>

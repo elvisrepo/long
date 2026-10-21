@@ -170,13 +170,19 @@ it("opens Home duration correction from More actions without starting timing", a
   );
 });
 
-it("shows Home date context and one creation action on an empty day", async () => {
+it("keeps Home date controls without repeated headings or session count", async () => {
   mount({ view: "home", date: "2026-10-12" });
   await screen.findByRole("heading", { name: "No workout on this day" });
   expect(
-    screen.getByRole("region", { name: "Daily sessions" }),
-  ).toHaveTextContent("12 October 2026");
-  expect(screen.getByText("0 sessions on this day")).toBeVisible();
+    screen.queryByRole("heading", { name: "Workouts", exact: true }),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByText("12 October 2026")).not.toBeInTheDocument();
+  expect(screen.queryByText("0 sessions on this day")).not.toBeInTheDocument();
+  expect(
+    screen
+      .getByRole("region", { name: "Daily sessions" })
+      .querySelector('input[type="date"]'),
+  ).toHaveValue("2026-10-12");
   expect(
     screen.getAllByRole("button", { name: "Start new workout" }),
   ).toHaveLength(1);

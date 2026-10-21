@@ -552,6 +552,14 @@ six-destination navigation above the title, wrapping naturally on phones. Loadin
 appears once per state; starting a session still opens the existing exercise picker
 without starting timing. The previously removed statistics/week sidebar stays absent.
 
+A FitNotes-inspired follow-up simplifies empty days in the light theme: compact,
+unframed date controls above a centered plus icon and Start new workout action,
+with Copy previous workout secondary underneath. The repeated introductory copy
+and enclosing empty-state card are removed. Populated-day cards remain unchanged;
+creation, copy previews, pending locks and explicit timing retain their existing behavior.
+The subsequent Home cleanup removes the Workouts title, introductory text and
+selected-date/session-count text; the date navigation and picker remain visible.
+
 Session cards distinguish Finished/In progress from completed/planned set counts.
 Exercise summaries retain grouping and use expandable exact set rows, preserving
 saved units and duplicate occurrences. View/Continue opens the first saved exercise
