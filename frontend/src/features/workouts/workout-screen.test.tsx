@@ -81,7 +81,7 @@ beforeEach(() => {
   vi.mocked(api.createWorkout).mockResolvedValue({ ...workout, exercises: [] });
   vi.mocked(api.addWorkoutExercise).mockResolvedValue(item);
 });
-it("keeps exact Home sets collapsed until requested without changing data", async () => {
+it("shows exact Home sets immediately and opens their exercise without writes", async () => {
   const user = userEvent.setup();
   const set: api.WorkoutSet = {
     id: "s",
@@ -97,11 +97,21 @@ it("keeps exact Home sets collapsed until requested without changing data", asyn
     { ...workout, exercises: [{ ...item, sets: [set] }] },
   ]);
   mount({ date: workout.performed_on });
-  const value = await screen.findByText("1. 80 kg · 5 reps");
-  expect(value).not.toBeVisible();
-  await user.click(screen.getByText("Set details (1)"));
-  expect(value).toBeVisible();
-  expect(screen.getByText("0 completed · 1 planned")).toBeVisible();
+  const block = await screen.findByRole("button", {
+    name: "Open Barbell bench press",
+  });
+  expect(block).toHaveTextContent("80");
+  expect(block).toHaveTextContent("5");
+  expect(block).toHaveTextContent("Planned");
+  expect(screen.queryByText("Set details (1)")).not.toBeInTheDocument();
+  await user.click(block);
+  expect(
+    await screen.findByRole("heading", {
+      name: "Barbell bench press",
+      level: 1,
+    }),
+  ).toBeVisible();
+  expect(api.saveWorkoutSet).not.toHaveBeenCalled();
   expect(api.updateWorkout).not.toHaveBeenCalled();
 });
 
@@ -1068,4 +1078,21 @@ it("keeps the selected date on Home without a separate week sidebar", async () =
   } finally {
     vi.useRealTimers();
   }
+});
+
+it("opens timing help from the Home session menu without starting the clock", async () => {
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([
+    { ...workout, notes: "Keep the last rep controlled" },
+  ]);
+  mount({ date: workout.performed_on });
+  expect(await screen.findByText("Keep the last rep controlled")).toBeVisible();
+  expect(screen.getByText("About workout timing")).not.toBeVisible();
+  await userEvent.click(screen.getByText("More actions ···"));
+  await userEvent.click(
+    screen.getByRole("button", { name: "About workout timing" }),
+  );
+  expect(
+    screen.getByRole("dialog", { name: "About workout timing" }),
+  ).toHaveTextContent("Rest between sets counts unless paused");
+  expect(api.updateWorkout).not.toHaveBeenCalled();
 });

@@ -578,3 +578,22 @@ paused/untracked state, explicit Start/Pause/Resume, and expandable timing help.
 Correct duration opens the same editor from More actions; Training retains its
 normal timing presentation. Not tracked is distinct from zero. No public API,
 route, schema or timing semantics changed, and this slice was not deployed.
+
+
+### FitNotes-inspired populated Home log — 2026-10-21
+
+Approved A replaces collapsed set details with exact visible rows in tappable
+exercise blocks. Strength rows show saved weight units, reps and status; other
+tracking types retain their saved-value labels. Missing values are not zero.
+Group marks, duplicate occurrences and per-set comments are retained. Opening a
+block only navigates to its existing Training screen. Management controls remain
+separate from that target and preserve finished-session restrictions.
+
+Each session has a header menu for details/date changes, notes, finish/reopen,
+copy, export, routine capture, management, duration correction and timing help.
+Saved notes are visible above exercises when present. Timing is a single row;
+help opens a dialog from the menu. Explicit timing semantics remain unchanged.
+Add exercise is the primary footer action; View/Continue remains available.
+New workout and Copy previous are under Day actions on populated dates. The
+approved empty state and bordered navigation remain. No API, route or schema
+changes; drag-and-drop, selective export and partial moves remain future options.

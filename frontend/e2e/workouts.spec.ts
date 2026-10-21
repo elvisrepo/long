@@ -249,7 +249,10 @@ for (const width of [320, 390, 1440])
     await fixture(page);
     await page.goto("/workouts?date=" + date);
     await expect(
-      page.getByRole("heading", { name: "Workouts", exact: true }),
+      page.getByRole("heading", {
+        name: "No workout on this day",
+        exact: true,
+      }),
     ).toBeVisible();
     await page.getByRole("button", { name: "Start new workout" }).click();
     await page.getByRole("button", { name: "Add Barbell bench press" }).click();
@@ -354,7 +357,6 @@ for (const width of [320, 390, 1440])
     await expect(
       page.getByText(/^0 completed sets · \d+ planned · 1 exercise$/),
     ).toBeVisible();
-    await page.getByText("Session notes", { exact: true }).click();
     await expect(
       page.getByText("Warm up first", { exact: true }),
     ).toBeVisible();

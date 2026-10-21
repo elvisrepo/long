@@ -36,6 +36,8 @@ export function WorkoutTiming({
   run,
   compact = false,
   correctionOpen = false,
+  helpOpen = false,
+  onHelpClose,
   onCorrectionClose,
 }: {
   workout: Workout;
@@ -43,6 +45,8 @@ export function WorkoutTiming({
   run: RunAction;
   compact?: boolean;
   correctionOpen?: boolean;
+  helpOpen?: boolean;
+  onHelpClose?: () => void;
   onCorrectionClose?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -107,13 +111,9 @@ export function WorkoutTiming({
               workout={workout}
             />
           </h3>
-          {compact && (
+          {compact && (running || workout.duration_seconds != null) && (
             <p className="workout-home-timer-state">
-              {running
-                ? "Running"
-                : workout.duration_seconds == null
-                  ? "Timer not started"
-                  : "Paused"}
+              {running ? "Running" : "Paused"}
             </p>
           )}
         </div>
@@ -141,13 +141,17 @@ export function WorkoutTiming({
           )}
         </div>
       </div>
-      {compact ? (
-        <details className="workout-home-timing-help">
-          <summary>About workout timing</summary>
+      {!compact && timingHelp}
+      {helpOpen && (
+        <Modal
+          labelledBy="timing-help-title"
+          busy={locked}
+          onClose={() => onHelpClose?.()}
+        >
+          <h2 id="timing-help-title">About workout timing</h2>
           {timingHelp}
-        </details>
-      ) : (
-        timingHelp
+          <button onClick={onHelpClose}>Close</button>
+        </Modal>
       )}
       {error && !showEditor && <p role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}

@@ -1939,3 +1939,22 @@ checks at 320/390/768/1440px cover actual finished/in-progress and multi-session
 records, a real empty date, set disclosure, menu bounds, duration/export dialogs,
 focus return and Training navigation. No horizontal overflow, browser errors or
 tracker writes occurred. ESLint and the production build pass.
+
+
+### FitNotes-inspired Home log A — 2026-10-21
+
+The Home regression now verifies exact set values are immediately visible inside
+an exercise target and navigating through it performs no set/session writes.
+Additional coverage checks saved notes are visible and timing help opens from
+the session menu without starting the clock. All 651 frontend tests, lint and
+the production build pass. Real-account read-only browser checks at
+320/390/768/1440px cover visible rows, menu bounds, timing-help focus return,
+explicit management, Training navigation and the retained empty state, with no
+overflow, browser errors or tracker writes.
+
+The four mocked workout browser journeys pass at 320/390/1440px, covering
+logging, editing, finish/reopen, export, copy and routine creation. The normal
+E2E startup encountered port 5433 owned by the unrelated leet-anki database;
+these API-mocked journeys were run with the existing frontend-only configuration
+instead, without stopping that service. Their obsolete Home-title and notes-
+disclosure steps were updated for the approved layout.

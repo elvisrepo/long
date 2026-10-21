@@ -127,9 +127,11 @@ for (const width of [320, 390, 1440]) {
     ).toBeVisible();
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
     await page.getByRole("button", { name: "Home", exact: true }).click();
-    await expect(page.getByText(/40 kg/)).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Open Barbell bench press" }),
+    ).toContainText("40");
     await page
-      .getByRole("button", { name: "Barbell bench press →", exact: true })
+      .getByRole("button", { name: "Open Barbell bench press", exact: true })
       .click();
     await page
       .getByRole("button", { name: "Add to group", exact: true })
@@ -269,7 +271,7 @@ for (const width of [320, 390, 1440]) {
     ).toContainText("Dumbbell incline press");
     await capture("exercise-ordering");
     await page
-      .getByRole("button", { name: "Barbell bench press →", exact: true })
+      .getByRole("button", { name: "Open Barbell bench press", exact: true })
       .click();
     await page
       .getByRole("button", {
@@ -499,7 +501,9 @@ for (const width of [320, 390, 1440]) {
     await expect(
       page.getByRole("heading", { name: "Weekly plan · Push" }),
     ).toBeVisible();
-    await expect(page.getByText(/40 kg/)).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Open Barbell bench press" }),
+    ).toContainText("40");
     let accidentalWrites = 0;
     page.on("request", (outgoing) => {
       if (
@@ -645,7 +649,7 @@ for (const width of [320, 390, 1440]) {
     await page.getByRole("button", { name: "Home", exact: true }).click();
     await page.getByLabel("Tracking date").fill(currentDate);
     await page
-      .getByRole("button", { name: "Barbell bench press →", exact: true })
+      .getByRole("button", { name: "Open Barbell bench press", exact: true })
       .first()
       .click();
     await page
