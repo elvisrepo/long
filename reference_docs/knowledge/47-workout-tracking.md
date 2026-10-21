@@ -670,3 +670,15 @@ duration correction and timing help. Manage workout contains exercise ordering
 and confirmed removal, Save as routine day, and confirmed workout deletion.
 Finished workouts must be reopened before their exercises can be changed.
 No route or API contract changes.
+
+
+### Compact Time workout sheet — 2026-10-21
+
+Time workout follows the FitNotes reference in the app's light theme: date and
+ellipsis, Start time, End time, Duration, one full-width Start/Stop/Resume action
+and Close. Corrections and timing help are behind Timing options. Actions persist
+immediately; no redundant Save step. Stop pauses elapsed timing without finishing
+the workout. Duration excludes stopped intervals, so it need not equal end minus
+start. Read-only server timestamps survive refresh; unknown legacy timestamps show
+Not recorded. Duration corrections clear timestamps rather than implying a false
+interval. Local migration 0012 is applied; staging will need it on deployment.

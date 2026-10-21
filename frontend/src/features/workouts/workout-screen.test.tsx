@@ -168,6 +168,7 @@ it("opens Home duration correction from More actions without starting timing", a
   await user.click(
     screen.getByRole("button", { name: "Time workout", exact: true }),
   );
+  await user.click(screen.getByLabelText("Timing options"));
   await user.click(screen.getByRole("button", { name: "Correct duration" }));
   expect(
     screen.getByRole("dialog", { name: "Correct workout duration" }),
@@ -1158,8 +1159,12 @@ it("opens timing help from the Home session menu without starting the clock", as
   await userEvent.click(
     screen.getByRole("button", { name: "Time workout", exact: true }),
   );
+  await userEvent.click(screen.getByLabelText("Timing options"));
+  await userEvent.click(
+    screen.getByRole("button", { name: "About workout timing" }),
+  );
   expect(
-    screen.getByRole("dialog", { name: "Time workout" }),
+    screen.getByRole("dialog", { name: "About workout timing" }),
   ).toHaveTextContent("Rest between sets counts unless paused");
   expect(api.updateWorkout).not.toHaveBeenCalled();
 });

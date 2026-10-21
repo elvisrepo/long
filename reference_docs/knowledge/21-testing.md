@@ -2019,3 +2019,16 @@ failed-removal handling, ordering and routine capture/retry. Duration correction
 and timing help are reached through Time workout; exercise cards open the editor
 directly. All 656 frontend tests, four mocked workout browser journeys at mobile
 and desktop widths, ESLint and the production build pass.
+
+### Compact timing sheet and persisted timestamps — 2026-10-21
+
+The timing component covers start/stop fields, hidden secondary options, help,
+recorded timestamps, running/stopped state and the existing save/error controls.
+The frontend suite passed 657 tests; the subsequent timestamp-display regression
+also passes in the seven-test focused timing suite. All four workout browser
+journeys, frontend lint/build and backend Ruff checks pass. Read-only real-account
+checks at 320/390/768/1440px verify the light sheet, options/correction access and
+no dialog overflow, JS errors or tracker writes. The 96-test backend workout,
+routine and account lifecycle slice checks refresh/resume, repeat-safe stop,
+finish, correction, read-only timestamps, copy reset and export. Migration 0012
+is applied locally and makemigrations --check --dry-run reports no changes.

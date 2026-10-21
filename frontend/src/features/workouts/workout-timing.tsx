@@ -34,33 +34,21 @@ export function WorkoutTiming({
   workout,
   busy,
   run,
-  compact = false,
-  controlsHidden = false,
-  correctionOpen = false,
-  helpOpen = false,
-  onHelpClose,
-  onCorrectionClose,
 }: {
   workout: Workout;
   busy: boolean;
   run: RunAction;
-  compact?: boolean;
-  controlsHidden?: boolean;
-  correctionOpen?: boolean;
-  helpOpen?: boolean;
-  onHelpClose?: () => void;
-  onCorrectionClose?: () => void;
 }) {
+  const [help, setHelp] = useState(false);
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const locked = busy || pending;
   const running = !!workout.timer_started_at;
-  const showEditor = editing || correctionOpen;
+  const showEditor = editing;
   function closeEditor() {
     setEditing(false);
-    onCorrectionClose?.();
   }
   function save(data: Parameters<typeof updateWorkout>[1], correction = false) {
     if (locked) return;
@@ -99,70 +87,102 @@ export function WorkoutTiming({
       stops the timer; reopening does not restart it. Maximum 7 days.
     </p>
   );
+  const time = (value: string | null | undefined) =>
+    value
+      ? new Intl.DateTimeFormat(undefined, {
+          hour: "numeric",
+          minute: "2-digit",
+        }).format(new Date(value))
+      : "Not recorded";
+  const day = new Intl.DateTimeFormat(undefined, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(`${workout.performed_on}T12:00:00`));
   return (
-    <section
-      className={
-        controlsHidden
-          ? "workout-timing-dialogs"
-          : compact
-            ? "workout-home-timing"
-            : "workout-inset"
-      }
-      aria-label="Workout duration"
-    >
-      {!controlsHidden && (
-        <div className={compact ? "workout-home-duration" : undefined}>
-          <div>
-            <h3>
-              {compact ? "Duration" : "Workout duration"} ·{" "}
-              <DurationClock
-                key={`${workout.id}:${workout.timer_server_now}:${workout.timer_started_at}:${workout.duration_seconds}`}
-                workout={workout}
-              />
-            </h3>
-            {compact && (running || workout.duration_seconds != null) && (
-              <p className="workout-home-timer-state">
-                {running ? "Running" : "Paused"}
-              </p>
-            )}
-          </div>
-          <div className="workout-actions">
+    <section className="workout-time-sheet" aria-label="Workout duration">
+      <div className="workout-time-date">
+        <strong>{day}</strong>
+        <details
+          className="workout-home-menu"
+          onClick={(event) => {
+            if (
+              event.target instanceof Element &&
+              event.target.closest("button")
+            ) {
+              event.currentTarget.querySelector("summary")?.focus();
+              event.currentTarget.open = false;
+            }
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.currentTarget.open = false;
+              event.currentTarget.querySelector("summary")?.focus();
+            }
+          }}
+        >
+          <summary aria-label="Timing options">···</summary>
+          <div className="workout-home-menu-items">
             <button
-              disabled={locked || workout.is_finished}
-              onClick={() =>
-                save({ timer_action: running ? "pause" : "start" })
-              }
+              disabled={locked}
+              onClick={() => {
+                setEditing(true);
+                setError("");
+              }}
             >
-              {running
-                ? "Pause timer"
-                : workout.duration_seconds == null
-                  ? "Start timer"
-                  : "Resume timer"}
+              Correct duration
             </button>
-            {!compact && (
-              <button
-                disabled={locked}
-                onClick={() => {
-                  setEditing(true);
-                  setError("");
-                }}
-              >
-                Correct duration
-              </button>
-            )}
+            <button disabled={locked} onClick={() => setHelp(true)}>
+              About workout timing
+            </button>
           </div>
+        </details>
+      </div>
+      <dl className="workout-time-fields">
+        <div>
+          <dt>Start time</dt>
+          <dd>
+            {time(workout.workout_started_at ?? workout.timer_started_at)}
+          </dd>
         </div>
+        <div>
+          <dt>End time</dt>
+          <dd>{running ? "In progress" : time(workout.workout_ended_at)}</dd>
+        </div>
+        <div>
+          <dt>Duration</dt>
+          <dd>
+            <DurationClock
+              key={`${workout.id}:${workout.timer_server_now}:${workout.timer_started_at}:${workout.duration_seconds}`}
+              workout={workout}
+            />
+          </dd>
+        </div>
+      </dl>
+      <button
+        className="primary-button workout-time-toggle"
+        disabled={locked || workout.is_finished}
+        onClick={() => save({ timer_action: running ? "pause" : "start" })}
+      >
+        {running
+          ? "Stop timer"
+          : workout.duration_seconds == null
+            ? "Start timer"
+            : "Resume timer"}
+      </button>
+      {workout.is_finished && (
+        <p className="workout-note">Reopen this workout to start the timer.</p>
       )}
-      {!compact && timingHelp}
-      {helpOpen && (
+      {help && (
         <Modal
           labelledBy="timing-help-title"
           busy={locked}
-          onClose={() => onHelpClose?.()}
+          onClose={() => setHelp(false)}
         >
           <h2 id="timing-help-title">About workout timing</h2>
           {timingHelp}
-          <button onClick={onHelpClose}>Close</button>
+          <button onClick={() => setHelp(false)}>Close</button>
         </Modal>
       )}
       {error && !showEditor && <p role="alert">{error}</p>}

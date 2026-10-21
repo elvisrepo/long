@@ -208,6 +208,17 @@ Migration 0009 adds two nullable fields and bound/state SQL constraints. Account
 JSON export includes stored duration/start; selected-workout CSV/text includes the
 loaded elapsed snapshot and running status, not a restorable timing backup.
 
+Timing timestamps (2026-10-21): session responses additionally expose nullable,
+read-only `workout_started_at` (first explicit start since timing was cleared or
+corrected) and `workout_ended_at` (latest actual pause/finish while running).
+Resume preserves the first start and clears the end; repeated pause leaves it
+unchanged. Manual duration replacement/clear nulls both timestamps because the
+corrected total no longer describes the recorded wall-clock interval. Existing
+rows remain null; the UI never invents historical times. Copies and routine starts
+reset these fields; account JSON exports them. Migration 0012 adds the nullable
+columns. PATCH ownership/locking and routes are unchanged. The UI's Stop timer
+sends the existing `timer_action=pause`, so stopping does not finish the workout.
+
 Frontend `/workouts` uses validated optional search fields: `view=home|exercises|
 training|history|routines|calendar|progress|overview`, real calendar `date=YYYY-MM-DD`, UUID `session` and `exercise`.
 Training needs both UUIDs; its exercise parameter identifies a session occurrence,

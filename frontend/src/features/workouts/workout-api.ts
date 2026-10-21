@@ -64,6 +64,8 @@ export interface Workout {
   is_finished: boolean;
   duration_seconds?: number | null;
   timer_started_at?: string | null;
+  workout_started_at?: string | null;
+  workout_ended_at?: string | null;
   elapsed_seconds?: number | null;
   timer_server_now?: string;
   created_at: string;

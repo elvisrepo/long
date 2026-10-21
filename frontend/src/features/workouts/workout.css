@@ -1350,3 +1350,53 @@
   border-radius: 0;
   background: transparent;
 }
+
+/* Compact workout timing sheet. */
+.workout-time-modal {
+  width: min(24rem, calc(100vw - 2rem));
+}
+.workout-time-modal > h2 {
+  margin: 0;
+  padding-bottom: 0.85rem;
+  border-bottom: 2px solid #81cabc;
+  color: #007f68;
+}
+.workout-time-date {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 0;
+  font-size: 0.85rem;
+}
+.workout-time-date > strong {
+  min-width: 0;
+}
+.workout-time-date .workout-home-menu {
+  flex-shrink: 0;
+}
+.workout-time-fields {
+  margin: 0 0 1rem;
+}
+.workout-time-fields > div {
+  padding: 0.85rem 0;
+  border-bottom: 1px solid #d0dce2;
+}
+.workout-time-fields dt {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #526878;
+  margin-bottom: 0.45rem;
+}
+.workout-time-fields dd {
+  margin: 0;
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+}
+.workout-time-toggle {
+  width: 100%;
+  margin-bottom: 0.75rem;
+}
+.workout-time-sheet .workout-home-menu-items {
+  max-width: calc(100vw - 4rem);
+}

@@ -683,6 +683,7 @@ function SessionCard({
       {dialog === "time" && (
         <Modal
           labelledBy={`workout-time-${w.id}`}
+          className="workout-time-modal"
           busy={busy}
           onClose={() => setDialog(null)}
         >

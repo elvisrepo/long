@@ -160,6 +160,8 @@ def account_export(user: User) -> Iterator[str]:
             "created_at",
             "duration_seconds",
             "timer_started_at",
+            "workout_started_at",
+            "workout_ended_at",
         ),
         "workout_exercises": WorkoutExercise.objects.filter(
             workout__user=user, exercise__category__user=user

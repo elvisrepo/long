@@ -317,6 +317,12 @@ class WorkoutSerializer(serializers.ModelSerializer):
         elif action == "start" and instance.timer_started_at is None:
             instance.duration_seconds = instance.duration_seconds or 0
             instance.timer_started_at = now
+            if instance.workout_started_at is None:
+                instance.workout_started_at = now
+            instance.workout_ended_at = None
+        if "duration_seconds" in validated_data:
+            instance.workout_started_at = None
+            instance.workout_ended_at = None
         return super().update(instance, validated_data)
 
     def get_completed_set_count(self, obj: Workout) -> int:
@@ -334,6 +340,8 @@ class WorkoutSerializer(serializers.ModelSerializer):
             "is_finished",
             "duration_seconds",
             "timer_started_at",
+            "workout_started_at",
+            "workout_ended_at",
             "elapsed_seconds",
             "timer_server_now",
             "timer_action",
@@ -341,7 +349,14 @@ class WorkoutSerializer(serializers.ModelSerializer):
             "exercises",
             "completed_set_count",
         ]
-        read_only_fields = ["id", "created_at", "exercises", "timer_started_at"]
+        read_only_fields = [
+            "id",
+            "created_at",
+            "exercises",
+            "timer_started_at",
+            "workout_started_at",
+            "workout_ended_at",
+        ]
 
 
 class WorkoutRangeSerializer(serializers.Serializer):

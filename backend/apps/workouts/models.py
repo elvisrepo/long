@@ -251,6 +251,8 @@ class Workout(models.Model):
     is_finished = models.BooleanField(default=False)
     duration_seconds = models.PositiveIntegerField(null=True, blank=True)
     timer_started_at = models.DateTimeField(null=True, blank=True)
+    workout_started_at = models.DateTimeField(null=True, blank=True)
+    workout_ended_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def elapsed_at(self, now: datetime | None = None) -> int | None:
@@ -267,6 +269,8 @@ class Workout(models.Model):
         return min(604800, self.duration_seconds + running)
 
     def pause_timer(self, now: datetime) -> None:
+        if self.timer_started_at is not None:
+            self.workout_ended_at = now
         self.duration_seconds = self.elapsed_at(now)
         self.timer_started_at = None
 
