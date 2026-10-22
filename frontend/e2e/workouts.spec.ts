@@ -628,3 +628,40 @@ for (const width of [390, 1440]) {
     ).toHaveCount(0);
   });
 }
+
+test("moves the open workout to another date without creating a copy", async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.setViewportSize({ width: 390, height: 950 });
+  await page.goto("/workouts?date=" + date);
+  await page
+    .getByRole("button", { name: "Start new workout", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Add Barbell bench press", exact: true })
+    .click();
+  await page.getByLabel("Exercise options", { exact: true }).click();
+  await page
+    .getByRole("button", { name: "Workout overview", exact: true })
+    .click();
+  await page.getByText("More actions ···", { exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Copy workout", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Move workout", exact: true }).click();
+  await page.getByLabel("Move to date").fill("2026-10-03");
+  const request = page.waitForRequest(
+    (req) =>
+      req.method() === "PATCH" &&
+      new URL(req.url()).pathname.endsWith(`/${sessionId}/`),
+  );
+  await page.getByRole("button", { name: "Move", exact: true }).click();
+  expect((await request).postDataJSON()).toEqual({
+    performed_on: "2026-10-03",
+  });
+  await expect(page.getByLabel("Tracking date")).toHaveValue("2026-10-03");
+  await expect(
+    page.getByRole("button", { name: "Open Barbell bench press", exact: true }),
+  ).toBeVisible();
+});

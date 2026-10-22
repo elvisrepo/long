@@ -2093,3 +2093,12 @@ All 50 workout screen tests pass, including the updated seven-action menu,
 notes-only save, clearing, failed-save draft retention and cancellation without
 another write. The 390px workout browser journey opens the shortcut and verifies
 existing notes. Lint and build pass. No backend changes.
+
+### Move open workout — 2026-10-22
+
+All 51 workout screen tests pass. Move patches only performed_on, navigates to the
+returned date, and never calls copy/create. Cancel causes no write, unchanged-date
+submission is disabled, and a failed move retains the destination selection.
+The 390px browser journey verifies the menu replacement, exact PATCH body and
+exercise availability on the destination day. Lint and build pass. Existing
+empty-day Copy previous and History copy tests remain green.

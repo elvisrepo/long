@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
@@ -461,43 +461,28 @@ it("opens a calendar to choose a previous workout without creating a copy", asyn
   await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });
-it.each(["home", "history"] as const)(
-  "opens the shared selection dialog from %s without writes",
-  async (view) => {
-    vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
-    vi.mocked(api.getWorkoutPage).mockResolvedValue({
-      count: 1,
-      next: null,
-      previous: null,
-      results: [workout],
-    });
-    mount({ view, date: workout.performed_on });
-    if (view === "home")
-      await userEvent.click(await screen.findByText("More actions ···"));
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Copy workout", exact: true }),
-    );
-    if (view === "home")
-      await userEvent.click(
-        await screen.findByRole("button", { name: /^Copy Workout to / }),
-      );
-    expect(
-      screen.getByRole("dialog", { name: "Copy workout" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("checkbox", {
-        name: `Include exercise 1: ${item.exercise_name}`,
-      }),
-    ).toBeChecked();
-    expect(
-      screen.getByRole("region", { name: "Copy selection" }),
-    ).toHaveTextContent(item.exercise_name);
-    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(api.copyWorkout).not.toHaveBeenCalled();
-    expect(api.createWorkout).not.toHaveBeenCalled();
-  },
-);
+it("opens copy selection from History without writes", async () => {
+  vi.mocked(api.getWorkoutPage).mockResolvedValue({
+    count: 1,
+    next: null,
+    previous: null,
+    results: [workout],
+  });
+  mount({ view: "history", date: workout.performed_on });
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Copy workout", exact: true }),
+  );
+  expect(screen.getByRole("dialog", { name: "Copy workout" })).toBeVisible();
+  expect(
+    screen.getByRole("checkbox", {
+      name: `Include exercise 1: ${item.exercise_name}`,
+    }),
+  ).toBeChecked();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Cancel", exact: true }),
+  );
+  expect(api.copyWorkout).not.toHaveBeenCalled();
+});
 it("returns from selection to the source calendar without creating anything", async () => {
   vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
   mount({ date: workout.performed_on });
@@ -1320,7 +1305,7 @@ it("offers seven workout actions with secondary actions inside Manage workout", 
     "Edit workout",
     "Comment workout",
     "Time workout",
-    "Copy workout",
+    "Move workout",
     "Export workout",
     "Finish workout",
     "Manage workout",
@@ -1396,4 +1381,75 @@ it("retains a failed workout comment draft and cancels without another save", as
   );
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   expect(api.updateWorkout).toHaveBeenCalledTimes(1);
+});
+
+it("moves an existing workout by changing only its date and opens the destination day", async () => {
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
+  vi.mocked(api.updateWorkout).mockResolvedValue({
+    ...workout,
+    performed_on: "2026-10-23",
+  });
+  mount({ date: workout.performed_on });
+  await userEvent.click(await screen.findByText("More actions ···"));
+  expect(
+    screen.queryByRole("button", { name: "Copy workout", exact: true }),
+  ).not.toBeInTheDocument();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Move workout", exact: true }),
+  );
+  expect(
+    screen.getByRole("button", { name: "Move", exact: true }),
+  ).toBeDisabled();
+  fireEvent.change(screen.getByLabelText("Move to date"), {
+    target: { value: "2026-10-23" },
+  });
+  expect(api.updateWorkout).not.toHaveBeenCalled();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Move", exact: true }),
+  );
+  await waitFor(() =>
+    expect(api.updateWorkout).toHaveBeenCalledExactlyOnceWith("w", {
+      performed_on: "2026-10-23",
+    }),
+  );
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("dialog", { name: "Move workout" }),
+    ).not.toBeInTheDocument(),
+  );
+  expect(screen.getByLabelText("Tracking date")).toHaveValue("2026-10-23");
+  expect(api.copyWorkout).not.toHaveBeenCalled();
+  expect(api.createWorkout).not.toHaveBeenCalled();
+});
+
+it("cancels a move without saving and retains the selected date if moving fails", async () => {
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
+  vi.mocked(api.updateWorkout).mockRejectedValue(new Error("Move failed"));
+  mount({ date: workout.performed_on });
+  await userEvent.click(await screen.findByText("More actions ···"));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Move workout", exact: true }),
+  );
+  fireEvent.change(screen.getByLabelText("Move to date"), {
+    target: { value: "2026-10-23" },
+  });
+  await userEvent.click(
+    screen.getByRole("button", { name: "Cancel", exact: true }),
+  );
+  expect(api.updateWorkout).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByText("More actions ···"));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Move workout", exact: true }),
+  );
+  fireEvent.change(screen.getByLabelText("Move to date"), {
+    target: { value: "2026-10-23" },
+  });
+  await userEvent.click(
+    screen.getByRole("button", { name: "Move", exact: true }),
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent("Move failed");
+  expect(screen.getByLabelText("Move to date")).toHaveValue("2026-10-23");
+  expect(screen.getByLabelText("Tracking date")).toHaveValue(
+    workout.performed_on,
+  );
 });

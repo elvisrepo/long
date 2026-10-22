@@ -748,3 +748,14 @@ focused notes editor prefilled with the existing session notes. Save patches onl
 `notes`; an empty comment clears them. Cancel does not save. Errors retain the
 draft for retry. This uses the existing 2000-character session notes field and
 contract; Edit workout still includes notes. No backend or route changes.
+
+### Open-workout Move action — 2026-10-22
+
+The open workout overflow now offers Move workout in place of Copy workout.
+Its focused date picker patches only performed_on on the existing session, then
+opens the destination day. IDs, exercises, sets, completion, notes and timing
+remain intact; no duplicate session is created. The current date cannot be
+submitted unchanged. Cancel does not save and a failed move retains the chosen
+date. Copy previous remains available from the daily view, including empty days;
+History still allows copying an explicitly selected historical session.
+No API, route or backend changes.

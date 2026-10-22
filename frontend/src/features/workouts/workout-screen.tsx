@@ -363,7 +363,6 @@ export function WorkoutScreen({
           !editingExercise ? (
             <div className="workout-home">
               <SessionCard
-                owner={owner}
                 workout={detail.data}
                 busy={busy}
                 run={run}
@@ -541,7 +540,6 @@ function WorkoutHome({
       {sessions.length ? (
         sessions.map((w) => (
           <SessionCard
-            owner={owner}
             key={w.id}
             workout={w}
             openExercise={openExercise}
@@ -591,20 +589,20 @@ function WorkoutHome({
   );
 }
 function SessionCard({
-  owner,
   openExercise,
   workout: w,
   busy,
   run,
   navigate,
 }: {
-  owner: string;
   workout: api.Workout;
   openExercise?: NavigateWorkout;
   busy: boolean;
   run: RunAction;
   navigate: NavigateWorkout;
 }) {
+  const [moveDate, setMoveDate] = useState(w.performed_on);
+  const [moveError, setMoveError] = useState("");
   const [commentError, setCommentError] = useState("");
   const [selecting, setSelecting] = useState(false);
   const [managing, setManaging] = useState(false);
@@ -612,7 +610,7 @@ function SessionCard({
     | "edit"
     | "comment"
     | "delete"
-    | "copy"
+    | "move"
     | "routine"
     | "export"
     | "time"
@@ -678,8 +676,15 @@ function SessionCard({
             <button disabled={busy} onClick={() => setDialog("time")}>
               Time workout
             </button>
-            <button disabled={busy} onClick={() => setDialog("copy")}>
-              Copy workout
+            <button
+              disabled={busy}
+              onClick={() => {
+                setMoveDate(w.performed_on);
+                setMoveError("");
+                setDialog("move");
+              }}
+            >
+              Move workout
             </button>
             <button disabled={busy} onClick={() => setDialog("export")}>
               Export workout
@@ -859,16 +864,67 @@ function SessionCard({
           onClose={() => setDialog(null)}
         />
       )}
-      {dialog === "copy" && (
-        <CopyWorkoutPicker
-          owner={owner}
-          initialDate={w.performed_on}
-          destination={localDay(new Date())}
+      {dialog === "move" && (
+        <Modal
+          labelledBy={`workout-move-${w.id}`}
           busy={busy}
-          run={run}
-          navigate={navigate}
           onClose={() => setDialog(null)}
-        />
+        >
+          <h2 id={`workout-move-${w.id}`}>Move workout</h2>
+          <p>
+            Move this workout to another date. All exercises, sets and comments
+            stay with it.
+          </p>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!moveDate || moveDate === w.performed_on || busy) return;
+              setMoveError("");
+              run(async () => {
+                try {
+                  const saved = await api.updateWorkout(w.id, {
+                    performed_on: moveDate,
+                  });
+                  setDialog(null);
+                  navigate({ view: "home", date: saved.performed_on });
+                } catch (reason) {
+                  setMoveError(
+                    reason instanceof Error
+                      ? reason.message
+                      : "Workout couldn't be moved. Please retry.",
+                  );
+                }
+              });
+            }}
+          >
+            <label>
+              Move to date
+              <input
+                type="date"
+                required
+                value={moveDate}
+                disabled={busy}
+                onChange={(event) => setMoveDate(event.target.value)}
+              />
+            </label>
+            {moveError && <p role="alert">{moveError}</p>}
+            <div className="workout-actions">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setDialog(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="primary-button"
+                disabled={busy || !moveDate || moveDate === w.performed_on}
+              >
+                Move
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
       {dialog === "export" && (
         <WorkoutExportDialog workout={w} onClose={() => setDialog(null)} />
