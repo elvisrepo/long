@@ -111,6 +111,7 @@ def account_export(user: User) -> Iterator[str]:
             "bar_lb",
             "plates_kg",
             "plates_lb",
+            "exercise_bars",
         ),
         "exercise_goals": ExerciseGoal.objects.filter(exercise__category__user=user)
         .order_by("id")

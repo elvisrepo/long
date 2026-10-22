@@ -1415,3 +1415,27 @@ and their sets, retaining the session, library and other occurrences. Both actio
 are atomic under the existing per-user mutation lock and return the full workout
 (`200`). Reorder normalizes display_order to 10,20,… and preserves sets/groups.
 No database migration. Existing individual delete/move endpoints remain available.
+
+### Workout equipment metadata — 2026-10-22
+
+The existing authenticated `GET/PATCH /api/v1/workouts/preferences/` and catalog
+preferences payload now retain optional plate metadata: `colour` is a six-digit
+hex string (`#RRGGBB`), and `enabled` is a boolean. Existing `{weight, count}` rows
+remain valid; absent `enabled` means usable when count is positive. Disabled rows
+keep their counts but are excluded from loading. Existing limits remain: 20 sizes
+per unit, distinct positive weights ≤1000 with three decimals and counts 0–100.
+
+`exercise_bars` is an optional replacement list (maximum 500):
+`{exercise_id: uuid, weight_unit: "kg"|"lb", weight: decimal-string}`.
+Each exercise must belong to the caller; missing/foreign IDs reject with 400.
+There can be one entry per exercise/unit, with weight 0–1000 and three decimals.
+An empty list clears overrides. Omitting the field preserves it. Unit-specific
+default bars apply where no matching override exists. Migration
+`workouts.0013_exercise_bars` adds this JSON field with an empty-list default.
+Account export includes it and account deletion cascades the preferences row.
+
+Calculator reads/writes use existing records and set endpoints. Record selection
+is bounded to the workout date and saved unit/type. Adding a calculated weight
+POSTs `{weight, reps:null, is_completed:false}` to the existing set endpoint;
+it does not record an observed lift or trigger completion effects. Route paths
+are unchanged.

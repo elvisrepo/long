@@ -2141,3 +2141,25 @@ The Chrome workout journey adjusts seconds/volume, completes a one-second timer,
 stops it and checks dialog overflow at 320/390px. The 320px dialog screenshot was
 visually inspected. Browser background/locked-device delivery is not guaranteed.
 No backend contract changes or backend test rerun are needed for this UI slice.
+
+### Focused workout calculators — 2026-10-22
+
+All 684 frontend tests, nine workout browser journeys and 123 focused backend
+regression tests pass. Frontend lint/build, targeted backend Ruff checks,
+`makemigrations --check --dry-run` and `git diff --check` pass. The additive local
+`workouts.0013_exercise_bars` migration was applied to the development database.
+No deployment was performed.
+
+Calculator component tests cover 1–15RM output, optional rounding, failed planned
+set retry, record/unit filtering, percentage presets, enabled paired inventory,
+exercise-specific bars, list switching, failed equipment drafts, invalid blank
+bar prevention and cancellation. Backend checks cover metadata round-trip,
+owner isolation, export, invalid colours/IDs and duplicate exercise-bar rejection
+without writes, alongside existing workout/record/account lifecycle coverage.
+
+The new Chrome journey opens all three dialogs, uses an observed RM and percentage
+preset, verifies the planned-set POST, edits bar/plate settings and reloads to
+confirm persisted colours and overrides. Layout checks cover 1RM/set dialogs at
+320/390px, equipment at 320px, and plates at 320/390/1440px. The 320px screenshots
+were visually inspected. Browser API fixtures are mocked; real PostgreSQL API
+integration tests independently verify account persistence and ownership.

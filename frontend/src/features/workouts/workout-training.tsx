@@ -4,6 +4,7 @@ import { Modal } from "../../components/modal";
 import * as api from "./workout-api";
 import { WorkoutNavigationPanel } from "./workout-navigation-panel";
 import { WorkoutTools } from "./workout-tools";
+import { calculatorNames, type CalculatorKind } from "./workout-calculators";
 import { WorkoutTiming } from "./workout-timing";
 import { WorkoutGroups } from "./workout-groups";
 import { RemoveWorkoutExercise } from "./remove-workout-exercise";
@@ -80,6 +81,7 @@ export function WorkoutTraining({
   const client = useQueryClient();
   const item = workout.exercises.find((i) => i.id === itemId);
   const [groupsFromPanel, setGroupsFromPanel] = useState(false);
+  const [calculator, setCalculator] = useState<CalculatorKind | null>(null);
   const edgeSwipe = useRef<{ x: number; y: number } | null>(null);
   const [tab, setTab] = useState<"track" | "history">("track");
   const [managingSets, setManagingSets] = useState(false);
@@ -335,13 +337,21 @@ export function WorkoutTraining({
                 Repeat last as completed
               </button>
             )}{" "}
-            <WorkoutTools
-              item={item}
-              busy={disabled}
-              onAdd={(data) => savePlanned(item.id, data)}
-              preferences={catalog.preferences}
-              onSaveEquipment={saveEquipment}
-            />{" "}
+            {item.tracking_type === "strength" &&
+              (Object.keys(calculatorNames) as CalculatorKind[]).map((kind) => (
+                <button
+                  key={kind}
+                  onClick={() => {
+                    if (options.current) {
+                      options.current.open = false;
+                      options.current.querySelector("summary")?.focus();
+                    }
+                    setCalculator(kind);
+                  }}
+                >
+                  {calculatorNames[kind]}
+                </button>
+              ))}
             <details
               className="workout-set-comment"
               key={`${editing?.id || "new"}:${version}`}
@@ -1231,6 +1241,19 @@ export function WorkoutTraining({
             </button>
           </Modal>
         )}
+      <WorkoutTools
+        owner={owner}
+        key={item.id}
+        item={item}
+        busy={disabled}
+        active={calculator}
+        onClose={() => setCalculator(null)}
+        onAdd={(data) => savePlanned(item.id, data)}
+        preferences={catalog.preferences}
+        onSaveEquipment={saveEquipment}
+        exercises={catalog.exercises}
+        date={workout.performed_on}
+      />
     </>
   );
 }

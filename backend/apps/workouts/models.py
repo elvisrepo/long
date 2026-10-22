@@ -71,6 +71,7 @@ class WorkoutPreferences(models.Model):
     bar_lb = models.DecimalField(max_digits=7, decimal_places=3, default="45")
     plates_kg = models.JSONField(default=metric_plates)
     plates_lb = models.JSONField(default=imperial_plates)
+    exercise_bars = models.JSONField(default=list)
 
 
 class ExerciseCategory(models.Model):

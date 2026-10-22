@@ -1,6 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import type { WorkoutRoutine } from "../src/features/workouts/workout-api";
+import type {
+  WorkoutRoutine,
+  WorkoutPreferences,
+} from "../src/features/workouts/workout-api";
 
 const categoryId = "11111111-1111-4111-8111-111111111111";
 const exerciseId = "22222222-2222-4222-8222-222222222222";
@@ -8,7 +11,7 @@ const sessionId = "33333333-3333-4333-8333-333333333333";
 const itemId = "44444444-4444-4444-8444-444444444444";
 const date = "2026-10-02";
 
-async function fixture(page: Page) {
+async function fixture(page: Page, preferences: WorkoutPreferences = {}) {
   const category = {
     id: categoryId,
     name: "Chest",
@@ -69,8 +72,11 @@ async function fixture(page: Page) {
     if (path.endsWith("/refresh/")) json = { access: "workout-fixture" };
     else if (path.endsWith("/me/")) json = { email: "workout@example.test" };
     else if (path.includes("/workouts/catalog/"))
-      json = { categories: [category], exercises: [exercise] };
-    else if (path === "/api/v1/workouts/routines/") {
+      json = { categories: [category], exercises: [exercise], preferences };
+    else if (path.endsWith("/workouts/preferences/")) {
+      if (method === "PATCH") Object.assign(preferences, body);
+      json = preferences;
+    } else if (path === "/api/v1/workouts/routines/") {
       if (method === "POST") {
         const routine: WorkoutRoutine = {
           id: "88888888-8888-4888-8888-888888888888",
@@ -864,4 +870,156 @@ test("navigation panel links a coloured group and keeps exercise navigation acce
   await expect(
     page.getByRole("button", { name: "Open Bench", exact: true }),
   ).toBeVisible();
+});
+
+test("focused calculators plan sets and preserve coloured equipment and exercise bars", async ({
+  page,
+}) => {
+  const preferences: WorkoutPreferences = {};
+  await fixture(page, preferences);
+  await page.setViewportSize({ width: 390, height: 950 });
+  await page.route("**/records/?*", (route) =>
+    route.fulfill({
+      json: {
+        count: 1,
+        next: null,
+        previous: null,
+        results: [
+          {
+            date,
+            value: "100",
+            reps: 5,
+            tracking_type: "strength",
+            weight_unit: "kg",
+            distance_unit: "km",
+            source: {
+              workout_id: sessionId,
+              item_id: itemId,
+              set_id: "record",
+              weight: "100",
+              reps: 5,
+            },
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto("/workouts?date=" + date);
+  await page.getByLabel("Color theme").selectOption("light");
+  await page
+    .getByRole("button", { name: "Start new workout", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Add Barbell bench press", exact: true })
+    .click();
+  const open = async (name: string) => {
+    await page.getByLabel("Exercise options", { exact: true }).click();
+    await page.getByRole("button", { name, exact: true }).click();
+  };
+  await open("1RM Calculator");
+  let dialog = page.getByRole("dialog", {
+    name: "One-rep-max calculator",
+    exact: true,
+  });
+  await dialog.getByLabel("Weight (kg)", { exact: true }).fill("110");
+  await dialog.getByLabel("Reps", { exact: true }).fill("5");
+  await expect(dialog.getByText("128.3 kg", { exact: true })).toBeVisible();
+  await expect(dialog.locator(".workout-rm-list > div")).toHaveCount(15);
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 950 });
+    expect(await dialog.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
+      false,
+    );
+    await page.screenshot({ path: `/tmp/calculator-max-${width}.png` });
+  }
+  await dialog.getByRole("button", { name: "OK", exact: true }).click();
+  await open("Set Calculator");
+  dialog = page.getByRole("dialog", { name: "Set calculator", exact: true });
+  await dialog.getByRole("button", { name: "Select max", exact: true }).click();
+  await dialog
+    .getByRole("button", { name: "5RM · 100 kg", exact: true })
+    .click();
+  await dialog
+    .getByRole("button", { name: "Select percentage", exact: true })
+    .click();
+  await dialog.getByRole("button", { name: "75%", exact: true }).click();
+  await expect(dialog.getByRole("status")).toHaveText("75 kg");
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 950 });
+    expect(await dialog.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
+      false,
+    );
+    await page.screenshot({ path: `/tmp/calculator-set-${width}.png` });
+  }
+  const planned = page.waitForRequest(
+    (req) => req.method() === "POST" && req.url().includes(`/${itemId}/sets/`),
+  );
+  await dialog
+    .getByRole("button", { name: "Add to workout", exact: true })
+    .click();
+  expect((await planned).postDataJSON()).toEqual({
+    weight: "75.000",
+    reps: null,
+    is_completed: false,
+  });
+  await expect(dialog).toHaveCount(0);
+  await open("Plate Calculator");
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  dialog = page.getByRole("dialog", { name: "Plate settings", exact: true });
+  await page.setViewportSize({ width: 320, height: 950 });
+  expect(await dialog.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
+    false,
+  );
+  await page.screenshot({ path: "/tmp/calculator-equipment-320.png" });
+  await dialog.getByRole("button", { name: "Edit bar", exact: true }).click();
+  await page.getByLabel("Default bar weight (kg)", { exact: true }).fill("15");
+  await page.getByLabel("Exercise", { exact: true }).selectOption(exerciseId);
+  await page
+    .getByRole("button", { name: "Add exercise bar", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await dialog
+    .getByRole("button", { name: "Edit 20 kg plate", exact: true })
+    .click();
+  await page.getByLabel("Total plate count", { exact: true }).fill("4");
+  await page.getByLabel("Plate colour", { exact: true }).fill("#2563eb");
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await dialog.getByLabel("Available 20 kg plate", { exact: true }).check();
+  await dialog
+    .getByRole("button", { name: "Save equipment defaults", exact: true })
+    .click();
+  dialog = page.getByRole("dialog", { name: "Plate calculator", exact: true });
+  await dialog
+    .getByLabel("Target including bar (kg)", { exact: true })
+    .fill("95");
+  await expect(dialog.getByRole("img")).toHaveAccessibleName(
+    "Plates on each side: 2 × 20 kg",
+  );
+  for (const width of [320, 390, 1440]) {
+    await page.setViewportSize({ width, height: 950 });
+    expect(await dialog.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
+      false,
+    );
+    await page.screenshot({ path: `/tmp/calculator-plates-${width}.png` });
+  }
+  expect(preferences.exercise_bars).toEqual([
+    { exercise_id: exerciseId, weight_unit: "kg", weight: "15.000" },
+  ]);
+  await dialog.getByRole("button", { name: "OK", exact: true }).click();
+  await page.reload();
+  await page
+    .getByRole("button", { name: "Open Barbell bench press", exact: true })
+    .click();
+  await open("Plate Calculator");
+  dialog = page.getByRole("dialog", { name: "Plate calculator", exact: true });
+  await dialog
+    .getByLabel("Target including bar (kg)", { exact: true })
+    .fill("95");
+  await expect(
+    dialog.getByText("15 kg bar + 40 kg each side", { exact: true }),
+  ).toBeVisible();
+  await expect(dialog.locator(".workout-loaded-plate").first()).toHaveCSS(
+    "background-color",
+    "rgb(37, 99, 235)",
+  );
 });

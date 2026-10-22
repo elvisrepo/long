@@ -520,3 +520,12 @@ account export/deletion retains them through the existing MetricEntry lifecycle.
 The combined Android request adds Distance and READ_TOTAL_CALORIES_BURNED
 to the original five reads. Active Calories is no longer read or requested. Independent per-metric opt-in remains
 future work. The v4 activity cursor namespace is excluded from backup/transfer.
+
+Workout equipment metadata (2026-10-22): plate colours accept only six-digit hex
+values; inventory remains bounded to 20 sizes with finite weights/counts.
+Exercise-bar overrides are limited to 500 unique exercise/unit pairs and each
+exercise ID must belong to the authenticated caller. Invalid/foreign IDs reject
+before preference writes. Account export includes the saved metadata and account
+deletion removes it through the existing preferences cascade. Calculator record
+queries include the account in the frontend cache key and filter saved units;
+no automatic unit conversion or completion side effects are introduced.

@@ -102,7 +102,9 @@ class PreferencesView(APIView):
         preferences = WorkoutPreferences.objects.filter(
             user=request.user
         ).first() or WorkoutPreferences(user=request.user)
-        serializer = PreferencesSerializer(preferences, data=request.data, partial=True)
+        serializer = PreferencesSerializer(
+            preferences, data=request.data, partial=True, context={"request": request}
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)

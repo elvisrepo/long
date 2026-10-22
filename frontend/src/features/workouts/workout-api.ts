@@ -25,13 +25,25 @@ export interface WorkoutCatalog {
   exercises: Exercise[];
   preferences?: WorkoutPreferences;
 }
+export interface EquipmentPlate {
+  weight: string;
+  count: number;
+  colour?: string;
+  enabled?: boolean;
+}
+export interface ExerciseBar {
+  exercise_id: string;
+  weight_unit: "kg" | "lb";
+  weight: string;
+}
 export interface WorkoutPreferences {
   auto_start_rest?: boolean;
   auto_advance_groups?: boolean;
   bar_kg?: string;
   bar_lb?: string;
-  plates_kg?: { weight: string; count: number }[];
-  plates_lb?: { weight: string; count: number }[];
+  plates_kg?: EquipmentPlate[];
+  plates_lb?: EquipmentPlate[];
+  exercise_bars?: ExerciseBar[];
 }
 export interface WorkoutSet {
   id: string;

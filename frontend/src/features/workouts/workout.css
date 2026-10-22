@@ -1989,7 +1989,10 @@
   align-items: end;
   gap: 0.75rem;
 }
-.workout-screen .workout-rest-controls .workout-rest-duration input[type="number"] {
+.workout-screen
+  .workout-rest-controls
+  .workout-rest-duration
+  input[type="number"] {
   text-align: center;
   font-size: 1.75rem;
   font-weight: 700;
@@ -2023,4 +2026,162 @@
 .workout-rest-volume > span {
   font-size: 0.75rem;
   color: var(--text-dim);
+}
+
+.workout-calculator-modal {
+  width: min(27rem, calc(100vw - 2rem));
+}
+.workout-calculator-field {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: end;
+  gap: 0.75rem;
+  margin-block: 1rem;
+}
+.workout-calculator-field label {
+  text-align: center;
+}
+.workout-calculator-field button {
+  padding: 0;
+  min-height: 48px;
+  font-size: 1.5rem;
+}
+.workout-screen
+  .workout-calculator-modal
+  .workout-calculator-field
+  input[type="number"] {
+  font-size: 1.65rem;
+  text-align: center;
+  font-weight: 600;
+}
+.workout-rm-list {
+  max-height: 21rem;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+  margin-block: 1rem;
+}
+.workout-rm-list > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid #edf1f3;
+}
+.workout-rm-list > div > div {
+  display: grid;
+  text-align: end;
+  gap: 0.15rem;
+}
+.workout-calculator-modal .workout-actions {
+  margin-top: 1rem;
+}
+.workout-calculator-link {
+  display: block;
+  margin: -0.4rem auto 0.75rem;
+  border-color: transparent;
+  background: transparent;
+  color: var(--accent);
+}
+.workout-calculator-picker {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: #f1f6f5;
+  max-height: 15rem;
+  overflow-y: auto;
+}
+.workout-calculator-percentages {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+.workout-calculator-result {
+  text-align: center;
+  font-size: 1.5rem;
+  background: #f1f6f5;
+  padding: 1rem;
+  margin-block: 1rem;
+  border-radius: 8px;
+}
+.workout-calculator-round {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.workout-calculator-round .workout-check {
+  margin: 0;
+}
+.workout-calculator-round select {
+  width: auto;
+}
+.workout-calculator-bar {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+.workout-plate-diagram {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 200px;
+  overflow-x: auto;
+  padding: 1rem;
+}
+.workout-bar-shaft {
+  position: absolute;
+  height: 10px;
+  width: 85%;
+  background: #94a3b8;
+  border-radius: 3px;
+}
+.workout-loaded-plate {
+  width: 19px;
+  min-width: 19px;
+  max-height: 160px;
+  border-radius: 3px;
+  z-index: 1;
+  border: 1px solid #0002;
+}
+.workout-plate-breakdown {
+  text-align: center;
+}
+.workout-equipment-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding-block: 0.4rem;
+  border-bottom: 1px solid #edf1f3;
+  min-width: 0;
+}
+.workout-equipment-row > button:first-child {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border-color: transparent;
+  text-align: start;
+}
+.workout-equipment-row > button small {
+  margin-left: auto;
+}
+.workout-equipment-row label {
+  flex: 1;
+  min-width: 0;
+}
+.workout-plate-swatch {
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.workout-plate-inventory {
+  max-height: 22rem;
+  overflow-y: auto;
+  margin-bottom: 1rem;
 }

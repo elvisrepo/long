@@ -819,3 +819,26 @@ reused. Creating plans, edits or failed saves does not trigger that event.
 This is a browser timer: background/locked-phone alerts can be delayed. Leaving
 Workouts or reloading clears the countdown, while device settings remain. It does
 not provide native scheduled alarms or notifications. No backend/API changes.
+
+### Focused calculator dialogs — 2026-10-22
+
+The Training overflow exposes 1RM Calculator, Set Calculator and Plate Calculator
+as separate dialogs instead of a combined disclosure. Strength occurrences keep
+their frozen units. The 1RM dialog updates Epley estimates live for 1–15RM, shows
+the relative percentages and labels the result as estimated. Inputs have numeric
+fields and minus/plus controls; estimates never become recorded PRs automatically.
+
+Set Calculator accepts a base and percentage, offers saved observed records in the
+same units through the existing date-bounded records read, percentage presets and
+optional nearest-increment rounding. Add to workout creates a planned set with
+unknown reps, preserves failed drafts for retry, and does not fire timer/group
+completion effects. Calculation itself performs no writes.
+
+Plate Calculator uses exact balanced pairs from enabled finite inventory, displays
+a coloured per-side plate diagram or list, and distinguishes impossible loads from
+bar-only results. Settings supports the full requested metric/imperial starter
+sizes, availability checkboxes, count/weight/colour editing, custom plates, reset,
+a default bar and exercise/unit-specific bars. Counts start at zero for unknown
+inventory; enabling a zero-count row starts with a pair. Saving is explicit and
+account-owned. Cancelling settings discards the draft. Other units remain intact.
+The additive equipment contract and migration are documented in 03-api-design.md.
