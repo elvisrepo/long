@@ -221,3 +221,190 @@ The working index alone depends on sibling screenshots. Keep the portable snapsh
 outside Git because it contains the large visual archive. The ignored files are
 local artifacts, not a backed-up or shared record; retain a separate backup if
 long-term preservation is required.
+
+
+## Dashboard review — 20 October 2026
+
+The owner requests Light theme only for UI/UX work from now on. Use Light for
+future reviews, mockups and proposed layouts. This preference does not itself
+remove Dark mode from the implemented application.
+
+The dashboard review artifact is local and ignored at
+`.lavish/dashboard-review/index.html`, with a separate interactive
+`proposed.html`. It uses the current app's tokens, bundled DM Sans/DM Mono and
+actual existing local Pro-account tracker data. Current screenshots are from
+1440px desktop and 390px mobile; additional layout checks cover 320px/768px.
+No application changes or account-data edits are approved or implied by this
+review. Feedback controls queue choices only on explicit submission.
+
+Recommendations: show each measurement's date; replace the unlabeled carousel
+with explicit metric discovery; compact daily tracker access and include
+Stretching; update the AI link to describe Day/Week/Month suggestions; explain
+and collapse individual source-entry history. The proposed three primary cards
+and mobile tracker-first order are choices, with six cards/metrics-first offered
+for feedback. Preserve quick-add controls, all metric records and all five
+visible source entries. No invented scores, targets, physiological conclusions,
+or uniform seven-day labels for unequal sparkline samples.
+
+## Metrics catalog refinement — 20 October 2026 (approved and implemented)
+
+The owner approved all four recommendations in the local Light-theme review at
+`.lavish/metrics-review/index.html`. The screenshots use the existing local account's
+10 built-in, one active custom, and three archived custom definitions; no account
+records were changed during the review or subsequent real-account browser checks.
+
+- Compact white rows replace dashboard-style catalog cards. Family colors remain
+  in icon tiles; the main row opens history. Desktop uses two columns and mobile
+  uses one column so long names and units fit. The mobile list can be longer;
+  readability and custom-metric access are the intended improvements.
+- All / Built-in / Custom / Archived filters include counts. All starts with custom
+  metrics. The catalog reads definitions including inactive records through the
+  existing endpoint so counts and generated identifiers include archives. The
+  All count represents available definitions, not logged data.
+  Creation uses a compact outlined rectangular “+ New metric” button directly
+  after Archived in the filter row, wrapping naturally on narrow screens. The
+  redundant available-count badge is removed. Creation stays accessible under
+  every filter. Usage/quota remains beneath the Custom metrics
+  heading (“1 of 10 used”). The standalone promotional creation panel was removed.
+- Custom rows have a labeled native disclosure for Edit and Archive. Edit opens a
+  shared native modal; cancelling discards drafts. Archive keeps confirmation and
+  the existing deactivation behavior: preserve history, stop logging, free a slot.
+  Restore invokes the existing reactivation operation. Modal focus returns to the
+  persistent management disclosure, rather than a hidden menu action.
+- Creation leads with Name and Unit, then required numeric minimum/maximum with
+  “Allowed entry range, not a health target.” Identifiers are generated from the
+  name, capped at 80 characters, and suffixed to avoid existing active/archived
+  definitions. Advanced allows manual editing. Server uniqueness validation remains
+  authoritative; identifier errors reveal Advanced and preserve the draft. No API
+  contracts, route paths, database schema, quota rules, or existing identifiers change.
+
+Review and implementation browser checks cover Light at 320/390/768/1440px,
+filtering, archive visibility, modal focus, cancelled edits, identifier generation,
+and invalid ranges. The review artifact remains a proposal snapshot; the app is the
+implemented source of truth. Metric-detail charts were outside this review's scope.
+
+## Distance detail — 20 October 2026 (proposals 02–04 implemented)
+
+The local Light-theme review is `.lavish/distance-review/index.html`, with real
+account captures and an interactive proposal. The owner approved proposals 02
+(chart and summary), 03 (daily history), and 04 (manual-entry wording). Proposal
+01 was initially excluded. A follow-up request now reduces the visible header to
+Metrics / Distance and the existing Add Distance entry action; the repeated title,
+category and loaded-record badge are removed. A visually hidden h1 remains.
+
+- Distance defaults to 30 local calendar days. Its chart spans the first through last recorded
+  dates in the selected range, trimming empty leading/trailing dates. Internal
+  missing dates stay null, measured zero stays zero, and lines do not bridge gaps.
+  The summary and coverage denominator still describe the full selected range.
+  The owner initially restored the smooth green line and fill, then selected a
+  bar chart. Distance now uses soft green daily bars with rounded tops. Missing
+  dates stay blank; a minimum-height mark keeps measured zero visible. Transition
+  animation remains disabled for Distance.
+  Other metrics retain their existing chart mode and default range.
+- Recorded total, daily average and recorded-day coverage replace Distance's
+  Oldest/Latest/Delta cards. Total and average are rounded to one and two decimal
+  places; individual readings retain the existing distance precision. Missing
+  dates are excluded from the average; partial recorded days are disclosed.
+- Daily history reuses the backend's existing daily summaries, newest first,
+  with five days initially shown and expansion reset on range changes. Source
+  records are a separate collapsed disclosure; its count describes loaded
+  records (at most 50). Source timestamps remain explicitly UTC. Existing manual
+  Edit/Delete, confirmation, numeric limits and backend source priority remain.
+- Distance's shared native add dialog uses Add distance, Distance (km), Date and
+  time, Notes (optional), and Save distance. Notes use a textarea. Submission,
+  pending/error behavior, native focus containment and return are preserved;
+  dialogs for other metrics keep their wording.
+- Selected-date links retain their existing UTC semantics. Local calendar date
+  iteration handles daylight-saving boundaries without adding or losing dates.
+
+Validation: all 622 frontend tests pass, including ten additional Distance checks;
+ESLint and production build pass. Read-only browser checks at 320/390/768/1440px
+verify the actual account's 30-day totals, 7d/1y switching, daily/source expansion,
+UTC date links, native add-dialog focus containment/return, and unchanged HRV
+presentation. No API writes, page errors or horizontal overflow occurred. The
+normal account was not seeded or reset. No API contracts, routes or schema changed.
+
+Follow-up visual refinements: the range filter sits to the right of Daily distance,
+with exact date bounds below. Source-record labels, timestamps and values align
+left on both mobile and desktop. The 44px range controls stay beside the heading
+at 320px; the heading may wrap there. Focused validation covers 57 Distance/detail
+checks; lint, build and real-account responsive checks pass.
+
+## Steps detail — 20 October 2026 (all four proposals implemented)
+
+The approved Light-theme review is `.lavish/steps-review/index.html`. Steps now
+shares the activity layout/calendar helpers with Distance; Distance retains daily
+bars at every range and its existing entry wording.
+
+- The compact header shows Metrics / Steps, Add steps, and the existing Pro-only
+  Compare with Weight action. A hidden h1 preserves the page heading.
+- The default is 30d. The 7d/30d views use daily green bars; 90d/1y sum daily
+  records into Monday-based weekly bars. Tooltips show exact totals and recorded
+  day counts; partial weeks are identified. Empty outer dates are trimmed,
+  internal missing periods remain blank, and measured zero stays visible.
+- Recorded steps, rounded daily average, and recorded-day coverage describe the
+  entire selected range. Missing days are excluded from the average. Daily
+  history remains daily even when the chart groups weeks, starts with five rows,
+  and resets expansion when the range changes. Source records remain collapsed,
+  left aligned, capped at 50 loaded records, and explicitly timestamped in UTC.
+- The native Add steps dialog uses integer input, Date and time, optional notes,
+  and Save steps. Existing validation, focus behavior, manual Edit/Delete, API
+  payloads, source selection, and UTC selected-date links are preserved.
+
+Validation: 629 frontend tests pass; lint and production build pass. Real-account
+Steps browser checks at 320/390/768/1440px cover range switching, summaries,
+history/source expansion, dialog focus, fractional-input rejection, selected-date
+links, and unchanged HRV presentation. No API writes, page errors, or horizontal
+overflow occurred. No API contracts, routes, schema, or normal-account data changed.
+
+## Recovery — 20 October 2026 (proposal A implemented)
+
+The Light review at `.lavish/recovery-review/index.html` compares the actual page
+with A (compact checklist) and B (visual cards). The owner approved all of A.
+The implemented page has a short header, one combined date/count/recent-days panel
+above tools at every width, a single shared-tool checklist with blue icon tiles,
+per-tool collapsed research, and a compact custom-tools panel with nearby Add tool.
+The separate sidebar and repeated introductory research explanations are removed.
+One About the research disclosure retains the source and interpretation limits.
+
+The date picker keeps its full range. History stays anchored to today, includes
+archived activity counts, and now explicitly shows distinct days with records.
+The selected count still describes active-tool check-offs only. Loading is stated
+while changing dates; writes remain confirmed by the server. Existing Pro creation,
+custom logging after downgrade, modal draft/error/focus behavior and archive/restore
+are preserved. No new target, readiness score, quota or backend contract is added.
+
+Validation: all 633 frontend tests, ESLint and production build pass. Real-account
+browser checks at 320/390/768/1440px cover the context-before-tools order, collapsed
+research, past-day records, full date navigation, cancelled creation and modal focus.
+No API writes, page errors or horizontal overflow occurred. The proposal artifact
+remains the design comparison; the app is the implemented source of truth.
+
+## Diet — 20 October 2026 (proposal A implemented)
+
+The Light review at `.lavish/diet-review/index.html` compares actual screenshots
+with compact sections (A) and a section browser (B). The owner approved all of A.
+One combined date/count/week/Recorded foods panel precedes the checklist. Expanded
+section lists use three columns on desktop, two on tablet and one on mobile.
+Warm accents distinguish Diet from Recovery's blue; checked rows have a subtle
+tint. Food creation stays at the section heading, section creation beside checklist
+management. No food names, ordering, category membership or nutrition measures
+are invented or changed.
+
+Manage checklist reveals compact native item menus. Existing name/order editing,
+archive/restore, archived-record undo and all-account creation remain; check-offs
+are disabled in management mode. Edit dialogs return focus to the persistent menu
+summary. Selected-day loading is explicit and the recent week stays today-anchored.
+
+Validation: all 637 frontend tests, lint and production build pass. Focused browser
+checks cover date alignment/context order and full Diet management/history/
+dashboard journeys at 320 and 1440px. The browser fixture now supplies the profile's
+existing estimated_bmr contract and selects the current Today's logs Diet row.
+Real-account checks at 320/390/768/1440px have no writes, page errors or overflow.
+No API, route, schema or backend changes were made.
+
+Diet follow-up: the owner requested two section columns on smaller views too.
+Tablet/mobile now retain two columns while desktop stays at three. Narrow layouts
+hide initial tiles, stack section actions, wrap food names, and anchor each column's
+management menus inward. Real-account checks at 320/390/768/1440px show no overflow
+or writes; both focused creation/management browser journeys and build pass.

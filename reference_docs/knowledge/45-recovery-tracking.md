@@ -41,6 +41,30 @@ year. Checked cards have a subtle theme-aware tint and larger label click target
 The research-bar explanation appears once above researched tools; per-tool
 effect estimates and confidence intervals remain available in Research details.
 
+## Compact checklist (October 20, 2026)
+
+The owner approved all of proposal A from `.lavish/recovery-review/index.html`.
+This supersedes the earlier research-card/sidebar presentation. A compact header
+now introduces one date/context panel before the tools on desktop and mobile.
+It contains the selected-day active-tool count, previous/next/picker/Today controls,
+and the fixed today-anchored seven-day strip. Its distinct recorded-day count and
+per-day counts include archived tools. The full date picker remains unrestricted
+by the review snapshot's seven-day preview window. During selected-day fetching,
+the summary says Loading activities and checkboxes remain disabled.
+
+Shared tools form one bordered checklist with blue icon tiles, descriptions,
+checkboxes, and a confirmed Recorded label/tint. Each soreness bar, exact SMD and
+95% CI, sample/group counts and citation live inside its closed-by-default Research
+details disclosure. About the research retains interpretation limits and the source
+link. This changes hierarchy, not evidence or source data.
+
+Your custom tools is a separate compact panel after the checklist. Its nearby
+Add tool action opens the existing native modal; actual creation remains Pro-only.
+Existing custom logging after downgrade, creation errors/drafts, cancellation/focus,
+archive/restore and history remain intact. No APIs, routes, schemas, quotas, or
+backend tracking semantics change. The app uses real account data; review fixtures
+and local preview state are not part of the implemented page.
+
 ## Storage and access
 
 Recovery is a separate Django app, not a numeric metric or wearable sample.

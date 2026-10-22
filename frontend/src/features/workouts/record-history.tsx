@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { WorkoutPreview } from "./workout-preview";
 import { Modal } from "../../components/modal";
 import * as api from "./workout-api";
 import type { NavigateWorkout } from "./workout-navigation";
@@ -11,7 +12,11 @@ export function RecordHistory({
   filter,
   onClose,
   navigate,
+  onGraph,
+  newestFirst = false,
 }: {
+  onGraph?: () => void;
+  newestFirst?: boolean;
   owner: string;
   exerciseId: string;
   date: string;
@@ -20,6 +25,9 @@ export function RecordHistory({
   navigate: NavigateWorkout;
 }) {
   const [offset, setOffset] = useState(0);
+  const [preview, setPreview] = useState<{ date: string; id: string } | null>(
+    null,
+  );
   const query = useQuery({
     queryKey: [
       "workouts",
@@ -28,10 +36,27 @@ export function RecordHistory({
       exerciseId,
       date,
       filter,
+      newestFirst,
       offset,
     ],
-    queryFn: () => api.getRecordPage(exerciseId, date, offset, filter),
+    queryFn: () =>
+      api.getRecordPage(
+        exerciseId,
+        date,
+        offset,
+        newestFirst ? { ...filter, newest_first: true } : filter,
+      ),
   });
+  if (preview)
+    return (
+      <WorkoutPreview
+        owner={owner}
+        date={preview.date}
+        workoutId={preview.id}
+        navigate={navigate}
+        onClose={() => setPreview(null)}
+      />
+    );
   return (
     <Modal labelledBy="record-history-title" onClose={onClose}>
       <h2 id="record-history-title">
@@ -51,6 +76,26 @@ export function RecordHistory({
         </>
       ) : (
         <>
+          {newestFirst && offset === 0 && query.data.results[0] && (
+            <section className="workout-current-record">
+              <h3>Current record</h3>
+              <button
+                onClick={() => {
+                  const record = query.data.results[0];
+                  setPreview({
+                    date: record.date,
+                    id: record.source.workout_id,
+                  });
+                }}
+              >
+                {filter.reps}RM · {Number(query.data.results[0].value)}{" "}
+                {filter.weight_unit}
+                <br />
+                {query.data.results[0].date}
+              </button>
+            </section>
+          )}
+          {newestFirst && <h3>Previous records</h3>}
           {query.data.results.length === 0 ? (
             <p>No record improvements found.</p>
           ) : (
@@ -64,7 +109,10 @@ export function RecordHistory({
                   </tr>
                 </thead>
                 <tbody>
-                  {query.data.results.map((record) => (
+                  {(newestFirst && offset === 0
+                    ? query.data.results.slice(1)
+                    : query.data.results
+                  ).map((record) => (
                     <tr key={record.source.set_id}>
                       <td>{record.date}</td>
                       <td>
@@ -75,12 +123,9 @@ export function RecordHistory({
                         <button
                           aria-label={`Open source set from ${record.date}`}
                           onClick={() => {
-                            onClose();
-                            navigate({
-                              view: "training",
+                            setPreview({
                               date: record.date,
-                              session: record.source.workout_id,
-                              exercise: record.source.item_id,
+                              id: record.source.workout_id,
                             });
                           }}
                         >
@@ -113,6 +158,7 @@ export function RecordHistory({
           </div>
         </>
       )}
+      {onGraph && <button onClick={onGraph}>Graph</button>}
       <button onClick={onClose}>Close PR history</button>
     </Modal>
   );

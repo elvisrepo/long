@@ -40,7 +40,7 @@ const source: api.Workout = {
   exercises: [item, { ...item, id: "i2", sets: [{ ...set, id: "s3" }] }],
 };
 
-it("selects an individual set and previews without writes before confirmation", async () => {
+it("selects an individual set without writes before Copy", async () => {
   const close = vi.fn();
   const navigate = vi.fn();
   vi.mocked(api.copyWorkout).mockResolvedValue({
@@ -68,14 +68,17 @@ it("selects an individual set and previews without writes before confirmation", 
       name: "Include exercise 1 set 1: 70 kg · 5 reps",
     }),
   );
-  await userEvent.click(screen.getByRole("button", { name: "Preview copy" }));
-  const preview = screen.getByRole("region", { name: "Copy preview" });
+  const preview = screen.getByRole("region", { name: "Copy selection" });
   expect(within(preview).getByText("80 kg · 5 reps")).toBeInTheDocument();
-  expect(within(preview).queryByText("70 kg · 5 reps")).not.toBeInTheDocument();
+  expect(
+    within(preview).getByRole("checkbox", {
+      name: "Include exercise 1 set 1: 70 kg · 5 reps",
+    }),
+  ).not.toBeChecked();
   expect(preview).not.toHaveTextContent("Do not copy");
   expect(api.copyWorkout).not.toHaveBeenCalled();
   await userEvent.click(
-    screen.getByRole("button", { name: "Create planned workout" }),
+    screen.getByRole("button", { name: "Copy", exact: true }),
   );
   expect(api.copyWorkout).toHaveBeenCalledWith("w", "2026-10-03", [
     { item_id: "i1", set_ids: ["s2"] },
@@ -84,7 +87,7 @@ it("selects an individual set and previews without writes before confirmation", 
   expect(navigate).toHaveBeenCalledWith({ view: "home", date: "2026-10-03" });
 });
 
-it("keeps a failed subset preview and date for retry and disables all writes while pending", async () => {
+it("keeps a failed subset selection and date for retry and disables actions while pending", async () => {
   let reject!: (reason: Error) => void;
   vi.mocked(api.copyWorkout).mockImplementationOnce(
     () =>
@@ -109,13 +112,18 @@ it("keeps a failed subset preview and date for retry and disables all writes whi
   await userEvent.click(
     screen.getByRole("checkbox", { name: "Include exercise 2: Bench" }),
   );
-  await userEvent.click(screen.getByRole("button", { name: "Preview copy" }));
   const confirm = screen.getByRole("button", {
-    name: "Create planned workout",
+    name: "Copy",
+    exact: true,
   });
+  await userEvent.click(
+    screen.getByRole("button", { name: "Edit", exact: true }),
+  );
   await userEvent.click(confirm);
   expect(confirm).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Edit selection" })).toBeDisabled();
+  expect(
+    screen.getByRole("button", { name: "Edit", exact: true }),
+  ).toBeDisabled();
   expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
   expect(
     screen.getByRole("button", { name: "Choose another workout" }),
@@ -123,7 +131,7 @@ it("keeps a failed subset preview and date for retry and disables all writes whi
   reject(new Error("Copy failed"));
   expect(await screen.findByRole("alert")).toHaveTextContent("Copy failed");
   expect(
-    screen.getByRole("region", { name: "Copy preview" }),
+    screen.getByRole("region", { name: "Copy selection" }),
   ).toHaveTextContent("80 kg");
   expect(screen.getByLabelText("Copy to date")).toHaveValue("2026-10-03");
   expect(close).not.toHaveBeenCalled();
@@ -140,7 +148,7 @@ it("keeps a failed subset preview and date for retry and disables all writes whi
   expect(close).toHaveBeenCalled();
 });
 
-it("requires an exercise, supports exercise-only copies and preserves selection when returning from preview", async () => {
+it("requires an exercise, supports exercise-only copies and preserves selection when editing settings", async () => {
   const empty = { ...item, id: "empty", sets: [] };
   const close = vi.fn();
   render(
@@ -155,25 +163,26 @@ it("requires an exercise, supports exercise-only copies and preserves selection 
       onClose={close}
     />,
   );
-  await userEvent.click(
-    screen.getByRole("button", { name: "Clear selection" }),
-  );
-  expect(screen.getByRole("button", { name: "Preview copy" })).toBeDisabled();
+  await userEvent.click(screen.getByRole("checkbox", { name: "Select all" }));
+  expect(
+    screen.getByRole("button", { name: "Copy", exact: true }),
+  ).toBeDisabled();
   await userEvent.click(
     screen.getByRole("checkbox", { name: "Include exercise 3: Bench" }),
   );
-  await userEvent.click(screen.getByRole("button", { name: "Preview copy" }));
   expect(
-    screen.getByRole("region", { name: "Copy preview" }),
+    screen.getByRole("region", { name: "Copy selection" }),
   ).toHaveTextContent("No sets — exercise only");
-  await userEvent.click(screen.getByRole("button", { name: "Edit selection" }));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Edit", exact: true }),
+  );
   expect(
     screen.getByRole("checkbox", { name: "Include exercise 3: Bench" }),
   ).toBeChecked();
   expect(
     screen.getByRole("checkbox", { name: "Include exercise 1: Bench" }),
   ).not.toBeChecked();
-  await userEvent.click(screen.getByRole("button", { name: "Select all" }));
+  await userEvent.click(screen.getByRole("checkbox", { name: "Select all" }));
   expect(
     screen.getByRole("checkbox", {
       name: "Include exercise 1 set 1: 70 kg · 5 reps",
@@ -182,4 +191,35 @@ it("requires an exercise, supports exercise-only copies and preserves selection 
   await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(close).toHaveBeenCalled();
   expect(api.copyWorkout).not.toHaveBeenCalled();
+});
+
+it("opens a compact checklist with Cancel, Edit and Copy and keeps date controls secondary", async () => {
+  vi.mocked(api.copyWorkout).mockResolvedValue({
+    ...source,
+    performed_on: "2026-10-03",
+  });
+  render(
+    <CopyWorkoutDialog
+      source={source}
+      destination="2026-10-03"
+      busy={false}
+      run={(action) => void action()}
+      navigate={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  expect(screen.getByRole("checkbox", { name: "Select all" })).toBeChecked();
+  expect(screen.queryByLabelText("Copy to date")).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Cancel", exact: true }),
+  ).toBeVisible();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Edit", exact: true }),
+  );
+  expect(screen.getByLabelText("Copy to date")).toHaveValue("2026-10-03");
+  expect(api.copyWorkout).not.toHaveBeenCalled();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Copy", exact: true }),
+  );
+  expect(api.copyWorkout).toHaveBeenCalledExactlyOnceWith("w", "2026-10-03");
 });

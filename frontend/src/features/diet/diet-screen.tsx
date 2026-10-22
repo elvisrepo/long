@@ -5,7 +5,6 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useState } from "react";
-import { PageHeader } from "../../components/page-header";
 import { PageState } from "../../components/page-state";
 import { Modal } from "../../components/modal";
 import { useMeQuery } from "../auth/use-me-query";
@@ -109,249 +108,302 @@ export function DietScreen() {
   }
   return (
     <div className="diet-screen">
-      <PageHeader
-        title="Diet"
-        eyebrow="YOUR FOOD CHECKLIST"
-        description="Track foods you ate. No portions, calories or nutrition totals—just your own daily checklist."
-      />
-      <div className="diet-toolbar">
-        <div className="diet-date-controls date-navigation">
-          <button
-            type="button"
-            aria-label="Previous day"
-            onClick={() => selectDay(shiftDay(day, -1))}
-          >
-            ←
-          </button>
-          <label>
-            Tracking date
-            <input
-              type="date"
-              value={day}
-              onChange={(e) => selectDay(e.target.value)}
-            />
-          </label>
-          <button
-            type="button"
-            aria-label="Next day"
-            onClick={() => selectDay(shiftDay(day, 1))}
-          >
-            →
-          </button>
-          <button type="button" onClick={() => selectDay(today)}>
-            Today
-          </button>
+      <header className="diet-heading">
+        <h1>Diet</h1>
+        <p>Record the foods you ate.</p>
+      </header>
+      <section className="diet-card diet-context" aria-label="Daily tracking">
+        <div className="diet-day-header">
+          <div>
+            <h2>
+              {day === today
+                ? `Today, ${new Date(`${day}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}`
+                : dayLabel(day)}
+            </h2>
+            <p role="status">
+              {entries.isFetching
+                ? "Loading foods…"
+                : `${selectedEntries.length} ${selectedEntries.length === 1 ? "food" : "foods"} recorded · ${covered} ${covered === 1 ? "section" : "sections"} represented`}
+            </p>
+            <div className="diet-status" role="status">
+              {checkoff.isPending || (checkoff.isSuccess && entries.isFetching)
+                ? "Saving…"
+                : checkoff.isSuccess
+                  ? "Saved"
+                  : ""}
+            </div>
+          </div>
+          <div className="diet-date-controls">
+            <button
+              type="button"
+              aria-label="Previous day"
+              onClick={() => selectDay(shiftDay(day, -1))}
+            >
+              ←
+            </button>
+            <label>
+              <span className="visually-hidden">Tracking date</span>
+              <input
+                type="date"
+                value={day}
+                onChange={(e) => selectDay(e.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              aria-label="Next day"
+              onClick={() => selectDay(shiftDay(day, 1))}
+            >
+              →
+            </button>
+            <button type="button" onClick={() => selectDay(today)}>
+              Today
+            </button>
+          </div>
         </div>
-        <button
-          type="button"
-          aria-pressed={managing}
-          onClick={() => {
-            setManaging(!managing);
-            manage.reset();
-          }}
-        >
-          {managing ? "Done managing" : "Manage checklist"}
-        </button>
-      </div>
-      <div className="diet-status" role="status">
-        {checkoff.isPending ? "Saving…" : checkoff.isSuccess ? "Saved" : ""}
-      </div>
+        <div role="group" aria-label="Last 7 days">
+          <div className="diet-week">
+            {days.map((date) => (
+              <button
+                type="button"
+                key={date}
+                aria-label={dayLabel(date)}
+                aria-pressed={day === date}
+                aria-current={date === today ? "date" : undefined}
+                onClick={() => selectDay(date)}
+              >
+                <span>
+                  {new Date(`${date}T12:00:00`).toLocaleDateString("en-GB", {
+                    weekday: "short",
+                  })}
+                </span>
+                <strong>{Number(date.slice(-2))}</strong>
+                <small>
+                  {history.data.filter((e) => e.performed_on === date).length}{" "}
+                  logged
+                </small>
+              </button>
+            ))}
+          </div>
+          <p className="diet-week-caption">
+            Last 7 days ·{" "}
+            {new Set(history.data.map((entry) => entry.performed_on)).size} days
+            with records · includes archived foods
+          </p>
+        </div>
+        {!entries.isFetching && selectedEntries.length > 0 && (
+          <details className="diet-recorded">
+            <summary>Recorded foods ({selectedEntries.length})</summary>
+            <ul>
+              {selectedEntries.map((entry) => (
+                <li key={entry.id}>
+                  <span>
+                    {foods.find((f) => f.id === entry.food_id)?.name ??
+                      "Archived food"}
+                    <small>
+                      {sections.find(
+                        (section) =>
+                          section.id ===
+                          foods.find((food) => food.id === entry.food_id)
+                            ?.section_id,
+                      )?.name ?? "Archived section"}
+                    </small>
+                  </span>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      checkoff.mutate({
+                        id: entry.food_id,
+                        date: day,
+                        checked: false,
+                      })
+                    }
+                    aria-label={`Remove ${foods.find((f) => f.id === entry.food_id)?.name ?? "food"} check-off`}
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </section>
       {checkoff.isError && <p role="alert">{checkoff.error.message}</p>}
       {manage.isError && !editor && <p role="alert">{manage.error.message}</p>}
-      <div className="diet-layout">
-        <div className="diet-sections">
-          {!activeSections.length && (
-            <section className="diet-card">
-              <h2>Build your food checklist</h2>
-              <p>
-                Create a section such as Protein, then add foods you want to
-                track. Nothing is preselected, and you can name your sections
-                however you like.
-              </p>
-            </section>
-          )}
-          {(managing ? sections : activeSections).map((section) => (
-            <section
-              className="diet-card"
-              key={section.id}
-              aria-label={section.name}
+      <section className="diet-catalog" aria-label="Your food checklist">
+        <div className="diet-catalog-toolbar">
+          <div>
+            <h2>Your food checklist</h2>
+            <p>
+              {activeSections.length} sections ·{" "}
+              {
+                foods.filter(
+                  (food) =>
+                    food.is_active &&
+                    activeSections.some(
+                      (section) => section.id === food.section_id,
+                    ),
+                ).length
+              }{" "}
+              foods · your own categories
+            </p>
+          </div>
+          <div className="diet-actions">
+            <button
+              type="button"
+              aria-pressed={managing}
+              onClick={() => {
+                setManaging(!managing);
+                manage.reset();
+              }}
             >
-              <div className="diet-card-heading">
-                <h2>
-                  {section.name}
-                  {!section.is_active && <small> · Archived</small>}
-                </h2>
-                {managing && (
-                  <div className="diet-actions">
-                    <button
-                      type="button"
-                      onClick={() => edit({ kind: "sections", ...section })}
-                    >
-                      Edit {section.name}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={manage.isPending}
-                      onClick={() => archive("sections", section)}
-                    >
-                      {section.is_active ? "Archive" : "Restore"} {section.name}
-                    </button>
+              {managing ? "Done managing" : "Manage checklist"}
+            </button>
+            <button
+              type="button"
+              className="diet-add"
+              aria-label="Add section"
+              onClick={() => edit({ kind: "sections", name: "" })}
+            >
+              + Section
+            </button>
+          </div>
+        </div>
+        {managing && (
+          <p className="diet-manage-note">
+            Use ••• to edit names, display order or archive. Archiving keeps
+            past check-offs. Restore a section before restoring or tracking its
+            foods. Smaller order numbers appear first.
+          </p>
+        )}
+        {!activeSections.length && (
+          <section className="diet-card">
+            <h2>Build your food checklist</h2>
+            <p>
+              Create a section such as Protein, then add foods you want to
+              track. Nothing is preselected, and you can name your sections
+              however you like.
+            </p>
+          </section>
+        )}
+        <div className="diet-sections">
+          {(managing ? sections : activeSections).map((section) => {
+            const sectionFoods = foods.filter(
+              (food) =>
+                food.section_id === section.id && (managing || food.is_active),
+            );
+            return (
+              <section
+                className="diet-card diet-section"
+                key={section.id}
+                aria-label={section.name}
+              >
+                <div className="diet-card-heading">
+                  <div className="diet-section-title">
+                    <span className="diet-section-icon" aria-hidden="true">
+                      {section.name.slice(0, 1)}
+                    </span>
+                    <div>
+                      <h2>
+                        {section.name}
+                        {!section.is_active && <small> · Archived</small>}
+                      </h2>
+                      <p>
+                        {sectionFoods.length} foods ·{" "}
+                        {
+                          foods.filter(
+                            (food) =>
+                              food.section_id === section.id &&
+                              checked.has(food.id),
+                          ).length
+                        }{" "}
+                        recorded
+                      </p>
+                    </div>
                   </div>
-                )}
-              </div>
-              <div className="diet-food-grid">
-                {foods
-                  .filter(
-                    (f) =>
-                      f.section_id === section.id && (managing || f.is_active),
-                  )
-                  .map((food) => (
-                    <div className="diet-food" key={food.id}>
+                  <div className="diet-actions">
+                    {section.is_active && (
+                      <button
+                        type="button"
+                        className="diet-add"
+                        aria-label={`Add food to ${section.name}`}
+                        onClick={() =>
+                          edit({
+                            kind: "foods",
+                            section_id: section.id,
+                            name: "",
+                          })
+                        }
+                      >
+                        + Food
+                      </button>
+                    )}
+                    {managing && (
+                      <DietItemActions
+                        item={section}
+                        busy={manage.isPending}
+                        onEdit={() => edit({ kind: "sections", ...section })}
+                        onToggle={() => archive("sections", section)}
+                      />
+                    )}
+                  </div>
+                </div>
+                <div className="diet-food-list">
+                  {sectionFoods.map((food) => (
+                    <div
+                      className={`diet-food${checked.has(food.id) ? " diet-food-checked" : ""}`}
+                      key={food.id}
+                    >
                       <label>
                         <input
                           type="checkbox"
                           checked={checked.has(food.id)}
                           disabled={
-                            busy || !food.is_active || !section.is_active
+                            busy ||
+                            managing ||
+                            !food.is_active ||
+                            !section.is_active
                           }
-                          onChange={(e) =>
+                          onChange={(event) =>
                             checkoff.mutate({
                               id: food.id,
                               date: day,
-                              checked: e.target.checked,
+                              checked: event.target.checked,
                             })
                           }
-                        />{" "}
+                        />
                         <span>
                           {food.name}
                           {!food.is_active && <small> · Archived</small>}
                         </span>
                       </label>
                       {managing && (
-                        <div className="diet-actions">
-                          <button
-                            type="button"
-                            onClick={() => edit({ kind: "foods", ...food })}
-                          >
-                            Edit {food.name}
-                          </button>
-                          <button
-                            type="button"
-                            disabled={
-                              manage.isPending ||
-                              (!section.is_active && !food.is_active)
-                            }
-                            onClick={() => archive("foods", food)}
-                          >
-                            {food.is_active ? "Archive" : "Restore"} {food.name}
-                          </button>
-                        </div>
+                        <DietItemActions
+                          item={food}
+                          busy={manage.isPending}
+                          restoreBlocked={!section.is_active && !food.is_active}
+                          onEdit={() => edit({ kind: "foods", ...food })}
+                          onToggle={() => archive("foods", food)}
+                        />
                       )}
                     </div>
                   ))}
-              </div>
-              {!foods.some(
-                (f) => f.section_id === section.id && f.is_active,
-              ) && <p>No foods yet. Add foods you eat to start tracking.</p>}
-              {section.is_active && (
-                <button
-                  type="button"
-                  className="diet-add"
-                  onClick={() =>
-                    edit({ kind: "foods", section_id: section.id, name: "" })
-                  }
-                >
-                  Add food to {section.name}
-                </button>
-              )}
-            </section>
-          ))}
-          <button
-            type="button"
-            className="diet-add"
-            onClick={() => edit({ kind: "sections", name: "" })}
-          >
-            Add section
-          </button>
-          {managing && (
-            <p>
-              Archiving keeps past check-offs. Restore a section before
-              restoring or tracking its foods. Order numbers set the display
-              order (smaller numbers first).
-            </p>
-          )}
+                </div>
+                {sectionFoods.length === 0 && (
+                  <p className="diet-section-empty">
+                    No foods yet. Add foods you eat to start tracking.
+                  </p>
+                )}
+              </section>
+            );
+          })}
         </div>
-        <aside className="diet-summary">
-          <section className="diet-card">
-            <h2>{day === today ? "Today" : dayLabel(day)}</h2>
-            <p>
-              {selectedEntries.length}{" "}
-              {selectedEntries.length === 1 ? "food" : "foods"} recorded ·{" "}
-              {covered} {covered === 1 ? "section" : "sections"} represented
-            </p>
-            <p>
-              This is a record of foods eaten, not a diet quality score. You do
-              not need to check every food.
-            </p>
-            {selectedEntries.length > 0 && (
-              <details>
-                <summary>Recorded foods</summary>
-                <ul>
-                  {selectedEntries.map((entry) => (
-                    <li key={entry.id}>
-                      {foods.find((f) => f.id === entry.food_id)?.name ??
-                        "Archived food"}
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() =>
-                          checkoff.mutate({
-                            id: entry.food_id,
-                            date: day,
-                            checked: false,
-                          })
-                        }
-                        aria-label={`Remove ${foods.find((f) => f.id === entry.food_id)?.name ?? "food"} check-off`}
-                      >
-                        ×
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            )}
-          </section>
-          <section className="diet-card">
-            <h2>Last 7 days</h2>
-            <div className="diet-week">
-              {days.map((date) => (
-                <button
-                  type="button"
-                  key={date}
-                  aria-label={dayLabel(date)}
-                  aria-pressed={day === date}
-                  aria-current={date === today ? "date" : undefined}
-                  onClick={() => selectDay(date)}
-                >
-                  <span>
-                    {new Date(`${date}T12:00:00`).toLocaleDateString("en-GB", {
-                      weekday: "short",
-                    })}
-                  </span>
-                  <span>{Number(date.slice(-2))}</span>
-                  <strong>
-                    {history.data.filter((e) => e.performed_on === date).length}
-                  </strong>
-                </button>
-              ))}
-            </div>
-            <p>
-              Foods recorded, including archived foods. Zero means none
-              recorded.
-            </p>
-          </section>
-        </aside>
-      </div>
+        <p className="diet-tracking-note">
+          Record what applies. You do not need to check every food. Portions and
+          nutrient amounts are not tracked.
+        </p>
+      </section>
       {editor && (
         <Modal
           labelledBy="diet-editor-title"
@@ -380,7 +432,6 @@ export function DietScreen() {
             <label>
               {editor.kind === "sections" ? "Section name" : "Food name"}
               <input
-                autoFocus
                 required
                 maxLength={120}
                 value={editor.name}
@@ -425,5 +476,54 @@ export function DietScreen() {
         </Modal>
       )}
     </div>
+  );
+}
+
+function DietItemActions({
+  item,
+  busy,
+  restoreBlocked = false,
+  onEdit,
+  onToggle,
+}: {
+  item: DietSection;
+  busy: boolean;
+  restoreBlocked?: boolean;
+  onEdit: () => void;
+  onToggle: () => void;
+}) {
+  function closeMenu(button: HTMLButtonElement) {
+    const details = button.closest("details");
+    details?.querySelector("summary")?.focus();
+    details?.removeAttribute("open");
+  }
+  return (
+    <details className="diet-item-actions">
+      <summary tabIndex={0} aria-label={`Actions for ${item.name}`}>
+        •••
+      </summary>
+      <div>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={(event) => {
+            closeMenu(event.currentTarget);
+            onEdit();
+          }}
+        >
+          Edit {item.name}
+        </button>
+        <button
+          type="button"
+          disabled={busy || restoreBlocked}
+          onClick={(event) => {
+            closeMenu(event.currentTarget);
+            onToggle();
+          }}
+        >
+          {item.is_active ? "Archive" : "Restore"} {item.name}
+        </button>
+      </div>
+    </details>
   );
 }

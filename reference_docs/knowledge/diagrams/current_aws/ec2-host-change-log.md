@@ -1306,8 +1306,9 @@ captured.
 | Certbot and Route 53 DNS plugin | Origin certificate issued; renewal dry-run and Nginx deploy hook passed | EC2-010, EC2-015, and EC2-016 |
 | CloudWatch Agent | Installed and configured through console; memory and root-disk metric delivery verified | EC2-012 console status and graphs; installed version and boot enablement not yet inspected |
 | AWS CLI | Version-pinned native ARM64 v2 installed and signature-verified | EC2-019 |
-| Deployment bundle | Commit `3b3940b40a448a891bf90c9f0165b763ebb7260f` installed and runtime-preflight verified; previous bundle retained | EC2-033, EC2-035 |
-| PostgreSQL and Django | Healthy containers; EBS persistence, loopback-only API, and current image index `sha256:441e126c3cff23690caf09b4990dfdcfb7616441365092a76626475ca2235d66` verified | EC2-020, EC2-032, and EC2-036 |
+| Deployment bundle | Commit `d2fb29a` installed and runtime-preflight verified; previous bundle retained | EC2-037, EC2-039 |
+| PostgreSQL and Django | Healthy containers; retained EBS data, loopback-only API, migration 0014 current; current image index `sha256:a4939f9c3b32236fe30ca1145327f3c375f2dcff38d3b23d6cb42d565ec62cd9` verified | EC2-039 |
+| AI worker and Redis | Worker shares the API image; worker ping and private Redis cache check pass | EC2-039 |
 | Nginx origin proxy | TLS, root-only CloudFront header guard, loopback proxy, and 3 MiB request limit verified | EC2-021 and EC2-034 |
 | Exact EC2-002 APT transaction | Reconciled | `/var/log/apt/history.log` |
 | Nginx | Not installed at the initial host inspection | Earlier SSM inspection |
@@ -1375,3 +1376,37 @@ captured.
 - Recovery: retain previous image and `/opt/syncvitals/deployment-before-ai-d2fb29a`;
   database migrations are additive and are not automatically reversed on rollback.
 - Topology: `v020-ai-worker-live.dsl`. Status: deployed and independently verified.
+
+
+### EC2-039 — AI period selector deployed; Pilot 1.4 published
+
+- Date: 2026-10-18. Release PR #52; protected staging promotion PR #53.
+- Workflow: https://github.com/elvisrepo/long/actions/runs/39155180886 (success).
+- Staging commit: `223681b202f3964ef6d3e76626804675f7f8f8f4`.
+- API/worker index digest: `sha256:a4939f9c3b32236fe30ca1145327f3c375f2dcff38d3b23d6cb42d565ec62cd9`.
+- Previous rollback image: `sha256:5eba106ed50eea325663c35ef820fe3f1b6e8170f9127c888f2651f6890e362a`.
+- Existing EC2-037 host bundle retained; CI passed bundle compatibility, immutable
+  image review, migration-first replacement, frontend publication and public checks.
+  Additive migration `metrics.0014_weeklyaireview_timeframe` defaults old history to
+  Week. No AWS resources created and no shared NVIDIA key added.
+- SSM acceptance command `d65b5646-1d13-402d-9efe-9e70b58db63d` verified all
+  migrations current, worker ping, Redis and day/week/month previews/history for
+  the existing Pro account with tracker data. No provider generation was requested.
+- SSM command `7b0af817-82fb-4084-a89d-e89d1ca86f8d` confirmed the verified
+  image pointer and worker image match the digest above. All four containers healthy.
+- Public AI page, liveness and readiness return 200; anonymous AI API returns 401.
+  Published AI route asset contains the period selector after the workflow completes.
+- Pilot 1.4, version code 5, package `com.viridiandome.longevity.pilot`, published at
+  https://staging.syncvitals.space/downloads/longevity-pilot-1.4.apk through the existing
+  private frontend bucket/CloudFront origin. APK has 29,507,170 bytes; SHA-256
+  `af1221f526b4c91701f06df214d5ed2334d11e85004977facee5690fbfb56a17`.
+  Public download and content type verified after frontend publication; downloaded
+  bytes match the signed build. Existing Pilot certificate SHA-256 remains
+  `ffcc75055452336e85f0f997071decef5df05067cd8024e87626858b4788e5e9`.
+- Android version regression was red on code 4, then green on code 5. All 194
+  Pilot unit tests, lint and assembly pass. Fixed restricted WorkManager result
+  class inspection using public Result factory comparisons; output data preserved.
+  Phone was inspected as Pilot 1.3/code 4; APK installation and a fresh device sync
+  are not claimed. Web feature does not require updating the companion APK.
+- Topology remains v020. Recovery retains the prior immutable image and existing
+  host-bundle backup; additive database migration is not automatically reversed.

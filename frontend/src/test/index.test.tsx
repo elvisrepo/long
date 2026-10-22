@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -371,6 +371,12 @@ describe("dashboard route", () => {
     expect(within(pages[0]).getAllByRole("article")).toHaveLength(6);
     expect(within(pages[1]).getAllByRole("article")).toHaveLength(2);
 
+    expect(
+      screen.queryByRole("heading", { name: "Your metrics" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("status", { name: "Metric page" }),
+    ).toHaveTextContent("1 of 2");
     Object.defineProperty(rail, "clientWidth", { value: 400 });
     const scrollBy = vi.fn();
     rail.scrollBy = scrollBy;
@@ -378,6 +384,15 @@ describe("dashboard route", () => {
       screen.getByRole("button", { name: "Scroll metrics right" }),
     );
     expect(scrollBy).toHaveBeenCalledWith({ left: 400, behavior: "smooth" });
+    Object.defineProperty(rail, "scrollLeft", {
+      value: 412,
+      configurable: true,
+    });
+    Object.defineProperty(rail, "scrollWidth", { value: 812 });
+    fireEvent.scroll(rail);
+    expect(
+      screen.getByRole("status", { name: "Metric page" }),
+    ).toHaveTextContent("2 of 2");
   });
 
   it("logs out from the shared authenticated navigation", async () => {
@@ -710,7 +725,7 @@ describe("dashboard route", () => {
       0,
     );
     expect(
-      screen.getByRole("heading", { name: /recent entries/i }),
+      screen.getByRole("heading", { name: /recent source entries/i }),
     ).toBeInTheDocument();
     expect(
       within(screen.getByRole("region", { name: /metric entries/i })).getByText(
@@ -825,6 +840,9 @@ describe("dashboard route", () => {
       name: /pro insights/i,
     });
 
+    expect(
+      within(insights).getByRole("link", { name: /AI suggestions/i }),
+    ).toHaveTextContent("Suggestions from a day, week or month of data");
     expect(
       within(insights).getByRole("link", { name: /weight × steps/i }),
     ).toHaveAttribute("href", "/analytics/weight-steps");
@@ -976,6 +994,27 @@ describe("dashboard route", () => {
     expect(
       within(insights).getByRole("link", { name: /consistency/i }),
     ).toHaveTextContent(/no recent data/i);
+  });
+
+  it("keeps source entries collapsed until requested and explains partial-day records", async () => {
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    mockLoadedMetricDefinitions();
+    renderRoute("/");
+    await screen.findByRole("heading", { name: /dashboard/i });
+    const summary = screen.getByText(/Recent source entries \(/);
+    expect(summary.closest("details")).not.toHaveAttribute("open");
+    expect(
+      screen.getByRole("region", { name: /metric entries/i }),
+    ).not.toBeVisible();
+    await userEvent.setup().click(summary);
+    expect(
+      screen.getByRole("region", { name: /metric entries/i }),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        "Some imported records cover part of a day. Use the metric summaries above for daily totals.",
+      ),
+    ).toBeVisible();
   });
 
   it("limits recent entries on the dashboard", async () => {

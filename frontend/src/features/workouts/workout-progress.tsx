@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import * as api from "./workout-api";
 import {
@@ -11,6 +11,9 @@ import {
 } from "./workout-analysis";
 import { shiftDay, type NavigateWorkout } from "./workout-navigation";
 import { getAllTimeProgress } from "./workout-all-time";
+import { WorkoutPreview } from "./workout-preview";
+import { shareGraph } from "./graph-share";
+import { useEstimateLimit } from "./use-estimate-limit";
 import { RecordHistory } from "./record-history";
 
 export function WorkoutProgress({
@@ -20,6 +23,10 @@ export function WorkoutProgress({
   catalog,
   navigate,
   showExerciseSelector = true,
+  compact = false,
+  initialMetric = null,
+  initialReps = 5,
+  initialDays,
 }: {
   owner: string;
   date: string;
@@ -27,10 +34,18 @@ export function WorkoutProgress({
   catalog: api.WorkoutCatalog;
   navigate: NavigateWorkout;
   showExerciseSelector?: boolean;
+  compact?: boolean;
+  initialMetric?: ProgressMetric | null;
+  initialReps?: number;
+  initialDays?: number;
 }) {
-  const [days, setDays] = useState(90);
-  const [metric, setMetric] = useState<ProgressMetric | null>(null);
-  const [reps, setReps] = useState(5);
+  const [days, setDays] = useState(initialDays ?? (compact ? 30 : 90));
+  const [preview, setPreview] = useState<{ date: string; id?: string } | null>(
+    null,
+  );
+  const [repLimit, setRepLimit] = useEstimateLimit(exerciseId);
+  const [metric, setMetric] = useState<ProgressMetric | null>(initialMetric);
+  const [reps, setReps] = useState(initialReps);
   const [history, setHistory] = useState<{
     reps: number;
     weight_unit: string;
@@ -62,7 +77,9 @@ export function WorkoutProgress({
       : preferredMetric &&
           options.some((option) => option.value === preferredMetric)
         ? (preferredMetric as ProgressMetric)
-        : defaultMetric(types[0]);
+        : compact && types[0] === "strength"
+          ? "estimated_1rm"
+          : defaultMetric(types[0]);
   const allTimeQuery = useQuery({
     queryKey: [
       "workouts",
@@ -72,21 +89,48 @@ export function WorkoutProgress({
       date,
       selectedMetric,
       reps,
+      repLimit,
+      compact,
     ],
-    queryFn: () => getAllTimeProgress(exerciseId!, date, selectedMetric, reps),
-    enabled: !!exerciseId && days === 0,
+    queryFn: () =>
+      getAllTimeProgress(
+        exerciseId!,
+        date,
+        selectedMetric,
+        reps,
+        ...(compact || repLimit !== 10
+          ? [{ repLimit, perWorkout: compact }]
+          : []),
+      ),
+    enabled:
+      !!exerciseId &&
+      (days === 0 || (compact && selectedMetric === "rep_maxes")),
   });
-  const query = days === 0 ? allTimeQuery : windowQuery;
+  const summaryMode = days === 0 || (compact && selectedMetric === "rep_maxes");
+  const query = summaryMode ? allTimeQuery : windowQuery;
   const displayedOptions =
     days === 0
       ? progressMetrics([...types, ...(allTimeQuery.data?.types ?? [])])
       : options;
-  const series =
-    days === 0
-      ? (allTimeQuery.data?.series ?? [])
-      : windowQuery.data && exerciseId
-        ? progressSeries(windowQuery.data, exerciseId, selectedMetric, reps)
-        : [];
+  const series = summaryMode
+    ? (allTimeQuery.data?.series ?? [])
+        .map((series) => ({
+          ...series,
+          points:
+            days === 0
+              ? series.points
+              : series.points.filter((point) => point.date >= from),
+        }))
+        .filter(
+          (series) =>
+            series.points.length || selectedMetric === "personal_records",
+        )
+    : windowQuery.data && exerciseId
+      ? progressSeries(windowQuery.data, exerciseId, selectedMetric, reps, {
+          repLimit,
+          perWorkout: compact,
+        })
+      : [];
   const completedDates = new Set(
     windowQuery.data
       ?.filter((w) =>
@@ -113,7 +157,18 @@ export function WorkoutProgress({
     ),
   ].sort();
   return (
-    <section className="workout-card">
+    <section
+      className={`workout-card${compact ? " workout-progress-compact" : ""}`}
+    >
+      {preview && (
+        <WorkoutPreview
+          owner={owner}
+          date={preview.date}
+          workoutId={preview.id}
+          navigate={navigate}
+          onClose={() => setPreview(null)}
+        />
+      )}
       <div className="workout-filters workout-progress-filters">
         {showExerciseSelector && (
           <label>
@@ -142,6 +197,7 @@ export function WorkoutProgress({
         <label>
           Graph
           <select
+            aria-label="Graph"
             value={selectedMetric}
             onChange={(event) => {
               const selected = event.target.value as ProgressMetric;
@@ -163,7 +219,8 @@ export function WorkoutProgress({
             ))}
           </select>
         </label>
-        {selectedMetric === "max_weight_reps" && (
+        {(selectedMetric === "max_weight_reps" ||
+          selectedMetric === "rep_maxes") && (
           <label>
             Rep count
             <input
@@ -176,7 +233,7 @@ export function WorkoutProgress({
             />
           </label>
         )}
-        <label>
+        <label className={compact ? "visually-hidden" : undefined}>
           Progress window
           <select
             value={days}
@@ -190,60 +247,102 @@ export function WorkoutProgress({
           </select>
         </label>
       </div>
-      <div className="workout-progress-scope">
-        <span className="workout-badge workout-status workout-status--completed">
-          Completed sets only
-        </span>
-        <p>
-          {days === 0
-            ? `All recorded training through ${date}; saved types and units stay separate.`
-            : `${from} – ${date}. Saved types and units stay separate. These are records within this window, not all-time records.`}
-        </p>
-      </div>
-      {selectedMetric === "personal_records" && (
-        <p className="workout-note">
-          Personal records here are actual strength loads by rep count. Cardio
-          and timed exercise bests are available through their distance and
-          duration graphs.
-        </p>
+      {compact && (
+        <div className="workout-graph-periods">
+          {[
+            [30, "1m"],
+            [90, "3m"],
+            [180, "6m"],
+            [365, "1y"],
+            [0, "All"],
+          ].map(([value, label]) => (
+            <button
+              key={value}
+              aria-pressed={days === value}
+              onClick={() => setDays(Number(value))}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       )}
-      {selectedMetric === "estimated_1rm" && (
-        <p className="workout-note">
-          Estimate only: Epley load × (1 + reps / 30); one rep uses the recorded
-          load. Only positive loads with 1–10 reps are included. Higher-rep sets
-          are excluded because their estimates are less dependable. This is not
-          a measured maximum and does not account for reps left in reserve; an
-          easy set can underestimate your capability.
-        </p>
-      )}
-      {(selectedMetric === "max_speed" || selectedMetric === "best_pace") && (
-        <p className="workout-note">
-          Speed = distance ÷ time in hours. Pace = time in minutes ÷ distance,
-          shown as minutes:seconds per km or mile; lower pace is faster. Each
-          date uses its fastest eligible set, not a workout average. Only
-          completed cardio sets with positive distance and time are included.
-          Comparisons do not adjust for route, terrain or interval length.
-        </p>
-      )}
-      {(selectedMetric === "max_volume" ||
-        selectedMetric === "workout_volume") && (
-        <p className="workout-note">
-          Volume = recorded load × reps, not body weight. Max volume is one set;
-          workout volume totals this exercise within each session. Same-day
-          sessions stay separate.
-        </p>
-      )}
-      {selectedMetric === "workout_reps" && (
-        <p className="workout-note">
-          Completed reps for this exercise in each workout, not the whole
-          workout. Same-day sessions stay separate.
-        </p>
-      )}
-      {days !== 0 && query.isSuccess && plannedDates.length > 0 && (
-        <p className="workout-note">
-          Not plotted: {plannedDates.join(", ")} — only planned sets for this
-          exercise. Mark performed sets completed to include them.
-        </p>
+      <details
+        className="workout-graph-information"
+        open={!compact ? true : undefined}
+      >
+        <summary>About this graph</summary>
+        <div className="workout-progress-scope">
+          <span className="workout-badge workout-status workout-status--completed">
+            Completed sets only
+          </span>
+          <p>
+            {days === 0
+              ? `All recorded training through ${date}; saved types and units stay separate.`
+              : `${from} – ${date}. Saved types and units stay separate. These are records within this window, not all-time records.`}
+          </p>
+        </div>
+        {selectedMetric === "personal_records" && (
+          <p className="workout-note">
+            Personal records here are actual strength loads by rep count. Cardio
+            and timed exercise bests are available through their distance and
+            duration graphs.
+          </p>
+        )}
+        {selectedMetric === "estimated_1rm" && (
+          <p className="workout-note">
+            Estimate only: Epley load × (1 + reps / 30); one rep uses the
+            recorded load. Only positive loads with 1–{repLimit} reps are
+            included. Higher-rep sets are excluded because their estimates are
+            less dependable. This is not a measured maximum and does not account
+            for reps left in reserve; an easy set can underestimate your
+            capability.
+          </p>
+        )}
+        {(selectedMetric === "max_speed" || selectedMetric === "best_pace") && (
+          <p className="workout-note">
+            Speed = distance ÷ time in hours. Pace = time in minutes ÷ distance,
+            shown as minutes:seconds per km or mile; lower pace is faster. Each
+            date uses its fastest eligible set, not a workout average. Only
+            completed cardio sets with positive distance and time are included.
+            Comparisons do not adjust for route, terrain or interval length.
+          </p>
+        )}
+        {(selectedMetric === "max_volume" ||
+          selectedMetric === "workout_volume") && (
+          <p className="workout-note">
+            Volume = recorded load × reps, not body weight. Max volume is one
+            set; workout volume totals this exercise within each session.
+            Same-day sessions stay separate.
+          </p>
+        )}
+        {selectedMetric === "workout_reps" && (
+          <p className="workout-note">
+            Completed reps for this exercise in each workout, not the whole
+            workout. Same-day sessions stay separate.
+          </p>
+        )}
+        {days !== 0 && query.isSuccess && plannedDates.length > 0 && (
+          <p className="workout-note">
+            Not plotted: {plannedDates.join(", ")} — only planned sets for this
+            exercise. Mark performed sets completed to include them.
+          </p>
+        )}
+      </details>
+      {selectedMetric === "estimated_1rm" && !compact && (
+        <label className="workout-estimate-limit">
+          Estimated 1RM rep limit
+          <select
+            aria-label="Estimated 1RM rep limit"
+            value={repLimit}
+            onChange={(event) => setRepLimit(Number(event.target.value))}
+          >
+            {Array.from({ length: 30 }, (_, index) => (
+              <option key={index + 1} value={index + 1}>
+                {index + 1}
+              </option>
+            ))}
+          </select>
+        </label>
       )}
       {!exerciseId ? (
         <p>Select an exercise to review its progress.</p>
@@ -266,10 +365,19 @@ export function WorkoutProgress({
         <div className="workout-stack">
           {series.map((s) => (
             <ProgressCard
-              key={`${exerciseId}:${from}:${date}:${selectedMetric}:${reps}:${s.key}`}
+              key={`${exerciseId}:${from}:${date}:${selectedMetric}:${reps}:${repLimit}:${s.key}`}
               series={s}
               recordsOnly={selectedMetric === "personal_records"}
               allTime={days === 0}
+              compact={compact}
+              exerciseName={
+                catalog.exercises.find((exercise) => exercise.id === exerciseId)
+                  ?.name ?? ""
+              }
+              repLimit={
+                selectedMetric === "estimated_1rm" ? repLimit : undefined
+              }
+              onRepLimit={setRepLimit}
               onHistory={(reps) =>
                 setHistory({
                   reps,
@@ -286,7 +394,7 @@ export function WorkoutProgress({
                   exercise: record.source.item_id,
                 })
               }
-              onOpenDate={(date) => navigate({ view: "home", date })}
+              onOpenDate={(date, id) => setPreview({ date, id })}
             />
           ))}
         </div>
@@ -298,6 +406,12 @@ export function WorkoutProgress({
           date={date}
           filter={history}
           navigate={navigate}
+          onGraph={() => {
+            setMetric("rep_maxes");
+            setReps(history.reps);
+            setDays(0);
+            setHistory(null);
+          }}
           onClose={() => setHistory(null)}
         />
       )}
@@ -308,6 +422,10 @@ function ProgressCard({
   series,
   recordsOnly,
   allTime = false,
+  compact = false,
+  exerciseName = "",
+  repLimit,
+  onRepLimit,
   onHistory,
   onOpenSource,
   onOpenDate,
@@ -315,12 +433,22 @@ function ProgressCard({
   series: ProgressSeries;
   recordsOnly: boolean;
   allTime?: boolean;
+  compact?: boolean;
+  exerciseName?: string;
+  repLimit?: number;
+  onRepLimit?: (value: number) => void;
   onHistory?: (reps: number) => void;
   onOpenSource?: (record: ProgressSeries["records"][number]) => void;
-  onOpenDate: (date: string) => void;
+  onOpenDate: (date: string, workoutId?: string) => void;
 }) {
   const [selectedPoint, setSelectedPoint] = useState<number | null>(null);
   const chartRef = useRef<SVGSVGElement>(null);
+  const clipId = useId().replaceAll(":", "");
+  const [showPoints, setShowPoints] = useState(true);
+  const [trend, setTrend] = useState(false);
+  const [fromZero, setFromZero] = useState(!compact);
+  const [shareMessage, setShareMessage] = useState("");
+  const [sharing, setSharing] = useState(false);
   const [chartWidth, setChartWidth] = useState(600);
   useEffect(() => {
     const chart = chartRef.current;
@@ -339,14 +467,21 @@ function ProgressCard({
     selectedPoint === null ? undefined : series.points[selectedPoint];
   const values = series.points.map((p) => p.value);
   const max = Math.max(...values, 0) || 10;
-  const roughStep = max / 8;
+  const low = fromZero
+    ? 0
+    : Math.max(
+        0,
+        Math.min(...values) - Math.max(1, (max - Math.min(...values)) * 0.1),
+      );
+  const roughStep = (max - low || 10) / 8;
   const magnitude = 10 ** Math.floor(Math.log10(roughStep));
   const step =
     [1, 2, 5, 10].find((n) => n * magnitude >= roughStep)! * magnitude;
-  const tickCount = Math.ceil(max / step);
-  const axisMax = tickCount * step;
+  const axisMin = Math.floor(low / step) * step;
+  const tickCount = Math.max(1, Math.ceil((max - axisMin) / step));
+  const axisMax = axisMin + tickCount * step;
   const ticks = Array.from({ length: tickCount + 1 }, (_, i) =>
-    Number((i * step).toPrecision(12)),
+    Number((axisMin + i * step).toPrecision(12)),
   );
   const xMin = series.points.length ? Date.parse(series.points[0].date) : 0,
     xMax = series.points.length ? Date.parse(series.points.at(-1)!.date) : 0;
@@ -361,7 +496,7 @@ function ProgressCard({
   const points = series.points
     .map(
       (p) =>
-        `${xMax === xMin ? (80 + xRight) / 2 : 80 + ((Date.parse(p.date) - xMin) / (xMax - xMin)) * (xRight - 80)},${160 - (p.value / axisMax) * 140}`,
+        `${xMax === xMin ? (80 + xRight) / 2 : 80 + ((Date.parse(p.date) - xMin) / (xMax - xMin)) * (xRight - 80)},${160 - ((p.value - axisMin) / (axisMax - axisMin)) * 140}`,
     )
     .join(" ");
   return (
@@ -370,6 +505,79 @@ function ProgressCard({
         {series.title} · {series.unit}
       </h3>
       {!recordsOnly && (
+        <details className="workout-graph-options">
+          <summary aria-label="Graph options" title="Graph options">
+            <span aria-hidden="true">⋮</span>
+            <span className="visually-hidden">Graph options</span>
+          </summary>
+          {compact && repLimit !== undefined && (
+            <label>
+              Estimated 1RM rep limit
+              <select
+                aria-label="Estimated 1RM rep limit"
+                value={repLimit}
+                onChange={(event) => onRepLimit?.(Number(event.target.value))}
+              >
+                {Array.from({ length: 30 }, (_, index) => (
+                  <option key={index + 1} value={index + 1}>
+                    {index + 1}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label className="workout-check">
+            <input
+              type="checkbox"
+              checked={showPoints}
+              onChange={(event) => setShowPoints(event.target.checked)}
+            />
+            Graph points
+          </label>
+          <label className="workout-check">
+            <input
+              type="checkbox"
+              checked={trend}
+              onChange={(event) => setTrend(event.target.checked)}
+            />
+            Trend line
+          </label>
+          <label className="workout-check">
+            <input
+              type="checkbox"
+              checked={fromZero}
+              onChange={(event) => setFromZero(event.target.checked)}
+            />
+            Y-axis from 0
+          </label>
+          <button
+            disabled={sharing}
+            onClick={async () => {
+              setSharing(true);
+              try {
+                setShareMessage(
+                  await shareGraph(
+                    chartRef.current!,
+                    `${exerciseName ? exerciseName + " · " : ""}${series.title}`,
+                  ),
+                );
+              } catch (error) {
+                setShareMessage(
+                  error instanceof Error
+                    ? error.message
+                    : "Graph could not share.",
+                );
+              } finally {
+                setSharing(false);
+              }
+            }}
+          >
+            Share graph
+          </button>
+          {shareMessage && <p role="status">{shareMessage}</p>}
+        </details>
+      )}
+      {!recordsOnly && (
         <svg
           className="workout-progress-chart"
           ref={chartRef}
@@ -377,8 +585,13 @@ function ProgressCard({
           role="img"
           aria-label={`${series.title} by training date; exact values in table below`}
         >
+          <defs>
+            <clipPath id={clipId}>
+              <rect x="80" y="20" width={xRight - 80} height="140" />
+            </clipPath>
+          </defs>
           {ticks.map((tick) => {
-            const y = 160 - (tick / axisMax) * 140;
+            const y = 160 - ((tick - axisMin) / (axisMax - axisMin)) * 140;
             return (
               <g key={tick}>
                 <line
@@ -417,6 +630,43 @@ function ProgressCard({
             stroke="var(--chart-line)"
             strokeWidth="3"
           />
+          {trend &&
+            series.points.length > 1 &&
+            (() => {
+              const coordinates = points
+                .split(" ")
+                .map((point) => point.split(",").map(Number));
+              const meanX =
+                  coordinates.reduce((sum, point) => sum + point[0], 0) /
+                  coordinates.length,
+                meanY =
+                  coordinates.reduce((sum, point) => sum + point[1], 0) /
+                  coordinates.length;
+              const denominator = coordinates.reduce(
+                (sum, point) => sum + (point[0] - meanX) ** 2,
+                0,
+              );
+              const slope = denominator
+                ? coordinates.reduce(
+                    (sum, point) =>
+                      sum + (point[0] - meanX) * (point[1] - meanY),
+                    0,
+                  ) / denominator
+                : 0;
+              return (
+                <line
+                  clipPath={`url(#${clipId})`}
+                  data-testid="graph-trend-line"
+                  x1={80}
+                  y1={meanY + slope * (80 - meanX)}
+                  x2={xRight}
+                  y2={meanY + slope * (xRight - meanX)}
+                  stroke="var(--accent)"
+                  strokeWidth="2"
+                  strokeDasharray="5 4"
+                />
+              );
+            })()}
           {series.points.map((p, n) => {
             const [x, y] = points.split(" ")[n].split(",");
             return (
@@ -425,13 +675,21 @@ function ProgressCard({
                 className="workout-progress-point"
                 onClick={() => setSelectedPoint(n)}
               >
-                <circle cx={x} cy={y} r="12" fill="transparent" />
                 <circle
+                  data-testid="graph-hit-target"
                   cx={x}
                   cy={y}
-                  r={selectedPoint === n ? "6" : "4"}
-                  fill="var(--chart-line)"
+                  r="12"
+                  fill="transparent"
                 />
+                {(showPoints || selectedPoint === n) && (
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r={selectedPoint === n ? "6" : "4"}
+                    fill="var(--chart-line)"
+                  />
+                )}
                 <title>
                   {p.date}
                   {p.session ? ` · ${p.session}` : ""}:{" "}
@@ -456,7 +714,48 @@ function ProgressCard({
       )}
       {!recordsOnly && (
         <>
-          <label>
+          <div className="workout-graph-point-navigation">
+            <button
+              aria-label="Previous graph point"
+              disabled={selectedPoint === 0 || !series.points.length}
+              onClick={() =>
+                setSelectedPoint(
+                  selectedPoint === null
+                    ? series.points.length - 1
+                    : Math.max(0, selectedPoint - 1),
+                )
+              }
+            >
+              ‹
+            </button>
+            <button
+              disabled={!selected}
+              onClick={() =>
+                selected && onOpenDate(selected.date, selected.workoutId)
+              }
+            >
+              {selected
+                ? `${formatProgressValue(selected.value, series.unit)}${selected.source ? ` (${Number(selected.source.weight)} ${series.unit} × ${selected.source.reps} reps)` : ""} · ${selected.date}`
+                : "Tap a point for details"}
+            </button>
+            <button
+              aria-label="Next graph point"
+              disabled={
+                selectedPoint === series.points.length - 1 ||
+                !series.points.length
+              }
+              onClick={() =>
+                setSelectedPoint(
+                  selectedPoint === null
+                    ? 0
+                    : Math.min(series.points.length - 1, selectedPoint + 1),
+                )
+              }
+            >
+              ›
+            </button>
+          </div>
+          <label className={compact ? "visually-hidden" : undefined}>
             Graph point details
             <select
               value={selectedPoint ?? ""}
@@ -476,7 +775,7 @@ function ProgressCard({
               ))}
             </select>
           </label>
-          {selected && (
+          {selected && !compact && (
             <section
               aria-label="Selected training point"
               className="workout-inset"
@@ -500,86 +799,93 @@ function ProgressCard({
           )}
         </>
       )}
-      <h4>
-        {allTime
-          ? "All-time bests through the selected date"
-          : "Observed records in this window"}
-      </h4>
-      <div className="workout-table-wrap">
-        <table className="workout-progress-table">
-          <thead>
-            <tr>
-              <th scope="col">Measure</th>
-              <th scope="col">Value</th>
-              <th scope="col">Recorded on</th>
-              {allTime && series.records.some((record) => record.source) && (
-                <th scope="col">Source / History</th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {series.records.map((r) => (
-              <tr key={r.label}>
-                <td>{r.label}</td>
-                <td>{formatProgressValue(r.value, r.unit)}</td>
-                <td>{r.date}</td>
+      <details
+        open={!compact ? true : undefined}
+        className="workout-graph-values"
+      >
+        <summary>Records and values</summary>
+        <h4>
+          {allTime
+            ? "All-time bests through the selected date"
+            : "Observed records in this window"}
+        </h4>
+        <div className="workout-table-wrap">
+          <table className="workout-progress-table">
+            <thead>
+              <tr>
+                <th scope="col">Measure</th>
+                <th scope="col">Value</th>
+                <th scope="col">Recorded on</th>
                 {allTime && series.records.some((record) => record.source) && (
-                  <td>
-                    {r.source && (
-                      <>
-                        <p>
-                          {Number(r.source.weight)} {r.unit} × {r.source.reps}{" "}
-                          reps
-                        </p>
-                        <button onClick={() => onOpenSource?.(r)}>
-                          Open source exercise
-                        </button>
-                        <button
-                          aria-label={`PR history for ${r.label} (${r.unit})`}
-                          onClick={() => onHistory?.(r.source!.reps!)}
-                        >
-                          PR history
-                        </button>
-                      </>
-                    )}
-                  </td>
+                  <th scope="col">Source / History</th>
                 )}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {!recordsOnly && (
-        <details>
-          <summary>
-            {series.points.some((point) => point.session)
-              ? "Workout chart values"
-              : "Daily chart values"}
-          </summary>
-          <div className="workout-table-wrap">
-            <table className="workout-progress-table">
-              <thead>
-                <tr>
-                  <th scope="col">Date</th>
-                  {series.points.some((point) => point.session) && (
-                    <th scope="col">Session</th>
-                  )}
-                  <th scope="col">Value</th>
+            </thead>
+            <tbody>
+              {series.records.map((r) => (
+                <tr key={r.label}>
+                  <td>{r.label}</td>
+                  <td>{formatProgressValue(r.value, r.unit)}</td>
+                  <td>{r.date}</td>
+                  {allTime &&
+                    series.records.some((record) => record.source) && (
+                      <td>
+                        {r.source && (
+                          <>
+                            <p>
+                              {Number(r.source.weight)} {r.unit} ×{" "}
+                              {r.source.reps} reps
+                            </p>
+                            <button onClick={() => onOpenSource?.(r)}>
+                              Open source exercise
+                            </button>
+                            <button
+                              aria-label={`PR history for ${r.label} (${r.unit})`}
+                              onClick={() => onHistory?.(r.source!.reps!)}
+                            >
+                              PR history
+                            </button>
+                          </>
+                        )}
+                      </td>
+                    )}
                 </tr>
-              </thead>
-              <tbody>
-                {series.points.map((p, index) => (
-                  <tr key={`${p.date}:${index}`}>
-                    <td>{p.date}</td>
-                    {p.session && <td>{p.session}</td>}
-                    <td>{formatProgressValue(p.value, series.unit)}</td>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {!recordsOnly && (
+          <details>
+            <summary>
+              {series.points.some((point) => point.session)
+                ? "Workout chart values"
+                : "Daily chart values"}
+            </summary>
+            <div className="workout-table-wrap">
+              <table className="workout-progress-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Date</th>
+                    {series.points.some((point) => point.session) && (
+                      <th scope="col">Session</th>
+                    )}
+                    <th scope="col">Value</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </details>
-      )}
+                </thead>
+                <tbody>
+                  {series.points.map((p, index) => (
+                    <tr key={`${p.date}:${index}`}>
+                      <td>{p.date}</td>
+                      {p.session && <td>{p.session}</td>}
+                      <td>{formatProgressValue(p.value, series.unit)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        )}
+      </details>
     </section>
   );
 }

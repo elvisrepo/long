@@ -10,6 +10,10 @@ const colours = [
   ["Pink", "#db2777"],
   ["Orange", "#d97706"],
   ["Red", "#dc2626"],
+  ["Cyan", "#0891b2"],
+  ["Lime", "#65a30d"],
+  ["Amber", "#f59e0b"],
+  ["Slate", "#475569"],
 ] as const;
 
 export function WorkoutGroups({
@@ -19,6 +23,8 @@ export function WorkoutGroups({
   busy,
   run,
   onClose,
+  autoAdvance,
+  onAutoAdvance,
 }: {
   workout: api.Workout;
   current: api.WorkoutExercise;
@@ -26,6 +32,8 @@ export function WorkoutGroups({
   busy: boolean;
   run: RunAction;
   onClose: () => void;
+  autoAdvance?: boolean;
+  onAutoAdvance?: (enabled: boolean) => void;
 }) {
   const groups = [
     ...new Set(workout.exercises.map((i) => i.group_name).filter(Boolean)),
@@ -89,7 +97,12 @@ export function WorkoutGroups({
     );
   }
   return (
-    <Modal labelledBy="workout-groups-title" busy={disabled} onClose={onClose}>
+    <Modal
+      className="workout-groups-modal"
+      labelledBy="workout-groups-title"
+      busy={disabled}
+      onClose={onClose}
+    >
       <h2 id="workout-groups-title">
         {draft ? (draft.original_name ? "Edit group" : "New group") : "Groups"}
       </h2>
@@ -150,6 +163,20 @@ export function WorkoutGroups({
               </div>
             ))}
           </div>
+          {onAutoAdvance && (
+            <details className="workout-group-settings">
+              <summary>Settings</summary>
+              <label className="workout-check">
+                <input
+                  type="checkbox"
+                  disabled={disabled}
+                  checked={autoAdvance ?? true}
+                  onChange={(event) => onAutoAdvance(event.target.checked)}
+                />
+                Advance after a completed set
+              </label>
+            </details>
+          )}
           <div className="workout-actions">
             <button
               disabled={disabled}

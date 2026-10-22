@@ -19,6 +19,7 @@ function mount(
   loads: number[],
   trackingType: api.Exercise["tracking_type"] = "strength",
   preferredGraph = "",
+  compact = false,
 ) {
   const navigate = vi.fn();
   const workouts = loads.map((weight, i) => ({
@@ -55,6 +56,10 @@ function mount(
     ],
   }));
   vi.mocked(api.getWorkoutRange).mockResolvedValue(workouts);
+  vi.mocked(api.getWorkout).mockResolvedValue({
+    ...workouts[0],
+    exercises: [],
+  });
   render(
     <QueryClientProvider
       client={
@@ -62,6 +67,7 @@ function mount(
       }
     >
       <WorkoutProgress
+        compact={compact}
         owner="owner"
         date="2026-10-03"
         exerciseId="bench"
@@ -233,11 +239,12 @@ it("opens all-time PR improvements and drills into the original exercise", async
       name: "Open source set from 2023-01-01",
     }),
   );
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Go to workout" }));
   expect(navigate).toHaveBeenCalledWith({
-    view: "training",
+    view: "home",
     date: "2023-01-01",
     session: "old",
-    exercise: "old-item",
   });
 });
 it("offers the strength graph choices and switches to calculated estimated 1RM", async () => {
@@ -257,6 +264,7 @@ it("offers the strength graph choices and switches to calculated estimated 1RM",
     "Workout volume",
     "Workout reps",
     "Personal records",
+    "Rep maxes",
   ]);
   await userEvent.selectOptions(graph, "estimated_1rm");
   expect(
@@ -330,6 +338,8 @@ it("shows even a single training point and opens its date from point details", a
   await userEvent.click(
     within(details).getByRole("button", { name: "View workouts on this date" }),
   );
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Go to workout" }));
   expect(navigate).toHaveBeenCalledWith({ view: "home", date: "2026-10-01" });
 });
 it("defaults bodyweight progress to reps and hides unsupported strength calculations", async () => {
@@ -395,3 +405,67 @@ it.each([
     }
   },
 );
+
+it("keeps hidden points selectable and moves between graph points", async () => {
+  mount([70, 75, 80]);
+  await screen.findByRole("img", {
+    name: /Highest logged load by training date/,
+  });
+  await userEvent.click(screen.getByText("Graph options", { exact: true }));
+  await userEvent.click(screen.getByLabelText("Graph points", { exact: true }));
+  expect(screen.getAllByTestId("graph-hit-target")).toHaveLength(3);
+  await userEvent.selectOptions(
+    screen.getByLabelText("Graph point details"),
+    "1",
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Next graph point" }),
+  );
+  expect(screen.getByLabelText("Graph point details")).toHaveValue("2");
+  await userEvent.click(screen.getByLabelText("Trend line", { exact: true }));
+  expect(screen.getByTestId("graph-trend-line")).toBeInTheDocument();
+});
+
+it("uses all-time strict records before clipping a Rep Maxes graph to its window", async () => {
+  vi.mocked(api.getProgressPage).mockResolvedValue({
+    count: 2,
+    next: null,
+    previous: null,
+    types: ["strength"],
+    results: [
+      {
+        date: "2020-01-01",
+        value: "100",
+        tracking_type: "strength",
+        weight_unit: "kg",
+        distance_unit: "km",
+        source: null,
+      },
+      {
+        date: "2026-10-02",
+        value: "120",
+        tracking_type: "strength",
+        weight_unit: "kg",
+        distance_unit: "km",
+        source: null,
+      },
+    ],
+  });
+  mount([70], "strength", "rep_maxes", true);
+  await screen.findByRole("img", { name: /Rep maxes by training date/ });
+  expect(screen.getAllByTestId("graph-hit-target")).toHaveLength(1);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Next graph point" }),
+  );
+  expect(
+    screen.getByRole("button", { name: /120 kg.*2026-10-02/ }),
+  ).toBeInTheDocument();
+  expect(api.getProgressPage).toHaveBeenCalledWith(
+    "bench",
+    "2026-10-03",
+    "rep_maxes",
+    5,
+    0,
+    { repLimit: 10, perWorkout: true },
+  );
+});

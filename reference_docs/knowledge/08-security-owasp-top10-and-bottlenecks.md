@@ -520,3 +520,33 @@ account export/deletion retains them through the existing MetricEntry lifecycle.
 The combined Android request adds Distance and READ_TOTAL_CALORIES_BURNED
 to the original five reads. Active Calories is no longer read or requested. Independent per-metric opt-in remains
 future work. The v4 activity cursor namespace is excluded from backup/transfer.
+
+Workout equipment metadata (2026-10-22): plate colours accept only six-digit hex
+values; inventory remains bounded to 20 sizes with finite weights/counts.
+Exercise-bar overrides are limited to 500 unique exercise/unit pairs and each
+exercise ID must belong to the authenticated caller. Invalid/foreign IDs reject
+before preference writes. Account export includes the saved metadata and account
+deletion removes it through the existing preferences cascade. Calculator record
+queries include the account in the frontend cache key and filter saved units;
+no automatic unit conversion or completion side effects are introduced.
+
+Training history/copy (2026-10-22): the all-time sessions mode requires an owned
+exercise and retains the 100-row pagination cap. Client pagination constructs its
+own same-origin path rather than following returned next URLs. History and PR
+cache keys include the account. Copy-to-current holds the existing owner row lock
+and validates owned source/target, every selected set and identical frozen
+exercise/type/units before any insert. Limit 100 unique sets; unknown performance
+fields reject. Finished targets cannot receive sets. Copies start planned with
+cleared comments and never start timing or fire completion effects. Source data
+and other accounts remain unchanged; no partial append occurs on validation error.
+
+Exercise analytics (2026-10-22): new progress controls retain authenticated,
+owned-exercise reads and existing pagination caps. Estimate rep limits are bounded
+to 1–30. Stats date ranges reject reversed bounds, and workout filters validate
+ownership before aggregation. Previews read through owner-keyed Query caches.
+Lower-rep precedence is labelled inference and never changes observed records.
+Scalar strength goals keep owner locks, frozen types/units, validated targets and
+an expanded database constraint. Estimated achievement uses unrounded values;
+planned sets remain excluded. Graph export serializes only the chart and title
+into a local PNG; native sharing/download requires an explicit Share action.
+No automatic provider calls, external posting or observed-lift writes are added.

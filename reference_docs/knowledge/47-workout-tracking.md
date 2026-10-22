@@ -543,3 +543,365 @@ group labels to both occurrence models without a new group table.
   Visual review also caught generic button padding overriding mobile calendar
   padding; a cell-height regression guards it. Date changes preserve History/
   Progress exercise selection, and confirmed template set saves reset the draft.
+
+### Home compact session hub — 2026-10-21
+
+Approved proposal A applies to Home only, with a selected-date/session-count
+panel and full date navigation. A follow-up restores the original bordered
+six-destination navigation above the title, wrapping naturally on phones. Loading and failed reads do not masquerade as an empty day. Creation
+appears once per state; starting a session still opens the existing exercise picker
+without starting timing. The previously removed statistics/week sidebar stays absent.
+
+A FitNotes-inspired follow-up simplifies empty days in the light theme: compact,
+unframed date controls above a centered plus icon and Start new workout action,
+with Copy previous workout secondary underneath. The repeated introductory copy
+and enclosing empty-state card are removed. Populated-day cards remain unchanged;
+creation, copy previews, pending locks and explicit timing retain their existing behavior.
+The subsequent Home cleanup removes the Workouts title, introductory text and
+selected-date/session-count text; the date navigation and picker remain visible.
+
+Session cards distinguish Finished/In progress from completed/planned set counts.
+Exercise summaries retain grouping and use expandable exact set rows, preserving
+saved units and duplicate occurrences. View/Continue opens the first saved exercise
+in Training; a session without exercises opens its picker. Navigation performs no
+writes. Notes are a disclosure; Add exercise remains visible.
+
+More actions groups session details, finish/reopen, copy, export, routine capture,
+duration correction, exercise management and deletion. Manage exercises deliberately
+reveals the existing ordering/removal controls; Done managing hides them. Finished
+sessions still require reopening before changes to sets/removal. Existing delete
+confirmation, export opt-ins, copy previews, pending locks and server errors remain.
+Menu selection closes it and focuses its summary so dialogs can return focus.
+
+Home uses the existing timing behavior in a compact row, with visible running/
+paused/untracked state, explicit Start/Pause/Resume, and expandable timing help.
+Correct duration opens the same editor from More actions; Training retains its
+normal timing presentation. Not tracked is distinct from zero. No public API,
+route, schema or timing semantics changed, and this slice was not deployed.
+
+
+### FitNotes-inspired populated Home log — 2026-10-21
+
+Approved A replaces collapsed set details with exact visible rows in tappable
+exercise blocks. Strength rows show saved weight units, reps and status; other
+tracking types retain their saved-value labels. Missing values are not zero.
+Group marks, duplicate occurrences and per-set comments are retained. Opening a
+block only navigates to its existing Training screen. Management controls remain
+separate from that target and preserve finished-session restrictions.
+
+Each session has a header menu for details/date changes, notes, finish/reopen,
+copy, export, routine capture, management, duration correction and timing help.
+Saved notes are visible above exercises when present. Timing is a single row;
+help opens a dialog from the menu. Explicit timing semantics remain unchanged.
+Add exercise is the primary footer action; View/Continue remains available.
+New workout and Copy previous are under Day actions on populated dates. The
+approved empty state and bordered navigation remain. No API, route or schema
+changes; drag-and-drop, selective export and partial moves remain future options.
+
+
+### Compact Training log — 2026-10-21
+
+Training now leads with a compact exercise selector and the saved-set table.
+Strength rows show saved unit, weight and reps in columns; other tracking types
+retain exact value labels. Tapping values edits that row; the separate checkbox
+updates completion. Editing keeps existing completion rather than completing a
+planned set. Manage sets reveals the existing order controls explicitly.
+
+The entry form follows the log, with primary Save completed set, secondary Add
+planned set, and an optional Comment disclosure (existing edit comments open).
+Numeric defaults omit redundant trailing zeros. Calculators stay collapsed below
+the entry form. Manage workout replaces the always-visible exercise panel with
+an explicit disclosure retaining grouping, ordering, adding and removing exercises.
+Rest/session timing, frozen units, comments, pending/error behavior and confirmed-
+completion-only group advancement remain. No API, route or backend changes.
+
+
+### Minimal workout overview — 2026-10-21
+
+The owner further simplified populated Home to the exercise log: each card shows
+its exercise name and saved weight/reps or the other tracking type's exact values.
+Set numbering/status/comments remain available to assistive technology and in
+Training, while visible counts, badges, notes, timing row and footer actions are
+removed. The compact session toolbar keeps its name for multi-session context,
+plus Add exercise and an accessible ellipsis menu. Tapping an exercise enters
+Training. Timing opens in a Time workout dialog; notes, copy, export, finish/reopen,
+management and correction remain in the session menu. No timing starts merely by
+opening a dialog. This supersedes A's visible timing/notes/status presentation.
+
+
+### Workout URL opens the log — 2026-10-21
+
+A saved `view=training` URL now opens the selected session's complete exercise
+log, even when it includes an exercise UUID. It no longer opens set-entry controls
+on initial load or refresh. Tapping a card explicitly opens its exercise editor;
+Back to workout returns to the same log. The editor is a separate in-page view,
+keeping the mounted rest timer's state across internal navigation. Its selector
+and group advancement still switch the active editor. Explicit exercise selection
+from the library also opens editing; merely opening a workout does not. Home
+cards use the same explicit exercise-entry callback. No route names or API paths
+change. This corrects the prior mismatch between minimal Home and workout URLs.
+
+
+### FitNotes-style exercise editor — 2026-10-21
+
+After tapping an exercise, the light editor leads with Track / History / Graph,
+stacked numeric controls with minus/plus buttons, Save and Clear, then compact
+saved rows with original units. Weight buttons use the library weight increment;
+other fields use their existing validated step/minimum. Clear resets only the
+unsaved draft and editing selection; no record is written or deleted. Saving an
+edited row still preserves completion status. Completion checkboxes retain the
+explicit planned-set workflow.
+
+The ellipsis menu contains planned-set entry, previous/repeat shortcuts, comments,
+calculators, timing, exercise selection and management. Menu inputs remain linked
+to the entry form; an existing comment is retained when editing. The menu supports
+Close and Escape; planned submission closes it. Numeric order is preserved on
+edit; reordering stays in management. Graph opens existing exercise progress.
+The minimal workout log remains the default on opening or refreshing its URL.
+
+
+### Compact workout actions — 2026-10-21
+
+The workout log overflow has six actions: Edit workout, Time workout, Copy
+workout, Export workout, Finish/Reopen workout, and Manage workout. Add exercise
+stays next to the overflow. Tapping exercise cards opens editing directly.
+Edit workout combines name, date and notes. Time workout contains timer controls,
+duration correction and timing help. Manage workout contains exercise ordering
+and confirmed removal, Save as routine day, and confirmed workout deletion.
+Finished workouts must be reopened before their exercises can be changed.
+No route or API contract changes.
+
+
+### Compact Time workout sheet — 2026-10-21
+
+Time workout follows the FitNotes reference in the app's light theme: date and
+ellipsis, Start time, End time, Duration, one full-width Start/Stop/Resume action
+and Close. Corrections and timing help are behind Timing options. Actions persist
+immediately; no redundant Save step. Stop pauses elapsed timing without finishing
+the workout. Duration excludes stopped intervals, so it need not equal end minus
+start. Read-only server timestamps survive refresh; unknown legacy timestamps show
+Not recorded. Duration corrections clear timestamps rather than implying a false
+interval. Local migration 0012 is applied; staging will need it on deployment.
+
+### Selective Share / Export sheet — 2026-10-22
+
+The workout Export action opens a light Share workout sheet with Select all,
+exercise-level checkboxes and compact set rows. All records start selected;
+partial selection marks parent checkboxes as mixed. Empty exercises remain
+selectable, planned sets are identified, and selecting nothing disables output.
+Cancel, Options and Share form the footer. Options reveals text/CSV format,
+notes/comments (off by default), the selected summary preview and manual copy.
+Share opens the browser/device share sheet when available. Otherwise it opens
+a Share to chooser with WhatsApp, Gmail, Email and an explicit Copy summary
+action; it never silently copies. Non-cancellation share failures also open this
+chooser. Native cancellation is quiet. App links open a compose flow and do not
+send to a recipient automatically.
+CSV downloads and clipboard/native sharing all use only the selected records,
+retain recorded units/status and do not modify the stored workout. No API changes.
+
+### Compact Copy workout flow — 2026-10-22
+
+The workout overflow Copy action and Copy previous open a compact source-calendar
+picker. Its month navigation and training/planned dots locate saved workouts;
+the main Calendar filters remain on the full Calendar page. Multiple sessions on
+a date remain separate choices. History's explicit Copy action goes directly to
+that session's selection sheet.
+
+Copy selection uses the light compact exercise/set checklist with Select all and
+mixed parent states, plus Cancel / Edit / Copy. Edit reveals the destination date
+and return-to-source control. Copy performs the existing full/subset API call
+directly, without a separate preview step. Copied records remain planned, notes
+and comments stay on the original, and empty exercise copies remain supported.
+Pending actions are locked; a failed save retains selection/date for retry.
+No API, route or backend changes.
+
+### Workout overview selection and drag order — 2026-10-22
+
+A 500ms press-and-hold selects an exercise without opening its editor. Movement,
+pointer cancellation and leaving the card cancel the hold. Subsequent taps toggle
+selection; a toolbar offers Select all/Clear selection, Delete selected and Done.
+Deletion confirms exercise names and affected set counts, then uses one atomic
+request. A failed save keeps the selection/confirmation. The original workout and
+exercise library remain; only selected occurrences and their sets are removed.
+
+Selection mode exposes pointer drag handles (touch/mouse). Drop saves a complete
+order with its original-order snapshot; stale orders are rejected, and failures
+leave the server-confirmed arrangement visible. Focused handles support Up/Down
+keys. Right-click/Shift+F10 or Manage workout → Select exercises provide alternate
+entry. Escape/Done exits selection. Finished sessions must be reopened first.
+
+### Animated exercise drag feedback — 2026-10-22
+
+Dragging lifts the exercise with a shadow and follows the pointer vertically.
+Other cards project into their new slots with 180ms transitions using measured
+heights and gaps, including uneven set counts. No request occurs while dragging.
+Drop settles the dragged card, then the server-confirmed order replaces the
+visual projection without a second jump. Failed saves animate back to the prior
+order. Cancellation discards the projection without writes. Reduced-motion
+preferences disable transitions. The existing atomic order/snapshot API is
+unchanged; no new dependency or backend change.
+
+### Comment workout shortcut — 2026-10-22
+
+The workout overflow includes Comment workout after Edit workout. It opens a
+focused notes editor prefilled with the existing session notes. Save patches only
+`notes`; an empty comment clears them. Cancel does not save. Errors retain the
+draft for retry. This uses the existing 2000-character session notes field and
+contract; Edit workout still includes notes. No backend or route changes.
+
+### Open-workout Move action — 2026-10-22
+
+The open workout overflow now offers Move workout in place of Copy workout.
+Its focused date picker patches only performed_on on the existing session, then
+opens the destination day. IDs, exercises, sets, completion, notes and timing
+remain intact; no duplicate session is created. The current date cannot be
+submitted unchanged. Cancel does not save and a failed move retains the chosen
+date. Copy previous remains available from the daily view, including empty days;
+History still allows copying an explicitly selected historical session.
+No API, route or backend changes.
+
+### Training toolbar and set comments — 2026-10-22
+
+The light exercise screen exposes an exercise switcher, rest timer, exercise stats
+(existing records/statistics/goals overview), notes/defaults and overflow directly
+in its top toolbar. Track / History / Graph and numeric Save/Clear controls remain
+below it. The switcher opens a compact list of the current workout's exercises.
+The exercise heading retains the full accessible name on narrow screens.
+
+The mounted rest timer opens as a dialog from its toolbar shortcut and continues
+counting after Close. Existing completion-triggered auto-start still uses the same
+instance; audible/vibration alerts are added in the follow-up below. Saved set rows provide a comment button,
+coloured when populated, which patches only comment and preserves completion and
+values. Finished-session comments can be viewed but editing stays disabled. The
+new comment dialog keeps failed drafts. Calculators and secondary tools remain in
+overflow. No routes or backend contracts change.
+
+### Training navigation panel — 2026-10-22
+
+The exercise title opens a light side panel; a rightward swipe starting within
+16px of the left edge also opens it. The panel shows workout exercises, total
+saved set rows, the current exercise highlight and shared group colour bars.
+Tapping a row switches the Training editor. Its footer offers Add exercise,
+Add to group / Edit group and Home on the workout date.
+
+Holding a row for 500ms lifts it for animated dragging; immediate handle dragging
+and keyboard Up/Down remain available. The same atomic order/snapshot save and
+rollback used by the workout overview applies. Cancellation causes no write.
+The list scrolls independently of the footer. Escape, backdrop and Close dismiss
+it; reduced-motion preferences disable the entrance animation.
+
+Group actions reuse the existing picker/editor: generated Superset names,
+automatic current membership, ten colours, adding members/library exercises,
+joining, unlinking and confirmed deletion. Saving or cancelling returns to the
+panel. Settings exposes the existing completion-only group auto-advance option;
+its workout-order cycling behaviour is unchanged. Finished workouts allow
+navigation but disable adding, grouping and ordering. No API or route changes.
+
+
+### Rest timer alerts and controls — 2026-10-22
+
+The toolbar dialog now provides a numeric seconds field with five-second minus /
+plus buttons, Vibrate, Sound, completion-only Auto-start and a volume slider.
+Starting creates a deadline; closing the dialog preserves the countdown. Restart
+replaces the deadline and Stop clears it. Duration editing is disabled while
+running. Each deadline can alert once, using an 880Hz tone for 0.6 seconds at the
+selected volume and a short vibration pattern when enabled/supported.
+
+Sound is prepared from a user gesture. Unsupported controls explain their browser
+limitation, and audio preparation/playback errors produce a visible message.
+Sound, vibration, volume and custom durations are saved in browser local storage;
+storage failure leaves the timer usable for the current visit. Durations are keyed
+by library exercise ID, so separate workout occurrences share a chosen duration.
+A changed library rest default supersedes the previously stored duration. The
+existing account-owned auto-start preference and confirmed-completion event are
+reused. Creating plans, edits or failed saves does not trigger that event.
+
+This is a browser timer: background/locked-phone alerts can be delayed. Leaving
+Workouts or reloading clears the countdown, while device settings remain. It does
+not provide native scheduled alarms or notifications. No backend/API changes.
+
+### Focused calculator dialogs — 2026-10-22
+
+The Training overflow exposes 1RM Calculator, Set Calculator and Plate Calculator
+as separate dialogs instead of a combined disclosure. Strength occurrences keep
+their frozen units. The 1RM dialog updates Epley estimates live for 1–15RM, shows
+the relative percentages and labels the result as estimated. Inputs have numeric
+fields and minus/plus controls; estimates never become recorded PRs automatically.
+
+Set Calculator accepts a base and percentage, offers saved observed records in the
+same units through the existing date-bounded records read, percentage presets and
+optional nearest-increment rounding. Add to workout creates a planned set with
+unknown reps, preserves failed drafts for retry, and does not fire timer/group
+completion effects. Calculation itself performs no writes.
+
+Plate Calculator uses exact balanced pairs from enabled finite inventory, displays
+a coloured per-side plate diagram or list, and distinguishes impossible loads from
+bar-only results. Settings supports the full requested metric/imperial starter
+sizes, availability checkboxes, count/weight/colour editing, custom plates, reset,
+a default bar and exercise/unit-specific bars. Counts start at zero for unknown
+inventory; enabling a zero-count row starts with a pair. Saving is explicit and
+account-owned. Cancelling settings discards the draft. Other units remain intact.
+The additive equipment contract and migration are documented in 03-api-design.md.
+
+### Compact Training history — 2026-10-22
+
+History in Training is now a date-grouped set list with inline comments, planned
+labels and current observed PR markers. The current workout remains visible.
+History loads all-time exercise sessions through the selected workout date in
+100-session pages, with Load older sessions rather than the former 90-day cutoff.
+Record markers use the existing all-time current-record read and completed source
+set IDs; record failures do not hide the logged sets. Unit/type snapshots remain
+unchanged and separate when calculating workout totals.
+
+Tapping a date opens exercise totals and View workout / Edit sets / Copy sets.
+Totals exclude plans. Edit sets uses the existing reviewed bulk editor with that
+workout's sets selected, up to its 100-set bound. Tapping a set opens estimated
+1RM and volume for eligible strength lifts, speed/pace for cardio, or duration.
+It also shows the full saved comment, Edit set and Copy set. The focused historical
+editor preserves completion and retains failed drafts. Source workouts must be
+reopened before edits. View workout returns to the full date/workout overview.
+
+Copy opens a selection dialog, preselecting the chosen set or compatible sets in
+the chosen workout. Up to 100 selected sets append atomically to the current
+exercise, including repeated matching source occurrences in saved order. Copies
+start planned without comments and do not fire rest/group completion events.
+Finished targets and mismatched frozen type/units are blocked. Source sets, dates,
+workout count and timing remain intact. See 03-api-design.md for the additive
+all-history read mode and copy-to-current endpoint. No new migration is needed.
+
+### Exercise Graph / Records / Stats / Goals / Overview — 2026-10-22
+
+Training Graph stays within the exercise screen. It honours the saved graph and
+offers 1m/3m/6m/1y/All periods, a rep selector where relevant, graph-point selection
+and previous/next controls. Its point footer includes the source lift for Epley
+estimates. Points can be hidden while their tap targets remain; the selected point
+stays marked. Options include a least-squares trend by training date and Y-axis
+from zero (compact graphs otherwise use a padded local range). Mixed frozen
+partitions stay separate. Rep Maxes plots strict all-time observed improvements
+before applying the visible window. Total distance/time sum completed sets per
+workout. Graph sharing renders a PNG with the exercise name/current graph state,
+uses native file sharing when available and offers a PNG download otherwise.
+
+The trophy opens Records; exercise overview combines History, Graph, Records,
+Stats and Goals. Actual records display observed exact-rep values and faded,
+explicitly labelled lower-rep inferences from heavier/equal higher-rep lifts.
+Observed lower-rep history remains accessible. A record popup shows the current
+record, previous improvements and Graph. Estimated records derive 1–15RM from the
+highest eligible Epley 1RM. The estimate cap (1–30 reps, default 10) is remembered
+per exercise on the device and reused by graphs/statistics; estimates never become
+actual records automatically.
+
+Stats supports Workout, Week, Month, Year, All and Custom periods, completed-only
+totals and dated best tiles. Workouts/dates open a read-only preview, as do graph
+point details, records and recorded Calendar dates. Tapping a preview exercise
+shows its totals and View exercise overview; Go to workout opens the date's full
+workout view. Empty Calendar dates and copy-picker render callbacks retain their
+existing navigation. Analysis-date controls collapse for a selected exercise to
+avoid a duplicate generic page heading.
+
+Goals retain reviewed creation/edit/deletion and now add scalar max-weight,
+strength-rep and estimated-1RM targets alongside weight-and-reps targets and the
+existing bodyweight/cardio/timed types. Tapping a goal title opens its editor.
+Estimated goals explicitly use a fixed 1–10-rep Epley rule, preserving unrounded
+achievement checks. The additive API/constraint migration is documented in
+03-api-design.md; the local development database has been migrated.

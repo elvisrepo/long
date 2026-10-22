@@ -16,13 +16,13 @@ test("user can register, log in, visit settings, and log out", async ({
   await expect(page.getByRole("heading", { name: /register/i })).toBeVisible();
 
   await page.getByLabel(/email/i).fill(uniqueEmail);
-  await page.getByLabel(/password/i).fill(password);
+  await page.getByLabel(/^password$/i).fill(password);
   await page.getByRole("button", { name: /register/i }).click();
 
   await expect(page.getByRole("heading", { name: /login/i })).toBeVisible();
 
   await page.getByLabel(/email/i).fill(uniqueEmail);
-  await page.getByLabel(/password/i).fill(password);
+  await page.getByLabel(/^password$/i).fill(password);
   await page.getByRole("button", { name: /login/i }).click();
 
   await expect(page.getByRole("heading", { name: /dashboard/i })).toBeVisible();
@@ -67,13 +67,13 @@ test("reload restores the same-origin session and rotates the refresh cookie", a
 
   await page.goto("/register");
   await page.getByLabel(/email/i).fill(email);
-  await page.getByLabel(/password/i).fill(password);
+  await page.getByLabel(/^password$/i).fill(password);
   await page.getByRole("button", { name: /register/i }).click();
 
   await expect(page.getByRole("heading", { name: /login/i })).toBeVisible();
 
   await page.getByLabel(/email/i).fill(email);
-  await page.getByLabel(/password/i).fill(password);
+  await page.getByLabel(/^password$/i).fill(password);
   await page.getByRole("button", { name: /login/i }).click();
 
   await expect(page.getByRole("heading", { name: /dashboard/i })).toBeVisible();
@@ -134,13 +134,13 @@ test("user can see subscription plans and start mocked checkout", async ({
   await page.goto("/register");
 
   await page.getByLabel(/email/i).fill(uniqueEmail);
-  await page.getByLabel(/password/i).fill(password);
+  await page.getByLabel(/^password$/i).fill(password);
   await page.getByRole("button", { name: /register/i }).click();
 
   await expect(page.getByRole("heading", { name: /login/i })).toBeVisible();
 
   await page.getByLabel(/email/i).fill(uniqueEmail);
-  await page.getByLabel(/password/i).fill(password);
+  await page.getByLabel(/^password$/i).fill(password);
   await page.getByRole("button", { name: /login/i }).click();
 
   await expect(page.getByRole("heading", { name: /dashboard/i })).toBeVisible();
@@ -225,37 +225,38 @@ test("user can create a custom metric and log it from the dashboard", async ({
   await page.goto("/register");
 
   await page.getByLabel(/email/i).fill(uniqueEmail);
-  await page.getByLabel(/password/i).fill(password);
+  await page.getByLabel(/^password$/i).fill(password);
   await page.getByRole("button", { name: /register/i }).click();
 
   await expect(page.getByRole("heading", { name: /login/i })).toBeVisible();
 
   await page.getByLabel(/email/i).fill(uniqueEmail);
-  await page.getByLabel(/password/i).fill(password);
+  await page.getByLabel(/^password$/i).fill(password);
   await page.getByRole("button", { name: /login/i }).click();
 
   await expect(page.getByRole("heading", { name: /dashboard/i })).toBeVisible();
 
   await page.getByRole("link", { name: /metrics/i }).click();
 
-  await expect(page.getByRole("heading", { name: /metrics/i })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Metrics", exact: true }),
+  ).toBeVisible();
 
-  await page.getByRole("button", { name: /new custom metric/i }).click();
+  await page.getByRole("button", { name: /new metric/i }).click();
   const customMetricDialog = page.getByRole("dialog", {
     name: /create custom metric/i,
   });
 
   await customMetricDialog.getByLabel(/name/i).fill("Mood");
-  await customMetricDialog.getByLabel(/slug/i).fill("mood");
   await customMetricDialog.getByLabel(/unit/i).fill("score");
-  await customMetricDialog.getByLabel(/min value/i).fill("1");
-  await customMetricDialog.getByLabel(/max value/i).fill("10");
+  await customMetricDialog.getByLabel(/minimum value/i).fill("1");
+  await customMetricDialog.getByLabel(/maximum value/i).fill("10");
   await customMetricDialog
     .getByRole("button", { name: /^create custom metric$/i })
     .click();
 
   await expect(customMetricDialog).not.toBeVisible();
-  await expect(page.getByRole("heading", { name: /mood/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^mood$/i })).toBeVisible();
 
   await page.getByRole("link", { name: /dashboard/i }).click();
 
@@ -267,7 +268,9 @@ test("user can create a custom metric and log it from the dashboard", async ({
   await page.getByRole("button", { name: /save mood entry/i }).click();
 
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page.getByText(/7 score/i)).toBeVisible();
+  await expect(page.locator('.metric-card[data-metric="mood"]')).toContainText(
+    /7\s*score/i,
+  );
 });
 
 test("user can archive and reactivate a custom metric", async ({ page }) => {
@@ -277,62 +280,68 @@ test("user can archive and reactivate a custom metric", async ({ page }) => {
   await page.goto("/register");
 
   await page.getByLabel(/email/i).fill(uniqueEmail);
-  await page.getByLabel(/password/i).fill(password);
+  await page.getByLabel(/^password$/i).fill(password);
   await page.getByRole("button", { name: /register/i }).click();
 
   await expect(page.getByRole("heading", { name: /login/i })).toBeVisible();
 
   await page.getByLabel(/email/i).fill(uniqueEmail);
-  await page.getByLabel(/password/i).fill(password);
+  await page.getByLabel(/^password$/i).fill(password);
   await page.getByRole("button", { name: /login/i }).click();
 
   await expect(page.getByRole("heading", { name: /dashboard/i })).toBeVisible();
 
   await page.getByRole("link", { name: /metrics/i }).click();
 
-  await expect(page.getByRole("heading", { name: /metrics/i })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Metrics", exact: true }),
+  ).toBeVisible();
 
-  await page.getByRole("button", { name: /new custom metric/i }).click();
+  await page.getByRole("button", { name: /new metric/i }).click();
   const customMetricDialog = page.getByRole("dialog", {
     name: /create custom metric/i,
   });
 
   await customMetricDialog.getByLabel(/name/i).fill("Mood");
-  await customMetricDialog.getByLabel(/slug/i).fill("mood");
   await customMetricDialog.getByLabel(/unit/i).fill("score");
-  await customMetricDialog.getByLabel(/min value/i).fill("1");
-  await customMetricDialog.getByLabel(/max value/i).fill("10");
+  await customMetricDialog.getByLabel(/minimum value/i).fill("1");
+  await customMetricDialog.getByLabel(/maximum value/i).fill("10");
   await customMetricDialog
     .getByRole("button", { name: /^create custom metric$/i })
     .click();
 
-  const activeMetrics = page.getByLabel(/available metrics/i);
+  const activeMetrics = page.getByRole("region", {
+    name: "Custom metrics",
+    exact: true,
+  });
 
   await expect(
-    activeMetrics.getByRole("heading", { name: /mood/i }),
+    activeMetrics.getByRole("heading", { name: /^mood$/i }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: /deactivate mood/i }).click();
+  await page.getByText("⋯", { exact: true }).click();
+  await page.getByRole("button", { name: /archive mood/i }).click();
   const deactivateDialog = page.getByRole("dialog", {
-    name: /deactivate mood/i,
+    name: /archive mood/i,
   });
   await expect(deactivateDialog.getByText(/entries are kept/i)).toBeVisible();
   await deactivateDialog
-    .getByRole("button", { name: /^deactivate metric$/i })
+    .getByRole("button", { name: /^archive metric$/i })
     .click();
+  await expect(deactivateDialog).not.toBeVisible();
 
   await expect(
-    activeMetrics.getByRole("heading", { name: /mood/i }),
+    activeMetrics.getByRole("heading", { name: /^mood$/i }),
   ).not.toBeVisible();
 
-  await page.getByRole("button", { name: /show archived/i }).click();
+  await page.getByRole("button", { name: /^archived \(/i }).click();
 
   const archivedMetrics = page.getByRole("region", {
     name: /archived custom metrics/i,
   });
 
   await expect(
-    archivedMetrics.getByRole("heading", { name: /mood/i }),
+    archivedMetrics.getByRole("heading", { name: /^mood$/i }),
   ).toBeVisible();
   await expect(
     archivedMetrics.locator(".archived-status-pill").filter({
@@ -340,15 +349,14 @@ test("user can archive and reactivate a custom metric", async ({ page }) => {
     }),
   ).toBeVisible();
 
-  await archivedMetrics
-    .getByRole("button", { name: /reactivate mood/i })
-    .click();
+  await archivedMetrics.getByRole("button", { name: /restore mood/i }).click();
 
   await expect(
-    archivedMetrics.getByRole("heading", { name: /mood/i }),
+    archivedMetrics.getByRole("heading", { name: /^mood$/i }),
   ).not.toBeVisible();
+  await page.getByRole("button", { name: /^custom \(/i }).click();
   await expect(
-    activeMetrics.getByRole("heading", { name: /mood/i }),
+    activeMetrics.getByRole("heading", { name: /^mood$/i }),
   ).toBeVisible();
 
   await page.getByRole("link", { name: /dashboard/i }).click();
@@ -364,7 +372,7 @@ test("failed login stays on login page and shows an error", async ({
   await page.goto("/login");
 
   await page.getByLabel(/email/i).fill("missing-user@example.com");
-  await page.getByLabel(/password/i).fill("wrong-password");
+  await page.getByLabel(/^password$/i).fill("wrong-password");
   await page.getByRole("button", { name: /login/i }).click();
 
   await expect(page.getByRole("heading", { name: /login/i })).toBeVisible();
@@ -381,7 +389,7 @@ test("duplicate registration stays on register page and shows an error", async (
   await page.goto("/register");
 
   await page.getByLabel(/email/i).fill(email);
-  await page.getByLabel(/password/i).fill(password);
+  await page.getByLabel(/^password$/i).fill(password);
   await page.getByRole("button", { name: /register/i }).click();
 
   await expect(page.getByRole("heading", { name: /login/i })).toBeVisible();
@@ -389,7 +397,7 @@ test("duplicate registration stays on register page and shows an error", async (
   await page.goto("/register");
 
   await page.getByLabel(/email/i).fill(email);
-  await page.getByLabel(/password/i).fill(password);
+  await page.getByLabel(/^password$/i).fill(password);
   await page.getByRole("button", { name: /register/i }).click();
 
   await expect(page.getByRole("heading", { name: /register/i })).toBeVisible();
@@ -408,12 +416,12 @@ test("user can open a metric detail page from the dashboard", async ({
   const password = "correct-horse-battery-staple";
 
   await page.getByLabel(/email/i).fill(email);
-  await page.getByLabel(/password/i).fill(password);
+  await page.getByLabel(/^password$/i).fill(password);
   await page.getByRole("button", { name: /register/i }).click();
 
   await page.goto("/login");
   await page.getByLabel(/email/i).fill(email);
-  await page.getByLabel(/password/i).fill(password);
+  await page.getByLabel(/^password$/i).fill(password);
   await page.getByRole("button", { name: /login/i }).click();
 
   await expect(page.getByRole("heading", { name: /dashboard/i })).toBeVisible();
