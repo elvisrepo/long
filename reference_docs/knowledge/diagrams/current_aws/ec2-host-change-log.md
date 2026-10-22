@@ -1410,3 +1410,32 @@ captured.
   are not claimed. Web feature does not require updating the companion APK.
 - Topology remains v020. Recovery retains the prior immutable image and existing
   host-bundle backup; additive database migration is not automatically reversed.
+
+### EC2-040 — Current application and workout training release
+
+- Date: 2026-10-22. Release PR #54; protected staging promotion PR #55.
+- Workflow: https://github.com/elvisrepo/long/actions/runs/39803910326 (success).
+- Staging commit: `bcd83b23313fce98c671dd6e1cca45b201ef0bbf`.
+- API/worker image digest: `sha256:530ea543cc82db7927d19b868f6371147e164cf0d6f6632693b113d30a27c482`.
+- Previous verified rollback image: `sha256:a4939f9c3b32236fe30ca1145327f3c375f2dcff38d3b23d6cb42d565ec62cd9`.
+- Published the current committed dashboard, Diet, metric and workout UI changes.
+  Workouts include navigation/groups, rest alerts, calculators/equipment preferences,
+  history actions, graphs, records, statistics, goals and exercise previews.
+- Existing host deployment bundle retained. No AWS resources or runtime secrets
+  changed. Workflow passed both full CI gates, bundle compatibility, immutable
+  image vulnerability review, migration-first backend replacement, frontend
+  publication and public root/deep-link/liveness/readiness checks.
+- Applied workout migrations 0012–0014. SSM acceptance command
+  `b86cd3d8-fd1c-421f-93ee-54d2d1ab2c4e` independently confirmed no pending
+  migrations, workouts.0014 applied, all four containers healthy and Graph,
+  Records, Stats and Goals endpoints returning 200 for an existing owned exercise.
+  Endpoint acceptance ran inside a read-only database transaction; no account or
+  workout records were created or edited.
+- Public `/workouts` shell loads and published `workouts-C4LSC4Sl.js` matches the
+  locally verified production bundle byte for byte. A live manual browser check
+  is not claimed: the browser wrapper failed with an undefined pageId.
+- Compatible Vite/Vitest tooling patches cleared the release audit blocker;
+  npm audit reports zero vulnerabilities. All 700 frontend tests, lint,
+  formatting, build and 11 workout browser journeys passed after the patches.
+- Topology remains v020. Previous immutable image retained for recovery; database
+  migrations are not automatically reversed when rolling back the application.
