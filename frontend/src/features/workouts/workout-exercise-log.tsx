@@ -25,6 +25,8 @@ export function WorkoutExerciseLog({
   run,
   onOpen,
   selecting = false,
+  navigation = false,
+  currentExerciseId,
   onDone,
 }: {
   workout: api.Workout;
@@ -32,6 +34,8 @@ export function WorkoutExerciseLog({
   run: RunAction;
   onOpen: (id: string) => void;
   selecting?: boolean;
+  navigation?: boolean;
+  currentExerciseId?: string;
   onDone?: () => void;
 }) {
   const [active, setActive] = useState(false);
@@ -49,7 +53,7 @@ export function WorkoutExerciseLog({
   const origin = useRef({ x: 0, y: 0 });
   const suppressClick = useRef<string | null>(null);
   const drag = useRef<DragSession | null>(null);
-  const mode = active || selecting;
+  const mode = active || selecting || navigation;
   const locked = busy || pending;
   const serverOrder = w.exercises.map((item) => item.id).join(",");
   const exercises =
@@ -62,6 +66,15 @@ export function WorkoutExerciseLog({
     },
     [],
   );
+  useEffect(() => {
+    if (!navigation) return;
+    const element = list.current!;
+    const preventScroll = (event: TouchEvent) => {
+      if (drag.current) event.preventDefault();
+    };
+    element.addEventListener("touchmove", preventScroll, { passive: false });
+    return () => element.removeEventListener("touchmove", preventScroll);
+  }, [navigation]);
   function cancelHold() {
     if (hold.current) clearTimeout(hold.current);
     hold.current = null;
@@ -84,12 +97,24 @@ export function WorkoutExerciseLog({
     });
   }
   function beginHold(event: PointerEvent<HTMLButtonElement>, id: string) {
-    if (locked || w.is_finished || mode || event.button > 0) return;
+    if (locked || w.is_finished || (mode && !navigation) || event.button > 0)
+      return;
     cancelHold();
     origin.current = { x: event.clientX, y: event.clientY };
+    const element = event.currentTarget;
+    const pointer = {
+      button: event.button,
+      clientY: event.clientY,
+      pointerId: event.pointerId,
+      currentTarget: element,
+      preventDefault: () => {},
+    };
     hold.current = setTimeout(() => {
-      setActive(true);
-      setSelected(new Set([id]));
+      if (navigation) startDrag(pointer, id);
+      else {
+        setActive(true);
+        setSelected(new Set([id]));
+      }
       suppressClick.current = id;
     }, 500);
   }
@@ -148,7 +173,13 @@ export function WorkoutExerciseLog({
       }
     });
   }
-  function startDrag(event: PointerEvent<HTMLButtonElement>, id: string) {
+  function startDrag(
+    event: Pick<
+      PointerEvent<HTMLButtonElement>,
+      "button" | "clientY" | "pointerId" | "currentTarget" | "preventDefault"
+    >,
+    id: string,
+  ) {
     if (locked || event.button > 0) return;
     event.preventDefault();
     const boxes = Array.from(
@@ -207,15 +238,21 @@ export function WorkoutExerciseLog({
   }
   return (
     <div
-      className="workout-exercise-log"
+      className={`workout-exercise-log${navigation ? " workout-navigation-log" : ""}`}
       onKeyDown={(event) => {
-        if (event.key === "Escape" && mode && !locked && !confirm) {
+        if (
+          event.key === "Escape" &&
+          mode &&
+          !navigation &&
+          !locked &&
+          !confirm
+        ) {
           event.preventDefault();
           finish();
         }
       }}
     >
-      {mode && (
+      {mode && !navigation && (
         <div
           role="toolbar"
           aria-label="Selected exercises"
@@ -252,7 +289,7 @@ export function WorkoutExerciseLog({
           </button>
         </div>
       )}
-      {mode && (
+      {mode && !navigation && (
         <p className="workout-note">
           Tap to select · Drag a handle to reorder · Focus a handle and use ↑ /
           ↓
@@ -265,7 +302,7 @@ export function WorkoutExerciseLog({
           <div
             key={item.id}
             data-exercise-id={item.id}
-            className={`workout-home-exercise${item.group_name ? " workout-group-mark" : ""}${mode && selected.has(item.id) ? " is-selected" : ""}${motion?.dragging && motion.id === item.id ? " is-dragging" : ""}${motion && !motion.dragging ? " is-settling" : ""}`}
+            className={`workout-home-exercise${item.group_name ? " workout-group-mark" : ""}${(navigation ? currentExerciseId === item.id : mode && selected.has(item.id)) ? " is-selected" : ""}${motion?.dragging && motion.id === item.id ? " is-dragging" : ""}${motion && !motion.dragging ? " is-settling" : ""}`}
             style={{
               borderInlineStartColor: item.group_name
                 ? (item.group_colour ?? "#007f68")
@@ -279,15 +316,36 @@ export function WorkoutExerciseLog({
           >
             <button
               className="workout-home-exercise-link"
-              aria-label={`${mode ? "Select" : "Open"} ${item.exercise_name}`}
-              aria-pressed={mode ? selected.has(item.id) : undefined}
-              aria-describedby={`home-sets-${item.id}`}
+              aria-label={`${navigation ? "Switch to" : mode ? "Select" : "Open"} ${item.exercise_name}`}
+              aria-pressed={
+                navigation
+                  ? currentExerciseId === item.id
+                  : mode
+                    ? selected.has(item.id)
+                    : undefined
+              }
+              aria-describedby={navigation ? undefined : `home-sets-${item.id}`}
               disabled={locked}
               onPointerDown={(event) => beginHold(event, item.id)}
-              onPointerUp={cancelHold}
-              onPointerCancel={cancelHold}
-              onPointerLeave={cancelHold}
+              onPointerUp={() => {
+                cancelHold();
+                if (navigation && drag.current) drop();
+              }}
+              onPointerCancel={() => {
+                cancelHold();
+                if (navigation) {
+                  drag.current = null;
+                  setMotion(null);
+                }
+              }}
+              onPointerLeave={() => {
+                if (!drag.current) cancelHold();
+              }}
               onPointerMove={(event) => {
+                if (navigation && drag.current) {
+                  moveDrag(event);
+                  return;
+                }
                 if (
                   Math.hypot(
                     event.clientX - origin.current.x,
@@ -297,6 +355,10 @@ export function WorkoutExerciseLog({
                   cancelHold();
               }}
               onContextMenu={(event) => {
+                if (navigation) {
+                  event.preventDefault();
+                  return;
+                }
                 if (!locked && !w.is_finished) {
                   event.preventDefault();
                   setActive(true);
@@ -311,6 +373,12 @@ export function WorkoutExerciseLog({
                   !locked
                 ) {
                   event.preventDefault();
+                  if (navigation) {
+                    event.currentTarget.parentElement
+                      ?.querySelector<HTMLButtonElement>(".workout-drag-handle")
+                      ?.focus();
+                    return;
+                  }
                   setActive(true);
                   setSelected(new Set([item.id]));
                 }
@@ -320,52 +388,67 @@ export function WorkoutExerciseLog({
                 const held = suppressClick.current;
                 suppressClick.current = null;
                 if (held === item.id) return;
-                if (mode) toggle(item.id);
+                if (navigation) onOpen(item.id);
+                else if (mode) toggle(item.id);
                 else onOpen(item.id);
               }}
             >
-              <span className="workout-home-exercise-heading">
-                <strong>{item.exercise_name}</strong>
-              </span>
-              {item.group_name && (
-                <span className="workout-badge">{item.group_name}</span>
-              )}
-              <span id={`home-sets-${item.id}`} className="workout-home-sets">
-                {item.sets.map((set, i) => (
+              {navigation ? (
+                <>
+                  <strong>{item.exercise_name}</strong>
+                  <small>
+                    {item.sets.length} {item.sets.length === 1 ? "set" : "sets"}
+                  </small>
+                </>
+              ) : (
+                <>
+                  <span className="workout-home-exercise-heading">
+                    <strong>{item.exercise_name}</strong>
+                  </span>
+                  {item.group_name && (
+                    <span className="workout-badge">{item.group_name}</span>
+                  )}
                   <span
-                    className={`workout-home-set-row${item.tracking_type === "strength" ? " is-strength" : ""}`}
-                    key={set.id}
+                    id={`home-sets-${item.id}`}
+                    className="workout-home-sets"
                   >
-                    <span className="visually-hidden">Set {i + 1}</span>
-                    {item.tracking_type === "strength" ? (
-                      <>
-                        <strong>
-                          {set.weight == null ? "—" : Number(set.weight)}{" "}
-                          <small>{item.weight_unit}</small>
-                        </strong>
-                        <span>
-                          <b>{set.reps ?? "—"}</b> <small>reps</small>
+                    {item.sets.map((set, i) => (
+                      <span
+                        className={`workout-home-set-row${item.tracking_type === "strength" ? " is-strength" : ""}`}
+                        key={set.id}
+                      >
+                        <span className="visually-hidden">Set {i + 1}</span>
+                        {item.tracking_type === "strength" ? (
+                          <>
+                            <strong>
+                              {set.weight == null ? "—" : Number(set.weight)}{" "}
+                              <small>{item.weight_unit}</small>
+                            </strong>
+                            <span>
+                              <b>{set.reps ?? "—"}</b> <small>reps</small>
+                            </span>
+                          </>
+                        ) : (
+                          <strong>{setLabel(item, set)}</strong>
+                        )}
+                        <span
+                          className={`visually-hidden workout-home-set-status workout-status--${set.is_completed ? "completed" : "planned"}`}
+                        >
+                          {set.is_completed ? "Completed" : "Planned"}
                         </span>
-                      </>
-                    ) : (
-                      <strong>{setLabel(item, set)}</strong>
-                    )}
-                    <span
-                      className={`visually-hidden workout-home-set-status workout-status--${set.is_completed ? "completed" : "planned"}`}
-                    >
-                      {set.is_completed ? "Completed" : "Planned"}
-                    </span>
-                    {set.comment && (
-                      <span className="visually-hidden workout-home-set-comment">
-                        {set.comment}
+                        {set.comment && (
+                          <span className="visually-hidden workout-home-set-comment">
+                            {set.comment}
+                          </span>
+                        )}
                       </span>
+                    ))}
+                    {!item.sets.length && (
+                      <span className="workout-note">No sets yet</span>
                     )}
                   </span>
-                ))}
-                {!item.sets.length && (
-                  <span className="workout-note">No sets yet</span>
-                )}
-              </span>
+                </>
+              )}
             </button>
             {mode && (
               <button

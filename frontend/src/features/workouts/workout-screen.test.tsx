@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
@@ -1494,6 +1500,19 @@ it("exposes exercise switching, rest, stats and notes as training shortcuts", as
   await userEvent.click(
     screen.getByRole("button", { name: "Choose exercise", exact: true }),
   );
+  const panel = screen.getByRole("dialog", {
+    name: "Exercises in this workout",
+    exact: true,
+  });
+  expect(
+    within(panel).getByRole("button", { name: "Add exercise", exact: true }),
+  ).toBeVisible();
+  expect(
+    within(panel).getByRole("button", { name: "Add to group", exact: true }),
+  ).toBeVisible();
+  expect(
+    within(panel).getByRole("button", { name: "Home", exact: true }),
+  ).toBeVisible();
   await userEvent.click(
     screen.getByRole("button", {
       name: "Switch to Overhead press",
@@ -1555,4 +1574,88 @@ it("edits a saved set comment directly without changing its values or completion
       comment: "Good form",
     }),
   );
+});
+
+it("opens groups from the navigation panel with the current exercise preselected", async () => {
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
+  mount({
+    view: "training",
+    date: workout.performed_on,
+    session: "w",
+    exercise: "i",
+  });
+  await userEvent.click(
+    await screen.findByRole("button", {
+      name: "Open Barbell bench press",
+      exact: true,
+    }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Choose exercise", exact: true }),
+  );
+  await userEvent.click(
+    within(screen.getByRole("dialog")).getByRole("button", {
+      name: "Add to group",
+      exact: true,
+    }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "New group", exact: true }),
+  );
+  expect(screen.getByLabelText("Group name")).toHaveValue("Superset 1");
+  expect(
+    screen.getByRole("checkbox", { name: "Barbell bench press", exact: true }),
+  ).toBeChecked();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Cancel", exact: true }),
+  );
+  expect(
+    screen.getByRole("dialog", {
+      name: "Exercises in this workout",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await userEvent.click(
+    within(screen.getByRole("dialog")).getByRole("button", {
+      name: "Home",
+      exact: true,
+    }),
+  );
+  expect(
+    await screen.findByRole("button", {
+      name: "Open Barbell bench press",
+      exact: true,
+    }),
+  ).toBeVisible();
+  expect(api.saveWorkoutGroup).not.toHaveBeenCalled();
+});
+
+it("opens the exercise navigation panel from an inward edge swipe", async () => {
+  mount({
+    view: "training",
+    date: workout.performed_on,
+    session: "w",
+    exercise: "i",
+  });
+  await userEvent.click(
+    await screen.findByRole("button", {
+      name: "Open Barbell bench press",
+      exact: true,
+    }),
+  );
+  vi.stubGlobal("PointerEvent", MouseEvent);
+  try {
+    const edge = document.querySelector(".workout-navigation-edge")!;
+    fireEvent.pointerDown(edge, { clientX: 2, clientY: 200 });
+    fireEvent.pointerMove(edge, { clientX: 100, clientY: 205 });
+    expect(
+      screen.getByRole("dialog", {
+        name: "Exercises in this workout",
+        exact: true,
+      }),
+    ).toBeVisible();
+  } finally {
+    vi.unstubAllGlobals();
+  }
+  expect(api.updateWorkout).not.toHaveBeenCalled();
 });

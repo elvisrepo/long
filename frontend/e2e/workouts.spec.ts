@@ -511,7 +511,9 @@ test("mobile exercise editor leads with stepped inputs and Save/Clear", async ({
       exact: true,
     }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Close navigation panel", exact: true })
+    .click();
   await page.screenshot({
     path: testInfo.outputPath("training-mobile-light.png"),
     fullPage: true,
@@ -698,5 +700,137 @@ test("moves the open workout to another date without creating a copy", async ({
   await expect(page.getByLabel("Tracking date")).toHaveValue("2026-10-03");
   await expect(
     page.getByRole("button", { name: "Open Barbell bench press", exact: true }),
+  ).toBeVisible();
+});
+
+test("navigation panel links a coloured group and keeps exercise navigation accessible", async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.setViewportSize({ width: 390, height: 950 });
+  const items = ["Bench", "Row"].map((name, index) => ({
+    id: `44444444-4444-4444-8444-${String(index + 1).padStart(12, "0")}`,
+    exercise_id: exerciseId,
+    exercise_name: name,
+    category_name: "Chest",
+    tracking_type: "strength",
+    weight_unit: "kg",
+    distance_unit: "km",
+    display_order: index * 10,
+    sets: [],
+    group_name: "",
+    group_colour: null as string | null,
+  }));
+  const saved = {
+    id: sessionId,
+    name: "Workout",
+    performed_on: date,
+    notes: "",
+    is_finished: false,
+    created_at: "",
+    completed_set_count: 0,
+    exercises: items,
+  };
+  await page.route(/\/api\/v1\/workouts\/sessions\//, async (route) => {
+    const req = route.request();
+    if (req.method() === "PUT") {
+      const body = req.postDataJSON();
+      for (const item of items)
+        if (body.member_ids.includes(item.id)) {
+          item.group_name = body.name;
+          item.group_colour = body.colour;
+        }
+      await route.fulfill({ json: saved });
+    } else
+      await route.fulfill({
+        json: new URL(req.url()).pathname.endsWith(`/${sessionId}/`)
+          ? saved
+          : { count: 1, next: null, previous: null, results: [saved] },
+      });
+  });
+  await page.goto("/workouts?date=" + date);
+  await page.getByLabel("Color theme").selectOption("light");
+  await page.getByRole("button", { name: "Open Bench", exact: true }).click();
+  const reorderWrites: string[] = [];
+  page.on("request", request => {
+    if (request.url().endsWith("/exercises/bulk/")) reorderWrites.push(request.method());
+  });
+  const touch = await page.context().newCDPSession(page);
+  await touch.send("Input.dispatchTouchEvent", {
+    type: "touchStart", touchPoints: [{ x: 3, y: 400 }],
+  });
+  await touch.send("Input.dispatchTouchEvent", {
+    type: "touchMove", touchPoints: [{ x: 100, y: 402 }],
+  });
+  await touch.send("Input.dispatchTouchEvent", {
+    type: "touchEnd", touchPoints: [],
+  });
+  const panel = page.getByRole("dialog", {
+    name: "Exercises in this workout",
+    exact: true,
+  });
+  await expect(panel).toBeVisible();
+  await expect
+    .poll(async () => Math.round((await panel.boundingBox())!.x))
+    .toBe(0);
+  const row = panel.getByRole("button", { name: "Switch to Bench", exact: true });
+  const box = (await row.boundingBox())!;
+  await touch.send("Input.dispatchTouchEvent", {
+    type: "touchStart", touchPoints: [{ x: box.x + 60, y: box.y + 25 }],
+  });
+  await expect(panel.locator(".is-dragging")).toBeVisible();
+  await touch.send("Input.dispatchTouchEvent", {
+    type: "touchMove", touchPoints: [{ x: box.x + 60, y: box.y + 125 }],
+  });
+  await expect(panel.locator(".is-dragging")).toBeVisible();
+  await expect.poll(async () => (await row.boundingBox())!.y).toBeGreaterThan(box.y + 50);
+  await touch.send("Input.dispatchTouchEvent", { type: "touchCancel", touchPoints: [] });
+  await expect(panel.locator(".is-dragging")).toHaveCount(0);
+  expect(reorderWrites).toEqual([]);
+  for (const width of [320, 390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 950 });
+    expect(await panel.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(false);
+    await page.screenshot({ path: `/tmp/workout-navigation-${width}.png` });
+  }
+  await page.setViewportSize({ width: 390, height: 950 });
+  await panel
+    .getByRole("button", { name: "Add to group", exact: true })
+    .click();
+  await page.getByRole("button", { name: "New group", exact: true }).click();
+  await expect(page.getByLabel("Group name")).toHaveValue("Superset 1");
+  const editor = page.getByRole("dialog", { name: "New group", exact: true });
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 950 });
+    expect(await editor.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(false);
+    await page.screenshot({ path: `/tmp/workout-group-${width}.png` });
+  }
+  await expect(
+    page.getByRole("checkbox", { name: "Bench", exact: true }),
+  ).toBeChecked();
+  await page.getByRole("checkbox", { name: "Row", exact: true }).check();
+  await page.getByRole("button", { name: "Red", exact: true }).click();
+  await page.getByRole("button", { name: "Save group", exact: true }).click();
+  await expect(
+    panel.getByRole("button", { name: "Edit group", exact: true }),
+  ).toBeEnabled();
+  const mark = panel.locator('[data-exercise-id="' + items[0].id + '"]');
+  await expect(mark).toHaveCSS("border-inline-start-color", "rgb(220, 38, 38)");
+  await panel
+    .getByRole("button", { name: "Switch to Row", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Row", level: 1, exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Choose exercise", exact: true })
+    .click();
+  await panel.getByRole("button", { name: "Edit group", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Edit Superset 1", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await panel.getByRole("button", { name: "Home", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Open Bench", exact: true }),
   ).toBeVisible();
 });

@@ -6,7 +6,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { WorkoutExerciseLog } from "./workout-exercise-log";
 import * as api from "./workout-api";
 vi.mock("./workout-api");
@@ -29,6 +29,7 @@ const workout: api.Workout = {
     sets: [],
   })),
 };
+beforeEach(() => vi.clearAllMocks());
 afterEach(() => vi.useRealTimers());
 it("long press selects without opening the editor or deleting; normal taps extend selection", async () => {
   vi.useFakeTimers();
@@ -203,19 +204,17 @@ it("rolls a failed drag back without changing the saved order", async () => {
       view.container.querySelectorAll<HTMLElement>("[data-exercise-id]"),
     );
     cards.forEach((card, index) =>
-      vi
-        .spyOn(card, "getBoundingClientRect")
-        .mockReturnValue({
-          top: 100 + index * 112,
-          height: 100,
-          bottom: 200 + index * 112,
-          left: 0,
-          right: 300,
-          width: 300,
-          x: 0,
-          y: 100 + index * 112,
-          toJSON: () => ({}),
-        }),
+      vi.spyOn(card, "getBoundingClientRect").mockReturnValue({
+        top: 100 + index * 112,
+        height: 100,
+        bottom: 200 + index * 112,
+        left: 0,
+        right: 300,
+        width: 300,
+        x: 0,
+        y: 100 + index * 112,
+        toJSON: () => ({}),
+      }),
     );
     const handle = screen.getByRole("button", { name: "Reorder Bench" });
     fireEvent.pointerDown(handle, { clientY: 120, button: 0 });
@@ -232,5 +231,42 @@ it("rolls a failed drag back without changing the saved order", async () => {
   } finally {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+  }
+});
+
+it("holds a navigation row to drag without switching exercises and cancels without saving", () => {
+  vi.useFakeTimers();
+  vi.stubGlobal("PointerEvent", MouseEvent);
+  try {
+    const open = vi.fn();
+    const view = render(
+      <WorkoutExerciseLog
+        workout={workout}
+        busy={false}
+        navigation
+        currentExerciseId="e0"
+        run={(action) => void action()}
+        onOpen={open}
+      />,
+    );
+    const row = screen.getByRole("button", {
+      name: "Switch to Bench",
+      exact: true,
+    });
+    fireEvent.pointerDown(row, { clientY: 50, button: 0, pointerId: 1 });
+    act(() => vi.advanceTimersByTime(550));
+    expect(view.container.querySelector(".is-dragging")).toBeInTheDocument();
+    expect(open).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("toolbar", { name: "Selected exercises" }),
+    ).not.toBeInTheDocument();
+    fireEvent.pointerCancel(row);
+    expect(
+      view.container.querySelector(".is-dragging"),
+    ).not.toBeInTheDocument();
+    expect(api.actOnWorkoutExercises).not.toHaveBeenCalled();
+  } finally {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
   }
 });

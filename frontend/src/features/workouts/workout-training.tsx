@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { Modal } from "../../components/modal";
 import * as api from "./workout-api";
+import { WorkoutNavigationPanel } from "./workout-navigation-panel";
 import { WorkoutTools } from "./workout-tools";
 import { WorkoutTiming } from "./workout-timing";
 import { WorkoutGroups } from "./workout-groups";
@@ -78,6 +79,8 @@ export function WorkoutTraining({
 }) {
   const client = useQueryClient();
   const item = workout.exercises.find((i) => i.id === itemId);
+  const [groupsFromPanel, setGroupsFromPanel] = useState(false);
+  const edgeSwipe = useRef<{ x: number; y: number } | null>(null);
   const [tab, setTab] = useState<"track" | "history">("track");
   const [managingSets, setManagingSets] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -203,6 +206,32 @@ export function WorkoutTraining({
           ];
   return (
     <>
+      <div
+        className="workout-navigation-edge"
+        aria-hidden="true"
+        onPointerDown={(event) => {
+          edgeSwipe.current = { x: event.clientX, y: event.clientY };
+          event.currentTarget.setPointerCapture?.(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          const start = edgeSwipe.current;
+          if (
+            start &&
+            !busy &&
+            event.clientX - start.x > 48 &&
+            Math.abs(event.clientY - start.y) < 40
+          ) {
+            edgeSwipe.current = null;
+            setDialog("picker");
+          }
+        }}
+        onPointerUp={() => {
+          edgeSwipe.current = null;
+        }}
+        onPointerCancel={() => {
+          edgeSwipe.current = null;
+        }}
+      />
       <header className="workout-exercise-toolbar">
         <h1 aria-label={item.exercise_name}>
           <button
@@ -452,7 +481,13 @@ export function WorkoutTraining({
               >
                 Add exercise
               </button>
-              <button disabled={disabled} onClick={() => setDialog("groups")}>
+              <button
+                disabled={disabled}
+                onClick={() => {
+                  setGroupsFromPanel(false);
+                  setDialog("groups");
+                }}
+              >
                 {item.group_name ? "Edit group" : "Add to group"}
               </button>
               <RemoveWorkoutExercise
@@ -951,45 +986,44 @@ export function WorkoutTraining({
           catalog={catalog}
           busy={busy}
           run={run}
-          onClose={() => setDialog(null)}
+          autoAdvance={autoAdvance}
+          onAutoAdvance={onAutoAdvance}
+          onClose={() => setDialog(groupsFromPanel ? "picker" : null)}
         />
       )}
       {dialog === "picker" && (
-        <Modal
-          labelledBy="exercise-picker-title"
+        <WorkoutNavigationPanel
+          workout={workout}
+          currentId={item.id}
           busy={busy}
+          run={run}
+          onSelect={(id) => {
+            setDialog(null);
+            navigate({
+              view: "training",
+              date: workout.performed_on,
+              session: workout.id,
+              exercise: id,
+            });
+          }}
+          onAdd={() => {
+            setDialog(null);
+            navigate({
+              view: "exercises",
+              date: workout.performed_on,
+              session: workout.id,
+            });
+          }}
+          onGroup={() => {
+            setGroupsFromPanel(true);
+            setDialog("groups");
+          }}
+          onHome={() => {
+            setDialog(null);
+            navigate({ view: "home", date: workout.performed_on });
+          }}
           onClose={() => setDialog(null)}
-        >
-          <h2 id="exercise-picker-title">Exercises in this workout</h2>
-          <div className="workout-exercise-picker-list">
-            {workout.exercises.map((exercise) => (
-              <button
-                key={exercise.id}
-                disabled={busy}
-                aria-label={`Switch to ${exercise.exercise_name}`}
-                aria-pressed={exercise.id === item.id}
-                onClick={() => {
-                  setDialog(null);
-                  navigate({
-                    view: "training",
-                    date: workout.performed_on,
-                    session: workout.id,
-                    exercise: exercise.id,
-                  });
-                }}
-              >
-                <strong>{exercise.exercise_name}</strong>
-                <small>
-                  {exercise.sets.filter((set) => set.is_completed).length} /{" "}
-                  {exercise.sets.length} sets completed
-                </small>
-              </button>
-            ))}
-          </div>
-          <button disabled={busy} onClick={() => setDialog(null)}>
-            Close
-          </button>
-        </Modal>
+        />
       )}
       {dialog === "set-comment" && commentSet && (
         <Modal

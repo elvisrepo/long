@@ -775,3 +775,24 @@ coloured when populated, which patches only comment and preserves completion and
 values. Finished-session comments can be viewed but editing stays disabled. The
 new comment dialog keeps failed drafts. Calculators and secondary tools remain in
 overflow. No routes or backend contracts change.
+
+### Training navigation panel — 2026-10-22
+
+The exercise title opens a light side panel; a rightward swipe starting within
+16px of the left edge also opens it. The panel shows workout exercises, total
+saved set rows, the current exercise highlight and shared group colour bars.
+Tapping a row switches the Training editor. Its footer offers Add exercise,
+Add to group / Edit group and Home on the workout date.
+
+Holding a row for 500ms lifts it for animated dragging; immediate handle dragging
+and keyboard Up/Down remain available. The same atomic order/snapshot save and
+rollback used by the workout overview applies. Cancellation causes no write.
+The list scrolls independently of the footer. Escape, backdrop and Close dismiss
+it; reduced-motion preferences disable the entrance animation.
+
+Group actions reuse the existing picker/editor: generated Superset names,
+automatic current membership, ten colours, adding members/library exercises,
+joining, unlinking and confirmed deletion. Saving or cancelling returns to the
+panel. Settings exposes the existing completion-only group auto-advance option;
+its workout-order cycling behaviour is unchanged. Finished workouts allow
+navigation but disable adding, grouping and ordering. No API or route changes.

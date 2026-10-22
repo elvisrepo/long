@@ -2114,3 +2114,17 @@ Final lint/build pass. Read-only real-account checks at 320/390/768/1440px verif
 light layout, rest, notes, saved-set comments and exercise switching with no
 overflow, JavaScript errors or tracker writes. The browser accessibility audit
 caught and verified correction of a button label masking the exercise heading.
+
+### Training navigation panel — 2026-10-22
+
+All 679 frontend tests and eight workout browser journeys pass; lint/build and
+`git diff --check` pass. Focused component checks cover panel shortcuts, group
+creation with the current member, returning to the panel, Home, edge opening and
+long-hold cancellation. Browser checks use actual Chrome touch events to open
+from the edge, lift/move a row, and cancel without an ordering request. The same
+journey creates a coloured group and switches editors through the panel.
+Panel layouts are checked at 320/390/768/1440px and group drafts at 320/390px;
+320px screenshots were visually inspected. These browser checks use mocked API
+fixtures; the separate real-account probe did not reach a workout and provides
+no validation evidence for this slice. Existing group cycling and ordering API
+contracts are reused without backend changes.
