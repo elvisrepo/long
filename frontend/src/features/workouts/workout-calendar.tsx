@@ -9,7 +9,9 @@ export function WorkoutCalendar({
   busy,
   navigate,
   renderSelectedDay,
+  compact = false,
 }: {
+  compact?: boolean;
   owner: string;
   date: string;
   busy: boolean;
@@ -89,80 +91,86 @@ export function WorkoutCalendar({
           →
         </button>
       </div>
-      <div
-        className="workout-toolbar workout-calendar-filters"
-        aria-label="Calendar filters"
-      >
-        <label>
-          Calendar exercise
-          <select
-            disabled={locked}
-            value={exercise?.id ?? ""}
-            onChange={(event) =>
-              setExercise(
-                event.target.value
-                  ? {
-                      id: event.target.value,
-                      name: exercises.get(event.target.value)!,
-                    }
-                  : null,
-              )
-            }
+      {!compact && (
+        <>
+          <div
+            className="workout-toolbar workout-calendar-filters"
+            aria-label="Calendar filters"
           >
-            <option value="">All exercises</option>
-            {[...exercises]
-              .sort((a, b) => a[1].localeCompare(b[1]))
-              .map(([id, name]) => (
-                <option key={id} value={id}>
-                  {name}
-                </option>
-              ))}
-          </select>
-        </label>
-        <label>
-          Calendar category
-          <select
-            disabled={locked}
-            value={category}
-            onChange={(event) => setCategory(event.target.value)}
-          >
-            <option value="">All saved categories</option>
-            {[...categories].sort().map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Calendar status
-          <select
-            disabled={locked}
-            value={status}
-            onChange={(event) => setStatus(event.target.value as typeof status)}
-          >
-            <option value="all">All workouts</option>
-            <option value="training">Completed training</option>
-            <option value="planned">Planned only / empty drafts</option>
-          </select>
-        </label>
-        <button
-          disabled={locked || !activeFilters}
-          onClick={() => {
-            setExercise(null);
-            setCategory("");
-            setStatus("all");
-          }}
-        >
-          Reset filters
-        </button>
-      </div>
-      <p className="workout-note">
-        Choices come from this month's recorded workouts, including archived
-        exercise history. Categories use saved names. Status reflects matching
-        exercise entries. Filters only locate workouts; opening or copying one
-        still includes its full exercise list.
-      </p>
+            <label>
+              Calendar exercise
+              <select
+                disabled={locked}
+                value={exercise?.id ?? ""}
+                onChange={(event) =>
+                  setExercise(
+                    event.target.value
+                      ? {
+                          id: event.target.value,
+                          name: exercises.get(event.target.value)!,
+                        }
+                      : null,
+                  )
+                }
+              >
+                <option value="">All exercises</option>
+                {[...exercises]
+                  .sort((a, b) => a[1].localeCompare(b[1]))
+                  .map(([id, name]) => (
+                    <option key={id} value={id}>
+                      {name}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label>
+              Calendar category
+              <select
+                disabled={locked}
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
+              >
+                <option value="">All saved categories</option>
+                {[...categories].sort().map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Calendar status
+              <select
+                disabled={locked}
+                value={status}
+                onChange={(event) =>
+                  setStatus(event.target.value as typeof status)
+                }
+              >
+                <option value="all">All workouts</option>
+                <option value="training">Completed training</option>
+                <option value="planned">Planned only / empty drafts</option>
+              </select>
+            </label>
+            <button
+              disabled={locked || !activeFilters}
+              onClick={() => {
+                setExercise(null);
+                setCategory("");
+                setStatus("all");
+              }}
+            >
+              Reset filters
+            </button>
+          </div>
+          <p className="workout-note">
+            Choices come from this month's recorded workouts, including archived
+            exercise history. Categories use saved names. Status reflects
+            matching exercise entries. Filters only locate workouts; opening or
+            copying one still includes its full exercise list.
+          </p>
+        </>
+      )}
       {query.isPending ? (
         <p role="status">Loading month…</p>
       ) : query.isError ? (
@@ -172,26 +180,28 @@ export function WorkoutCalendar({
         </>
       ) : (
         <>
-          <div
-            className="workout-calendar-key"
-            role="group"
-            aria-label="Workout status key"
-          >
-            <div>
-              <span className="workout-calendar-key-marker training">T</span>
-              <span>
-                <strong>Completed training</strong>
-                <small>At least one completed set</small>
-              </span>
+          {!compact && (
+            <div
+              className="workout-calendar-key"
+              role="group"
+              aria-label="Workout status key"
+            >
+              <div>
+                <span className="workout-calendar-key-marker training">T</span>
+                <span>
+                  <strong>Completed training</strong>
+                  <small>At least one completed set</small>
+                </span>
+              </div>
+              <div>
+                <span className="workout-calendar-key-marker planned">P</span>
+                <span>
+                  <strong>Planned</strong>
+                  <small>No completed sets, including empty drafts</small>
+                </span>
+              </div>
             </div>
-            <div>
-              <span className="workout-calendar-key-marker planned">P</span>
-              <span>
-                <strong>Planned</strong>
-                <small>No completed sets, including empty drafts</small>
-              </span>
-            </div>
-          </div>
+          )}
           <p role="status">
             {filtered.length} matching{" "}
             {filtered.length === 1 ? "session" : "sessions"} in this month.
@@ -226,13 +236,13 @@ export function WorkoutCalendar({
                     <small title="Completed training and planned sessions">
                       {trained > 0 && (
                         <span className="workout-calendar-count training">
-                          T{trained}
+                          {compact ? "●" : `T${trained}`}
                         </span>
                       )}
-                      {trained > 0 && planned > 0 && " · "}
+                      {trained > 0 && planned > 0 && !compact && " · "}
                       {planned > 0 && (
                         <span className="workout-calendar-count planned">
-                          P{planned}
+                          {compact ? "●" : `P${planned}`}
                         </span>
                       )}
                     </small>

@@ -363,6 +363,7 @@ export function WorkoutScreen({
           !editingExercise ? (
             <div className="workout-home">
               <SessionCard
+                owner={owner}
                 workout={detail.data}
                 busy={busy}
                 run={run}
@@ -540,6 +541,7 @@ function WorkoutHome({
       {sessions.length ? (
         sessions.map((w) => (
           <SessionCard
+            owner={owner}
             key={w.id}
             workout={w}
             openExercise={openExercise}
@@ -589,12 +591,14 @@ function WorkoutHome({
   );
 }
 function SessionCard({
+  owner,
   openExercise,
   workout: w,
   busy,
   run,
   navigate,
 }: {
+  owner: string;
   workout: api.Workout;
   openExercise?: NavigateWorkout;
   busy: boolean;
@@ -831,8 +835,9 @@ function SessionCard({
         />
       )}
       {dialog === "copy" && (
-        <CopyWorkoutDialog
-          source={w}
+        <CopyWorkoutPicker
+          owner={owner}
+          initialDate={w.performed_on}
           destination={localDay(new Date())}
           busy={busy}
           run={run}

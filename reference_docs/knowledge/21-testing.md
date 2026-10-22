@@ -2052,3 +2052,13 @@ failure. Browser journeys force an unavailable native share API, verify app
 choices and Back at 320/390/1440px, then exercise the CSV flow. All 662 frontend
 tests, four workout browser journeys, lint and build pass. App links are inspected
 without contacting an external recipient; the OS share sheet is mocked in tests.
+
+### Compact Copy workout regression — 2026-10-22
+
+All 663 frontend tests, four workout browser journeys, lint and production build
+pass. Existing subset, full copy, exercise-only, selection/date retention, source
+month navigation and failed-copy retry assertions follow the direct Copy flow.
+The compact checklist test verifies secondary Edit/date access and one explicit
+copy request. Calendar filters remain covered on the main Calendar page. Real
+saved-workout checks at 320/390/768/1440px verify source calendar, selection,
+Edit/date and return-to-calendar with no overflow, JS errors or tracker writes.

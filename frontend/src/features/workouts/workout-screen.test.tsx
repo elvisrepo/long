@@ -454,6 +454,9 @@ it("opens a calendar to choose a previous workout without creating a copy", asyn
   expect(
     await screen.findByRole("heading", { name: "October 2026" }),
   ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("combobox", { name: "Calendar exercise" }),
+  ).not.toBeInTheDocument();
   expect(api.copyWorkout).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -474,17 +477,20 @@ it.each(["home", "history"] as const)(
     await userEvent.click(
       await screen.findByRole("button", { name: "Copy workout", exact: true }),
     );
+    if (view === "home")
+      await userEvent.click(
+        await screen.findByRole("button", { name: /^Copy Workout to / }),
+      );
     expect(
-      screen.getByRole("dialog", { name: "Copy Workout" }),
+      screen.getByRole("dialog", { name: "Copy workout" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("checkbox", {
         name: `Include exercise 1: ${item.exercise_name}`,
       }),
     ).toBeChecked();
-    await userEvent.click(screen.getByRole("button", { name: "Preview copy" }));
     expect(
-      screen.getByRole("region", { name: "Copy preview" }),
+      screen.getByRole("region", { name: "Copy selection" }),
     ).toHaveTextContent(item.exercise_name);
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -500,6 +506,9 @@ it("returns from selection to the source calendar without creating anything", as
   );
   await userEvent.click(
     await screen.findByRole("button", { name: "Copy Workout to 2026-10-02" }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Edit", exact: true }),
   );
   await userEvent.click(
     screen.getByRole("button", { name: "Choose another workout" }),
@@ -553,12 +562,11 @@ it("chooses a source session in another month while keeping the copy destination
     screen.getByRole("button", { name: "Copy Evening to 2026-10-02" }),
   );
   expect(api.copyWorkout).not.toHaveBeenCalled();
-  await userEvent.click(screen.getByRole("button", { name: "Preview copy" }));
   expect(
-    screen.getByRole("region", { name: "Copy preview" }),
+    screen.getByRole("region", { name: "Copy selection" }),
   ).toBeInTheDocument();
   await userEvent.click(
-    screen.getByRole("button", { name: "Create planned workout" }),
+    screen.getByRole("button", { name: "Copy", exact: true }),
   );
   await waitFor(() =>
     expect(api.copyWorkout).toHaveBeenCalledExactlyOnceWith(
@@ -592,10 +600,13 @@ it("locks the picker while copying and preserves selection after a failed copy",
   });
   await userEvent.click(sourceButton);
   expect(api.copyWorkout).not.toHaveBeenCalled();
-  await userEvent.click(screen.getByRole("button", { name: "Preview copy" }));
   const copyButton = screen.getByRole("button", {
-    name: "Create planned workout",
+    name: "Copy",
+    exact: true,
   });
+  await userEvent.click(
+    screen.getByRole("button", { name: "Edit", exact: true }),
+  );
   await userEvent.click(copyButton);
   expect(copyButton).toBeDisabled();
   expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();

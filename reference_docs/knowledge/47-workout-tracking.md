@@ -698,3 +698,19 @@ chooser. Native cancellation is quiet. App links open a compose flow and do not
 send to a recipient automatically.
 CSV downloads and clipboard/native sharing all use only the selected records,
 retain recorded units/status and do not modify the stored workout. No API changes.
+
+### Compact Copy workout flow — 2026-10-22
+
+The workout overflow Copy action and Copy previous open a compact source-calendar
+picker. Its month navigation and training/planned dots locate saved workouts;
+the main Calendar filters remain on the full Calendar page. Multiple sessions on
+a date remain separate choices. History's explicit Copy action goes directly to
+that session's selection sheet.
+
+Copy selection uses the light compact exercise/set checklist with Select all and
+mixed parent states, plus Cancel / Edit / Copy. Edit reveals the destination date
+and return-to-source control. Copy performs the existing full/subset API call
+directly, without a separate preview step. Copied records remain planned, notes
+and comments stay on the original, and empty exercise copies remain supported.
+Pending actions are locked; a failed save retains selection/date for retry.
+No API, route or backend changes.

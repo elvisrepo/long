@@ -357,11 +357,9 @@ for (const width of [320, 390, 1440])
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
     await page.getByRole("button", { name: "History", exact: true }).click();
     await page.getByRole("button", { name: "Copy workout" }).click();
+    await page.getByRole("button", { name: "Edit", exact: true }).click();
     await page.getByLabel("Copy to date").fill("2026-10-03");
-    await page
-      .getByRole("button", { name: "Preview copy", exact: true })
-      .click();
-    await page.getByRole("button", { name: "Create planned workout" }).click();
+    await page.getByRole("button", { name: "Copy", exact: true }).click();
     await expect(
       page.getByRole("button", {
         name: "Open Barbell bench press",
