@@ -400,10 +400,10 @@ for (const width of [320, 390, 1440])
     ).toBeVisible();
     await page.getByText("More actions ···", { exact: true }).click();
     await page
-      .getByRole("button", { name: "Edit workout", exact: true })
+      .getByRole("button", { name: "Comment workout", exact: true })
       .click();
     await expect(
-      page.getByRole("textbox", { name: /Session notes/ }),
+      page.getByRole("textbox", { name: "Workout comment", exact: true }),
     ).toHaveValue("Warm up first");
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
     await page.getByRole("button", { name: "Routines", exact: true }).click();

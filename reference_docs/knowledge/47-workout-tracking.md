@@ -740,3 +740,11 @@ visual projection without a second jump. Failed saves animate back to the prior
 order. Cancellation discards the projection without writes. Reduced-motion
 preferences disable transitions. The existing atomic order/snapshot API is
 unchanged; no new dependency or backend change.
+
+### Comment workout shortcut — 2026-10-22
+
+The workout overflow includes Comment workout after Edit workout. It opens a
+focused notes editor prefilled with the existing session notes. Save patches only
+`notes`; an empty comment clears them. Cancel does not save. Errors retain the
+draft for retry. This uses the existing 2000-character session notes field and
+contract; Edit workout still includes notes. No backend or route changes.

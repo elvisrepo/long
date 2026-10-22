@@ -1307,7 +1307,7 @@ it("steps exercise values and clears the draft without writing sets", async () =
   expect(api.saveWorkoutSet).not.toHaveBeenCalled();
 });
 
-it("offers six workout actions with secondary actions inside Manage workout", async () => {
+it("offers seven workout actions with secondary actions inside Manage workout", async () => {
   vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
   mount({ date: workout.performed_on });
   await userEvent.click(await screen.findByText("More actions ···"));
@@ -1318,6 +1318,7 @@ it("offers six workout actions with secondary actions inside Manage workout", as
     ),
   ).toEqual([
     "Edit workout",
+    "Comment workout",
     "Time workout",
     "Copy workout",
     "Export workout",
@@ -1336,4 +1337,63 @@ it("offers six workout actions with secondary actions inside Manage workout", as
     }),
   ).toBeVisible();
   expect(api.updateWorkout).not.toHaveBeenCalled();
+});
+
+it.each(["Felt strong today", ""])(
+  "saves only the workout comment, including clearing it (%s)",
+  async (comment) => {
+    vi.mocked(api.getWorkoutRange).mockResolvedValue([
+      { ...workout, notes: "Existing comment" },
+    ]);
+    vi.mocked(api.updateWorkout).mockResolvedValue(workout);
+    mount({ date: workout.performed_on });
+    await userEvent.click(await screen.findByText("More actions ···"));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Comment workout", exact: true }),
+    );
+    const input = screen.getByLabelText("Workout comment");
+    expect(input).toHaveValue("Existing comment");
+    await userEvent.clear(input);
+    if (comment) await userEvent.type(input, comment);
+    expect(api.updateWorkout).not.toHaveBeenCalled();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Save comment", exact: true }),
+    );
+    await waitFor(() =>
+      expect(api.updateWorkout).toHaveBeenCalledExactlyOnceWith("w", {
+        notes: comment,
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Comment workout" }),
+      ).not.toBeInTheDocument(),
+    );
+  },
+);
+
+it("retains a failed workout comment draft and cancels without another save", async () => {
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([workout]);
+  vi.mocked(api.updateWorkout).mockRejectedValue(new Error("Save failed"));
+  mount({ date: workout.performed_on });
+  await userEvent.click(await screen.findByText("More actions ···"));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Comment workout", exact: true }),
+  );
+  await userEvent.type(
+    screen.getByLabelText("Workout comment"),
+    "Keep this draft",
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Save comment", exact: true }),
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent("Save failed");
+  expect(screen.getByLabelText("Workout comment")).toHaveValue(
+    "Keep this draft",
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Cancel", exact: true }),
+  );
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(api.updateWorkout).toHaveBeenCalledTimes(1);
 });

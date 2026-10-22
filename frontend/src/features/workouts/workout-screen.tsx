@@ -605,10 +605,18 @@ function SessionCard({
   run: RunAction;
   navigate: NavigateWorkout;
 }) {
+  const [commentError, setCommentError] = useState("");
   const [selecting, setSelecting] = useState(false);
   const [managing, setManaging] = useState(false);
   const [dialog, setDialog] = useState<
-    "edit" | "delete" | "copy" | "routine" | "export" | "time" | null
+    | "edit"
+    | "comment"
+    | "delete"
+    | "copy"
+    | "routine"
+    | "export"
+    | "time"
+    | null
   >(null);
   return (
     <section className="workout-card workout-home-session">
@@ -658,6 +666,15 @@ function SessionCard({
             <button disabled={busy} onClick={() => setDialog("edit")}>
               Edit workout
             </button>
+            <button
+              disabled={busy}
+              onClick={() => {
+                setCommentError("");
+                setDialog("comment");
+              }}
+            >
+              Comment workout
+            </button>
             <button disabled={busy} onClick={() => setDialog("time")}>
               Time workout
             </button>
@@ -685,6 +702,60 @@ function SessionCard({
           </div>
         </details>
       </div>
+      {dialog === "comment" && (
+        <Modal
+          labelledBy={`workout-comment-${w.id}`}
+          busy={busy}
+          onClose={() => setDialog(null)}
+        >
+          <h2 id={`workout-comment-${w.id}`}>Comment workout</h2>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              const notes = String(
+                new FormData(event.currentTarget).get("notes"),
+              );
+              setCommentError("");
+              run(async () => {
+                try {
+                  await api.updateWorkout(w.id, { notes });
+                  setDialog(null);
+                } catch (reason) {
+                  setCommentError(
+                    reason instanceof Error
+                      ? reason.message
+                      : "Comment couldn't be saved. Please retry.",
+                  );
+                }
+              });
+            }}
+          >
+            <label>
+              Workout comment
+              <textarea
+                name="notes"
+                defaultValue={w.notes}
+                rows={5}
+                maxLength={2000}
+                disabled={busy}
+              />
+            </label>
+            {commentError && <p role="alert">{commentError}</p>}
+            <div className="workout-actions">
+              <button className="primary-button" disabled={busy}>
+                Save comment
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setDialog(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
       {dialog === "time" && (
         <Modal
           labelledBy={`workout-time-${w.id}`}
