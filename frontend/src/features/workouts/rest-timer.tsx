@@ -1,10 +1,13 @@
+import { Modal } from "../../components/modal";
 import { useEffect, useImperativeHandle, useState, type Ref } from "react";
 
 export interface RestTimerHandle {
   completed: () => void;
+  open: () => void;
 }
 export function RestTimer({
   seconds,
+  dialogMode = false,
   ref,
   context = "",
   autoStart,
@@ -12,12 +15,14 @@ export function RestTimer({
   disabled = false,
 }: {
   seconds: number;
+  dialogMode?: boolean;
   ref?: Ref<RestTimerHandle>;
   context?: string;
   autoStart?: boolean;
   onAutoStartChange?: (enabled: boolean) => void;
   disabled?: boolean;
 }) {
+  const [open, setOpen] = useState(false);
   const [custom, setCustom] = useState<{ context: string; seconds: number }>();
   const duration = custom?.context === context ? custom.seconds : seconds;
   const [deadline, setDeadline] = useState<number>();
@@ -30,6 +35,7 @@ export function RestTimer({
     setDeadline(current + duration * 1000);
   };
   useImperativeHandle(ref, () => ({
+    open: () => setOpen(true),
     completed: () => {
       if (auto && duration > 0) start();
     },
@@ -48,14 +54,13 @@ export function RestTimer({
       document.removeEventListener("visibilitychange", update);
     };
   }, []);
-  return (
-    <details className="workout-card" aria-label="Rest timer">
-      <summary>
-        Rest timer ·{" "}
-        <span role="timer" aria-label="Rest remaining">
-          {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
-        </span>
-      </summary>
+  const clock = (
+    <span role="timer" aria-label="Rest remaining">
+      {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
+    </span>
+  );
+  const controls = (
+    <>
       <div className="workout-actions">
         <label>
           Rest seconds
@@ -104,6 +109,21 @@ export function RestTimer({
         Visual timer only. Background updates may be delayed; leaving Workouts
         or reloading clears the timer.
       </small>
+    </>
+  );
+  if (dialogMode)
+    return open ? (
+      <Modal labelledBy="rest-timer-title" onClose={() => setOpen(false)}>
+        <h2 id="rest-timer-title">Rest timer</h2>
+        <p className="workout-rest-countdown">{clock}</p>
+        {controls}
+        <button onClick={() => setOpen(false)}>Close</button>
+      </Modal>
+    ) : null;
+  return (
+    <details className="workout-card" aria-label="Rest timer">
+      <summary>Rest timer · {clock}</summary>
+      {controls}
     </details>
   );
 }

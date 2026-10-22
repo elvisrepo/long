@@ -196,6 +196,7 @@ export function WorkoutScreen({
       )}
       <div hidden={!editingExercise}>
         <RestTimer
+          dialogMode
           ref={restTimer}
           seconds={
             catalog.data.exercises.find(
@@ -385,6 +386,7 @@ export function WorkoutScreen({
                 Back to workout
               </button>
               <WorkoutTraining
+                onOpenRest={() => restTimer.current?.open()}
                 key={`${detail.data.id}:${editingExercise}`}
                 onCompleted={() => restTimer.current?.completed()}
                 autoAdvance={

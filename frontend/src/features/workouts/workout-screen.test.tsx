@@ -1453,3 +1453,106 @@ it("cancels a move without saving and retains the selected date if moving fails"
     workout.performed_on,
   );
 });
+
+it("exposes exercise switching, rest, stats and notes as training shortcuts", async () => {
+  vi.mocked(api.getWorkout).mockResolvedValue({
+    ...workout,
+    exercises: [
+      item,
+      { ...item, id: "press", exercise_name: "Overhead press" },
+    ],
+  });
+  mount({
+    view: "training",
+    date: workout.performed_on,
+    session: "w",
+    exercise: "i",
+  });
+  await userEvent.click(
+    await screen.findByRole("button", {
+      name: "Open Barbell bench press",
+      exact: true,
+    }),
+  );
+  expect(
+    screen.getByRole("button", { name: "Exercise stats", exact: true }),
+  ).toBeVisible();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Rest timer", exact: true }),
+  );
+  expect(screen.getByRole("dialog", { name: "Rest timer" })).toBeVisible();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Close", exact: true }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Exercise notes", exact: true }),
+  );
+  expect(screen.getByRole("dialog", { name: "Exercise notes" })).toBeVisible();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Cancel", exact: true }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Choose exercise", exact: true }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "Switch to Overhead press",
+      exact: true,
+    }),
+  );
+  expect(
+    await screen.findByRole("heading", { name: "Overhead press", level: 1 }),
+  ).toBeVisible();
+  expect(api.updateWorkout).not.toHaveBeenCalled();
+  expect(api.saveWorkoutSet).not.toHaveBeenCalled();
+});
+
+it("edits a saved set comment directly without changing its values or completion", async () => {
+  const set: api.WorkoutSet = {
+    id: "s",
+    weight: "70",
+    reps: 5,
+    distance: null,
+    duration_seconds: null,
+    comment: "Controlled tempo",
+    is_completed: true,
+    display_order: 10,
+  };
+  vi.mocked(api.getWorkout).mockResolvedValue({
+    ...workout,
+    exercises: [{ ...item, sets: [set] }],
+  });
+  vi.mocked(api.saveWorkoutSet).mockResolvedValue(set);
+  mount({
+    view: "training",
+    date: workout.performed_on,
+    session: "w",
+    exercise: "i",
+  });
+  await userEvent.click(
+    await screen.findByRole("button", {
+      name: "Open Barbell bench press",
+      exact: true,
+    }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Comment set 1", exact: true }),
+  );
+  const dialog = screen.getByRole("dialog", {
+    name: "Set comment",
+    exact: true,
+  });
+  const comment = dialog.querySelector("textarea")!;
+  expect(comment).toHaveValue("Controlled tempo");
+  await userEvent.clear(comment);
+  await userEvent.type(comment, "Good form");
+  expect(api.saveWorkoutSet).not.toHaveBeenCalled();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Save comment", exact: true }),
+  );
+  await waitFor(() =>
+    expect(api.saveWorkoutSet).toHaveBeenCalledExactlyOnceWith("i", "s", {
+      comment: "Good form",
+    }),
+  );
+});

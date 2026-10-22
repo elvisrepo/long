@@ -17,6 +17,36 @@ import {
   type RunAction,
 } from "./workout-navigation";
 
+function TrainingIcon({
+  kind,
+}: {
+  kind: "list" | "timer" | "stats" | "notes" | "comment";
+}) {
+  const paths = {
+    list: "M4 6h16M4 12h16M4 18h16",
+    timer: "M9 2h6M12 6a8 8 0 1 0 0 16 8 8 0 0 0 0-16M12 9v5l3 2M18 5l2 2",
+    stats:
+      "M8 3h8v6a4 4 0 0 1-8 0V3ZM8 5H4v2a4 4 0 0 0 4 4M16 5h4v2a4 4 0 0 1-4 4M12 13v6M8 21h8",
+    notes: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18M12 11v6M12 7v1",
+    comment: "M4 4h16v12H9l-5 4V4ZM8 8h8M8 12h6",
+  };
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d={paths[kind]} />
+    </svg>
+  );
+}
+
 export function WorkoutTraining({
   workout,
   itemId,
@@ -26,6 +56,7 @@ export function WorkoutTraining({
   busy,
   run,
   onCompleted,
+  onOpenRest,
   autoAdvance,
   onAutoAdvance,
   savePlanned,
@@ -39,6 +70,7 @@ export function WorkoutTraining({
   run: RunAction;
   navigate: NavigateWorkout;
   onCompleted: () => void;
+  onOpenRest?: () => void;
   autoAdvance: boolean;
   onAutoAdvance: (enabled: boolean) => void;
   savePlanned: (itemId: string, data: api.SetInput) => Promise<void>;
@@ -50,8 +82,17 @@ export function WorkoutTraining({
   const [managingSets, setManagingSets] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<
-    "notes" | "delete-set" | "manage" | "groups" | "bulk" | null
+    | "notes"
+    | "picker"
+    | "set-comment"
+    | "delete-set"
+    | "manage"
+    | "groups"
+    | "bulk"
+    | null
   >(null);
+  const [commentId, setCommentId] = useState<string | null>(null);
+  const [commentError, setCommentError] = useState("");
   const [version, setVersion] = useState(0);
   const [cleared, setCleared] = useState(false);
   const [draft, setDraft] = useState<api.WorkoutSet | null>(null);
@@ -85,6 +126,7 @@ export function WorkoutTraining({
         </button>
       </section>
     );
+  const commentSet = item.sets.find((set) => set.id === commentId);
   const editing = item.sets.find((s) => s.id === editingId);
   const library = catalog.exercises.find((e) => e.id === item.exercise_id);
   const advance = () => {
@@ -162,7 +204,51 @@ export function WorkoutTraining({
   return (
     <>
       <header className="workout-exercise-toolbar">
-        <h1>{item.exercise_name}</h1>
+        <h1 aria-label={item.exercise_name}>
+          <button
+            className="workout-exercise-switch"
+            aria-label="Choose exercise"
+            title={item.exercise_name}
+            disabled={busy}
+            onClick={() => setDialog("picker")}
+          >
+            <TrainingIcon kind="list" />
+            <span>{item.exercise_name}</span>
+          </button>
+        </h1>
+        <button
+          className="workout-training-shortcut"
+          aria-label="Rest timer"
+          title="Rest timer"
+          disabled={busy || !onOpenRest}
+          onClick={onOpenRest}
+        >
+          <TrainingIcon kind="timer" />
+        </button>
+        <button
+          className="workout-training-shortcut"
+          aria-label="Exercise stats"
+          title="Records, statistics and goals"
+          disabled={busy}
+          onClick={() =>
+            navigate({
+              view: "overview",
+              date: workout.performed_on,
+              exercise: item.exercise_id,
+            })
+          }
+        >
+          <TrainingIcon kind="stats" />
+        </button>
+        <button
+          className="workout-training-shortcut"
+          aria-label="Exercise notes"
+          title="Exercise notes and defaults"
+          disabled={busy || !library}
+          onClick={() => setDialog("notes")}
+        >
+          <TrainingIcon kind="notes" />
+        </button>
         <details
           ref={options}
           className="workout-training-options"
@@ -280,12 +366,6 @@ export function WorkoutTraining({
               >
                 Workout overview
               </button>
-              <button
-                disabled={busy || !library}
-                onClick={() => setDialog("notes")}
-              >
-                Exercise notes
-              </button>
               <button disabled={disabled} onClick={() => setDialog("manage")}>
                 Manage exercise
               </button>
@@ -301,42 +381,7 @@ export function WorkoutTraining({
               >
                 Exercise progress
               </button>
-              <button
-                disabled={busy}
-                onClick={() =>
-                  navigate({
-                    view: "overview",
-                    date: workout.performed_on,
-                    exercise: item.exercise_id,
-                  })
-                }
-              >
-                Exercise overview
-              </button>
             </div>
-            <label className="workout-training-picker">
-              Exercise in this workout
-              <select
-                aria-label="Exercise in this workout"
-                value={item.id}
-                disabled={busy}
-                onChange={(event) =>
-                  navigate({
-                    view: "training",
-                    date: workout.performed_on,
-                    session: workout.id,
-                    exercise: event.target.value,
-                  })
-                }
-              >
-                {workout.exercises.map((exercise, index) => (
-                  <option key={exercise.id} value={exercise.id}>
-                    {index + 1}. {exercise.exercise_name}
-                    {exercise.group_name ? ` · ${exercise.group_name}` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
             <details
               className="workout-card workout-training-sidebar"
               aria-label="Workout exercise management"
@@ -697,6 +742,19 @@ export function WorkoutTraining({
                 {item.sets.length ? (
                   item.sets.map((s, n) => (
                     <div className="workout-set-row" key={s.id}>
+                      <button
+                        className={`workout-set-comment-button${s.comment ? " has-comment" : ""}`}
+                        aria-label={`Comment set ${n + 1}`}
+                        title={s.comment || "Add set comment"}
+                        disabled={busy}
+                        onClick={() => {
+                          setCommentId(s.id);
+                          setCommentError("");
+                          setDialog("set-comment");
+                        }}
+                      >
+                        <TrainingIcon kind="comment" />
+                      </button>
                       <strong>{n + 1}</strong>
                       <button
                         className="workout-set-edit"
@@ -728,7 +786,11 @@ export function WorkoutTraining({
                           ) : (
                             <span>{setLabel(item, s)}</span>
                           )}
-                          {s.comment && <small>{s.comment}</small>}
+                          {s.comment && (
+                            <small className="visually-hidden">
+                              {s.comment}
+                            </small>
+                          )}
                         </span>
                       </button>
                       <input
@@ -892,152 +954,249 @@ export function WorkoutTraining({
           onClose={() => setDialog(null)}
         />
       )}
-      {dialog && dialog !== "groups" && dialog !== "bulk" && (
+      {dialog === "picker" && (
         <Modal
-          labelledBy="training-dialog"
+          labelledBy="exercise-picker-title"
           busy={busy}
           onClose={() => setDialog(null)}
         >
-          <h2 id="training-dialog">
-            {dialog === "notes"
-              ? "Exercise notes"
-              : dialog === "manage"
-                ? "Manage workout exercise"
-                : "Delete set?"}
-          </h2>
-          {dialog === "notes" && library && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const fd = new FormData(e.currentTarget);
-                run(async () => {
-                  await api.saveExercise(library.id, {
-                    notes: String(fd.get("notes")),
-                    weight_increment: String(fd.get("increment")),
-                    rest_seconds: Number(fd.get("rest")),
-                  });
-                  setDialog(null);
-                });
-              }}
-            >
-              <label>
-                Exercise notes
-                <textarea
-                  name="notes"
-                  maxLength={2000}
-                  defaultValue={library.notes}
-                  disabled={busy}
-                />
-              </label>
-              <div className="workout-fields">
-                <label>
-                  Library weight increment ({library.weight_unit})
-                  <input
-                    name="increment"
-                    type="number"
-                    min="0.001"
-                    max="9999.999"
-                    step="0.001"
-                    defaultValue={library.weight_increment}
-                    required
-                    disabled={busy}
-                  />
-                </label>
-                <label>
-                  Rest time (seconds)
-                  <input
-                    name="rest"
-                    type="number"
-                    min="0"
-                    max="3600"
-                    step="1"
-                    defaultValue={library.rest_seconds}
-                    required
-                    disabled={busy}
-                  />
-                </label>
-              </div>
-              <p className="workout-note">
-                These are library defaults. This session's saved units stay
-                unchanged.
-              </p>
-              <button disabled={busy} className="primary-button">
-                Save notes
-              </button>
-            </form>
-          )}
-          {dialog === "delete-set" && editing && (
-            <>
-              <p>This permanently removes the selected set and its comment.</p>
+          <h2 id="exercise-picker-title">Exercises in this workout</h2>
+          <div className="workout-exercise-picker-list">
+            {workout.exercises.map((exercise) => (
               <button
+                key={exercise.id}
                 disabled={busy}
-                className="workout-danger"
-                onClick={() =>
-                  run(async () => {
-                    await api.deleteWorkoutItem("sets", editing.id);
-                    setEditingId(null);
-                    setDialog(null);
-                    setDraft(null);
-                    setVersion((v) => v + 1);
-                  })
-                }
+                aria-label={`Switch to ${exercise.exercise_name}`}
+                aria-pressed={exercise.id === item.id}
+                onClick={() => {
+                  setDialog(null);
+                  navigate({
+                    view: "training",
+                    date: workout.performed_on,
+                    session: workout.id,
+                    exercise: exercise.id,
+                  });
+                }}
               >
-                Confirm set deletion
+                <strong>{exercise.exercise_name}</strong>
+                <small>
+                  {exercise.sets.filter((set) => set.is_completed).length} /{" "}
+                  {exercise.sets.length} sets completed
+                </small>
               </button>
-            </>
-          )}
-          {dialog === "manage" && (
-            <>
+            ))}
+          </div>
+          <button disabled={busy} onClick={() => setDialog(null)}>
+            Close
+          </button>
+        </Modal>
+      )}
+      {dialog === "set-comment" && commentSet && (
+        <Modal
+          labelledBy="set-comment-title"
+          busy={busy}
+          onClose={() => setDialog(null)}
+        >
+          <h2 id="set-comment-title">Set comment</h2>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              const comment = String(
+                new FormData(event.currentTarget).get("comment"),
+              );
+              setCommentError("");
+              run(async () => {
+                try {
+                  await api.saveWorkoutSet(item.id, commentSet.id, { comment });
+                  setDialog(null);
+                } catch (reason) {
+                  setCommentError(
+                    reason instanceof Error
+                      ? reason.message
+                      : "Comment couldn't be saved. Please retry.",
+                  );
+                }
+              });
+            }}
+          >
+            <label>
+              Set comment
+              <textarea
+                name="comment"
+                rows={4}
+                maxLength={2000}
+                defaultValue={commentSet.comment}
+                disabled={disabled}
+              />
+            </label>
+            {commentError && <p role="alert">{commentError}</p>}
+            <div className="workout-actions">
+              <button className="primary-button" disabled={disabled}>
+                Save comment
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setDialog(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+      {dialog &&
+        dialog !== "groups" &&
+        dialog !== "bulk" &&
+        dialog !== "picker" &&
+        dialog !== "set-comment" && (
+          <Modal
+            labelledBy="training-dialog"
+            busy={busy}
+            onClose={() => setDialog(null)}
+          >
+            <h2 id="training-dialog">
+              {dialog === "notes"
+                ? "Exercise notes"
+                : dialog === "manage"
+                  ? "Manage workout exercise"
+                  : "Delete set?"}
+            </h2>
+            {dialog === "notes" && library && (
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
                   const fd = new FormData(e.currentTarget);
-                  const order = Number(fd.get("order"));
                   run(async () => {
-                    await api.reorderWorkoutExercise(item.id, order);
+                    await api.saveExercise(library.id, {
+                      notes: String(fd.get("notes")),
+                      weight_increment: String(fd.get("increment")),
+                      rest_seconds: Number(fd.get("rest")),
+                    });
                     setDialog(null);
                   });
                 }}
               >
                 <label>
-                  Exercise order
-                  <input
-                    name="order"
-                    type="number"
-                    min="0"
-                    max="2147483647"
-                    step="1"
-                    required
-                    defaultValue={item.display_order}
+                  Exercise notes
+                  <textarea
+                    name="notes"
+                    maxLength={2000}
+                    defaultValue={library.notes}
                     disabled={busy}
                   />
                 </label>
-                <button disabled={busy}>Save order</button>
+                <div className="workout-fields">
+                  <label>
+                    Library weight increment ({library.weight_unit})
+                    <input
+                      name="increment"
+                      type="number"
+                      min="0.001"
+                      max="9999.999"
+                      step="0.001"
+                      defaultValue={library.weight_increment}
+                      required
+                      disabled={busy}
+                    />
+                  </label>
+                  <label>
+                    Rest time (seconds)
+                    <input
+                      name="rest"
+                      type="number"
+                      min="0"
+                      max="3600"
+                      step="1"
+                      defaultValue={library.rest_seconds}
+                      required
+                      disabled={busy}
+                    />
+                  </label>
+                </div>
+                <p className="workout-note">
+                  These are library defaults. This session's saved units stay
+                  unchanged.
+                </p>
+                <button disabled={busy} className="primary-button">
+                  Save notes
+                </button>
               </form>
-              <p>
-                This removes the exercise and all of its sets from this session
-                only.
-              </p>
-              <button
-                disabled={busy}
-                className="workout-danger"
-                onClick={() =>
-                  run(async () => {
-                    await api.deleteWorkoutItem("session-exercises", item.id);
-                    setDialog(null);
-                    navigate({ view: "home", date: workout.performed_on });
-                  })
-                }
-              >
-                Confirm exercise removal
-              </button>
-            </>
-          )}
-          <button disabled={busy} onClick={() => setDialog(null)}>
-            Cancel
-          </button>
-        </Modal>
-      )}
+            )}
+            {dialog === "delete-set" && editing && (
+              <>
+                <p>
+                  This permanently removes the selected set and its comment.
+                </p>
+                <button
+                  disabled={busy}
+                  className="workout-danger"
+                  onClick={() =>
+                    run(async () => {
+                      await api.deleteWorkoutItem("sets", editing.id);
+                      setEditingId(null);
+                      setDialog(null);
+                      setDraft(null);
+                      setVersion((v) => v + 1);
+                    })
+                  }
+                >
+                  Confirm set deletion
+                </button>
+              </>
+            )}
+            {dialog === "manage" && (
+              <>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const fd = new FormData(e.currentTarget);
+                    const order = Number(fd.get("order"));
+                    run(async () => {
+                      await api.reorderWorkoutExercise(item.id, order);
+                      setDialog(null);
+                    });
+                  }}
+                >
+                  <label>
+                    Exercise order
+                    <input
+                      name="order"
+                      type="number"
+                      min="0"
+                      max="2147483647"
+                      step="1"
+                      required
+                      defaultValue={item.display_order}
+                      disabled={busy}
+                    />
+                  </label>
+                  <button disabled={busy}>Save order</button>
+                </form>
+                <p>
+                  This removes the exercise and all of its sets from this
+                  session only.
+                </p>
+                <button
+                  disabled={busy}
+                  className="workout-danger"
+                  onClick={() =>
+                    run(async () => {
+                      await api.deleteWorkoutItem("session-exercises", item.id);
+                      setDialog(null);
+                      navigate({ view: "home", date: workout.performed_on });
+                    })
+                  }
+                >
+                  Confirm exercise removal
+                </button>
+              </>
+            )}
+            <button disabled={busy} onClick={() => setDialog(null)}>
+              Cancel
+            </button>
+          </Modal>
+        )}
     </>
   );
 }

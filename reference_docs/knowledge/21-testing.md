@@ -2102,3 +2102,15 @@ submission is disabled, and a failed move retains the destination selection.
 The 390px browser journey verifies the menu replacement, exact PATCH body and
 exercise availability on the destination day. Lint and build pass. Existing
 empty-day Copy previous and History copy tests remain green.
+
+### Compact Training Screen toolbar — 2026-10-22
+
+All 676 frontend tests and seven workout browser journeys pass. Shortcut coverage
+opens rest and notes dialogs, switches exercises without writes and checks stats
+access. A saved-set comment test verifies a comment-only PATCH. The timer dialog
+test starts, closes, advances time and reopens without resetting the countdown.
+The phone browser journey also verifies the full accessible exercise heading.
+Final lint/build pass. Read-only real-account checks at 320/390/768/1440px verify
+light layout, rest, notes, saved-set comments and exercise switching with no
+overflow, JavaScript errors or tracker writes. The browser accessibility audit
+caught and verified correction of a button label masking the exercise heading.

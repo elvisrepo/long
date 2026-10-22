@@ -759,3 +759,19 @@ submitted unchanged. Cancel does not save and a failed move retains the chosen
 date. Copy previous remains available from the daily view, including empty days;
 History still allows copying an explicitly selected historical session.
 No API, route or backend changes.
+
+### Training toolbar and set comments — 2026-10-22
+
+The light exercise screen exposes an exercise switcher, rest timer, exercise stats
+(existing records/statistics/goals overview), notes/defaults and overflow directly
+in its top toolbar. Track / History / Graph and numeric Save/Clear controls remain
+below it. The switcher opens a compact list of the current workout's exercises.
+The exercise heading retains the full accessible name on narrow screens.
+
+The mounted rest timer opens as a dialog from its toolbar shortcut and continues
+counting after Close. Existing completion-triggered auto-start still uses the same
+instance; it remains a visual timer. Saved set rows provide a comment button,
+coloured when populated, which patches only comment and preserves completion and
+values. Finished-session comments can be viewed but editing stays disabled. The
+new comment dialog keeps failed drafts. Calculators and secondary tools remain in
+overflow. No routes or backend contracts change.

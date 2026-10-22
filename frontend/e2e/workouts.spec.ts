@@ -457,6 +457,13 @@ test("mobile exercise editor leads with stepped inputs and Save/Clear", async ({
   await page.getByRole("button", { name: "Start new workout" }).click();
   await page.getByRole("button", { name: "Add Barbell bench press" }).click();
 
+  await expect(
+    page.getByRole("heading", {
+      name: "Barbell bench press",
+      level: 1,
+      exact: true,
+    }),
+  ).toBeVisible();
   const saveSet = page.getByRole("button", {
     name: "Save completed set",
     exact: true,
@@ -477,6 +484,34 @@ test("mobile exercise editor leads with stepped inputs and Save/Clear", async ({
   await expect(
     page.getByLabel("Exercise options", { exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Choose exercise", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Exercise stats", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Rest timer", exact: true }).click();
+  await expect(
+    page.getByRole("dialog", { name: "Rest timer", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Exercise notes", exact: true })
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "Exercise notes", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Choose exercise", exact: true })
+    .click();
+  await expect(
+    page.getByRole("dialog", {
+      name: "Exercises in this workout",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Close", exact: true }).click();
   await page.screenshot({
     path: testInfo.outputPath("training-mobile-light.png"),
     fullPage: true,

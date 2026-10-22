@@ -34,3 +34,18 @@ it("auto-starts only on an explicit confirmed completion event", () => {
   fireEvent.click(screen.getByRole("button", { name: "Stop rest" }));
   expect(screen.getByRole("timer")).toHaveTextContent("1:00");
 });
+
+it("opens from a toolbar shortcut and keeps counting after its dialog closes", () => {
+  vi.useFakeTimers();
+  const ref = createRef<RestTimerHandle>();
+  render(<RestTimer ref={ref} seconds={60} dialogMode />);
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  act(() => ref.current?.open());
+  fireEvent.click(screen.getByRole("button", { name: "Start rest" }));
+  fireEvent.click(screen.getByRole("button", { name: "Close", exact: true }));
+  act(() => vi.advanceTimersByTime(5000));
+  act(() => ref.current?.open());
+  expect(
+    screen.getByRole("timer", { name: "Rest remaining" }),
+  ).toHaveTextContent("0:55");
+});
