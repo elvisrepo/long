@@ -12,6 +12,7 @@ export type WorkoutView =
 // Exercise overview also uses the owned library UUID, never a session occurrence.
 // Calendar is a month read; Progress uses the owned library exercise parameter.
 export interface WorkoutSearch {
+  section?: "history" | "graph" | "records" | "stats" | "goals";
   view?: WorkoutView;
   date?: string;
   session?: string;
@@ -48,6 +49,12 @@ export function parseWorkoutSearch(
   raw: Record<string, unknown>,
 ): WorkoutSearch {
   const result: WorkoutSearch = {};
+  if (
+    ["history", "graph", "records", "stats", "goals"].includes(
+      String(raw.section),
+    )
+  )
+    result.section = raw.section as WorkoutSearch["section"];
   if (
     [
       "home",

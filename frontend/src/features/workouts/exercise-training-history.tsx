@@ -21,6 +21,7 @@ import {
 } from "./workout-navigation";
 
 type SelectedSet = {
+  overview?: boolean;
   workout: api.Workout;
   item: api.WorkoutExercise;
   set: api.WorkoutSet;
@@ -53,6 +54,7 @@ export function ExerciseTrainingHistory({
   run,
   navigate,
   onTrack,
+  overview = false,
 }: {
   workout: api.Workout;
   item: api.WorkoutExercise;
@@ -61,6 +63,7 @@ export function ExerciseTrainingHistory({
   run: RunAction;
   navigate: NavigateWorkout;
   onTrack: () => void;
+  overview?: boolean;
 }) {
   const client = useQueryClient();
   const [day, setDay] = useState<api.Workout | null>(null);
@@ -123,7 +126,7 @@ export function ExerciseTrainingHistory({
     records.data?.map((record) => record.source.set_id),
   );
   const sessions = [
-    workout,
+    ...(overview ? [] : [workout]),
     ...(history.data?.pages.flatMap((page) => page.results) ?? []).filter(
       (source) => source.id !== workout.id,
     ),
@@ -249,9 +252,11 @@ export function ExerciseTrainingHistory({
         </p>
       )}
       <div className="workout-actions">
-        <button disabled={busy} onClick={onTrack}>
-          Back to Track
-        </button>
+        {!overview && (
+          <button disabled={busy} onClick={onTrack}>
+            Back to Track
+          </button>
+        )}
         <button disabled={busy} onClick={() => setBulk({ workouts: sessions })}>
           Edit multiple sets
         </button>

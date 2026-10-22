@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { Modal } from "../../components/modal";
 import * as api from "./workout-api";
 import { WorkoutNavigationPanel } from "./workout-navigation-panel";
+import { WorkoutProgress } from "./workout-progress";
 import { WorkoutTools } from "./workout-tools";
 import { calculatorNames, type CalculatorKind } from "./workout-calculators";
 import { WorkoutTiming } from "./workout-timing";
@@ -81,7 +82,7 @@ export function WorkoutTraining({
   const [groupsFromPanel, setGroupsFromPanel] = useState(false);
   const [calculator, setCalculator] = useState<CalculatorKind | null>(null);
   const edgeSwipe = useRef<{ x: number; y: number } | null>(null);
-  const [tab, setTab] = useState<"track" | "history">("track");
+  const [tab, setTab] = useState<"track" | "history" | "graph">("track");
   const [managingSets, setManagingSets] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<
@@ -263,6 +264,7 @@ export function WorkoutTraining({
               view: "overview",
               date: workout.performed_on,
               exercise: item.exercise_id,
+              section: "records",
             })
           }
         >
@@ -552,13 +554,8 @@ export function WorkoutTraining({
             </button>
             <button
               disabled={busy}
-              onClick={() =>
-                navigate({
-                  view: "progress",
-                  date: workout.performed_on,
-                  exercise: item.exercise_id,
-                })
-              }
+              aria-pressed={tab === "graph"}
+              onClick={() => setTab("graph")}
             >
               Graph
             </button>
@@ -868,6 +865,17 @@ export function WorkoutTraining({
                 )}
               </div>
             </>
+          ) : tab === "graph" ? (
+            <WorkoutProgress
+              key={item.exercise_id}
+              owner={owner}
+              date={workout.performed_on}
+              exerciseId={item.exercise_id}
+              catalog={catalog}
+              navigate={navigate}
+              showExerciseSelector={false}
+              compact
+            />
           ) : (
             <ExerciseTrainingHistory
               workout={workout}

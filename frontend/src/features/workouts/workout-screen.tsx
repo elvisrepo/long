@@ -221,55 +221,61 @@ export function WorkoutScreen({
           disabled={busy}
         />
       </div>
-      {view !== "training" && view !== "home" && (
-        <PageHeader
-          title={
-            view === "overview"
-              ? "Exercise overview"
-              : view === "exercises"
-                ? "All exercises"
-                : view === "routines"
-                  ? "Routines"
-                  : view === "calendar"
-                    ? "Workout calendar"
-                    : view === "progress"
-                      ? "Workout progress"
-                      : view === "history"
-                        ? "Workout history"
-                        : "Workouts"
-          }
-          eyebrow={
-            view === "exercises" ? "PERSONAL LIBRARY" : "TRAIN THOUGHTFULLY"
-          }
-          description={
-            view === "overview"
-              ? "Review sessions, progress, statistics and goals for one exercise."
-              : view === "exercises"
-                ? search.session
-                  ? "Select an exercise to add to this workout, or open one already included."
-                  : "Browse your exercise library, history and progress. No workout is created here."
-                : view === "routines"
-                  ? "Organize training plans and start reusable workout templates."
-                  : view === "calendar"
-                    ? "Browse training and plans by month."
-                    : view === "progress"
-                      ? "Review completed training without mixing saved units."
-                      : view === "history"
-                        ? "Review recorded sessions or copy one as a new plan."
-                        : "Record your training, one set at a time."
-          }
-        />
+      {view !== "training" &&
+        view !== "home" &&
+        !(view === "overview" && search.exercise) && (
+          <PageHeader
+            title={
+              view === "overview"
+                ? "Exercise overview"
+                : view === "exercises"
+                  ? "All exercises"
+                  : view === "routines"
+                    ? "Routines"
+                    : view === "calendar"
+                      ? "Workout calendar"
+                      : view === "progress"
+                        ? "Workout progress"
+                        : view === "history"
+                          ? "Workout history"
+                          : "Workouts"
+            }
+            eyebrow={
+              view === "exercises" ? "PERSONAL LIBRARY" : "TRAIN THOUGHTFULLY"
+            }
+            description={
+              view === "overview"
+                ? "Review sessions, progress, statistics and goals for one exercise."
+                : view === "exercises"
+                  ? search.session
+                    ? "Select an exercise to add to this workout, or open one already included."
+                    : "Browse your exercise library, history and progress. No workout is created here."
+                  : view === "routines"
+                    ? "Organize training plans and start reusable workout templates."
+                    : view === "calendar"
+                      ? "Browse training and plans by month."
+                      : view === "progress"
+                        ? "Review completed training without mixing saved units."
+                        : view === "history"
+                          ? "Review recorded sessions or copy one as a new plan."
+                          : "Record your training, one set at a time."
+            }
+          />
+        )}
+      {view === "home" ? (
+        !sessions.isSuccess && (
+          <section className="workout-home-context" aria-label="Daily sessions">
+            {dateControls}
+          </section>
+        )
+      ) : view === "overview" && search.exercise ? (
+        <details className="workout-analysis-date">
+          <summary>Analysis through {dayLabel(day)}</summary>
+          {dateControls}
+        </details>
+      ) : (
+        view !== "training" && dateControls
       )}
-      {view === "home"
-        ? !sessions.isSuccess && (
-            <section
-              className="workout-home-context"
-              aria-label="Daily sessions"
-            >
-              {dateControls}
-            </section>
-          )
-        : view !== "training" && dateControls}
       {view === "home" &&
         (sessions.isPending ? (
           <PageState message="Loading sessions…" />
@@ -461,7 +467,8 @@ export function WorkoutScreen({
       )}
       {view === "overview" && (
         <WorkoutOverview
-          key={search.exercise ?? "choose"}
+          key={`${search.exercise ?? "choose"}:${search.section ?? "stats"}:${day}`}
+          initialSection={search.section}
           owner={owner}
           date={day}
           exerciseId={search.exercise}

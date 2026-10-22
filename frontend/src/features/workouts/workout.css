@@ -2282,3 +2282,254 @@
   overflow-y: auto;
   margin-block: 1rem;
 }
+
+.workout-screen .workout-progress-compact {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.workout-progress-compact .workout-progress-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.workout-progress-compact .workout-progress-filters > label {
+  flex: 1;
+  min-width: 0;
+}
+.workout-progress-compact .workout-progress-chart {
+  min-height: 260px;
+}
+.workout-progress-compact .chart-surface {
+  padding: 0.5rem 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.workout-progress-compact .workout-progress-chart text {
+  font-size: 11px;
+}
+.workout-graph-periods {
+  display: flex;
+  gap: 0.35rem;
+  margin-block: 0.75rem;
+}
+.workout-graph-periods button {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.3rem;
+}
+.workout-graph-periods button[aria-pressed="true"] {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.workout-graph-options {
+  margin-block: 0.5rem;
+}
+.workout-graph-options .workout-check {
+  margin-block: 0.5rem;
+}
+.workout-graph-information,
+.workout-graph-values {
+  margin-block: 0.75rem;
+}
+.workout-graph-information > summary,
+.workout-graph-values > summary {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
+.workout-graph-point-navigation {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  gap: 0.4rem;
+  margin-block: 0.5rem;
+}
+.workout-graph-point-navigation button {
+  min-width: 0;
+}
+.workout-graph-point-navigation button:first-child,
+.workout-graph-point-navigation button:last-child {
+  font-size: 1.5rem;
+  padding: 0.2rem;
+}
+.workout-estimate-limit {
+  display: flex !important;
+  align-items: center;
+  gap: 0.75rem;
+  margin-block: 0.75rem;
+  font-size: 0.8rem;
+}
+.workout-estimate-limit input {
+  width: 5rem !important;
+}
+.workout-overview-tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  max-width: 100%;
+}
+.workout-overview-tabs button {
+  flex: 0 0 auto;
+}
+.workout-record-list > div {
+  display: grid;
+  grid-template-columns: 4rem minmax(0, 1fr);
+  align-items: center;
+  border-bottom: 1px solid #e5ecee;
+  min-height: 72px;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
+}
+.workout-record-list > div > button {
+  display: grid;
+  justify-items: end;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.workout-record-list > div small {
+  font-weight: 400;
+}
+.workout-record-list > div.is-inferred {
+  color: var(--text-dim);
+}
+.workout-record-list > div.is-inferred strong {
+  color: var(--text-dim);
+  font-weight: 400;
+}
+.workout-record-list .workout-record-observed {
+  grid-column: 2;
+  font-size: 0.75rem;
+}
+.workout-statistic-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.workout-statistic-filters label {
+  flex: 1;
+  min-width: 140px;
+}
+.workout-statistic-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+.workout-statistic-tiles > div,
+.workout-statistic-tiles > button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.4rem;
+  min-height: 100px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 0.75rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+.workout-statistic-tiles strong {
+  font-size: 1.2rem;
+  color: var(--accent);
+  font-weight: 500;
+}
+.workout-statistic-tiles small {
+  font-weight: 400;
+}
+.workout-preview-modal {
+  width: min(32rem, calc(100vw - 2rem));
+}
+.workout-preview-list {
+  display: grid;
+  gap: 1rem;
+  max-height: 60dvh;
+  overflow-y: auto;
+}
+.workout-preview-exercise {
+  display: grid;
+  gap: 0.5rem;
+  text-align: start;
+  width: 100%;
+  padding: 0.75rem 0.25rem;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #9ccfc3;
+  border-radius: 0;
+}
+.workout-preview-exercise > strong {
+  margin-bottom: 0.3rem;
+}
+.workout-preview-exercise > span {
+  display: grid;
+  gap: 0.25rem;
+  text-align: end;
+}
+.workout-preview-exercise small {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-weight: 400;
+}
+.workout-screen .workout-goal-title {
+  text-align: start;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+}
+.workout-current-record {
+  margin-block: 1rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1rem;
+}
+.workout-current-record button {
+  width: 100%;
+}
+.workout-estimate-limit select {
+  width: 5rem;
+}
+.workout-screen .workout-progress-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.workout-progress-compact .workout-graph-information {
+  order: 3;
+}
+.workout-progress-compact .chart-surface {
+  position: relative;
+}
+.workout-progress-compact .chart-surface > h3 {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-dim);
+  padding-right: 44px;
+  min-height: 32px;
+}
+.workout-graph-options > summary {
+  font-size: 1.5rem;
+  min-width: 44px;
+  text-align: center;
+  list-style: none;
+  cursor: pointer;
+}
+.workout-graph-options > summary::-webkit-details-marker {
+  display: none;
+}
+.workout-progress-compact .workout-graph-options > summary {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+.workout-graph-options[open] {
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}

@@ -127,7 +127,7 @@ class Exercise(models.Model):
 
 
 class ExerciseGoal(models.Model):
-    """An actual completed-set target; type and units stay frozen."""
+    """A target derived from completed snapshots; type and units stay frozen."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     exercise = models.ForeignKey(
@@ -150,6 +150,8 @@ class ExerciseGoal(models.Model):
                 "max_speed",
                 "best_pace",
                 "distance_time",
+                "max_weight",
+                "estimated_1rm",
             ]
         ],
     )
@@ -202,8 +204,13 @@ class ExerciseGoal(models.Model):
                         & (
                             models.Q(
                                 goal_type="reps",
-                                tracking_type="bodyweight",
+                                tracking_type__in=["bodyweight", "strength"],
                                 target_value__gte=1,
+                                target_value__lte=100000,
+                            )
+                            | models.Q(
+                                goal_type__in=["max_weight", "estimated_1rm"],
+                                tracking_type="strength",
                                 target_value__lte=100000,
                             )
                             | models.Q(

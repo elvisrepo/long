@@ -1462,3 +1462,45 @@ sets and return a 201 array of new set representations. Values are read from the
 saved source at copy time; new IDs are generated, comments cleared and completion
 reset to false. No workout, occurrence, timing or group change is created. A bad
 selection causes no partial append. No schema migration is required for this slice.
+
+### Exercise analytics controls and strength metric goals — 2026-10-22
+
+Existing routes remain unchanged. Progress reads accept `rep_limit` (integer 1–30,
+default 10) for estimated 1RM and `per_workout` (boolean, default false). The
+Training/overview Graph requests one point per workout; legacy date-based reads
+keep their default. New metrics: `workout_distance`, `workout_duration` (completed
+sets summed per workout and frozen partition), and `rep_maxes` (strict observed
+PR improvements at the requested `reps`, through `date_to`). Existing limit/offset
+bounds and owned exercise checks apply. Graph rep-max windows filter all-time
+strict records after reading them, so a prior record remains the baseline.
+
+Records history reads accept `newest_first=true` with `history=true`; the default
+order remains unchanged. This lets Records show the current observed record above
+previous improvements. Inferred lower-rep precedence is presentation only and is
+never inserted into the observed record data.
+
+Statistics reads accept optional `date_from`, owned `workout_id`, and `rep_limit`
+(default 10). Reversed dates reject with 400; foreign/missing workout filters
+return 404. Each existing frozen-unit group now includes `bests`, keyed by metric,
+with the existing progress point JSON shape (value, date and supporting source or
+workout ID). Totals remain completed-only; max workout volume sums this exercise
+within each session, while max set volume remains distinct. First qualifying
+sources retain deterministic chronology on ties.
+
+Strength goal creation additionally accepts `goal_type: max_weight` or
+`estimated_1rm` with positive `target_value` ≤100000; `reps` also supports strength
+exercises. Type/units stay frozen, target edits reuse PATCH, and ownership/export/
+deletion use the existing goal lifecycle. Estimated goals use positive loads up
+to 10000 and 1–10 reps, calculating achievement from unrounded Epley values.
+This eligibility rule is explicit in the goal label and is independent of the
+device's configurable record/graph estimate limit. No inferred record becomes a
+goal's observed source. Migration `0014_strength_analytics_goals` expands choices
+and the database check constraint; existing goal rows remain valid.
+
+The frontend `/workouts` search accepts optional `section=history|graph|records|
+stats|goals` with `view=overview`, allowing previews and the Training trophy to
+open a focused section without adding route paths.
+
+With `per_workout=true`, progress point JSON includes the supporting `workout_id`
+and session name where available. The graph uses this owned ID for its workout
+preview; points without a session ID retain the date-based preview fallback.

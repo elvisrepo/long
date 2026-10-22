@@ -539,3 +539,14 @@ exercise/type/units before any insert. Limit 100 unique sets; unknown performanc
 fields reject. Finished targets cannot receive sets. Copies start planned with
 cleared comments and never start timing or fire completion effects. Source data
 and other accounts remain unchanged; no partial append occurs on validation error.
+
+Exercise analytics (2026-10-22): new progress controls retain authenticated,
+owned-exercise reads and existing pagination caps. Estimate rep limits are bounded
+to 1–30. Stats date ranges reject reversed bounds, and workout filters validate
+ownership before aggregation. Previews read through owner-keyed Query caches.
+Lower-rep precedence is labelled inference and never changes observed records.
+Scalar strength goals keep owner locks, frozen types/units, validated targets and
+an expanded database constraint. Estimated achievement uses unrounded values;
+planned sets remain excluded. Graph export serializes only the chart and title
+into a local PNG; native sharing/download requires an explicit Share action.
+No automatic provider calls, external posting or observed-lift writes are added.

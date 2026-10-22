@@ -219,6 +219,7 @@ export interface ExerciseStatistics {
     duration_seconds_total: number | null;
     first_date: string;
     last_date: string;
+    bests?: Record<string, ProgressPointRow>;
   }[];
 }
 export type GoalType =
@@ -228,7 +229,9 @@ export type GoalType =
   | "duration"
   | "max_speed"
   | "best_pace"
-  | "distance_time";
+  | "distance_time"
+  | "max_weight"
+  | "estimated_1rm";
 export interface GoalDefinition {
   id: string;
   goal_type?: GoalType;
@@ -290,9 +293,10 @@ export const deleteExerciseGoal = (id: string): Promise<void> =>
 export const getExerciseStats = (
   exercise: string,
   date: string,
+  options?: { date_from?: string; workout_id?: string; rep_limit?: number },
 ): Promise<ExerciseStatistics> =>
   request(
-    `exercises/${encodeURIComponent(exercise)}/stats/?${new URLSearchParams({ date_to: date })}`,
+    `exercises/${encodeURIComponent(exercise)}/stats/?${new URLSearchParams({ date_to: date, ...Object.fromEntries(Object.entries(options ?? {}).map(([key, value]) => [key, String(value)])) })}`,
   );
 export const saveWorkoutPreferences = (
   data: WorkoutPreferences,
@@ -303,6 +307,7 @@ export function getProgressPage(
   metric: string,
   reps = 5,
   offset = 0,
+  options?: { repLimit?: number; perWorkout?: boolean },
 ): Promise<SummaryPage<ProgressPointRow>> {
   const query = new URLSearchParams({
     date_to: date,
@@ -311,6 +316,9 @@ export function getProgressPage(
     limit: "500",
     offset: String(offset),
   });
+  if (options?.repLimit !== undefined)
+    query.set("rep_limit", String(options.repLimit));
+  if (options?.perWorkout) query.set("per_workout", "true");
   return request(
     `exercises/${encodeURIComponent(exercise)}/progress/?${query}`,
   );
@@ -319,7 +327,12 @@ export function getRecordPage(
   exercise: string,
   date: string,
   offset = 0,
-  history?: { reps: number; weight_unit: string; distance_unit: string },
+  history?: {
+    reps: number;
+    weight_unit: string;
+    distance_unit: string;
+    newest_first?: boolean;
+  },
 ): Promise<SummaryPage<PersonalRecordRow>> {
   const query = new URLSearchParams({
     date_to: date,
@@ -328,6 +341,7 @@ export function getRecordPage(
   });
   if (history) {
     query.set("history", "true");
+    if (history.newest_first) query.set("newest_first", "true");
     query.set("reps", String(history.reps));
     query.set("weight_unit", history.weight_unit);
     query.set("distance_unit", history.distance_unit);

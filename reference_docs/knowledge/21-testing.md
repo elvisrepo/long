@@ -2190,3 +2190,32 @@ one selected set into the current occurrence and confirms rest did not start.
 History overflow is checked at 320/390/1440px. The 320px flat list and both stats
 dialog screenshots were visually inspected. Browser APIs use fixtures; backend
 integration tests independently check persistence and transaction boundaries.
+
+### Exercise analytics and unified overview — 2026-10-22
+
+Validation: full frontend suite 700 passing tests; final graph/analysis/goal slice
+42 passing tests after the source-link and card-label refinements. The backend
+analytics/progress/statistics/metric-goal/combined-goal slice passes 106 tests.
+All eleven workout browser journeys pass, and the analytics journey was rerun
+successfully after the final source-link changes. Frontend lint/build, targeted
+backend Ruff, migration dry-run and `git diff --check` pass. The additive local
+`0014_strength_analytics_goals` migration is applied; no deployment was performed.
+
+Coverage includes hidden-but-selectable graph points, previous/next navigation,
+trend/zero-axis controls, observed/inferred record precedence (including equal
+loads), 1–15 estimated RMs, remembered rep limits, all-time strict record baselines
+before window filtering, month/date-filtered statistics, dated source previews,
+newest-first PR history, completed cardio totals, owned workout filters and
+scalar strength goals with unrounded estimated achievement. Existing completed /
+planned, type/unit partition and goal correction tests remain in the relevant
+backend suite.
+
+Chrome verifies the complete graph → preview → exercise overview flow, trophy →
+Actual / Estimated records, PR history → Rep Maxes graph, statistic month filters
+and dated previews, goal creation and title-based editing. PNG export is tested
+as a real browser download and checked for a PNG signature; native phone share
+sheets are not exercised in this environment. Graph layouts are checked at
+320/390/1440px; Actual/Estimated records, Stats and Goals at 320/390px. Phone
+screenshots and workout/summary previews were visually reviewed. Browser APIs use
+fixtures; PostgreSQL integration tests independently verify analytics contracts
+and goal constraints.

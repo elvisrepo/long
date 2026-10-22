@@ -52,14 +52,18 @@ export function ExerciseGoals({
     );
   return (
     <div className="workout-stack">
-      <p>
-        Completed single sets through {date}, not estimated 1RM or workout
-        totals. Goal type and units stay saved. Rate labels are rounded;
-        achievement uses unrounded values. Duration-only goals mean longer;
-        distance within time goals require both conditions in one full set.
-        Bodyweight rep goals allow any optional recorded load, without
-        estimating body mass.
-      </p>
+      <details>
+        <summary>How goals are measured</summary>
+        <p>
+          Completed single sets through {date}. Estimated 1RM targets use Epley
+          estimates from 1–10 reps; other goals use observed values, not workout
+          totals. Goal type and units stay saved. Rate labels are rounded;
+          achievement uses unrounded values. Duration-only goals mean longer;
+          distance within time goals require both conditions in one full set.
+          Bodyweight rep goals allow any optional recorded load, without
+          estimating body mass.
+        </p>
+      </details>
       {!canCreate && (
         <p>
           New goals require an active exercise and category. Existing targets
@@ -81,23 +85,27 @@ export function ExerciseGoals({
       </div>
       {query.data.map((goal) => (
         <section className="workout-card" key={goal.id}>
-          <h3>{goalTitle(goal)}</h3>
-          <p>{goal.achieved ? "Achieved" : "Not achieved"}</p>
+          <h3>
+            <button
+              className="workout-goal-title"
+              aria-label={`Open goal: ${goalTitle(goal)}`}
+              onClick={() => {
+                mutation.reset();
+                setGoalType(goal.goal_type ?? "strength");
+                setEditor({ goal });
+              }}
+            >
+              {goalTitle(goal)}
+            </button>
+          </h3>
+          {goal.achieved && <span className="workout-badge">Achieved</span>}
           <progress
             className="workout-goal-progress"
             aria-label={`Progress toward ${goalTitle(goal)}`}
             max={100}
             value={Number(goal.progress_percent)}
           />
-          <p>
-            {goal.progress_percent}% of target{" "}
-            {goal.goal_type === "distance_time"
-              ? "(weaker of distance / target and time limit / recorded time)"
-              : goal.goal_type === "best_pace"
-                ? "(target pace / best pace)"
-                : "(best value / target)"}
-            .
-          </p>
+          <p>{goal.progress_percent}% of target</p>
           {goal.source && goal.source_date ? (
             <>
               <p>
@@ -223,6 +231,7 @@ export function ExerciseGoals({
                 <label style={{ gridColumn: "1 / -1" }}>
                   Goal type
                   <select
+                    aria-label="Goal type"
                     value={goalType}
                     disabled={busy}
                     onChange={(event) =>
@@ -375,13 +384,15 @@ export function ExerciseGoals({
               ) : (
                 <label>
                   Target{" "}
-                  {goalType === "max_speed"
-                    ? `speed (${editor.goal?.distance_unit ?? exercise.distance_unit}/h)`
-                    : goalType === "distance"
-                      ? `distance (${editor.goal?.distance_unit ?? exercise.distance_unit})`
-                      : goalType === "duration"
-                        ? "duration (seconds)"
-                        : "reps"}
+                  {goalType === "max_weight" || goalType === "estimated_1rm"
+                    ? `${goalChoices[goalType]} (${editor.goal?.weight_unit ?? exercise.weight_unit})`
+                    : goalType === "max_speed"
+                      ? `speed (${editor.goal?.distance_unit ?? exercise.distance_unit}/h)`
+                      : goalType === "distance"
+                        ? `distance (${editor.goal?.distance_unit ?? exercise.distance_unit})`
+                        : goalType === "duration"
+                          ? "duration (seconds)"
+                          : "reps"}
                   <input
                     key={goalType}
                     name="value"

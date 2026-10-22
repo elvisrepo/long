@@ -1194,3 +1194,363 @@ test("training history shows date and set stats, edits history and copies into t
     dialog.getByRole("button", { name: "Stop rest", exact: true }),
   ).toHaveCount(0);
 });
+
+test("exercise analytics connects graphs, records, statistic periods, goals and workout previews", async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.setViewportSize({ width: 390, height: 1000 });
+  await page.goto("/workouts?date=" + date);
+  await page.getByLabel("Color theme").selectOption("light");
+  await page
+    .getByRole("button", { name: "Start new workout", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Add Barbell bench press", exact: true })
+    .click();
+  const days = ["2026-09-05", "2026-09-12", "2026-09-19", "2026-09-26", date];
+  const workouts = days.map((day, index) => ({
+    id:
+      index === 4
+        ? sessionId
+        : `aaaaaaaa-aaaa-4aaa-8aaa-${String(index + 1).padStart(12, "0")}`,
+    name: "Bench workout",
+    performed_on: day,
+    notes: "",
+    is_finished: false,
+    completed_set_count: 1,
+    created_at: "",
+    exercises: [
+      {
+        id:
+          index === 4
+            ? itemId
+            : `bbbbbbbb-bbbb-4bbb-8bbb-${String(index + 1).padStart(12, "0")}`,
+        exercise_id: exerciseId,
+        exercise_name: "Barbell bench press",
+        category_name: "Chest",
+        tracking_type: "strength",
+        weight_unit: "kg",
+        distance_unit: "km",
+        display_order: 10,
+        sets: [
+          {
+            id: `cccccccc-cccc-4ccc-8ccc-${String(index + 1).padStart(12, "0")}`,
+            display_order: 10,
+            weight: String(70 + index * 5),
+            reps: 5,
+            distance: null,
+            duration_seconds: null,
+            comment: "",
+            is_completed: true,
+          },
+        ],
+      },
+    ],
+  }));
+  const point = (
+    workout: (typeof workouts)[number],
+    metric = "max_weight",
+  ) => ({
+    date: workout.performed_on,
+    value:
+      metric === "estimated_1rm"
+        ? String((Number(workout.exercises[0].sets[0].weight) * 7) / 6)
+        : metric === "max_reps"
+          ? "5"
+          : metric.includes("volume")
+            ? String(Number(workout.exercises[0].sets[0].weight) * 5)
+            : workout.exercises[0].sets[0].weight,
+    tracking_type: "strength",
+    weight_unit: "kg",
+    distance_unit: "km",
+    source: {
+      workout_id: workout.id,
+      item_id: workout.exercises[0].id,
+      set_id: workout.exercises[0].sets[0].id,
+      weight: workout.exercises[0].sets[0].weight,
+      reps: 5,
+    },
+  });
+  const records = [
+    {
+      ...point(workouts[0]),
+      value: "60",
+      reps: 4,
+      source: { ...point(workouts[0]).source, weight: "60", reps: 4 },
+    },
+    { ...point(workouts[4]), reps: 5 },
+  ];
+  await page.route(/\/sessions\/\?/, (route) => {
+    const params = new URL(route.request().url()).searchParams;
+    const selected = workouts.filter(
+      (workout) =>
+        workout.performed_on <= params.get("date_to")! &&
+        (params.get("all_history") === "true" ||
+          workout.performed_on >= params.get("date_from")!),
+    );
+    return route.fulfill({
+      json: {
+        count: selected.length,
+        next: null,
+        previous: null,
+        results: selected,
+      },
+    });
+  });
+  await page.route(/\/sessions\/[a-f0-9-]+\/$/, (route) => {
+    const id = new URL(route.request().url()).pathname.split("/").at(-2);
+    return route.fulfill({
+      json: workouts.find((workout) => workout.id === id),
+    });
+  });
+  await page.route("**/progress/?*", (route) => {
+    const params = new URL(route.request().url()).searchParams;
+    return route.fulfill({
+      json: {
+        count: workouts.length,
+        next: null,
+        previous: null,
+        types: ["strength"],
+        results: workouts
+          .filter((workout) => workout.performed_on <= params.get("date_to")!)
+          .map((workout) => point(workout, params.get("metric")!)),
+      },
+    });
+  });
+  await page.route("**/records/?*", (route) => {
+    const params = new URL(route.request().url()).searchParams;
+    const rows = params.get("history")
+      ? workouts
+          .filter((workout) => workout.performed_on <= params.get("date_to")!)
+          .map((workout) => ({ ...point(workout), reps: 5 }))
+          .reverse()
+      : records;
+    return route.fulfill({
+      json: { count: rows.length, next: null, previous: null, results: rows },
+    });
+  });
+  await page.route("**/stats/?*", (route) => {
+    const params = new URL(route.request().url()).searchParams;
+    const selected = workouts.filter(
+      (workout) =>
+        workout.performed_on <= params.get("date_to")! &&
+        (!params.get("date_from") ||
+          workout.performed_on >= params.get("date_from")!) &&
+        (!params.get("workout_id") || workout.id === params.get("workout_id")),
+    );
+    const best = selected.at(-1)!;
+    return route.fulfill({
+      json: {
+        exercise_id: exerciseId,
+        date_to: params.get("date_to"),
+        groups: selected.length
+          ? [
+              {
+                tracking_type: "strength",
+                weight_unit: "kg",
+                distance_unit: "km",
+                session_count: selected.length,
+                set_count: selected.length,
+                reps_total: selected.length * 5,
+                volume_total: String(
+                  selected.reduce(
+                    (sum, w) => sum + Number(w.exercises[0].sets[0].weight) * 5,
+                    0,
+                  ),
+                ),
+                distance_total: null,
+                duration_seconds_total: null,
+                first_date: selected[0].performed_on,
+                last_date: best.performed_on,
+                bests: {
+                  max_weight: point(best),
+                  max_reps: point(best, "max_reps"),
+                  workout_volume: point(best, "workout_volume"),
+                  estimated_1rm: point(best, "estimated_1rm"),
+                },
+              },
+            ]
+          : [],
+      },
+    });
+  });
+  const goals: Record<string, unknown>[] = [];
+  await page.route("**/goals/**", (route) => {
+    if (route.request().method() === "POST") {
+      const goal = {
+        ...route.request().postDataJSON(),
+        id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        tracking_type: "strength",
+        weight_unit: "kg",
+        distance_unit: "km",
+        target_weight: null,
+        target_reps: null,
+        rep_rule: "at_least",
+        created_at: "",
+        achieved: false,
+        best_weight: null,
+        best_value: "90",
+        progress_percent: "64.3",
+        source: point(workouts[4]).source,
+        source_date: date,
+      };
+      goals.push(goal);
+      return route.fulfill({ status: 201, json: goal });
+    }
+    return route.fulfill({ json: goals });
+  });
+  await page.getByRole("button", { name: "Graph", exact: true }).click();
+  const chart = page.getByRole("img", {
+    name: /Estimated 1RM by training date/,
+  });
+  await expect(chart).toBeVisible();
+  await expect(chart.locator('[data-testid="graph-hit-target"]')).toHaveCount(
+    5,
+  );
+  await page
+    .getByRole("button", { name: "Next graph point", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Next graph point", exact: true })
+    .click();
+  for (const width of [320, 390, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth > innerWidth,
+      ),
+    ).toBe(false);
+    await page.screenshot({ path: `/tmp/exercise-graph-${width}.png` });
+  }
+  await page.setViewportSize({ width: 390, height: 1000 });
+  await page.getByLabel("Graph options", { exact: true }).click();
+  await page.getByLabel("Graph points", { exact: true }).uncheck();
+  await page.getByLabel("Trend line", { exact: true }).check();
+  await page.getByLabel("Y-axis from 0", { exact: true }).check();
+  await expect(chart.locator('[data-testid="graph-trend-line"]')).toBeVisible();
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Share graph", exact: true }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("workout-progress.png");
+  const png = await readFile((await download.path())!);
+  expect(png.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+  await page.getByLabel("Graph options", { exact: true }).click();
+  await page.locator(".workout-graph-point-navigation button").nth(1).click();
+  let dialog = page.getByRole("dialog");
+  await page.screenshot({ path: "/tmp/exercise-workout-preview-390.png" });
+  await dialog.getByRole("button", { name: /Barbell bench press/ }).click();
+  await page.screenshot({ path: "/tmp/exercise-preview-summary-390.png" });
+  await dialog
+    .getByRole("button", { name: "View exercise overview", exact: true })
+    .click();
+  await expect(
+    page.getByRole("navigation", { name: "Exercise overview sections" }),
+  ).toBeVisible();
+  await page.goto("/workouts?date=" + date);
+  await page
+    .getByRole("button", { name: "Open Barbell bench press", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Exercise stats", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Actual", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "4RM inferred: 90 kg", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "5RM record: 90 kg", exact: true })
+    .click();
+  dialog = page.getByRole("dialog", {
+    name: "PR history · 5 reps · kg",
+    exact: true,
+  });
+  await expect(
+    dialog.getByRole("heading", { name: "Current record", exact: true }),
+  ).toBeVisible();
+  await dialog.getByRole("button", { name: "Graph", exact: true }).click();
+  await expect(page.getByLabel("Graph", { exact: true })).toHaveValue(
+    "rep_maxes",
+  );
+  await page.getByRole("button", { name: "Records", exact: true }).click();
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth > innerWidth,
+      ),
+    ).toBe(false);
+    await page.screenshot({
+      path: `/tmp/exercise-records-actual-${width}.png`,
+    });
+  }
+  await page.getByRole("button", { name: "Estimated", exact: true }).click();
+  await expect(page.getByText("15RM", { exact: true })).toBeVisible();
+  await page.getByText("Estimate settings", { exact: true }).click();
+  await page
+    .getByLabel("Estimated 1RM rep limit", { exact: true })
+    .selectOption("12");
+  await expect(page.getByText("15RM", { exact: true })).toBeVisible();
+  await page.getByText("Estimate settings", { exact: true }).click();
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth > innerWidth,
+      ),
+    ).toBe(false);
+    await page.screenshot({ path: `/tmp/exercise-records-${width}.png` });
+  }
+  await page.getByRole("button", { name: "Statistics", exact: true }).click();
+  await page.getByLabel("Period", { exact: true }).selectOption("month");
+  await expect(
+    page.getByText("450 kg·reps", { exact: true }).first(),
+  ).toBeVisible();
+  await page.getByRole("button", { name: /Max weight: 90 kg/ }).click();
+  dialog = page.getByRole("dialog");
+  await expect(
+    dialog.getByRole("button", { name: /Barbell bench press/ }),
+  ).toBeVisible();
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth > innerWidth,
+      ),
+    ).toBe(false);
+    await page.screenshot({ path: `/tmp/exercise-statistics-${width}.png` });
+  }
+  await page.getByRole("button", { name: "Goals", exact: true }).click();
+  await page.getByRole("button", { name: "New goal", exact: true }).click();
+  dialog = page.getByRole("dialog");
+  await dialog
+    .getByLabel("Goal type", { exact: true })
+    .selectOption("max_weight");
+  await dialog
+    .getByLabel("Target Max weight (kg)", { exact: true })
+    .fill("140");
+  await dialog.getByRole("button", { name: "Save goal", exact: true }).click();
+  await expect(
+    page.getByRole("progressbar", { name: /Max weight/ }),
+  ).toHaveAttribute("value", "64.3");
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth > innerWidth,
+      ),
+    ).toBe(false);
+    await page.screenshot({ path: `/tmp/exercise-goals-${width}.png` });
+  }
+  await page
+    .getByRole("button", {
+      name: "Open goal: Max weight · 140 kg",
+      exact: true,
+    })
+    .click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+});

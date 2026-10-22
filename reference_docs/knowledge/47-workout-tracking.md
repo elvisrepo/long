@@ -868,3 +868,40 @@ start planned without comments and do not fire rest/group completion events.
 Finished targets and mismatched frozen type/units are blocked. Source sets, dates,
 workout count and timing remain intact. See 03-api-design.md for the additive
 all-history read mode and copy-to-current endpoint. No new migration is needed.
+
+### Exercise Graph / Records / Stats / Goals / Overview — 2026-10-22
+
+Training Graph stays within the exercise screen. It honours the saved graph and
+offers 1m/3m/6m/1y/All periods, a rep selector where relevant, graph-point selection
+and previous/next controls. Its point footer includes the source lift for Epley
+estimates. Points can be hidden while their tap targets remain; the selected point
+stays marked. Options include a least-squares trend by training date and Y-axis
+from zero (compact graphs otherwise use a padded local range). Mixed frozen
+partitions stay separate. Rep Maxes plots strict all-time observed improvements
+before applying the visible window. Total distance/time sum completed sets per
+workout. Graph sharing renders a PNG with the exercise name/current graph state,
+uses native file sharing when available and offers a PNG download otherwise.
+
+The trophy opens Records; exercise overview combines History, Graph, Records,
+Stats and Goals. Actual records display observed exact-rep values and faded,
+explicitly labelled lower-rep inferences from heavier/equal higher-rep lifts.
+Observed lower-rep history remains accessible. A record popup shows the current
+record, previous improvements and Graph. Estimated records derive 1–15RM from the
+highest eligible Epley 1RM. The estimate cap (1–30 reps, default 10) is remembered
+per exercise on the device and reused by graphs/statistics; estimates never become
+actual records automatically.
+
+Stats supports Workout, Week, Month, Year, All and Custom periods, completed-only
+totals and dated best tiles. Workouts/dates open a read-only preview, as do graph
+point details, records and recorded Calendar dates. Tapping a preview exercise
+shows its totals and View exercise overview; Go to workout opens the date's full
+workout view. Empty Calendar dates and copy-picker render callbacks retain their
+existing navigation. Analysis-date controls collapse for a selected exercise to
+avoid a duplicate generic page heading.
+
+Goals retain reviewed creation/edit/deletion and now add scalar max-weight,
+strength-rep and estimated-1RM targets alongside weight-and-reps targets and the
+existing bodyweight/cardio/timed types. Tapping a goal title opens its editor.
+Estimated goals explicitly use a fixed 1–10-rep Epley rule, preserving unrounded
+achievement checks. The additive API/constraint migration is documented in
+03-api-design.md; the local development database has been migrated.

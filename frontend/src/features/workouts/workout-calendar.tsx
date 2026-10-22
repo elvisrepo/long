@@ -1,3 +1,4 @@
+import { WorkoutPreview } from "./workout-preview";
 import { useQuery } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { getWorkoutRange, type Workout } from "./workout-api";
@@ -18,6 +19,7 @@ export function WorkoutCalendar({
   navigate: NavigateWorkout;
   renderSelectedDay?: (sessions: Workout[]) => ReactNode;
 }) {
+  const [preview, setPreview] = useState<string | null>(null);
   const first = date.slice(0, 7) + "-01";
   const next = new Date(first + "T12:00:00");
   next.setMonth(next.getMonth() + 1);
@@ -67,6 +69,14 @@ export function WorkoutCalendar({
   previous.setMonth(previous.getMonth() - 1);
   return (
     <section className="workout-card">
+      {preview && (
+        <WorkoutPreview
+          owner={owner}
+          date={preview}
+          navigate={navigate}
+          onClose={() => setPreview(null)}
+        />
+      )}
       <div className="workout-card-heading workout-calendar-heading">
         <button
           aria-label="Previous month"
@@ -229,7 +239,11 @@ export function WorkoutCalendar({
                   disabled={busy}
                   aria-pressed={date === day}
                   aria-label={`${day}: ${trained} training session${trained === 1 ? "" : "s"}, ${planned} planned session${planned === 1 ? "" : "s"}`}
-                  onClick={() => navigate({ view: "home", date: day })}
+                  onClick={() => {
+                    if (!compact && !renderSelectedDay && sessions.length)
+                      setPreview(day);
+                    else navigate({ view: "home", date: day });
+                  }}
                 >
                   <span>{n + 1}</span>
                   {(trained > 0 || planned > 0) && (
