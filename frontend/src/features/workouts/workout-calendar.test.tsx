@@ -252,5 +252,7 @@ it("reads only the displayed month and distinguishes completed training from pla
     }),
   ).toBeInTheDocument();
   await userEvent.click(button);
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Go to workout" }));
   expect(navigate).toHaveBeenCalledWith({ view: "home", date: "2026-02-15" });
 });

@@ -16,7 +16,9 @@ export function CopyWorkoutPicker({
   run,
   navigate,
   onClose,
+  initialDate,
 }: {
+  initialDate?: string;
   owner: string;
   destination: string;
   busy: boolean;
@@ -24,7 +26,7 @@ export function CopyWorkoutPicker({
   navigate: NavigateWorkout;
   onClose: () => void;
 }) {
-  const [sourceDate, setSourceDate] = useState(destination);
+  const [sourceDate, setSourceDate] = useState(initialDate ?? destination);
   const [source, setSource] = useState<Workout | null>(null);
   const locked = busy;
   if (source)
@@ -40,13 +42,19 @@ export function CopyWorkoutPicker({
       />
     );
   return (
-    <Modal labelledBy="copy-workout-title" busy={locked} onClose={onClose}>
+    <Modal
+      className="workout-copy-picker"
+      labelledBy="copy-workout-title"
+      busy={locked}
+      onClose={onClose}
+    >
       <h2 id="copy-workout-title">Select the workout you would like to copy</h2>
       <p>
         Copy to {dayLabel(destination)}. Sets will be planned; the original
         workout stays unchanged.
       </p>
       <WorkoutCalendar
+        compact
         owner={owner}
         date={sourceDate}
         busy={locked}
@@ -65,18 +73,11 @@ export function CopyWorkoutPicker({
               </p>
             )}
             {sessions.map((session) => (
-              <section className="workout-card" key={session.id}>
+              <section className="workout-copy-source" key={session.id}>
                 <h3>{session.name || "Workout"}</h3>
-                <p>
-                  Full workout: {session.exercises.length}{" "}
-                  {session.exercises.length === 1 ? "exercise" : "exercises"} ·{" "}
-                  {session.completed_set_count} completed{" "}
-                  {session.completed_set_count === 1 ? "set" : "sets"}
-                </p>
-                <p>
-                  {session.exercises
-                    .map((exercise) => exercise.exercise_name)
-                    .join(", ") || "No exercises"}
+                <p className="workout-note">
+                  {session.exercises.length} exercises ·{" "}
+                  {session.completed_set_count} completed sets
                 </p>
                 <button
                   className="primary-button"

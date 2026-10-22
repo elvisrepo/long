@@ -1,5 +1,30 @@
 ## 6. Testing
 
+- Distance detail proposals 02–04 (2026-10-20): 30-day defaults, recorded-day
+  averages, missing-date/null versus measured-zero chart values, DST calendar
+  iteration, UTC date links, daily-history expansion/reset, source disclosure,
+  retained manual Edit/Delete, optional notes and unchanged create payload are
+  covered. Empty/error daily fetches do not appear as zero totals. All 622
+  frontend tests pass; lint/build pass. Read-only real-account browser checks at
+  320/390/768/1440px verify summary values, range changes, daily/source expansion,
+  linked dates, add-dialog focus containment/return, and unchanged HRV behavior.
+  No records are created, edited, deleted, seeded or reset by those browser checks.
+
+
+- Metrics catalog refinement (2026-10-20): route tests cover active/archived filter
+  counts, custom-first ordering, full-row detail links, custom edit/archive dialogs,
+  existing restore operations, auto-generated identifiers avoiding archived names,
+  manual identifier preservation, range validation, server-error draft retention,
+  and unchanged quota feedback. Light-theme browser checks use the existing account
+  read-only at 320/390/768/1440px and verify modal focus containment/return, cancelled
+  edit reset, filters and archived definitions. Browser mutation flows use the
+  separate E2E database; never reset or seed the normal local account for UI checks.
+  Validation: all 612 frontend tests, both real-backend custom-metric browser flows,
+  and three focused modal browser tests pass; lint, formatting and production build
+  pass. An ignored Compose override keeps the E2E database internal because host
+  port 5433 belongs to another project.
+
+
 - AI period selector (2026-10-18): regression tests cover 1/7/30 completed-day
   boundaries and equal preceding comparisons, actual owned metric/diet/workout
   aggregation, exclusion of today/outside-window entries, API validation, queued
@@ -1827,3 +1852,370 @@ week, non-object auth JSON, empty-only AI evidence, and exact birth-date bounds.
 Production-settings subprocess tests verify shared Redis counters with separate
 cache prefixes. Frontend fake timers verify polling survives a five-minute queue
 wait. Provider execution bounds remain separate from the one-hour queue window.
+
+### Steps activity detail — 2026-10-20
+
+The frontend suite passes 629 tests across 103 files. Focused activity/detail
+coverage checks default 30d, compact Steps actions and Pro gating, daily versus
+Monday-based weekly bars, weekly totals/coverage tooltips, missing periods versus
+measured zero, daily/source history separation, integer creation/editing, and
+unchanged Distance behavior. Chart mocks include registered bar controllers and
+elements alongside the existing line chart exports.
+
+Read-only browser checks use the existing account at 320/390/768/1440px, checking
+real Steps totals and all ranges, native dialog focus containment/return,
+fractional-input rejection, UTC date links, history expansion, no horizontal
+overflow, and unchanged HRV presentation. No API writes or page errors occurred.
+Local verification scripts/screenshots remain ignored under playground and /tmp.
+
+### Recovery compact checklist — 2026-10-20
+
+All 633 frontend tests across 103 files pass, including four new Recovery checks:
+date/history context before tools, collapsed bars and exact evidence, distinct
+recorded-day counts including archived tools without inflating the active-tool
+daily count, and disabled check-offs/loading copy during selected-day fetching.
+Existing tests retain check-off/undo/error, Pro creation, downgrade restrictions,
+archive/history, full date navigation and cancelled-dialog focus/draft coverage.
+
+Real-account Light browser checks cover 320/390/768/1440px, actual past-day records,
+the full date picker, context placement, no overflow, closed/open research, and
+native modal focus containment/return. The 390px date controls fit on one row;
+narrower controls may wrap. Browser verification makes no account writes. ESLint
+and production build pass; no API, route or backend changes are included.
+
+### Diet compact sections — 2026-10-20
+
+All 637 frontend tests across 103 files pass. Four additional Diet component tests
+cover context-before-checklist with archived-record undo, management menus and
+edit-dialog focus/name/order payload, selected-day loading instead of zero, and
+restoring a section before its food. Existing creation, selected-date/history and
+failed-write tests remain green.
+
+Focused Playwright checks cover 390px date control alignment and context order,
+plus complete creation/edit/archive/restore/history/dashboard journeys at 320 and
+1440px. The shared profile fixture now includes estimated_bmr; the Diet journey
+uses Today's logs rather than the retired dashboard panel and waits for the actual
+archived label before restoring. This fixes fixture drift, not production APIs.
+
+Read-only real-account checks initially covered 320/390/768/1440px, 3/2/1 section columns,
+19 existing foods, actual current/past-day counts, full date navigation, menu bounds,
+cancelled creation/edit forms and modal focus. No API writes, page errors or
+horizontal overflow occurred. ESLint and production build pass.
+
+Two-column mobile follow-up: real-account responsive checks now assert three
+desktop columns and two at 768/390/320px, including popup bounds in both columns.
+Both 320/1440px creation/management journeys and production build pass. No account
+writes or new page errors occurred.
+
+### Stretching compact checklist — 2026-10-20
+
+All 643 frontend tests across 103 files pass, including 21 Stretching tests.
+Added behavior coverage verifies week navigation and hidden/archived record counts,
+full date navigation beyond the strip, confirmed save/undo refreshing both daily
+and week counts, independent history errors/retry, instruction expansion without
+check-offs, grouped custom/archive management with restore/edit, and selected-phase
+custom creation. Existing date-loading, failed-save, visibility and image tests pass.
+
+Read-only real-account Light browser checks pass at 320/390/768/1440px: one/two-column
+list behavior, side-by-side phases, full date selection, actual past-day counts,
+instruction disclosure, image enlargement, management tabs and selected-phase forms.
+No horizontal overflow, browser errors or tracker writes occurred. ESLint and the
+production build pass. No backend or public API changes are included.
+
+### Workouts Home compact session hub — 2026-10-21
+
+All 650 frontend tests across 103 files pass; the Workouts slice has 176 tests.
+New Home behavior coverage verifies collapsed exact sets without writes, deliberate
+exercise management, deletion confirmation/cancel, duration correction from More
+actions without starting timing, one empty-state creation action, existing-session
+View/Continue navigation and the empty-session picker. Existing copy, export,
+reorder/removal, status, errors and timing tests remain green. Tests now open the
+Home menu/management mode before invoking the actions moved there.
+
+The focused Playwright fixture journey passes at 320/390/1440px through logging,
+editing, finishing, export/download, copying and routine creation; the fourth test
+also preserves Training's logging-before-management order. Real-account Light
+checks at 320/390/768/1440px cover actual finished/in-progress and multi-session
+records, a real empty date, set disclosure, menu bounds, duration/export dialogs,
+focus return and Training navigation. No horizontal overflow, browser errors or
+tracker writes occurred. ESLint and the production build pass.
+
+
+### FitNotes-inspired Home log A — 2026-10-21
+
+The Home regression now verifies exact set values are immediately visible inside
+an exercise target and navigating through it performs no set/session writes.
+Additional coverage checks saved notes are visible and timing help opens from
+the session menu without starting the clock. All 651 frontend tests, lint and
+the production build pass. Real-account read-only browser checks at
+320/390/768/1440px cover visible rows, menu bounds, timing-help focus return,
+explicit management, Training navigation and the retained empty state, with no
+overflow, browser errors or tracker writes.
+
+The four mocked workout browser journeys pass at 320/390/1440px, covering
+logging, editing, finish/reopen, export, copy and routine creation. The normal
+E2E startup encountered port 5433 owned by the unrelated leet-anki database;
+these API-mocked journeys were run with the existing frontend-only configuration
+instead, without stopping that service. Their obsolete Home-title and notes-
+disclosure steps were updated for the approved layout.
+
+
+### Compact Training log — 2026-10-21
+
+All 652 frontend tests pass. The new regression covers value-row editing and
+explicitly enabled set management without writes; group-management coverage opens
+the new disclosure. Existing set-save, edit, comment, ordering and completion
+assertions use the compact columns. Four mocked workout browser journeys pass at
+320/390/1440px, including save, edit, completion, export, copy and routine capture.
+The mobile layout check verifies exercise selection before sets before entry.
+Lint and production build pass. Read-only real-account checks inspect
+320/390/768/1440px, row edit/cancel, comments, management and exercise selection.
+
+
+### Minimal workout overview — 2026-10-21
+
+The new component regression checks the overview omits visible timer/footer
+controls and Time workout opens the existing timer without writes. Existing
+correction/help tests no longer expect an inline clock or notes. All 653 frontend
+tests pass. Real-account read-only checks at 320/390/768/1440px confirm minimal
+cards, timing dialog, focus return and Training navigation without overflow,
+errors or writes. A browser check caught CSS overriding the hidden timer flag;
+controls are now conditionally rendered instead. Build and lint pass.
+The four mocked workout journeys also pass, including notes opened through the
+menu, export, copying and routine creation. Notes assertions use the textbox's
+accessible name; the overview no longer exposes a permanent notes block.
+
+
+### Workout entry-point regression — 2026-10-21
+
+A new component test opens a saved training URL with an exercise UUID and verifies
+both exercise cards appear without set-entry controls, then enters the second
+exercise and returns without writes. Existing editor tests explicitly tap a card;
+Home session opening now expects the log. All 45 screen tests pass. Real-account
+browser checks at 320/390/768/1440px verify the exact training URL, exercise entry,
+Back to workout and refresh, with no overflow, JS errors or tracker writes.
+Final validation: all 654 frontend tests, the four mocked workout browser
+journeys, ESLint and the production build pass. The editor's explicit library
+selection, save/edit, copy/export and routine journeys remain covered.
+
+
+### FitNotes-style exercise editor — 2026-10-21
+
+All 655 frontend tests pass. The new regression steps weight up/down, increments
+reps and clears the draft without writes. Existing save/edit/completion and comment
+coverage remains. Read-only browser checks at 320/390/768/1440px verify input-before-
+rows order, plus/minus, Clear, menu/comment access and History with no overflow,
+JS errors or tracker writes. The phone menu stays within the viewport and supports
+Close/Escape; planned-set submission closes it. Build and lint pass.
+The four mocked workout browser journeys pass through Save, Clear, editing,
+comments and planned entry via the menu, completion, copy/export and routines.
+
+
+### Compact workout menu — 2026-10-21
+
+The menu regression asserts exactly six actions and verifies management opens
+without writes. Existing tests follow Manage workout into removal, cancellation,
+failed-removal handling, ordering and routine capture/retry. Duration correction
+and timing help are reached through Time workout; exercise cards open the editor
+directly. All 656 frontend tests, four mocked workout browser journeys at mobile
+and desktop widths, ESLint and the production build pass.
+
+### Compact timing sheet and persisted timestamps — 2026-10-21
+
+The timing component covers start/stop fields, hidden secondary options, help,
+recorded timestamps, running/stopped state and the existing save/error controls.
+The frontend suite passed 657 tests; the subsequent timestamp-display regression
+also passes in the seven-test focused timing suite. All four workout browser
+journeys, frontend lint/build and backend Ruff checks pass. Read-only real-account
+checks at 320/390/768/1440px verify the light sheet, options/correction access and
+no dialog overflow, JS errors or tracker writes. The 96-test backend workout,
+routine and account lifecycle slice checks refresh/resume, repeat-safe stop,
+finish, correction, read-only timestamps, copy reset and export. Migration 0012
+is applied locally and makemigrations --check --dry-run reports no changes.
+
+### Selective Share / Export sheet — 2026-10-22
+
+All 660 frontend tests, four mocked workout browser journeys, ESLint and build
+pass. Component checks cover selected-set filtering, mixed parent state, selecting
+nothing, notes default exclusion, clipboard failure/manual copy and native-share
+cancellation. Browser journeys cover Options, notes, CSV content and cancellation
+at 320/390/1440px. Read-only real-account visual checks at 320/390/768/1440px verify
+the collapsed checklist and expanded Options without overflow, JS errors or
+tracker writes. Native sharing is mocked in tests; no external recipient is used.
+
+### Share targets fallback regression — 2026-10-22
+
+Share must not silently copy when Web Share is unavailable. Component coverage
+checks the visible WhatsApp/Gmail/Email chooser, encoded selected summary without
+notes by default, explicit copy, Back, native cancellation and non-cancellation
+failure. Browser journeys force an unavailable native share API, verify app
+choices and Back at 320/390/1440px, then exercise the CSV flow. All 662 frontend
+tests, four workout browser journeys, lint and build pass. App links are inspected
+without contacting an external recipient; the OS share sheet is mocked in tests.
+
+### Compact Copy workout regression — 2026-10-22
+
+All 663 frontend tests, four workout browser journeys, lint and production build
+pass. Existing subset, full copy, exercise-only, selection/date retention, source
+month navigation and failed-copy retry assertions follow the direct Copy flow.
+The compact checklist test verifies secondary Edit/date access and one explicit
+copy request. Calendar filters remain covered on the main Calendar page. Real
+saved-workout checks at 320/390/768/1440px verify source calendar, selection,
+Edit/date and return-to-calendar with no overflow, JS errors or tracker writes.
+
+### Exercise selection and atomic drag order — 2026-10-22
+
+The 667 frontend tests pass, including long-press suppression of editor opening,
+selection extension, cancelled pointers, finished-session protection, confirmation,
+failed deletion retention/retry and keyboard order snapshots. Six browser journeys
+pass: the new 390/1440px journeys hold a card, drag its handle, verify one reorder,
+cancel deletion, then confirm a selected deletion with mocked records. The 86-test
+backend workout mutation slice checks ownership, authentication, finished state,
+duplicate IDs, all-or-nothing deletion and stale-order rejection with set
+preservation. Lint, Ruff and build pass. Real touch emulation at 320/390/768/1440px
+checks long-press, multi-select and confirmation/cancel against saved workouts,
+with no overflow, JS errors or tracker writes. No migration is required.
+
+### Animated drag regression — 2026-10-22
+
+Browser tests now reproduce the former static drag and assert that the dragged
+card moves down and its neighbour moves up before release, with zero writes.
+The six workout browser journeys pass. The frontend suite passes 668 tests;
+the additional failed-drag rollback test passes in the six-test focused log suite.
+Component checks include uneven heights, cancellation without saves, and rollback
+without changing the saved sequence. Lint/build pass. Real touch checks at
+320/390/768/1440px lift/drag a saved exercise and cancel before drop, observing no
+overflow, JavaScript errors or tracker writes. No backend contract changes.
+
+### Comment workout shortcut — 2026-10-22
+
+All 50 workout screen tests pass, including the updated seven-action menu,
+notes-only save, clearing, failed-save draft retention and cancellation without
+another write. The 390px workout browser journey opens the shortcut and verifies
+existing notes. Lint and build pass. No backend changes.
+
+### Move open workout — 2026-10-22
+
+All 51 workout screen tests pass. Move patches only performed_on, navigates to the
+returned date, and never calls copy/create. Cancel causes no write, unchanged-date
+submission is disabled, and a failed move retains the destination selection.
+The 390px browser journey verifies the menu replacement, exact PATCH body and
+exercise availability on the destination day. Lint and build pass. Existing
+empty-day Copy previous and History copy tests remain green.
+
+### Compact Training Screen toolbar — 2026-10-22
+
+All 676 frontend tests and seven workout browser journeys pass. Shortcut coverage
+opens rest and notes dialogs, switches exercises without writes and checks stats
+access. A saved-set comment test verifies a comment-only PATCH. The timer dialog
+test starts, closes, advances time and reopens without resetting the countdown.
+The phone browser journey also verifies the full accessible exercise heading.
+Final lint/build pass. Read-only real-account checks at 320/390/768/1440px verify
+light layout, rest, notes, saved-set comments and exercise switching with no
+overflow, JavaScript errors or tracker writes. The browser accessibility audit
+caught and verified correction of a button label masking the exercise heading.
+
+### Training navigation panel — 2026-10-22
+
+All 679 frontend tests and eight workout browser journeys pass; lint/build and
+`git diff --check` pass. Focused component checks cover panel shortcuts, group
+creation with the current member, returning to the panel, Home, edge opening and
+long-hold cancellation. Browser checks use actual Chrome touch events to open
+from the edge, lift/move a row, and cancel without an ordering request. The same
+journey creates a coloured group and switches editors through the panel.
+Panel layouts are checked at 320/390/768/1440px and group drafts at 320/390px;
+320px screenshots were visually inspected. These browser checks use mocked API
+fixtures; the separate real-account probe did not reach a workout and provides
+no validation evidence for this slice. Existing group cycling and ordering API
+contracts are reused without backend changes.
+
+### Rest timer alerts — 2026-10-22
+
+All 682 frontend tests and eight workout browser journeys pass; lint/build pass.
+Six timer tests cover deadline catch-up, explicit completion-only auto-start,
+closing/reopening without reset, remembered per-exercise duration, changed-default
+precedence, a single sound/vibration alert at the chosen gain, stopping before
+expiry and disabling alerts. Audio/vibration APIs are mocked in unit tests;
+hardware vibration and audible output on a physical phone remain unverified.
+The Chrome workout journey adjusts seconds/volume, completes a one-second timer,
+stops it and checks dialog overflow at 320/390px. The 320px dialog screenshot was
+visually inspected. Browser background/locked-device delivery is not guaranteed.
+No backend contract changes or backend test rerun are needed for this UI slice.
+
+### Focused workout calculators — 2026-10-22
+
+All 684 frontend tests, nine workout browser journeys and 123 focused backend
+regression tests pass. Frontend lint/build, targeted backend Ruff checks,
+`makemigrations --check --dry-run` and `git diff --check` pass. The additive local
+`workouts.0013_exercise_bars` migration was applied to the development database.
+No deployment was performed.
+
+Calculator component tests cover 1–15RM output, optional rounding, failed planned
+set retry, record/unit filtering, percentage presets, enabled paired inventory,
+exercise-specific bars, list switching, failed equipment drafts, invalid blank
+bar prevention and cancellation. Backend checks cover metadata round-trip,
+owner isolation, export, invalid colours/IDs and duplicate exercise-bar rejection
+without writes, alongside existing workout/record/account lifecycle coverage.
+
+The new Chrome journey opens all three dialogs, uses an observed RM and percentage
+preset, verifies the planned-set POST, edits bar/plate settings and reloads to
+confirm persisted colours and overrides. Layout checks cover 1RM/set dialogs at
+320/390px, equipment at 320px, and plates at 320/390/1440px. The 320px screenshots
+were visually inspected. Browser API fixtures are mocked; real PostgreSQL API
+integration tests independently verify account persistence and ownership.
+
+### Compact Training history — 2026-10-22
+
+All 694 frontend tests, 126 relevant backend tests and ten workout browser
+journeys pass. Frontend lint/build, targeted backend Ruff and `git diff --check`
+pass. No schema migration or deployment is required/performed for this slice.
+
+Component checks cover comments, completed-only date totals, date navigation,
+per-set estimates/volume, selected-only copy with failed-save retry, historical
+editing without completion writes, current observed PR markers, pagination using
+owned paths and finished-source edit restrictions. Separate stats tests cover
+cardio speed/pace, rounded minute boundaries, unit partitioning and planned-total
+exclusion. API tests assert the all-history query and exact copy IDs/body.
+
+PostgreSQL tests cover all-time pagination/read-only access, range-validation
+preservation, ownership and auth, appending plans without new workouts, invalid /
+foreign / duplicate / excessive IDs, mismatched units, closed targets, source
+preservation, repeated-occurrence ordering and no timing start. The initial
+repeated-occurrence fixture used display orders 100 and 20; the diagnostic probe
+confirmed the second occurrence correctly sorted first. Explicit 10/20 fixture
+orders verify the intended source ordering without changing production ordering.
+
+Chrome opens date and individual-set stats, edits an older set in place, copies
+one selected set into the current occurrence and confirms rest did not start.
+History overflow is checked at 320/390/1440px. The 320px flat list and both stats
+dialog screenshots were visually inspected. Browser APIs use fixtures; backend
+integration tests independently check persistence and transaction boundaries.
+
+### Exercise analytics and unified overview — 2026-10-22
+
+Validation: full frontend suite 700 passing tests; final graph/analysis/goal slice
+42 passing tests after the source-link and card-label refinements. The backend
+analytics/progress/statistics/metric-goal/combined-goal slice passes 106 tests.
+All eleven workout browser journeys pass, and the analytics journey was rerun
+successfully after the final source-link changes. Frontend lint/build, targeted
+backend Ruff, migration dry-run and `git diff --check` pass. The additive local
+`0014_strength_analytics_goals` migration is applied; no deployment was performed.
+
+Coverage includes hidden-but-selectable graph points, previous/next navigation,
+trend/zero-axis controls, observed/inferred record precedence (including equal
+loads), 1–15 estimated RMs, remembered rep limits, all-time strict record baselines
+before window filtering, month/date-filtered statistics, dated source previews,
+newest-first PR history, completed cardio totals, owned workout filters and
+scalar strength goals with unrounded estimated achievement. Existing completed /
+planned, type/unit partition and goal correction tests remain in the relevant
+backend suite.
+
+Chrome verifies the complete graph → preview → exercise overview flow, trophy →
+Actual / Estimated records, PR history → Rep Maxes graph, statistic month filters
+and dated previews, goal creation and title-based editing. PNG export is tested
+as a real browser download and checked for a PNG signature; native phone share
+sheets are not exercised in this environment. Graph layouts are checked at
+320/390/1440px; Actual/Estimated records, Stats and Goals at 320/390px. Phone
+screenshots and workout/summary previews were visually reviewed. Browser APIs use
+fixtures; PostgreSQL integration tests independently verify analytics contracts
+and goal constraints.

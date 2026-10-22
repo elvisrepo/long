@@ -6,7 +6,6 @@ import {
 } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { PageHeader } from "../../components/page-header";
 import { Modal } from "../../components/modal";
 import { PageState } from "../../components/page-state";
 import { useMeQuery } from "../auth/use-me-query";
@@ -100,45 +99,102 @@ export function RecoveryScreen() {
   ).length;
   return (
     <section className="recovery-screen">
-      <PageHeader
-        title="Recovery"
-        eyebrow="Recover thoughtfully"
-        description="Track what you did. Research bars describe estimated muscle soreness relief, not overall recovery."
-      />
-      <div className="recovery-date-navigation date-navigation">
-        <button
-          className="recovery-action"
-          aria-label="Previous day"
-          onClick={() => selectDay(shiftDay(day, -1))}
-        >
-          ←
-        </button>
-        <label className="recovery-date">
-          Tracking date{" "}
-          <input
-            type="date"
-            value={day}
-            onChange={(event) => {
-              if (event.target.value) {
-                selectDay(event.target.value);
-              }
-            }}
-          />
-        </label>
-        <button
-          className="recovery-action"
-          aria-label="Next day"
-          onClick={() => selectDay(shiftDay(day, 1))}
-        >
-          →
-        </button>
-        <button
-          className="recovery-action"
-          onClick={() => selectDay(localDay(new Date()))}
-        >
-          Today
-        </button>
-      </div>
+      <header className="recovery-heading">
+        <h1>Recovery</h1>
+        <p>Log the activities you used.</p>
+      </header>
+      <section
+        className="recovery-panel recovery-day-context"
+        aria-label="Daily tracking"
+      >
+        <div className="recovery-day-header">
+          <div>
+            <h2>{trackingDateLabel(day, today)}</h2>
+            <p role="status">
+              {entries.isFetching
+                ? "Loading activities…"
+                : checkedCount === 0
+                  ? "No activities recorded"
+                  : `${checkedCount} ${checkedCount === 1 ? "activity" : "activities"} recorded`}
+            </p>
+            <p role="status" className="recovery-save-status">
+              {checkoff.isPending || (checkoff.isSuccess && entries.isFetching)
+                ? "Saving…"
+                : checkoff.isSuccess
+                  ? "Saved"
+                  : ""}
+            </p>
+          </div>
+          <div className="recovery-date-navigation">
+            <button
+              className="recovery-action"
+              aria-label="Previous day"
+              onClick={() => selectDay(shiftDay(day, -1))}
+            >
+              ←
+            </button>
+            <label className="recovery-date">
+              <span className="visually-hidden">Tracking date</span>
+              <input
+                type="date"
+                value={day}
+                onChange={(event) => {
+                  if (event.target.value) {
+                    selectDay(event.target.value);
+                  }
+                }}
+              />
+            </label>
+            <button
+              className="recovery-action"
+              aria-label="Next day"
+              onClick={() => selectDay(shiftDay(day, 1))}
+            >
+              →
+            </button>
+            <button
+              className="recovery-action"
+              onClick={() => selectDay(localDay(new Date()))}
+            >
+              Today
+            </button>
+          </div>
+        </div>
+        <div role="group" aria-label="Last 7 days">
+          <ul className="recovery-history">
+            {days.map((date) => (
+              <li key={date}>
+                <button
+                  aria-pressed={date === day}
+                  aria-label={`${date}: ${history.data.filter((entry) => entry.performed_on === date).length} activities recorded`}
+                  onClick={() => selectDay(date)}
+                >
+                  <span>
+                    {new Date(`${date}T12:00:00`).toLocaleDateString(
+                      undefined,
+                      { weekday: "short" },
+                    )}
+                  </span>
+                  <strong>{new Date(`${date}T12:00:00`).getDate()}</strong>
+                  <small>
+                    {
+                      history.data.filter(
+                        (entry) => entry.performed_on === date,
+                      ).length
+                    }{" "}
+                    logged
+                  </small>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="recovery-history-caption">
+            Last 7 days ·{" "}
+            {new Set(history.data.map((entry) => entry.performed_on)).size} days
+            with records · counts include archived tools
+          </p>
+        </div>
+      </section>
       {checkoff.isError && (
         <p role="alert">
           {checkoff.error.message} Save could not be confirmed. You can retry
@@ -146,40 +202,37 @@ export function RecoveryScreen() {
         </p>
       )}
       {archiveTool.isError && <p role="alert">{archiveTool.error.message}</p>}
-      <div className="recovery-layout">
-        <div className="recovery-tool-groups">
-          {[false, true].map((custom) => (
-            <section
-              className="recovery-tools"
-              key={String(custom)}
-              aria-label={custom ? "Your custom tools" : "Research-based tools"}
-            >
-              <div className="recovery-section-heading">
-                <h2>{custom ? "Your custom tools" : "Research-based tools"}</h2>
-                {custom && catalog.data.can_create_custom && (
-                  <button
-                    aria-label="Add custom tool"
-                    className="recovery-action"
-                    onClick={() => {
-                      createTool.reset();
-                      setAddingTool(true);
-                    }}
-                  >
-                    + Add custom tool
-                  </button>
+      <div className="recovery-tool-groups">
+        {[false, true].map((custom) => (
+          <section
+            className={`recovery-tools${custom ? " recovery-panel recovery-custom-tools" : ""}`}
+            key={String(custom)}
+            aria-label={custom ? "Your custom tools" : "Recovery tools"}
+          >
+            <div className="recovery-section-heading">
+              <div>
+                <h2>{custom ? "Your custom tools" : "Recovery tools"}</h2>
+                {custom && (
+                  <p className="recovery-section-copy">
+                    Private activities · not research-rated
+                  </p>
                 )}
               </div>
-              {!custom && (
-                <p className="recovery-section-copy">
-                  Bars show research estimates of muscle soreness relief, not
-                  your recovery score.
-                </p>
+              {custom && catalog.data.can_create_custom && (
+                <button
+                  aria-label="Add custom tool"
+                  className="recovery-action"
+                  onClick={() => {
+                    createTool.reset();
+                    setAddingTool(true);
+                  }}
+                >
+                  + Add tool
+                </button>
               )}
-              {custom && (
-                <p className="recovery-section-copy">
-                  Private activities, without research scores.
-                </p>
-              )}
+              {!custom && <small>Choose what you did</small>}
+            </div>
+            <div className="recovery-tool-list">
               {activeTools
                 .filter((tool) => tool.is_custom === custom)
                 .map((tool) => (
@@ -200,12 +253,37 @@ export function RecoveryScreen() {
                             checked: event.target.checked,
                           })
                         }
-                      />{" "}
-                      <strong>{tool.name}</strong>
+                      />
+                      <span className="recovery-tool-icon">
+                        <RecoveryToolIcon
+                          name={tool.is_custom ? "" : tool.name}
+                        />
+                      </span>
+                      <span className="recovery-tool-text">
+                        <strong>{tool.name}</strong>
+                        {checkedTools.has(tool.id) && (
+                          <small className="recovery-recorded-label">
+                            Recorded
+                          </small>
+                        )}
+                        {tool.description && (
+                          <span className="recovery-tool-description">
+                            {tool.description}
+                          </span>
+                        )}
+                      </span>
                     </label>
-                    <p>{tool.description}</p>
                     {tool.evidence ? (
-                      <>
+                      <details className="recovery-evidence-details">
+                        <summary>Research details</summary>
+                        <p>Soreness (DOMS) estimate</p>
+                        <p>
+                          SMD {tool.evidence.smd.toFixed(2).replace("-", "−")} ·
+                          95% CI{" "}
+                          {tool.evidence.ci_lower.toFixed(2).replace("-", "−")}{" "}
+                          to{" "}
+                          {tool.evidence.ci_upper.toFixed(2).replace("-", "−")}
+                        </p>
                         <div
                           className="recovery-evidence-bar"
                           aria-hidden="true"
@@ -216,23 +294,16 @@ export function RecoveryScreen() {
                             }}
                           />
                         </div>
-                        <details className="recovery-evidence-details">
-                          <summary>Research details</summary>
-                          <p>
-                            SMD {tool.evidence.smd.toFixed(2).replace("-", "−")}{" "}
-                            · 95% CI{" "}
-                            {tool.evidence.ci_lower
-                              .toFixed(2)
-                              .replace("-", "−")}{" "}
-                            to{" "}
-                            {tool.evidence.ci_upper
-                              .toFixed(2)
-                              .replace("-", "−")}
-                          </p>
-                        </details>
-                      </>
+                        <p>
+                          {tool.evidence.subjects} subjects ·{" "}
+                          {tool.evidence.experimental_groups} experimental
+                          groups
+                          <br />
+                          {tool.evidence.citation}
+                        </p>
+                      </details>
                     ) : (
-                      <p>Not research-rated</p>
+                      <p className="recovery-unrated">Not research-rated</p>
                     )}
                     {tool.is_custom && (
                       <button
@@ -247,73 +318,36 @@ export function RecoveryScreen() {
                     )}
                   </article>
                 ))}
-              {custom && !activeTools.some((tool) => tool.is_custom) && (
-                <p className="recovery-section-copy">No custom tools yet.</p>
-              )}
-            </section>
-          ))}
-        </div>
-        <aside className="recovery-sidebar">
-          <section className="recovery-panel" aria-label="Daily tracking">
-            <h2>{trackingDateLabel(day, today)}</h2>
-            <p role="status">
-              {checkedCount === 0
-                ? "No activities recorded"
-                : `${checkedCount} ${checkedCount === 1 ? "activity" : "activities"} recorded`}
-            </p>
-            <p role="status" className="recovery-save-status">
-              {checkoff.isPending || (checkoff.isSuccess && entries.isFetching)
-                ? "Saving…"
-                : checkoff.isSuccess
-                  ? "Saved"
-                  : ""}
-            </p>
-            <p>
-              This records activities, not how recovered you are. You do not
-              need to do every tool.
-            </p>
+            </div>
+            {!custom && (
+              <p className="recovery-section-copy recovery-checklist-note">
+                Record any that apply. You do not need to use every tool.
+              </p>
+            )}
+            {custom && !activeTools.some((tool) => tool.is_custom) && (
+              <div className="recovery-custom-empty">
+                <span aria-hidden="true">+</span>
+                <div>
+                  <strong>No custom tools yet</strong>
+                  <p>Add an activity you already use.</p>
+                </div>
+              </div>
+            )}
+            {custom && !catalog.data.can_create_custom && (
+              <p className="recovery-section-copy">
+                Pro is required to add custom recovery tools.
+              </p>
+            )}
           </section>
-          <section className="recovery-panel">
-            <h2>Last 7 days</h2>
-            <ul className="recovery-history">
-              {days.map((date) => (
-                <li key={date}>
-                  <button
-                    aria-pressed={date === day}
-                    aria-label={`${date}: ${history.data.filter((entry) => entry.performed_on === date).length} activities recorded`}
-                    onClick={() => selectDay(date)}
-                  >
-                    <span>
-                      {new Date(`${date}T12:00:00`).toLocaleDateString(
-                        undefined,
-                        { weekday: "short" },
-                      )}
-                    </span>
-                    <span>{new Date(`${date}T12:00:00`).getDate()}</span>
-                    <strong>
-                      {
-                        history.data.filter(
-                          (entry) => entry.performed_on === date,
-                        ).length
-                      }
-                    </strong>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <p>
-              Activities recorded, including archived tools. Zero means none
-              recorded.
-            </p>
-          </section>
-        </aside>
+        ))}
       </div>
       <details className="recovery-panel">
-        <summary>About the evidence</summary>
+        <summary>About the research</summary>
         <p>
-          Bars show the magnitude of soreness (DOMS) estimates, scaled to
-          massage. They are not effectiveness percentages or proof that one tool
-          beats another. Confidence intervals show uncertainty.
+          Research describes muscle soreness (DOMS), not overall recovery. Bars
+          show the magnitude of soreness estimates, scaled to massage. They are
+          not effectiveness percentages or proof that one tool beats another.
+          Confidence intervals show uncertainty.
         </p>
         <p>
           The review studied single post-exercise interventions, not long-term
@@ -329,9 +363,6 @@ export function RecoveryScreen() {
           Dupuy et al. (2018), Table 1
         </a>
       </details>
-      {!catalog.data.can_create_custom && (
-        <p>Pro is required to add custom recovery tools.</p>
-      )}
       {catalog.data.can_create_custom && addingTool && (
         <Modal
           labelledBy="recovery-custom-title"
@@ -399,5 +430,30 @@ export function RecoveryScreen() {
         </section>
       )}
     </section>
+  );
+}
+
+function RecoveryToolIcon({ name }: { name: string }) {
+  const paths: Record<string, string> = {
+    Massage: "M5 13c3-5 5-5 7-2l3-5 3 2-3 7c-2 3-7 4-10 1z",
+    "Active recovery": "m5 18 5-8 4 3 5-8M8 5l3 1M12 19h7",
+    "Compression garments": "m7 3 3 2h4l3-2 3 5-4 3v10H8V11L4 8z",
+    "Cryotherapy / cryostimulation":
+      "M12 3v18M4 7l16 10M4 17 20 7M9 5l3 3 3-3M9 19l3-3 3 3",
+    "Water immersion": "M3 15q3-4 6 0t6 0 6 0M3 19q3-4 6 0t6 0 6 0M8 5h8v6H8z",
+    "Contrast water therapy": "M7 4v13m-3-3 3 3 3-3M17 20V7m-3 3 3-3 3 3",
+  };
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d={paths[name] ?? "M12 5v14M5 12h14"} />
+    </svg>
   );
 }

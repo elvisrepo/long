@@ -26,7 +26,10 @@ export type ProgressMetric =
   | "max_distance"
   | "max_duration"
   | "max_speed"
-  | "best_pace";
+  | "best_pace"
+  | "workout_distance"
+  | "workout_duration"
+  | "rep_maxes";
 
 const metricOptions: {
   value: ProgressMetric;
@@ -53,6 +56,13 @@ const metricOptions: {
     types: ["strength", "bodyweight"],
   },
   { value: "personal_records", label: "Personal records", types: ["strength"] },
+  { value: "rep_maxes", label: "Rep maxes", types: ["strength"] },
+  { value: "workout_distance", label: "Total distance", types: ["cardio"] },
+  {
+    value: "workout_duration",
+    label: "Total time",
+    types: ["cardio", "duration"],
+  },
   { value: "max_distance", label: "Max distance", types: ["cardio"] },
   {
     value: "max_duration",
@@ -77,6 +87,7 @@ export interface ProgressSeries {
     date: string;
     value: number;
     session?: string;
+    workoutId?: string;
     source?: { weight: string; reps: number };
   }[];
   records: {
@@ -94,6 +105,7 @@ export function progressSeries(
   exerciseId: string,
   metricChoice?: ProgressMetric,
   repCount = 5,
+  options?: { repLimit?: number; perWorkout?: boolean },
 ): ProgressSeries[] {
   const groups = new Map<
     string,
@@ -103,8 +115,12 @@ export function progressSeries(
       records: Map<string, ProgressSeries["records"][number]>;
     }
   >();
-  const total =
-    metricChoice === "workout_volume" || metricChoice === "workout_reps";
+  const total = [
+    "workout_volume",
+    "workout_reps",
+    "workout_distance",
+    "workout_duration",
+  ].includes(metricChoice ?? "");
   for (const workout of [...sessions].sort((a, b) =>
     a.performed_on.localeCompare(b.performed_on),
   )) {
@@ -114,7 +130,13 @@ export function progressSeries(
       const choice = metricChoice ?? defaultMetric(item.tracking_type);
       const key = `${item.tracking_type}:${item.weight_unit}:${item.distance_unit}`;
       for (const set of item.sets.filter((s) => s.is_completed)) {
-        const measured = measure(item, set, choice, repCount);
+        const measured = measure(
+          item,
+          set,
+          choice,
+          repCount,
+          options?.repLimit ?? 10,
+        );
         if (!measured || !Number.isFinite(measured.value)) continue;
         const { value, title, unit } = measured;
         if (!groups.has(key))
@@ -124,7 +146,8 @@ export function progressSeries(
             records: new Map(),
           });
         const group = groups.get(key)!;
-        const pointKey = total ? workout.id : workout.performed_on;
+        const pointKey =
+          total || options?.perWorkout ? workout.id : workout.performed_on;
         const previous = group.points.get(pointKey);
         const source =
           choice === "estimated_1rm" && set.weight !== null && set.reps !== null
@@ -142,7 +165,10 @@ export function progressSeries(
         group.points.set(pointKey, {
           date: workout.performed_on,
           value: aggregate,
-          ...(total ? { session: workout.name || "Workout" } : {}),
+          ...(options?.perWorkout ? { workoutId: workout.id } : {}),
+          ...(total || options?.perWorkout
+            ? { session: workout.name || "Workout" }
+            : {}),
           ...(winningSource ? { source: winningSource } : {}),
         });
         const perRep =
@@ -170,7 +196,13 @@ export function progressSeries(
   }
   return [...groups.values()].map((g) => ({
     ...g.series,
-    points: [...g.points.values()],
+    points: [...g.points.values()].filter(
+      (point, index, points) =>
+        metricChoice !== "rep_maxes" ||
+        points
+          .slice(0, index)
+          .every((previous) => previous.value < point.value),
+    ),
     records: [...g.records.values()],
   }));
 }
@@ -192,6 +224,7 @@ function measure(
   set: WorkoutSet,
   choice: ProgressMetric,
   reps: number,
+  repLimit = 10,
 ) {
   if (
     !progressMetrics([item.tracking_type]).some(
@@ -239,7 +272,7 @@ function measure(
         set.reps === null ||
         !Number.isInteger(set.reps) ||
         set.reps < 1 ||
-        set.reps > 10
+        set.reps > repLimit
       )
         return null;
       return {
@@ -272,10 +305,12 @@ function measure(
           };
     case "max_weight":
     case "max_weight_reps":
+    case "rep_maxes":
     case "personal_records":
       if (
         weight === null ||
-        (choice === "max_weight_reps" && set.reps !== reps)
+        ((choice === "max_weight_reps" || choice === "rep_maxes") &&
+          set.reps !== reps)
       )
         return null;
       return {
@@ -283,27 +318,37 @@ function measure(
         title:
           choice === "personal_records"
             ? "Personal records in this window"
-            : choice === "max_weight_reps"
-              ? `Max weight for ${reps} reps`
-              : item.tracking_type === "bodyweight"
-                ? "Highest external load (body weight not included)"
-                : "Highest logged load",
+            : choice === "rep_maxes"
+              ? `Rep maxes for ${reps} reps`
+              : choice === "max_weight_reps"
+                ? `Max weight for ${reps} reps`
+                : item.tracking_type === "bodyweight"
+                  ? "Highest external load (body weight not included)"
+                  : "Highest logged load",
         unit: item.weight_unit,
       };
+    case "workout_distance":
     case "max_distance":
       return set.distance === null
         ? null
         : {
             value: Number(set.distance),
-            title: "Longest logged distance",
+            title:
+              choice === "workout_distance"
+                ? "Total distance"
+                : "Longest logged distance",
             unit: item.distance_unit,
           };
+    case "workout_duration":
     case "max_duration":
       return set.duration_seconds === null
         ? null
         : {
             value: set.duration_seconds,
-            title: "Longest logged duration",
+            title:
+              choice === "workout_duration"
+                ? "Total time"
+                : "Longest logged duration",
             unit: "sec",
           };
   }

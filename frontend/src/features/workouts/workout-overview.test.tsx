@@ -6,7 +6,20 @@ import * as api from "./workout-api";
 import { WorkoutOverview } from "./workout-overview";
 
 vi.mock("./workout-api");
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(api.getExerciseHistoryPage).mockImplementation(
+    (exercise, date, offset) =>
+      api.getWorkoutPage("1900-01-01", date, offset, exercise),
+  );
+  vi.mocked(api.getRecordPage).mockResolvedValue({
+    count: 0,
+    next: null,
+    previous: null,
+    results: [],
+  });
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([]);
+});
 it("shows separate completed statistics and navigates to training dates without writes", async () => {
   vi.mocked(api.getExerciseStats).mockResolvedValue({
     exercise_id: "bench",
@@ -57,6 +70,8 @@ it("shows separate completed statistics and navigates to training dates without 
   await userEvent.click(
     screen.getByRole("button", { name: "First training: 2023-01-01" }),
   );
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Go to workout" }));
   expect(navigate).toHaveBeenCalledWith({ view: "home", date: "2023-01-01" });
   expect(api.createWorkout).not.toHaveBeenCalled();
 });
@@ -133,7 +148,7 @@ it("keeps history inside the overview and shows only the selected exercise", asy
     screen.getByRole("button", { name: "Exercise history", exact: true }),
   );
   expect(
-    await screen.findByText("70 kg · 5 reps · Completed"),
+    await screen.findByRole("button", { name: /Set 1 on .*70 kg/ }),
   ).toBeInTheDocument();
   expect(screen.getByText("Good form")).toBeInTheDocument();
   expect(screen.queryByText("Squat")).not.toBeInTheDocument();
@@ -151,13 +166,15 @@ it("keeps history inside the overview and shows only the selected exercise", asy
   );
   expect(api.bulkUpdateSets).not.toHaveBeenCalled();
   await userEvent.click(
-    screen.getByRole("button", { name: "Open exercise", exact: true }),
+    screen.getByRole("button", { name: /Workout on .*1 Oct 2026/ }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "View workout", exact: true }),
   );
   expect(navigate).toHaveBeenCalledWith({
-    view: "training",
+    view: "home",
     date: "2026-10-01",
     session: "workout",
-    exercise: "item",
   });
 });
 
@@ -241,7 +258,9 @@ it("combines graphs and records under exercise progress", async () => {
     within(tabs).getByRole("button", { name: "Exercise progress" }),
   ).toBeInTheDocument();
   expect(within(tabs).queryByRole("button", { name: "Graphs" })).toBeNull();
-  expect(within(tabs).queryByRole("button", { name: "Records" })).toBeNull();
+  expect(
+    within(tabs).getByRole("button", { name: "Records" }),
+  ).toBeInTheDocument();
 
   await userEvent.click(
     within(tabs).getByRole("button", { name: "Exercise progress" }),
@@ -251,7 +270,7 @@ it("combines graphs and records under exercise progress", async () => {
     within(graph).getByRole("option", { name: "Personal records" }),
   ).toBeInTheDocument();
   await userEvent.selectOptions(graph, "personal_records");
-  expect(screen.getByLabelText("Progress window")).toHaveValue("90");
+  expect(screen.getByLabelText("Progress window")).toHaveValue("30");
   await userEvent.selectOptions(screen.getByLabelText("Progress window"), "0");
   expect(screen.getByLabelText("Progress window")).toHaveValue("0");
 });

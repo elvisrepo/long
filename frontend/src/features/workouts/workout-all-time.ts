@@ -47,6 +47,7 @@ export async function getAllTimeProgress(
   date: string,
   metric: ProgressMetric,
   reps = 5,
+  options?: { repLimit?: number; perWorkout?: boolean },
 ): Promise<{ series: ProgressSeries[]; types: api.TrackingType[] }> {
   const needsRecords = [
     "personal_records",
@@ -64,8 +65,9 @@ export async function getAllTimeProgress(
             exercise,
             date,
             metric,
-            metric === "max_weight_reps" ? reps : 5,
+            metric === "max_weight_reps" || metric === "rep_maxes" ? reps : 5,
             offset,
+            ...(options ? [options] : []),
           ),
         ),
     needsRecords
@@ -86,9 +88,9 @@ export async function getAllTimeProgress(
             ? `${row.distance_unit}/h`
             : metric === "best_pace"
               ? `min/${row.distance_unit}`
-              : metric === "max_distance"
+              : metric === "max_distance" || metric === "workout_distance"
                 ? row.distance_unit
-                : metric === "max_duration"
+                : metric === "max_duration" || metric === "workout_duration"
                   ? "sec"
                   : metric === "max_volume" || metric === "workout_volume"
                     ? `${row.weight_unit}·reps`
@@ -111,6 +113,9 @@ export async function getAllTimeProgress(
     series.points.push({
       date: row.date,
       value,
+      ...(options?.perWorkout && (row.workout_id || row.source?.workout_id)
+        ? { workoutId: row.workout_id ?? row.source!.workout_id }
+        : {}),
       ...(row.session !== undefined ? { session: row.session } : {}),
       ...(metric === "estimated_1rm" &&
       row.source?.weight != null &&
@@ -158,4 +163,9 @@ export async function getAllTimeProgress(
       ]),
     ],
   };
+}
+
+export async function getAllRecords(exercise: string, date: string) {
+  return (await pages((offset) => api.getRecordPage(exercise, date, offset)))
+    .results;
 }

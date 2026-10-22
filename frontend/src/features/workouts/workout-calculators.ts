@@ -1,3 +1,54 @@
+import type { EquipmentPlate, WorkoutPreferences } from "./workout-api";
+
+export type CalculatorKind = "max" | "set" | "plates";
+export const calculatorNames: Record<CalculatorKind, string> = {
+  max: "1RM Calculator",
+  set: "Set Calculator",
+  plates: "Plate Calculator",
+};
+export function defaultPlates(unit: "kg" | "lb"): EquipmentPlate[] {
+  return (
+    unit === "kg"
+      ? [50, 25, 20, 15, 10, 5, 2.5, 1.25, 1, 0.5, 0.25]
+      : [100, 55, 45, 35, 25, 10, 5, 2.5, 1.25, 1, 0.5, 0.25]
+  ).map((weight, index) => ({
+    weight: String(weight),
+    count: 0,
+    enabled: false,
+    colour: [
+      "#334155",
+      "#dc2626",
+      "#2563eb",
+      "#eab308",
+      "#16a34a",
+      "#ef4444",
+      "#64748b",
+    ][index % 7],
+  }));
+}
+export function inventoryFor(
+  unit: "kg" | "lb",
+  preferences?: WorkoutPreferences,
+): EquipmentPlate[] {
+  const saved = preferences?.[unit === "kg" ? "plates_kg" : "plates_lb"];
+  return saved
+    ? [
+        ...saved.map((plate) => ({
+          ...plate,
+          colour:
+            plate.colour ??
+            defaultPlates(unit).find(
+              (p) => Number(p.weight) === Number(plate.weight),
+            )?.colour ??
+            "#64748b",
+        })),
+        ...defaultPlates(unit).filter(
+          (plate) =>
+            !saved.some((p) => Number(p.weight) === Number(plate.weight)),
+        ),
+      ].slice(0, 20)
+    : defaultPlates(unit);
+}
 export function estimatedMax(weight: number, reps: number): number {
   if (
     !Number.isFinite(weight) ||

@@ -64,7 +64,11 @@ def test_statistics_count_completed_sessions_once_and_ignore_plans_and_future() 
         BASE + f"exercises/{exercise.pk}/stats/", {"date_to": "2026-10-02"}
     )
     assert response.status_code == 200
-    assert response.json()["groups"] == [
+    groups = response.json()["groups"]
+    bests = groups[0].pop("bests")
+    assert bests["max_weight"]["value"] == "80.000"
+    assert bests["max_weight"]["date"] == "2023-01-01"
+    assert groups == [
         {
             "tracking_type": "strength",
             "weight_unit": "kg",

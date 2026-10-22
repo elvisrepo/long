@@ -6,6 +6,7 @@ import { StretchImage } from "./stretch-image";
 
 type Props = {
   exercise?: StretchExercise;
+  initialPhase?: StretchExercise["phase"];
   onClose: () => void;
   onSave: (input: StretchExerciseInput) => void;
   pending: boolean;
@@ -14,13 +15,14 @@ type Props = {
 
 export function StretchExerciseEditor({
   exercise,
+  initialPhase = "lower-body",
   onClose,
   onSave,
   pending,
   error,
 }: Props) {
   const [phase, setPhase] = useState<StretchExercise["phase"]>(
-    exercise?.phase ?? "lower-body",
+    exercise?.phase ?? initialPhase,
   );
   const [name, setName] = useState(exercise?.name ?? "");
   const [description, setDescription] = useState(exercise?.description ?? "");
@@ -66,6 +68,15 @@ export function StretchExerciseEditor({
       </div>
       <form className="stretching-editor-form" onSubmit={submit}>
         <label>
+          Title
+          <input
+            required
+            maxLength={120}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+        </label>
+        <label>
           Phase
           <select
             value={phase}
@@ -78,16 +89,7 @@ export function StretchExerciseEditor({
           </select>
         </label>
         <label>
-          Title
-          <input
-            required
-            maxLength={120}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
-        </label>
-        <label>
-          Description and instructions
+          Description and instructions (optional)
           <textarea
             maxLength={500}
             rows={4}
@@ -96,7 +98,7 @@ export function StretchExerciseEditor({
           />
         </label>
         <label>
-          Suggested duration or repetitions
+          Suggested duration or repetitions (optional)
           <input
             maxLength={120}
             value={dosage}
@@ -111,7 +113,7 @@ export function StretchExerciseEditor({
           />
         )}
         <label>
-          Illustration (JPEG, PNG, or WebP; up to 2 MB)
+          Illustration (optional; JPEG, PNG, or WebP; up to 2 MB)
           <input
             type="file"
             ref={imageInput}

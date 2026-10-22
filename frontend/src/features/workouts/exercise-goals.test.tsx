@@ -411,7 +411,10 @@ it("shows goal progress and opens its actual supporting lift", async () => {
   expect(
     await screen.findByText("95 kg × 6 reps · 2026-10-01"),
   ).toBeInTheDocument();
-  expect(screen.getByText("Not achieved")).toBeInTheDocument();
+  expect(screen.getByText("95.0% of target")).toBeInTheDocument();
+  expect(
+    screen.queryByText("Achieved", { exact: true }),
+  ).not.toBeInTheDocument();
   expect(screen.getByRole("progressbar")).toHaveAttribute("value", "95");
   await userEvent.click(
     screen.getByRole("button", { name: "Open supporting lift" }),
