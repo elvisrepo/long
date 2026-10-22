@@ -2032,3 +2032,23 @@ no dialog overflow, JS errors or tracker writes. The 96-test backend workout,
 routine and account lifecycle slice checks refresh/resume, repeat-safe stop,
 finish, correction, read-only timestamps, copy reset and export. Migration 0012
 is applied locally and makemigrations --check --dry-run reports no changes.
+
+### Selective Share / Export sheet — 2026-10-22
+
+All 660 frontend tests, four mocked workout browser journeys, ESLint and build
+pass. Component checks cover selected-set filtering, mixed parent state, selecting
+nothing, notes default exclusion, clipboard failure/manual copy and native-share
+cancellation. Browser journeys cover Options, notes, CSV content and cancellation
+at 320/390/1440px. Read-only real-account visual checks at 320/390/768/1440px verify
+the collapsed checklist and expanded Options without overflow, JS errors or
+tracker writes. Native sharing is mocked in tests; no external recipient is used.
+
+### Share targets fallback regression — 2026-10-22
+
+Share must not silently copy when Web Share is unavailable. Component coverage
+checks the visible WhatsApp/Gmail/Email chooser, encoded selected summary without
+notes by default, explicit copy, Back, native cancellation and non-cancellation
+failure. Browser journeys force an unavailable native share API, verify app
+choices and Back at 320/390/1440px, then exercise the CSV flow. All 662 frontend
+tests, four workout browser journeys, lint and build pass. App links are inspected
+without contacting an external recipient; the OS share sheet is mocked in tests.

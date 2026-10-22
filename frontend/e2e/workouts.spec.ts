@@ -305,6 +305,30 @@ for (const width of [320, 390, 1440])
       page.getByRole("button", { name: "Reopen workout" }),
     ).toBeVisible();
     await page.getByRole("button", { name: "Export workout" }).click();
+    await page.evaluate(() =>
+      Object.defineProperty(navigator, "share", {
+        configurable: true,
+        value: undefined,
+      }),
+    );
+    await page.getByRole("button", { name: "Share", exact: true }).click();
+    await expect(
+      page.getByRole("dialog", { name: "Share to", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "WhatsApp", exact: true }),
+    ).toHaveAttribute("href", /wa\.me/);
+    await expect(
+      page.getByRole("link", { name: "Gmail", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Email", exact: true }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Back", exact: true }).click();
+    await expect(
+      page.getByRole("checkbox", { name: "Select all", exact: true }),
+    ).toBeChecked();
+    await page.getByRole("button", { name: "Options", exact: true }).click();
     await expect(page.getByLabel("Workout summary")).toContainText("65");
     await expect(page.getByLabel("Workout summary")).not.toContainText(
       "Steady pace",
@@ -313,6 +337,7 @@ for (const width of [320, 390, 1440])
     await expect(page.getByLabel("Workout summary")).toContainText(
       "Steady pace",
     );
+    await page.getByLabel("Format", { exact: true }).selectOption("csv");
     const downloadEvent = page.waitForEvent("download");
     await page.getByRole("button", { name: "Download CSV" }).click();
     const download = await downloadEvent;
@@ -329,7 +354,7 @@ for (const width of [320, 390, 1440])
       path: `test-results/workouts/export-${width}.png`,
       fullPage: true,
     });
-    await page.getByRole("button", { name: "Close", exact: true }).click();
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
     await page.getByRole("button", { name: "History", exact: true }).click();
     await page.getByRole("button", { name: "Copy workout" }).click();
     await page.getByLabel("Copy to date").fill("2026-10-03");

@@ -682,3 +682,19 @@ the workout. Duration excludes stopped intervals, so it need not equal end minus
 start. Read-only server timestamps survive refresh; unknown legacy timestamps show
 Not recorded. Duration corrections clear timestamps rather than implying a false
 interval. Local migration 0012 is applied; staging will need it on deployment.
+
+### Selective Share / Export sheet — 2026-10-22
+
+The workout Export action opens a light Share workout sheet with Select all,
+exercise-level checkboxes and compact set rows. All records start selected;
+partial selection marks parent checkboxes as mixed. Empty exercises remain
+selectable, planned sets are identified, and selecting nothing disables output.
+Cancel, Options and Share form the footer. Options reveals text/CSV format,
+notes/comments (off by default), the selected summary preview and manual copy.
+Share opens the browser/device share sheet when available. Otherwise it opens
+a Share to chooser with WhatsApp, Gmail, Email and an explicit Copy summary
+action; it never silently copies. Non-cancellation share failures also open this
+chooser. Native cancellation is quiet. App links open a compose flow and do not
+send to a recipient automatically.
+CSV downloads and clipboard/native sharing all use only the selected records,
+retain recorded units/status and do not modify the stored workout. No API changes.

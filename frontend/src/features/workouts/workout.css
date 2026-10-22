@@ -1400,3 +1400,114 @@
 .workout-time-sheet .workout-home-menu-items {
   max-width: calc(100vw - 4rem);
 }
+
+.workout-share-modal {
+  width: min(30rem, calc(100vw - 2rem));
+  padding: 1.1rem;
+}
+.workout-share-modal > h2 {
+  margin: 0;
+  padding-bottom: 0.8rem;
+  border-bottom: 2px solid #81cabc;
+  color: #007f68;
+}
+.workout-share-selection {
+  max-height: 55dvh;
+  overflow-y: auto;
+}
+.workout-share-all,
+.workout-share-heading {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 !important;
+  padding: 0.7rem 0.3rem;
+}
+.workout-share-all {
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+.workout-share-heading {
+  background: #f0f5f5;
+  font-size: 0.85rem;
+}
+.workout-share-heading strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.workout-share-set {
+  display: grid !important;
+  grid-template-columns: 1rem minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 !important;
+  padding: 0.6rem 0.3rem;
+  border-bottom: 1px solid #edf1f3;
+}
+.workout-share-values {
+  text-align: end;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.workout-share-number,
+.workout-share-status {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.workout-share-modal input[type="checkbox"] {
+  width: 1.05rem;
+  height: 1.05rem;
+  min-height: 0;
+  flex-shrink: 0;
+  accent-color: #007f68;
+}
+.workout-share-empty {
+  padding: 0.25rem 0.4rem;
+}
+.workout-share-options {
+  border-top: 1px solid var(--border);
+  padding-top: 0.8rem;
+}
+.workout-share-options textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+.workout-share-footer {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+  padding-top: 0.9rem;
+}
+.workout-share-footer button {
+  min-width: 0;
+  padding-inline: 0.4rem;
+}
+
+.workout-share-target-modal {
+  width: min(26rem, calc(100vw - 2rem));
+}
+.workout-share-targets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-block: 1rem;
+}
+.workout-share-targets a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  border: 1px solid var(--border);
+  border-radius: var(--control-radius);
+  background: #edf7f4;
+  color: #007f68;
+  text-decoration: none;
+  font-weight: 600;
+}
+.workout-share-targets a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

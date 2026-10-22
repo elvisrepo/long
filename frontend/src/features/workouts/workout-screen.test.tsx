@@ -326,8 +326,11 @@ it("opens an export preview from Home without writing or creating a workout", as
     await screen.findByRole("button", { name: "Export workout" }),
   );
   expect(
-    screen.getByRole("dialog", { name: "Export workout" }),
+    screen.getByRole("dialog", { name: "Share workout" }),
   ).toBeInTheDocument();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Options", exact: true }),
+  );
   expect(
     (screen.getByLabelText("Workout summary") as HTMLTextAreaElement).value,
   ).toContain("Barbell bench press");
