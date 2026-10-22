@@ -85,6 +85,7 @@ it("corrects finished sessions explicitly and clears without starting", async ()
     />,
   );
   expect(screen.getByRole("button", { name: "Resume timer" })).toBeDisabled();
+  await user.click(screen.getByLabelText("Timing options"));
   await user.click(screen.getByRole("button", { name: "Correct duration" }));
   await user.clear(screen.getByLabelText("Workout hours"));
   await user.type(screen.getByLabelText("Workout hours"), "1");
@@ -94,6 +95,7 @@ it("corrects finished sessions explicitly and clears without starting", async ()
       duration_seconds: 3690,
     }),
   );
+  await user.click(screen.getByLabelText("Timing options"));
   await user.click(screen.getByRole("button", { name: "Correct duration" }));
   await user.click(screen.getByRole("button", { name: "Clear duration" }));
   await waitFor(() =>
@@ -119,13 +121,13 @@ it("retains server-confirmed state on a failed pause and locks pending actions",
       run={(action) => void action()}
     />,
   );
-  await user.click(screen.getByRole("button", { name: "Pause timer" }));
+  await user.click(screen.getByRole("button", { name: "Stop timer" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Refresh");
   expect(
-    screen.getByRole("button", { name: "Pause timer" }),
+    screen.getByRole("button", { name: "Stop timer" }),
   ).toBeInTheDocument();
   view.rerender(<WorkoutTiming workout={running} busy={true} run={vi.fn()} />);
-  expect(screen.getByRole("button", { name: "Pause timer" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Stop timer" })).toBeDisabled();
   expect(
     screen.getByRole("button", { name: "Correct duration" }),
   ).toBeDisabled();
@@ -149,4 +151,57 @@ it("clamps running time and never subtracts after clock rollback", () => {
       Date.parse("2026-11-03T12:00:00Z"),
     ),
   ).toBe(30);
+});
+
+it("shows a compact time sheet and keeps correction and help behind options", async () => {
+  render(<WorkoutTiming workout={workout} busy={false} run={vi.fn()} />);
+  expect(screen.getByText("Start time")).toBeVisible();
+  expect(screen.getByText("End time")).toBeVisible();
+  expect(screen.getByText("Duration")).toBeVisible();
+  expect(screen.queryByText(/Rest between sets/)).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Correct duration" }),
+  ).not.toBeVisible();
+  await userEvent.click(screen.getByLabelText("Timing options"));
+  expect(
+    screen.getByRole("button", { name: "Correct duration" }),
+  ).toBeVisible();
+  await userEvent.click(
+    screen.getByRole("button", { name: "About workout timing" }),
+  );
+  expect(
+    screen.getByRole("dialog", { name: "About workout timing" }),
+  ).toHaveTextContent("Rest between sets counts unless paused");
+});
+
+it("shows recorded timestamps and distinguishes a running workout from a stopped one", () => {
+  const recorded = {
+    ...workout,
+    duration_seconds: 90,
+    workout_started_at: "2026-10-03T12:00:00Z",
+    workout_ended_at: "2026-10-03T12:01:30Z",
+  };
+  const view = render(
+    <WorkoutTiming workout={recorded} busy={false} run={vi.fn()} />,
+  );
+  const time = (value: string) =>
+    new Intl.DateTimeFormat(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(new Date(value));
+  expect(screen.getByText(time(recorded.workout_started_at))).toBeVisible();
+  expect(screen.getByText(time(recorded.workout_ended_at))).toBeVisible();
+  view.rerender(
+    <WorkoutTiming
+      workout={{
+        ...recorded,
+        timer_started_at: recorded.workout_started_at,
+        workout_ended_at: null,
+      }}
+      busy={false}
+      run={vi.fn()}
+    />,
+  );
+  expect(screen.getByText("In progress")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Stop timer" })).toBeEnabled();
 });

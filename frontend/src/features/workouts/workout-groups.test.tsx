@@ -101,8 +101,12 @@ it("creates a named coloured group from the selected exercise and a second membe
   await userEvent.click(screen.getByRole("button", { name: "Add to group" }));
   await userEvent.click(screen.getByRole("button", { name: "New group" }));
   expect(screen.getByLabelText("Group name")).toHaveValue("Superset 1");
-  expect(screen.getByLabelText("Barbell row")).toBeChecked();
-  await userEvent.click(screen.getByLabelText("Overhead press"));
+  expect(
+    screen.getByRole("checkbox", { name: "Barbell row", exact: true }),
+  ).toBeChecked();
+  await userEvent.click(
+    screen.getByRole("checkbox", { name: "Overhead press", exact: true }),
+  );
   await userEvent.clear(screen.getByLabelText("Group name"));
   await userEvent.type(screen.getByLabelText("Group name"), "Pull and press");
   await userEvent.click(screen.getByRole("button", { name: "Blue" }));
@@ -164,7 +168,10 @@ const grouped: api.Workout = {
 
 it("edits membership and colour and preserves the existing group identity", async () => {
   mount(grouped);
-  const sidebar = screen.getByRole("complementary");
+  await userEvent.click(screen.getByText("Manage workout", { exact: true }));
+  const sidebar = screen.getByRole("group", {
+    name: "Workout exercise management",
+  });
   expect(
     within(sidebar).getByRole("button", { name: /^Barbell row/ }),
   ).toHaveStyle({ borderInlineStartColor: "#db2777" });
@@ -174,8 +181,12 @@ it("edits membership and colour and preserves the existing group identity", asyn
   await userEvent.click(
     screen.getByRole("button", { name: "Edit Superset 1" }),
   );
-  expect(screen.getByLabelText("Overhead press")).toBeChecked();
-  await userEvent.click(screen.getByLabelText("Overhead press"));
+  expect(
+    screen.getByRole("checkbox", { name: "Overhead press", exact: true }),
+  ).toBeChecked();
+  await userEvent.click(
+    screen.getByRole("checkbox", { name: "Overhead press", exact: true }),
+  );
   await userEvent.click(screen.getByRole("button", { name: "Purple" }));
   await userEvent.click(screen.getByRole("button", { name: "Save group" }));
   expect(api.saveWorkoutGroup).toHaveBeenCalledWith("workout", {

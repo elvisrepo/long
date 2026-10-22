@@ -71,6 +71,7 @@ class WorkoutPreferences(models.Model):
     bar_lb = models.DecimalField(max_digits=7, decimal_places=3, default="45")
     plates_kg = models.JSONField(default=metric_plates)
     plates_lb = models.JSONField(default=imperial_plates)
+    exercise_bars = models.JSONField(default=list)
 
 
 class ExerciseCategory(models.Model):
@@ -126,7 +127,7 @@ class Exercise(models.Model):
 
 
 class ExerciseGoal(models.Model):
-    """An actual completed-set target; type and units stay frozen."""
+    """A target derived from completed snapshots; type and units stay frozen."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     exercise = models.ForeignKey(
@@ -149,6 +150,8 @@ class ExerciseGoal(models.Model):
                 "max_speed",
                 "best_pace",
                 "distance_time",
+                "max_weight",
+                "estimated_1rm",
             ]
         ],
     )
@@ -201,8 +204,13 @@ class ExerciseGoal(models.Model):
                         & (
                             models.Q(
                                 goal_type="reps",
-                                tracking_type="bodyweight",
+                                tracking_type__in=["bodyweight", "strength"],
                                 target_value__gte=1,
+                                target_value__lte=100000,
+                            )
+                            | models.Q(
+                                goal_type__in=["max_weight", "estimated_1rm"],
+                                tracking_type="strength",
                                 target_value__lte=100000,
                             )
                             | models.Q(
@@ -251,6 +259,8 @@ class Workout(models.Model):
     is_finished = models.BooleanField(default=False)
     duration_seconds = models.PositiveIntegerField(null=True, blank=True)
     timer_started_at = models.DateTimeField(null=True, blank=True)
+    workout_started_at = models.DateTimeField(null=True, blank=True)
+    workout_ended_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def elapsed_at(self, now: datetime | None = None) -> int | None:
@@ -267,6 +277,8 @@ class Workout(models.Model):
         return min(604800, self.duration_seconds + running)
 
     def pause_timer(self, now: datetime) -> None:
+        if self.timer_started_at is not None:
+            self.workout_ended_at = now
         self.duration_seconds = self.elapsed_at(now)
         self.timer_started_at = None
 

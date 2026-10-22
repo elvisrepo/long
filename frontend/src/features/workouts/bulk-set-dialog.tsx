@@ -10,7 +10,9 @@ export function BulkSetDialog({
   run,
   onClose,
   onRefresh,
+  initialIds = [],
 }: {
+  initialIds?: string[];
   workouts: api.Workout[];
   exerciseId: string;
   busy: boolean;
@@ -34,7 +36,7 @@ export function BulkSetDialog({
         ),
     ),
   );
-  const [ids, setIds] = useState<string[]>([]);
+  const [ids, setIds] = useState<string[]>(initialIds);
   const [action, setAction] = useState<"update" | "delete">("update");
   const [preview, setPreview] = useState<api.BulkSetInput | null>(null);
   const [draft, setDraft] = useState<{

@@ -3,7 +3,7 @@
 from decimal import Decimal
 from typing import Any
 from django.db import transaction
-from django.db.models import QuerySet, F, Value, DecimalField
+from django.db.models import QuerySet, F, Value, DecimalField, Case, When
 from django.db.models.functions import Cast, Least
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
@@ -217,7 +217,15 @@ def metric_goal_result(
         distance_unit=goal.distance_unit,
     )
     number = DecimalField(max_digits=24, decimal_places=8)
-    if goal.goal_type in ["max_speed", "best_pace"]:
+    if goal.goal_type == "estimated_1rm":
+        rows = rows.filter(weight__gt=0, weight__lte=10000, reps__gte=1, reps__lte=10)
+        value = Case(
+            When(reps=1, then=Cast(F("weight"), number)),
+            default=Cast(F("weight"), number)
+            * (Value(Decimal(1)) + Cast(F("reps"), number) / Value(Decimal(30))),
+            output_field=number,
+        )
+    elif goal.goal_type in ["max_speed", "best_pace"]:
         rows = rows.filter(distance__gt=0, duration_seconds__gt=0)
         distance, duration = (
             Cast(F("distance"), number),
@@ -230,6 +238,7 @@ def metric_goal_result(
         )
     else:
         field = {
+            "max_weight": "weight",
             "reps": "reps",
             "distance": "distance",
             "duration": "duration_seconds",
@@ -308,7 +317,7 @@ class ExerciseGoalsView(APIView):
         serializer.is_valid(raise_exception=True)
         kind = serializer.validated_data.get("goal_type", "strength")
         allowed = {
-            "strength": ["strength"],
+            "strength": ["strength", "max_weight", "estimated_1rm", "reps"],
             "bodyweight": ["reps"],
             "cardio": [
                 "distance",

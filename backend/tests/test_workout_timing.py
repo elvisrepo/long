@@ -124,18 +124,28 @@ def test_timing_is_private_copies_reset_and_readonly_clock_cannot_be_forged() ->
     )
     forged = client.patch(
         url,
-        {"timer_started_at": "2000-01-01T00:00:00Z", "elapsed_seconds": 9999},
+        {
+            "timer_started_at": "2000-01-01T00:00:00Z",
+            "workout_started_at": "2000-01-01T00:00:00Z",
+            "workout_ended_at": "2000-01-01T01:00:00Z",
+            "elapsed_seconds": 9999,
+        },
         format="json",
     ).json()
     assert forged["timer_started_at"] is None and forged["elapsed_seconds"] == 600
+    assert forged["workout_started_at"] is None and forged["workout_ended_at"] is None
     copied = client.post(
         url + "copy/", {"performed_on": "2026-10-04"}, format="json"
     ).json()
     assert copied["duration_seconds"] is None and copied["timer_started_at"] is None
+    assert copied["workout_started_at"] is None and copied["workout_ended_at"] is None
     response = client.get("/api/v1/me/export/")
     exported = json.loads(b"".join(response.streaming_content))["workouts"]
     original = next(row for row in exported if row["id"] == w["id"])
     assert original["duration_seconds"] == 600
+    assert (
+        original["workout_started_at"] is None and original["workout_ended_at"] is None
+    )
 
 
 def test_elapsed_is_bounded_and_clock_rollback_does_not_subtract(
@@ -156,3 +166,35 @@ def test_elapsed_is_bounded_and_clock_rollback_does_not_subtract(
         ]
         == 604800
     )
+
+
+def test_start_stop_timestamps_survive_refresh_and_resume(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = client_for()
+    now = datetime(2026, 10, 3, 12, tzinfo=timezone.utc)
+    monkeypatch.setattr("django.utils.timezone.now", lambda: now)
+    workout = client.post(BASE, {"performed_on": "2026-10-03"}, format="json").json()
+    url = BASE + workout["id"] + "/"
+    assert workout["workout_started_at"] is None
+    first = client.patch(url, {"timer_action": "start"}, format="json").json()
+    start = first["workout_started_at"]
+    assert start == first["timer_started_at"]
+    now += timedelta(seconds=90)
+    stopped = client.patch(url, {"timer_action": "pause"}, format="json").json()
+    end = stopped["workout_ended_at"]
+    assert end is not None
+    assert client.get(url).json()["workout_ended_at"] == end
+    now += timedelta(seconds=30)
+    repeated = client.patch(url, {"timer_action": "pause"}, format="json").json()
+    assert repeated["workout_ended_at"] == end
+    resumed = client.patch(url, {"timer_action": "start"}, format="json").json()
+    assert resumed["workout_started_at"] == start
+    assert resumed["workout_ended_at"] is None
+    now += timedelta(seconds=20)
+    finished = client.patch(url, {"is_finished": True}, format="json").json()
+    assert finished["workout_ended_at"] is not None
+    assert finished["elapsed_seconds"] == 110
+    corrected = client.patch(url, {"duration_seconds": 300}, format="json").json()
+    assert corrected["workout_started_at"] is None
+    assert corrected["workout_ended_at"] is None

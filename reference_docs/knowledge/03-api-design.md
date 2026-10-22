@@ -208,6 +208,17 @@ Migration 0009 adds two nullable fields and bound/state SQL constraints. Account
 JSON export includes stored duration/start; selected-workout CSV/text includes the
 loaded elapsed snapshot and running status, not a restorable timing backup.
 
+Timing timestamps (2026-10-21): session responses additionally expose nullable,
+read-only `workout_started_at` (first explicit start since timing was cleared or
+corrected) and `workout_ended_at` (latest actual pause/finish while running).
+Resume preserves the first start and clears the end; repeated pause leaves it
+unchanged. Manual duration replacement/clear nulls both timestamps because the
+corrected total no longer describes the recorded wall-clock interval. Existing
+rows remain null; the UI never invents historical times. Copies and routine starts
+reset these fields; account JSON exports them. Migration 0012 adds the nullable
+columns. PATCH ownership/locking and routes are unchanged. The UI's Stop timer
+sends the existing `timer_action=pause`, so stopping does not finish the workout.
+
 Frontend `/workouts` uses validated optional search fields: `view=home|exercises|
 training|history|routines|calendar|progress|overview`, real calendar `date=YYYY-MM-DD`, UUID `session` and `exercise`.
 Training needs both UUIDs; its exercise parameter identifies a session occurrence,
@@ -1390,3 +1401,106 @@ coordinator, or declares/requests READ_ACTIVE_CALORIES_BURNED. This does not
 restrict user-owned custom metrics or remove Distance. Current Android sync
 requires the original five read permissions plus Distance and Total Calories.
 Earlier Active Calories acceptance notes describe historical implementation.
+
+### Workout exercise selection actions — 2026-10-22
+
+`POST /api/v1/workouts/sessions/{uuid}/exercises/bulk/` requires JWT and an
+owned, open workout. The request is either `{action:"delete", exercise_ids:[UUID]}`
+or `{action:"reorder", exercise_ids:[UUID], expected_order:[UUID]}`. IDs must be
+nonempty and unique. Reorder supplies every exercise once and the original visible
+order; a changed order returns `409` without writes. Missing/foreign selections
+return `404`, invalid input or finished workouts `400`, unauthenticated `401`.
+Unknown request fields are rejected. Deletion removes only selected occurrences
+and their sets, retaining the session, library and other occurrences. Both actions
+are atomic under the existing per-user mutation lock and return the full workout
+(`200`). Reorder normalizes display_order to 10,20,… and preserves sets/groups.
+No database migration. Existing individual delete/move endpoints remain available.
+
+### Workout equipment metadata — 2026-10-22
+
+The existing authenticated `GET/PATCH /api/v1/workouts/preferences/` and catalog
+preferences payload now retain optional plate metadata: `colour` is a six-digit
+hex string (`#RRGGBB`), and `enabled` is a boolean. Existing `{weight, count}` rows
+remain valid; absent `enabled` means usable when count is positive. Disabled rows
+keep their counts but are excluded from loading. Existing limits remain: 20 sizes
+per unit, distinct positive weights ≤1000 with three decimals and counts 0–100.
+
+`exercise_bars` is an optional replacement list (maximum 500):
+`{exercise_id: uuid, weight_unit: "kg"|"lb", weight: decimal-string}`.
+Each exercise must belong to the caller; missing/foreign IDs reject with 400.
+There can be one entry per exercise/unit, with weight 0–1000 and three decimals.
+An empty list clears overrides. Omitting the field preserves it. Unit-specific
+default bars apply where no matching override exists. Migration
+`workouts.0013_exercise_bars` adds this JSON field with an empty-list default.
+Account export includes it and account deletion cascades the preferences row.
+
+Calculator reads/writes use existing records and set endpoints. Record selection
+is bounded to the workout date and saved unit/type. Adding a calculated weight
+POSTs `{weight, reps:null, is_completed:false}` to the existing set endpoint;
+it does not record an observed lift or trigger completion effects. Route paths
+are unchanged.
+
+### Training history and copy-to-current exercise — 2026-10-22
+
+`GET /api/v1/workouts/sessions/` accepts `all_history=true` with required owned
+`exercise_id` and `date_to`. This returns all matching sessions through that date
+using the existing limit/offset pagination (maximum 100), without a 90-day cutoff.
+`date_from` is not used in this mode. Other reads still require `date_from` and
+retain the 1–366-day range limit. No records are created by these reads.
+
+`POST /api/v1/workouts/session-exercises/{item_id}/copy-sets/` appends selected
+sets to an existing owned occurrence. Body:
+`{source_workout_id: uuid, set_ids: uuid[]}`. Select 1–100 distinct IDs from that
+owned source workout; unknown fields reject. Target/source exercise IDs, frozen
+tracking type and both unit fields must match. The target must be open; a finished
+source can be read. Missing/foreign workouts or targets return 404; invalid sets,
+incompatible partitions or closed targets return 400. Authentication is required.
+
+The existing owner row lock and a transaction validate every ID before writes.
+Copies retain the source workout's occurrence/set order, append after existing
+sets and return a 201 array of new set representations. Values are read from the
+saved source at copy time; new IDs are generated, comments cleared and completion
+reset to false. No workout, occurrence, timing or group change is created. A bad
+selection causes no partial append. No schema migration is required for this slice.
+
+### Exercise analytics controls and strength metric goals — 2026-10-22
+
+Existing routes remain unchanged. Progress reads accept `rep_limit` (integer 1–30,
+default 10) for estimated 1RM and `per_workout` (boolean, default false). The
+Training/overview Graph requests one point per workout; legacy date-based reads
+keep their default. New metrics: `workout_distance`, `workout_duration` (completed
+sets summed per workout and frozen partition), and `rep_maxes` (strict observed
+PR improvements at the requested `reps`, through `date_to`). Existing limit/offset
+bounds and owned exercise checks apply. Graph rep-max windows filter all-time
+strict records after reading them, so a prior record remains the baseline.
+
+Records history reads accept `newest_first=true` with `history=true`; the default
+order remains unchanged. This lets Records show the current observed record above
+previous improvements. Inferred lower-rep precedence is presentation only and is
+never inserted into the observed record data.
+
+Statistics reads accept optional `date_from`, owned `workout_id`, and `rep_limit`
+(default 10). Reversed dates reject with 400; foreign/missing workout filters
+return 404. Each existing frozen-unit group now includes `bests`, keyed by metric,
+with the existing progress point JSON shape (value, date and supporting source or
+workout ID). Totals remain completed-only; max workout volume sums this exercise
+within each session, while max set volume remains distinct. First qualifying
+sources retain deterministic chronology on ties.
+
+Strength goal creation additionally accepts `goal_type: max_weight` or
+`estimated_1rm` with positive `target_value` ≤100000; `reps` also supports strength
+exercises. Type/units stay frozen, target edits reuse PATCH, and ownership/export/
+deletion use the existing goal lifecycle. Estimated goals use positive loads up
+to 10000 and 1–10 reps, calculating achievement from unrounded Epley values.
+This eligibility rule is explicit in the goal label and is independent of the
+device's configurable record/graph estimate limit. No inferred record becomes a
+goal's observed source. Migration `0014_strength_analytics_goals` expands choices
+and the database check constraint; existing goal rows remain valid.
+
+The frontend `/workouts` search accepts optional `section=history|graph|records|
+stats|goals` with `view=overview`, allowing previews and the Training trophy to
+open a focused section without adding route paths.
+
+With `per_workout=true`, progress point JSON includes the supporting `workout_id`
+and session name where available. The graph uses this owned ID for its workout
+preview; points without a session ID retain the date-based preview fallback.

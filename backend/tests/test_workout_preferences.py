@@ -159,3 +159,93 @@ def test_favorites_graph_defaults_and_catalog_hints_preserve_completed_history()
         WorkoutSet.objects.filter(workout_exercise=item, weight="70", reps=5).count()
         == 2
     )
+
+
+def test_equipment_keeps_colours_availability_and_owned_exercise_bars() -> None:
+    from apps.workouts.models import Exercise, ExerciseCategory
+
+    client = client_for("equipment@example.com")
+    other = client_for("other-equipment@example.com")
+    user = User.objects.get_by_natural_key("equipment@example.com")
+    category = ExerciseCategory.objects.create(user=user, name="Chest")
+    exercise = Exercise.objects.create(
+        category=category, name="Bench", tracking_type="strength"
+    )
+    data = {
+        "plates_kg": [
+            {"weight": "20.000", "count": 4, "colour": "#2563eb", "enabled": False}
+        ],
+        "exercise_bars": [
+            {"exercise_id": str(exercise.pk), "weight_unit": "kg", "weight": "15.000"}
+        ],
+    }
+    response = client.patch(BASE + "preferences/", data, format="json")
+    assert response.status_code == 200
+    saved = client.get(BASE + "catalog/").json()["preferences"]
+    assert saved["plates_kg"] == data["plates_kg"]
+    assert saved["exercise_bars"] == data["exercise_bars"]
+    import json
+    from apps.users.account import account_export
+
+    exported = json.loads("".join(account_export(user)))
+    assert exported["workout_preferences"][0]["exercise_bars"] == data["exercise_bars"]
+    assert exported["workout_preferences"][0]["plates_kg"] == data["plates_kg"]
+    assert other.get(BASE + "preferences/").json()["exercise_bars"] == []
+    assert (
+        other.patch(
+            BASE + "preferences/",
+            {"exercise_bars": data["exercise_bars"]},
+            format="json",
+        ).status_code
+        == 400
+    )
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"plates_kg": [{"weight": "20", "count": 2, "colour": "red"}]},
+        {"plates_lb": [{"weight": "45", "count": 2, "colour": "#ffffff00"}]},
+        {
+            "exercise_bars": [
+                {"exercise_id": "not-a-uuid", "weight_unit": "kg", "weight": "20"}
+            ]
+        },
+        {
+            "exercise_bars": [
+                {
+                    "exercise_id": "11111111-1111-4111-8111-111111111111",
+                    "weight_unit": "kg",
+                    "weight": "20",
+                }
+            ]
+        },
+    ],
+)
+def test_equipment_rejects_invalid_metadata_without_writes(
+    data: dict[str, object],
+) -> None:
+    from apps.workouts.models import WorkoutPreferences
+
+    client = client_for("invalid-equipment@example.com")
+    assert client.patch(BASE + "preferences/", data, format="json").status_code == 400
+    assert not WorkoutPreferences.objects.exists()
+
+
+def test_equipment_rejects_duplicate_exercise_bars_without_writes() -> None:
+    from apps.workouts.models import Exercise, ExerciseCategory, WorkoutPreferences
+
+    client = client_for("duplicate-bars@example.com")
+    user = User.objects.get_by_natural_key("duplicate-bars@example.com")
+    category = ExerciseCategory.objects.create(user=user, name="Chest")
+    exercise = Exercise.objects.create(
+        category=category, name="Bench", tracking_type="strength"
+    )
+    bar = {"exercise_id": str(exercise.pk), "weight_unit": "kg", "weight": "20"}
+    assert (
+        client.patch(
+            BASE + "preferences/", {"exercise_bars": [bar, bar]}, format="json"
+        ).status_code
+        == 400
+    )
+    assert not WorkoutPreferences.objects.exists()

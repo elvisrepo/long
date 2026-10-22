@@ -1324,6 +1324,28 @@ to that exact reviewed commit and promote the pin change normally. Until then,
 all workflow releases fail closed. Bundle changes are host configuration changes
 and must be recorded even when the application image does not change.
 
+## AI period selector and Pilot 1.4 checkpoint — 2026-10-18
+
+Release PR #52 and staging promotion #53 completed workflow
+[39155180886](https://github.com/elvisrepo/long/actions/runs/39155180886)
+successfully for staging commit `223681b202f3964ef6d3e76626804675f7f8f8f4`.
+API/worker run index digest `sha256:a4939f9c3b32236fe30ca1145327f3c375f2dcff38d3b23d6cb42d565ec62cd9`;
+previous `sha256:5eba106ed50eea325663c35ef820fe3f1b6e8170f9127c888f2651f6890e362a`
+remains the rollback candidate. Host bundle/topology remain EC2-037/v020.
+Migration 0014, healthy services, worker/Redis and all three real-account period
+previews/history passed SSM acceptance. Public AI selector asset, health and
+anonymous 401 checks passed after frontend publication. No inference call made.
+See EC2-039 for exact command IDs and release evidence.
+
+[Download Pilot 1.4](https://staging.syncvitals.space/downloads/longevity-pilot-1.4.apk),
+version code 5, package `com.viridiandome.longevity.pilot`, signed with the existing
+Pilot certificate for an in-place update. Source artifact is
+`android/releases/longevity-pilot-1.4.apk` (ignored binary). SHA-256:
+`af1221f526b4c91701f06df214d5ed2334d11e85004977facee5690fbfb56a17`.
+All 194 Pilot tests, lint and signed assembly pass; public download bytes match.
+The web AI selector itself needs no APK update. Installation and fresh phone sync
+remain user acceptance, not completed deployment checks.
+
 ## Resume Checklist
 
 When resuming after a pause:

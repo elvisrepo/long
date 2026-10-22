@@ -124,16 +124,15 @@ function mockSuccessfulCustomMetricCreate() {
 
 async function fillCustomMetricForm(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText(/name/i), "Mood");
-  await user.type(screen.getByLabelText(/slug/i), "mood");
   await user.type(screen.getByLabelText(/unit/i), "score");
-  await user.type(screen.getByLabelText(/min value/i), "1");
-  await user.type(screen.getByLabelText(/max value/i), "10");
+  await user.type(screen.getByLabelText(/minimum value/i), "1");
+  await user.type(screen.getByLabelText(/maximum value/i), "10");
 }
 
 async function openCustomMetricDialog(
   user: ReturnType<typeof userEvent.setup>,
 ) {
-  await user.click(screen.getByRole("button", { name: /new custom metric/i }));
+  await user.click(screen.getByRole("button", { name: /new metric/i }));
 
   return screen.getByRole("dialog", { name: /create custom metric/i });
 }
@@ -159,6 +158,79 @@ describe("metrics route", () => {
     vi.resetAllMocks();
   });
 
+  it("filters active and archived definitions while counting availability, with custom metrics first", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    mockLoadedMetricDefinitions([
+      {
+        id: "default",
+        name: "Steps",
+        slug: "steps",
+        unit: "steps",
+        category: "activity",
+        min_value: 0,
+        max_value: 100000,
+        is_default: true,
+        is_active: true,
+      },
+      {
+        id: "custom",
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        category: "custom",
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: true,
+      },
+      {
+        id: "archived",
+        name: "Focus",
+        slug: "focus",
+        unit: "score",
+        category: "custom",
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: false,
+      },
+    ]);
+    renderRoute("/metrics");
+    const all = await screen.findByRole("button", { name: "All (2)" });
+    expect(all).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByText("2 available")).not.toBeInTheDocument();
+    const create = within(
+      screen.getByRole("navigation", { name: "Metric catalog filters" }),
+    ).getByRole("button", { name: "+ New metric" });
+    expect(create.previousElementSibling).toHaveTextContent("Archived (1)");
+    expect(create).not.toHaveAttribute("aria-pressed");
+    const rows = screen.getAllByRole("article");
+    expect(rows[0]).toHaveTextContent("Mood");
+    await user.click(screen.getByRole("button", { name: "Built-in (1)" }));
+    expect(
+      screen.queryByRole("link", { name: /mood/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /steps/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Custom (1)" }));
+    expect(
+      screen.queryByRole("link", { name: /steps/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /mood/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Archived (1)" }));
+    expect(
+      screen.getByRole("button", { name: "Restore Focus" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /mood/i }),
+    ).not.toBeInTheDocument();
+    await user.click(all);
+    expect(screen.getByRole("link", { name: /mood/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Restore Focus" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("renders available metrics for an authenticated user", async () => {
     vi.mocked(getMe).mockResolvedValue({
       email: "user@example.com",
@@ -176,8 +248,8 @@ describe("metrics route", () => {
     expect(screen.getByText(/^Cardiovascular · bpm$/)).toBeInTheDocument();
     expect(screen.queryByText("resting_hr")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Show archived" }),
-    ).toHaveAttribute("aria-expanded", "false");
+      screen.getByRole("button", { name: "Archived (0)" }),
+    ).toHaveAttribute("aria-pressed", "false");
   });
 
   it("groups available metrics into default and custom sections", async () => {
@@ -212,7 +284,7 @@ describe("metrics route", () => {
     renderRoute("/metrics");
 
     const defaultSection = await screen.findByRole("region", {
-      name: "Default metrics",
+      name: "Built-in metrics",
     });
     const customSection = screen.getByRole("region", {
       name: "Custom metrics",
@@ -240,38 +312,17 @@ describe("metrics route", () => {
       name: "Custom metrics",
     });
     expect(
+      screen.getByRole("button", { name: "+ New metric" }),
+    ).toHaveAttribute("aria-haspopup", "dialog");
+    expect(
+      screen.queryByText("Track something of your own"),
+    ).not.toBeInTheDocument();
+    expect(
       within(customSection).getByText(/no custom metrics yet/i),
     ).toBeInTheDocument();
   });
 
-  it("styles row-level deactivation as a neutral action", async () => {
-    vi.mocked(getMe).mockResolvedValue({
-      email: "user@example.com",
-    });
-    mockLoadedMetricDefinitions([
-      {
-        id: "custom-id",
-        name: "Mood",
-        slug: "mood",
-        unit: "score",
-        category: "custom",
-        min_value: 1,
-        max_value: 10,
-        is_default: false,
-        is_active: true,
-      },
-    ]);
-
-    renderRoute("/metrics");
-
-    const deactivate = await screen.findByRole("button", {
-      name: "Deactivate Mood",
-    });
-    expect(deactivate).toHaveClass("metric-row-secondary-action");
-    expect(deactivate).not.toHaveClass("metric-row-danger-action");
-  });
-
-  it("renders catalog entries as dashboard-style cards", async () => {
+  it("renders catalog rows with separate management for custom metrics", async () => {
     vi.mocked(getMe).mockResolvedValue({
       email: "user@example.com",
     });
@@ -303,11 +354,11 @@ describe("metrics route", () => {
     const { container } = renderRoute("/metrics");
 
     await screen.findByRole("heading", { level: 1, name: "Metrics" });
-    const cards = container.querySelectorAll("article.metric-card");
+    const cards = container.querySelectorAll("article.metric-catalog-row");
     expect(cards).toHaveLength(2);
-    expect(cards[0]).toHaveAttribute("data-metric", "resting_hr");
-    expect(cards[0]).toHaveAttribute("data-category", "cardiovascular");
-    expect(cards[1]).toHaveAttribute("data-category", "custom");
+    expect(cards[0]).toHaveAttribute("data-metric", "mood");
+    expect(cards[1]).toHaveAttribute("data-category", "cardiovascular");
+    expect(cards[0]).toHaveAttribute("data-category", "custom");
   });
 
   it("shows active custom metric usage returned by the backend", async () => {
@@ -342,15 +393,17 @@ describe("metrics route", () => {
     renderRoute("/metrics");
 
     expect(
-      await screen.findByText(/2 of 5 custom metrics used/i),
+      await screen.findByRole("status", {
+        name: /2 of 5 custom metrics used/i,
+      }),
     ).toBeInTheDocument();
     expect(screen.queryByText(/slots available/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edit Mood" })).toHaveTextContent(
-      /^Edit$/,
+      /^Edit metric$/,
     );
     expect(
-      screen.getByRole("button", { name: "Deactivate Mood" }),
-    ).toHaveTextContent(/^Deactivate$/);
+      screen.getByRole("button", { name: "Archive Mood" }),
+    ).toHaveTextContent(/^Archive metric$/);
   });
 
   it("opens and cancels the custom metric dialog", async () => {
@@ -366,9 +419,7 @@ describe("metrics route", () => {
     await screen.findByRole("heading", { level: 1, name: "Metrics" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
-    await user.click(
-      screen.getByRole("button", { name: /new custom metric/i }),
-    );
+    await user.click(screen.getByRole("button", { name: /new metric/i }));
 
     expect(
       screen.getByRole("dialog", { name: /create custom metric/i }),
@@ -446,6 +497,55 @@ describe("metrics route", () => {
     ).toHaveAttribute("aria-busy", "true");
   });
 
+  it("generates a unique identifier including archived definitions, without changing a manual identifier", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    mockLoadedMetricDefinitions([
+      {
+        id: "a",
+        name: "Mood",
+        slug: "mood",
+        unit: "score",
+        category: "custom",
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: false,
+      },
+      {
+        id: "b",
+        name: "Other Mood",
+        slug: "mood_2",
+        unit: "score",
+        category: "custom",
+        min_value: 1,
+        max_value: 10,
+        is_default: false,
+        is_active: true,
+      },
+    ]);
+    renderRoute("/metrics");
+    await screen.findByRole("heading", { level: 1, name: "Metrics" });
+    const dialog = await openCustomMetricDialog(user);
+    await user.type(
+      within(dialog).getByLabelText("Name", { exact: true }),
+      "Mood",
+    );
+    const advanced = within(dialog).getByText(/Advanced · Metric identifier/);
+    await user.click(advanced);
+    const identifier = within(dialog).getByLabelText("Identifier", {
+      exact: true,
+    });
+    expect(identifier).toHaveValue("mood_3");
+    await user.clear(identifier);
+    await user.type(identifier, "daily_mood");
+    await user.type(
+      within(dialog).getByLabelText("Name", { exact: true }),
+      " check",
+    );
+    expect(identifier).toHaveValue("daily_mood");
+  });
+
   it("creates a custom metric definition from the metrics page", async () => {
     const user = userEvent.setup();
 
@@ -472,6 +572,29 @@ describe("metrics route", () => {
       minValue: 1,
       maxValue: 10,
     });
+  });
+
+  it("rejects an inverted range without creating a metric", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+    mockLoadedMetricDefinitions();
+    renderRoute("/metrics");
+    await screen.findByRole("heading", { level: 1, name: "Metrics" });
+    await openCustomMetricDialog(user);
+    await fillCustomMetricForm(user);
+    await user.clear(screen.getByLabelText("Maximum value", { exact: true }));
+    await user.type(
+      screen.getByLabelText("Maximum value", { exact: true }),
+      "0",
+    );
+    await user.click(
+      screen.getByRole("button", { name: /^create custom metric$/i }),
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Maximum value must be greater than minimum value.",
+    );
+    expect(createMetricDefinitionMock).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Name", { exact: true })).toHaveValue("Mood");
   });
 
   it("closes the custom metric dialog after a successful create", async () => {
@@ -524,6 +647,13 @@ describe("metrics route", () => {
         /metric definition with this slug already exists/i,
       ),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Advanced · Metric identifier/).closest("details"),
+    ).toHaveAttribute("open");
+    expect(screen.getByLabelText("Identifier", { exact: true })).toHaveValue(
+      "mood",
+    );
+    expect(screen.getByLabelText("Name", { exact: true })).toHaveValue("Mood");
   });
 
   it("shows the active custom metric limit error when custom metric creation is blocked", async () => {
@@ -618,7 +748,12 @@ describe("metrics route", () => {
       name: /metrics/i,
     });
 
+    await user.click(screen.getByText("⋯", { selector: "summary" }));
     await user.click(screen.getByRole("button", { name: /edit mood/i }));
+    expect(
+      screen.getByRole("dialog", { name: "Edit Mood" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /mood/i })).toBeInTheDocument();
     await user.clear(screen.getByLabelText(/mood name/i));
     await user.type(screen.getByLabelText(/mood name/i), "Mood Score");
     await user.clear(screen.getByLabelText(/mood unit/i));
@@ -697,23 +832,22 @@ describe("metrics route", () => {
       name: /metrics/i,
     });
 
-    await user.click(screen.getByRole("button", { name: /deactivate mood/i }));
+    await user.click(screen.getByText("⋯", { selector: "summary" }));
+    await user.click(screen.getByRole("button", { name: /archive mood/i }));
 
     expect(deactivateMetricDefinitionMutateAsyncMock).not.toHaveBeenCalled();
     expect(
-      screen.getByRole("dialog", { name: /deactivate mood/i }),
+      screen.getByRole("dialog", { name: /archive mood/i }),
     ).toHaveTextContent(/entries are kept/i);
 
-    await user.click(
-      screen.getByRole("button", { name: /^deactivate metric$/i }),
-    );
+    await user.click(screen.getByRole("button", { name: /^archive metric$/i }));
 
     expect(deactivateMetricDefinitionMutateAsyncMock).toHaveBeenCalledWith(
       "custom-metric-id",
     );
     expect(
       screen.queryByRole("button", {
-        name: /deactivate resting heart rate/i,
+        name: /archive resting heart rate/i,
       }),
     ).not.toBeInTheDocument();
   });
@@ -748,26 +882,19 @@ describe("metrics route", () => {
       name: /metrics/i,
     });
 
-    await user.click(screen.getByRole("button", { name: /deactivate mood/i }));
-    await user.click(
-      screen.getByRole("button", { name: /^deactivate metric$/i }),
-    );
+    await user.click(screen.getByText("⋯", { selector: "summary" }));
+    await user.click(screen.getByRole("button", { name: /archive mood/i }));
+    await user.click(screen.getByRole("button", { name: /^archive metric$/i }));
 
     expect(
       await screen.findByText(/metric definition request failed/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("dialog", { name: /deactivate mood/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /edit mood/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /deactivate mood/i }),
+      screen.getByRole("dialog", { name: /archive mood/i }),
     ).toBeInTheDocument();
   });
 
-  it("loads active metric definitions by default", async () => {
+  it("loads definitions including archives so filter counts stay accurate", async () => {
     vi.mocked(getMe).mockResolvedValue({
       email: "user@example.com",
     });
@@ -781,7 +908,7 @@ describe("metrics route", () => {
     });
 
     expect(useMetricDefinitionsQuery).toHaveBeenCalledWith({
-      includeInactive: false,
+      includeInactive: true,
     });
   });
 
@@ -800,7 +927,7 @@ describe("metrics route", () => {
       name: /metrics/i,
     });
 
-    await user.click(screen.getByRole("button", { name: /show archived/i }));
+    await user.click(screen.getByRole("button", { name: /^archived \(/i }));
 
     expect(useMetricDefinitionsQuery).toHaveBeenLastCalledWith({
       includeInactive: true,
@@ -845,16 +972,14 @@ describe("metrics route", () => {
       name: /metrics/i,
     });
 
-    await user.click(screen.getByRole("button", { name: /show archived/i }));
+    await user.click(screen.getByRole("button", { name: /^archived \(/i }));
 
     expect(
-      screen.getByRole("button", { name: "Hide archived" }),
-    ).toHaveAttribute("aria-expanded", "true");
-    const activeMetrics = screen.getByRole("region", {
-      name: "Custom metrics",
-    });
-    expect(activeMetrics).toHaveTextContent(/sleep score/i);
-    expect(activeMetrics).not.toHaveTextContent(/mood/i);
+      screen.getByRole("button", { name: "Archived (1)" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.queryByRole("region", { name: "Custom metrics" }),
+    ).not.toBeInTheDocument();
 
     const archivedMetrics = screen.getByRole("region", {
       name: /archived custom metrics/i,
@@ -869,9 +994,9 @@ describe("metrics route", () => {
       within(archivedMetrics).queryByRole("link", { name: /mood/i }),
     ).not.toBeInTheDocument();
     expect(
-      within(archivedMetrics).getByRole("button", { name: "Reactivate Mood" }),
-    ).toHaveTextContent(/^Reactivate$/);
-    await user.click(screen.getByRole("button", { name: "Hide archived" }));
+      within(archivedMetrics).getByRole("button", { name: "Restore Mood" }),
+    ).toHaveTextContent(/^Restore$/);
+    await user.click(screen.getByRole("button", { name: "All (1)" }));
     expect(
       screen.queryByRole("region", { name: "Archived custom metrics" }),
     ).not.toBeInTheDocument();
@@ -904,8 +1029,8 @@ describe("metrics route", () => {
       name: /metrics/i,
     });
 
-    await user.click(screen.getByRole("button", { name: /show archived/i }));
-    await user.click(screen.getByRole("button", { name: /reactivate mood/i }));
+    await user.click(screen.getByRole("button", { name: /^archived \(/i }));
+    await user.click(screen.getByRole("button", { name: /restore mood/i }));
 
     expect(reactivateMetricDefinitionMutateAsyncMock).toHaveBeenCalledWith(
       "inactive-metric-id",
@@ -942,15 +1067,15 @@ describe("metrics route", () => {
       name: /metrics/i,
     });
 
-    await user.click(screen.getByRole("button", { name: /show archived/i }));
-    await user.click(screen.getByRole("button", { name: /reactivate mood/i }));
+    await user.click(screen.getByRole("button", { name: /^archived \(/i }));
+    await user.click(screen.getByRole("button", { name: /restore mood/i }));
 
     expect(
       await screen.findByText(/metric definition request failed/i),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /mood/i })).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /reactivate mood/i }),
+      screen.getByRole("button", { name: /restore mood/i }),
     ).toBeInTheDocument();
   });
 });

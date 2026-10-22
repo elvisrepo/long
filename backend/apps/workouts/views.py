@@ -102,7 +102,9 @@ class PreferencesView(APIView):
         preferences = WorkoutPreferences.objects.filter(
             user=request.user
         ).first() or WorkoutPreferences(user=request.user)
-        serializer = PreferencesSerializer(preferences, data=request.data, partial=True)
+        serializer = PreferencesSerializer(
+            preferences, data=request.data, partial=True, context={"request": request}
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
@@ -202,8 +204,10 @@ class SessionsView(APIView):
         dates.is_valid(raise_exception=True)
         data = dates.validated_data
         workouts = Workout.objects.filter(
-            user=request.user, performed_on__range=(data["date_from"], data["date_to"])
+            user=request.user, performed_on__lte=data["date_to"]
         )
+        if not data["all_history"]:
+            workouts = workouts.filter(performed_on__gte=data["date_from"])
         if exercise_id := data.get("exercise_id"):
             get_object_or_404(Exercise, pk=exercise_id, category__user=request.user)
             workouts = workouts.filter(exercises__exercise_id=exercise_id).distinct()

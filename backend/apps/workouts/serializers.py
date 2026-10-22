@@ -24,9 +24,47 @@ class PlateSerializer(serializers.Serializer):
         max_value=Decimal("1000"),
     )
     count = serializers.IntegerField(min_value=0, max_value=100)
+    colour = serializers.RegexField(r"^#[0-9a-fA-F]{6}$", required=False)
+    enabled = serializers.BooleanField(required=False)
+
+
+class ExerciseBarSerializer(serializers.Serializer):
+    exercise_id = serializers.UUIDField()
+    weight_unit = serializers.ChoiceField(choices=["kg", "lb"])
+    weight = serializers.DecimalField(
+        max_digits=7,
+        decimal_places=3,
+        min_value=Decimal("0"),
+        max_value=Decimal("1000"),
+    )
 
 
 class PreferencesSerializer(serializers.ModelSerializer):
+    exercise_bars = ExerciseBarSerializer(many=True, max_length=500, required=False)
+
+    def validate_exercise_bars(
+        self, bars: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        ids = {bar["exercise_id"] for bar in bars}
+        owned = set(
+            Exercise.objects.filter(
+                pk__in=ids, category__user=self.context["request"].user
+            ).values_list("pk", flat=True)
+        )
+        if ids != owned:
+            raise serializers.ValidationError("Choose exercises from your library.")
+        keys = [(bar["exercise_id"], bar["weight_unit"]) for bar in bars]
+        if len(keys) != len(set(keys)):
+            raise serializers.ValidationError("Use one bar per exercise and unit.")
+        return [
+            {
+                **bar,
+                "exercise_id": str(bar["exercise_id"]),
+                "weight": str(bar["weight"]),
+            }
+            for bar in bars
+        ]
+
     plates_kg = PlateSerializer(
         many=True, max_length=20, allow_empty=True, required=False
     )
@@ -57,6 +95,7 @@ class PreferencesSerializer(serializers.ModelSerializer):
             "bar_lb",
             "plates_kg",
             "plates_lb",
+            "exercise_bars",
         ]
 
     def validate(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -68,8 +107,7 @@ class PreferencesSerializer(serializers.ModelSerializer):
                         {field: "Use each plate size only once."}
                     )
                 data[field] = [
-                    {"weight": str(plate["weight"]), "count": plate["count"]}
-                    for plate in data[field]
+                    {**plate, "weight": str(plate["weight"])} for plate in data[field]
                 ]
         return data
 
@@ -317,6 +355,12 @@ class WorkoutSerializer(serializers.ModelSerializer):
         elif action == "start" and instance.timer_started_at is None:
             instance.duration_seconds = instance.duration_seconds or 0
             instance.timer_started_at = now
+            if instance.workout_started_at is None:
+                instance.workout_started_at = now
+            instance.workout_ended_at = None
+        if "duration_seconds" in validated_data:
+            instance.workout_started_at = None
+            instance.workout_ended_at = None
         return super().update(instance, validated_data)
 
     def get_completed_set_count(self, obj: Workout) -> int:
@@ -334,6 +378,8 @@ class WorkoutSerializer(serializers.ModelSerializer):
             "is_finished",
             "duration_seconds",
             "timer_started_at",
+            "workout_started_at",
+            "workout_ended_at",
             "elapsed_seconds",
             "timer_server_now",
             "timer_action",
@@ -341,15 +387,31 @@ class WorkoutSerializer(serializers.ModelSerializer):
             "exercises",
             "completed_set_count",
         ]
-        read_only_fields = ["id", "created_at", "exercises", "timer_started_at"]
+        read_only_fields = [
+            "id",
+            "created_at",
+            "exercises",
+            "timer_started_at",
+            "workout_started_at",
+            "workout_ended_at",
+        ]
 
 
 class WorkoutRangeSerializer(serializers.Serializer):
-    date_from = serializers.DateField()
+    date_from = serializers.DateField(required=False)
+    all_history = serializers.BooleanField(default=False)
     date_to = serializers.DateField()
     exercise_id = serializers.UUIDField(required=False)
 
     def validate(self, data: dict[str, Any]) -> dict[str, Any]:
+        if data.get("all_history"):
+            if not data.get("exercise_id"):
+                raise serializers.ValidationError(
+                    "All-time history requires an exercise."
+                )
+            return data
+        if "date_from" not in data:
+            raise serializers.ValidationError({"date_from": "This field is required."})
         if not 0 <= (data["date_to"] - data["date_from"]).days <= 365:
             raise serializers.ValidationError("Choose a range of 1 to 366 days.")
         return data

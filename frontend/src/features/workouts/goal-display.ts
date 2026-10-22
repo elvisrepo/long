@@ -3,6 +3,8 @@ import { formatProgressValue } from "./workout-analysis";
 
 export const goalChoices: Record<GoalType, string> = {
   strength: "Weight and reps",
+  max_weight: "Max weight",
+  estimated_1rm: "Estimated 1RM (1–10 reps)",
   reps: "Reps in one set",
   distance: "Distance in one set",
   duration: "Duration in one set (at least)",
@@ -12,16 +14,20 @@ export const goalChoices: Record<GoalType, string> = {
 };
 export function goalTypesFor(type: TrackingType): GoalType[] {
   return {
-    strength: ["strength"],
+    strength: ["strength", "max_weight", "estimated_1rm", "reps"],
     bodyweight: ["reps"],
     cardio: ["distance", "duration", "max_speed", "best_pace", "distance_time"],
     duration: ["duration"],
   }[type] as GoalType[];
 }
 export function goalUnit(
-  goal: Pick<GoalDefinition, "goal_type" | "distance_unit">,
+  goal: Pick<GoalDefinition, "goal_type" | "distance_unit"> & {
+    weight_unit?: string;
+  },
 ): string {
   return {
+    max_weight: goal.weight_unit ?? "",
+    estimated_1rm: goal.weight_unit ?? "",
     reps: "reps",
     distance: goal.distance_unit,
     duration: "sec",
@@ -32,7 +38,9 @@ export function goalUnit(
   }[goal.goal_type ?? "strength"];
 }
 export function goalValue(
-  goal: Pick<GoalDefinition, "goal_type" | "distance_unit">,
+  goal: Pick<GoalDefinition, "goal_type" | "distance_unit"> & {
+    weight_unit?: string;
+  },
   value: string,
 ): string {
   return formatProgressValue(Number(Number(value).toFixed(3)), goalUnit(goal));
@@ -42,6 +50,8 @@ export function goalTitle(goal: GoalDefinition): string {
     return `At least ${Number(goal.target_distance)} ${goal.distance_unit} within ${goalTime(goal.target_duration_seconds!)} in one set`;
   if (!goal.goal_type || goal.goal_type === "strength")
     return `${Number(goal.target_weight)} ${goal.weight_unit} × ${goal.rep_rule === "exact" ? "exactly" : "at least"} ${goal.target_reps} reps`;
+  if (goal.goal_type === "estimated_1rm" || goal.goal_type === "max_weight")
+    return `${goalChoices[goal.goal_type]} · ${Number(goal.target_value)} ${goal.weight_unit}`;
   return `${goal.goal_type === "best_pace" ? "At most" : "At least"} ${goalValue(goal, goal.target_value!)} in one set`;
 }
 

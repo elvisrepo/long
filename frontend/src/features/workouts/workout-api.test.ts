@@ -7,6 +7,8 @@ import {
   deleteWorkoutItem,
   getProgressPage,
   copyWorkout,
+  copyWorkoutSets,
+  getExerciseHistoryPage,
 } from "./workout-api";
 
 afterEach(() => {
@@ -120,4 +122,31 @@ it("requires a bearer token and never fetches without one", async () => {
       }),
     }),
   );
+});
+
+it("requests all-time exercise history through the bounded owned sessions path", async () => {
+  setAccessToken("workout-token");
+  const fetcher = vi
+    .fn()
+    .mockResolvedValue(
+      new Response(JSON.stringify({ results: [], next: null })),
+    );
+  vi.stubGlobal("fetch", fetcher);
+  await getExerciseHistoryPage("exercise", "2026-10-22", 100);
+  expect(fetcher.mock.calls[0][0]).toBe(
+    "/api/v1/workouts/sessions/?all_history=true&exercise_id=exercise&date_to=2026-10-22&limit=100&offset=100",
+  );
+});
+it("copies only selected IDs into an existing exercise without completion fields", async () => {
+  setAccessToken("workout-token");
+  const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify([])));
+  vi.stubGlobal("fetch", fetcher);
+  await copyWorkoutSets("target", "source", ["s1"]);
+  expect(fetcher.mock.calls[0][0]).toBe(
+    "/api/v1/workouts/session-exercises/target/copy-sets/",
+  );
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({
+    source_workout_id: "source",
+    set_ids: ["s1"],
+  });
 });

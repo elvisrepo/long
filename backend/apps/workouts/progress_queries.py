@@ -33,6 +33,9 @@ METRICS = [
     "max_duration",
     "max_speed",
     "best_pace",
+    "workout_distance",
+    "workout_duration",
+    "rep_maxes",
 ]
 
 
@@ -61,7 +64,11 @@ def completed_sets(exercise: Exercise, through: date) -> QuerySet[WorkoutSet]:
 
 
 def progress_points(
-    rows: QuerySet[WorkoutSet], metric: str, reps: int = 5
+    rows: QuerySet[WorkoutSet],
+    metric: str,
+    reps: int = 5,
+    rep_limit: int = 10,
+    per_workout: bool = False,
 ) -> QuerySet[Any]:
     number = DecimalField(max_digits=24, decimal_places=3)
     if metric == "estimated_1rm":
@@ -70,7 +77,7 @@ def progress_points(
             weight__gt=0,
             weight__lte=10000,
             reps__gte=1,
-            reps__lte=10,
+            reps__lte=rep_limit,
         )
         value = Round(
             Case(
@@ -103,10 +110,10 @@ def progress_points(
             else duration / (distance * Value(Decimal(60))),
             precision=3,
         )
-    elif metric == "max_distance":
+    elif metric in ("max_distance", "workout_distance"):
         rows = rows.filter(tracking_type="cardio", distance__isnull=False)
         value = Cast(F("distance"), number)
-    elif metric == "max_duration":
+    elif metric in ("max_duration", "workout_duration"):
         rows = rows.filter(
             tracking_type__in=["cardio", "duration"], duration_seconds__isnull=False
         )
@@ -118,7 +125,12 @@ def progress_points(
         value = Cast(F("weight"), number)
         if metric == "max_weight_reps":
             rows = rows.filter(tracking_type="strength", reps=reps)
-    if metric in ("workout_volume", "workout_reps"):
+    if metric in (
+        "workout_volume",
+        "workout_reps",
+        "workout_distance",
+        "workout_duration",
+    ):
         return (
             rows.values("date", *PARTITION, "workout_id", "name")
             .annotate(value=Sum(value))
@@ -129,7 +141,10 @@ def progress_points(
         .annotate(
             rank=Window(
                 RowNumber(),
-                partition_by=[F(field) for field in [*PARTITION, "date"]],
+                partition_by=[
+                    F(field)
+                    for field in [*PARTITION, "workout_id" if per_workout else "date"]
+                ],
                 order_by=[
                     F("value").asc() if metric == "best_pace" else F("value").desc(),
                     *[F(field).asc() for field in CHRONOLOGY],
@@ -137,7 +152,7 @@ def progress_points(
             ),
         )
         .filter(rank=1)
-        .order_by("date", *PARTITION)
+        .order_by("date", *PARTITION, "workout_id")
         .values(*SOURCE_FIELDS, "value")
     )
 
@@ -217,7 +232,7 @@ def record_json(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def point_json(row: dict[str, Any]) -> dict[str, Any]:
+def point_json(row: dict[str, Any], include_session: bool = False) -> dict[str, Any]:
     return {
         "date": row["date"].isoformat(),
         "tracking_type": row["tracking_type"],
@@ -227,7 +242,7 @@ def point_json(row: dict[str, Any]) -> dict[str, Any]:
         "source": source(row) if "set_id" in row else None,
         **(
             {"session": row["name"], "workout_id": str(row["workout_id"])}
-            if "set_id" not in row
+            if "set_id" not in row or include_session
             else {}
         ),
     }

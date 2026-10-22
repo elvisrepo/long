@@ -238,6 +238,8 @@ it("supports cardio distance/time without mixing strength, bodyweight or frozen 
     ],
   });
   expect(progressMetrics(["cardio"]).map((option) => option.value)).toEqual([
+    "workout_distance",
+    "workout_duration",
     "max_distance",
     "max_duration",
     "max_speed",

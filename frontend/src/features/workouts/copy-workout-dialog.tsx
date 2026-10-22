@@ -31,7 +31,7 @@ export function CopyWorkoutDialog({
     );
   const [selection, setSelection] = useState<Record<string, string[]>>(all);
   const [date, setDate] = useState(destination);
-  const [preview, setPreview] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const locked = busy || pending;
@@ -75,158 +75,140 @@ export function CopyWorkoutDialog({
     });
   }
   return (
-    <Modal labelledBy="copy-selection-title" busy={locked} onClose={onClose}>
-      <h2 id="copy-selection-title">Copy {source.name || "Workout"}</h2>
-      <p>
-        Source: {dayLabel(source.performed_on)}. Choose what to copy into a
-        separate workout. The original stays unchanged.
+    <Modal
+      labelledBy="copy-selection-title"
+      className="workout-share-modal workout-copy-modal"
+      busy={locked}
+      onClose={onClose}
+    >
+      <h2 id="copy-selection-title">Copy workout</h2>
+      <p className="workout-copy-dates">
+        {dayLabel(source.performed_on)} → {dayLabel(date)}
       </p>
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          if (preview) submit();
-          else if (selected.length) {
-            setPreview(true);
-            setError("");
-          }
+          submit();
         }}
       >
-        <label>
-          Copy to date
-          <input
-            type="date"
-            required
-            value={date}
-            disabled={locked || preview}
-            onChange={(event) => setDate(event.target.value)}
-          />
-        </label>
-        <p>
-          Completion, workout notes and set comments are not copied. All copied
-          sets start planned.
-        </p>
-        {preview ? (
-          <section
-            role="region"
-            aria-label="Copy preview"
-            className="workout-stack"
-          >
-            <h3>Copy preview</h3>
-            <p>
-              {selected.length} exercises · {setCount} planned sets ·{" "}
-              {dayLabel(date)}
+        {editing && (
+          <section className="workout-copy-edit" aria-label="Copy settings">
+            <label>
+              Copy to date
+              <input
+                type="date"
+                required
+                value={date}
+                disabled={locked}
+                onChange={(event) => setDate(event.target.value)}
+              />
+            </label>
+            {onBack && (
+              <button type="button" disabled={locked} onClick={onBack}>
+                Choose another workout
+              </button>
+            )}
+            <p className="workout-note">
+              Copies start as planned sets. Notes and comments stay with the
+              original.
             </p>
-            {selected.map((item) => (
-              <div
-                key={item.id}
-                className={`workout-inset${item.group_name ? " workout-group-mark" : ""}`}
-                style={
-                  item.group_name
-                    ? { borderInlineStartColor: item.group_colour ?? "#007f68" }
-                    : undefined
-                }
-              >
-                <h4>{item.exercise_name}</h4>
-                {item.group_name && (
-                  <p className="workout-note">{item.group_name}</p>
-                )}
-                {item.sets
-                  .filter((s) => selection[item.id].includes(s.id))
-                  .map((s) => (
-                    <p key={s.id}>{setLabel(item, s)}</p>
-                  ))}
-                {!selection[item.id].length && <p>No sets — exercise only</p>}
-              </div>
-            ))}
           </section>
-        ) : (
-          <div className="workout-stack">
-            <div className="workout-actions">
-              <button
-                type="button"
-                disabled={locked}
-                onClick={() => setSelection(all())}
-              >
-                Select all
-              </button>
-              <button
-                type="button"
-                disabled={locked}
-                onClick={() => setSelection({})}
-              >
-                Clear selection
-              </button>
-            </div>
-            {!source.exercises.length && <p>No exercises to copy.</p>}
-            {source.exercises.map((item, index) => (
-              <fieldset
-                className="workout-copy-item"
-                key={item.id}
-                disabled={locked}
-              >
-                <legend>
-                  Exercise {index + 1}: {item.exercise_name}
-                </legend>
-                <label className="workout-copy-choice">
+        )}
+        <section
+          className="workout-share-selection"
+          aria-label="Copy selection"
+        >
+          <label className="workout-share-all">
+            <span>Select all</span>
+            <input
+              type="checkbox"
+              aria-label="Select all"
+              checked={full && selected.length > 0}
+              disabled={locked || !source.exercises.length}
+              ref={(input) => {
+                if (input) input.indeterminate = selected.length > 0 && !full;
+              }}
+              onChange={() => setSelection(full ? {} : all())}
+            />
+          </label>
+          {!source.exercises.length && <p>No exercises to copy.</p>}
+          {source.exercises.map((item, index) => {
+            const included = selection[item.id] !== undefined;
+            const complete =
+              included && selection[item.id].length === item.sets.length;
+            return (
+              <section key={item.id}>
+                <label className="workout-share-heading">
+                  <strong>{item.exercise_name}</strong>
                   <input
                     type="checkbox"
-                    checked={selection[item.id] !== undefined}
+                    disabled={locked}
+                    checked={complete}
                     aria-label={`Include exercise ${index + 1}: ${item.exercise_name}`}
-                    onChange={(event) =>
+                    ref={(input) => {
+                      if (input) input.indeterminate = included && !complete;
+                    }}
+                    onChange={() =>
                       setSelection((old) => {
                         const next = { ...old };
-                        if (event.target.checked)
-                          next[item.id] = item.sets.map((s) => s.id);
-                        else delete next[item.id];
+                        if (complete) delete next[item.id];
+                        else next[item.id] = item.sets.map((set) => set.id);
                         return next;
                       })
                     }
                   />
-                  Include exercise (selects all its sets)
                 </label>
-                {item.group_name && (
-                  <p className="workout-note">{item.group_name}</p>
-                )}
-                {!item.sets.length && <p>No sets — exercise only</p>}
-                {item.sets.map((s, n) => (
-                  <label key={s.id} className="workout-copy-choice">
+                {item.sets.map((set, n) => (
+                  <label className="workout-share-set" key={set.id}>
+                    <span className="workout-share-number">{n + 1}</span>
+                    <span className="workout-share-values">
+                      {setLabel(item, set)}
+                    </span>
+                    <span />
                     <input
                       type="checkbox"
-                      checked={selection[item.id]?.includes(s.id) ?? false}
-                      aria-label={`Include exercise ${index + 1} set ${n + 1}: ${setLabel(item, s)}`}
+                      disabled={locked}
+                      checked={selection[item.id]?.includes(set.id) ?? false}
+                      aria-label={`Include exercise ${index + 1} set ${n + 1}: ${setLabel(item, set)}`}
                       onChange={(event) =>
                         setSelection((old) => ({
                           ...old,
                           [item.id]: event.target.checked
                             ? item.sets
                                 .filter(
-                                  (set) =>
-                                    set.id === s.id ||
-                                    old[item.id]?.includes(set.id),
+                                  (candidate) =>
+                                    candidate.id === set.id ||
+                                    old[item.id]?.includes(candidate.id),
                                 )
-                                .map((set) => set.id)
-                            : (old[item.id] ?? []).filter((id) => id !== s.id),
+                                .map((candidate) => candidate.id)
+                            : (old[item.id] ?? []).filter(
+                                (id) => id !== set.id,
+                              ),
                         }))
                       }
                     />
-                    <span>
-                      Set {n + 1}: {setLabel(item, s)}
-                    </span>
                   </label>
                 ))}
-                {selection[item.id]?.length === 0 && item.sets.length > 0 && (
-                  <p>
-                    Exercise only selected. Uncheck Include exercise to omit it
-                    entirely.
+                {!item.sets.length && (
+                  <p className="workout-note workout-share-empty">
+                    No sets — exercise only
                   </p>
                 )}
-              </fieldset>
-            ))}
-            <p role="status">
-              {selected.length} exercises · {setCount} sets selected
-            </p>
-          </div>
-        )}
+                {included &&
+                  !selection[item.id].length &&
+                  item.sets.length > 0 && (
+                    <p className="workout-note workout-share-empty">
+                      Exercise only selected
+                    </p>
+                  )}
+              </section>
+            );
+          })}
+        </section>
+        <p className="workout-note" role="status">
+          {selected.length} exercises · {setCount} sets selected · Copied sets
+          start planned
+        </p>
         {pending && <p role="status">Copying workout…</p>}
         {error && (
           <>
@@ -234,34 +216,28 @@ export function CopyWorkoutDialog({
               {error}
             </p>
             <p className="workout-note">
-              If the connection dropped, check the destination date before
-              retrying: the copy might already have been saved.
+              Check the destination date before retrying if the connection
+              dropped.
             </p>
           </>
         )}
-        <div className="workout-actions">
+        <div className="workout-share-footer">
+          <button type="button" disabled={locked} onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={locked}
+            aria-expanded={editing}
+            onClick={() => setEditing(!editing)}
+          >
+            Edit
+          </button>
           <button
             className="primary-button"
             disabled={locked || !selected.length}
           >
-            {preview ? "Create planned workout" : "Preview copy"}
-          </button>
-          {preview && (
-            <button
-              type="button"
-              disabled={locked}
-              onClick={() => setPreview(false)}
-            >
-              Edit selection
-            </button>
-          )}
-          {onBack && (
-            <button type="button" disabled={locked} onClick={onBack}>
-              Choose another workout
-            </button>
-          )}
-          <button type="button" disabled={locked} onClick={onClose}>
-            Cancel
+            Copy
           </button>
         </div>
       </form>
