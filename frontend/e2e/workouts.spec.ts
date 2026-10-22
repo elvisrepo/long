@@ -487,3 +487,144 @@ test("mobile exercise editor leads with stepped inputs and Save/Clear", async ({
     fullPage: true,
   });
 });
+
+for (const width of [390, 1440]) {
+  test(`selects, drags and deletes workout exercises at ${width}px`, async ({
+    page,
+  }) => {
+    await fixture(page);
+    await page.setViewportSize({ width, height: 950 });
+    const items = ["Bench", "Row", "Press"].map((name, index) => ({
+      id: `44444444-4444-4444-8444-${String(index + 1).padStart(12, "0")}`,
+      exercise_id: exerciseId,
+      exercise_name: name,
+      category_name: "Chest",
+      tracking_type: "strength",
+      weight_unit: "kg",
+      distance_unit: "km",
+      display_order: index * 10,
+      sets: [],
+    }));
+    const saved = {
+      id: sessionId,
+      name: "Workout",
+      performed_on: date,
+      notes: "",
+      is_finished: false,
+      created_at: "",
+      completed_set_count: 0,
+      exercises: items,
+    };
+    const writes: Record<string, unknown>[] = [];
+    await page.route(/\/api\/v1\/workouts\/sessions\//, async (route) => {
+      const req = route.request();
+      if (req.method() === "POST") {
+        const data = req.postDataJSON();
+        writes.push(data);
+        saved.exercises =
+          data.action === "delete"
+            ? saved.exercises.filter(
+                (item) => !data.exercise_ids.includes(item.id),
+              )
+            : data.exercise_ids.map(
+                (id: string) => saved.exercises.find((item) => item.id === id)!,
+              );
+        await route.fulfill({ json: saved });
+      } else
+        await route.fulfill({
+          json: new URL(req.url()).pathname.endsWith(`/${sessionId}/`)
+            ? saved
+            : { count: 1, next: null, previous: null, results: [saved] },
+        });
+    });
+    await page.goto("/workouts?date=" + date);
+    await page.getByLabel("Color theme").selectOption("light");
+    const bench = page.getByRole("button", { name: "Open Bench", exact: true });
+    const bounds = (await bench.boundingBox())!;
+    await page.mouse.move(bounds.x + 30, bounds.y + 25);
+    await page.mouse.down();
+    await expect(
+      page.getByRole("toolbar", { name: "Selected exercises" }),
+    ).toContainText("1 exercise selected");
+    await page.mouse.up();
+    expect(writes).toHaveLength(0);
+    const handle = (await page
+      .getByRole("button", { name: "Reorder Bench" })
+      .boundingBox())!;
+    const row = (await page
+      .getByRole("button", { name: "Select Row", exact: true })
+      .boundingBox())!;
+    await page.mouse.move(
+      handle.x + handle.width / 2,
+      handle.y + handle.height / 2,
+    );
+    await page.mouse.down();
+    const benchBefore = (await page
+      .getByRole("button", { name: "Select Bench", exact: true })
+      .boundingBox())!;
+    await page.mouse.move(row.x + row.width / 2, row.y + row.height / 2, {
+      steps: 5,
+    });
+    await expect
+      .poll(
+        async () =>
+          (await page
+            .getByRole("button", { name: "Select Bench", exact: true })
+            .boundingBox())!.y,
+      )
+      .toBeGreaterThan(benchBefore.y + 20);
+    await expect
+      .poll(
+        async () =>
+          (await page
+            .getByRole("button", { name: "Select Row", exact: true })
+            .boundingBox())!.y,
+      )
+      .toBeLessThan(row.y - 20);
+    expect(writes).toHaveLength(0);
+    await page.screenshot({
+      path: `test-results/workouts/dragging-${width}.png`,
+      fullPage: true,
+    });
+    await page.mouse.up();
+    await expect.poll(() => writes.length).toBe(1);
+    expect(writes[0]).toEqual({
+      action: "reorder",
+      exercise_ids: [items[1].id, items[0].id, items[2].id],
+      expected_order: items.map((item) => item.id),
+    });
+    await expect(
+      page.getByRole("button", { name: "Select Row", exact: true }),
+    ).toBeEnabled();
+    await page.getByRole("button", { name: "Select Row", exact: true }).click();
+    await expect(
+      page.getByRole("toolbar", { name: "Selected exercises" }),
+    ).toContainText("2 exercises selected");
+    await page.screenshot({
+      path: `test-results/workouts/selection-${width}.png`,
+      fullPage: true,
+    });
+    await page
+      .getByRole("button", { name: "Delete selected", exact: true })
+      .click();
+    expect(writes).toHaveLength(1);
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Delete selected", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Confirm exercise deletion", exact: true })
+      .click();
+    await expect.poll(() => writes.length).toBe(2);
+    expect(writes[1]).toEqual({
+      action: "delete",
+      exercise_ids: [items[1].id, items[0].id],
+    });
+    await expect(
+      page.getByRole("button", { name: "Open Press", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Open Bench", exact: true }),
+    ).toHaveCount(0);
+  });
+}

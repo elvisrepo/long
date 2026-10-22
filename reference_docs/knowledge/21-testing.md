@@ -2062,3 +2062,27 @@ The compact checklist test verifies secondary Edit/date access and one explicit
 copy request. Calendar filters remain covered on the main Calendar page. Real
 saved-workout checks at 320/390/768/1440px verify source calendar, selection,
 Edit/date and return-to-calendar with no overflow, JS errors or tracker writes.
+
+### Exercise selection and atomic drag order — 2026-10-22
+
+The 667 frontend tests pass, including long-press suppression of editor opening,
+selection extension, cancelled pointers, finished-session protection, confirmation,
+failed deletion retention/retry and keyboard order snapshots. Six browser journeys
+pass: the new 390/1440px journeys hold a card, drag its handle, verify one reorder,
+cancel deletion, then confirm a selected deletion with mocked records. The 86-test
+backend workout mutation slice checks ownership, authentication, finished state,
+duplicate IDs, all-or-nothing deletion and stale-order rejection with set
+preservation. Lint, Ruff and build pass. Real touch emulation at 320/390/768/1440px
+checks long-press, multi-select and confirmation/cancel against saved workouts,
+with no overflow, JS errors or tracker writes. No migration is required.
+
+### Animated drag regression — 2026-10-22
+
+Browser tests now reproduce the former static drag and assert that the dragged
+card moves down and its neighbour moves up before release, with zero writes.
+The six workout browser journeys pass. The frontend suite passes 668 tests;
+the additional failed-drag rollback test passes in the six-test focused log suite.
+Component checks include uneven heights, cancellation without saves, and rollback
+without changing the saved sequence. Lint/build pass. Real touch checks at
+320/390/768/1440px lift/drag a saved exercise and cancel before drop, observing no
+overflow, JavaScript errors or tracker writes. No backend contract changes.

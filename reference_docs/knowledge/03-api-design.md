@@ -1401,3 +1401,17 @@ coordinator, or declares/requests READ_ACTIVE_CALORIES_BURNED. This does not
 restrict user-owned custom metrics or remove Distance. Current Android sync
 requires the original five read permissions plus Distance and Total Calories.
 Earlier Active Calories acceptance notes describe historical implementation.
+
+### Workout exercise selection actions — 2026-10-22
+
+`POST /api/v1/workouts/sessions/{uuid}/exercises/bulk/` requires JWT and an
+owned, open workout. The request is either `{action:"delete", exercise_ids:[UUID]}`
+or `{action:"reorder", exercise_ids:[UUID], expected_order:[UUID]}`. IDs must be
+nonempty and unique. Reorder supplies every exercise once and the original visible
+order; a changed order returns `409` without writes. Missing/foreign selections
+return `404`, invalid input or finished workouts `400`, unauthenticated `401`.
+Unknown request fields are rejected. Deletion removes only selected occurrences
+and their sets, retaining the session, library and other occurrences. Both actions
+are atomic under the existing per-user mutation lock and return the full workout
+(`200`). Reorder normalizes display_order to 10,20,… and preserves sets/groups.
+No database migration. Existing individual delete/move endpoints remain available.

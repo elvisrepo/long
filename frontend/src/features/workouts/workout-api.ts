@@ -447,6 +447,19 @@ export function deleteWorkoutItem(
 ): Promise<void> {
   return request(`${kind}/${encodeURIComponent(id)}/`, "DELETE");
 }
+export function actOnWorkoutExercises(
+  workoutId: string,
+  data:
+    | { action: "delete"; exercise_ids: string[] }
+    | { action: "reorder"; exercise_ids: string[]; expected_order: string[] },
+): Promise<Workout> {
+  return request(
+    `sessions/${encodeURIComponent(workoutId)}/exercises/bulk/`,
+    "POST",
+    data,
+  );
+}
+
 export function reorderWorkoutExercise(
   id: string,
   display_order: number,

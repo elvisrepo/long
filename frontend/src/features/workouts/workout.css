@@ -1572,3 +1572,90 @@
 .workout-copy-picker .workout-calendar-grid .planned {
   color: #b77925;
 }
+
+.workout-selection-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  background: #e5f3ef;
+  border: 1px solid #85bdaf;
+  border-radius: 0.7rem;
+  padding: 0.65rem;
+  margin-bottom: 0.65rem;
+}
+.workout-selection-toolbar strong {
+  flex: 1 1 10rem;
+  font-size: 0.85rem;
+}
+.workout-selection-toolbar button {
+  padding-inline: 0.65rem;
+  font-size: 0.8rem;
+}
+.workout-exercise-log .workout-home-exercise {
+  position: relative;
+}
+.workout-exercise-log .workout-home-exercise.is-selected {
+  background: #e3f3ee;
+  border-color: #409f85;
+}
+.workout-exercise-log .workout-home-exercise.is-drop-target {
+  outline: 2px dashed #007f68;
+  outline-offset: 2px;
+}
+.workout-drag-handle {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.4rem;
+  cursor: grab;
+  touch-action: none;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+.workout-exercise-log
+  .workout-home-exercise:has(.workout-drag-handle)
+  .workout-home-exercise-heading {
+  padding-right: 3rem;
+}
+.workout-exercise-log .workout-home-exercise-link {
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+.workout-home .workout-exercise-log .workout-home-exercise-link {
+  background: var(--panel-bg);
+  -webkit-tap-highlight-color: transparent;
+}
+.workout-home .workout-exercise-log .is-selected .workout-home-exercise-link,
+.workout-home
+  .workout-exercise-log
+  .is-selected
+  .workout-home-exercise-heading {
+  background: #e3f3ee;
+  border-color: #409f85;
+}
+.workout-drag-handle {
+  font-size: 1.1rem;
+}
+
+.workout-exercise-log .workout-home-exercise {
+  transition:
+    transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 180ms ease;
+}
+.workout-exercise-log .workout-home-exercise.is-dragging {
+  transition: box-shadow 120ms ease;
+  box-shadow: 0 0.75rem 1.75rem #193e342b;
+  border-radius: 0.75rem;
+  will-change: transform;
+}
+.workout-exercise-log .is-dragging .workout-drag-handle {
+  cursor: grabbing;
+}
+.workout-exercise-log .workout-home-exercise.is-settling {
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .workout-exercise-log .workout-home-exercise {
+    transition: none !important;
+  }
+}

@@ -714,3 +714,29 @@ directly, without a separate preview step. Copied records remain planned, notes
 and comments stay on the original, and empty exercise copies remain supported.
 Pending actions are locked; a failed save retains selection/date for retry.
 No API, route or backend changes.
+
+### Workout overview selection and drag order — 2026-10-22
+
+A 500ms press-and-hold selects an exercise without opening its editor. Movement,
+pointer cancellation and leaving the card cancel the hold. Subsequent taps toggle
+selection; a toolbar offers Select all/Clear selection, Delete selected and Done.
+Deletion confirms exercise names and affected set counts, then uses one atomic
+request. A failed save keeps the selection/confirmation. The original workout and
+exercise library remain; only selected occurrences and their sets are removed.
+
+Selection mode exposes pointer drag handles (touch/mouse). Drop saves a complete
+order with its original-order snapshot; stale orders are rejected, and failures
+leave the server-confirmed arrangement visible. Focused handles support Up/Down
+keys. Right-click/Shift+F10 or Manage workout → Select exercises provide alternate
+entry. Escape/Done exits selection. Finished sessions must be reopened first.
+
+### Animated exercise drag feedback — 2026-10-22
+
+Dragging lifts the exercise with a shadow and follows the pointer vertically.
+Other cards project into their new slots with 180ms transitions using measured
+heights and gaps, including uneven set counts. No request occurs while dragging.
+Drop settles the dragged card, then the server-confirmed order replaces the
+visual projection without a second jump. Failed saves animate back to the prior
+order. Cancellation discards the projection without writes. Reduced-motion
+preferences disable transitions. The existing atomic order/snapshot API is
+unchanged; no new dependency or backend change.

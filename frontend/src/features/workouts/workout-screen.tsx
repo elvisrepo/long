@@ -4,13 +4,13 @@ import { PageHeader } from "../../components/page-header";
 import { PageState } from "../../components/page-state";
 import { Modal } from "../../components/modal";
 import { WorkoutExportDialog } from "./workout-export-dialog";
+import { WorkoutExerciseLog } from "./workout-exercise-log";
 import { WorkoutTiming } from "./workout-timing";
 import { useMeQuery } from "../auth/use-me-query";
 import * as api from "./workout-api";
 import {
   dayLabel,
   localDay,
-  setLabel,
   shiftDay,
   type NavigateWorkout,
   type RunAction,
@@ -605,6 +605,7 @@ function SessionCard({
   run: RunAction;
   navigate: NavigateWorkout;
 }) {
+  const [selecting, setSelecting] = useState(false);
   const [managing, setManaging] = useState(false);
   const [dialog, setDialog] = useState<
     "edit" | "delete" | "copy" | "routine" | "export" | "time" | null
@@ -698,77 +699,21 @@ function SessionCard({
           </button>
         </Modal>
       )}
-      <div className="workout-home-exercises">
-        {w.exercises.map((item) => (
-          <div
-            key={item.id}
-            className={`workout-home-exercise${item.group_name ? " workout-group-mark" : ""}`}
-            style={
-              item.group_name
-                ? { borderInlineStartColor: item.group_colour ?? "#007f68" }
-                : undefined
-            }
-          >
-            <button
-              className="workout-home-exercise-link"
-              aria-label={`Open ${item.exercise_name}`}
-              aria-describedby={`home-sets-${item.id}`}
-              disabled={busy}
-              onClick={() =>
-                (openExercise ?? navigate)({
-                  view: "training",
-                  date: w.performed_on,
-                  session: w.id,
-                  exercise: item.id,
-                })
-              }
-            >
-              <span className="workout-home-exercise-heading">
-                <strong>{item.exercise_name}</strong>
-              </span>
-              {item.group_name && (
-                <span className="workout-badge">{item.group_name}</span>
-              )}
-              <span id={`home-sets-${item.id}`} className="workout-home-sets">
-                {item.sets.map((set, i) => (
-                  <span
-                    className={`workout-home-set-row${item.tracking_type === "strength" ? " is-strength" : ""}`}
-                    key={set.id}
-                  >
-                    <span className="visually-hidden">Set {i + 1}</span>
-                    {item.tracking_type === "strength" ? (
-                      <>
-                        <strong>
-                          {set.weight == null ? "—" : Number(set.weight)}{" "}
-                          <small>{item.weight_unit}</small>
-                        </strong>
-                        <span>
-                          <b>{set.reps ?? "—"}</b> <small>reps</small>
-                        </span>
-                      </>
-                    ) : (
-                      <strong>{setLabel(item, set)}</strong>
-                    )}
-                    <span
-                      className={`visually-hidden workout-home-set-status workout-status--${set.is_completed ? "completed" : "planned"}`}
-                    >
-                      {set.is_completed ? "Completed" : "Planned"}
-                    </span>
-                    {set.comment && (
-                      <span className="visually-hidden workout-home-set-comment">
-                        {set.comment}
-                      </span>
-                    )}
-                  </span>
-                ))}
-                {!item.sets.length && (
-                  <span className="workout-note">No sets yet</span>
-                )}
-              </span>
-            </button>
-          </div>
-        ))}
-      </div>
+      <WorkoutExerciseLog
+        workout={w}
+        busy={busy}
+        run={run}
+        selecting={selecting}
+        onDone={() => setSelecting(false)}
+        onOpen={(id) =>
+          (openExercise ?? navigate)({
+            view: "training",
+            date: w.performed_on,
+            session: w.id,
+            exercise: id,
+          })
+        }
+      />
       {managing && (
         <Modal
           labelledBy={`workout-manage-${w.id}`}
@@ -776,6 +721,15 @@ function SessionCard({
           onClose={() => setManaging(false)}
         >
           <h2 id={`workout-manage-${w.id}`}>Manage workout</h2>
+          <button
+            disabled={busy || w.is_finished || !w.exercises.length}
+            onClick={() => {
+              setManaging(false);
+              setSelecting(true);
+            }}
+          >
+            Select exercises
+          </button>
           {w.exercises.map((item, index) => (
             <section className="workout-inset" key={item.id}>
               <h3>{item.exercise_name}</h3>
