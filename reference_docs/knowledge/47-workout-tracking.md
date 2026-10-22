@@ -842,3 +842,29 @@ a default bar and exercise/unit-specific bars. Counts start at zero for unknown
 inventory; enabling a zero-count row starts with a pair. Saving is explicit and
 account-owned. Cancelling settings discards the draft. Other units remain intact.
 The additive equipment contract and migration are documented in 03-api-design.md.
+
+### Compact Training history — 2026-10-22
+
+History in Training is now a date-grouped set list with inline comments, planned
+labels and current observed PR markers. The current workout remains visible.
+History loads all-time exercise sessions through the selected workout date in
+100-session pages, with Load older sessions rather than the former 90-day cutoff.
+Record markers use the existing all-time current-record read and completed source
+set IDs; record failures do not hide the logged sets. Unit/type snapshots remain
+unchanged and separate when calculating workout totals.
+
+Tapping a date opens exercise totals and View workout / Edit sets / Copy sets.
+Totals exclude plans. Edit sets uses the existing reviewed bulk editor with that
+workout's sets selected, up to its 100-set bound. Tapping a set opens estimated
+1RM and volume for eligible strength lifts, speed/pace for cardio, or duration.
+It also shows the full saved comment, Edit set and Copy set. The focused historical
+editor preserves completion and retains failed drafts. Source workouts must be
+reopened before edits. View workout returns to the full date/workout overview.
+
+Copy opens a selection dialog, preselecting the chosen set or compatible sets in
+the chosen workout. Up to 100 selected sets append atomically to the current
+exercise, including repeated matching source occurrences in saved order. Copies
+start planned without comments and do not fire rest/group completion events.
+Finished targets and mismatched frozen type/units are blocked. Source sets, dates,
+workout count and timing remain intact. See 03-api-design.md for the additive
+all-history read mode and copy-to-current endpoint. No new migration is needed.

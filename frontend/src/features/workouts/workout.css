@@ -2185,3 +2185,100 @@
   overflow-y: auto;
   margin-bottom: 1rem;
 }
+
+.workout-training-history {
+  display: grid;
+  gap: 1.25rem;
+}
+.workout-training-history .workout-history-date {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+  text-align: start;
+  border: 0;
+  border-bottom: 1px solid #9ccfc3;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.6rem 0;
+}
+.workout-training-history .workout-history-set {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  width: 100%;
+  gap: 0.2rem 0.5rem;
+  text-align: start;
+  border: 0;
+  border-bottom: 1px solid #edf1f3;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.6rem 0.25rem;
+  min-height: 44px;
+}
+.workout-training-history .workout-history-set:hover:not(:disabled) {
+  background: #f2f7f6;
+}
+.workout-training-history .workout-history-set.is-planned {
+  color: var(--text-dim);
+}
+.workout-history-markers {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--accent);
+  font-size: 0.85rem;
+}
+.workout-history-values {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem 2rem;
+}
+.workout-history-values > span {
+  text-align: end;
+  min-width: 4rem;
+}
+.workout-history-comment {
+  grid-column: 2;
+  text-align: start;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.workout-history-stats {
+  display: grid;
+  gap: 1rem;
+  margin-block: 1.25rem;
+}
+.workout-history-stats dt {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.workout-history-stats dd {
+  margin: 0.2rem 0 0;
+  color: var(--text-dim);
+}
+.workout-history-dialog-actions {
+  display: grid;
+  gap: 0.4rem;
+  margin-block: 1.25rem;
+}
+.workout-history-dialog-actions button {
+  text-align: start;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+}
+.workout-history-full-comment {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.workout-history-copy-list {
+  display: grid;
+  gap: 0.5rem;
+  max-height: 22rem;
+  overflow-y: auto;
+  margin-block: 1rem;
+}

@@ -529,3 +529,13 @@ before preference writes. Account export includes the saved metadata and account
 deletion removes it through the existing preferences cascade. Calculator record
 queries include the account in the frontend cache key and filter saved units;
 no automatic unit conversion or completion side effects are introduced.
+
+Training history/copy (2026-10-22): the all-time sessions mode requires an owned
+exercise and retains the 100-row pagination cap. Client pagination constructs its
+own same-origin path rather than following returned next URLs. History and PR
+cache keys include the account. Copy-to-current holds the existing owner row lock
+and validates owned source/target, every selected set and identical frozen
+exercise/type/units before any insert. Limit 100 unique sets; unknown performance
+fields reject. Finished targets cannot receive sets. Copies start planned with
+cleared comments and never start timing or fire completion effects. Source data
+and other accounts remain unchanged; no partial append occurs on validation error.

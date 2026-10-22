@@ -1023,3 +1023,174 @@ test("focused calculators plan sets and preserve coloured equipment and exercise
     "rgb(37, 99, 235)",
   );
 });
+
+test("training history shows date and set stats, edits history and copies into the current exercise", async ({
+  page,
+}) => {
+  await fixture(page, { auto_start_rest: true });
+  await page.setViewportSize({ width: 390, height: 950 });
+  await page.goto("/workouts?date=" + date);
+  await page.getByLabel("Color theme").selectOption("light");
+  await page
+    .getByRole("button", { name: "Start new workout", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Add Barbell bench press", exact: true })
+    .click();
+  const sets = [70, 80].map((weight, index) => ({
+    id: `77777777-7777-4777-8777-${String(index + 1).padStart(12, "0")}`,
+    display_order: index * 10,
+    weight: String(weight),
+    reps: 5,
+    distance: null,
+    duration_seconds: null,
+    comment: index === 0 ? "Good form" : "",
+    is_completed: true,
+  }));
+  const sourceId = "88888888-8888-4888-8888-888888888888",
+    sourceItem = "99999999-9999-4999-8999-999999999999";
+  const occurrence = {
+    id: sourceItem,
+    exercise_id: exerciseId,
+    exercise_name: "Barbell bench press",
+    category_name: "Chest",
+    tracking_type: "strength",
+    weight_unit: "kg",
+    distance_unit: "km",
+    display_order: 10,
+    sets,
+  };
+  const old = {
+    id: sourceId,
+    name: "Bench day",
+    performed_on: "2020-01-01",
+    notes: "",
+    is_finished: false,
+    completed_set_count: 2,
+    created_at: "",
+    exercises: [occurrence],
+  };
+  let copied: typeof sets = [];
+  await page.route(/\/sessions\/\?/, (route) =>
+    new URL(route.request().url()).searchParams.get("all_history") === "true"
+      ? route.fulfill({
+          json: { count: 1, next: null, previous: null, results: [old] },
+        })
+      : route.fallback(),
+  );
+  await page.route(`**/sessions/${sessionId}/`, (route) =>
+    route.fulfill({
+      json: {
+        ...old,
+        id: sessionId,
+        name: "Current workout",
+        performed_on: date,
+        completed_set_count: 0,
+        exercises: [{ ...occurrence, id: itemId, sets: copied }],
+      },
+    }),
+  );
+  await page.route("**/records/?*", (route) =>
+    route.fulfill({
+      json: {
+        count: 1,
+        next: null,
+        previous: null,
+        results: [
+          {
+            date: old.performed_on,
+            value: "80",
+            reps: 5,
+            tracking_type: "strength",
+            weight_unit: "kg",
+            distance_unit: "km",
+            source: {
+              workout_id: sourceId,
+              item_id: sourceItem,
+              set_id: sets[1].id,
+              weight: "80",
+              reps: 5,
+            },
+          },
+        ],
+      },
+    }),
+  );
+  await page.route(`**/session-exercises/${itemId}/copy-sets/`, (route) => {
+    const body = route.request().postDataJSON();
+    expect(body).toEqual({
+      source_workout_id: sourceId,
+      set_ids: [sets[1].id],
+    });
+    copied = [
+      {
+        ...sets[1],
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        is_completed: false,
+        comment: "",
+      },
+    ];
+    return route.fulfill({ status: 201, json: copied });
+  });
+  await page.route(`**/sets/${sets[0].id}/`, (route) => {
+    const body = route.request().postDataJSON();
+    expect(body.is_completed).toBeUndefined();
+    Object.assign(sets[0], body);
+    return route.fulfill({ json: sets[0] });
+  });
+  await page
+    .getByRole("button", { name: "Exercise history", exact: true })
+    .click();
+  await expect(page.getByText("Good form", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("img", { name: "Current personal record", exact: true }),
+  ).toBeVisible();
+  for (const width of [320, 390, 1440]) {
+    await page.setViewportSize({ width, height: 950 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth > innerWidth,
+      ),
+    ).toBe(false);
+    await page.screenshot({ path: `/tmp/training-history-${width}.png` });
+  }
+  await page.setViewportSize({ width: 390, height: 950 });
+  await page.getByRole("button", { name: /Workout on .*1 Jan 2020/ }).click();
+  let dialog = page.getByRole("dialog", { name: /1 Jan 2020/ });
+  await expect(dialog.getByText("750 kg·reps", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("10 reps", { exact: true })).toBeVisible();
+  await page.screenshot({ path: "/tmp/training-history-date-stats.png" });
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("button", { name: /Set 2 on .*80 kg/ }).click();
+  dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("93.3 kg", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("400 kg·reps", { exact: true })).toBeVisible();
+  await page.screenshot({ path: "/tmp/training-history-set-stats.png" });
+  await dialog.getByRole("button", { name: "Copy set", exact: true }).click();
+  dialog = page.getByRole("dialog", { name: "Copy set", exact: true });
+  await dialog.getByRole("button", { name: "Copy", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText("Planned", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /Set 1 on .*70 kg/ }).click();
+  await page.getByRole("button", { name: "Edit set", exact: true }).click();
+  dialog = page.getByRole("dialog", { name: "Edit set", exact: true });
+  await dialog.getByLabel("Weight (kg)", { exact: true }).fill("75");
+  await dialog
+    .getByRole("button", { name: "Save changes", exact: true })
+    .click();
+  await expect(dialog).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /Set 1 on .*1 Jan 2020.*75 kg/ }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Back to Track", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Rest timer", exact: true }).click();
+  dialog = page.getByRole("dialog", { name: "Rest timer", exact: true });
+  await expect(
+    dialog.getByRole("button", { name: "Start rest", exact: true }),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "Stop rest", exact: true }),
+  ).toHaveCount(0);
+});

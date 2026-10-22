@@ -1439,3 +1439,26 @@ is bounded to the workout date and saved unit/type. Adding a calculated weight
 POSTs `{weight, reps:null, is_completed:false}` to the existing set endpoint;
 it does not record an observed lift or trigger completion effects. Route paths
 are unchanged.
+
+### Training history and copy-to-current exercise — 2026-10-22
+
+`GET /api/v1/workouts/sessions/` accepts `all_history=true` with required owned
+`exercise_id` and `date_to`. This returns all matching sessions through that date
+using the existing limit/offset pagination (maximum 100), without a 90-day cutoff.
+`date_from` is not used in this mode. Other reads still require `date_from` and
+retain the 1–366-day range limit. No records are created by these reads.
+
+`POST /api/v1/workouts/session-exercises/{item_id}/copy-sets/` appends selected
+sets to an existing owned occurrence. Body:
+`{source_workout_id: uuid, set_ids: uuid[]}`. Select 1–100 distinct IDs from that
+owned source workout; unknown fields reject. Target/source exercise IDs, frozen
+tracking type and both unit fields must match. The target must be open; a finished
+source can be read. Missing/foreign workouts or targets return 404; invalid sets,
+incompatible partitions or closed targets return 400. Authentication is required.
+
+The existing owner row lock and a transaction validate every ID before writes.
+Copies retain the source workout's occurrence/set order, append after existing
+sets and return a 201 array of new set representations. Values are read from the
+saved source at copy time; new IDs are generated, comments cleared and completion
+reset to false. No workout, occurrence, timing or group change is created. A bad
+selection causes no partial append. No schema migration is required for this slice.

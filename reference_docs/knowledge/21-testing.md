@@ -2163,3 +2163,30 @@ confirm persisted colours and overrides. Layout checks cover 1RM/set dialogs at
 320/390px, equipment at 320px, and plates at 320/390/1440px. The 320px screenshots
 were visually inspected. Browser API fixtures are mocked; real PostgreSQL API
 integration tests independently verify account persistence and ownership.
+
+### Compact Training history — 2026-10-22
+
+All 694 frontend tests, 126 relevant backend tests and ten workout browser
+journeys pass. Frontend lint/build, targeted backend Ruff and `git diff --check`
+pass. No schema migration or deployment is required/performed for this slice.
+
+Component checks cover comments, completed-only date totals, date navigation,
+per-set estimates/volume, selected-only copy with failed-save retry, historical
+editing without completion writes, current observed PR markers, pagination using
+owned paths and finished-source edit restrictions. Separate stats tests cover
+cardio speed/pace, rounded minute boundaries, unit partitioning and planned-total
+exclusion. API tests assert the all-history query and exact copy IDs/body.
+
+PostgreSQL tests cover all-time pagination/read-only access, range-validation
+preservation, ownership and auth, appending plans without new workouts, invalid /
+foreign / duplicate / excessive IDs, mismatched units, closed targets, source
+preservation, repeated-occurrence ordering and no timing start. The initial
+repeated-occurrence fixture used display orders 100 and 20; the diagnostic probe
+confirmed the second occurrence correctly sorted first. Explicit 10/20 fixture
+orders verify the intended source ordering without changing production ordering.
+
+Chrome opens date and individual-set stats, edits an older set in place, copies
+one selected set into the current occurrence and confirms rest did not start.
+History overflow is checked at 320/390/1440px. The 320px flat list and both stats
+dialog screenshots were visually inspected. Browser APIs use fixtures; backend
+integration tests independently check persistence and transaction boundaries.

@@ -577,3 +577,29 @@ export const removeRoutineItem = (
   kind: "routine-exercises" | "routine-sets",
   id: string,
 ): Promise<void> => request(`${kind}/${encodeURIComponent(id)}/`, "DELETE");
+
+export function getExerciseHistoryPage(
+  exercise: string,
+  date: string,
+  offset = 0,
+): Promise<WorkoutPage> {
+  const query = new URLSearchParams({
+    all_history: "true",
+    exercise_id: exercise,
+    date_to: date,
+    limit: "100",
+    offset: String(offset),
+  });
+  return request(`sessions/?${query}`);
+}
+export function copyWorkoutSets(
+  target: string,
+  source: string,
+  setIds: string[],
+): Promise<WorkoutSet[]> {
+  return request(
+    `session-exercises/${encodeURIComponent(target)}/copy-sets/`,
+    "POST",
+    { source_workout_id: source, set_ids: setIds },
+  );
+}

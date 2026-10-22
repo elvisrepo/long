@@ -398,11 +398,20 @@ class WorkoutSerializer(serializers.ModelSerializer):
 
 
 class WorkoutRangeSerializer(serializers.Serializer):
-    date_from = serializers.DateField()
+    date_from = serializers.DateField(required=False)
+    all_history = serializers.BooleanField(default=False)
     date_to = serializers.DateField()
     exercise_id = serializers.UUIDField(required=False)
 
     def validate(self, data: dict[str, Any]) -> dict[str, Any]:
+        if data.get("all_history"):
+            if not data.get("exercise_id"):
+                raise serializers.ValidationError(
+                    "All-time history requires an exercise."
+                )
+            return data
+        if "date_from" not in data:
+            raise serializers.ValidationError({"date_from": "This field is required."})
         if not 0 <= (data["date_to"] - data["date_from"]).days <= 365:
             raise serializers.ValidationError("Choose a range of 1 to 366 days.")
         return data

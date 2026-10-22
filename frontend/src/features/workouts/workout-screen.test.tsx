@@ -83,6 +83,16 @@ beforeEach(() => {
     previous: null,
     results: [],
   });
+  vi.mocked(api.getExerciseHistoryPage).mockImplementation(
+    (exercise, date, offset) =>
+      api.getWorkoutPage("1900-01-01", date, offset, exercise),
+  );
+  vi.mocked(api.getRecordPage).mockResolvedValue({
+    count: 0,
+    next: null,
+    previous: null,
+    results: [],
+  });
   vi.mocked(api.getWorkout).mockResolvedValue(workout);
   vi.mocked(api.createWorkout).mockResolvedValue({ ...workout, exercises: [] });
   vi.mocked(api.addWorkoutExercise).mockResolvedValue(item);
@@ -874,13 +884,22 @@ it("shows one history link per session and prefers an entry with sets", async ()
       exact: true,
     }),
   );
+  const date = await screen.findByRole("button", {
+    name: /Workout on .*1 Oct 2026/,
+  });
   expect(
-    await screen.findAllByRole("button", {
-      name: "Open exercise",
-      exact: true,
-    }),
+    screen.getAllByRole("button", { name: /Workout on .*1 Oct 2026/ }),
   ).toHaveLength(1);
-  expect(screen.getByText("70 kg · 5 reps · Completed")).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: /Set 1 on .*1 Oct 2026.*70 kg/ }),
+  ).toBeInTheDocument();
+  await userEvent.click(date);
+  expect(
+    screen.getByRole("dialog", { name: /1 Oct 2026/ }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "View workout", exact: true }),
+  ).toBeInTheDocument();
 });
 
 it("switching to All exercises clears the workout selection context", async () => {

@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { Modal } from "../../components/modal";
 import * as api from "./workout-api";
@@ -9,9 +9,8 @@ import { WorkoutTiming } from "./workout-timing";
 import { WorkoutGroups } from "./workout-groups";
 import { RemoveWorkoutExercise } from "./remove-workout-exercise";
 import { WorkoutOrderControls } from "./workout-order-controls";
-import { BulkSetDialog } from "./bulk-set-dialog";
+import { ExerciseTrainingHistory } from "./exercise-training-history";
 import {
-  dayLabel,
   setLabel,
   shiftDay,
   nextGroupedExercise,
@@ -78,7 +77,6 @@ export function WorkoutTraining({
   savePlanned: (itemId: string, data: api.SetInput) => Promise<void>;
   saveEquipment?: (data: api.WorkoutPreferences) => Promise<void>;
 }) {
-  const client = useQueryClient();
   const item = workout.exercises.find((i) => i.id === itemId);
   const [groupsFromPanel, setGroupsFromPanel] = useState(false);
   const [calculator, setCalculator] = useState<CalculatorKind | null>(null);
@@ -93,7 +91,6 @@ export function WorkoutTraining({
     | "delete-set"
     | "manage"
     | "groups"
-    | "bulk"
     | null
   >(null);
   const [commentId, setCommentId] = useState<string | null>(null);
@@ -872,120 +869,15 @@ export function WorkoutTraining({
               </div>
             </>
           ) : (
-            <>
-              <h2>Recorded sessions</h2>
-              <p className="workout-note">
-                Last 90 days ending {dayLabel(workout.performed_on)}. Each entry
-                keeps its original units.
-              </p>
-              {history.isPending ? (
-                <p role="status">Loading exercise history…</p>
-              ) : history.isError ? (
-                <div>
-                  <p role="alert">Exercise history couldn't load.</p>
-                  <button onClick={() => void history.refetch()}>
-                    Retry exercise history
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <button disabled={busy} onClick={() => setDialog("bulk")}>
-                    Edit multiple sets
-                  </button>
-                  {dialog === "bulk" && (
-                    <BulkSetDialog
-                      workouts={[
-                        workout,
-                        ...history.data.results.filter(
-                          (w) => w.id !== workout.id,
-                        ),
-                      ]}
-                      exerciseId={item.exercise_id}
-                      busy={busy}
-                      run={run}
-                      onClose={() => setDialog(null)}
-                      onRefresh={() => {
-                        setDialog(null);
-                        void client.invalidateQueries({
-                          queryKey: ["workouts", owner],
-                        });
-                      }}
-                    />
-                  )}
-                  {[
-                    workout,
-                    ...history.data.results.filter((w) => w.id !== workout.id),
-                  ].map((w) => {
-                    const matches = w.exercises.filter(
-                      (i) => i.exercise_id === item.exercise_id,
-                    );
-                    const target =
-                      matches.find((i) => i.sets.length > 0) ?? matches[0];
-                    return (
-                      <div className="workout-inset" key={w.id}>
-                        <h3>
-                          {dayLabel(w.performed_on)} · {w.name}
-                        </h3>
-                        {w.id === workout.id && (
-                          <span className="workout-badge">Current session</span>
-                        )}
-                        {matches.map((i) => (
-                          <div key={i.id}>
-                            {i.sets.map((s) => (
-                              <p key={s.id}>
-                                {setLabel(i, s)} ·{" "}
-                                {s.is_completed ? "Completed" : "Planned"}
-                                {s.comment && ` · ${s.comment}`}
-                              </p>
-                            ))}
-                          </div>
-                        ))}
-                        {!matches.some((i) => i.sets.length) && (
-                          <p>No sets recorded for this exercise.</p>
-                        )}
-                        {w.id === workout.id ? (
-                          <button
-                            disabled={busy}
-                            onClick={() => setTab("track")}
-                          >
-                            Back to Track
-                          </button>
-                        ) : (
-                          target && (
-                            <button
-                              disabled={busy}
-                              onClick={() =>
-                                navigate({
-                                  view: "training",
-                                  date: w.performed_on,
-                                  session: w.id,
-                                  exercise: target.id,
-                                })
-                              }
-                            >
-                              Open exercise
-                            </button>
-                          )
-                        )}
-                      </div>
-                    );
-                  })}
-                  {history.data.next && (
-                    <button
-                      onClick={() =>
-                        navigate({
-                          view: "history",
-                          date: workout.performed_on,
-                          exercise: item.exercise_id,
-                        })
-                      }
-                    >
-                      View full paginated history
-                    </button>
-                  )}
-                </>
-              )}
-            </>
+            <ExerciseTrainingHistory
+              workout={workout}
+              item={item}
+              owner={owner}
+              busy={busy}
+              run={run}
+              navigate={navigate}
+              onTrack={() => setTab("track")}
+            />
           )}
         </section>
       </div>
@@ -1091,7 +983,6 @@ export function WorkoutTraining({
       )}
       {dialog &&
         dialog !== "groups" &&
-        dialog !== "bulk" &&
         dialog !== "picker" &&
         dialog !== "set-comment" && (
           <Modal
