@@ -494,6 +494,19 @@ test("mobile exercise editor leads with stepped inputs and Save/Clear", async ({
   await expect(
     page.getByRole("dialog", { name: "Rest timer", exact: true }),
   ).toBeVisible();
+  const rest = page.getByRole("dialog", { name: "Rest timer", exact: true });
+  await rest.getByLabel("Rest seconds", { exact: true }).fill("1");
+  await rest.getByLabel("Volume", { exact: true }).fill("30");
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 950 });
+    expect(await rest.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
+      false,
+    );
+    await page.screenshot({ path: `/tmp/rest-timer-${width}.png` });
+  }
+  await rest.getByRole("button", { name: "Start rest", exact: true }).click();
+  await expect(rest.getByRole("status")).toHaveText("Rest finished.");
+  await rest.getByRole("button", { name: "Stop rest", exact: true }).click();
   await page.getByRole("button", { name: "Close", exact: true }).click();
   await page
     .getByRole("button", { name: "Exercise notes", exact: true })
@@ -752,18 +765,22 @@ test("navigation panel links a coloured group and keeps exercise navigation acce
   await page.getByLabel("Color theme").selectOption("light");
   await page.getByRole("button", { name: "Open Bench", exact: true }).click();
   const reorderWrites: string[] = [];
-  page.on("request", request => {
-    if (request.url().endsWith("/exercises/bulk/")) reorderWrites.push(request.method());
+  page.on("request", (request) => {
+    if (request.url().endsWith("/exercises/bulk/"))
+      reorderWrites.push(request.method());
   });
   const touch = await page.context().newCDPSession(page);
   await touch.send("Input.dispatchTouchEvent", {
-    type: "touchStart", touchPoints: [{ x: 3, y: 400 }],
+    type: "touchStart",
+    touchPoints: [{ x: 3, y: 400 }],
   });
   await touch.send("Input.dispatchTouchEvent", {
-    type: "touchMove", touchPoints: [{ x: 100, y: 402 }],
+    type: "touchMove",
+    touchPoints: [{ x: 100, y: 402 }],
   });
   await touch.send("Input.dispatchTouchEvent", {
-    type: "touchEnd", touchPoints: [],
+    type: "touchEnd",
+    touchPoints: [],
   });
   const panel = page.getByRole("dialog", {
     name: "Exercises in this workout",
@@ -773,23 +790,35 @@ test("navigation panel links a coloured group and keeps exercise navigation acce
   await expect
     .poll(async () => Math.round((await panel.boundingBox())!.x))
     .toBe(0);
-  const row = panel.getByRole("button", { name: "Switch to Bench", exact: true });
+  const row = panel.getByRole("button", {
+    name: "Switch to Bench",
+    exact: true,
+  });
   const box = (await row.boundingBox())!;
   await touch.send("Input.dispatchTouchEvent", {
-    type: "touchStart", touchPoints: [{ x: box.x + 60, y: box.y + 25 }],
+    type: "touchStart",
+    touchPoints: [{ x: box.x + 60, y: box.y + 25 }],
   });
   await expect(panel.locator(".is-dragging")).toBeVisible();
   await touch.send("Input.dispatchTouchEvent", {
-    type: "touchMove", touchPoints: [{ x: box.x + 60, y: box.y + 125 }],
+    type: "touchMove",
+    touchPoints: [{ x: box.x + 60, y: box.y + 125 }],
   });
   await expect(panel.locator(".is-dragging")).toBeVisible();
-  await expect.poll(async () => (await row.boundingBox())!.y).toBeGreaterThan(box.y + 50);
-  await touch.send("Input.dispatchTouchEvent", { type: "touchCancel", touchPoints: [] });
+  await expect
+    .poll(async () => (await row.boundingBox())!.y)
+    .toBeGreaterThan(box.y + 50);
+  await touch.send("Input.dispatchTouchEvent", {
+    type: "touchCancel",
+    touchPoints: [],
+  });
   await expect(panel.locator(".is-dragging")).toHaveCount(0);
   expect(reorderWrites).toEqual([]);
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 950 });
-    expect(await panel.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(false);
+    expect(await panel.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
+      false,
+    );
     await page.screenshot({ path: `/tmp/workout-navigation-${width}.png` });
   }
   await page.setViewportSize({ width: 390, height: 950 });
@@ -801,7 +830,9 @@ test("navigation panel links a coloured group and keeps exercise navigation acce
   const editor = page.getByRole("dialog", { name: "New group", exact: true });
   for (const width of [320, 390]) {
     await page.setViewportSize({ width, height: 950 });
-    expect(await editor.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(false);
+    expect(await editor.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
+      false,
+    );
     await page.screenshot({ path: `/tmp/workout-group-${width}.png` });
   }
   await expect(

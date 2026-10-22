@@ -207,7 +207,11 @@ export function WorkoutScreen({
                 )?.exercise_id,
             )?.rest_seconds ?? 90
           }
-          context={editingExercise ?? search.exercise ?? ""}
+          context={
+            detail.data?.exercises.find(
+              (item) => item.id === (editingExercise ?? search.exercise),
+            )?.exercise_id ?? ""
+          }
           autoStart={catalog.data.preferences?.auto_start_rest ?? false}
           onAutoStartChange={(enabled) =>
             run(async () => {

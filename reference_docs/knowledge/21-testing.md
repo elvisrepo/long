@@ -2128,3 +2128,16 @@ Panel layouts are checked at 320/390/768/1440px and group drafts at 320/390px;
 fixtures; the separate real-account probe did not reach a workout and provides
 no validation evidence for this slice. Existing group cycling and ordering API
 contracts are reused without backend changes.
+
+### Rest timer alerts — 2026-10-22
+
+All 682 frontend tests and eight workout browser journeys pass; lint/build pass.
+Six timer tests cover deadline catch-up, explicit completion-only auto-start,
+closing/reopening without reset, remembered per-exercise duration, changed-default
+precedence, a single sound/vibration alert at the chosen gain, stopping before
+expiry and disabling alerts. Audio/vibration APIs are mocked in unit tests;
+hardware vibration and audible output on a physical phone remain unverified.
+The Chrome workout journey adjusts seconds/volume, completes a one-second timer,
+stops it and checks dialog overflow at 320/390px. The 320px dialog screenshot was
+visually inspected. Browser background/locked-device delivery is not guaranteed.
+No backend contract changes or backend test rerun are needed for this UI slice.

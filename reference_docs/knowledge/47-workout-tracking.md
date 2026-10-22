@@ -770,7 +770,7 @@ The exercise heading retains the full accessible name on narrow screens.
 
 The mounted rest timer opens as a dialog from its toolbar shortcut and continues
 counting after Close. Existing completion-triggered auto-start still uses the same
-instance; it remains a visual timer. Saved set rows provide a comment button,
+instance; audible/vibration alerts are added in the follow-up below. Saved set rows provide a comment button,
 coloured when populated, which patches only comment and preserves completion and
 values. Finished-session comments can be viewed but editing stays disabled. The
 new comment dialog keeps failed drafts. Calculators and secondary tools remain in
@@ -796,3 +796,26 @@ joining, unlinking and confirmed deletion. Saving or cancelling returns to the
 panel. Settings exposes the existing completion-only group auto-advance option;
 its workout-order cycling behaviour is unchanged. Finished workouts allow
 navigation but disable adding, grouping and ordering. No API or route changes.
+
+
+### Rest timer alerts and controls — 2026-10-22
+
+The toolbar dialog now provides a numeric seconds field with five-second minus /
+plus buttons, Vibrate, Sound, completion-only Auto-start and a volume slider.
+Starting creates a deadline; closing the dialog preserves the countdown. Restart
+replaces the deadline and Stop clears it. Duration editing is disabled while
+running. Each deadline can alert once, using an 880Hz tone for 0.6 seconds at the
+selected volume and a short vibration pattern when enabled/supported.
+
+Sound is prepared from a user gesture. Unsupported controls explain their browser
+limitation, and audio preparation/playback errors produce a visible message.
+Sound, vibration, volume and custom durations are saved in browser local storage;
+storage failure leaves the timer usable for the current visit. Durations are keyed
+by library exercise ID, so separate workout occurrences share a chosen duration.
+A changed library rest default supersedes the previously stored duration. The
+existing account-owned auto-start preference and confirmed-completion event are
+reused. Creating plans, edits or failed saves does not trigger that event.
+
+This is a browser timer: background/locked-phone alerts can be delayed. Leaving
+Workouts or reloading clears the countdown, while device settings remain. It does
+not provide native scheduled alarms or notifications. No backend/API changes.

@@ -1974,3 +1974,53 @@
     gap: 0;
   }
 }
+
+.workout-rest-modal {
+  width: min(25rem, calc(100vw - 2rem));
+}
+.workout-rest-controls {
+  display: grid;
+  gap: 1rem;
+  margin-block: 1rem;
+}
+.workout-rest-duration {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: end;
+  gap: 0.75rem;
+}
+.workout-screen .workout-rest-controls .workout-rest-duration input[type="number"] {
+  text-align: center;
+  font-size: 1.75rem;
+  font-weight: 700;
+  min-width: 0;
+  width: 100%;
+}
+.workout-rest-duration button {
+  padding: 0;
+  min-height: 48px;
+  font-size: 1.5rem;
+}
+.workout-rest-options {
+  display: grid;
+  gap: 0.5rem;
+}
+.workout-rest-options .workout-check {
+  margin: 0;
+  flex-wrap: wrap;
+}
+.workout-rest-volume {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+.workout-rest-volume input {
+  min-width: 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
+.workout-rest-volume > span {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
