@@ -9,7 +9,10 @@ catalog ownership, session/set semantics, history preservation, and phased deliv
 
 Exercise library actions (2026-10-23): All exercises and Add exercise retain
 category headings, search and filters, with compact name-only rows by default.
-Display options independently enables Workout count and Last used, remembered
+Display options opens a compact anchored dropdown with Workout count and Last
+used checkboxes. Toggling applies immediately without closing the dropdown or
+requiring a Done step. Escape returns focus to the trigger; outside clicks and
+tabbing out dismiss the controls. Both preferences are independently remembered
 on the device for both library browsing and Add exercise. Count and last use
 continue to derive only from completed sets; last use displays local-calendar
 relative days (today/yesterday/N days ago), with the recorded date available

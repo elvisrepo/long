@@ -396,13 +396,44 @@
   display: flex;
   justify-content: flex-end;
 }
-.workout-library-display-bar > button {
+.workout-library-display-menu > button {
   min-height: 44px;
   padding: 0.4rem 0.6rem;
   background: transparent;
   border-color: transparent;
   box-shadow: none;
   color: var(--text-dim);
+}
+.workout-library-display-menu {
+  position: relative;
+}
+.workout-library-display-menu:has([role="group"]) {
+  z-index: 20;
+}
+.workout-library-display-options {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: calc(100% + 0.25rem);
+  width: 230px;
+  max-width: calc(100vw - 2rem);
+  padding: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px #19303d24;
+  display: grid;
+}
+.workout-library-display-options > label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 44px;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+}
+.workout-library-display-options > small {
+  padding: 0.4rem 0.6rem;
 }
 .workout-library-category {
   display: grid;

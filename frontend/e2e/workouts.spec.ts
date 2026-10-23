@@ -320,7 +320,19 @@ test("exercise display options persist while category and exercise editing stay 
   await page.getByRole("button", { name: "Display options" }).click();
   await page.getByRole("checkbox", { name: "Workout count" }).check();
   await page.getByRole("checkbox", { name: "Last used", exact: true }).check();
-  await page.getByRole("button", { name: "Done", exact: true }).click();
+  const options = page.getByRole("group", { name: "Exercise details" });
+  for (const width of [320, 390, 1440]) {
+    await page.setViewportSize({ width, height: 950 });
+    await expect(options).toBeVisible();
+    const bounds = await options.boundingBox();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+    await page.screenshot({
+      path: `/tmp/exercise-display-options-${width}.png`,
+      fullPage: true,
+    });
+  }
+  await page.keyboard.press("Escape");
   await expect(row).toContainText("3 workouts · Last used");
   await page.reload();
   await expect(row).toContainText("3 workouts · Last used");
@@ -338,7 +350,7 @@ test("exercise display options persist while category and exercise editing stay 
   }
   await page.getByRole("button", { name: "Display options" }).click();
   await page.getByRole("checkbox", { name: "Workout count" }).uncheck();
-  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await page.keyboard.press("Escape");
   await expect(row).toContainText("Last used");
   await expect(row).not.toContainText("3 workouts");
 });

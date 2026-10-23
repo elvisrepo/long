@@ -6,6 +6,10 @@
   and unavailable storage. The category action is visibly labelled Edit category
   and retains its existing editor. Browser coverage checks independent toggles,
   reload persistence, category editing and enabled details at 320/390/1440px.
+  The controls use a compact dropdown rather than a dialog: both checkboxes stay
+  available while toggling, Escape restores trigger focus, and outside clicks or
+  Tab leaving the dropdown dismiss it. Browser checks verify dropdown bounds at
+  all three viewport widths.
   Counts still reflect completed sets; no backend API or migration changed.
 
 - Unused exercise deletion (2026-10-23): API regressions cover 204 deletion,

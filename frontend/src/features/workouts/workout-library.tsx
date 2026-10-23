@@ -4,6 +4,10 @@ import * as api from "./workout-api";
 import type { RunAction } from "./workout-navigation";
 import { progressMetrics } from "./workout-analysis";
 import { ExerciseLibraryActions } from "./exercise-library-actions";
+import {
+  ExerciseDisplayOptions,
+  type LibraryDisplayOptions as DisplayOptions,
+} from "./exercise-display-options";
 
 const labels: Record<api.TrackingType, string> = {
   strength: "Weight + reps",
@@ -14,7 +18,6 @@ const labels: Record<api.TrackingType, string> = {
 type Editor =
   | { kind: "category"; item?: api.ExerciseCategory }
   | { kind: "exercise"; item?: api.Exercise };
-type DisplayOptions = { workoutCount: boolean; lastUsed: boolean };
 const displayKey = "longevity-workout-library-display:v1";
 function savedDisplayOptions(): DisplayOptions {
   try {
@@ -90,7 +93,6 @@ export function WorkoutLibrary({
   const [deleting, setDeleting] = useState<api.Exercise | null>(null);
   const [deleteError, setDeleteError] = useState("");
   const [display, setDisplay] = useState(savedDisplayOptions);
-  const [displayOpen, setDisplayOpen] = useState(false);
   function changeDisplay(key: keyof DisplayOptions, checked: boolean) {
     const next = { ...display, [key]: checked };
     setDisplay(next);
@@ -171,50 +173,8 @@ export function WorkoutLibrary({
       </div>
       {!!catalog.categories.length && (
         <div className="workout-library-display-bar">
-          <button type="button" onClick={() => setDisplayOpen(true)}>
-            Display options
-          </button>
+          <ExerciseDisplayOptions value={display} onChange={changeDisplay} />
         </div>
-      )}
-      {displayOpen && (
-        <Modal
-          labelledBy="library-display-options"
-          onClose={() => setDisplayOpen(false)}
-        >
-          <h2 id="library-display-options">Display options</h2>
-          <p>
-            Show extra details below each exercise name. These count workouts
-            with completed sets.
-          </p>
-          <div className="workout-stack">
-            <label className="workout-check">
-              <input
-                type="checkbox"
-                checked={display.workoutCount}
-                onChange={(event) =>
-                  changeDisplay("workoutCount", event.target.checked)
-                }
-              />
-              Workout count
-            </label>
-            <label className="workout-check">
-              <input
-                type="checkbox"
-                checked={display.lastUsed}
-                onChange={(event) =>
-                  changeDisplay("lastUsed", event.target.checked)
-                }
-              />
-              Last used
-            </label>
-          </div>
-          <p className="workout-note">
-            Your choices are remembered on this device.
-          </p>
-          <button type="button" onClick={() => setDisplayOpen(false)}>
-            Done
-          </button>
-        </Modal>
       )}
       {!catalog.categories.length && (
         <section className="workout-card workout-empty">

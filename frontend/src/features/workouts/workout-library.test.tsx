@@ -6,6 +6,38 @@ import * as api from "./workout-api";
 
 vi.mock("./workout-api");
 beforeEach(() => localStorage.clear());
+it("keeps detail toggles in a dropdown without a dialog or a Done step", async () => {
+  renderLibrary(false, {
+    ...exercise,
+    trained_session_count: 2,
+    last_used_on: null,
+  });
+  const trigger = screen.getByRole("button", { name: "Display options" });
+  await userEvent.click(trigger);
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(trigger).toHaveAttribute("aria-expanded", "true");
+  expect(screen.getByRole("checkbox", { name: "Workout count" })).toHaveFocus();
+  await userEvent.click(
+    screen.getByRole("checkbox", { name: "Workout count" }),
+  );
+  await userEvent.click(screen.getByRole("checkbox", { name: "Last used" }));
+  expect(screen.getByText("2 workouts · Not used yet")).toBeInTheDocument();
+  expect(screen.getByRole("checkbox", { name: "Workout count" })).toBeVisible();
+  await userEvent.keyboard("{Escape}");
+  expect(trigger).toHaveFocus();
+  expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await userEvent.click(trigger);
+  await userEvent.click(screen.getByLabelText("Search exercises"));
+  expect(
+    screen.queryByRole("checkbox", { name: "Workout count" }),
+  ).not.toBeInTheDocument();
+  await userEvent.click(trigger);
+  await userEvent.tab();
+  await userEvent.tab();
+  expect(
+    screen.queryByRole("group", { name: "Exercise details" }),
+  ).not.toBeInTheDocument();
+});
 const exercise: api.Exercise = {
   id: "bench",
   category_id: "chest",
@@ -58,14 +90,14 @@ it("defaults to names only and remembers independently selected exercise details
   expect(count).not.toBeChecked();
   expect(lastUsed).not.toBeChecked();
   await userEvent.click(count);
-  await userEvent.click(screen.getByRole("button", { name: "Done" }));
+  await userEvent.keyboard("{Escape}");
   expect(screen.getByText("3 workouts")).toBeInTheDocument();
   expect(screen.queryByText(/Last used today/)).not.toBeInTheDocument();
   await userEvent.click(
     screen.getByRole("button", { name: "Display options" }),
   );
   await userEvent.click(screen.getByRole("checkbox", { name: "Last used" }));
-  await userEvent.click(screen.getByRole("button", { name: "Done" }));
+  await userEvent.keyboard("{Escape}");
   expect(screen.getByText("3 workouts · Last used today")).toBeInTheDocument();
   unmount();
   renderLibrary(true, item);
@@ -76,7 +108,7 @@ it("defaults to names only and remembers independently selected exercise details
   await userEvent.click(
     screen.getByRole("checkbox", { name: "Workout count" }),
   );
-  await userEvent.click(screen.getByRole("button", { name: "Done" }));
+  await userEvent.keyboard("{Escape}");
   expect(screen.getByText("Last used today")).toBeInTheDocument();
   expect(screen.queryByText(/3 workouts/)).not.toBeInTheDocument();
   expect(
@@ -106,7 +138,7 @@ it("defaults safely with invalid saved settings and keeps options usable without
       screen.getByRole("checkbox", { name: "Workout count" }),
     );
     await userEvent.click(screen.getByRole("checkbox", { name: "Last used" }));
-    await userEvent.click(screen.getByRole("button", { name: "Done" }));
+    await userEvent.keyboard("{Escape}");
     expect(screen.getByText("0 workouts · Not used yet")).toBeInTheDocument();
   } finally {
     write.mockRestore();
@@ -320,7 +352,7 @@ it("filters favorites and multiple search terms without starting workouts", asyn
     screen.getByRole("checkbox", { name: "Workout count" }),
   );
   await userEvent.click(screen.getByRole("checkbox", { name: "Last used" }));
-  await userEvent.click(screen.getByRole("button", { name: "Done" }));
+  await userEvent.keyboard("{Escape}");
   expect(screen.getByText(/3 workouts · Last used/)).toHaveAttribute(
     "title",
     "2026-09-30",
