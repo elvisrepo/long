@@ -1,5 +1,15 @@
 #### Security (OWASP Top 10 addressed)
 
+- Category appearance/order (2026-10-23): category colour POST/PATCH is owner-scoped
+  and accepts only six-digit hex colours. Reorder requires JWT and the shared
+  owner row lock. Unique UUID lists are bounded to 1000 each, include every owned
+  category including archives, and match expected order before writes. Stale
+  membership/order returns 409; invalid selections return 400 without partial
+  ranks or preference changes. Reordering/recolouring never modifies workout
+  occurrences, sets or routine snapshots. Calendar colours match saved category
+  names; unmatched historical names get a neutral marker rather than being
+  reassigned using an exercise's current category.
+
 - Exercise library deletion (2026-10-23): JWT ownership and the existing owner
   row lock guard DELETE on the exercise detail endpoint. Any saved workout
   occurrence (even empty/planned), routine occurrence or goal blocks deletion

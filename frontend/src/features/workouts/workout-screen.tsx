@@ -459,6 +459,7 @@ export function WorkoutScreen({
       )}
       {view === "calendar" && (
         <WorkoutCalendar
+          categories={catalog.data.categories}
           owner={owner}
           date={day}
           busy={busy}

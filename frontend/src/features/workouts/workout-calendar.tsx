@@ -1,7 +1,11 @@
 import { WorkoutPreview } from "./workout-preview";
 import { useQuery } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
-import { getWorkoutRange, type Workout } from "./workout-api";
+import {
+  getWorkoutRange,
+  type Workout,
+  type ExerciseCategory,
+} from "./workout-api";
 import { localDay, shiftDay, type NavigateWorkout } from "./workout-navigation";
 
 export function WorkoutCalendar({
@@ -11,8 +15,10 @@ export function WorkoutCalendar({
   navigate,
   renderSelectedDay,
   compact = false,
+  categories: categoryDefinitions = [],
 }: {
   compact?: boolean;
+  categories?: ExerciseCategory[];
   owner: string;
   date: string;
   busy: boolean;
@@ -34,6 +40,15 @@ export function WorkoutCalendar({
   const [category, setCategory] = useState("");
   const [status, setStatus] = useState<"all" | "training" | "planned">("all");
   const entries = query.data?.flatMap((workout) => workout.exercises) ?? [];
+  const categoryColour = (name: string) =>
+    categoryDefinitions.find((row) => row.name === name)?.colour ?? "#81909c";
+  const completedCategoryNames = [
+    ...new Set(
+      entries
+        .filter((item) => item.sets.some((set) => set.is_completed))
+        .map((item) => item.category_name),
+    ),
+  ].sort();
   const exercises = new Map<string, string>();
   for (const item of entries) {
     if (!exercises.has(item.exercise_id))
@@ -212,6 +227,24 @@ export function WorkoutCalendar({
               </div>
             </div>
           )}
+          {!compact && completedCategoryNames.length > 0 && (
+            <div
+              className="workout-calendar-category-key"
+              role="group"
+              aria-label="Category colour key"
+            >
+              {completedCategoryNames.map((name) => (
+                <span key={name}>
+                  <i
+                    className="workout-category-colour"
+                    aria-hidden="true"
+                    style={{ backgroundColor: categoryColour(name) }}
+                  />
+                  {name}
+                </span>
+              ))}
+            </div>
+          )}
           <p role="status">
             {filtered.length} matching{" "}
             {filtered.length === 1 ? "session" : "sessions"} in this month.
@@ -233,12 +266,30 @@ export function WorkoutCalendar({
               );
               const trained = sessions.filter((row) => row.training).length;
               const planned = sessions.length - trained;
+              const categoryNames = [
+                ...new Set(
+                  sessions
+                    .flatMap(({ workout }) => workout.exercises)
+                    .filter(
+                      (item) =>
+                        (!exercise || item.exercise_id === exercise.id) &&
+                        (!category || item.category_name === category) &&
+                        item.sets.some((set) => set.is_completed),
+                    )
+                    .map((item) => item.category_name),
+                ),
+              ].sort();
               return (
                 <button
                   key={day}
                   disabled={busy}
                   aria-pressed={date === day}
                   aria-label={`${day}: ${trained} training session${trained === 1 ? "" : "s"}, ${planned} planned session${planned === 1 ? "" : "s"}`}
+                  aria-description={
+                    !compact && categoryNames.length
+                      ? `Completed categories: ${categoryNames.join(", ")}`
+                      : undefined
+                  }
                   onClick={() => {
                     if (!compact && !renderSelectedDay && sessions.length)
                       setPreview(day);
@@ -260,6 +311,20 @@ export function WorkoutCalendar({
                         </span>
                       )}
                     </small>
+                  )}
+                  {!compact && categoryNames.length > 0 && (
+                    <span
+                      className="workout-calendar-category-dots"
+                      aria-hidden="true"
+                    >
+                      {categoryNames.map((name) => (
+                        <span
+                          key={name}
+                          title={`${name} category`}
+                          style={{ backgroundColor: categoryColour(name) }}
+                        />
+                      ))}
+                    </span>
                   )}
                 </button>
               );

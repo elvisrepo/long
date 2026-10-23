@@ -3,14 +3,17 @@ import { useEffect, useId, useRef, useState } from "react";
 export type LibraryDisplayOptions = {
   workoutCount: boolean;
   lastUsed: boolean;
+  categoryColours: boolean;
 };
 
 export function ExerciseDisplayOptions({
   value,
   onChange,
+  onReorder,
 }: {
   value: LibraryDisplayOptions;
   onChange: (key: keyof LibraryDisplayOptions, checked: boolean) => void;
+  onReorder: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -77,6 +80,26 @@ export function ExerciseDisplayOptions({
             />
           </label>
           <small>Workouts with completed sets</small>
+          <label>
+            Category colours
+            <input
+              type="checkbox"
+              checked={value.categoryColours}
+              onChange={(event) =>
+                onChange("categoryColours", event.target.checked)
+              }
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              trigger.current?.focus();
+              onReorder();
+            }}
+          >
+            Reorder categories
+          </button>
         </div>
       )}
     </div>

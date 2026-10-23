@@ -358,12 +358,24 @@ deletion also removes matching exercise-specific bar preferences atomically;
 it never deletes workouts, sets, routine templates or goals. Catalog computes
 eligibility with Exists subqueries without per-exercise follow-up queries.
 
+Category appearance (2026-10-23): category responses and POST/PATCH accept `colour`
+as a six-digit `#RRGGBB` string. New categories receive an available palette colour
+when omitted. Migration `0015_category_appearance` assigns initial colours per
+owner without changing manual ranks or workout snapshots. Preferences GET/PATCH
+includes `category_order` (`alphabetical` by default, or `manual`). GET still
+creates no preferences row. Reordering locks the owner and compares the raw
+catalog sequence before writing. Manual mode normalizes ranks to 10,20,30,...;
+alphabetical mode preserves those ranks for switching back. Catalog category
+order remains the raw saved sequence; clients sort names for alphabetical
+display. Both colour and mode are included in account export.
+
 | Method | Endpoint | Contract |
 |---|---|---|
 | GET | `/api/v1/workouts/catalog/` | `{categories, exercises, preferences}`, own catalog including archives; optional case-insensitive `search` (max 120 chars); does not seed |
 | POST | `/api/v1/workouts/catalog/initialize/` | Empty body; owner-locked, once-only starter samples; returns catalog `200` |
-| POST | `/api/v1/workouts/categories/` | `{name, display_order?}`; `201` active private category |
-| PATCH | `/api/v1/workouts/categories/{uuid}/` | `{name?, display_order?, is_active?}`; own category |
+| POST | `/api/v1/workouts/categories/` | `{name, display_order?, colour?}`; `201` active private category |
+| PATCH | `/api/v1/workouts/categories/{uuid}/` | `{name?, display_order?, is_active?, colour?}`; own category |
+| POST | `/api/v1/workouts/categories/reorder/` | `{mode, category_ids: UUID[], expected_order: UUID[]}`; mode alphabetical/manual; unique complete lists of all owned categories including archived, max 1000 IDs each; `200` catalog, stale order/membership `409`, invalid/foreign selection `400`; no partial writes |
 | POST | `/api/v1/workouts/exercises/` | `{category_id, name, tracking_type, ...defaults}`; `201`, own active category |
 | PATCH | `/api/v1/workouts/exercises/{uuid}/` | Editable library fields including category, type, units, notes, increments, rest and archive; never changes existing snapshots |
 | DELETE | `/api/v1/workouts/exercises/{uuid}/` | Own unused exercise only; `204`; `409` if any workout occurrence, routine occurrence or goal references it; foreign/missing `404` |

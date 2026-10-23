@@ -1,5 +1,26 @@
 ## 6. Testing
 
+- Vite development module race (2026-10-23): a running dev server cached an empty
+  transform of workout-calendar.tsx during a truncate/write save, while the source
+  and a fresh query URL correctly exported WorkoutCalendar. The ignored
+  playground/probe_vite_writes.mjs reproduces the watcher observing an empty
+  temporary module before a completed write. Vite server.watch.awaitWriteFinish
+  now uses a 150ms stability threshold and 20ms polling interval. The probe changes
+  from two events (incomplete/complete) to one complete event, and the original
+  failing URL again serves the export after the config-triggered server restart.
+  This changes local development/HMR only; no backend route or migration changed.
+
+- Category order/colours (2026-10-23): API tests cover owner-locked manual order,
+  alphabetical mode preserving ranks, stale/foreign/missing/duplicate lists without
+  partial writes, colour validation/export and starter colour stability. Components
+  cover alphabetical defaults, optional markers, keyboard moves, cancel/save,
+  colour editing and stale errors. Calendar tests retain status counts and
+  distinguish matched, unmatched historical and planned-only categories.
+  The browser journey performs actual pointer dragging at 320/390/1440px,
+  saves/reloads manual mode, cancels a draft and switches to alphabetical.
+  All 302 workout/account lifecycle backend tests and 15 workout browser journeys
+  pass. Migration 0015 is additive; no recorded sets are rewritten.
+
 - Exercise display options (2026-10-23): component coverage checks names-only
   defaults, independent count/last-use toggles, relative today labels, empty
   history, remembered options shared with Add exercise, malformed saved values

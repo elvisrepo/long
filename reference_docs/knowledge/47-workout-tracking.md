@@ -7,6 +7,24 @@ catalog ownership, session/set semantics, history preservation, and phased deliv
 
 ## Status and agreed product direction
 
+Category order and colours (2026-10-23): Display options also offers a device-local
+Category colours checkbox (off by default) and Reorder categories. Names sort
+alphabetically by default; manual mode reuses the account's saved display order.
+The order dialog supports mouse/touch drag handles and labelled up/down buttons.
+Edits remain drafts until Save; Cancel, pointer cancellation and lost capture do
+not persist a moved order. Saving validates all categories including archived
+ones and rejects stale membership/order atomically. Mode is account-backed;
+alphabetical mode preserves manual ranks. New categories receive palette colours;
+Edit category includes a colour picker. Migration 0015 initializes colours without
+changing recorded workouts or existing manual ranks. Colours and mode are exported.
+
+The Calendar retains training/planned counts and adds a named category key and
+coloured dots for categories containing completed sets that day. It matches saved
+category names to library colours, including archives. Historical names without
+a match use neutral grey; identity is not inferred from an exercise's current
+category after moves/renames. Compact copying calendars keep status-only layouts.
+Category names remain available as text; colour is never the only identifier.
+
 Exercise library actions (2026-10-23): All exercises and Add exercise retain
 category headings, search and filters, with compact name-only rows by default.
 Display options opens a compact anchored dropdown with Workout count and Last

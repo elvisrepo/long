@@ -7,6 +7,71 @@ import { WorkoutCalendar } from "./workout-calendar";
 
 vi.mock("./workout-api");
 beforeEach(() => vi.resetAllMocks());
+it("marks completed saved categories without changing status counts or inferring renamed categories", async () => {
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([
+    {
+      id: "w",
+      performed_on: "2026-02-15",
+      completed_set_count: 2,
+      exercises: [
+        {
+          exercise_id: "a",
+          exercise_name: "Press",
+          category_name: "Chest",
+          sets: [{ is_completed: true }],
+        },
+        {
+          exercise_id: "b",
+          exercise_name: "Row",
+          category_name: "Old back name",
+          sets: [{ is_completed: true }],
+        },
+        {
+          exercise_id: "c",
+          exercise_name: "Run",
+          category_name: "Cardio",
+          sets: [{ is_completed: false }],
+        },
+      ],
+    },
+  ] as unknown as api.Workout[]);
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  render(
+    <QueryClientProvider client={client}>
+      <WorkoutCalendar
+        owner="owner"
+        date="2026-02-15"
+        busy={false}
+        navigate={vi.fn()}
+        categories={[
+          {
+            id: "chest",
+            name: "Chest",
+            colour: "#abcdef",
+            is_active: true,
+            display_order: 10,
+          },
+        ]}
+      />
+    </QueryClientProvider>,
+  );
+  const day = await screen.findByRole("button", {
+    name: "2026-02-15: 1 training session, 0 planned sessions",
+  });
+  expect(day).toHaveAttribute(
+    "aria-description",
+    "Completed categories: Chest, Old back name",
+  );
+  expect(screen.getByTitle("Chest category")).toHaveStyle({
+    backgroundColor: "#abcdef",
+  });
+  expect(screen.getByTitle("Old back name category")).toHaveStyle({
+    backgroundColor: "#81909c",
+  });
+  expect(screen.queryByTitle("Cardio category")).not.toBeInTheDocument();
+});
 
 it("retains filters and their saved labels across months without changing the selection silently", async () => {
   vi.mocked(api.getWorkoutRange)

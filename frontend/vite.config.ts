@@ -15,6 +15,10 @@ export default defineConfig({
     // ...,
   ],
   server: {
+    watch: {
+      // Wait for formatter/editor writes to finish before invalidating modules.
+      awaitWriteFinish: { stabilityThreshold: 150, pollInterval: 20 },
+    },
     proxy: {
       "/api": {
         // Normal dev uses :8000; Playwright overrides this to the E2E backend on :8001.

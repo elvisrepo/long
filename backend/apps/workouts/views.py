@@ -34,7 +34,12 @@ from .serializers import (
     GroupNameSerializer,
     PreferencesSerializer,
 )
-from .services import initialize_catalog, copy_workout, exercise_can_be_deleted
+from .services import (
+    initialize_catalog,
+    copy_workout,
+    exercise_can_be_deleted,
+    next_category_colour,
+)
 
 
 def catalog_response(request: Request) -> Response:
@@ -185,6 +190,9 @@ class CategoriesView(APIView):
         serializer.save(
             user=request.user,
             is_active=True,
+            colour=serializer.validated_data.get(
+                "colour", next_category_colour(request.user)
+            ),
             display_order=serializer.validated_data.get("display_order", order),
         )
         return Response(serializer.data, status=201)

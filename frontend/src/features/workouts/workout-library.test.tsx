@@ -1,4 +1,10 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  render,
+  screen,
+  waitFor,
+  within,
+  fireEvent,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 import { WorkoutLibrary } from "./workout-library";
@@ -34,9 +40,90 @@ it("keeps detail toggles in a dropdown without a dialog or a Done step", async (
   await userEvent.click(trigger);
   await userEvent.tab();
   await userEvent.tab();
+  await userEvent.tab();
+  await userEvent.tab();
   expect(
     screen.queryByRole("group", { name: "Exercise details" }),
   ).not.toBeInTheDocument();
+});
+it("shows optional saved category colours and keeps manual order drafts cancellable", async () => {
+  vi.mocked(api.reorderCategories).mockClear();
+  renderLibrary(false, exercise, [
+    {
+      id: "chest",
+      name: "Chest",
+      display_order: 10,
+      is_active: true,
+      colour: "#abcdef",
+    },
+  ]);
+  expect(
+    screen.queryByRole("img", { name: "Chest category colour" }),
+  ).not.toBeInTheDocument();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Display options" }),
+  );
+  await userEvent.click(
+    screen.getByRole("checkbox", { name: "Category colours" }),
+  );
+  expect(
+    screen.getByRole("img", { name: "Chest category colour" }),
+  ).toHaveStyle({ backgroundColor: "#abcdef" });
+  await userEvent.click(
+    screen.getByRole("button", { name: "Reorder categories" }),
+  );
+  await userEvent.click(screen.getByRole("radio", { name: "Manual" }));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Cancel", exact: true }),
+  );
+  expect(api.reorderCategories).not.toHaveBeenCalled();
+});
+it("saves the chosen category colour through the existing category editor", async () => {
+  vi.mocked(api.saveCategory).mockClear();
+  renderLibrary(false, exercise, [
+    {
+      id: "chest",
+      name: "Chest",
+      display_order: 10,
+      is_active: true,
+      colour: "#abcdef",
+    },
+  ]);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Edit category Chest" }),
+  );
+  fireEvent.change(screen.getByLabelText("Category colour"), {
+    target: { value: "#123456" },
+  });
+  await userEvent.click(screen.getByRole("button", { name: "Save category" }));
+  await waitFor(() =>
+    expect(api.saveCategory).toHaveBeenCalledWith("chest", {
+      name: "Chest",
+      display_order: 10,
+      colour: "#123456",
+    }),
+  );
+});
+it("retains a rejected ordering draft with the server's stale-state explanation", async () => {
+  vi.mocked(api.reorderCategories).mockRejectedValueOnce(
+    new Error("Categories changed. Reopen Reorder categories."),
+  );
+  renderLibrary();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Display options" }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Reorder categories" }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Save", exact: true }),
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Categories changed",
+  );
+  expect(
+    screen.getByRole("dialog", { name: "Reorder categories" }),
+  ).toBeInTheDocument();
 });
 const exercise: api.Exercise = {
   id: "bench",
@@ -51,15 +138,19 @@ const exercise: api.Exercise = {
   is_active: true,
   display_order: 10,
 };
-function renderLibrary(selectingWorkout = false, item = exercise) {
+function renderLibrary(
+  selectingWorkout = false,
+  item = exercise,
+  categories: api.ExerciseCategory[] = [
+    { id: "chest", name: "Chest", display_order: 10, is_active: true },
+  ],
+) {
   const onSelect = vi.fn();
   const onHistory = vi.fn();
   const rendered = render(
     <WorkoutLibrary
       catalog={{
-        categories: [
-          { id: "chest", name: "Chest", display_order: 10, is_active: true },
-        ],
+        categories,
         exercises: [item],
       }}
       busy={false}
@@ -75,6 +166,38 @@ function renderLibrary(selectingWorkout = false, item = exercise) {
   );
   return { onSelect, onHistory, unmount: rendered.unmount };
 }
+it("orders categories alphabetically by default and saves a manual draft only on Save", async () => {
+  vi.mocked(api.reorderCategories).mockClear();
+  renderLibrary(false, exercise, [
+    { id: "chest", name: "Chest", display_order: 10, is_active: true },
+    { id: "back", name: "Back", display_order: 20, is_active: true },
+  ]);
+  expect(
+    screen
+      .getAllByRole("heading", { level: 2 })
+      .map((node) => node.textContent),
+  ).toEqual(["Back", "Chest"]);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Display options" }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Reorder categories" }),
+  );
+  const dialog = screen.getByRole("dialog", { name: "Reorder categories" });
+  await userEvent.click(within(dialog).getByRole("radio", { name: "Manual" }));
+  await userEvent.click(
+    within(dialog).getByRole("button", { name: "Move Back up" }),
+  );
+  expect(api.reorderCategories).not.toHaveBeenCalled();
+  await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+  await waitFor(() =>
+    expect(api.reorderCategories).toHaveBeenCalledWith(
+      "manual",
+      ["back", "chest"],
+      ["chest", "back"],
+    ),
+  );
+});
 it("defaults to names only and remembers independently selected exercise details", async () => {
   const today = new Date();
   const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;

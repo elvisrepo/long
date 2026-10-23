@@ -4,6 +4,7 @@ import * as api from "./workout-api";
 import type { RunAction } from "./workout-navigation";
 import { progressMetrics } from "./workout-analysis";
 import { ExerciseLibraryActions } from "./exercise-library-actions";
+import { CategoryOrderDialog } from "./category-order-dialog";
 import {
   ExerciseDisplayOptions,
   type LibraryDisplayOptions as DisplayOptions,
@@ -25,9 +26,10 @@ function savedDisplayOptions(): DisplayOptions {
     return {
       workoutCount: value?.workoutCount === true,
       lastUsed: value?.lastUsed === true,
+      categoryColours: value?.categoryColours === true,
     };
   } catch {
-    return { workoutCount: false, lastUsed: false };
+    return { workoutCount: false, lastUsed: false, categoryColours: false };
   }
 }
 function libraryDetails(
@@ -93,6 +95,8 @@ export function WorkoutLibrary({
   const [deleting, setDeleting] = useState<api.Exercise | null>(null);
   const [deleteError, setDeleteError] = useState("");
   const [display, setDisplay] = useState(savedDisplayOptions);
+  const [ordering, setOrdering] = useState(false);
+  const categoryMode = catalog.preferences?.category_order ?? "alphabetical";
   function changeDisplay(key: keyof DisplayOptions, checked: boolean) {
     const next = { ...display, [key]: checked };
     setDisplay(next);
@@ -102,7 +106,15 @@ export function WorkoutLibrary({
       /* Display preferences still work when device storage is unavailable. */
     }
   }
-  const categories = catalog.categories.filter((c) => archives || c.is_active);
+  const orderedCategories =
+    categoryMode === "manual"
+      ? catalog.categories
+      : [...catalog.categories].sort(
+          (a, b) =>
+            a.name.localeCompare(b.name, undefined, { sensitivity: "base" }) ||
+            a.id.localeCompare(b.id),
+        );
+  const categories = orderedCategories.filter((c) => archives || c.is_active);
   const terms = search.toLowerCase().trim().split(/\s+/);
   const matchingExercises = catalog.exercises.filter(
     (e) =>
@@ -173,8 +185,21 @@ export function WorkoutLibrary({
       </div>
       {!!catalog.categories.length && (
         <div className="workout-library-display-bar">
-          <ExerciseDisplayOptions value={display} onChange={changeDisplay} />
+          <ExerciseDisplayOptions
+            value={display}
+            onChange={changeDisplay}
+            onReorder={() => setOrdering(true)}
+          />
         </div>
+      )}
+      {ordering && (
+        <CategoryOrderDialog
+          categories={catalog.categories}
+          initialMode={categoryMode}
+          busy={busy}
+          run={run}
+          onClose={() => setOrdering(false)}
+        />
       )}
       {!catalog.categories.length && (
         <section className="workout-card workout-empty">
@@ -211,6 +236,14 @@ export function WorkoutLibrary({
                 <div className="workout-card-heading workout-library-category-heading">
                   <div className="workout-library-category-title">
                     <h2>
+                      {display.categoryColours && (
+                        <span
+                          className="workout-category-colour"
+                          role="img"
+                          aria-label={`${c.name} category colour`}
+                          style={{ backgroundColor: c.colour ?? "#81909c" }}
+                        />
+                      )}
                       {c.name}
                       {!c.is_active && <small> · Archived</small>}
                     </h2>
@@ -471,7 +504,12 @@ export function WorkoutLibrary({
               };
               run(async () => {
                 if (editor.kind === "category")
-                  await api.saveCategory(editor.item?.id, common);
+                  await api.saveCategory(editor.item?.id, {
+                    ...common,
+                    ...(fd.has("colour")
+                      ? { colour: String(fd.get("colour")) }
+                      : {}),
+                  });
                 else
                   await api.saveExercise(editor.item?.id, {
                     ...common,
@@ -513,6 +551,17 @@ export function WorkoutLibrary({
                 disabled={busy}
               />
             </label>
+            {editor.kind === "category" && editor.item && (
+              <label>
+                Category colour
+                <input
+                  type="color"
+                  name="colour"
+                  defaultValue={editor.item.colour ?? "#2785b4"}
+                  disabled={busy}
+                />
+              </label>
+            )}
             {editor.kind === "exercise" && (
               <>
                 <label>

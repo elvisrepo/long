@@ -248,6 +248,172 @@ async function fixture(page: Page, preferences: WorkoutPreferences = {}) {
   return { category, exercise };
 }
 
+test("category colours and manual drag order persist without saving cancelled drafts", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("longevity-theme", "light"),
+  );
+  const { category, exercise } = await fixture(page);
+  let categories = [
+    { ...category, display_order: 10, colour: "#c73b32" },
+    {
+      ...category,
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      name: "Back",
+      display_order: 20,
+      colour: "#2785b4",
+    },
+    {
+      ...category,
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      name: "Legs",
+      display_order: 30,
+      colour: "#46a5ad",
+    },
+  ];
+  let mode = "alphabetical";
+  let writes = 0;
+  const catalog = () => ({
+    categories,
+    exercises: [exercise],
+    preferences: { category_order: mode },
+  });
+  await page.route("**/api/v1/workouts/catalog/", (route) =>
+    route.fulfill({ json: catalog() }),
+  );
+  await page.route("**/api/v1/workouts/categories/reorder/", async (route) => {
+    const body = route.request().postDataJSON();
+    expect(body.expected_order).toEqual(categories.map((row) => row.id));
+    mode = body.mode;
+    if (mode === "manual")
+      categories = body.category_ids.map((id: string, index: number) => ({
+        ...categories.find((row) => row.id === id)!,
+        display_order: (index + 1) * 10,
+      }));
+    writes += 1;
+    await route.fulfill({ json: catalog() });
+  });
+  await page.setViewportSize({ width: 390, height: 950 });
+  await page.goto("/workouts?view=exercises&date=" + date);
+  const headings = page.locator(".workout-library-category h2");
+  await expect(headings).toHaveText(["Back", "Chest", "Legs"]);
+  await page.getByRole("button", { name: "Display options" }).click();
+  await page.getByRole("checkbox", { name: "Category colours" }).check();
+  await expect(
+    page.getByRole("img", { name: "Chest category colour" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Reorder categories" }).click();
+  const dialog = page.getByRole("dialog", { name: "Reorder categories" });
+  await dialog.getByRole("radio", { name: "Manual" }).check();
+  const source = await dialog
+    .getByRole("button", { name: "Drag Legs" })
+    .boundingBox();
+  const target = await dialog
+    .getByRole("button", { name: "Drag Chest" })
+    .boundingBox();
+  await page.mouse.move(
+    source!.x + source!.width / 2,
+    source!.y + source!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    target!.x + target!.width / 2,
+    target!.y + target!.height / 2,
+    { steps: 8 },
+  );
+  await page.mouse.up();
+  await expect(dialog.locator("li > span")).toHaveText([
+    "Legs",
+    "Chest",
+    "Back",
+  ]);
+  for (const width of [320, 390, 1440]) {
+    await page.setViewportSize({ width, height: 950 });
+    await page.screenshot({
+      path: `/tmp/category-reorder-${width}.png`,
+      fullPage: true,
+    });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
+  await dialog.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(headings).toHaveText(["Legs", "Chest", "Back"]);
+  await page.reload();
+  await expect(headings).toHaveText(["Legs", "Chest", "Back"]);
+  await expect(
+    page.getByRole("img", { name: "Chest category colour" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Display options" }).click();
+  await page.getByRole("button", { name: "Reorder categories" }).click();
+  await dialog.getByRole("button", { name: "Move Back up" }).click();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  expect(writes).toBe(1);
+  await expect(headings).toHaveText(["Legs", "Chest", "Back"]);
+  await page.getByRole("button", { name: "Display options" }).click();
+  await page.getByRole("button", { name: "Reorder categories" }).click();
+  await dialog.getByRole("radio", { name: "Alphabetical" }).check();
+  await dialog.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(headings).toHaveText(["Back", "Chest", "Legs"]);
+  await page.route("**/api/v1/workouts/sessions/**", async (route) => {
+    if (
+      new URL(route.request().url()).pathname !== "/api/v1/workouts/sessions/"
+    )
+      return route.fallback();
+    await route.fulfill({
+      json: {
+        count: 1,
+        next: null,
+        previous: null,
+        results: [
+          {
+            id: sessionId,
+            performed_on: date,
+            name: "Training",
+            notes: "",
+            is_finished: true,
+            created_at: date + "T10:00:00Z",
+            completed_set_count: 1,
+            exercises: [
+              {
+                id: itemId,
+                exercise_id: exerciseId,
+                exercise_name: exercise.name,
+                category_name: "Chest",
+                tracking_type: "strength",
+                weight_unit: "kg",
+                distance_unit: "km",
+                sets: [
+                  {
+                    id: "completed",
+                    weight: "60.000",
+                    reps: 5,
+                    is_completed: true,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    });
+  });
+  await page.getByRole("button", { name: "Calendar", exact: true }).click();
+  await expect(page.getByTitle("Chest category")).toHaveCSS(
+    "background-color",
+    "rgb(199, 59, 50)",
+  );
+  await page.setViewportSize({ width: 320, height: 950 });
+  await page.screenshot({
+    path: "/tmp/category-calendar-320.png",
+    fullPage: true,
+  });
+});
+
 test("deletes only an eligible library exercise after confirmation", async ({
   page,
 }) => {

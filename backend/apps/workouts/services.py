@@ -27,6 +27,27 @@ SAMPLES = {
     "Cardio": [("Running", "cardio")],
 }
 
+CATEGORY_COLOURS = (
+    "#2785b4",
+    "#d88c12",
+    "#34495e",
+    "#c73b32",
+    "#7f8c8d",
+    "#46a5ad",
+    "#8e44ad",
+    "#98796b",
+    "#23a665",
+    "#c14b88",
+)
+
+
+def next_category_colour(user: User) -> str:
+    used = set(user.exercise_categories.values_list("colour", flat=True))
+    return next(
+        (colour for colour in CATEGORY_COLOURS if colour not in used),
+        CATEGORY_COLOURS[len(used) % len(CATEGORY_COLOURS)],
+    )
+
 
 def exercise_can_be_deleted(exercise: Exercise) -> bool:
     """Protect all saved uses, including empty/planned workouts and templates."""
@@ -46,7 +67,10 @@ def initialize_catalog(user: User) -> None:
         category = ExerciseCategory.objects.filter(user=user, name__iexact=name).first()
         if category is None:
             category = ExerciseCategory.objects.create(
-                user=user, name=name, display_order=order * 10
+                user=user,
+                name=name,
+                display_order=order * 10,
+                colour=next_category_colour(user),
             )
         for position, (exercise_name, tracking_type) in enumerate(samples):
             if not Exercise.objects.filter(

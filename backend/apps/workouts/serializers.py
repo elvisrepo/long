@@ -97,6 +97,7 @@ class PreferencesSerializer(serializers.ModelSerializer):
             "plates_kg",
             "plates_lb",
             "exercise_bars",
+            "category_order",
         ]
 
     def validate(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -114,9 +115,11 @@ class PreferencesSerializer(serializers.ModelSerializer):
 
 
 class CategorySerializer(serializers.ModelSerializer):
+    colour = serializers.RegexField(r"^#[0-9a-fA-F]{6}$", required=False)
+
     class Meta:
         model = ExerciseCategory
-        fields = ["id", "name", "display_order", "is_active"]
+        fields = ["id", "name", "display_order", "is_active", "colour"]
         read_only_fields = ["id"]
 
     def validate_name(self, value: str) -> str:

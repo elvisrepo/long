@@ -6,6 +6,7 @@ export interface ExerciseCategory {
   name: string;
   display_order: number;
   is_active: boolean;
+  colour?: string;
 }
 export interface Exercise extends ExerciseCategory {
   is_favorite?: boolean;
@@ -38,6 +39,7 @@ export interface ExerciseBar {
   weight: string;
 }
 export interface WorkoutPreferences {
+  category_order?: "alphabetical" | "manual";
   auto_start_rest?: boolean;
   auto_advance_groups?: boolean;
   bar_kg?: string;
@@ -457,6 +459,17 @@ export function saveCategory(
     id ? "PATCH" : "POST",
     data,
   );
+}
+export function reorderCategories(
+  mode: "alphabetical" | "manual",
+  category_ids: string[],
+  expected_order: string[],
+): Promise<WorkoutCatalog> {
+  return request("categories/reorder/", "POST", {
+    mode,
+    category_ids,
+    expected_order,
+  });
 }
 export function saveExercise(
   id: string | undefined,

@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .history_actions import CopySetsView
+from .category_views import CategoryOrderView
 from . import views
 from . import routine_views
 from .goal_views import ExerciseGoalsView, ExerciseGoalDetailView
@@ -15,6 +16,11 @@ from .progress_views import (
 )
 
 urlpatterns = [
+    path(
+        "categories/reorder/",
+        CategoryOrderView.as_view(),
+        name="workout-category-order",
+    ),
     path(
         "session-exercises/<uuid:item_id>/copy-sets/",
         CopySetsView.as_view(),
