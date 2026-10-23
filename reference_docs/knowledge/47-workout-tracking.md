@@ -8,8 +8,15 @@ catalog ownership, session/set semantics, history preservation, and phased deliv
 ## Status and agreed product direction
 
 Exercise library actions (2026-10-23): All exercises and Add exercise retain
-category headings, search and filters, with compact rows and one muted metadata
-line. Favorites stay directly accessible; each row's overflow menu offers Edit,
+category headings, search and filters, with compact name-only rows by default.
+Display options independently enables Workout count and Last used, remembered
+on the device for both library browsing and Add exercise. Count and last use
+continue to derive only from completed sets; last use displays local-calendar
+relative days (today/yesterday/N days ago), with the recorded date available
+as a tooltip. Enabled details are muted and wrap on narrow screens. Archived
+status remains visible regardless of these preferences. The heading button says
+Edit category; the row menu's Edit changes only the exercise.
+Favorites stay directly accessible; each row's overflow menu offers Edit,
 History and Archive (or Restore). Delete is additionally offered only when the
 server's read-only can_delete flag is true: no workout occurrence (including
 empty or planned work), routine occurrence or goal references the exercise.

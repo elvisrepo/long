@@ -1,5 +1,13 @@
 ## 6. Testing
 
+- Exercise display options (2026-10-23): component coverage checks names-only
+  defaults, independent count/last-use toggles, relative today labels, empty
+  history, remembered options shared with Add exercise, malformed saved values
+  and unavailable storage. The category action is visibly labelled Edit category
+  and retains its existing editor. Browser coverage checks independent toggles,
+  reload persistence, category editing and enabled details at 320/390/1440px.
+  Counts still reflect completed sets; no backend API or migration changed.
+
 - Unused exercise deletion (2026-10-23): API regressions cover 204 deletion,
   repeat/foreign 404, anonymous 401, stale eligibility, and 409 protection of
   empty/planned/completed workout occurrences, archived routines and goals.

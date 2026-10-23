@@ -1,10 +1,11 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 import { WorkoutLibrary } from "./workout-library";
 import * as api from "./workout-api";
 
 vi.mock("./workout-api");
+beforeEach(() => localStorage.clear());
 const exercise: api.Exercise = {
   id: "bench",
   category_id: "chest",
@@ -21,7 +22,7 @@ const exercise: api.Exercise = {
 function renderLibrary(selectingWorkout = false, item = exercise) {
   const onSelect = vi.fn();
   const onHistory = vi.fn();
-  render(
+  const rendered = render(
     <WorkoutLibrary
       catalog={{
         categories: [
@@ -40,8 +41,77 @@ function renderLibrary(selectingWorkout = false, item = exercise) {
       onProgress={vi.fn()}
     />,
   );
-  return { onSelect, onHistory };
+  return { onSelect, onHistory, unmount: rendered.unmount };
 }
+it("defaults to names only and remembers independently selected exercise details", async () => {
+  const today = new Date();
+  const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const item = { ...exercise, trained_session_count: 3, last_used_on: date };
+  const { unmount } = renderLibrary(false, item);
+  expect(screen.queryByText("Weight + reps")).not.toBeInTheDocument();
+  expect(screen.queryByText(/3 workouts/)).not.toBeInTheDocument();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Display options" }),
+  );
+  const count = screen.getByRole("checkbox", { name: "Workout count" });
+  const lastUsed = screen.getByRole("checkbox", { name: "Last used" });
+  expect(count).not.toBeChecked();
+  expect(lastUsed).not.toBeChecked();
+  await userEvent.click(count);
+  await userEvent.click(screen.getByRole("button", { name: "Done" }));
+  expect(screen.getByText("3 workouts")).toBeInTheDocument();
+  expect(screen.queryByText(/Last used today/)).not.toBeInTheDocument();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Display options" }),
+  );
+  await userEvent.click(screen.getByRole("checkbox", { name: "Last used" }));
+  await userEvent.click(screen.getByRole("button", { name: "Done" }));
+  expect(screen.getByText("3 workouts · Last used today")).toBeInTheDocument();
+  unmount();
+  renderLibrary(true, item);
+  expect(screen.getByText("3 workouts · Last used today")).toBeInTheDocument();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Display options" }),
+  );
+  await userEvent.click(
+    screen.getByRole("checkbox", { name: "Workout count" }),
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Done" }));
+  expect(screen.getByText("Last used today")).toBeInTheDocument();
+  expect(screen.queryByText(/3 workouts/)).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Edit category Chest" }),
+  ).toHaveTextContent("Edit category");
+});
+it("defaults safely with invalid saved settings and keeps options usable without storage", async () => {
+  localStorage.setItem("longevity-workout-library-display:v1", "broken-json");
+  renderLibrary(false, {
+    ...exercise,
+    trained_session_count: 0,
+    last_used_on: null,
+  });
+  await userEvent.click(
+    screen.getByRole("button", { name: "Display options" }),
+  );
+  expect(
+    screen.getByRole("checkbox", { name: "Workout count" }),
+  ).not.toBeChecked();
+  const write = vi
+    .spyOn(Storage.prototype, "setItem")
+    .mockImplementation(() => {
+      throw new Error("Storage unavailable");
+    });
+  try {
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: "Workout count" }),
+    );
+    await userEvent.click(screen.getByRole("checkbox", { name: "Last used" }));
+    await userEvent.click(screen.getByRole("button", { name: "Done" }));
+    expect(screen.getByText("0 workouts · Not used yet")).toBeInTheDocument();
+  } finally {
+    write.mockRestore();
+  }
+});
 it("opens exercise actions without selecting the row and links directly to history", async () => {
   const { onSelect, onHistory } = renderLibrary(true);
   expect(
@@ -243,9 +313,18 @@ it("filters favorites and multiple search terms without starting workouts", asyn
   expect(
     screen.getByText("1 exercise", { selector: "small" }),
   ).toBeInTheDocument();
-  expect(
-    screen.getByText(/3 trained sessions.*2026-09-30/),
-  ).toBeInTheDocument();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Display options" }),
+  );
+  await userEvent.click(
+    screen.getByRole("checkbox", { name: "Workout count" }),
+  );
+  await userEvent.click(screen.getByRole("checkbox", { name: "Last used" }));
+  await userEvent.click(screen.getByRole("button", { name: "Done" }));
+  expect(screen.getByText(/3 workouts · Last used/)).toHaveAttribute(
+    "title",
+    "2026-09-30",
+  );
   await userEvent.click(
     screen.getByRole("button", {
       name: "Unfavorite Dumbbell bench press",

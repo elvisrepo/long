@@ -294,6 +294,55 @@ test("deletes only an eligible library exercise after confirmation", async ({
   expect(deletions).toBe(1);
 });
 
+test("exercise display options persist while category and exercise editing stay distinct", async ({
+  page,
+}) => {
+  const { exercise } = await fixture(page);
+  Object.assign(exercise, { trained_session_count: 3, last_used_on: date });
+  await page.addInitScript(() =>
+    localStorage.setItem("longevity-theme", "light"),
+  );
+  await page.setViewportSize({ width: 390, height: 950 });
+  await page.goto("/workouts?view=exercises&date=" + date);
+  const row = page.getByRole("button", {
+    name: "View Barbell bench press",
+    exact: true,
+  });
+  await expect(row).not.toContainText("workouts");
+  await expect(row).not.toContainText("Weight + reps");
+  const category = page.getByRole("button", { name: "Edit category Chest" });
+  await expect(category).toHaveText("Edit category");
+  await category.click();
+  await expect(
+    page.getByRole("heading", { name: "Edit category", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByRole("button", { name: "Display options" }).click();
+  await page.getByRole("checkbox", { name: "Workout count" }).check();
+  await page.getByRole("checkbox", { name: "Last used", exact: true }).check();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(row).toContainText("3 workouts · Last used");
+  await page.reload();
+  await expect(row).toContainText("3 workouts · Last used");
+  for (const width of [320, 390, 1440]) {
+    await page.setViewportSize({ width, height: 950 });
+    await page.screenshot({
+      path: `/tmp/exercise-library-details-${width}.png`,
+      fullPage: true,
+    });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
+  await page.getByRole("button", { name: "Display options" }).click();
+  await page.getByRole("checkbox", { name: "Workout count" }).uncheck();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(row).toContainText("Last used");
+  await expect(row).not.toContainText("3 workouts");
+});
+
 test("exercise library keeps compact actions usable at phone and desktop widths", async ({
   page,
 }) => {
