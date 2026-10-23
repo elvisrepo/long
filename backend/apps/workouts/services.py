@@ -28,6 +28,15 @@ SAMPLES = {
 }
 
 
+def exercise_can_be_deleted(exercise: Exercise) -> bool:
+    """Protect all saved uses, including empty/planned workouts and templates."""
+    return not (
+        exercise.workout_exercises.exists()
+        or exercise.routine_exercises.exists()
+        or exercise.goals.exists()
+    )
+
+
 @transaction.atomic
 def initialize_catalog(user: User) -> None:
     User.objects.select_for_update().get(pk=user.pk)

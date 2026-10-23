@@ -349,6 +349,15 @@ Account workout preferences: authenticated `GET/PATCH /api/v1/workouts/preferenc
 
 Catalog responses additionally include `preferences`. Exercises accept `is_favorite` and `default_graph` (an existing graph metric, `personal_records`, or blank for automatic). Read-only catalog hints `trained_session_count` and `last_used_on` count only owned sessions containing completed sets, not planned entries. Account export includes these library fields and owned `workout_preferences`. Migration `0007_workout_preferences` is additive; no logged set snapshots are rewritten.
 
+Exercise responses also include read-only `can_delete`: true only when there are
+no saved workout occurrences, routine occurrences or goals for the exercise.
+Unlike training usage counts, this includes empty and planned occurrences and
+archived routines. DELETE rechecks eligibility under the shared owner lock and
+returns 409 with an Archive explanation if references now exist. Successful
+deletion also removes matching exercise-specific bar preferences atomically;
+it never deletes workouts, sets, routine templates or goals. Catalog computes
+eligibility with Exists subqueries without per-exercise follow-up queries.
+
 | Method | Endpoint | Contract |
 |---|---|---|
 | GET | `/api/v1/workouts/catalog/` | `{categories, exercises, preferences}`, own catalog including archives; optional case-insensitive `search` (max 120 chars); does not seed |
@@ -357,6 +366,7 @@ Catalog responses additionally include `preferences`. Exercises accept `is_favor
 | PATCH | `/api/v1/workouts/categories/{uuid}/` | `{name?, display_order?, is_active?}`; own category |
 | POST | `/api/v1/workouts/exercises/` | `{category_id, name, tracking_type, ...defaults}`; `201`, own active category |
 | PATCH | `/api/v1/workouts/exercises/{uuid}/` | Editable library fields including category, type, units, notes, increments, rest and archive; never changes existing snapshots |
+| DELETE | `/api/v1/workouts/exercises/{uuid}/` | Own unused exercise only; `204`; `409` if any workout occurrence, routine occurrence or goal references it; foreign/missing `404` |
 | GET | `/api/v1/workouts/sessions/` | Required `date_from`, `date_to`, inclusive 1–366 days; optional own `exercise_id`; `{count, next, previous, results}`; limit default 25/max 100, offset default 0 |
 | POST | `/api/v1/workouts/sessions/` | `{performed_on, name?, notes?, is_finished?}`; `201`; multiple sessions on a day allowed |
 | GET/PATCH/DELETE | `/api/v1/workouts/sessions/{uuid}/` | Own detail; PATCH date/name/notes/is_finished; DELETE session and its sets `204` |
@@ -451,7 +461,7 @@ or null; weight/distance have 3 decimal places. Duration is integer seconds.
   exercises/sets. Finishing does not mark planned sets completed. Only completed
   sets contribute to `completed_set_count`.
 - Catalog archive does not block editing existing history or copying snapshots.
-  Catalog has no hard-delete API. Foreign detail access returns `404`, foreign
+  Library deletion is limited to unreferenced exercises. Foreign detail access returns `404`, foreign
   creation references `400`, validation errors `400`. Session/exercise/set DELETE
   is not idempotent: subsequent deletion of an absent row returns `404`.
 - Initialization is idempotent. Other POSTs create new resources on each request;

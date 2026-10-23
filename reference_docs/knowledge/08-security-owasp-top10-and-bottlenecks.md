@@ -1,5 +1,15 @@
 #### Security (OWASP Top 10 addressed)
 
+- Exercise library deletion (2026-10-23): JWT ownership and the existing owner
+  row lock guard DELETE on the exercise detail endpoint. Any saved workout
+  occurrence (even empty/planned), routine occurrence or goal blocks deletion
+  with 409; foreign/missing exercises return 404. UI eligibility is advisory and
+  rechecked server-side in the transaction. Catalog computes can_delete using
+  Exists subqueries, independently of completed-only usage counts. Exercise bar
+  preferences are cleaned in the same transaction. Existing workouts, sets,
+  routines and goals are never cascaded by this endpoint; Archive remains the
+  history-preserving action. Account deletion retains its existing full cascade.
+
 - AI data periods (2026-10-18): GET/POST timeframe is allowlisted to day/week/month
   (1/7/30 completed local dates), default week. Preview/history remain owner-scoped
   and history is filtered by selected timeframe. Period changes make no provider

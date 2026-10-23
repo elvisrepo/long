@@ -1113,8 +1113,9 @@ it("edits an exercise in an archived category without reassigning its category",
   mount({ view: "exercises" });
   await userEvent.click(await screen.findByLabelText("Show archived"));
   await userEvent.click(
-    screen.getByRole("button", { name: "Edit exercise Barbell bench press" }),
+    screen.getByRole("button", { name: "Actions for Barbell bench press" }),
   );
+  await userEvent.click(screen.getByRole("menuitem", { name: "Edit" }));
   await userEvent.click(screen.getByRole("button", { name: "Save exercise" }));
   await waitFor(() => expect(api.saveExercise).toHaveBeenCalled());
   expect(vi.mocked(api.saveExercise).mock.calls[0][1]).not.toHaveProperty(

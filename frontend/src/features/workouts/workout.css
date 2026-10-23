@@ -413,10 +413,10 @@
 }
 .workout-library-category .workout-exercise-row {
   padding-block: 0.3rem;
-  border-top: 1px solid #edf1f3;
+  border-top: 1px solid var(--border);
 }
 .workout-library-category .workout-exercise-choice {
-  min-height: 76px;
+  min-height: 68px;
   padding: 0.55rem 0.25rem;
   border-color: transparent;
   border-radius: 6px;
@@ -429,6 +429,56 @@
 .workout-library-category .workout-exercise-choice small {
   font-weight: 400;
   line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workout-library-category .workout-exercise-choice > span:first-child {
+  min-width: 0;
+}
+.workout-library-category .workout-exercise-choice[aria-pressed="true"] {
+  background: var(--accent-soft, #edf5f4);
+}
+.workout-library-actions-menu {
+  position: relative;
+}
+.workout-library-actions-menu > button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.5rem;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-dim);
+  font-size: 1.35rem;
+}
+.workout-library-actions-menu:has([role="menu"]) {
+  z-index: 20;
+}
+.workout-library-action-list {
+  position: absolute;
+  inset-block-start: calc(100% + 0.25rem);
+  inset-inline-end: 0;
+  width: 160px;
+  padding: 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px #19303d24;
+  display: grid;
+  gap: 0.15rem;
+}
+.workout-library-action-list > button {
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  background: transparent;
+  text-align: start;
+  box-shadow: none;
+}
+.workout-library-action-list > button:hover:not(:disabled),
+.workout-library-action-list > button:focus-visible {
+  background: var(--bg-subtle, #f5f8f8);
 }
 .workout-library-category .workout-exercise-choice > span:last-child {
   color: var(--text-dim);
@@ -1970,7 +2020,7 @@
 
 @media (max-width: 420px) {
   .workout-library-category .workout-exercise-row .workout-actions {
-    flex-direction: column;
+    flex-direction: row;
     gap: 0;
   }
 }

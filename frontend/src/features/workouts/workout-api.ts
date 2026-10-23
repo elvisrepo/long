@@ -12,6 +12,7 @@ export interface Exercise extends ExerciseCategory {
   default_graph?: string;
   trained_session_count?: number;
   last_used_on?: string | null;
+  can_delete?: boolean;
   category_id: string;
   tracking_type: TrackingType;
   weight_unit: "kg" | "lb";
@@ -466,6 +467,9 @@ export function saveExercise(
     id ? "PATCH" : "POST",
     data,
   );
+}
+export function deleteExercise(id: string): Promise<void> {
+  return request(`exercises/${encodeURIComponent(id)}/`, "DELETE");
 }
 export function deleteWorkoutItem(
   kind: "sessions" | "session-exercises" | "sets",

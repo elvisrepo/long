@@ -3,6 +3,7 @@ import { Modal } from "../../components/modal";
 import * as api from "./workout-api";
 import type { RunAction } from "./workout-navigation";
 import { progressMetrics } from "./workout-analysis";
+import { ExerciseLibraryActions } from "./exercise-library-actions";
 
 const labels: Record<api.TrackingType, string> = {
   strength: "Weight + reps",
@@ -42,6 +43,9 @@ export function WorkoutLibrary({
   const [favorites, setFavorites] = useState(false);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [detail, setDetail] = useState<api.Exercise | null>(null);
+  const [archiving, setArchiving] = useState<api.Exercise | null>(null);
+  const [deleting, setDeleting] = useState<api.Exercise | null>(null);
+  const [deleteError, setDeleteError] = useState("");
   const categories = catalog.categories.filter((c) => archives || c.is_active);
   const terms = search.toLowerCase().trim().split(/\s+/);
   const matchingExercises = catalog.exercises.filter(
@@ -173,6 +177,13 @@ export function WorkoutLibrary({
                             (selectionDisabled || !c.is_active || !e.is_active))
                         }
                         aria-label={`${selectingWorkout ? (existingExercises.some((i) => i.exercise_id === e.id) ? "Open" : "Add") : "View"} ${e.name}`}
+                        aria-pressed={
+                          selectingWorkout
+                            ? existingExercises.some(
+                                (i) => i.exercise_id === e.id,
+                              )
+                            : undefined
+                        }
                         onClick={() =>
                           selectingWorkout ? onSelect(e.id) : setDetail(e)
                         }
@@ -182,21 +193,23 @@ export function WorkoutLibrary({
                           <small>
                             {labels[e.tracking_type]}
                             {!e.is_active ? " · Archived" : ""}
+                            {e.trained_session_count !== undefined && (
+                              <>
+                                {` · ${e.trained_session_count} trained sessions`}
+                                {e.last_used_on
+                                  ? ` · Last used ${e.last_used_on}`
+                                  : " · Not used yet"}
+                              </>
+                            )}
                           </small>
-                          {e.trained_session_count !== undefined && (
-                            <small>
-                              {e.trained_session_count} trained sessions
-                              {e.last_used_on
-                                ? ` · Last used ${e.last_used_on}`
-                                : " · Not used yet"}
-                            </small>
-                          )}
                         </span>
                         <span aria-hidden="true">
                           {selectingWorkout &&
                           !existingExercises.some((i) => i.exercise_id === e.id)
                             ? "＋"
-                            : "→"}
+                            : selectingWorkout
+                              ? "✓"
+                              : "→"}
                         </span>
                       </button>
                       <div className="workout-actions">
@@ -214,15 +227,33 @@ export function WorkoutLibrary({
                         >
                           {e.is_favorite ? "★" : "☆"}
                         </button>
-                        <button
-                          disabled={busy}
-                          aria-label={`Edit exercise ${e.name}`}
-                          onClick={() =>
+                        <ExerciseLibraryActions
+                          name={e.name}
+                          busy={busy}
+                          archived={!e.is_active}
+                          restoreDisabled={!c.is_active}
+                          onEdit={() =>
                             setEditor({ kind: "exercise", item: e })
                           }
-                        >
-                          Edit
-                        </button>
+                          onHistory={() => onHistory(e.id)}
+                          onArchive={() =>
+                            e.is_active
+                              ? setArchiving(e)
+                              : run(async () => {
+                                  await api.saveExercise(e.id, {
+                                    is_active: true,
+                                  });
+                                })
+                          }
+                          onDelete={
+                            e.can_delete === true
+                              ? () => {
+                                  setDeleteError("");
+                                  setDeleting(e);
+                                }
+                              : undefined
+                          }
+                        />
                       </div>
                     </div>
                   ))}
@@ -238,6 +269,81 @@ export function WorkoutLibrary({
             );
           })}
       </div>
+      {deleting && (
+        <Modal
+          labelledBy="delete-library-exercise"
+          busy={busy}
+          onClose={() => setDeleting(null)}
+        >
+          <h2 id="delete-library-exercise">Delete {deleting.name}?</h2>
+          <p>
+            This exercise is not linked to a workout, routine or goal. Deletion
+            is permanent and removes its exercise-specific bar settings. Archive
+            it instead if you may want to use it later.
+          </p>
+          {deleteError && (
+            <p role="alert" className="workout-error">
+              {deleteError}
+            </p>
+          )}
+          <div className="workout-actions">
+            <button disabled={busy} onClick={() => setDeleting(null)}>
+              Cancel
+            </button>
+            <button
+              className="workout-danger"
+              disabled={busy}
+              onClick={() =>
+                run(async () => {
+                  setDeleteError("");
+                  try {
+                    await api.deleteExercise(deleting.id);
+                    setDeleting(null);
+                  } catch (error) {
+                    setDeleteError(
+                      error instanceof Error
+                        ? error.message
+                        : "Could not delete this exercise. Please try again.",
+                    );
+                    throw error;
+                  }
+                })
+              }
+            >
+              Delete exercise
+            </button>
+          </div>
+        </Modal>
+      )}
+      {archiving && (
+        <Modal
+          labelledBy="archive-library-exercise"
+          busy={busy}
+          onClose={() => setArchiving(null)}
+        >
+          <h2 id="archive-library-exercise">Archive {archiving.name}?</h2>
+          <p>
+            This hides the exercise from your active library. Recorded workouts
+            and history are kept. You can restore it using Show archived.
+          </p>
+          <div className="workout-actions">
+            <button disabled={busy} onClick={() => setArchiving(null)}>
+              Cancel
+            </button>
+            <button
+              disabled={busy}
+              onClick={() =>
+                run(async () => {
+                  await api.saveExercise(archiving.id, { is_active: false });
+                  setArchiving(null);
+                })
+              }
+            >
+              Archive exercise
+            </button>
+          </div>
+        </Modal>
+      )}
       {detail && (
         <Modal
           labelledBy="library-exercise-detail"

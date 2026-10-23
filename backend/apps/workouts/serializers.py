@@ -14,6 +14,7 @@ from .models import (
     WorkoutPreferences,
 )
 from .progress_queries import METRICS
+from .services import exercise_can_be_deleted
 
 
 class PlateSerializer(serializers.Serializer):
@@ -132,6 +133,12 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class ExerciseSerializer(serializers.ModelSerializer):
+    can_delete = serializers.SerializerMethodField()
+
+    def get_can_delete(self, exercise: Exercise) -> bool:
+        hint = getattr(exercise, "deletion_allowed", None)
+        return bool(hint) if hint is not None else exercise_can_be_deleted(exercise)
+
     default_graph = serializers.ChoiceField(
         choices=["", *METRICS, "personal_records"], required=False, allow_blank=True
     )
@@ -163,6 +170,7 @@ class ExerciseSerializer(serializers.ModelSerializer):
             "default_graph",
             "trained_session_count",
             "last_used_on",
+            "can_delete",
         ]
         read_only_fields = ["id"]
 

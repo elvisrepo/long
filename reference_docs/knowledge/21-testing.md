@@ -1,5 +1,24 @@
 ## 6. Testing
 
+- Unused exercise deletion (2026-10-23): API regressions cover 204 deletion,
+  repeat/foreign 404, anonymous 401, stale eligibility, and 409 protection of
+  empty/planned/completed workout occurrences, archived routines and goals.
+  Rejected deletion preserves saved quantities and workout completion; successful
+  deletion removes only matching exercise bar preferences. UI tests cover server
+  eligibility (missing/false fails closed), permanent-delete confirmation/cancel,
+  successful deletion and inline stale-state errors. All 710 frontend tests and
+  13 workout browser journeys pass; backend protection suites pass. No database
+  migration is required.
+
+- Exercise library actions (2026-10-23): component checks cover direct History,
+  Edit, archive confirmation/cancellation, restore, favorites independent of row
+  selection, keyboard navigation, Escape/focus return and outside dismissal.
+  The existing archived-category edit regression now opens the overflow menu.
+  Browser coverage checks menu bounds, keyboard focus, Edit/History navigation
+  and absence of horizontal overflow at 320/390/1440px; all 12 workout browser
+  journeys pass. Archive reuses the existing API. The later unused-delete
+  addition uses DELETE on the existing exercise detail path; no migration changed.
+
 - Distance detail proposals 02–04 (2026-10-20): 30-day defaults, recorded-day
   averages, missing-date/null versus measured-zero chart values, DST calendar
   iteration, UTC date links, daily-history expansion/reset, source disclosure,

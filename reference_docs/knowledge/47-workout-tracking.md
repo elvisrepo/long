@@ -7,6 +7,19 @@ catalog ownership, session/set semantics, history preservation, and phased deliv
 
 ## Status and agreed product direction
 
+Exercise library actions (2026-10-23): All exercises and Add exercise retain
+category headings, search and filters, with compact rows and one muted metadata
+line. Favorites stay directly accessible; each row's overflow menu offers Edit,
+History and Archive (or Restore). Delete is additionally offered only when the
+server's read-only can_delete flag is true: no workout occurrence (including
+empty or planned work), routine occurrence or goal references the exercise.
+Permanent deletion requires confirmation; a stale reference returns 409 and the
+dialog retains the explanation. Archive preserves recorded history using the
+existing is_active update. Restoring still requires an active parent category. Menu actions
+never select/add the exercise. Existing workout exercises show a selected
+checkmark/highlight and open their existing occurrence. Keyboard arrows, Home/End,
+Escape, focus return, outside clicks and focus leaving the menu are supported.
+
 Combined cardio goals (2026-10-05): Overview → Goals offers Distance within a time
 limit, e.g. at least 5 km within 25 minutes. Both raw thresholds must hold in one
 completed cardio set; no split estimates, summed sets, pace extrapolation or unit
@@ -377,8 +390,12 @@ Set PATCH validates combined values. Ordering uses nonnegative numeric order
 with ID tie-breaking; appends use the current maximum plus ten. Adjacent moves
 normalize sibling orders to multiples of ten in a single owner-locked transaction.
 
-The library has no hard-delete endpoint. RESTRICT protects exercises referenced
-by history, but account deletion can cascade all owned rows together. Archive
+Library DELETE removes only an owned unreferenced exercise; linked workouts,
+routines and goals return 409 with an Archive suggestion. Eligibility is checked
+under the shared owner row lock; catalog usage counts are not deletion criteria.
+Both metric and imperial exercise-specific bar preferences are cleaned atomically.
+RESTRICT protects workout/routine references as well. Account deletion can still
+cascade all owned rows together. Archive
 prevents newly adding the exercise to a session; existing snapshots remain
 editable. Finished sessions require reopening before exercise/set edits. Finishing
 does not complete planned sets. Copies reset completion and clear session notes

@@ -245,7 +245,104 @@ async function fixture(page: Page, preferences: WorkoutPreferences = {}) {
       );
     await route.fulfill({ json });
   });
+  return { category, exercise };
 }
+
+test("deletes only an eligible library exercise after confirmation", async ({
+  page,
+}) => {
+  const { category, exercise } = await fixture(page);
+  let deletions = 0;
+  await page.route("**/api/v1/workouts/catalog/", (route) =>
+    route.fulfill({
+      json: {
+        categories: [category],
+        exercises: deletions ? [] : [{ ...exercise, can_delete: true }],
+      },
+    }),
+  );
+  await page.route(
+    `**/api/v1/workouts/exercises/${exerciseId}/`,
+    async (route) => {
+      expect(route.request().method()).toBe("DELETE");
+      deletions += 1;
+      await route.fulfill({ status: 204 });
+    },
+  );
+  await page.setViewportSize({ width: 390, height: 950 });
+  await page.goto("/workouts?view=exercises&date=" + date);
+  const trigger = page.getByRole("button", {
+    name: "Actions for Barbell bench press",
+  });
+  await trigger.click();
+  await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
+  const dialog = page.getByRole("dialog", {
+    name: "Delete Barbell bench press?",
+  });
+  await expect(dialog).toContainText("permanent");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  expect(deletions).toBe(0);
+  await trigger.click();
+  await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Delete exercise", exact: true })
+    .click();
+  await expect(dialog).not.toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "View Barbell bench press", exact: true }),
+  ).toHaveCount(0);
+  expect(deletions).toBe(1);
+});
+
+test("exercise library keeps compact actions usable at phone and desktop widths", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("longevity-theme", "light"),
+  );
+  await fixture(page);
+  await page.goto("/workouts?view=exercises&date=" + date);
+  for (const width of [320, 390, 1440]) {
+    await page.setViewportSize({ width, height: 950 });
+    const trigger = page.getByRole("button", {
+      name: "Actions for Barbell bench press",
+    });
+    await trigger.click();
+    const menu = page.getByRole("menu", {
+      name: "Actions for Barbell bench press",
+    });
+    await expect(menu).toBeVisible();
+    const bounds = await menu.boundingBox();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+    await expect(page.getByRole("menuitem", { name: "Edit" })).toBeFocused();
+    await page.screenshot({
+      path: `/tmp/exercise-library-menu-${width}.png`,
+      fullPage: true,
+    });
+    await page.keyboard.press("Escape");
+    await expect(trigger).toBeFocused();
+    await expect(menu).not.toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
+  await page
+    .getByRole("button", { name: "Actions for Barbell bench press" })
+    .click();
+  await page.getByRole("menuitem", { name: "Edit" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Edit exercise" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Actions for Barbell bench press" })
+    .click();
+  await page.getByRole("menuitem", { name: "History" }).click();
+  await expect(page).toHaveURL(/view=history/);
+});
 
 for (const width of [320, 390, 1440])
   test(`workout logging, planning, editing, copy and layout at ${width}px`, async ({
