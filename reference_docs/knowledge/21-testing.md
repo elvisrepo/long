@@ -2271,3 +2271,46 @@ sheets are not exercised in this environment. Graph layouts are checked at
 screenshots and workout/summary previews were visually reviewed. Browser APIs use
 fixtures; PostgreSQL integration tests independently verify analytics contracts
 and goal constraints.
+
+### Routine management — 2026-10-25
+
+Focused tests cover guided routine → day creation, searched/category-filtered
+exercise selection, inline creation with attachment retry, independent copy,
+confirmed template deletion preserving started workouts, complete-list day/exercise
+ordering and stale/partial/foreign rejection. Component tests verify no writes
+before order confirmation, no duplicate library creation on retry, and no workout
+creation while building templates. Browser regression journeys exercise the new
+actions menu when archiving/restoring and retain the routine preview/start checks.
+
+Validation: 307 backend workout/account-lifecycle tests, 724 frontend tests,
+15 existing workout browser journeys and three new routine journeys at
+320/390/1440px pass. Frontend lint/build, targeted backend Ruff and the complete
+backend mypy check (194 files) pass. New browser APIs use isolated fixtures;
+PostgreSQL tests verify independent-copy and template-deletion persistence.
+
+### Compact routines — 2026-10-26
+
+Focused coverage checks compact browsing without a preamble/date navigator,
+separate edit/picker/set/group dialogs, local preset drafts and cancellation,
+null/zero retention, failed-save retry, named-group colour reuse, and existing
+routine start selection/stale refresh. PostgreSQL tests cover atomic full preset
+replacement, stale/invalid rollback, 1000-row bounds, performance-field rejection,
+anonymous/foreign/archive guards, clearing and started-workout preservation.
+Browser coverage and final validation results are recorded after the checks.
+
+Final compact-routine validation: 310 workout/account-lifecycle backend tests
+and all 730 frontend tests pass. The default parallel frontend rerun suffered
+cross-feature timeouts under runner pressure; rerunning with `--maxWorkers=2`
+passed without changing assertions or the 5-second test timeout. Focused routine
+checks (23 tests) also pass without unhandled pointer errors. All 19 workout browser
+journeys pass across the full 18-case run plus the added direct-row-ordering case;
+the four routine cases were rerun successfully after the final refinements.
+Frontend lint/build/format checks, backend Ruff and full mypy (194 files), and
+`git diff --check` pass. No model changes or database migration were introduced.
+
+Actual screens were captured in Light/Dark at 320/390/1440px, using fixture APIs.
+Headers and action footers remain visible while dialog bodies scroll. The local
+before/after gallery checks all six screen choices and image assets, both themes,
+three source widths and phone/desktop gallery layout, including image enlargement,
+with no page overflow or JavaScript errors. Native mobile keyboards are not part
+of these desktop-Chrome viewport checks. No staging deployment was performed.

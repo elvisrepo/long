@@ -272,14 +272,17 @@ persisted routine-to-workout occurrence lineage is introduced.
 | Method | Endpoint | Contract |
 |---|---|---|
 | GET/POST | `/api/v1/workouts/routines/` | GET own routines including archives with nested days/exercises/sets; POST `{name, notes?, display_order?}` creates an active routine `201` |
-| PATCH | `/api/v1/workouts/routines/{uuid}/` | Own name/notes/order/archive; no hard-delete routine endpoint |
+| PATCH/DELETE | `/api/v1/workouts/routines/{uuid}/` | PATCH own name/notes/order/archive; DELETE `204` permanently removes only the template tree, preserving existing workouts |
+| POST | `/api/v1/workouts/routines/{uuid}/copy/` | `{name}` creates an active independent deep copy with new template IDs, preserved notes/snapshots/groups/null quantities, and no Workout; archived sources allowed, `201` |
+| POST | `/api/v1/workouts/routines/{uuid}/days/reorder/` | Atomic complete day order `{ids, expected_order}` |
+| POST | `/api/v1/workouts/routine-days/{uuid}/exercises/reorder/` | Atomic complete exercise order `{ids, expected_order}` |
 | POST | `/api/v1/workouts/routines/{uuid}/days/` | `{name, source_workout_id?, notes?, display_order?}`; `201` empty day, or independent snapshot of an own saved workout containing at least one exercise |
 | PATCH/DELETE | `/api/v1/workouts/routine-days/{uuid}/` | PATCH own name/notes/order; optional `source_workout_id` atomically replaces exercise/set template; DELETE `204` removes only template, never previously created sessions |
 | GET | `/api/v1/workouts/routine-days/{uuid}/preview/` | Required `performed_on`, optional `carry_forward=false`; read-only resolved start plan with provenance and `preview_token` |
 | POST | `/api/v1/workouts/routine-days/{uuid}/start/` | `{performed_on, carry_forward?, preview_token?, selection?}` creates independent planned Workout `201`; legacy date-only starts retain fixed template behavior |
 | POST | `/api/v1/workouts/routine-days/{uuid}/exercises/` | `{exercise_id, display_order?}` adds active own library exercise with server-frozen snapshots, `201` |
-| PATCH/DELETE | `/api/v1/workouts/routine-exercises/{uuid}/` | PATCH `{display_order?, group_name?}` with at least one field; DELETE occurrence and its template sets, `204` |
-| POST | `/api/v1/workouts/routine-exercises/{uuid}/sets/` | Planned quantities and optional order, `201`; no performance fields |
+| PATCH/DELETE | `/api/v1/workouts/routine-exercises/{uuid}/` | PATCH `{display_order?, group_name?, group_colour?}` with at least one field; DELETE occurrence and its template sets, `204` |
+| POST/PUT | `/api/v1/workouts/routine-exercises/{uuid}/sets/` | POST planned quantities and optional order, `201`; PUT atomic full preset draft `{sets, expected_sets}`, `200`; no performance fields |
 | PATCH/DELETE | `/api/v1/workouts/routine-sets/{uuid}/` | Combined-value validation on partial quantity/order edits; DELETE `204` |
 
 Routine JSON: `{id, name, notes, display_order, is_active, days}`. Day JSON:
@@ -384,7 +387,7 @@ display. Both colour and mode are included in account export.
 | GET/PATCH/DELETE | `/api/v1/workouts/sessions/{uuid}/` | Own detail; PATCH date/name/notes/is_finished; DELETE session and its sets `204` |
 | POST | `/api/v1/workouts/sessions/{uuid}/exercises/` | `{exercise_id, display_order?}`; `201` ordered occurrence with server snapshots; active own exercise/category required |
 | POST | `/api/v1/workouts/sessions/{uuid}/copy/` | `{performed_on, selection?}`; `201` independent planned session; no completion, session notes or performance comments copied |
-| PATCH/DELETE | `/api/v1/workouts/session-exercises/{uuid}/` | PATCH `{display_order?, group_name?}` with at least one field; DELETE occurrence and sets `204`; snapshots/reference immutable |
+| PATCH/DELETE | `/api/v1/workouts/session-exercises/{uuid}/` | PATCH `{display_order?, group_name?, group_colour?}` with at least one field; DELETE occurrence and sets `204`; snapshots/reference immutable |
 | POST | `/api/v1/workouts/session-exercises/{uuid}/sets/` | Set fields below; `201` individual set; completion defaults true |
 | PATCH/DELETE | `/api/v1/workouts/sets/{uuid}/` | Partial set edit validated against combined values, or DELETE `204` |
 | POST | `/api/v1/workouts/sets/bulk/` | Atomic history update/delete of 1–100 sets with expected snapshots; `{affected_count}` `200` |
@@ -1526,3 +1529,21 @@ open a focused section without adding route paths.
 With `per_workout=true`, progress point JSON includes the supporting `workout_id`
 and session name where available. The graph uses this owned ID for its workout
 preview; points without a session ID retain the date-based preview fallback.
+
+Routine management (2026-10-25): both reorder endpoints require unique UUID lists
+(maximum 1000 each), an active owned parent, and every current child exactly once.
+Stale `expected_order` returns 409 without writes; invalid membership returns 400.
+Successful orders normalize ranks to 10, 20, … under the shared owner lock.
+Missing/foreign parents return 404. Routine group colours require `#RRGGBB`.
+Routine deletion and copying also hold the owner lock; neither modifies logged
+workouts. Copy names follow existing owner-wide uniqueness, including archives.
+
+Routine preset draft replacement (2026-10-26): PUT accepts up to 1000 quantity-only
+rows and the exact previously read `RoutineSet[]` snapshot in `expected_sets`.
+The owned active occurrence is resolved under the user row lock before validation.
+Any mismatch returns 409; unknown/performance fields, invalid types/units/values,
+or oversized lists return 400 with no writes. Every row validates before replacing
+the collection. Saved rows have new UUIDs and normalized 10-step order. Empty
+`sets` clears presets; null fields and explicit zero weight retain their meaning.
+Only template sets are replaced; started workouts have independent snapshots.
+POST/PATCH/DELETE per-set clients remain supported. No schema migration is needed.

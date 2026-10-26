@@ -526,6 +526,26 @@ export function moveWorkoutItem(
 
 export const getWorkoutRoutines = (): Promise<WorkoutRoutine[]> =>
   request("routines/");
+export const copyWorkoutRoutine = (
+  id: string,
+  name: string,
+): Promise<WorkoutRoutine> =>
+  request(`routines/${encodeURIComponent(id)}/copy/`, "POST", { name });
+export const deleteWorkoutRoutine = (id: string): Promise<void> =>
+  request(`routines/${encodeURIComponent(id)}/`, "DELETE");
+export const reorderRoutineItems = (
+  kind: "days" | "exercises",
+  id: string,
+  ids: string[],
+  expected_order: string[],
+): Promise<WorkoutRoutine | RoutineDay> =>
+  request(
+    kind === "days"
+      ? `routines/${encodeURIComponent(id)}/days/reorder/`
+      : `routine-days/${encodeURIComponent(id)}/exercises/reorder/`,
+    "POST",
+    { ids, expected_order },
+  );
 export const saveWorkoutRoutine = (
   id: string | undefined,
   data: Partial<Omit<WorkoutRoutine, "id" | "days">>,
@@ -587,10 +607,12 @@ export const reorderRoutineExercise = (
   id: string,
   display_order: number,
   group_name?: string,
+  group_colour?: string,
 ): Promise<RoutineExercise> =>
   request(`routine-exercises/${encodeURIComponent(id)}/`, "PATCH", {
     display_order,
     ...(group_name === undefined ? {} : { group_name }),
+    ...(group_colour === undefined ? {} : { group_colour }),
   });
 export const saveRoutineSet = (
   item: string,
@@ -634,3 +656,13 @@ export function copyWorkoutSets(
     { source_workout_id: source, set_ids: setIds },
   );
 }
+
+export const replaceRoutineSets = (
+  item: string,
+  sets: Omit<RoutineSet, "id" | "display_order">[],
+  expected_sets: RoutineSet[],
+): Promise<RoutineExercise> =>
+  request(`routine-exercises/${encodeURIComponent(item)}/sets/`, "PUT", {
+    sets,
+    expected_sets,
+  });

@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import type {
   WorkoutRoutine,
   WorkoutPreferences,
+  RoutineSet,
 } from "../src/features/workouts/workout-api";
 
 const categoryId = "11111111-1111-4111-8111-111111111111";
@@ -709,12 +710,12 @@ for (const width of [320, 390, 1440])
       .click();
     await page.getByRole("button", { name: "Routines", exact: true }).click();
     await expect(
-      page.getByRole("heading", { name: "Weekly plan" }),
-    ).toBeVisible();
-    await page.getByLabel("Tracking date").fill("2026-10-06");
+      page.getByRole("combobox", { name: "Browse routines" }),
+    ).toHaveValue("88888888-8888-4888-8888-888888888888");
     await page.getByRole("button", { name: "Start Push", exact: true }).click();
+    await page.getByLabel("Workout date", { exact: true }).fill("2026-10-06");
     await expect(
-      page.getByRole("heading", { name: "Preview routine start" }),
+      page.getByRole("heading", { name: "Start workout" }),
     ).toBeVisible();
     await page
       .getByRole("button", { name: "Start planned workout", exact: true })
@@ -737,15 +738,18 @@ for (const width of [320, 390, 1440])
     ).toHaveValue("Warm up first");
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
     await page.getByRole("button", { name: "Routines", exact: true }).click();
+    await page.getByLabel("Routine actions for Weekly plan").click();
     await page.getByRole("button", { name: "Archive routine" }).click();
     await page.getByLabel("Show archived routines").check();
+    await page.getByRole("button", { name: /Weekly plan/ }).click();
     await expect(
       page.getByRole("button", { name: "Start Push", exact: true }),
     ).toBeDisabled();
+    await page.getByLabel("Routine actions for Weekly plan").click();
     await page.getByRole("button", { name: "Restore routine" }).click();
-    await page
-      .getByRole("button", { name: "Edit template", exact: true })
-      .click();
+    await page.getByRole("button", { name: /Weekly plan/ }).click();
+    await page.getByRole("button", { name: "Edit routine exercises" }).click();
+    await page.getByRole("button", { name: "Edit Push day details" }).click();
     await page.getByLabel("Day name", { exact: true }).fill("Upper body");
     await page.getByRole("button", { name: "Save day details" }).click();
     await expect(
@@ -1877,4 +1881,348 @@ test("exercise analytics connects graphs, records, statistic periods, goals and 
     .click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
+});
+
+for (const width of [320, 390, 1440]) {
+  test(`creates and manages routine templates at ${width}px`, async ({
+    page,
+  }) => {
+    const { exercise } = await fixture(page);
+    const routines: WorkoutRoutine[] = [];
+    let sequence = 0;
+    let sessionWrites = 0;
+    const id = () =>
+      `aaaaaaaa-aaaa-4aaa-8aaa-${String(++sequence).padStart(12, "0")}`;
+    page.on("request", (request) => {
+      if (
+        request.method() === "POST" &&
+        new URL(request.url()).pathname === "/api/v1/workouts/sessions/"
+      )
+        sessionWrites++;
+    });
+    await page.route("**/api/v1/workouts/routines/**", async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      const body = request.postDataJSON();
+      let json: unknown = routines;
+      const routine = routines.find((row) => path.includes(row.id));
+      if (path.endsWith("/days/reorder/")) {
+        expect(body.expected_order).toEqual(routine!.days.map((row) => row.id));
+        routine!.days = body.ids.map((key: string, index: number) => ({
+          ...routine!.days.find((row) => row.id === key)!,
+          display_order: (index + 1) * 10,
+        }));
+        json = routine;
+      } else if (path.endsWith("/days/")) {
+        const day = {
+          id: id(),
+          name: body.name,
+          notes: body.notes || "",
+          display_order: body.display_order,
+          exercises: [],
+        };
+        routine!.days.push(day);
+        json = day;
+      } else if (path.endsWith("/copy/")) {
+        const copy = structuredClone(routine!);
+        copy.id = id();
+        copy.name = body.name;
+        for (const day of copy.days) {
+          day.id = id();
+          for (const item of day.exercises) {
+            item.id = id();
+            for (const row of item.sets) row.id = id();
+          }
+        }
+        routines.push(copy);
+        json = copy;
+      } else if (request.method() === "DELETE") {
+        routines.splice(routines.indexOf(routine!), 1);
+        await route.fulfill({ status: 204 });
+        return;
+      } else if (request.method() === "POST") {
+        const saved: WorkoutRoutine = {
+          id: id(),
+          name: body.name,
+          notes: body.notes,
+          display_order: body.display_order,
+          is_active: true,
+          days: [],
+        };
+        routines.push(saved);
+        json = saved;
+      }
+      await route.fulfill({ json });
+    });
+    await page.route("**/api/v1/workouts/routine-days/**", async (route) => {
+      expect(route.request().postDataJSON().exercise_id).toBe(exercise.id);
+      const day = routines
+        .flatMap((row) => row.days)
+        .find((row) => route.request().url().includes(row.id))!;
+      const item = {
+        id: id(),
+        exercise_id: exercise.id,
+        exercise_name: exercise.name,
+        category_name: "Chest",
+        tracking_type: "strength" as const,
+        weight_unit: "kg",
+        distance_unit: "km",
+        display_order: 10,
+        group_name: "",
+        group_colour: "#007f68",
+        sets: [],
+      };
+      day.exercises.push(item);
+      await route.fulfill({ json: item });
+    });
+    await page.route(
+      "**/api/v1/workouts/routine-exercises/**",
+      async (route) => {
+        const body = route.request().postDataJSON();
+        const item = routines
+          .flatMap((row) => row.days)
+          .flatMap((row) => row.exercises)
+          .find((row) => route.request().url().includes(row.id))!;
+        if (route.request().method() === "PATCH") Object.assign(item, body);
+        else {
+          expect(body.expected_sets).toEqual(item.sets);
+          expect(body.sets[0].weight).toBeNull();
+          expect(body.sets[0].reps).toBe(8);
+          item.sets = body.sets.map(
+            (row: Omit<RoutineSet, "id" | "display_order">, index: number) => ({
+              ...row,
+              id: id(),
+              display_order: (index + 1) * 10,
+            }),
+          );
+        }
+        await route.fulfill({ json: item });
+      },
+    );
+    await page.setViewportSize({ width, height: 950 });
+    await page.goto("/workouts?view=routines&date=" + date);
+    await page.getByLabel("Browse routines").selectOption("new");
+    await page
+      .getByLabel("Routine name", { exact: true })
+      .fill("Push / Pull / Legs");
+    await page
+      .getByRole("button", { name: "Save routine", exact: true })
+      .click();
+    await page.getByLabel("Day name", { exact: true }).fill("Push");
+    await page.getByRole("button", { name: "Create day", exact: true }).click();
+    await page.getByLabel("Search routine exercises").fill("bench");
+    await page.getByLabel("Routine exercise category").selectOption(categoryId);
+    await page
+      .getByRole("button", { name: "Add Barbell bench press", exact: true })
+      .click();
+    await page.getByRole("button", { name: "Add set", exact: true }).click();
+    await page.getByLabel("Set 1 reps", { exact: true }).fill("8");
+    await page
+      .getByRole("button", { name: "Save predefined sets", exact: true })
+      .click();
+    await expect
+      .poll(() => routines[0].days[0].exercises[0].sets.length)
+      .toBe(1);
+    await page
+      .getByRole("button", {
+        name: "Options for Barbell bench press",
+        exact: true,
+      })
+      .click();
+    await page
+      .getByRole("button", { name: "Add to group", exact: true })
+      .click();
+    await page.getByRole("radio", { name: "New group", exact: true }).check();
+    await page.getByLabel("Group name", { exact: true }).fill("Superset 1");
+    await page.getByRole("button", { name: "Save group", exact: true }).click();
+    await expect
+      .poll(() => routines[0].days[0].exercises[0].group_name)
+      .toBe("Superset 1");
+    await page.screenshot({
+      path: `test-results/workouts/routine-builder-${width}.png`,
+      fullPage: true,
+    });
+    await page.getByRole("button", { name: "Add day", exact: true }).click();
+    await page.getByLabel("Day name", { exact: true }).fill("Pull");
+    await page.getByRole("button", { name: "Create day", exact: true }).click();
+    await page.getByRole("button", { name: "Done", exact: true }).click();
+    await page.getByLabel("Routine actions for Push / Pull / Legs").click();
+    await page
+      .getByRole("button", { name: "Reorder days", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Move Pull (day 2) up", exact: true })
+      .click();
+    const handle = page.getByRole("button", {
+      name: "Drag Pull (day 1)",
+      exact: true,
+    });
+    const source = (await handle.boundingBox())!;
+    const target = (await page
+      .getByRole("button", { name: "Drag Push (day 2)", exact: true })
+      .boundingBox())!;
+    await page.mouse.move(
+      source.x + source.width / 2,
+      source.y + source.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      target.x + target.width / 2,
+      target.y + target.height / 2,
+      { steps: 8 },
+    );
+    await page.mouse.up();
+    await expect(
+      page.getByRole("button", { name: "Move Pull (day 2) up", exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Move Pull (day 2) up", exact: true })
+      .click();
+    expect(routines[0].days.map((row) => row.name)).toEqual(["Push", "Pull"]);
+    await page.getByRole("button", { name: "Save order", exact: true }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    expect(routines[0].days.map((row) => row.name)).toEqual(["Pull", "Push"]);
+    await page.getByLabel("Routine actions for Push / Pull / Legs").click();
+    await page
+      .getByRole("button", { name: "Copy routine", exact: true })
+      .click();
+    await page.getByLabel("Copy name").fill("Independent copy");
+    await page
+      .getByRole("button", { name: "Create copy", exact: true })
+      .click();
+    await expect.poll(() => routines.length).toBe(2);
+    await expect(
+      page.getByRole("combobox", { name: "Browse routines" }),
+    ).toHaveValue(routines[1].id);
+    await page.getByLabel("Browse routines").selectOption(routines[1].id);
+    await page.getByLabel("Routine actions for Independent copy").click();
+    await page.screenshot({
+      path: `test-results/workouts/routine-actions-${width}.png`,
+      fullPage: true,
+    });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await page
+      .getByRole("button", { name: "Delete routine", exact: true })
+      .click();
+    expect(routines).toHaveLength(2);
+    await page
+      .getByRole("button", { name: "Confirm delete routine", exact: true })
+      .click();
+    await expect(
+      page.getByRole("option", { name: "Independent copy", exact: true }),
+    ).toHaveCount(0);
+    expect(routines).toHaveLength(1);
+    expect(routines[0].days[1].exercises[0].sets[0].weight).toBeNull();
+    expect(sessionWrites).toBe(0);
+  });
+}
+
+test("reorders routine rows directly and offers keyboard ordering without logging work", async ({
+  page,
+}) => {
+  await fixture(page);
+  const base = {
+    exercise_id: exerciseId,
+    category_name: "Chest",
+    tracking_type: "strength" as const,
+    weight_unit: "kg",
+    distance_unit: "km",
+    sets: [],
+  };
+  const day = {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-000000000002",
+    name: "Push",
+    notes: "",
+    display_order: 10,
+    exercises: [
+      {
+        ...base,
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-000000000003",
+        exercise_name: "Bench",
+        display_order: 10,
+      },
+      {
+        ...base,
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-000000000004",
+        exercise_name: "Row",
+        display_order: 20,
+      },
+    ],
+  };
+  const routine: WorkoutRoutine = {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-000000000001",
+    name: "Plan",
+    notes: "",
+    is_active: true,
+    display_order: 10,
+    days: [day],
+  };
+  let orderWrites = 0;
+  let performanceWrites = 0;
+  page.on("request", (request) => {
+    if (
+      request.method() !== "GET" &&
+      /\/workouts\/(sessions|sets|session-exercises)\//.test(request.url())
+    )
+      performanceWrites++;
+  });
+  await page.route("**/api/v1/workouts/routines/", (route) =>
+    route.fulfill({ json: [routine] }),
+  );
+  await page.route(
+    "**/api/v1/workouts/routine-days/*/exercises/reorder/",
+    async (route) => {
+      const body = route.request().postDataJSON();
+      expect(body.expected_order).toEqual(day.exercises.map((row) => row.id));
+      day.exercises = body.ids.map((id: string, index: number) => ({
+        ...day.exercises.find((row) => row.id === id)!,
+        display_order: (index + 1) * 10,
+      }));
+      orderWrites++;
+      await route.fulfill({ json: day });
+    },
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/workouts?view=routines&date=" + date);
+  await page.getByRole("button", { name: "Edit routine exercises" }).click();
+  const first = (await page
+    .getByRole("button", { name: "Reorder Bench", exact: true })
+    .boundingBox())!;
+  const second = (await page
+    .getByRole("button", { name: "Reorder Row", exact: true })
+    .boundingBox())!;
+  await page.mouse.move(first.x + first.width / 2, first.y + first.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(
+    second.x + second.width / 2,
+    second.y + second.height / 2,
+    { steps: 8 },
+  );
+  await page.mouse.up();
+  await expect.poll(() => orderWrites).toBe(1);
+  await expect(page.locator(".routine-exercise-name > span")).toHaveText([
+    "Row",
+    "Bench",
+  ]);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByRole("button", { name: "Reorder Row", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog", {
+    name: "Reorder routine exercises",
+  });
+  await dialog
+    .getByRole("button", { name: "Move Bench (exercise 2) up" })
+    .click();
+  expect(orderWrites).toBe(1);
+  await dialog.getByRole("button", { name: "Save order", exact: true }).click();
+  await expect.poll(() => orderWrites).toBe(2);
+  await expect(page.locator(".routine-exercise-name > span")).toHaveText([
+    "Bench",
+    "Row",
+  ]);
+  expect(performanceWrites).toBe(0);
 });

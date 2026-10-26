@@ -408,3 +408,70 @@ Tablet/mobile now retain two columns while desktop stays at three. Narrow layout
 hide initial tiles, stack section actions, wrap food names, and anchor each column's
 management menus inward. Real-account checks at 320/390/768/1440px show no overflow
 or writes; both focused creation/management browser journeys and build pass.
+
+### Routines compared with FitNotes — 26 October 2026
+
+Visual comparison only; no application layout changes or deployment in this review.
+Inspected the official [FitNotes routines guide](https://www.fitnotesapp.com/routines/)
+and eight linked screenshots covering creation, viewing, editing, exercise picking,
+predefined sets, start selection and groups. Captured current React routine screens
+with a populated Push/Pull fixture in Light/Dark at 390 × 844; no account data writes.
+
+The current routine view puts the first exercise at approximately y=1,053px in
+that fixture, after app/workout navigation, title, date, the explanation card,
+selector and routine metadata. FitNotes shows exercises immediately in its smaller
+reference viewport. This is evidence of content priority, not a normalized density
+benchmark. Our long day dialog combines metadata, exercise selection, numeric order,
+group settings and preset entry. The start preview repeats type/unit and carry
+explanations for each exercise. Functional coverage does not imply visual parity.
+
+Recommended direction, not yet implemented:
+
+- One selected routine as the workspace, with selection in a compact toolbar;
+  help/notes and routine management are secondary. Remember selection per owner/device.
+- Compact day cards with Start in the header; rows show name and set count.
+  Move detailed quantities into the set editor and start preview.
+- Separate view/edit modes. Editing reveals contextual add/remove/reorder controls;
+  numeric display ranks leave the normal UI. Preserve keyboard arrow alternatives.
+- Focused day-details, exercise-picker, predefined-set and group dialogs, with
+  visible Save/Cancel controls. A named group chooser replaces typing matching labels.
+- Compact start selection, one carry-forward explanation, and date selection near
+  Start. Pre-start quantity overrides are a distinct functional gap requiring API
+  validation and stale-preview tests; current quantities are edited after starting.
+
+Retain app typography, Light/Dark colours and accessible 44px controls. Blank fields
+stay unknown, carry-forward stays explicit, starting creates planned work, and
+routine edits/deletion preserve existing workouts. Hiding guidance requires a
+visible Help/Info action. Desktop may place days side by side; phone layout stays
+one vertical list. No pixel-for-pixel recreation of the older Android UI is needed.
+
+The ignored local review is `.lavish/routine-comparison/index.html`; it includes
+official reference images, actual fixture captures and a clearly labelled proposed
+layout. Six comparison screens were checked at 390/1440px, image assets loaded,
+Dark theme and local Add set preview worked, and no page overflow or JavaScript
+errors were found. The prototype is not application implementation or regression
+coverage. Follow-up implementation should use the existing TDD playbook.
+
+### Compact routine implementation — 26 October 2026
+
+The user approved implementing the comparison direction. The local implementation
+now has the selected-plan toolbar, compact day headers/rows, separate edit mode,
+focused picker/preset/group/day dialogs, named group reuse and a compact dated
+start preview. Help holds routine guidance/notes. All routines/archives are a
+secondary view. Selection persists per owner/device, with a safe fallback when
+storage or a saved plan is unavailable. The one-time new-day picker state clears
+on routine switches, so returning does not reopen setup.
+
+Predefined-set drafts use an atomic PUT with the complete prior snapshot. Cancel
+never writes; failed saves retain inputs, stale snapshots reject, and no generated
+workout is changed. Direct exercise dragging commits on drop; the handle also
+opens arrow controls for keyboard users. A pointer-capture capability guard
+preserves that fallback in environments without pointer capture. Normal preset
+fields retain nulls and zero weight. Pre-start quantity overrides remain a
+separate follow-up to the approved layout slice.
+
+Actual fixture captures in Light/Dark at 320/390/1440px show the first exercise
+at about 367px on phones (390px comparison before: about 1,053px), and 331px on
+desktop. The ignored local before/after gallery is `.lavish/routine-cleanup/index.html`;
+the prior proposal remains at `.lavish/routine-comparison/index.html`. No account
+data or staging resources were changed for verification.

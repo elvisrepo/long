@@ -3,7 +3,6 @@ import { useState } from "react";
 import { Modal } from "../../components/modal";
 import * as api from "./workout-api";
 import {
-  dayLabel,
   setLabel,
   type NavigateWorkout,
   type RunAction,
@@ -26,6 +25,8 @@ export function RoutineStartDialog({
   navigate: NavigateWorkout;
   onClose: () => void;
 }) {
+  const [performedOn, setPerformedOn] = useState(destination);
+  const validDate = /^\d{4}-\d{2}-\d{2}$/.test(performedOn);
   const [carry, setCarry] = useState(false);
   const [selection, setSelection] = useState<Record<string, string[]> | null>(
     null,
@@ -34,8 +35,9 @@ export function RoutineStartDialog({
   const [error, setError] = useState("");
   const [requiresRefresh, setRequiresRefresh] = useState(false);
   const query = useQuery({
-    queryKey: ["workouts", owner, "routine-preview", dayId, destination, carry],
-    queryFn: () => api.getRoutineStartPreview(dayId, destination, carry),
+    queryKey: ["workouts", owner, "routine-preview", dayId, performedOn, carry],
+    queryFn: () => api.getRoutineStartPreview(dayId, performedOn, carry),
+    enabled: validDate,
   });
   const plan = query.data;
   const all = () =>
@@ -54,141 +56,179 @@ export function RoutineStartDialog({
     }
   }
   return (
-    <Modal labelledBy="routine-start-title" busy={locked} onClose={onClose}>
-      <h2 id="routine-start-title">Preview routine start</h2>
-      <p>
-        Start on {dayLabel(destination)}. Your saved routine stays unchanged.
-        All new sets start planned.
-      </p>
-      <label className="workout-copy-choice">
-        <input
-          type="checkbox"
-          checked={carry}
-          disabled={locked}
-          onChange={(event) => {
-            setCarry(event.target.checked);
-            setError("");
-            setRequiresRefresh(false);
-          }}
-        />
-        Fill blank fields from earlier completed sets
-      </label>
-      <p className="workout-note">
-        Fixed values stay fixed, including zero load. Matches use the same type
-        and units before this date, by set position. Missing or ambiguous
-        history leaves blanks unchanged. Edit quantities after starting if
-        needed.
-      </p>
-      {query.isPending ? (
-        <p role="status">Loading routine preview…</p>
-      ) : query.isError ? (
-        <p role="alert">Routine preview couldn't load. Refresh to retry.</p>
-      ) : (
-        plan && (
-          <section aria-label="Routine start preview" className="workout-stack">
-            <h3>{plan.name}</h3>
-            {plan.notes && <p>{plan.notes}</p>}
-            <div className="workout-actions">
-              <button disabled={locked} onClick={() => setSelection(all())}>
-                Select all
-              </button>
-              <button disabled={locked} onClick={() => setSelection({})}>
-                Clear selection
-              </button>
-            </div>
-            {plan.exercises.map((item, index) => (
-              <fieldset
-                key={item.id}
-                className="workout-copy-item"
-                disabled={locked}
-              >
-                <legend>
-                  Exercise {index + 1}: {item.exercise_name}
-                </legend>
-                <label className="workout-copy-choice">
-                  <input
-                    type="checkbox"
-                    checked={chosen[item.id] !== undefined}
-                    aria-label={`Include routine exercise ${index + 1}: ${item.exercise_name}`}
-                    onChange={(event) => {
-                      const next = { ...chosen };
-                      if (event.target.checked)
-                        next[item.id] = item.sets.map((s) => s.id);
-                      else delete next[item.id];
-                      setSelection(next);
-                    }}
-                  />
-                  Include exercise (selects all its sets)
-                </label>
-                <p className="workout-note">
-                  {item.tracking_type} · {item.weight_unit} /{" "}
-                  {item.distance_unit}
-                  {item.group_name ? ` · ${item.group_name}` : ""}
-                </p>
-                <p className="workout-note">{item.carry_reason}</p>
-                {!item.sets.length && (
-                  <p>No predefined sets — exercise only.</p>
-                )}
-                {item.sets.map((row, n) => (
-                  <div key={row.id}>
-                    <label className="workout-copy-choice">
-                      <input
-                        type="checkbox"
-                        checked={chosen[item.id]?.includes(row.id) ?? false}
-                        aria-label={`Include routine exercise ${index + 1} set ${n + 1}`}
-                        onChange={(event) =>
-                          setSelection({
-                            ...chosen,
-                            [item.id]: event.target.checked
-                              ? item.sets
-                                  .filter(
-                                    (s) =>
-                                      s.id === row.id ||
-                                      chosen[item.id]?.includes(s.id),
-                                  )
-                                  .map((s) => s.id)
-                              : (chosen[item.id] ?? []).filter(
-                                  (id) => id !== row.id,
-                                ),
-                          })
-                        }
-                      />
-                      <span>{setLabel(item, row)}</span>
-                    </label>
-                    {row.source && (
-                      <p className="workout-note">
-                        From {row.source.date}: {row.source.fields.join(", ")}
-                      </p>
-                    )}
-                  </div>
-                ))}
-                {chosen[item.id]?.length === 0 && (
-                  <p>
-                    Exercise only selected. Uncheck Include exercise to omit it
-                    entirely.
-                  </p>
-                )}
-              </fieldset>
-            ))}
-          </section>
-        )
-      )}
-      {error && (
-        <>
-          <p role="alert" className="workout-error">
-            {error}
-          </p>
+    <Modal
+      labelledBy="routine-start-title"
+      className="routine-dialog"
+      busy={locked}
+      onClose={onClose}
+    >
+      <header className="routine-dialog-header">
+        <h2 id="routine-start-title">Start workout</h2>
+        {plan && <p>{plan.name}</p>}
+      </header>
+      <div className="routine-dialog-body">
+        <label className="routine-start-date">
+          Workout date
+          <input
+            type="date"
+            value={performedOn}
+            disabled={locked}
+            onChange={(event) => {
+              setPerformedOn(event.target.value);
+              setSelection(null);
+              setRequiresRefresh(false);
+              setError("");
+            }}
+            required
+          />
+        </label>
+        <label className="workout-copy-choice routine-carry-choice">
+          <input
+            type="checkbox"
+            aria-label="Fill blank fields from earlier completed sets"
+            checked={carry}
+            disabled={locked}
+            onChange={(event) => {
+              setCarry(event.target.checked);
+              setError("");
+              setRequiresRefresh(false);
+            }}
+          />
+          Use previous values for blanks
+        </label>
+        <details className="routine-help">
+          <summary>Previous values & planned sets</summary>
           <p>
-            If the connection dropped, check the destination before retrying: a
-            workout might already exist.
+            All new sets start planned. Fixed values stay fixed, including zero
+            load. Earlier completed sets must match the exercise type and units
+            before this date. Missing or ambiguous history leaves blanks
+            unchanged. Edit quantities after starting.
           </p>
-        </>
-      )}
-      <div className="workout-actions">
+        </details>
+        {!validDate ? (
+          <p role="alert">Choose a workout date.</p>
+        ) : query.isPending ? (
+          <p role="status">Loading routine preview…</p>
+        ) : query.isError ? (
+          <p role="alert">Routine preview couldn't load. Refresh to retry.</p>
+        ) : (
+          plan && (
+            <section
+              aria-label="Routine start preview"
+              className="workout-stack"
+            >
+              {plan.notes && <p>{plan.notes}</p>}
+              <div className="workout-actions">
+                <button disabled={locked} onClick={() => setSelection(all())}>
+                  Select all
+                </button>
+                <button disabled={locked} onClick={() => setSelection({})}>
+                  Clear selection
+                </button>
+              </div>
+              {plan.exercises.map((item, index) => (
+                <fieldset
+                  key={item.id}
+                  className="routine-preview-item"
+                  disabled={locked}
+                >
+                  <legend className="visually-hidden">
+                    {item.exercise_name}
+                  </legend>
+                  <label className="workout-copy-choice">
+                    <input
+                      type="checkbox"
+                      checked={chosen[item.id] !== undefined}
+                      aria-label={`Include routine exercise ${index + 1}: ${item.exercise_name}`}
+                      onChange={(event) => {
+                        const next = { ...chosen };
+                        if (event.target.checked)
+                          next[item.id] = item.sets.map((s) => s.id);
+                        else delete next[item.id];
+                        setSelection(next);
+                      }}
+                    />
+                    <span>{item.exercise_name}</span>
+                  </label>
+                  {!item.sets.length && (
+                    <p>No predefined sets — exercise only.</p>
+                  )}
+                  {item.sets.map((row, n) => (
+                    <div className="routine-preview-set" key={row.id}>
+                      <label className="workout-copy-choice">
+                        <input
+                          type="checkbox"
+                          checked={chosen[item.id]?.includes(row.id) ?? false}
+                          aria-label={`Include routine exercise ${index + 1} set ${n + 1}`}
+                          onChange={(event) =>
+                            setSelection({
+                              ...chosen,
+                              [item.id]: event.target.checked
+                                ? item.sets
+                                    .filter(
+                                      (s) =>
+                                        s.id === row.id ||
+                                        chosen[item.id]?.includes(s.id),
+                                    )
+                                    .map((s) => s.id)
+                                : (chosen[item.id] ?? []).filter(
+                                    (id) => id !== row.id,
+                                  ),
+                            })
+                          }
+                        />
+                        <span>{setLabel(item, row)}</span>
+                      </label>
+                      {row.source && (
+                        <p className="workout-note">
+                          Previous: {row.source.date} ·{" "}
+                          {row.source.fields
+                            .map((field) =>
+                              field === "duration_seconds" ? "time" : field,
+                            )
+                            .join(", ")}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                  {chosen[item.id]?.length === 0 && (
+                    <p>
+                      Exercise only selected. Uncheck Include exercise to omit
+                      it entirely.
+                    </p>
+                  )}
+                </fieldset>
+              ))}
+            </section>
+          )
+        )}
+        {error && (
+          <>
+            <p role="alert" className="workout-error">
+              {error}
+            </p>
+            <p>
+              If the connection dropped, check the destination before retrying:
+              a workout might already exist.
+            </p>
+          </>
+        )}
+        {(requiresRefresh || query.isError) && (
+          <button disabled={locked} onClick={() => void refresh()}>
+            Refresh preview
+          </button>
+        )}
+      </div>
+      <footer className="routine-dialog-footer routine-start-footer">
+        <button disabled={locked} onClick={onClose}>
+          Cancel
+        </button>
         <button
           className="primary-button"
+          aria-label="Start planned workout"
           disabled={
             locked ||
+            !validDate ||
             query.isError ||
             !plan ||
             !selected.length ||
@@ -200,7 +240,7 @@ export function RoutineStartDialog({
             setError("");
             run(async () => {
               try {
-                const workout = await api.startRoutineDay(dayId, destination, {
+                const workout = await api.startRoutineDay(dayId, performedOn, {
                   carry_forward: carry,
                   preview_token: plan.preview_token,
                   selection: selected.map((i) => ({
@@ -225,15 +265,9 @@ export function RoutineStartDialog({
             });
           }}
         >
-          Start planned workout
+          Start workout
         </button>
-        <button disabled={locked} onClick={() => void refresh()}>
-          Refresh preview
-        </button>
-        <button disabled={locked} onClick={onClose}>
-          Cancel
-        </button>
-      </div>
+      </footer>
     </Modal>
   );
 }

@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .history_actions import CopySetsView
+from .routine_actions import RoutineCopyView, RoutineOrderView
 from .category_views import CategoryOrderView
 from . import views
 from . import routine_views
@@ -16,6 +17,21 @@ from .progress_views import (
 )
 
 urlpatterns = [
+    path(
+        "routines/<uuid:routine_id>/copy/",
+        RoutineCopyView.as_view(),
+        name="workout-routine-copy",
+    ),
+    path(
+        "routines/<uuid:routine_id>/days/reorder/",
+        RoutineOrderView.as_view(),
+        name="workout-routine-day-order",
+    ),
+    path(
+        "routine-days/<uuid:day_id>/exercises/reorder/",
+        RoutineOrderView.as_view(),
+        name="workout-routine-exercise-order",
+    ),
     path(
         "categories/reorder/",
         CategoryOrderView.as_view(),

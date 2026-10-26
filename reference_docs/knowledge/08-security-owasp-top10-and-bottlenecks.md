@@ -570,3 +570,22 @@ an expanded database constraint. Estimated achievement uses unrounded values;
 planned sets remain excluded. Graph export serializes only the chart and title
 into a local PNG; native sharing/download requires an explicit Share action.
 No automatic provider calls, external posting or observed-lift writes are added.
+
+Routine management (2026-10-25): copy, delete and complete-list reorder hold the
+shared user row lock and resolve owned parents before request validation. Foreign
+parents return 404. Reordering requires an active template, bounded unique UUID
+lists (1000), complete child membership and matching expected order; failures
+write nothing. Copy creates new template rows, preserves null quantities and
+frozen exercise/group snapshots, and validates owner-wide name uniqueness.
+Confirmed routine deletion cascades only its template tree: generated workouts
+have no template foreign key and remain untouched. Colour edits accept only
+hexadecimal #RRGGBB. Inline exercise creation retries attachment using the saved
+library ID after a partial failure rather than creating duplicate exercises.
+
+Routine preset replacement (2026-10-26): PUT resolves the owned active occurrence
+before body validation and holds the shared owner lock. Unique template ownership
+is unchanged; foreign/missing returns 404. Both lists are capped at 1000. A full
+prior-set snapshot must match or the operation returns 409. Quantity-only rows
+reject unknown/performance fields and all validate before any deletion/insertion.
+Replacement creates fresh template IDs and cannot alter independent workout sets.
+Routine selection is device-only and keyed by account; it is not authorization.

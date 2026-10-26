@@ -416,12 +416,14 @@
   border-radius: 10px;
   margin-block: 1rem;
 }
-.workout-category-order-list {
+.workout-category-order-list,
+.workout-sortable-list {
   padding: 0;
   margin-block: 1rem;
   list-style: none;
 }
-.workout-category-order-list > li {
+.workout-category-order-list > li,
+.workout-sortable-list > li {
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr) 44px 44px;
   align-items: center;
@@ -429,17 +431,67 @@
   padding-block: 0.35rem;
   border-top: 1px solid var(--border);
 }
-.workout-category-order-list > li.is-dragging {
+.workout-category-order-list > li.is-dragging,
+.workout-sortable-list > li.is-dragging {
   background: var(--accent-dim);
 }
-.workout-category-order-list button {
+.workout-category-order-list button,
+.workout-sortable-list button {
   min-width: 44px;
   min-height: 44px;
   padding: 0.4rem;
 }
-.workout-category-order-list .workout-category-drag {
+.workout-category-order-list .workout-category-drag,
+.workout-sortable-list .workout-category-drag {
   touch-action: none;
   cursor: grab;
+}
+.workout-routine-menu {
+  position: relative;
+  margin-inline-start: auto;
+}
+.workout-routine-menu[open] {
+  z-index: 20;
+}
+.workout-routine-menu > summary {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 8px;
+}
+.workout-routine-menu > summary::-webkit-details-marker {
+  display: none;
+}
+.workout-routine-menu-items {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: 100%;
+  width: 185px;
+  max-width: calc(100vw - 2rem);
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px #19303d24;
+  display: grid;
+  gap: 0.2rem;
+}
+.workout-routine-menu-items > button {
+  min-height: 44px;
+  padding: 0.5rem 0.65rem;
+  text-align: start;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.workout-routine-menu > summary:focus-visible {
+  outline: 2px solid var(--accent);
+}
+.workout-routine-exercise {
+  padding-inline-start: 0.6rem;
 }
 .workout-calendar-category-key,
 .workout-calendar-category-dots {
@@ -2693,4 +2745,428 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
+}
+
+/* Routine workspace: compact browsing, contextual editing, focused dialogs. */
+.routine-workspace {
+  min-width: 0;
+}
+.routine-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.routine-selector {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.routine-selector select {
+  width: 100%;
+  font-size: 18px;
+  font-weight: 650;
+  border: 0;
+  padding-inline: 0 20px;
+  background: transparent;
+  text-overflow: ellipsis;
+}
+.routine-toolbar > button,
+.routine-toolbar summary {
+  flex-shrink: 0;
+  min-width: 44px;
+  padding: 8px;
+}
+.routine-days {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.routine-day {
+  border: 1px solid var(--border);
+  background: var(--surface-high);
+  border-radius: 10px;
+  overflow: hidden;
+  min-width: 0;
+}
+.routine-day-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--accent);
+}
+.routine-day-header h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.4;
+}
+.routine-day-header button {
+  border: 0;
+  background: transparent;
+  padding: 6px 8px;
+  min-width: 44px;
+  color: var(--accent);
+}
+.routine-exercise-row {
+  display: flex;
+  gap: 0;
+  align-items: center;
+  padding: 0 8px;
+  min-height: 58px;
+  border-bottom: 1px solid var(--border);
+  border-inline-start: 3px solid transparent;
+}
+.routine-exercise-row:last-child {
+  border-bottom: 0;
+}
+.routine-exercise-row.has-group {
+  border-inline-start-width: 3px;
+}
+.routine-exercise-row .routine-exercise-name {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  padding: 8px 2px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: start;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+.routine-exercise-name small {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.routine-exercise-row > button:not(.routine-exercise-name) {
+  flex-shrink: 0;
+  width: 44px;
+  min-height: 44px;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+}
+.routine-drag-handle {
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+.routine-drag-handle:active {
+  cursor: grabbing;
+}
+.routine-empty-day {
+  padding: 16px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.routine-empty-day p {
+  margin: 0 0 8px;
+}
+.routine-text-button {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--accent);
+  text-align: start;
+  padding: 10px 12px;
+}
+.routine-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.routine-library {
+  max-width: 700px;
+}
+.routine-plan-link {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 8px;
+  text-align: start;
+  width: 100%;
+  margin-top: 8px;
+}
+.routine-plan-link small {
+  grid-row: 2;
+  color: var(--muted);
+}
+.routine-plan-link > span {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: center;
+}
+.routine-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  width: min(36.25rem, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+}
+.routine-dialog-header {
+  flex-shrink: 0;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.routine-dialog-header h2 {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.3;
+}
+.routine-dialog-header p {
+  margin: 5px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+.routine-dialog-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+}
+.routine-dialog-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.routine-dialog-body > label {
+  display: block;
+  margin-bottom: 16px;
+}
+.routine-dialog-body > label > input,
+.routine-dialog-body > label > textarea {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+}
+.routine-dialog-footer {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--dialog-bg);
+  border-top: 1px solid var(--border);
+}
+.routine-dialog-footer > button {
+  flex: 1;
+  min-width: 0;
+  padding: 8px;
+}
+.routine-help {
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.routine-help summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.routine-help p {
+  margin: 4px 0 12px;
+}
+.routine-preset-list {
+  border-top: 1px solid var(--border);
+}
+.routine-preset-row {
+  display: grid;
+  align-items: end;
+  gap: 6px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.routine-preset-row label {
+  font-size: 12px;
+  margin: 0;
+  min-width: 0;
+}
+.routine-preset-row input {
+  width: 100%;
+  min-width: 0;
+  margin-top: 5px;
+  text-align: center;
+}
+.routine-preset-row > button {
+  padding: 2px;
+  border: 0;
+  background: transparent;
+  min-width: 0;
+  min-height: 44px;
+}
+.routine-preset-row .routine-drag-handle span {
+  display: block;
+  font-size: 12px;
+  line-height: 12px;
+}
+.routine-picker-list {
+  border-top: 1px solid var(--border);
+}
+.routine-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 0;
+  text-align: start;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+}
+.routine-picker-row > span:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.routine-picker-row small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.routine-action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.routine-group-options {
+  padding: 0;
+  margin: 0 0 16px;
+  border: 0;
+}
+.routine-group-options > label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.routine-group-options small {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+@media (max-width: 480px) {
+  .routine-toolbar {
+    gap: 2px;
+  }
+  .routine-selector select {
+    font-size: 16px;
+  }
+  .routine-dialog-header,
+  .routine-dialog-body {
+    padding-inline: 16px;
+  }
+  .routine-dialog-footer {
+    padding: 10px 16px;
+  }
+  .routine-dialog-body .workout-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.routine-start-date {
+  display: flex !important;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  margin: 0 0 12px !important;
+}
+.routine-start-date input {
+  width: auto !important;
+  min-width: 0;
+  flex: 1;
+  margin: 0 !important;
+}
+.routine-preview-item {
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+}
+.routine-preview-item > .workout-copy-choice {
+  padding: 10px 8px;
+  min-height: 44px;
+  margin: 0;
+  background: var(--surface);
+  font-weight: 600;
+  font-size: 14px;
+}
+.routine-preview-set {
+  border-top: 1px solid var(--border);
+}
+.routine-preview-set .workout-copy-choice {
+  margin: 0;
+  min-height: 44px;
+  padding: 8px;
+  font-size: 14px;
+}
+.routine-preview-set .workout-note {
+  margin: 0;
+  padding: 0 8px 8px 34px;
+  font-size: 12px;
+}
+.routine-preview-item > p {
+  font-size: 12px;
+  padding: 4px 8px;
+  margin: 0;
+}
+.routine-start-footer button:last-child {
+  flex: 2;
+}
+.routine-dialog .routine-picker-row {
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  border-radius: 0;
+  padding: 10px 0;
+  font-weight: 400;
+}
+.routine-dialog .routine-text-button {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.routine-dialog .routine-carry-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  min-height: 44px;
+  font-size: 13px;
+}
+.routine-dialog .routine-help {
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+.routine-dialog .routine-help summary {
+  min-height: 44px;
+}
+.routine-dialog .routine-dialog-body > .workout-stack {
+  gap: 0;
+}
+.routine-dialog .routine-dialog-body > .workout-stack > .workout-actions {
+  margin-bottom: 8px;
+}
+.routine-dialog .routine-preview-item {
+  margin: 0;
+  padding: 0;
 }

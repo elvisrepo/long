@@ -950,3 +950,43 @@ existing bodyweight/cardio/timed types. Tapping a goal title opens its editor.
 Estimated goals explicitly use a fixed 1–10-rep Epley rule, preserving unrounded
 achievement checks. The additive API/constraint migration is documented in
 03-api-design.md; the local development database has been migrated.
+
+### Routine management checkpoint — 2026-10-25
+
+Creating a routine continues directly into its first named day and exercise editor.
+The editor searches active exercises, filters by category and can create a library
+exercise inline. If attachment fails after creation, retry reuses that exercise;
+it does not create duplicates. Predefined sets remain optional, blank quantities
+remain unknown, and carry-forward is explicit at the existing start preview.
+Home links to routines, and Browse routines selects a plan or the exercise library.
+
+Routine actions include edit, copy, archive/restore, permanent confirmed deletion
+and day reordering. Copy preserves the entire template, notes, frozen snapshots,
+group labels/colours and null fields with new IDs; it never creates a workout.
+Deletion removes only the template tree, leaving previously started workouts intact.
+Days and exercises have drag handles and accessible arrow controls; edits stay
+local until Save order. Atomic complete-list writes reject stale order with 409.
+Routine exercise group editing now validates and persists the colour as well as
+the matching group name. Existing numeric ordering remains available.
+No database migration or staging deployment is required or performed by this slice.
+
+### Compact routine workspace — 2026-10-26
+
+The routine view now prioritizes one selected plan, remembered per account on the
+device. All routines and archives are a secondary library view. Help holds the
+routine notes/explanation. Date selection is in the start dialog. Day headers
+contain Start; rows show exercise name, preset count and optional group label/rail.
+Edit mode exposes add, metadata, remove and reorder controls. Days use focused
+name/notes dialogs; numeric ranks are not exposed in the normal routine editor.
+
+Exercise selection is a focused searchable/category-filtered list, with inline
+library creation and attachment retry retained. Selecting an exercise opens its
+optional predefined-set editor. All set rows are a local draft until one atomic
+PUT with an expected prior snapshot; Cancel never writes. Rows can be reordered
+by drag or keyboard arrows. A named group chooser reuses saved group colours and
+supports new groups or ungrouping. These operations never rewrite existing workouts.
+
+The start dialog is compact, retains explicit carry-forward, selection/provenance,
+planned status and stale-preview handling, and allows choosing the date there.
+Quantity overrides before starting remain a separate follow-up; quantities are
+edited after starting. Existing capture/copy/archive/delete flows remain available.
