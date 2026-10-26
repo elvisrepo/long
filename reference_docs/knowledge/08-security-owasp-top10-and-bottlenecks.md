@@ -1,5 +1,13 @@
 #### Security (OWASP Top 10 addressed)
 
+- Calendar workspace (2026-10-26): filtering and inspection use existing
+  authenticated, owner-scoped bounded month/day/session reads. Browsing introduces
+  no workout writes or external requests. Device display preferences are keyed by
+  owner and contain only presentation flags, never credentials or workout data;
+  they are not an authorization boundary. Numeric filters validate finite bounded
+  decimals/integers and match completed sets in frozen units. Full source workouts
+  remain unchanged. Backend ownership and pagination protections still apply.
+
 - Category appearance/order (2026-10-23): category colour POST/PATCH is owner-scoped
   and accepts only six-digit hex colours. Reorder requires JWT and the shared
   owner row lock. Unique UUID lists are bounded to 1000 each, include every owned

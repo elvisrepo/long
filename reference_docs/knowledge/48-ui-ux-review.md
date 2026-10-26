@@ -488,3 +488,72 @@ the workout group editor. Joining or unlinking stays in the chooser after succes
 local creation cancellation never writes. Source screenshots remain the user's
 FitNotes references. Actual fixture captures are in the ignored local
 `.lavish/routine-groups/` folder; no account data or staging resources were changed.
+
+### Calendar compared with FitNotes — 26 October 2026
+
+Comparison only, following the user's request; no application changes. Read the
+[official calendar guide](https://www.fitnotesapp.com/calendar/) and inspected all
+14 non-icon screenshots. Captured the actual app with synthetic January 2018
+workouts, planned/empty drafts and two sessions on one date, at 390/1440px in
+Light/Dark. Account data was not changed. Source images show the documented
+reference UI, not a hands-on verification of the latest Android release.
+
+The current calendar grid starts around y=967px at 390×844, and 690px on desktop,
+after app navigation, page preamble, day and month controls, filters, explanatory
+text, status and category keys. Date selection is inconsistent: with January 12
+selected, clicking January 10 opens its preview but keeps January 12 pressed in
+the grid. The fixture reproduces this at both widths in both themes.
+
+Recommended first slice: compact calendar-first toolbar; remove duplicated date
+navigation; collapse filter form/guidance behind Filters/Info while showing active
+chips; compact the keys; synchronize selected date when previewing. Existing
+category dots, full-workout preview, exercise stats/overview, multi-session days
+and completed/planned semantics should remain.
+
+FitNotes also has an integrated Month/List switch, previous/next recorded-workout
+navigation, optional persistent workout panel, multiple category Any/All matching,
+numeric exercise comparisons, and display toggles for dots and list details. Our
+separate WorkoutHistory lists session cards in a 90-day window and does not share
+calendar filters or show exercise/set summaries. The calendar's inline callback
+is used in the copy picker; the full Calendar exposes no workout-panel toggle.
+Our category/exercise filters are single-select, with no weight/rep predicates.
+Choices come from this month's saved occurrences, retaining selected labels when
+browsing months. Keys/dots are not user-toggleable in the current calendar.
+
+Second slice: shared Month/List filters with explicit range/pagination, navigation
+between matching workouts, and optional desktop/tablet details panel. Third slice:
+category Any/All and performance rules if needed. Numeric conditions must match
+the same completed set and respect frozen type/units; plans and unknowns must not
+be mistaken for achieved values. Multi-category All should match one workout,
+not combine different sessions on a day. Retain owner-keyed, bounded reads and
+full source previews after filtering. Continuous month scrolling, weekday-start
+preference and verified record/comment indicators are lower-priority polish.
+
+The ignored visual review is `.lavish/calendar-comparison/index.html`, with the
+14 reference images, 20 actual app captures and measured evidence. It uses the
+app's existing DM Sans and green Light/Dark themes. Different source viewport
+sizes and fixture counts are explicit; the comparison is not a density benchmark.
+
+Selection refinement should preserve read-only inspection: a local calendar
+highlight can follow the inspected date without changing Home's working date;
+Go to workout remains the explicit navigation action. The seven paired review
+screens were verified across both source widths/themes, phone/desktop layouts,
+image loading and enlargement, with no gallery page overflow or JavaScript errors.
+No application test suite was rerun for this read-only comparison.
+
+
+### Calendar cleanup — implemented locally, 26 October 2026
+
+The comparison above records the previous layout. The new calendar puts the grid
+at y≈328px on the same 390×844 fixture (previously ≈967px); desktop moves from
+≈690px to ≈292px. Local inspected-date highlighting fixes the Jan 10 / Jan 12
+mismatch. Month/List share filters and month-scoped matching-day navigation.
+Filter/display/help dialogs remove the long preamble. Wide screens can enable
+an inline workout panel; phones retain a popup with fixed footer actions.
+Category Any/All and completed-set weight/reps filters are implemented alongside
+owner/device display preferences. Planned entries remain explicitly labelled.
+
+Actual fixture captures cover Light/Dark at 320/390/1440px in the ignored
+`.lavish/calendar-cleanup/assets/` directory, with geometry/selection evidence in
+`metrics.json`. They use synthetic data and demonstrate local implementation,
+not production deployment. No page overflow or browser script errors were found.

@@ -1,12 +1,15 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 import * as api from "./workout-api";
 import { WorkoutCalendar } from "./workout-calendar";
 
 vi.mock("./workout-api");
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  localStorage.clear();
+});
 it("marks completed saved categories without changing status counts or inferring renamed categories", async () => {
   vi.mocked(api.getWorkoutRange).mockResolvedValue([
     {
@@ -109,18 +112,21 @@ it("retains filters and their saved labels across months without changing the se
   await screen.findByRole("button", {
     name: "2026-02-15: 0 training sessions, 1 planned session",
   });
+  await userEvent.click(
+    screen.getByRole("button", { name: "Calendar filters" }),
+  );
   await userEvent.selectOptions(
-    screen.getByLabelText("Calendar exercise"),
+    screen.getByRole("combobox", { name: "Calendar exercise" }),
     "bench",
   );
-  await userEvent.selectOptions(
-    screen.getByLabelText("Calendar category"),
-    "Old chest name",
+  await userEvent.click(
+    screen.getByRole("checkbox", { name: "Old chest name", exact: true }),
   );
   await userEvent.selectOptions(
-    screen.getByLabelText("Calendar status"),
+    screen.getByRole("combobox", { name: "Calendar status" }),
     "planned",
   );
+  await userEvent.click(screen.getByRole("button", { name: "Apply filters" }));
   await userEvent.click(screen.getByRole("button", { name: "Next month" }));
   expect(navigate).toHaveBeenCalledWith({
     view: "calendar",
@@ -130,13 +136,18 @@ it("retains filters and their saved labels across months without changing the se
   expect(
     await screen.findByText("No workouts match these filters in this month."),
   ).toBeVisible();
-  expect(screen.getByLabelText("Calendar exercise")).toHaveValue("bench");
+  await userEvent.click(
+    screen.getByRole("button", { name: "Calendar filters" }),
+  );
+  expect(
+    screen.getByRole("combobox", { name: "Calendar exercise" }),
+  ).toHaveValue("bench");
   expect(
     screen.getByRole("option", { name: "Old bench name" }),
   ).toBeInTheDocument();
-  expect(screen.getByLabelText("Calendar category")).toHaveValue(
-    "Old chest name",
-  );
+  expect(
+    screen.getByRole("checkbox", { name: "Old chest name", exact: true }),
+  ).toBeChecked();
   expect(screen.getByLabelText("Calendar status")).toHaveValue("planned");
   expect(api.getWorkoutRange).toHaveBeenLastCalledWith(
     "2026-03-01",
@@ -144,9 +155,15 @@ it("retains filters and their saved labels across months without changing the se
   );
   rerender(view("2026-03-01", true));
   expect(screen.getByLabelText("Calendar exercise")).toBeDisabled();
-  expect(screen.getByLabelText("Calendar category")).toBeDisabled();
+  expect(
+    screen.getByRole("checkbox", { name: "Old chest name", exact: true }),
+  ).toBeDisabled();
   expect(screen.getByLabelText("Calendar status")).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Reset filters" })).toBeDisabled();
+  expect(
+    within(screen.getByRole("dialog")).getByRole("button", {
+      name: "Reset filters",
+    }),
+  ).toBeDisabled();
 });
 
 it("locks filters while loading and shows read errors instead of inventing no matches", async () => {
@@ -173,7 +190,9 @@ it("locks filters while loading and shows read errors instead of inventing no ma
       />
     </QueryClientProvider>,
   );
-  expect(screen.getByLabelText("Calendar status")).toBeDisabled();
+  expect(
+    screen.getByRole("button", { name: "Calendar filters" }),
+  ).toBeDisabled();
   await waitFor(() => expect(fail).toBeDefined());
   fail(new Error("Offline"));
   expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -231,10 +250,14 @@ it("combines filters on the same occurrence and counts matching training rather 
   await screen.findByRole("button", {
     name: "2026-02-15: 1 training session, 0 planned sessions",
   });
+  await userEvent.click(
+    screen.getByRole("button", { name: "Calendar filters" }),
+  );
   await userEvent.selectOptions(
-    screen.getByLabelText("Calendar exercise"),
+    screen.getByRole("combobox", { name: "Calendar exercise" }),
     "Bench",
   );
+  await userEvent.click(screen.getByRole("button", { name: "Apply filters" }));
   expect(
     screen.getByRole("button", {
       name: "2026-02-15: 0 training sessions, 1 planned session",
@@ -246,25 +269,36 @@ it("combines filters on the same occurrence and counts matching training rather 
     }),
   ).toBeVisible();
   expect(renderDay.mock.calls.at(-1)![0][0].exercises).toHaveLength(2);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Calendar filters" }),
+  );
   await userEvent.selectOptions(
-    screen.getByLabelText("Calendar status"),
+    screen.getByRole("combobox", { name: "Calendar status" }),
     "planned",
   );
+  await userEvent.click(screen.getByRole("button", { name: "Apply filters" }));
   expect(renderDay.mock.calls.at(-1)![0][0].exercises).toHaveLength(2);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Calendar filters" }),
+  );
   await userEvent.selectOptions(
-    screen.getByLabelText("Calendar status"),
+    screen.getByRole("combobox", { name: "Calendar status" }),
     "training",
   );
+  await userEvent.click(screen.getByRole("button", { name: "Apply filters" }));
   expect(
     screen.getByRole("button", {
       name: "2026-02-15: 0 training sessions, 0 planned sessions",
     }),
   ).toBeVisible();
   expect(screen.getByText("Matching:")).toBeVisible();
-  await userEvent.selectOptions(
-    screen.getByLabelText("Calendar category"),
-    "Legs",
+  await userEvent.click(
+    screen.getByRole("button", { name: "Calendar filters" }),
   );
+  await userEvent.click(
+    screen.getByRole("checkbox", { name: "Legs", exact: true }),
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Apply filters" }));
   expect(
     screen.getByText("No workouts match these filters in this month."),
   ).toBeVisible();
@@ -320,4 +354,48 @@ it("reads only the displayed month and distinguishes completed training from pla
   expect(screen.getByRole("dialog")).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "Go to workout" }));
   expect(navigate).toHaveBeenCalledWith({ view: "home", date: "2026-02-15" });
+});
+
+it("highlights the inspected date without changing the working workout date", async () => {
+  vi.mocked(api.getWorkoutRange).mockResolvedValue([
+    {
+      id: "one",
+      name: "First",
+      performed_on: "2026-02-15",
+      completed_set_count: 1,
+      exercises: [],
+    },
+    {
+      id: "two",
+      name: "Second",
+      performed_on: "2026-02-16",
+      completed_set_count: 1,
+      exercises: [],
+    },
+  ] as unknown as api.Workout[]);
+  const navigate = vi.fn();
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <WorkoutCalendar
+        owner="owner"
+        date="2026-02-15"
+        busy={false}
+        navigate={navigate}
+      />
+    </QueryClientProvider>,
+  );
+  const day = await screen.findByRole("button", {
+    name: "2026-02-16: 1 training session, 0 planned sessions",
+  });
+  await userEvent.click(day);
+  expect(day).toHaveAttribute("aria-pressed", "true");
+  expect(navigate).not.toHaveBeenCalled();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Close", exact: true }),
+  );
+  expect(day).toHaveAttribute("aria-pressed", "true");
 });

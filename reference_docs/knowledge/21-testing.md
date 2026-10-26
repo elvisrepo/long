@@ -2340,3 +2340,30 @@ under measured shared-runner CPU/memory pressure; the isolated sequential reruns
 passed without changing assertions or timeouts. New/group-selected/routine-rail
 captures were inspected at phone and screenshot widths in Light/Dark. No migration
 or staging deployment was performed.
+
+
+### Calendar workspace — 26 October 2026
+
+Focused coverage includes exact decimal comparisons and every operator, same-set
+weight/reps matching, kg/lb separation, zero versus unknown, planned-set exclusion,
+category Any/All within one session and matching-entry completion classification.
+Dialog tests cover invalid numeric drafts, Apply/Cancel and recorded-unit defaults.
+Component tests cover retained saved labels, full untrimmed preview/copy sources,
+read errors versus empty data, disabled pending controls, local inspected-date
+highlighting, explicit Home navigation, matching-day navigation, shared Month/List
+filters, wide panel/phone popup and owner-keyed display preferences. Malformed or
+blocked storage safely defaults. Twenty-one focused tests pass, including the
+retained empty-date preview message.
+
+The dedicated calendar browser fixture checks the month-first phone geometry,
+combined filters, full-source previews, local date selection, matching-day navigation,
+explicit Go to workout, wide panel/phone popup, Escape dismissal and month jump in
+Light/Dark. Its route handler rejects any workout request other than GET. Existing
+workout journeys also exercise logging, copying and source-preview drill-down.
+Screenshots use synthetic data, not live account records. No backend code/schema
+changed; browser reads use the existing owner-scoped API contract.
+
+Calendar cleanup final validation: all 750 frontend tests across 115 files and
+all 28 calendar/workout browser journeys pass. ESLint, the production build and
+formatting checks pass. Visual fixtures cover Light/Dark at 320/390/1440px with
+no page overflow or browser script errors. This is local verification only.

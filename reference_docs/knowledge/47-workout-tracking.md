@@ -116,7 +116,8 @@ schema changes. Filters do not trim an export. Full account JSON export remains
 separate. Session timing is implemented above; offline logging and background
 alerts are future slices.
 
-Calendar filters (2026-10-03): shared Calendar and copy-picker controls select
+Calendar filters (initial 2026-10-03 implementation; superseded by the full-page
+workspace below): shared Calendar and copy-picker controls selected
 exercise, saved category name and completed training versus planned-only/empty
 drafts. Filtering uses the existing complete month read, not a new API contract.
 Exercise/category criteria must match the same frozen occurrence; training requires
@@ -354,7 +355,7 @@ Supporter-tier restrictions.
 | [Exercises](https://www.fitnotesapp.com/exercises/) | Editable samples, categories, search, exercise types and unit preferences. |
 | [Progress Tracking](https://www.fitnotesapp.com/progress_tracking/) | Exercise history, charts, records and goals; observed records versus estimates. |
 | [Routines](https://www.fitnotesapp.com/routines/) | Reusable plans, named routine days, ordered exercises and planned sets. |
-| [Calendar](https://www.fitnotesapp.com/calendar/) | Month/list history with drill-down to workouts; richer filters later. |
+| [Calendar](https://www.fitnotesapp.com/calendar/) | Shared month/list browsing, workout drill-down, category Any/All and completed-set weight/reps filters. |
 | [Body Tracker](https://www.fitnotesapp.com/body_tracker/) | Measurement history/graphs overlap with existing Metrics. |
 | [Settings](https://www.fitnotesapp.com/settings/) | Units, increments, completion preferences, exports and preservation of data. |
 | [Workout Tools](https://www.fitnotesapp.com/workout_tools/) | Rest timer, estimated 1RM, percentage-based sets and equipment-aware plates. |
@@ -1001,3 +1002,34 @@ Cancel discards the draft. Duplicate names reject without writes, and failures
 retain the name/colour for retry. This uses the existing routine occurrence PATCH;
 no group table, new API route or schema change is added. Names and colours still
 copy into independent planned workouts when starting the day.
+
+
+### Calendar workspace — implemented locally, 26 October 2026
+
+The full Calendar now opens directly on a compact month toolbar and grid. Filters,
+display options and guidance are dialogs. Month/List share the displayed month's
+bounded, fully paginated read, matching-session count and transient filters.
+Previous/next matching day controls stay within that explicitly labelled month;
+month arrows, a month jump and Today browse other dates. Multiple sessions on the
+same day remain separate list cards. This is not an all-history timeline.
+
+Inspection highlights the inspected date locally. Opening details does not change
+Home's working workout date; Go to workout does. Phones use a popup; an optional
+wide-screen panel shares the same read-only workout and exercise-stat components.
+Calendar day previews include the full day; list cards open the specific session.
+Filters locate sessions without trimming exercises/sets in previews or copy sources.
+The compact copy picker keeps its existing date-selection callback and source flow.
+
+Filters use Apply/Cancel drafts, removable active chips and explicit Reset. Options
+include recorded snapshots and the owned exercise library; selected historical
+labels survive month browsing. Category Any accepts any selected category; All
+requires every selected category within one session. A selected exercise still
+intersects its saved category occurrence. Completed/planned classification uses
+matching entries, not unrelated completed exercises or the finished-session flag.
+Weight/reps comparisons apply to the same completed strength/bodyweight set in its
+frozen unit. No unit conversion, unknown-to-zero substitution or planned-set match.
+Combining planned-only status with performance conditions is rejected visibly.
+
+Month/List mode, category dots, category labels, list set details and panel choices
+are stored per owner/device. Unavailable or malformed storage falls back safely;
+filters are transient. No backend schema, endpoints or route parameters changed.

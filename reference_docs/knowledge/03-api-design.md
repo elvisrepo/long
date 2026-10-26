@@ -227,8 +227,8 @@ These are UI state, not new REST contracts. Invalid training links fall back Hom
 foreign/deleted UUIDs still rely on backend authorization and show read errors.
 Date controls preserve the selected library exercise in History/Progress/Overview.
 Calendar filters (2026-10-03) are client-side UI state over the existing fully
-paginated month read. Exercise ID, saved category name and training/planned status
-are not new session-list query parameters. Exercise/category criteria match the
+paginated month read. Exercise ID, saved category names, Any/All matching, training/planned status and
+completed-set weight/reps conditions are not new session-list query parameters. Exercise/category criteria match the
 same frozen occurrence; training means a completed set among matching entries,
 not the Workout's finished flag. Opening/copying still uses the full session.
 `view=exercises` without `session` is read-only browsing: exercise clicks open
@@ -602,7 +602,17 @@ SQL aggregation/window functions avoid loading raw workout histories in Python o
 the browser. No migration or automatic unit conversion is introduced.
 
 Calendar reads the displayed month through the existing bounded, safely paginated
-session API. Windowed progress reads 30/90/180/365 days ending on the selected date
+session API. Month and List share that bounded read, filters and matching-session
+count. Previous/next matching workout-day navigation is restricted to the displayed
+month. Inspection highlights a local date without changing Home's working date;
+Go to workout explicitly navigates. Month browsing/jump retains the existing
+`view=calendar&date=YYYY-MM-DD` route, with no new query parameters.
+Category All requires category presence within one session. Weight/reps predicates
+must match the same completed strength/bodyweight set and its frozen weight unit;
+unknown values never become zero. No automatic kg/lb conversion. Previews retain
+full original sessions. Display mode, dots, category labels, list set details and
+the optional wide-screen panel are owner-keyed device preferences, not API fields.
+Windowed progress reads 30/90/180/365 days ending on the selected date
 with the owned library `exercise_id` filter. The browser derives daily maxima/
 observed records from completed sets only and partitions frozen type/unit
 combinations. All time uses the summary endpoints above, not expanded raw session
