@@ -475,3 +475,16 @@ at about 367px on phones (390px comparison before: about 1,053px), and 331px on
 desktop. The ignored local before/after gallery is `.lavish/routine-cleanup/index.html`;
 the prior proposal remains at `.lavish/routine-comparison/index.html`. No account
 data or staging resources were changed for verification.
+
+Routine group layout correction (2026-10-26): user screenshots exposed stretched
+radio controls in the initial routine group chooser. The shared workout input
+rule set width 100%, with an exception only for checkboxes; a Chrome fixture probe
+measured radio widths of 318–421px in a 510px row. Radios now receive the same
+small-control sizing exception. The routine chooser itself uses full clickable
+group rows with member names, a coloured rail and a checked membership marker.
+A separate New group form has name, two rows of five 44px colour-swatch controls,
+the current exercise, and fixed Cancel/Save actions. The palette is shared with
+the workout group editor. Joining or unlinking stays in the chooser after success;
+local creation cancellation never writes. Source screenshots remain the user's
+FitNotes references. Actual fixture captures are in the ignored local
+`.lavish/routine-groups/` folder; no account data or staging resources were changed.

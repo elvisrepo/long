@@ -2314,3 +2314,29 @@ before/after gallery checks all six screen choices and image assets, both themes
 three source widths and phone/desktop gallery layout, including image enlargement,
 with no page overflow or JavaScript errors. Native mobile keyboards are not part
 of these desktop-Chrome viewport checks. No staging deployment was performed.
+
+Routine group chooser refinement (2026-10-26): five component tests cover focused
+creation, swatch selection, named-group joining and unlinking, cancellation/focus,
+failed-save retry and duplicate-name rejection. Existing workout group tests also
+run because both editors share the same palette. A PostgreSQL integration test
+starts a day containing two group members, verifies both frozen labels/colours and
+planned sets, then unlinks the template occurrence and checks the started workout's
+exercise snapshots remain unchanged. The fresh response clock is intentionally not
+part of that snapshot assertion.
+
+Browser journeys create a group on Dips, link Flat Dumbbell Fly, check the member
+list and pressed marker, verify adjacent same-colour rails, and start the planned
+workout with copied groups. The flow runs at 320/590/1440px in Light/Dark and checks
+44px swatch targets and page containment. Screenshot inspection includes the new
+form, selected group and routine rails. An initial cold page-load timeout occurred
+before UI interaction; a traced rerun completed without application changes.
+
+Final group refinement validation: all 734 frontend tests pass with two workers
+when run on their own. All 25 workout browser journeys pass sequentially (six
+new group journeys plus 19 existing regressions), and 23 focused backend routine
+tests pass. Lint, build, formatting, targeted backend Ruff and diff checks pass.
+The simultaneous broad runs were interrupted after widespread unrelated timeouts
+under measured shared-runner CPU/memory pressure; the isolated sequential reruns
+passed without changing assertions or timeouts. New/group-selected/routine-rail
+captures were inspected at phone and screenshot widths in Light/Dark. No migration
+or staging deployment was performed.

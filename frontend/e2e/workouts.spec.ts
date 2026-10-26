@@ -2032,12 +2032,13 @@ for (const width of [320, 390, 1440]) {
     await page
       .getByRole("button", { name: "Add to group", exact: true })
       .click();
-    await page.getByRole("radio", { name: "New group", exact: true }).check();
+    await page.getByRole("button", { name: "New group", exact: true }).click();
     await page.getByLabel("Group name", { exact: true }).fill("Superset 1");
     await page.getByRole("button", { name: "Save group", exact: true }).click();
     await expect
       .poll(() => routines[0].days[0].exercises[0].group_name)
       .toBe("Superset 1");
+    await page.getByRole("button", { name: "Done", exact: true }).click();
     await page.screenshot({
       path: `test-results/workouts/routine-builder-${width}.png`,
       fullPage: true,
@@ -2226,3 +2227,245 @@ test("reorders routine rows directly and offers keyboard ordering without loggin
   ]);
   expect(performanceWrites).toBe(0);
 });
+
+for (const theme of ["light", "dark"])
+  for (const width of [320, 590, 1440]) {
+    test(`routine group creation, selection, colour rails and workout copy at ${width}px ${theme}`, async ({
+      page,
+    }) => {
+      await fixture(page);
+      await page.addInitScript(
+        (theme) => localStorage.setItem("longevity-theme", theme),
+        theme,
+      );
+      const uid = (value: number) =>
+        `bbbbbbbb-bbbb-4bbb-8bbb-${String(value).padStart(12, "0")}`;
+      const items = ["Dips", "Flat Dumbbell Fly"].map((name, index) => ({
+        id: uid(index + 10),
+        exercise_id: exerciseId,
+        exercise_name: name,
+        category_name: "Chest",
+        tracking_type: "strength" as const,
+        weight_unit: "kg",
+        distance_unit: "km",
+        display_order: (index + 1) * 10,
+        group_name: "",
+        group_colour: "#007f68",
+        sets: [
+          {
+            id: uid(index + 20),
+            weight: null,
+            reps: 8,
+            distance: null,
+            duration_seconds: null,
+            display_order: 10,
+          },
+        ],
+      }));
+      const day = {
+        id: uid(2),
+        name: "Push",
+        notes: "",
+        display_order: 10,
+        exercises: items,
+      };
+      const routine: WorkoutRoutine = {
+        id: uid(1),
+        name: "Plan",
+        notes: "",
+        display_order: 10,
+        is_active: true,
+        days: [day],
+      };
+      let planned:
+        | import("../src/features/workouts/workout-api").Workout
+        | undefined;
+      await page.route("**/api/v1/workouts/routines/", (route) =>
+        route.fulfill({ json: [routine] }),
+      );
+      await page.route(
+        "**/api/v1/workouts/routine-exercises/*/",
+        async (route) => {
+          expect(route.request().method()).toBe("PATCH");
+          const item = items.find((row) =>
+            route.request().url().includes(row.id),
+          )!;
+          Object.assign(item, route.request().postDataJSON());
+          await route.fulfill({ json: item });
+        },
+      );
+      await page.route(
+        "**/api/v1/workouts/routine-days/*/preview/**",
+        (route) =>
+          route.fulfill({
+            json: {
+              day_id: day.id,
+              name: "Plan · Push",
+              notes: "",
+              performed_on: date,
+              carry_forward: false,
+              preview_token: "a".repeat(64),
+              exercises: items.map((item) => ({
+                ...item,
+                carry_reason: "Fixed values",
+                sets: item.sets.map((row) => ({ ...row, source: null })),
+              })),
+            },
+          }),
+      );
+      await page.route(
+        "**/api/v1/workouts/routine-days/*/start/",
+        async (route) => {
+          expect(route.request().postDataJSON().selection).toEqual(
+            items.map((item) => ({
+              item_id: item.id,
+              set_ids: item.sets.map((row) => row.id),
+            })),
+          );
+          planned = {
+            id: uid(50),
+            name: "Plan · Push",
+            notes: "",
+            performed_on: date,
+            created_at: date + "T10:00:00Z",
+            is_finished: false,
+            completed_set_count: 0,
+            exercises: items.map((item, index) => ({
+              ...item,
+              id: uid(index + 60),
+              sets: item.sets.map((row) => ({
+                ...row,
+                id: uid(index + 70),
+                comment: "",
+                is_completed: false,
+              })),
+            })),
+          };
+          await route.fulfill({ status: 201, json: planned });
+        },
+      );
+      await page.route("**/api/v1/workouts/sessions/**", (route) =>
+        route.fulfill({
+          json: new URL(route.request().url()).pathname.endsWith("/sessions/")
+            ? {
+                count: planned ? 1 : 0,
+                next: null,
+                previous: null,
+                results: planned ? [planned] : [],
+              }
+            : planned,
+        }),
+      );
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto("/workouts?view=routines&date=" + date);
+      await page
+        .getByRole("button", { name: "Edit routine exercises", exact: true })
+        .click();
+      await page
+        .getByRole("button", { name: "Options for Dips", exact: true })
+        .click();
+      await page
+        .getByRole("button", { name: "Add to group", exact: true })
+        .click();
+      await expect(page.getByRole("radio")).toHaveCount(0);
+      await page
+        .getByRole("button", { name: "New group", exact: true })
+        .click();
+      await expect(page.getByLabel("Group name", { exact: true })).toHaveValue(
+        "Group 1",
+      );
+      await expect(
+        page.getByLabel("Group name", { exact: true }),
+      ).toBeFocused();
+      await page.getByRole("button", { name: "Red", exact: true }).click();
+      const palette = page.locator(".routine-group-palette");
+      await expect(palette.getByRole("button")).toHaveCount(10);
+      const box = (await palette.boundingBox())!;
+      for (const button of await palette.getByRole("button").all()) {
+        const bounds = (await button.boundingBox())!;
+        expect(bounds.width).toBeGreaterThanOrEqual(44);
+        expect(bounds.height).toBeGreaterThanOrEqual(44);
+        expect(bounds.x).toBeGreaterThanOrEqual(box.x - 1);
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(
+          box.x + box.width + 1,
+        );
+      }
+      await page.screenshot({
+        path: `test-results/workouts/routine-group-new-${theme}-${width}.png`,
+      });
+      await page
+        .getByRole("button", { name: "Save group", exact: true })
+        .click();
+      await expect(
+        page.getByRole("button", { name: /Group 1.*Dips/ }),
+      ).toHaveAttribute("aria-pressed", "true");
+      await page.getByRole("button", { name: "Done", exact: true }).click();
+      await page
+        .getByRole("button", {
+          name: "Options for Flat Dumbbell Fly",
+          exact: true,
+        })
+        .click();
+      await page
+        .getByRole("button", { name: "Add to group", exact: true })
+        .click();
+      const group = page.getByRole("button", { name: /Group 1.*Dips/ });
+      await expect(group).toHaveAttribute("aria-pressed", "false");
+      await group.click();
+      await expect(
+        page.getByRole("button", { name: /Group 1.*Dips.*Flat Dumbbell Fly/ }),
+      ).toHaveAttribute("aria-pressed", "true");
+      const rowBox = (await page.locator(".routine-group-row").boundingBox())!;
+      const mark = (await page.locator(".routine-group-check").boundingBox())!;
+      expect(mark.x + mark.width).toBeLessThanOrEqual(rowBox.x + rowBox.width);
+      await page.screenshot({
+        path: `test-results/workouts/routine-group-selected-${theme}-${width}.png`,
+      });
+      await page.getByRole("button", { name: "Done", exact: true }).click();
+      const rails = page.locator(".routine-exercise-row.has-group");
+      await expect(rails).toHaveCount(2);
+      for (const rail of await rails.all())
+        await expect(rail).toHaveCSS(
+          "border-inline-start-color",
+          "rgb(220, 38, 38)",
+        );
+      const railBoxes = await rails.evaluateAll((rows) =>
+        rows.map((row) => ({
+          top: row.getBoundingClientRect().top,
+          bottom: row.getBoundingClientRect().bottom,
+        })),
+      );
+      expect(railBoxes[1].top - railBoxes[0].bottom).toBeLessThanOrEqual(1);
+      await page.screenshot({
+        path: `test-results/workouts/routine-group-rails-${theme}-${width}.png`,
+      });
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      await page
+        .getByRole("button", { name: "Done editing routine", exact: true })
+        .click();
+      await page
+        .getByRole("button", { name: "Start Push", exact: true })
+        .click();
+      await page
+        .getByRole("button", { name: "Start planned workout", exact: true })
+        .click();
+      await expect(
+        page.getByRole("heading", { name: "Plan · Push", exact: true }),
+      ).toBeVisible();
+      expect(
+        planned!.exercises.map((item) => [item.group_name, item.group_colour]),
+      ).toEqual([
+        ["Group 1", "#dc2626"],
+        ["Group 1", "#dc2626"],
+      ]);
+      expect(
+        planned!.exercises.every((item) =>
+          item.sets.every((row) => !row.is_completed),
+        ),
+      ).toBe(true);
+    });
+  }

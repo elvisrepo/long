@@ -990,3 +990,14 @@ The start dialog is compact, retains explicit carry-forward, selection/provenanc
 planned status and stale-preview handling, and allows choosing the date there.
 Quantity overrides before starting remain a separate follow-up; quantities are
 edited after starting. Existing capture/copy/archive/delete flows remain available.
+
+Routine group chooser refinement (2026-10-26): Groups now lists named groups,
+member exercises, a colour rail and a pressed/check marker for the current exercise.
+Tapping an unchecked group links this exercise with that group's saved colour;
+tapping the checked group unlinks it. The chooser stays open to show the confirmed
+membership. New group opens a focused name/ten-swatch editor, starting with the
+first available `Group N` name. Save creates the label/colour on this occurrence;
+Cancel discards the draft. Duplicate names reject without writes, and failures
+retain the name/colour for retry. This uses the existing routine occurrence PATCH;
+no group table, new API route or schema change is added. Names and colours still
+copy into independent planned workouts when starting the day.
