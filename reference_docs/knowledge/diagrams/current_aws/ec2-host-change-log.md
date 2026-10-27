@@ -1460,3 +1460,39 @@ captured.
   full source commit above. The workflow pin is advanced through normal review.
 - No containers restarted, account records changed, secrets changed or AWS resources
   created by this install. Application/image promotion is pending at this checkpoint.
+
+### EC2-042 — Workout, tracker and Settings refinements deployed
+
+- Date: 2026-10-27. Operator: Codex on the user's staging-deployment request.
+- Release PR #56; model/bundle follow-up PR #58; protected staging promotion #57.
+- Workflow: https://github.com/elvisrepo/long/actions/runs/40534122364 (success).
+- Staging commit: `8c576c70ebce55f946516713841be3d5f0753496`.
+- API/worker image: `sha256:c2b781c38bf6f68f2a5a4861689b0745731d2c2269e13a8b4c82a9198de5f27e`.
+- Previous verified image retained for rollback:
+  `sha256:530ea543cc82db7927d19b868f6371147e164cf0d6f6632693b113d30a27c482`.
+- Published workout library/category/routine/group/calendar improvements; AI,
+  Consistency, Sleep and Settings refinements; shared compact tracker dates;
+  and the responsive header fix. Migration `workouts.0015_category_appearance`
+  applied successfully. Host bundle is EC2-041; runtime model is Nemotron 3.5.
+- Dependency audit first blocked frontend CI. Compatible undici 7.30.1 and
+  zod 4.6.7 updates cleared it without changing direct dependency constraints.
+  All 760 frontend tests, lint, formatting and build passed; full backend CI,
+  type checks, production smoke and image review passed before publication.
+- SSM acceptance `69ba9e7b-f617-4171-917e-62a068004661` confirmed all four
+  containers healthy, API/worker image equality, no pending migrations, applied
+  workout migration 0015, worker ping and configured model. Seven Settings,
+  workout and analytics GET checks returned 200 inside a read-only DB transaction.
+  No provider generation or account edits were requested by acceptance checks.
+- Independent public checks passed for eight SPA deep links, both health probes,
+  new plan/header/date-control assets, protected anonymous APIs, and missing
+  asset/API handling. Published Settings asset: `settings-qshq0eAe.js`, SHA-256
+  `026a0a00e830952b66eb8b9cbea9aef6261f09821331cd9ecaa5f5c6879cdab2`.
+- Seven Chrome journeys passed against live staging assets with intercepted
+  synthetic APIs, including AI, compact tracker dates, Sleep, header at 873px,
+  and Settings at 320/1024/1440px. This is not a real-account browser sign-in check.
+- No AWS resources or runtime secrets created/changed by this release. Budget
+  preflight showed 6.538 USD actual against the existing 5 USD monthly budget;
+  user was informed. Backup/restore alarms were OK and the host was online.
+- Topology remains v020. Recover using the retained previous image; retain
+  `/opt/syncvitals/deployment-before-model-592468f` for host-bundle recovery.
+  Database migrations are additive and are not automatically reversed on rollback.

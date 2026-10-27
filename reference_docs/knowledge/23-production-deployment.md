@@ -113,6 +113,14 @@ live in dependency-free `backend/runtime_contract.py` and are consumed by both
 Django settings (through the compatibility re-export in
 `config.settings.production_environment`) and `scripts.staging_runtime`.
 
+The staging NVIDIA model is explicitly pinned in
+`backend/docker-compose.staging.yml`; it is not a Secrets Manager field.
+Changing the application's fallback alone does not change staging inference.
+Model changes must also update and verify the host bundle, then advance
+`INSTALLED_HOST_BUNDLE_COMMIT` through review before application promotion.
+The verified 27 October 2026 bundle pins Nemotron 3.5 Super; EC2-041/042 in the
+host change log record its installation and deployment.
+
 ```bash
 cd /opt/syncvitals/deployment
 python3 -m scripts.staging_runtime \

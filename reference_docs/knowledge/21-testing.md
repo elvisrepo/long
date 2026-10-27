@@ -2503,3 +2503,21 @@ six-cell plan grid verifies matching desktop column positions. Build, targeted
 ESLint, formatting and diff checks pass. An initial stalled concurrent run caused
 unit and browser timeouts; separate reruns passed with the original timeouts.
 No backend contracts or billing logic changed.
+
+### Staging release verification — 27 October 2026
+
+Release #56, runtime follow-up #58 and promotion #57 deployed staging commit
+`8c576c70ebce55f946516713841be3d5f0753496` in successful workflow
+https://github.com/elvisrepo/long/actions/runs/40534122364.
+All 760 frontend tests passed after compatible undici/zod audit fixes, with zero
+audit findings, lint, formatting and build passing. Backend full CI/type checks
+and production smoke passed. A failing runtime-model regression then drove the
+Compose correction; 42 focused deployment/runtime/bundle tests passed, followed
+by successful full CI and host-bundle compatibility checks.
+
+Independent post-release acceptance verified migration 0015, worker health, model
+3.5 and seven GET endpoints inside a read-only database transaction. Public checks
+verified eight SPA deep links, health, new UI assets, anonymous 401s and missing
+asset/API handling. Seven browser journeys used the live staging assets with
+synthetic API interception. No real-account browser sign-in or AI generation is
+claimed. See EC2-041/042 for bundle, image, rollback and SSM evidence.
