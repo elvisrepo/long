@@ -650,3 +650,25 @@ actual captures are in ignored `.lavish/ai-insights-cleanup/assets/`, including
 
 Minimal-copy final validation: 758 frontend tests, 11 browser journeys, build,
 lint and formatting pass. No deployment was performed.
+
+### Consistency overview cleanup — 27 October 2026
+
+Reviewed the actual React view using synthetic metric fixtures. Replaced the
+verbose introduction and repeated Pro labels with the exact seven-day UTC range
+and a Dashboard link. Day links now show weekday, date, and a check/dash, with
+64px height, visible keyboard focus, and a short legend. Desktop columns remain
+aligned; phone summaries use compact rows so metric history appears sooner.
+
+The explanatory note is available under How this works, including UTC presence
+and the seven-day streak limit. Recent gaps replaces the judgmental Needs attention
+heading and warning styling; existing gap thresholds and calculations are unchanged.
+An empty metric library links to Browse metrics. This page still covers active
+metrics only; it does not measure adherence across Diet, Recovery, or Workouts.
+
+Six focused route tests and eight browser checks at 320/390/768/1440px in both
+themes pass, including disclosure and keyboard date navigation. Build, targeted
+ESLint, and formatting pass. Browser captures are ignored under
+`frontend/test-results/layout-Consistency-overview-*/consistency.png` and use no
+account data. The existing cross-page layout check stopped on its outdated
+Metrics edit-button selector before reaching Consistency; it is not counted as
+passing. No deployment was performed.

@@ -1118,6 +1118,48 @@ const views = [
   ["/analytics/consistency", "Consistency & Coverage"],
 ];
 
+for (const width of [320, 390, 768, 1440]) {
+  for (const theme of ["light", "dark"]) {
+    test(`Consistency overview at ${width}px ${theme}`, async ({
+      page,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.addInitScript(
+        (theme) => localStorage.setItem("longevity-theme", theme),
+        theme,
+      );
+      await page.goto("/analytics/consistency");
+      await expect(
+        page.getByRole("heading", { name: "Consistency & Coverage" }),
+      ).toBeVisible();
+      await page.screenshot({
+        path: testInfo.outputPath("consistency.png"),
+        fullPage: true,
+      });
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth),
+      ).toBeLessThanOrEqual(width);
+      const days = page.getByRole("link", { name: /^Body Weight on/ });
+      await expect(days).toHaveCount(7);
+      for (const day of await days.all()) {
+        expect((await day.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      }
+      await expect(days.last()).toHaveAttribute(
+        "href",
+        "/metrics/body_weight?date=2026-09-21",
+      );
+      const explanation = page.getByText(/Multiple entries still count/);
+      await expect(explanation).not.toBeVisible();
+      await page.getByText("How this works", { exact: true }).click();
+      await expect(explanation).toBeVisible();
+      await days.last().focus();
+      await expect(days.last()).toBeFocused();
+      await page.keyboard.press("Enter");
+      await expect(page).toHaveURL(/\/metrics\/body_weight\?date=2026-09-21$/);
+    });
+  }
+}
+
 const layoutCases = [
   ...[320, 390, 640, 768, 1024, 1440, 1920].map((width) => ({
     width,

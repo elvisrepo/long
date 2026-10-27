@@ -75,6 +75,10 @@ describe("Consistency analytics route", () => {
     expect(screen.getByText("2 of 6 metrics")).toBeInTheDocument();
     expect(screen.getByText("7 of 7 days")).toBeInTheDocument();
     expect(screen.getByText("Steps · 7/7")).toBeInTheDocument();
+    expect(screen.getByText(/15\s*–\s*21 Sept 2026 · UTC/)).toBeVisible();
+    expect(screen.getByText("✓ Tracked")).toBeVisible();
+    expect(screen.getByText("– No entry")).toBeVisible();
+    expect(screen.getByText(/Multiple entries still count/)).not.toBeVisible();
     expect(screen.getByText(/5 of 7 tracked days/)).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /open body weight/i }),
@@ -90,7 +94,7 @@ describe("Consistency analytics route", () => {
       }),
     ).toHaveAttribute("href", "/metrics/steps?date=2026-09-16");
 
-    const attention = screen.getByRole("region", { name: /needs attention/i });
+    const attention = screen.getByRole("region", { name: /recent gaps/i });
     expect(
       within(attention).getByText(/last entry 11 days ago/i),
     ).toBeVisible();
@@ -173,7 +177,7 @@ describe("Consistency analytics route", () => {
     renderRoute("/analytics/consistency");
 
     const attention = await screen.findByRole("region", {
-      name: /needs attention/i,
+      name: /recent gaps/i,
     });
     expect(
       within(attention).getByRole("link", { name: "Resting Heart Rate" }),
@@ -244,7 +248,7 @@ describe("Consistency analytics route", () => {
     renderRoute("/analytics/consistency");
 
     const attention = await screen.findByRole("region", {
-      name: /needs attention/i,
+      name: /recent gaps/i,
     });
     expect(within(attention).getByText(/last entry 2 days ago/i)).toBeVisible();
   });

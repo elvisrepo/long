@@ -2429,3 +2429,15 @@ review rows were created. Both reloaded local web and worker processes report th
 new default; saved-review count remains seven. This is local remediation, not a
 staging/production deployment or a claim that every provider/model is available.
 The user's next actual review still requires their explicit sharing action in UI.
+
+### Consistency UI verification — 27 October 2026
+
+Six route tests cover summaries, exact UTC range, legend, initially collapsed
+explanation, date-specific metric links, neutral recent-gap copy, loading/error,
+and empty states. A browser check first reproduced the 32px day target; it now
+passes with 64px day links. Eight focused browser cases cover 320/390/768/1440px
+in Light and Dark, no horizontal overflow, seven day links, explanation disclosure,
+and keyboard navigation to the correct metric/date. Production build, targeted
+ESLint and Prettier checks pass. Synthetic API fixtures only; no backend or API
+contract changes. The broader pre-existing cross-page check currently stops on
+the Metrics page's obsolete Edit-button selector, before reaching Consistency.
