@@ -1,3 +1,4 @@
+import { TrackingDateControls } from "../../components/tracking-date-controls";
 import {
   keepPreviousData,
   useMutation,
@@ -113,7 +114,7 @@ export function DietScreen() {
         <p>Record the foods you ate.</p>
       </header>
       <section className="diet-card diet-context" aria-label="Daily tracking">
-        <div className="diet-day-header">
+        <div className="diet-day-header tracking-day-header">
           <div>
             <h2>
               {day === today
@@ -133,33 +134,11 @@ export function DietScreen() {
                   : ""}
             </div>
           </div>
-          <div className="diet-date-controls">
-            <button
-              type="button"
-              aria-label="Previous day"
-              onClick={() => selectDay(shiftDay(day, -1))}
-            >
-              ←
-            </button>
-            <label>
-              <span className="visually-hidden">Tracking date</span>
-              <input
-                type="date"
-                value={day}
-                onChange={(e) => selectDay(e.target.value)}
-              />
-            </label>
-            <button
-              type="button"
-              aria-label="Next day"
-              onClick={() => selectDay(shiftDay(day, 1))}
-            >
-              →
-            </button>
-            <button type="button" onClick={() => selectDay(today)}>
-              Today
-            </button>
-          </div>
+          <TrackingDateControls
+            day={day}
+            today={today}
+            onSelectDay={selectDay}
+          />
         </div>
         <div role="group" aria-label="Last 7 days">
           <div className="diet-week">

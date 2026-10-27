@@ -718,3 +718,22 @@ focus return, Free-plan availability, account download and confirmed deletion
 with a rejected-password retry. Build, targeted lint, formatting and diff checks
 pass. Captures use synthetic fixtures in ignored `frontend/test-results/`.
 No API or account data changed, and no deployment was performed.
+
+### Compact tracking dates — 27 October 2026
+
+Recovery, Diet and Stretching now share `TrackingDateControls`. The seven-day
+strip is the primary date navigation; the separate previous/input/next row is
+removed. A 44px calendar action and Today sit beside the selected-date heading.
+The calendar reveals a labelled native date input for arbitrary dates. Selection
+closes it and returns focus; Escape and outside clicks dismiss it. Its panel
+fits within the header even at 320px. Today and the recent-day strip retain their
+existing behaviour, and the recent week stays anchored to today when viewing an
+older date. Workouts retains its existing navigation because it has no duplicate
+seven-day strip in that layout.
+
+Thirty-five focused tests pass, alongside nine compact-control browser checks
+(all three views at 320/390/560/1440px in both themes plus a Diet field check)
+and five existing Recovery/Diet logging journeys. Build, lint, formatting and
+diff checks pass. Old Recovery browser assertions for checklist-first order and
+the former dashboard card were corrected to match the existing date-first layout
+and Today's logs link. Captures use synthetic data, not account records.

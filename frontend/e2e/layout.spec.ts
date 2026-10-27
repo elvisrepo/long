@@ -221,25 +221,89 @@ test("metric dialogs retain backdrop dismissal without dismissing on dialog padd
   await expect(opener).toBeFocused();
 });
 
-test("Diet date buttons align with the input rather than its label", async ({
+test("Diet reveals its date field from a compact calendar control", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 900 });
   await page.goto("/diet");
   const field = page.getByLabel("Tracking date", { exact: true });
-  await expect(field).toBeVisible();
-  const input = (await field.boundingBox())!;
-  for (const name of ["Previous day", "Next day"]) {
-    const box = (await page
-      .getByRole("button", { name, exact: true })
-      .boundingBox())!;
-    expect(box.y + box.height).toBeCloseTo(input.y + input.height, 0);
-    expect(box.height).toBeCloseTo(44, 0);
-    expect(box.width).toBeGreaterThanOrEqual(44);
-  }
+  await expect(field).not.toBeVisible();
+  await page.getByRole("button", { name: "Choose date" }).click();
+  await expect(field).toBeFocused();
   await expect(field).toHaveCSS("font-size", "16px");
-  expect(input.height).toBeCloseTo(44, 0);
+  expect((await field.boundingBox())!.height).toBeCloseTo(44, 0);
 });
+
+for (const width of [320, 390, 560, 1440]) {
+  for (const theme of ["light", "dark"]) {
+    test(`Compact tracking dates at ${width}px ${theme}`, async ({
+      page,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.addInitScript(
+        (theme) => localStorage.setItem("longevity-theme", theme),
+        theme,
+      );
+      await page.route("**/api/v1/stretching/**", (route) => {
+        const path = new URL(route.request().url()).pathname;
+        const json = path.endsWith("exercises/")
+          ? {
+              phases: [
+                { slug: "lower-body", name: "Lower body", exercises: [] },
+                { slug: "upper-body", name: "Upper body", exercises: [] },
+              ],
+            }
+          : path.endsWith("preferences/")
+            ? { show_shared_exercises: true, hidden_exercise_ids: [] }
+            : [];
+        return route.fulfill({ json });
+      });
+      for (const path of ["/recovery", "/diet", "/stretching"]) {
+        await page.goto(path);
+        const context = page.getByRole("region", {
+          name: "Daily tracking",
+          exact: true,
+        });
+        const field = context.getByLabel("Tracking date");
+        await expect(field).toBeAttached();
+        await expect(field).not.toBeVisible();
+        await expect(
+          context.getByRole("button", { name: "Previous day" }),
+        ).toHaveCount(0);
+        await expect(
+          context.getByRole("button", { name: "Next day" }),
+        ).toHaveCount(0);
+        const days = context
+          .getByRole("group", { name: "Last 7 days" })
+          .getByRole("button");
+        await expect(days).toHaveCount(7);
+        const today = await field.inputValue();
+        const labels = await days.allTextContents();
+        await context.getByRole("button", { name: "Choose date" }).click();
+        await expect(field).toBeFocused();
+        const fieldBox = (await field.boundingBox())!;
+        expect(fieldBox.x).toBeGreaterThanOrEqual(0);
+        expect(fieldBox.x + fieldBox.width).toBeLessThanOrEqual(width);
+        await field.fill("2026-09-01");
+        await expect(field).not.toBeVisible();
+        await expect(field).toHaveValue("2026-09-01");
+        expect(await days.allTextContents()).toEqual(labels);
+        await days.first().click();
+        await expect(days.first()).toHaveAttribute("aria-pressed", "true");
+        await context
+          .getByRole("button", { name: "Today", exact: true })
+          .click();
+        await expect(field).toHaveValue(today);
+        await context.screenshot({
+          path: testInfo.outputPath(`${path.slice(1)}-dates.png`),
+        });
+        expect(
+          await page.evaluate(() => document.documentElement.scrollWidth),
+        ).toBeLessThanOrEqual(width);
+      }
+    });
+  }
+}
 
 test("mobile Diet puts daily context before its food checklist", async ({
   page,
@@ -358,10 +422,13 @@ for (const theme of ["dark", "light"]) {
             ? "Workouts · Longevity"
             : `${path === "/diet" ? "Diet" : "Recovery"} · Longevity`;
         await expect(page).toHaveTitle(expectedTitle);
+        const compact = path === "/diet" || path === "/recovery";
+        if (compact)
+          await page.getByRole("button", { name: "Choose date" }).click();
         const field = page.getByLabel("Tracking date", { exact: true });
         await expect(field).toBeVisible();
         const input = (await field.boundingBox())!;
-        for (const name of ["Previous day", "Next day"]) {
+        for (const name of compact ? [] : ["Previous day", "Next day"]) {
           const box = (await page
             .getByRole("button", { name, exact: true })
             .boundingBox())!;
@@ -374,7 +441,7 @@ for (const theme of ["dark", "light"]) {
         }
         await expect(field).toHaveCSS("font-size", "16px");
         expect(input.height, path).toBeCloseTo(44, 0);
-        expect(input.width, path).toBeCloseTo(160, 0);
+        if (!compact) expect(input.width, path).toBeCloseTo(160, 0);
         expect(
           await page.evaluate(
             () => document.documentElement.scrollWidth <= innerWidth,
@@ -926,8 +993,8 @@ for (const width of [320, 390, 1440]) {
     if (width === 320) {
       const dailySummary = page.getByRole("region", { name: "Daily tracking" });
       await expect(dailySummary).toBeVisible();
-      expect((await checkbox.boundingBox())!.y).toBeLessThan(
-        (await dailySummary.boundingBox())!.y,
+      expect((await dailySummary.boundingBox())!.y).toBeLessThan(
+        (await checkbox.boundingBox())!.y,
       );
     }
     await checkbox.click();
@@ -946,8 +1013,8 @@ for (const width of [320, 390, 1440]) {
     await checkbox.click();
     await expect(checkbox).toBeChecked();
     await page.goto("/");
-    const recoveryPanel = page.getByRole("region", {
-      name: "Recovery activities",
+    const recoveryPanel = page.getByRole("link", {
+      name: /^Recovery 1 activity today/,
     });
     await expect(
       recoveryPanel.getByText("1 activity today", { exact: true }),
@@ -961,7 +1028,7 @@ for (const width of [320, 390, 1440]) {
       path: `test-results/layout/dashboard-recovery-${width}.png`,
       fullPage: true,
     });
-    await recoveryPanel.getByRole("link", { name: "Track recovery →" }).click();
+    await recoveryPanel.click();
     await expect(checkbox).toBeChecked();
     await expect(
       page.getByText("Not research-rated", { exact: true }),
@@ -1081,6 +1148,7 @@ for (const width of [320, 1440]) {
     // Controlled checkboxes update only after the server-confirmed save/refetch.
     await chicken.click();
     await expect(chicken).toBeChecked();
+    await page.getByRole("button", { name: "Choose date" }).click();
     await page.getByLabel("Tracking date").fill("2026-09-20");
     await expect(chicken).not.toBeChecked();
     await expect(page.locator(".diet-week button").last()).toHaveAttribute(

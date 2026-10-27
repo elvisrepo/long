@@ -1,3 +1,4 @@
+import { TrackingDateControls } from "../../components/tracking-date-controls";
 import {
   keepPreviousData,
   useMutation,
@@ -17,7 +18,7 @@ import {
   updateRecoveryTool,
 } from "./recovery-api";
 import "./recovery.css";
-import { localDay, shiftDay, trackingDateLabel } from "./recovery-dates";
+import { localDay, trackingDateLabel } from "./recovery-dates";
 
 export function RecoveryScreen() {
   const queryClient = useQueryClient();
@@ -107,7 +108,7 @@ export function RecoveryScreen() {
         className="recovery-panel recovery-day-context"
         aria-label="Daily tracking"
       >
-        <div className="recovery-day-header">
+        <div className="recovery-day-header tracking-day-header">
           <div>
             <h2>{trackingDateLabel(day, today)}</h2>
             <p role="status">
@@ -125,40 +126,11 @@ export function RecoveryScreen() {
                   : ""}
             </p>
           </div>
-          <div className="recovery-date-navigation">
-            <button
-              className="recovery-action"
-              aria-label="Previous day"
-              onClick={() => selectDay(shiftDay(day, -1))}
-            >
-              ←
-            </button>
-            <label className="recovery-date">
-              <span className="visually-hidden">Tracking date</span>
-              <input
-                type="date"
-                value={day}
-                onChange={(event) => {
-                  if (event.target.value) {
-                    selectDay(event.target.value);
-                  }
-                }}
-              />
-            </label>
-            <button
-              className="recovery-action"
-              aria-label="Next day"
-              onClick={() => selectDay(shiftDay(day, 1))}
-            >
-              →
-            </button>
-            <button
-              className="recovery-action"
-              onClick={() => selectDay(localDay(new Date()))}
-            >
-              Today
-            </button>
-          </div>
+          <TrackingDateControls
+            day={day}
+            today={today}
+            onSelectDay={selectDay}
+          />
         </div>
         <div role="group" aria-label="Last 7 days">
           <ul className="recovery-history">

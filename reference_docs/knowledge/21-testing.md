@@ -2475,3 +2475,20 @@ request probe confirmed GET and DELETE share that path. The fixture now falls
 back for reads and still asserts deletion method/body and password-error retry.
 All browser calls use synthetic fixtures. Build, targeted ESLint, Prettier and
 diff checks pass; local Vite startup required running outside the sandbox.
+
+### Compact tracking-date verification — 27 October 2026
+
+Thirty-five focused component/screen tests pass across the shared date control,
+Recovery, Diet and Stretching. Tests retain date-specific logging and the
+today-anchored history checks. Shared-control tests cover initially hidden input,
+older-date selection, focus return, Escape/outside dismissal and Today.
+
+Nine browser checks cover all three views at 320/390/560/1440px in both themes
+plus a focused Diet input check. They verify the absence of the old arrow row,
+calendar focus and bounds, arbitrary dates, unchanged recent-week labels, strip
+selection, Today and no horizontal overflow. Five Recovery/Diet browser logging
+journeys also pass. Their older Recovery assertions had assumed checklist-first
+order and a removed dashboard card; a local fixture-snapshot probe confirmed the
+current date-first view and Today's logs link, and the assertions now target them.
+Build, targeted ESLint, Prettier and diff checks pass. API fixtures are synthetic;
+no backend contracts or data models changed.
