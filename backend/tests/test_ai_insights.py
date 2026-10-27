@@ -95,6 +95,75 @@ def test_provider_gateway_failure_is_actionable_and_does_not_leak_body(
     assert "private provider response" not in str(caught.value.detail)
 
 
+@override_settings(NVIDIA_INSIGHTS_MODEL="nvidia/nemotron-3-super-120b-a12b")
+def test_provider_model_404_is_actionable_and_logs_only_safe_metadata(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from io import BytesIO
+    from urllib.error import HTTPError
+    from apps.metrics.ai_insights import generate_weekly_review, WeeklyReviewFailed
+
+    private = "private health data nvapi-secret-value"
+    failure = HTTPError(
+        "https://integrate.api.nvidia.com/v1/chat/completions",
+        404,
+        private,
+        {},
+        BytesIO(private.encode()),
+    )
+    with patch("apps.metrics.ai_insights.urlopen", side_effect=failure):
+        with pytest.raises(WeeklyReviewFailed) as caught:
+            generate_weekly_review({"evidence": {}}, api_key="nvapi-secret-value")
+    assert "Choose another model" in str(caught.value.detail)
+    assert "nvidia/nemotron-3-super-120b-a12b" in str(caught.value.detail)
+    assert "status=404" in caplog.text
+    assert private not in str(caught.value.detail)
+    assert private not in caplog.text
+    assert "nvapi-secret-value" not in caplog.text
+
+
+@pytest.mark.parametrize(
+    "invalid_content,stage,detail",
+    [
+        ("private invalid provider content", "format", "unreadable review"),
+        (
+            json.dumps(
+                {
+                    "suggestions": [
+                        {"text": "private suggestion", "evidence_keys": ["invented"]}
+                    ]
+                }
+            ),
+            "validation",
+            "could not be matched",
+        ),
+    ],
+)
+def test_bad_review_explains_failure_without_leaking_output(
+    invalid_content: str, stage: str, detail: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    from apps.metrics.ai_insights import generate_weekly_review, WeeklyReviewFailed
+
+    response = MagicMock()
+    response.__enter__.return_value.read.return_value = json.dumps(
+        {"choices": [{"message": {"content": invalid_content}}]}
+    ).encode()
+    with patch("apps.metrics.ai_insights.urlopen", return_value=response):
+        with pytest.raises(WeeklyReviewFailed) as caught:
+            generate_weekly_review(
+                {
+                    "prompt_version": "weekly-v3",
+                    "evidence": {"steps": {"current": {"observed_days": 1}}},
+                },
+                api_key="nvapi-secret-value",
+            )
+    assert detail in str(caught.value.detail)
+    assert f"stage={stage}" in caplog.text
+    assert "private" not in str(caught.value.detail)
+    assert "private" not in caplog.text
+    assert "nvapi-secret-value" not in caplog.text
+
+
 @pytest.fixture(autouse=True)
 def clear_rate_limits():
     cache = caches["ai_insights"]

@@ -223,6 +223,8 @@ export function WorkoutScreen({
       </div>
       {view !== "training" &&
         view !== "home" &&
+        view !== "routines" &&
+        view !== "calendar" &&
         !(view === "overview" && search.exercise) && (
           <PageHeader
             title={
@@ -230,15 +232,11 @@ export function WorkoutScreen({
                 ? "Exercise overview"
                 : view === "exercises"
                   ? "All exercises"
-                  : view === "routines"
-                    ? "Routines"
-                    : view === "calendar"
-                      ? "Workout calendar"
-                      : view === "progress"
-                        ? "Workout progress"
-                        : view === "history"
-                          ? "Workout history"
-                          : "Workouts"
+                  : view === "progress"
+                    ? "Workout progress"
+                    : view === "history"
+                      ? "Workout history"
+                      : "Workouts"
             }
             eyebrow={
               view === "exercises" ? "PERSONAL LIBRARY" : "TRAIN THOUGHTFULLY"
@@ -250,15 +248,11 @@ export function WorkoutScreen({
                   ? search.session
                     ? "Select an exercise to add to this workout, or open one already included."
                     : "Browse your exercise library, history and progress. No workout is created here."
-                  : view === "routines"
-                    ? "Organize training plans and start reusable workout templates."
-                    : view === "calendar"
-                      ? "Browse training and plans by month."
-                      : view === "progress"
-                        ? "Review completed training without mixing saved units."
-                        : view === "history"
-                          ? "Review recorded sessions or copy one as a new plan."
-                          : "Record your training, one set at a time."
+                  : view === "progress"
+                    ? "Review completed training without mixing saved units."
+                    : view === "history"
+                      ? "Review recorded sessions or copy one as a new plan."
+                      : "Record your training, one set at a time."
             }
           />
         )}
@@ -274,7 +268,10 @@ export function WorkoutScreen({
           {dateControls}
         </details>
       ) : (
-        view !== "training" && dateControls
+        view !== "training" &&
+        view !== "routines" &&
+        view !== "calendar" &&
+        dateControls
       )}
       {view === "home" &&
         (sessions.isPending ? (
@@ -450,6 +447,7 @@ export function WorkoutScreen({
       )}
       {view === "routines" && (
         <WorkoutRoutines
+          key={owner}
           owner={owner}
           day={day}
           busy={busy}
@@ -459,6 +457,8 @@ export function WorkoutScreen({
       )}
       {view === "calendar" && (
         <WorkoutCalendar
+          categories={catalog.data.categories}
+          exercises={catalog.data.exercises}
           owner={owner}
           date={day}
           busy={busy}
@@ -575,6 +575,13 @@ function WorkoutHome({
           >
             <span aria-hidden="true">＋</span>
             Start new workout
+          </button>
+          <button
+            className="workout-home-copy"
+            disabled={busy}
+            onClick={() => navigate({ view: "routines", date: day })}
+          >
+            Use a routine
           </button>
           <button
             className="workout-home-copy"

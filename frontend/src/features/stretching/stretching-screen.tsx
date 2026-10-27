@@ -1,3 +1,4 @@
+import { TrackingDateControls } from "../../components/tracking-date-controls";
 import {
   keepPreviousData,
   useMutation,
@@ -172,7 +173,7 @@ export function StretchingScreen() {
         </p>
       </header>
       <section className="stretching-day-context" aria-label="Daily tracking">
-        <div className="stretching-day-header">
+        <div className="stretching-day-header tracking-day-header">
           <div>
             <h2>{trackingDateLabel(day, today)}</h2>
             <p role="status">
@@ -186,38 +187,11 @@ export function StretchingScreen() {
               </p>
             )}
           </div>
-          <div className="stretching-date-controls">
-            <button
-              type="button"
-              aria-label="Previous day"
-              onClick={() => selectDay(shiftDay(day, -1))}
-            >
-              ←
-            </button>
-            <label>
-              <span className="visually-hidden">Tracking date</span>
-              <input
-                type="date"
-                value={day}
-                onChange={(event) =>
-                  event.target.value && selectDay(event.target.value)
-                }
-              />
-            </label>
-            <button
-              type="button"
-              aria-label="Next day"
-              onClick={() => selectDay(shiftDay(day, 1))}
-            >
-              →
-            </button>
-            <button
-              type="button"
-              onClick={() => selectDay(localDay(new Date()))}
-            >
-              Today
-            </button>
-          </div>
+          <TrackingDateControls
+            day={day}
+            today={today}
+            onSelectDay={selectDay}
+          />
         </div>
         <div role="group" aria-label="Last 7 days">
           {history.isPending ? (

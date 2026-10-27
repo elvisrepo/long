@@ -31,11 +31,11 @@ export function AccountPanel({
   return (
     <section className="subscription-card" aria-label="Account data">
       <h2>Your account data</h2>
-      <p className="settings-data-copy">
-        Download your account, health records, sync history, and billing history
-        as JSON. Available on every plan.
-      </p>
-      <div className="metric-dialog-actions">
+      <div className="settings-account-row">
+        <p className="settings-data-copy">
+          Download account, health, sync and billing records as JSON. Available
+          on every plan.
+        </p>
         <button
           type="button"
           disabled={exporting}
@@ -43,6 +43,9 @@ export function AccountPanel({
         >
           {exporting ? "Downloading…" : "Download account data"}
         </button>
+      </div>
+      <div className="settings-account-row settings-account-delete">
+        <p>Delete your account and its records permanently.</p>
         <button
           type="button"
           className="metric-danger-action"

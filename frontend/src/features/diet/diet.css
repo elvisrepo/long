@@ -54,17 +54,6 @@
 .diet-day-header h2 {
   font-size: 1.25rem;
 }
-.diet-date-controls {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.3125rem;
-}
-.diet-date-controls > label {
-  --field-font-size: 1rem;
-  width: 9.25rem;
-  min-width: 0;
-}
 .diet-screen button,
 .dashboard-diet button {
   border: 1px solid var(--border);
@@ -75,10 +64,6 @@
   cursor: pointer;
   min-height: var(--control-height);
   font-size: 0.8125rem;
-}
-.diet-date-controls button {
-  min-width: 2.75rem;
-  padding: 0.5625rem 0.75rem;
 }
 .diet-screen button:disabled {
   opacity: 0.55;
@@ -445,15 +430,6 @@
   }
 }
 @media (max-width: 350px) {
-  .diet-date-controls {
-    gap: 0.25rem;
-  }
-  .diet-date-controls > label {
-    width: 8.5rem;
-  }
-  .diet-date-controls button {
-    padding: 0.5625rem 0.5rem;
-  }
   .diet-week button small {
     font-size: 0.5625rem;
   }

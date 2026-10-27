@@ -2,7 +2,15 @@ from typing import Any
 from django.core.exceptions import ValidationError as ModelValidationError
 from rest_framework import serializers
 from .models import Workout, WorkoutRoutine, RoutineDay, RoutineExercise, RoutineSet
-from .serializers import SetSerializer, WorkoutExerciseSerializer
+from .serializers import (
+    SetSerializer,
+    WorkoutExerciseSerializer,
+    ExerciseSettingsSerializer,
+)
+
+
+class RoutineExerciseSettingsSerializer(ExerciseSettingsSerializer):
+    group_colour = serializers.RegexField(r"^#[0-9a-fA-F]{6}$", required=False)
 
 
 class RoutineExerciseInputSerializer(WorkoutExerciseSerializer):
@@ -155,3 +163,19 @@ class RoutineSerializer(serializers.ModelSerializer):
                 "This routine already exists, including archives."
             )
         return value
+
+
+class RoutineSetDraftInput(serializers.Serializer):
+    expected_sets = serializers.ListField(
+        child=serializers.DictField(), max_length=1000
+    )
+    sets = serializers.ListField(child=serializers.DictField(), max_length=1000)
+
+    def validate(self, data: dict[str, Any]) -> dict[str, Any]:
+        if set(self.initial_data) - {"expected_sets", "sets"}:
+            raise serializers.ValidationError("Only preset quantities can be supplied.")
+        allowed = {"weight", "reps", "distance", "duration_seconds"}
+        for row in data["sets"]:
+            if set(row) - allowed:
+                raise serializers.ValidationError("Sets accept only quantity fields.")
+        return data

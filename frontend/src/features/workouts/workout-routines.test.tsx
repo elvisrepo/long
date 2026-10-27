@@ -33,6 +33,7 @@ const workout: api.Workout = {
 };
 beforeEach(() => {
   vi.resetAllMocks();
+  localStorage.clear();
   vi.mocked(api.getWorkoutCatalog).mockResolvedValue({
     categories: [],
     exercises: [],
@@ -56,6 +57,281 @@ function mount(view: "home" | "routines" = "home") {
   );
   return navigate;
 }
+it("takes a newly saved routine straight into naming its first day", async () => {
+  vi.mocked(api.saveWorkoutRoutine).mockResolvedValue({
+    id: "r",
+    name: "Push / Pull / Legs",
+    notes: "",
+    is_active: true,
+    display_order: 100,
+    days: [],
+  });
+  mount("routines");
+  await userEvent.click(
+    await screen.findByRole("button", { name: "New routine" }),
+  );
+  await userEvent.type(
+    screen.getByLabelText("Routine name"),
+    "Push / Pull / Legs",
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Save routine" }));
+  expect(await screen.findByRole("dialog", { name: "Add day" })).toBeVisible();
+  expect(api.createWorkout).not.toHaveBeenCalled();
+});
+it("copies a routine from its actions without starting a workout", async () => {
+  const routine: api.WorkoutRoutine = {
+    id: "r",
+    name: "Weekly plan",
+    notes: "Notes",
+    display_order: 10,
+    is_active: true,
+    days: [],
+  };
+  vi.mocked(api.getWorkoutRoutines).mockResolvedValue([routine]);
+  vi.mocked(api.copyWorkoutRoutine).mockResolvedValue({
+    ...routine,
+    id: "copy",
+    name: "Another plan",
+  });
+  mount("routines");
+  await userEvent.click(
+    await screen.findByLabelText("Routine actions for Weekly plan"),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Copy routine", exact: true }),
+  );
+  await userEvent.clear(screen.getByLabelText("Copy name"));
+  await userEvent.type(screen.getByLabelText("Copy name"), "Another plan");
+  await userEvent.click(screen.getByRole("button", { name: "Create copy" }));
+  await waitFor(() =>
+    expect(api.copyWorkoutRoutine).toHaveBeenCalledWith("r", "Another plan"),
+  );
+  expect(api.createWorkout).not.toHaveBeenCalled();
+  expect(api.startRoutineDay).not.toHaveBeenCalled();
+});
+it("confirms routine deletion and cancels without writes", async () => {
+  vi.mocked(api.getWorkoutRoutines).mockResolvedValue([
+    {
+      id: "r",
+      name: "Weekly plan",
+      notes: "",
+      display_order: 10,
+      is_active: true,
+      days: [],
+    },
+  ]);
+  mount("routines");
+  const actions = await screen.findByLabelText(
+    "Routine actions for Weekly plan",
+  );
+  await userEvent.click(actions);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Delete routine", exact: true }),
+  );
+  expect(
+    screen.getByRole("dialog", { name: "Delete Weekly plan?" }),
+  ).toHaveTextContent("Existing workouts are kept");
+  await userEvent.click(
+    screen.getByRole("button", { name: "Cancel", exact: true }),
+  );
+  expect(api.deleteWorkoutRoutine).not.toHaveBeenCalled();
+  await userEvent.click(actions);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Delete routine", exact: true }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Confirm delete routine" }),
+  );
+  await waitFor(() =>
+    expect(api.deleteWorkoutRoutine).toHaveBeenCalledWith("r"),
+  );
+});
+it("searches and filters active library exercises before adding them to a routine day", async () => {
+  const base: api.Exercise = {
+    id: "bench",
+    category_id: "chest",
+    name: "Bench press",
+    tracking_type: "strength",
+    weight_unit: "kg",
+    distance_unit: "km",
+    notes: "",
+    weight_increment: "2.5",
+    rest_seconds: 90,
+    display_order: 10,
+    is_active: true,
+  };
+  vi.mocked(api.getWorkoutCatalog).mockResolvedValue({
+    categories: [
+      { id: "chest", name: "Chest", display_order: 10, is_active: true },
+      { id: "back", name: "Back", display_order: 20, is_active: true },
+    ],
+    exercises: [
+      base,
+      { ...base, id: "row", category_id: "back", name: "Barbell row" },
+      { ...base, id: "old", name: "Old exercise", is_active: false },
+    ],
+  });
+  vi.mocked(api.getWorkoutRoutines).mockResolvedValue([
+    {
+      id: "r",
+      name: "Plan",
+      notes: "",
+      display_order: 10,
+      is_active: true,
+      days: [
+        { id: "d", name: "Pull", notes: "", display_order: 10, exercises: [] },
+      ],
+    },
+  ]);
+  vi.mocked(api.addRoutineExercise).mockResolvedValue({
+    ...workout.exercises[0],
+    id: "item",
+    exercise_id: "row",
+  });
+  mount("routines");
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Edit routine exercises" }),
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Add exercises" }));
+  await userEvent.type(
+    screen.getByLabelText("Search routine exercises"),
+    "bench",
+  );
+  expect(
+    screen.getByRole("button", { name: "Add Bench press" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Add Barbell row" }),
+  ).not.toBeInTheDocument();
+  await userEvent.clear(screen.getByLabelText("Search routine exercises"));
+  await userEvent.selectOptions(
+    screen.getByLabelText("Routine exercise category"),
+    "back",
+  );
+  expect(
+    screen.queryByRole("button", { name: "Add Bench press" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Add Old exercise" }),
+  ).not.toBeInTheDocument();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Add Barbell row" }),
+  );
+  await waitFor(() =>
+    expect(api.addRoutineExercise).toHaveBeenCalledWith("d", "row"),
+  );
+  expect(api.createWorkout).not.toHaveBeenCalled();
+});
+it("retries attaching a newly created exercise without creating it twice", async () => {
+  const exercise: api.Exercise = {
+    id: "new",
+    category_id: "c",
+    name: "New press",
+    tracking_type: "strength",
+    weight_unit: "kg",
+    distance_unit: "km",
+    notes: "",
+    weight_increment: "2.5",
+    rest_seconds: 90,
+    display_order: 10,
+    is_active: true,
+  };
+  vi.mocked(api.getWorkoutCatalog).mockResolvedValue({
+    categories: [
+      { id: "c", name: "Chest", display_order: 10, is_active: true },
+    ],
+    exercises: [],
+  });
+  vi.mocked(api.getWorkoutRoutines).mockResolvedValue([
+    {
+      id: "r",
+      name: "Plan",
+      notes: "",
+      display_order: 10,
+      is_active: true,
+      days: [
+        { id: "d", name: "Push", notes: "", display_order: 10, exercises: [] },
+      ],
+    },
+  ]);
+  vi.mocked(api.saveExercise).mockResolvedValue(exercise);
+  vi.mocked(api.addRoutineExercise)
+    .mockRejectedValueOnce(new Error("Could not attach exercise"))
+    .mockResolvedValue({ ...workout.exercises[0], exercise_id: "new" });
+  mount("routines");
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Edit routine exercises" }),
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Add exercises" }));
+  await userEvent.click(
+    screen.getByRole("button", { name: /New exercise$/, exact: true }),
+  );
+  await userEvent.type(screen.getByLabelText("New exercise name"), "New press");
+  await userEvent.click(
+    screen.getByRole("button", { name: "Create and add exercise" }),
+  );
+  expect(
+    await screen.findByText(/The exercise was created/),
+  ).toBeInTheDocument();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Retry adding exercise" }),
+  );
+  await waitFor(() => expect(api.addRoutineExercise).toHaveBeenCalledTimes(2));
+  expect(api.saveExercise).toHaveBeenCalledTimes(1);
+  expect(api.createWorkout).not.toHaveBeenCalled();
+});
+it("saves routine exercise order as one atomic draft without changing the workout", async () => {
+  vi.mocked(api.getWorkoutRoutines).mockResolvedValue([
+    {
+      id: "r",
+      name: "Plan",
+      notes: "",
+      display_order: 10,
+      is_active: true,
+      days: [
+        {
+          id: "d",
+          name: "Push",
+          notes: "",
+          display_order: 10,
+          exercises: [
+            { ...workout.exercises[0], id: "one", exercise_name: "Bench" },
+            { ...workout.exercises[0], id: "two", exercise_name: "Row" },
+          ],
+        },
+      ],
+    },
+  ]);
+  mount("routines");
+  await userEvent.click(
+    await screen.findByRole("button", {
+      name: "Edit routine exercises",
+      exact: true,
+    }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Reorder Bench", exact: true }),
+  );
+  const dialog = screen.getByRole("dialog", {
+    name: "Reorder routine exercises",
+  });
+  await userEvent.click(
+    within(dialog).getByRole("button", { name: "Move Row (exercise 2) up" }),
+  );
+  expect(api.reorderRoutineItems).not.toHaveBeenCalled();
+  await userEvent.click(
+    within(dialog).getByRole("button", { name: "Save order" }),
+  );
+  await waitFor(() =>
+    expect(api.reorderRoutineItems).toHaveBeenCalledWith(
+      "exercises",
+      "d",
+      ["two", "one"],
+      ["one", "two"],
+    ),
+  );
+  expect(api.updateWorkout).not.toHaveBeenCalled();
+});
 it("explains plans versus templates and guides empty templates into exercise setup", async () => {
   vi.mocked(api.getWorkoutRoutines).mockResolvedValue([
     {
@@ -70,21 +346,25 @@ it("explains plans versus templates and guides empty templates into exercise set
     },
   ]);
   mount("routines");
-  expect(await screen.findByText("Training plan")).toBeVisible();
-  expect(screen.getByText(/A routine is a training plan/)).toBeVisible();
-  expect(screen.getByText("1 workout template")).toBeVisible();
   expect(
-    screen.getByText("Workout template · 0 exercises · 0 planned sets"),
-  ).toBeVisible();
-  expect(screen.getByRole("button", { name: "Start Push" })).toBeDisabled();
+    await screen.findByRole("button", { name: "Start Push" }),
+  ).toBeDisabled();
   expect(
-    screen.getByText(
-      "Add at least one exercise to enable Start. Planned sets are optional.",
-    ),
-  ).toBeVisible();
+    screen.queryByText(/A routine is a reusable plan/),
+  ).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Routine info" }));
+  expect(
+    screen.getByRole("dialog", { name: "Routine info" }),
+  ).toHaveTextContent("A routine is a reusable plan");
+  await userEvent.click(
+    screen.getByRole("button", { name: "Close", exact: true }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Edit routine exercises" }),
+  );
   await userEvent.click(screen.getByRole("button", { name: "Add exercises" }));
   expect(
-    await screen.findByRole("dialog", { name: "Edit workout template" }),
+    await screen.findByRole("dialog", { name: "Add exercise" }),
   ).toBeVisible();
   expect(api.startRoutineDay).not.toHaveBeenCalled();
 });
@@ -204,24 +484,51 @@ it("creates an empty routine day without making a workout", async () => {
     display_order: 100,
     exercises: [],
   });
+  vi.mocked(api.saveRoutineDay).mockImplementation(async () => {
+    const saved = {
+      id: "d",
+      name: "Push",
+      notes: "",
+      display_order: 10,
+      exercises: [],
+    };
+    vi.mocked(api.getWorkoutRoutines).mockResolvedValue([
+      {
+        id: "r",
+        name: "Weekly plan",
+        notes: "",
+        is_active: true,
+        display_order: 10,
+        days: [saved],
+      },
+    ]);
+    return saved;
+  });
   mount("routines");
-  await userEvent.click(
-    await screen.findByRole("button", { name: "Add workout template" }),
-  );
+  await userEvent.click(await screen.findByRole("button", { name: "Add day" }));
   await userEvent.type(screen.getByLabelText("Day name"), "Push");
   await userEvent.click(screen.getByRole("button", { name: "Create day" }));
   await waitFor(() =>
     expect(api.saveRoutineDay).toHaveBeenCalledWith("r", undefined, {
       name: "Push",
       notes: "",
-      display_order: 100,
+      display_order: 10,
     }),
   );
   expect(api.createWorkout).not.toHaveBeenCalled();
   expect(
-    await screen.findByRole("dialog", { name: "Edit workout template" }),
+    await screen.findByRole("dialog", { name: "Add exercise" }),
   ).toBeVisible();
-  expect(screen.getByLabelText("Day name")).toHaveValue("Push");
+  expect(screen.getByLabelText("Search routine exercises")).toBeVisible();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Done", exact: true }),
+  );
+  await userEvent.selectOptions(
+    screen.getByRole("combobox", { name: "Browse routines" }),
+    "all",
+  );
+  await userEvent.click(screen.getByRole("button", { name: /Weekly plan/ }));
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });
 
 it("edits planned template quantities directly, keeping failed edits visible", async () => {
@@ -256,38 +563,38 @@ it("edits planned template quantities directly, keeping failed edits visible", a
       ],
     },
   ]);
-  vi.mocked(api.saveRoutineSet)
+  vi.mocked(api.replaceRoutineSets)
     .mockRejectedValueOnce(new Error("Template save failed"))
-    .mockResolvedValue(item.sets[0]);
+    .mockResolvedValue(item);
   mount("routines");
   await userEvent.click(
-    await screen.findByRole("button", { name: "Edit template" }),
+    await screen.findByRole("button", { name: "Edit routine exercises" }),
   );
-  expect(screen.getByLabelText("Exercise order")).toHaveAccessibleDescription(
-    "Position in this template, not a count. Lower numbers appear first: 10, 20, 30. Use 15 to place an exercise between 10 and 20.",
-  );
-  expect(screen.getByLabelText("Set order")).toHaveAccessibleDescription(
-    "Position within this exercise, not reps or number of sets. Lower numbers appear first.",
-  );
-  await userEvent.click(screen.getByRole("button", { name: /Set 1:/ }));
-  await userEvent.clear(screen.getByLabelText("Weight (kg)"));
-  await userEvent.type(screen.getByLabelText("Weight (kg)"), "55");
   await userEvent.click(
-    screen.getByRole("button", { name: "Update planned set" }),
+    screen.getByRole("button", { name: "Options for Bench" }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Edit predefined sets" }),
+  );
+  expect(screen.queryByLabelText("Set order")).not.toBeInTheDocument();
+  await userEvent.clear(screen.getByLabelText("Set 1 weight (kg)"));
+  await userEvent.type(screen.getByLabelText("Set 1 weight (kg)"), "55");
+  await userEvent.click(
+    screen.getByRole("button", { name: "Save predefined sets" }),
   );
   expect(
     await within(screen.getByRole("dialog")).findByRole("alert"),
   ).toHaveTextContent("Template save failed");
-  expect(screen.getByLabelText("Weight (kg)")).toHaveValue(55);
+  expect(screen.getByLabelText("Set 1 weight (kg)")).toHaveValue(55);
   await userEvent.click(
-    screen.getByRole("button", { name: "Update planned set" }),
+    screen.getByRole("button", { name: "Save predefined sets" }),
   );
-  await waitFor(() => expect(api.saveRoutineSet).toHaveBeenCalledTimes(2));
-  expect(api.saveRoutineSet).toHaveBeenLastCalledWith("i", "s", {
-    weight: "55",
-    reps: 5,
-    display_order: 10,
-  });
+  await waitFor(() => expect(api.replaceRoutineSets).toHaveBeenCalledTimes(2));
+  expect(api.replaceRoutineSets).toHaveBeenLastCalledWith(
+    "i",
+    [{ weight: "55", reps: 5, distance: null, duration_seconds: null }],
+    item.sets,
+  );
   expect(api.createWorkout).not.toHaveBeenCalled();
 });
 
@@ -330,7 +637,7 @@ it("starts on the chosen calendar date and navigates only after server success",
     await screen.findByRole("button", { name: "Start Push" }),
   );
   expect(
-    await screen.findByRole("heading", { name: "Preview routine start" }),
+    await screen.findByRole("heading", { name: "Start workout" }),
   ).toBeInTheDocument();
   expect(api.startRoutineDay).not.toHaveBeenCalled();
   await userEvent.click(
@@ -362,7 +669,7 @@ it("starts on the chosen calendar date and navigates only after server success",
   });
 });
 
-it("clears a new planned-set draft only after confirmed save", async () => {
+it("cancels a new predefined-set draft without writing any template quantities", async () => {
   vi.mocked(api.getWorkoutRoutines).mockResolvedValue([
     {
       id: "r",
@@ -381,25 +688,24 @@ it("clears a new planned-set draft only after confirmed save", async () => {
       ],
     },
   ]);
-  vi.mocked(api.saveRoutineSet).mockResolvedValue({
-    id: "s",
-    display_order: 10,
-    weight: "40.000",
-    reps: 5,
-    distance: null,
-    duration_seconds: null,
-  });
   mount("routines");
   await userEvent.click(
-    await screen.findByRole("button", { name: "Edit template" }),
+    await screen.findByRole("button", { name: "Edit routine exercises" }),
   );
-  await userEvent.type(screen.getByLabelText("Weight (kg)"), "40");
-  await userEvent.type(screen.getByLabelText("Reps"), "5");
   await userEvent.click(
-    screen.getByRole("button", { name: "Add planned set", exact: true }),
+    screen.getByRole("button", { name: "Options for Bench" }),
   );
-  await waitFor(() => expect(api.saveRoutineSet).toHaveBeenCalledTimes(1));
-  await waitFor(() =>
-    expect(screen.getByLabelText("Weight (kg)")).toHaveValue(null),
+  await userEvent.click(
+    screen.getByRole("button", { name: "Edit predefined sets" }),
   );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Add set", exact: true }),
+  );
+  await userEvent.type(screen.getByLabelText("Set 1 weight (kg)"), "40");
+  await userEvent.type(screen.getByLabelText("Set 1 reps"), "5");
+  await userEvent.click(
+    screen.getByRole("button", { name: "Cancel", exact: true }),
+  );
+  expect(api.replaceRoutineSets).not.toHaveBeenCalled();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });

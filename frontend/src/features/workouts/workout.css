@@ -249,7 +249,8 @@
   font-size: var(--field-font-size);
   line-height: var(--control-line-height);
 }
-.workout-screen input[type="checkbox"] {
+.workout-screen input[type="checkbox"],
+.workout-screen input[type="radio"] {
   width: 1.15rem;
   height: 1.15rem;
   accent-color: var(--accent);
@@ -392,6 +393,171 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
 }
+.workout-category-colour {
+  display: inline-block;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  margin-inline-end: 0.4rem;
+  flex-shrink: 0;
+}
+.workout-library-display-options > button {
+  min-height: 44px;
+  padding: 0.4rem 0.6rem;
+  text-align: start;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.workout-category-sort-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-block: 1rem;
+}
+.workout-category-order-list,
+.workout-sortable-list {
+  padding: 0;
+  margin-block: 1rem;
+  list-style: none;
+}
+.workout-category-order-list > li,
+.workout-sortable-list > li {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px 44px;
+  align-items: center;
+  gap: 0.25rem;
+  padding-block: 0.35rem;
+  border-top: 1px solid var(--border);
+}
+.workout-category-order-list > li.is-dragging,
+.workout-sortable-list > li.is-dragging {
+  background: var(--accent-dim);
+}
+.workout-category-order-list button,
+.workout-sortable-list button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.4rem;
+}
+.workout-category-order-list .workout-category-drag,
+.workout-sortable-list .workout-category-drag {
+  touch-action: none;
+  cursor: grab;
+}
+.workout-routine-menu {
+  position: relative;
+  margin-inline-start: auto;
+}
+.workout-routine-menu[open] {
+  z-index: 20;
+}
+.workout-routine-menu > summary {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 8px;
+}
+.workout-routine-menu > summary::-webkit-details-marker {
+  display: none;
+}
+.workout-routine-menu-items {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: 100%;
+  width: 185px;
+  max-width: calc(100vw - 2rem);
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px #19303d24;
+  display: grid;
+  gap: 0.2rem;
+}
+.workout-routine-menu-items > button {
+  min-height: 44px;
+  padding: 0.5rem 0.65rem;
+  text-align: start;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.workout-routine-menu > summary:focus-visible {
+  outline: 2px solid var(--accent);
+}
+.workout-routine-exercise {
+  padding-inline-start: 0.6rem;
+}
+.workout-calendar-category-key,
+.workout-calendar-category-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.workout-calendar-category-key {
+  margin-block: 0.75rem;
+  gap: 0.4rem 0.8rem;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+.workout-calendar-category-dots {
+  justify-content: center;
+  gap: 2px;
+}
+.workout-calendar-category-dots > span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+.workout-library-display-bar {
+  display: flex;
+  justify-content: flex-end;
+}
+.workout-library-display-menu > button {
+  min-height: 44px;
+  padding: 0.4rem 0.6rem;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--text-dim);
+}
+.workout-library-display-menu {
+  position: relative;
+}
+.workout-library-display-menu:has([role="group"]) {
+  z-index: 20;
+}
+.workout-library-display-options {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: calc(100% + 0.25rem);
+  width: 230px;
+  max-width: calc(100vw - 2rem);
+  padding: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px #19303d24;
+  display: grid;
+}
+.workout-library-display-options > label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 44px;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+}
+.workout-library-display-options > small {
+  padding: 0.4rem 0.6rem;
+}
 .workout-library-category {
   display: grid;
   align-content: start;
@@ -413,10 +579,10 @@
 }
 .workout-library-category .workout-exercise-row {
   padding-block: 0.3rem;
-  border-top: 1px solid #edf1f3;
+  border-top: 1px solid var(--border);
 }
 .workout-library-category .workout-exercise-choice {
-  min-height: 76px;
+  min-height: 56px;
   padding: 0.55rem 0.25rem;
   border-color: transparent;
   border-radius: 6px;
@@ -429,6 +595,54 @@
 .workout-library-category .workout-exercise-choice small {
   font-weight: 400;
   line-height: 1.4;
+  white-space: normal;
+}
+.workout-library-category .workout-exercise-choice > span:first-child {
+  min-width: 0;
+}
+.workout-library-category .workout-exercise-choice[aria-pressed="true"] {
+  background: var(--accent-soft, #edf5f4);
+}
+.workout-library-actions-menu {
+  position: relative;
+}
+.workout-library-actions-menu > button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.5rem;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-dim);
+  font-size: 1.35rem;
+}
+.workout-library-actions-menu:has([role="menu"]) {
+  z-index: 20;
+}
+.workout-library-action-list {
+  position: absolute;
+  inset-block-start: calc(100% + 0.25rem);
+  inset-inline-end: 0;
+  width: 160px;
+  padding: 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px #19303d24;
+  display: grid;
+  gap: 0.15rem;
+}
+.workout-library-action-list > button {
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  background: transparent;
+  text-align: start;
+  box-shadow: none;
+}
+.workout-library-action-list > button:hover:not(:disabled),
+.workout-library-action-list > button:focus-visible {
+  background: var(--bg-subtle, #f5f8f8);
 }
 .workout-library-category .workout-exercise-choice > span:last-child {
   color: var(--text-dim);
@@ -1970,7 +2184,7 @@
 
 @media (max-width: 420px) {
   .workout-library-category .workout-exercise-row .workout-actions {
-    flex-direction: column;
+    flex-direction: row;
     gap: 0;
   }
 }
@@ -2532,4 +2746,970 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
+}
+
+/* Routine workspace: compact browsing, contextual editing, focused dialogs. */
+.routine-workspace {
+  min-width: 0;
+}
+.routine-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.routine-selector {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.routine-selector select {
+  width: 100%;
+  font-size: 18px;
+  font-weight: 650;
+  border: 0;
+  padding-inline: 0 20px;
+  background: transparent;
+  text-overflow: ellipsis;
+}
+.routine-toolbar > button,
+.routine-toolbar summary {
+  flex-shrink: 0;
+  min-width: 44px;
+  padding: 8px;
+}
+.routine-days {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.routine-day {
+  border: 1px solid var(--border);
+  background: var(--surface-high);
+  border-radius: 10px;
+  overflow: hidden;
+  min-width: 0;
+}
+.routine-day-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--accent);
+}
+.routine-day-header h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.4;
+}
+.routine-day-header button {
+  border: 0;
+  background: transparent;
+  padding: 6px 8px;
+  min-width: 44px;
+  color: var(--accent);
+}
+.routine-exercise-row {
+  display: flex;
+  gap: 0;
+  align-items: center;
+  padding: 0 8px;
+  min-height: 58px;
+  border-bottom: 1px solid var(--border);
+  border-inline-start: 3px solid transparent;
+}
+.routine-exercise-row:last-child {
+  border-bottom: 0;
+}
+.routine-exercise-row.has-group {
+  border-inline-start-width: 3px;
+}
+.routine-exercise-row .routine-exercise-name {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  padding: 8px 2px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: start;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+.routine-exercise-name small {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.routine-exercise-row > button:not(.routine-exercise-name) {
+  flex-shrink: 0;
+  width: 44px;
+  min-height: 44px;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+}
+.routine-drag-handle {
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+.routine-drag-handle:active {
+  cursor: grabbing;
+}
+.routine-empty-day {
+  padding: 16px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.routine-empty-day p {
+  margin: 0 0 8px;
+}
+.routine-text-button {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--accent);
+  text-align: start;
+  padding: 10px 12px;
+}
+.routine-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.routine-library {
+  max-width: 700px;
+}
+.routine-plan-link {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 8px;
+  text-align: start;
+  width: 100%;
+  margin-top: 8px;
+}
+.routine-plan-link small {
+  grid-row: 2;
+  color: var(--muted);
+}
+.routine-plan-link > span {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: center;
+}
+.routine-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  width: min(36.25rem, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+}
+.routine-dialog-header {
+  flex-shrink: 0;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.routine-dialog-header h2 {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.3;
+}
+.routine-dialog-header p {
+  margin: 5px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+.routine-dialog-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+}
+.routine-dialog-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.routine-dialog-body > label {
+  display: block;
+  margin-bottom: 16px;
+}
+.routine-dialog-body > label > input,
+.routine-dialog-body > label > textarea {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+}
+.routine-dialog-footer {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--dialog-bg);
+  border-top: 1px solid var(--border);
+}
+.routine-dialog-footer > button {
+  flex: 1;
+  min-width: 0;
+  padding: 8px;
+}
+.routine-help {
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.routine-help summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.routine-help p {
+  margin: 4px 0 12px;
+}
+.routine-preset-list {
+  border-top: 1px solid var(--border);
+}
+.routine-preset-row {
+  display: grid;
+  align-items: end;
+  gap: 6px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.routine-preset-row label {
+  font-size: 12px;
+  margin: 0;
+  min-width: 0;
+}
+.routine-preset-row input {
+  width: 100%;
+  min-width: 0;
+  margin-top: 5px;
+  text-align: center;
+}
+.routine-preset-row > button {
+  padding: 2px;
+  border: 0;
+  background: transparent;
+  min-width: 0;
+  min-height: 44px;
+}
+.routine-preset-row .routine-drag-handle span {
+  display: block;
+  font-size: 12px;
+  line-height: 12px;
+}
+.routine-picker-list {
+  border-top: 1px solid var(--border);
+}
+.routine-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 0;
+  text-align: start;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+}
+.routine-picker-row > span:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.routine-picker-row small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.routine-action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+@media (max-width: 480px) {
+  .routine-toolbar {
+    gap: 2px;
+  }
+  .routine-selector select {
+    font-size: 16px;
+  }
+  .routine-dialog-header,
+  .routine-dialog-body {
+    padding-inline: 16px;
+  }
+  .routine-dialog-footer {
+    padding: 10px 16px;
+  }
+  .routine-dialog-body .workout-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.routine-start-date {
+  display: flex !important;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  margin: 0 0 12px !important;
+}
+.routine-start-date input {
+  width: auto !important;
+  min-width: 0;
+  flex: 1;
+  margin: 0 !important;
+}
+.routine-preview-item {
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+}
+.routine-preview-item > .workout-copy-choice {
+  padding: 10px 8px;
+  min-height: 44px;
+  margin: 0;
+  background: var(--surface);
+  font-weight: 600;
+  font-size: 14px;
+}
+.routine-preview-set {
+  border-top: 1px solid var(--border);
+}
+.routine-preview-set .workout-copy-choice {
+  margin: 0;
+  min-height: 44px;
+  padding: 8px;
+  font-size: 14px;
+}
+.routine-preview-set .workout-note {
+  margin: 0;
+  padding: 0 8px 8px 34px;
+  font-size: 12px;
+}
+.routine-preview-item > p {
+  font-size: 12px;
+  padding: 4px 8px;
+  margin: 0;
+}
+.routine-start-footer button:last-child {
+  flex: 2;
+}
+.routine-dialog .routine-picker-row {
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  border-radius: 0;
+  padding: 10px 0;
+  font-weight: 400;
+}
+.routine-dialog .routine-text-button {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.routine-dialog .routine-carry-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  min-height: 44px;
+  font-size: 13px;
+}
+.routine-dialog .routine-help {
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+.routine-dialog .routine-help summary {
+  min-height: 44px;
+}
+.routine-dialog .routine-dialog-body > .workout-stack {
+  gap: 0;
+}
+.routine-dialog .routine-dialog-body > .workout-stack > .workout-actions {
+  margin-bottom: 8px;
+}
+.routine-dialog .routine-preview-item {
+  margin: 0;
+  padding: 0;
+}
+
+/* Routine groups use a compact chooser and a separate colour/name editor. */
+.routine-group-dialog {
+  max-width: 30rem;
+}
+.routine-group-dialog .routine-group-list {
+  border-top: 1px solid var(--border);
+}
+.routine-group-dialog .routine-group-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-inline-start: 4px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  text-align: start;
+}
+.routine-group-description {
+  flex: 1;
+  min-width: 0;
+}
+.routine-group-description strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 500;
+}
+.routine-group-description small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.routine-group-check {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+}
+.routine-group-check.is-selected {
+  color: var(--text-on-accent);
+  background: var(--accent);
+}
+.routine-group-dialog .routine-group-palette {
+  display: grid;
+  grid-template-columns: repeat(5, 44px);
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  min-inline-size: 0;
+  padding: 8px 0 16px;
+  margin: 0;
+}
+.routine-group-palette legend {
+  padding: 0 0 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.routine-group-dialog .routine-group-palette button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+}
+.routine-group-dialog .routine-group-palette button[aria-pressed="true"] {
+  border-color: var(--accent);
+}
+.routine-group-palette button > span {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 20px;
+  font-weight: 700;
+}
+.routine-group-new-member {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+}
+.routine-group-colour-mark {
+  width: 4px;
+  height: 28px;
+  flex-shrink: 0;
+}
+@media (max-width: 360px) {
+  .routine-group-dialog .routine-group-palette {
+    gap: 4px;
+  }
+}
+
+/* Calendar: month first, shared browsing/filtering, read-only detail surfaces. */
+.calendar-workspace {
+  min-width: 0;
+}
+.calendar-month-toolbar {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.calendar-month-toolbar h2 {
+  margin: 0;
+  text-align: center;
+  font-size: 18px;
+}
+.calendar-month-toolbar h2 button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font-size: inherit;
+  font-weight: 650;
+}
+.calendar-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.calendar-toolbar > button {
+  padding: 6px 10px;
+  min-width: 44px;
+}
+.calendar-view-switch {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+.calendar-view-switch button {
+  padding: 6px 10px;
+  min-width: 44px;
+  border-radius: 0;
+}
+.calendar-view-switch button:first-child {
+  border-radius: 8px 0 0 8px;
+}
+.calendar-view-switch button:last-child {
+  border-radius: 0 8px 8px 0;
+  margin-left: -1px;
+}
+.calendar-view-switch button[aria-pressed="true"] {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-color: var(--accent);
+  position: relative;
+}
+.calendar-active-marker {
+  color: var(--accent);
+  font-weight: 700;
+}
+.calendar-active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.calendar-active-filters .calendar-filter-chip {
+  min-height: 44px;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.calendar-active-filters .calendar-clear-filters {
+  font-size: 12px;
+  padding: 4px 8px;
+}
+.calendar-layout {
+  min-width: 0;
+}
+.calendar-layout.has-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.calendar-main {
+  min-width: 0;
+}
+.calendar-workspace .workout-calendar-grid button {
+  min-height: 56px;
+  background: var(--surface-high);
+  border-radius: 8px;
+}
+.calendar-workspace .calendar-date[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.calendar-date[aria-current="date"] > span:first-child {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.calendar-workout-navigation {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+.calendar-workout-navigation > button {
+  min-width: 0;
+  padding: 6px;
+}
+.calendar-workout-navigation > small {
+  min-width: 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+.calendar-workout-navigation .calendar-month-count {
+  border: 0;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 400;
+}
+.calendar-status-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 6px;
+  min-height: 36px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+.calendar-status-key b {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 4px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  font-size: 11px;
+}
+.calendar-workout-panel {
+  min-width: 0;
+  border: 1px solid var(--border);
+  background: var(--surface-high);
+  border-radius: 10px;
+  padding: 14px;
+}
+.calendar-workout-panel > header {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.calendar-workout-panel > header h3 {
+  margin: 0;
+  font-size: 17px;
+}
+.calendar-workout-panel > header small {
+  color: var(--muted);
+}
+.calendar-workout-panel > button {
+  width: 100%;
+  margin-top: 12px;
+}
+.calendar-workout-list {
+  display: grid;
+  gap: 12px;
+}
+.calendar-workspace .calendar-list-workout {
+  display: block;
+  min-width: 0;
+  width: 100%;
+  padding: 12px;
+  text-align: start;
+  font-weight: 400;
+  background: var(--surface-high);
+}
+.calendar-list-workout[aria-pressed="true"] {
+  border-color: var(--accent);
+}
+.calendar-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+  margin-bottom: 6px;
+}
+.calendar-list-heading strong {
+  font-size: 14px;
+  color: var(--accent);
+}
+.calendar-list-heading small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.calendar-list-session-name {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.calendar-list-exercise {
+  display: flex;
+  gap: 8px;
+  padding: 6px 0;
+}
+.calendar-list-exercise > .workout-category-colour {
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.calendar-list-exercise > span {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+}
+.calendar-list-exercise small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+.calendar-list-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 10px;
+}
+.calendar-list-categories small {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.calendar-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  width: min(34rem, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+}
+.calendar-dialog-header {
+  flex-shrink: 0;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.calendar-dialog-header h2 {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.3;
+}
+.calendar-dialog-header .calendar-workout-navigation {
+  margin-top: 8px;
+}
+.calendar-dialog-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  margin: 0;
+}
+.calendar-dialog-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+.calendar-dialog-body > label {
+  display: block;
+  margin-bottom: 14px;
+}
+.calendar-dialog-body > label > input,
+.calendar-dialog-body > label > select {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+}
+.calendar-dialog-footer {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--dialog-bg);
+}
+.calendar-dialog-footer button {
+  flex: 1;
+  min-width: 0;
+  padding: 8px;
+}
+.calendar-category-choices {
+  padding: 0;
+  margin: 0 0 14px;
+  border: 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.calendar-category-choices legend {
+  font-size: 13px;
+  color: var(--muted);
+  padding-bottom: 6px;
+}
+.calendar-category-choices > label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.calendar-performance-rules {
+  min-inline-size: 0;
+  border: 0;
+  padding: 0;
+  margin: 18px 0 0;
+}
+.calendar-performance-rules legend {
+  font-weight: 600;
+  font-size: 14px;
+}
+.calendar-performance-rules p {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 4px 0 12px;
+}
+.calendar-rule {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 70px;
+  align-items: end;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.calendar-rule label {
+  min-width: 0;
+}
+.calendar-rule input,
+.calendar-rule select {
+  width: 100%;
+  min-width: 0;
+}
+.calendar-help {
+  font-size: 12px !important;
+  color: var(--muted);
+}
+.calendar-display-options > label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 8px 0;
+  margin: 0;
+  border-bottom: 1px solid var(--border);
+}
+.calendar-dialog .workout-preview-exercise,
+.calendar-workout-panel .workout-preview-exercise {
+  display: block;
+  width: 100%;
+  padding: 10px 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  text-align: start;
+  font-weight: 400;
+}
+.workout-preview-exercise > strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+.workout-read-session-name {
+  margin: 14px 0 4px;
+  font-size: 15px;
+}
+.workout-read-session-name:first-child {
+  margin-top: 0;
+}
+.workout-read-set {
+  display: block;
+  padding: 5px 0;
+  font-size: 14px;
+}
+.workout-read-quantities {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+.workout-read-quantities > span {
+  min-width: 0;
+}
+.workout-read-planned,
+.workout-read-comment {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.workout-read-comment {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+.workout-read-stats dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.workout-read-stats dd {
+  margin: 0;
+}
+.workout-read-stats button {
+  margin: 6px 6px 0 0;
+}
+@media (max-width: 380px) {
+  .calendar-toolbar {
+    gap: 4px;
+  }
+  .calendar-toolbar > button,
+  .calendar-view-switch button {
+    padding-inline: 6px;
+    font-size: 13px;
+  }
+  .calendar-dialog-body {
+    padding: 14px 16px;
+  }
+  .calendar-dialog-footer {
+    padding: 10px 16px;
+  }
+  .calendar-rule {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 58px;
+    gap: 5px;
+  }
+}
+
+.workout-read-quantities > span:only-child {
+  grid-column: 1 / -1;
+}
+@media (max-width: 380px) {
+  .calendar-rule {
+    grid-template-columns: minmax(0, 1fr) 90px;
+  }
+  .calendar-rule > label:first-child {
+    grid-column: 1 / -1;
+  }
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "../components/page-header";
@@ -9,7 +9,7 @@ import {
   getAiPreview,
   getSavedAiReview,
   generateAiReview,
-  type InsightEvidence,
+  type InsightSnapshot,
   type AiTimeframe,
 } from "../features/metrics/ai-insights-api";
 
@@ -28,39 +28,26 @@ export const Route = createFileRoute("/analytics/ai")({
   component: AiInsightsRoute,
 });
 
-function formatGeneratedAt(timestamp: string, timezone: string): string {
-  return new Intl.DateTimeFormat("sv-SE", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).format(new Date(timestamp));
-}
-
-function formatPeriod(
-  period: InsightEvidence["current"],
-  unit: string,
-  days: number,
-): string {
-  if (period.observed_days !== undefined) {
-    return period.daily_average == null
-      ? "No measurements"
-      : `${period.daily_average.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${unit} · ${period.observed_days}/${days} ${days === 1 ? "day" : "days"}`;
-  }
-  return `${period.count ?? 0} logged · ${period.logged_days ?? 0}/${days} ${days === 1 ? "day" : "days"}`;
-}
+import { AiReviewEvidence } from "../features/metrics/ai-review-evidence";
+import {
+  formatReviewRange,
+  formatReviewGenerated,
+  formatReviewExact,
+} from "../features/metrics/ai-review-format";
+import "../features/metrics/ai-insights.css";
 
 function AiInsightsRoute() {
   const queryClient = useQueryClient();
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
+  const [newReviewOpen, setNewReviewOpen] = useState(false);
+  const [consentFor, setConsentFor] = useState<{
+    snapshot: InsightSnapshot;
+    model: string | undefined;
+  } | null>(null);
+  const [selectedModel, setSelectedModel] = useState<string | null>(null);
+  const reviewHeading = useRef<HTMLHeadingElement>(null);
   const timeframe = Route.useSearch().timeframe ?? "week";
   const navigate = Route.useNavigate();
-  const [consent, setConsent] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const preview = useQuery({
     queryKey: ["ai-insights-preview", timezone, timeframe],
@@ -72,7 +59,10 @@ function AiInsightsRoute() {
     retry: false,
     onSuccess: () => {
       setSelectedReviewId(null);
+      setNewReviewOpen(false);
+      setConsentFor(null);
       void queryClient.invalidateQueries({ queryKey: ["ai-insights-preview"] });
+      requestAnimationFrame(() => reviewHeading.current?.focus());
     },
   });
   const savedReview = useQuery({
@@ -84,6 +74,7 @@ function AiInsightsRoute() {
     ? savedReview.data?.result
     : (generation.data ?? preview.data?.latest_review);
   const history = preview.data?.review_history ?? [];
+  const hasSaved = !!displayedReview || history.length > 0;
   const model = selectedModel ?? preview.data?.model;
   const models =
     preview.data?.models ??
@@ -91,55 +82,53 @@ function AiInsightsRoute() {
       ? [{ id: preview.data.model, label: preview.data.model }]
       : []);
   const snapshot = preview.data?.snapshot;
-  const summarySnapshot = displayedReview?.snapshot ?? snapshot;
   const hasData =
     snapshot &&
     Object.values(snapshot.evidence).some(
       (row) => (row.current.observed_days ?? row.current.logged_days ?? 0) > 0,
     );
-
+  const consent =
+    !!snapshot &&
+    consentFor?.snapshot === snapshot &&
+    consentFor.model === model;
+  const canGenerate =
+    consent &&
+    hasData &&
+    preview.data?.available &&
+    !generation.isPending &&
+    !preview.isFetching &&
+    !preview.isError;
+  const status = preview.isError
+    ? "Refresh the data preview before generating suggestions."
+    : generation.isPending
+      ? hasSaved
+        ? "Saved review remains available below."
+        : "Waiting for the provider…"
+      : generation.error
+        ? null
+        : !preview.data?.available
+          ? "AI generation is not configured yet. Review Provider settings to connect or check your key."
+          : !hasData
+            ? "No tracker data in the selected completed period yet."
+            : preview.isFetching
+              ? "Updating the data preview…"
+              : null;
   return (
-    <section className="sleep-insights-screen ai-insights-screen">
+    <section className="ai-insights-screen ai-workspace">
       <PageHeader
+        eyebrow="AI suggestions"
         title="AI Insights"
-        eyebrow="Pro Insights · AI suggestions"
         breadcrumb={
           <Link className="metric-detail-breadcrumb" to="/">
             ← Dashboard
           </Link>
         }
-        description={
-          <p>
-            Choose a day, week or month of completed tracker data for three
-            practical suggestions, with the preceding period for comparison.
-          </p>
-        }
       />
-      <AiApiKeySettings busy={generation.isPending} />
-      <div className="ai-review-controls">
-        {models.length ? (
-          <div className="ai-model-picker">
-            <label htmlFor="review-model">Review model</label>
-            <select
-              id="review-model"
-              value={model ?? ""}
-              disabled={generation.isPending}
-              onChange={(event) => setSelectedModel(event.target.value)}
-            >
-              {models.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <p>Model: {model}</p>
-            <p>Availability and usage limits depend on your NVIDIA account.</p>
-          </div>
-        ) : null}
-        <div className="ai-model-picker">
-          <label htmlFor="review-timeframe">Data period</label>
+      <div className="ai-browse-controls">
+        <label>
+          Period
           <select
-            id="review-timeframe"
+            aria-label="Data period"
             value={timeframe}
             disabled={generation.isPending}
             onChange={(event) => {
@@ -148,7 +137,7 @@ function AiInsightsRoute() {
                 replace: true,
               });
               setSelectedReviewId(null);
-              setConsent(false);
+              setConsentFor(null);
               generation.reset();
             }}
           >
@@ -156,126 +145,167 @@ function AiInsightsRoute() {
             <option value="week">Week</option>
             <option value="month">Month</option>
           </select>
-          <p>
-            {timeframe === "day"
-              ? "Yesterday, compared with the day before."
-              : timeframe === "week"
-                ? "Last 7 completed days, compared with the preceding 7."
-                : "Last 30 completed days, compared with the preceding 30."}
-          </p>
-        </div>
+        </label>
+        {history.length > 0 && (
+          <label>
+            Saved reviews
+            <select
+              aria-label="Saved reviews"
+              value={
+                selectedReviewId ??
+                (history.some((row) => row.id === displayedReview?.id)
+                  ? displayedReview?.id
+                  : "")
+              }
+              disabled={generation.isPending}
+              onChange={(event) =>
+                setSelectedReviewId(event.target.value || null)
+              }
+            >
+              <option value="">Latest review</option>
+              {history.map((row) => (
+                <option key={row.id} value={row.id}>
+                  {formatReviewRange({
+                    from: row.period_start,
+                    to: row.period_end,
+                  })}{" "}
+                  · {formatReviewGenerated(row.generated_at, row.timezone)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
-      {preview.isPending ? (
+      <AiApiKeySettings
+        busy={generation.isPending}
+        available={!!preview.data?.available}
+        setupNeeded={!hasSaved && !!snapshot && !preview.data?.available}
+      />
+      {preview.isPending && (
         <p role="status">Preparing your tracker summary…</p>
-      ) : null}
-      {preview.error ? (
+      )}
+      {preview.error && (
         <div role="alert" className="settings-inline-error">
           {preview.error.message}
-          <button type="button" onClick={() => void preview.refetch()}>
-            Retry
+          <button onClick={() => void preview.refetch()}>Retry preview</button>
+        </div>
+      )}
+      {savedReview.isFetching && <p role="status">Loading saved review…</p>}
+      {savedReview.error && (
+        <div role="alert">
+          {savedReview.error.message}
+          <button onClick={() => void savedReview.refetch()}>
+            Retry saved review
           </button>
         </div>
-      ) : null}
-      {snapshot && summarySnapshot ? (
-        <>
+      )}
+      {snapshot && (
+        <details
+          className="ai-new-review"
+          aria-label="Generate a new review"
+          open={newReviewOpen || !hasSaved}
+          onToggle={(event) => {
+            if (hasSaved) setNewReviewOpen(event.currentTarget.open);
+          }}
+        >
+          <summary>New review</summary>
           <section
-            className="sleep-insights-card"
             aria-label="Generate suggestions"
+            className="ai-generation-content"
           >
-            <h2>
-              {snapshot.period.from} – {snapshot.period.to}
-            </h2>
-            <p>
-              Compared with {snapshot.previous_period.from} –{" "}
-              {snapshot.previous_period.to} · {snapshot.timezone}
-            </p>
-            <p>
-              Sleep, activity, overnight metrics, weight, workouts, diet,
-              recovery and stretching—where you have recorded data.
-            </p>
-            {!preview.data?.available ? (
-              <p role="status">
-                AI generation is not configured yet. You can review your actual
-                tracker summary below.
+            <header>
+              <h2>{formatReviewRange(snapshot.period)}</h2>
+              <p className="ai-help">
+                vs {formatReviewRange(snapshot.previous_period)}
               </p>
-            ) : null}
-            {!hasData ? (
-              <p>No tracker data in the selected completed period yet.</p>
-            ) : null}
-            <label>
+            </header>
+            {models.length > 0 && (
+              <label className="ai-generation-model">
+                Model
+                <select
+                  aria-label="Review model"
+                  value={model ?? ""}
+                  disabled={generation.isPending}
+                  onChange={(event) => {
+                    setSelectedModel(event.target.value);
+                    setConsentFor(null);
+                  }}
+                >
+                  {models.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <details className="ai-review-metadata">
+              <summary>Model details</summary>
+              <p>Model: {model ?? "Not configured"}</p>
+              <p>
+                {snapshot.days ?? 7} completed days · {snapshot.timezone}. Usage
+                depends on your provider account.
+              </p>
+            </details>
+            <details className="ai-data-disclosure">
+              <summary>Data to share</summary>
+              <AiReviewEvidence
+                snapshot={snapshot}
+                label="Data to share for a new review"
+              />
+            </details>
+            <label className="ai-sharing-consent">
               <input
                 type="checkbox"
                 checked={consent}
-                disabled={generation.isPending}
-                onChange={(event) => setConsent(event.target.checked)}
-              />{" "}
-              Share these tracker summaries with NVIDIA to generate suggestions
-              for the selected period.
+                disabled={generation.isPending || preview.isFetching}
+                onChange={(event) =>
+                  setConsentFor(
+                    event.target.checked ? { snapshot, model } : null,
+                  )
+                }
+              />
+              <span>Share this data with NVIDIA.</span>
             </label>
-            <p>
-              Includes logged food and routine names. Profile fields, personal
-              notes and images are excluded.
+            <p className="ai-help">
+              Food/routine names included; profile, notes and images excluded.
             </p>
-            <button
-              type="button"
-              disabled={
-                !consent ||
-                !hasData ||
-                !preview.data?.available ||
-                generation.isPending
-              }
-              onClick={() => generation.mutate(model)}
-            >
-              {generation.isPending
-                ? "Generating your suggestions…"
-                : "Generate suggestions"}
-            </button>
-            {generation.isPending ? (
-              <p role="status">Finding useful actions from your trackers…</p>
-            ) : null}
-            {generation.error ? (
+            <div className="ai-generate-actions">
+              <button
+                aria-label={
+                  generation.isPending
+                    ? "Generating your suggestions…"
+                    : "Generate suggestions"
+                }
+                disabled={!canGenerate}
+                onClick={() => generation.mutate(model)}
+              >
+                {generation.isPending ? "Generating…" : "Generate"}
+              </button>
+              {status && (
+                <p role="status" className="ai-help">
+                  {status}
+                </p>
+              )}
+            </div>
+            {generation.error && (
               <p role="alert" className="form-error">
                 {generation.error.message}
               </p>
-            ) : null}
+            )}
           </section>
-          {history.length ? (
-            <div className="ai-model-picker">
-              <label htmlFor="saved-review">Saved reviews</label>
-              <select
-                id="saved-review"
-                value={selectedReviewId ?? displayedReview?.id ?? ""}
-                onChange={(event) =>
-                  setSelectedReviewId(event.target.value || null)
-                }
-              >
-                {!displayedReview?.id ? (
-                  <option value="">Latest review</option>
-                ) : null}
-                {history.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.period_start} – {item.period_end} · {item.model} ·
-                    Generated:{" "}
-                    {formatGeneratedAt(item.generated_at, item.timezone)} ·{" "}
-                    {item.timezone}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-          {savedReview.isFetching ? (
-            <p role="status">Loading saved review…</p>
-          ) : null}
-          {savedReview.error ? (
-            <p role="alert">{savedReview.error.message}</p>
-          ) : null}
-          {displayedReview ? (
-            <section
-              className="sleep-insights-card"
-              aria-label="Your AI suggestions"
-              aria-live="polite"
-            >
-              <h2>
+        </details>
+      )}
+
+      {displayedReview && (
+        <section
+          className="ai-result-card"
+          aria-label="Your AI suggestions"
+          aria-live="polite"
+        >
+          <header className="ai-result-header">
+            <div>
+              <h2 ref={reviewHeading} tabIndex={-1}>
                 {displayedReview.snapshot.timeframe === "day"
                   ? "Daily"
                   : displayedReview.snapshot.timeframe === "month"
@@ -283,6 +313,12 @@ function AiInsightsRoute() {
                     : "Weekly"}{" "}
                 suggestions
               </h2>
+              <p className="ai-result-period">
+                {formatReviewRange(displayedReview.snapshot.period)}
+              </p>
+            </div>
+            <details className="ai-review-metadata">
+              <summary>Review details</summary>
               <p>
                 Based on data: {displayedReview.snapshot.period.from} –{" "}
                 {displayedReview.snapshot.period.to} ·{" "}
@@ -290,81 +326,31 @@ function AiInsightsRoute() {
               </p>
               <p>
                 Generated{" "}
-                {formatGeneratedAt(
+                {formatReviewExact(
                   displayedReview.generated_at,
                   displayedReview.snapshot.timezone,
                 )}{" "}
                 · {displayedReview.snapshot.timezone}
                 {displayedReview.model ? ` · ${displayedReview.model}` : ""}
               </p>
-              <AiWeeklyReview result={displayedReview} />
               <p>
-                AI can misinterpret patterns. Check the supporting numbers. This
-                review does not diagnose conditions or establish causes.
+                This review does not diagnose conditions or establish causes.
               </p>
-            </section>
-          ) : null}
-          <section
-            className="sleep-insights-card"
-            aria-label="Tracker summary shared with AI"
-          >
-            <h2>Your tracker summary</h2>
-            <p>
-              Measurement values are averages of the available daily summaries.
-              Missing measurements are excluded, not counted as zero. Check-offs
-              show logged activity, not nutrient intake or treatment effects.
-              Skin temperature values are changes from the source baseline.
-            </p>
-            <div style={{ overflowX: "auto", maxWidth: "100%" }}>
-              <table>
-                <caption>
-                  Data: {summarySnapshot.period.from} –{" "}
-                  {summarySnapshot.period.to}; compared with{" "}
-                  {summarySnapshot.previous_period.from} –{" "}
-                  {summarySnapshot.previous_period.to} ·{" "}
-                  {summarySnapshot.timezone}
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Tracker</th>
-                    <th scope="col">Selected period</th>
-                    <th scope="col">Previous period</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(summarySnapshot.evidence).map(
-                    ([key, row]) => (
-                      <tr key={key}>
-                        <th scope="row">{row.label}</th>
-                        <td>
-                          {formatPeriod(
-                            row.current,
-                            row.unit,
-                            summarySnapshot.days ?? 7,
-                          )}
-                        </td>
-                        <td>
-                          {formatPeriod(
-                            row.previous,
-                            row.unit,
-                            summarySnapshot.days ?? 7,
-                          )}
-                        </td>
-                      </tr>
-                    ),
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <details>
-              <summary>View exact daily summaries sent to AI</summary>
-              <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-                {JSON.stringify(summarySnapshot, null, 2)}
-              </pre>
             </details>
-          </section>
-        </>
-      ) : null}
+          </header>
+          <AiWeeklyReview result={displayedReview} />
+          <details className="ai-data-disclosure">
+            <summary>Data used in this saved review</summary>
+            <AiReviewEvidence
+              snapshot={displayedReview.snapshot}
+              label="Data used in this saved review"
+            />
+          </details>
+          <p className="ai-help">
+            AI suggestions can be wrong. Check the evidence.
+          </p>
+        </section>
+      )}
     </section>
   );
 }

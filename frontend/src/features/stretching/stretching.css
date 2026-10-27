@@ -62,25 +62,6 @@
   color: var(--stretch-accent);
   margin: 0.3125rem 0 0;
 }
-.stretching-date-controls {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.3125rem;
-}
-.stretching-date-controls > label {
-  --field-font-size: 0.875rem;
-  width: 9rem;
-  min-width: 0;
-}
-.stretching-date-controls input {
-  width: 100%;
-  min-width: 0;
-}
-.stretching-date-controls button {
-  min-width: 2.75rem;
-  padding: 0.5625rem 0.625rem;
-}
 .stretching-history {
   list-style: none;
   margin: 1rem 0 0;

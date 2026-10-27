@@ -3,6 +3,12 @@ import { Modal } from "../../components/modal";
 import * as api from "./workout-api";
 import type { RunAction } from "./workout-navigation";
 import { progressMetrics } from "./workout-analysis";
+import { ExerciseLibraryActions } from "./exercise-library-actions";
+import { CategoryOrderDialog } from "./category-order-dialog";
+import {
+  ExerciseDisplayOptions,
+  type LibraryDisplayOptions as DisplayOptions,
+} from "./exercise-display-options";
 
 const labels: Record<api.TrackingType, string> = {
   strength: "Weight + reps",
@@ -13,6 +19,49 @@ const labels: Record<api.TrackingType, string> = {
 type Editor =
   | { kind: "category"; item?: api.ExerciseCategory }
   | { kind: "exercise"; item?: api.Exercise };
+const displayKey = "longevity-workout-library-display:v1";
+function savedDisplayOptions(): DisplayOptions {
+  try {
+    const value = JSON.parse(localStorage.getItem(displayKey) ?? "null");
+    return {
+      workoutCount: value?.workoutCount === true,
+      lastUsed: value?.lastUsed === true,
+      categoryColours: value?.categoryColours === true,
+    };
+  } catch {
+    return { workoutCount: false, lastUsed: false, categoryColours: false };
+  }
+}
+function libraryDetails(
+  exercise: api.Exercise,
+  display: DisplayOptions,
+): string {
+  const parts: string[] = [];
+  if (!exercise.is_active) parts.push("Archived");
+  if (display.workoutCount && exercise.trained_session_count !== undefined) {
+    const count = exercise.trained_session_count;
+    parts.push(`${count} ${count === 1 ? "workout" : "workouts"}`);
+  }
+  if (display.lastUsed) {
+    if (exercise.last_used_on) {
+      const today = new Date();
+      const days = Math.round(
+        (Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) -
+          Date.parse(exercise.last_used_on + "T00:00:00Z")) /
+          86400000,
+      );
+      const relative =
+        Number.isFinite(days) && days >= 0
+          ? new Intl.RelativeTimeFormat("en", { numeric: "auto" }).format(
+              -days,
+              "day",
+            )
+          : exercise.last_used_on;
+      parts.push(`Last used ${relative}`);
+    } else parts.push("Not used yet");
+  }
+  return parts.join(" · ");
+}
 export function WorkoutLibrary({
   catalog,
   busy,
@@ -42,7 +91,30 @@ export function WorkoutLibrary({
   const [favorites, setFavorites] = useState(false);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [detail, setDetail] = useState<api.Exercise | null>(null);
-  const categories = catalog.categories.filter((c) => archives || c.is_active);
+  const [archiving, setArchiving] = useState<api.Exercise | null>(null);
+  const [deleting, setDeleting] = useState<api.Exercise | null>(null);
+  const [deleteError, setDeleteError] = useState("");
+  const [display, setDisplay] = useState(savedDisplayOptions);
+  const [ordering, setOrdering] = useState(false);
+  const categoryMode = catalog.preferences?.category_order ?? "alphabetical";
+  function changeDisplay(key: keyof DisplayOptions, checked: boolean) {
+    const next = { ...display, [key]: checked };
+    setDisplay(next);
+    try {
+      localStorage.setItem(displayKey, JSON.stringify(next));
+    } catch {
+      /* Display preferences still work when device storage is unavailable. */
+    }
+  }
+  const orderedCategories =
+    categoryMode === "manual"
+      ? catalog.categories
+      : [...catalog.categories].sort(
+          (a, b) =>
+            a.name.localeCompare(b.name, undefined, { sensitivity: "base" }) ||
+            a.id.localeCompare(b.id),
+        );
+  const categories = orderedCategories.filter((c) => archives || c.is_active);
   const terms = search.toLowerCase().trim().split(/\s+/);
   const matchingExercises = catalog.exercises.filter(
     (e) =>
@@ -111,6 +183,24 @@ export function WorkoutLibrary({
           Show archived
         </label>
       </div>
+      {!!catalog.categories.length && (
+        <div className="workout-library-display-bar">
+          <ExerciseDisplayOptions
+            value={display}
+            onChange={changeDisplay}
+            onReorder={() => setOrdering(true)}
+          />
+        </div>
+      )}
+      {ordering && (
+        <CategoryOrderDialog
+          categories={catalog.categories}
+          initialMode={categoryMode}
+          busy={busy}
+          run={run}
+          onClose={() => setOrdering(false)}
+        />
+      )}
       {!catalog.categories.length && (
         <section className="workout-card workout-empty">
           <h2>Set up your exercise library</h2>
@@ -146,6 +236,14 @@ export function WorkoutLibrary({
                 <div className="workout-card-heading workout-library-category-heading">
                   <div className="workout-library-category-title">
                     <h2>
+                      {display.categoryColours && (
+                        <span
+                          className="workout-category-colour"
+                          role="img"
+                          aria-label={`${c.name} category colour`}
+                          style={{ backgroundColor: c.colour ?? "#81909c" }}
+                        />
+                      )}
                       {c.name}
                       {!c.is_active && <small> · Archived</small>}
                     </h2>
@@ -159,73 +257,100 @@ export function WorkoutLibrary({
                     aria-label={`Edit category ${c.name}`}
                     onClick={() => setEditor({ kind: "category", item: c })}
                   >
-                    Edit
+                    Edit category
                   </button>
                 </div>
                 <div className="workout-stack">
-                  {exercises.map((e) => (
-                    <div className="workout-exercise-row" key={e.id}>
-                      <button
-                        className="workout-exercise-choice"
-                        disabled={
-                          busy ||
-                          (selectingWorkout &&
-                            (selectionDisabled || !c.is_active || !e.is_active))
-                        }
-                        aria-label={`${selectingWorkout ? (existingExercises.some((i) => i.exercise_id === e.id) ? "Open" : "Add") : "View"} ${e.name}`}
-                        onClick={() =>
-                          selectingWorkout ? onSelect(e.id) : setDetail(e)
-                        }
-                      >
-                        <span>
-                          {e.name}
-                          <small>
-                            {labels[e.tracking_type]}
-                            {!e.is_active ? " · Archived" : ""}
-                          </small>
-                          {e.trained_session_count !== undefined && (
-                            <small>
-                              {e.trained_session_count} trained sessions
-                              {e.last_used_on
-                                ? ` · Last used ${e.last_used_on}`
-                                : " · Not used yet"}
-                            </small>
-                          )}
-                        </span>
-                        <span aria-hidden="true">
-                          {selectingWorkout &&
-                          !existingExercises.some((i) => i.exercise_id === e.id)
-                            ? "＋"
-                            : "→"}
-                        </span>
-                      </button>
-                      <div className="workout-actions">
+                  {exercises.map((e) => {
+                    const details = libraryDetails(e, display);
+                    return (
+                      <div className="workout-exercise-row" key={e.id}>
                         <button
-                          disabled={busy}
-                          aria-label={`${e.is_favorite ? "Unfavorite" : "Favorite"} ${e.name}`}
-                          aria-pressed={e.is_favorite ?? false}
+                          className="workout-exercise-choice"
+                          disabled={
+                            busy ||
+                            (selectingWorkout &&
+                              (selectionDisabled ||
+                                !c.is_active ||
+                                !e.is_active))
+                          }
+                          aria-label={`${selectingWorkout ? (existingExercises.some((i) => i.exercise_id === e.id) ? "Open" : "Add") : "View"} ${e.name}`}
+                          aria-pressed={
+                            selectingWorkout
+                              ? existingExercises.some(
+                                  (i) => i.exercise_id === e.id,
+                                )
+                              : undefined
+                          }
                           onClick={() =>
-                            run(async () => {
-                              await api.saveExercise(e.id, {
-                                is_favorite: !e.is_favorite,
-                              });
-                            })
+                            selectingWorkout ? onSelect(e.id) : setDetail(e)
                           }
                         >
-                          {e.is_favorite ? "★" : "☆"}
+                          <span>
+                            {e.name}
+                            {details && (
+                              <small title={e.last_used_on ?? undefined}>
+                                {details}
+                              </small>
+                            )}
+                          </span>
+                          <span aria-hidden="true">
+                            {selectingWorkout &&
+                            !existingExercises.some(
+                              (i) => i.exercise_id === e.id,
+                            )
+                              ? "＋"
+                              : selectingWorkout
+                                ? "✓"
+                                : "→"}
+                          </span>
                         </button>
-                        <button
-                          disabled={busy}
-                          aria-label={`Edit exercise ${e.name}`}
-                          onClick={() =>
-                            setEditor({ kind: "exercise", item: e })
-                          }
-                        >
-                          Edit
-                        </button>
+                        <div className="workout-actions">
+                          <button
+                            disabled={busy}
+                            aria-label={`${e.is_favorite ? "Unfavorite" : "Favorite"} ${e.name}`}
+                            aria-pressed={e.is_favorite ?? false}
+                            onClick={() =>
+                              run(async () => {
+                                await api.saveExercise(e.id, {
+                                  is_favorite: !e.is_favorite,
+                                });
+                              })
+                            }
+                          >
+                            {e.is_favorite ? "★" : "☆"}
+                          </button>
+                          <ExerciseLibraryActions
+                            name={e.name}
+                            busy={busy}
+                            archived={!e.is_active}
+                            restoreDisabled={!c.is_active}
+                            onEdit={() =>
+                              setEditor({ kind: "exercise", item: e })
+                            }
+                            onHistory={() => onHistory(e.id)}
+                            onArchive={() =>
+                              e.is_active
+                                ? setArchiving(e)
+                                : run(async () => {
+                                    await api.saveExercise(e.id, {
+                                      is_active: true,
+                                    });
+                                  })
+                            }
+                            onDelete={
+                              e.can_delete === true
+                                ? () => {
+                                    setDeleteError("");
+                                    setDeleting(e);
+                                  }
+                                : undefined
+                            }
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {!exercises.length && (
                     <p>
                       {search
@@ -238,6 +363,81 @@ export function WorkoutLibrary({
             );
           })}
       </div>
+      {deleting && (
+        <Modal
+          labelledBy="delete-library-exercise"
+          busy={busy}
+          onClose={() => setDeleting(null)}
+        >
+          <h2 id="delete-library-exercise">Delete {deleting.name}?</h2>
+          <p>
+            This exercise is not linked to a workout, routine or goal. Deletion
+            is permanent and removes its exercise-specific bar settings. Archive
+            it instead if you may want to use it later.
+          </p>
+          {deleteError && (
+            <p role="alert" className="workout-error">
+              {deleteError}
+            </p>
+          )}
+          <div className="workout-actions">
+            <button disabled={busy} onClick={() => setDeleting(null)}>
+              Cancel
+            </button>
+            <button
+              className="workout-danger"
+              disabled={busy}
+              onClick={() =>
+                run(async () => {
+                  setDeleteError("");
+                  try {
+                    await api.deleteExercise(deleting.id);
+                    setDeleting(null);
+                  } catch (error) {
+                    setDeleteError(
+                      error instanceof Error
+                        ? error.message
+                        : "Could not delete this exercise. Please try again.",
+                    );
+                    throw error;
+                  }
+                })
+              }
+            >
+              Delete exercise
+            </button>
+          </div>
+        </Modal>
+      )}
+      {archiving && (
+        <Modal
+          labelledBy="archive-library-exercise"
+          busy={busy}
+          onClose={() => setArchiving(null)}
+        >
+          <h2 id="archive-library-exercise">Archive {archiving.name}?</h2>
+          <p>
+            This hides the exercise from your active library. Recorded workouts
+            and history are kept. You can restore it using Show archived.
+          </p>
+          <div className="workout-actions">
+            <button disabled={busy} onClick={() => setArchiving(null)}>
+              Cancel
+            </button>
+            <button
+              disabled={busy}
+              onClick={() =>
+                run(async () => {
+                  await api.saveExercise(archiving.id, { is_active: false });
+                  setArchiving(null);
+                })
+              }
+            >
+              Archive exercise
+            </button>
+          </div>
+        </Modal>
+      )}
       {detail && (
         <Modal
           labelledBy="library-exercise-detail"
@@ -304,7 +504,12 @@ export function WorkoutLibrary({
               };
               run(async () => {
                 if (editor.kind === "category")
-                  await api.saveCategory(editor.item?.id, common);
+                  await api.saveCategory(editor.item?.id, {
+                    ...common,
+                    ...(fd.has("colour")
+                      ? { colour: String(fd.get("colour")) }
+                      : {}),
+                  });
                 else
                   await api.saveExercise(editor.item?.id, {
                     ...common,
@@ -346,6 +551,17 @@ export function WorkoutLibrary({
                 disabled={busy}
               />
             </label>
+            {editor.kind === "category" && editor.item && (
+              <label>
+                Category colour
+                <input
+                  type="color"
+                  name="colour"
+                  defaultValue={editor.item.colour ?? "#2785b4"}
+                  disabled={busy}
+                />
+              </label>
+            )}
             {editor.kind === "exercise" && (
               <>
                 <label>

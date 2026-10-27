@@ -1,0 +1,58 @@
+section .tracking-day-header {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+}
+.tracking-day-header > div:first-child {
+  min-width: 0;
+}
+.tracking-date-controls {
+  display: flex;
+  gap: 6px;
+}
+.tracking-date-controls > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--control-radius);
+  background: var(--surface-high);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+.tracking-date-controls > button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.tracking-date-picker {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  width: min(260px, 100%);
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--control-radius);
+  background: var(--surface-high);
+  box-shadow: var(--panel-shadow);
+}
+.tracking-date-picker[hidden] {
+  display: none;
+}
+.tracking-date-picker label {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+}
+.tracking-date-picker input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  font-size: 16px;
+}

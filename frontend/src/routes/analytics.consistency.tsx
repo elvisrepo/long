@@ -44,21 +44,17 @@ function ConsistencyAnalyticsRoute() {
     <section className="consistency-screen">
       <PageHeader
         title="Consistency & Coverage"
-        eyebrow="Pro Insights · Tracking"
+        eyebrow="Metrics · Last 7 days"
         breadcrumb={
           <nav aria-label="Breadcrumb" className="metric-detail-breadcrumb">
-            <Link to="/">Pro Insights</Link>
-            <span aria-hidden="true">/</span>
-            <span>consistency</span>
+            <Link to="/">← Dashboard</Link>
           </nav>
         }
         description={
           <p className="weight-steps-subtitle">
-            A factual view of which active metrics received data during the
-            latest seven UTC dates.
+            {formatDateRange(analytics.dates)} · UTC
           </p>
         }
-        actions={<span className="status-pill">Pro · Analytics</span>}
       />
 
       <section
@@ -69,12 +65,13 @@ function ConsistencyAnalyticsRoute() {
           <div className="empty-state">
             <h2>No active metrics</h2>
             <p>Create or activate a metric, then log or sync an entry.</p>
+            <Link to="/metrics">Browse metrics →</Link>
           </div>
         ) : (
           <>
             <div className="consistency-summary">
               <article>
-                <p className="meta-label">Coverage</p>
+                <p className="meta-label">Metrics with data</p>
                 <p className="consistency-summary-value">
                   {analytics.summary.metrics_with_data} of{" "}
                   {analytics.summary.total_metrics} metrics
@@ -97,6 +94,11 @@ function ConsistencyAnalyticsRoute() {
               </article>
             </div>
 
+            <div className="consistency-legend" aria-label="Day key">
+              <span>✓ Tracked</span>
+              <span>– No entry</span>
+              <span>Select a day to view entries.</span>
+            </div>
             <div
               aria-label="Per-metric consistency"
               className="consistency-metrics"
@@ -112,12 +114,11 @@ function ConsistencyAnalyticsRoute() {
             </div>
             {attentionItems.length > 0 ? (
               <section
-                aria-label="Needs attention"
+                aria-label="Recent gaps"
                 className="consistency-attention"
               >
                 <div>
-                  <p className="eyebrow">Recent gaps</p>
-                  <h2>Needs attention</h2>
+                  <h2>Recent gaps</h2>
                 </div>
                 <div className="consistency-attention-list">
                   {attentionItems.map(({ message, metric }) => (
@@ -137,11 +138,15 @@ function ConsistencyAnalyticsRoute() {
                 </div>
               </section>
             ) : null}
-            <p className="consistency-note">
-              Presence means at least one entry ended on that UTC date. Multiple
-              entries still count as one tracked day. This view does not judge
-              how often a health metric should be measured.
-            </p>
+            <details className="consistency-note">
+              <summary>How this works</summary>
+              <p>
+                Presence means at least one entry ended on that UTC date.
+                Multiple entries still count as one tracked day. This view does
+                not judge how often a health metric should be measured. Streaks
+                cover only this seven-day window.
+              </p>
+            </details>
           </>
         )}
       </section>
@@ -165,12 +170,12 @@ function ConsistencyMetricRow({
         <p>
           {metric.tracked_days} of {rangeDays} tracked days
           {metric.current_window_streak_days > 0
-            ? ` · ${metric.current_window_streak_days}-day current window streak`
+            ? ` · ${metric.current_window_streak_days}-day streak`
             : ""}
         </p>
         <p>
           {metric.last_recorded_at
-            ? `Latest ${formatMetricEntryRecordedAt(metric.last_recorded_at)}`
+            ? `Latest ${formatMetricEntryRecordedAt(metric.last_recorded_at)} UTC`
             : "No entries yet"}
         </p>
       </div>
@@ -187,7 +192,11 @@ function ConsistencyMetricRow({
               title={date}
               to="/metrics/$slug"
             >
-              {formatWeekday(date)}
+              <span>{formatWeekday(date)}</span>
+              <span className="consistency-day-number">
+                {Number(date.slice(-2))}
+              </span>
+              <span aria-hidden="true">{isPresent ? "✓" : "–"}</span>
             </Link>
           );
         })}
@@ -266,6 +275,18 @@ function utcCalendarDayDifference(earlier: string, later: string): number {
 }
 
 const utcWeekdayLabels = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+function formatDateRange(dates: string[]): string {
+  const first = dates.at(0);
+  const last = dates.at(-1);
+  if (!first || !last) return "Last 7 days";
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).formatRange(new Date(`${first}T00:00:00Z`), new Date(`${last}T00:00:00Z`));
+}
 
 function formatWeekday(date: string): string {
   const weekday = utcWeekdayLabels[new Date(`${date}T00:00:00Z`).getUTCDay()];

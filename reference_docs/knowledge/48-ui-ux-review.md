@@ -408,3 +408,348 @@ Tablet/mobile now retain two columns while desktop stays at three. Narrow layout
 hide initial tiles, stack section actions, wrap food names, and anchor each column's
 management menus inward. Real-account checks at 320/390/768/1440px show no overflow
 or writes; both focused creation/management browser journeys and build pass.
+
+### Routines compared with FitNotes — 26 October 2026
+
+Visual comparison only; no application layout changes or deployment in this review.
+Inspected the official [FitNotes routines guide](https://www.fitnotesapp.com/routines/)
+and eight linked screenshots covering creation, viewing, editing, exercise picking,
+predefined sets, start selection and groups. Captured current React routine screens
+with a populated Push/Pull fixture in Light/Dark at 390 × 844; no account data writes.
+
+The current routine view puts the first exercise at approximately y=1,053px in
+that fixture, after app/workout navigation, title, date, the explanation card,
+selector and routine metadata. FitNotes shows exercises immediately in its smaller
+reference viewport. This is evidence of content priority, not a normalized density
+benchmark. Our long day dialog combines metadata, exercise selection, numeric order,
+group settings and preset entry. The start preview repeats type/unit and carry
+explanations for each exercise. Functional coverage does not imply visual parity.
+
+Recommended direction, not yet implemented:
+
+- One selected routine as the workspace, with selection in a compact toolbar;
+  help/notes and routine management are secondary. Remember selection per owner/device.
+- Compact day cards with Start in the header; rows show name and set count.
+  Move detailed quantities into the set editor and start preview.
+- Separate view/edit modes. Editing reveals contextual add/remove/reorder controls;
+  numeric display ranks leave the normal UI. Preserve keyboard arrow alternatives.
+- Focused day-details, exercise-picker, predefined-set and group dialogs, with
+  visible Save/Cancel controls. A named group chooser replaces typing matching labels.
+- Compact start selection, one carry-forward explanation, and date selection near
+  Start. Pre-start quantity overrides are a distinct functional gap requiring API
+  validation and stale-preview tests; current quantities are edited after starting.
+
+Retain app typography, Light/Dark colours and accessible 44px controls. Blank fields
+stay unknown, carry-forward stays explicit, starting creates planned work, and
+routine edits/deletion preserve existing workouts. Hiding guidance requires a
+visible Help/Info action. Desktop may place days side by side; phone layout stays
+one vertical list. No pixel-for-pixel recreation of the older Android UI is needed.
+
+The ignored local review is `.lavish/routine-comparison/index.html`; it includes
+official reference images, actual fixture captures and a clearly labelled proposed
+layout. Six comparison screens were checked at 390/1440px, image assets loaded,
+Dark theme and local Add set preview worked, and no page overflow or JavaScript
+errors were found. The prototype is not application implementation or regression
+coverage. Follow-up implementation should use the existing TDD playbook.
+
+### Compact routine implementation — 26 October 2026
+
+The user approved implementing the comparison direction. The local implementation
+now has the selected-plan toolbar, compact day headers/rows, separate edit mode,
+focused picker/preset/group/day dialogs, named group reuse and a compact dated
+start preview. Help holds routine guidance/notes. All routines/archives are a
+secondary view. Selection persists per owner/device, with a safe fallback when
+storage or a saved plan is unavailable. The one-time new-day picker state clears
+on routine switches, so returning does not reopen setup.
+
+Predefined-set drafts use an atomic PUT with the complete prior snapshot. Cancel
+never writes; failed saves retain inputs, stale snapshots reject, and no generated
+workout is changed. Direct exercise dragging commits on drop; the handle also
+opens arrow controls for keyboard users. A pointer-capture capability guard
+preserves that fallback in environments without pointer capture. Normal preset
+fields retain nulls and zero weight. Pre-start quantity overrides remain a
+separate follow-up to the approved layout slice.
+
+Actual fixture captures in Light/Dark at 320/390/1440px show the first exercise
+at about 367px on phones (390px comparison before: about 1,053px), and 331px on
+desktop. The ignored local before/after gallery is `.lavish/routine-cleanup/index.html`;
+the prior proposal remains at `.lavish/routine-comparison/index.html`. No account
+data or staging resources were changed for verification.
+
+Routine group layout correction (2026-10-26): user screenshots exposed stretched
+radio controls in the initial routine group chooser. The shared workout input
+rule set width 100%, with an exception only for checkboxes; a Chrome fixture probe
+measured radio widths of 318–421px in a 510px row. Radios now receive the same
+small-control sizing exception. The routine chooser itself uses full clickable
+group rows with member names, a coloured rail and a checked membership marker.
+A separate New group form has name, two rows of five 44px colour-swatch controls,
+the current exercise, and fixed Cancel/Save actions. The palette is shared with
+the workout group editor. Joining or unlinking stays in the chooser after success;
+local creation cancellation never writes. Source screenshots remain the user's
+FitNotes references. Actual fixture captures are in the ignored local
+`.lavish/routine-groups/` folder; no account data or staging resources were changed.
+
+### Calendar compared with FitNotes — 26 October 2026
+
+Comparison only, following the user's request; no application changes. Read the
+[official calendar guide](https://www.fitnotesapp.com/calendar/) and inspected all
+14 non-icon screenshots. Captured the actual app with synthetic January 2018
+workouts, planned/empty drafts and two sessions on one date, at 390/1440px in
+Light/Dark. Account data was not changed. Source images show the documented
+reference UI, not a hands-on verification of the latest Android release.
+
+The current calendar grid starts around y=967px at 390×844, and 690px on desktop,
+after app navigation, page preamble, day and month controls, filters, explanatory
+text, status and category keys. Date selection is inconsistent: with January 12
+selected, clicking January 10 opens its preview but keeps January 12 pressed in
+the grid. The fixture reproduces this at both widths in both themes.
+
+Recommended first slice: compact calendar-first toolbar; remove duplicated date
+navigation; collapse filter form/guidance behind Filters/Info while showing active
+chips; compact the keys; synchronize selected date when previewing. Existing
+category dots, full-workout preview, exercise stats/overview, multi-session days
+and completed/planned semantics should remain.
+
+FitNotes also has an integrated Month/List switch, previous/next recorded-workout
+navigation, optional persistent workout panel, multiple category Any/All matching,
+numeric exercise comparisons, and display toggles for dots and list details. Our
+separate WorkoutHistory lists session cards in a 90-day window and does not share
+calendar filters or show exercise/set summaries. The calendar's inline callback
+is used in the copy picker; the full Calendar exposes no workout-panel toggle.
+Our category/exercise filters are single-select, with no weight/rep predicates.
+Choices come from this month's saved occurrences, retaining selected labels when
+browsing months. Keys/dots are not user-toggleable in the current calendar.
+
+Second slice: shared Month/List filters with explicit range/pagination, navigation
+between matching workouts, and optional desktop/tablet details panel. Third slice:
+category Any/All and performance rules if needed. Numeric conditions must match
+the same completed set and respect frozen type/units; plans and unknowns must not
+be mistaken for achieved values. Multi-category All should match one workout,
+not combine different sessions on a day. Retain owner-keyed, bounded reads and
+full source previews after filtering. Continuous month scrolling, weekday-start
+preference and verified record/comment indicators are lower-priority polish.
+
+The ignored visual review is `.lavish/calendar-comparison/index.html`, with the
+14 reference images, 20 actual app captures and measured evidence. It uses the
+app's existing DM Sans and green Light/Dark themes. Different source viewport
+sizes and fixture counts are explicit; the comparison is not a density benchmark.
+
+Selection refinement should preserve read-only inspection: a local calendar
+highlight can follow the inspected date without changing Home's working date;
+Go to workout remains the explicit navigation action. The seven paired review
+screens were verified across both source widths/themes, phone/desktop layouts,
+image loading and enlargement, with no gallery page overflow or JavaScript errors.
+No application test suite was rerun for this read-only comparison.
+
+
+### Calendar cleanup — implemented locally, 26 October 2026
+
+The comparison above records the previous layout. The new calendar puts the grid
+at y≈328px on the same 390×844 fixture (previously ≈967px); desktop moves from
+≈690px to ≈292px. Local inspected-date highlighting fixes the Jan 10 / Jan 12
+mismatch. Month/List share filters and month-scoped matching-day navigation.
+Filter/display/help dialogs remove the long preamble. Wide screens can enable
+an inline workout panel; phones retain a popup with fixed footer actions.
+Category Any/All and completed-set weight/reps filters are implemented alongside
+owner/device display preferences. Planned entries remain explicitly labelled.
+
+Actual fixture captures cover Light/Dark at 320/390/1440px in the ignored
+`.lavish/calendar-cleanup/assets/` directory, with geometry/selection evidence in
+`metrics.json`. They use synthetic data and demonstrate local implementation,
+not production deployment. No page overflow or browser script errors were found.
+
+
+### AI Insights hierarchy review — 27 October 2026
+
+Recommendations only; application behavior/UI is unchanged. Actual React captures
+use intercepted synthetic saved reviews, a connected personal-key status and two
+models at 390×900 and 1440×900 in Light/Dark. No generation/provider call, credential
+write or application mutation occurred; no page overflow or browser script errors
+were observed. The ignored artifact is `.lavish/ai-insights-review/index.html`, with
+capture geometry in `metrics.json` and the capture/build probes under `playground/`.
+
+Saved suggestions begin around y=1625px on phone and y=1298px on desktop. The API-key
+card alone is 505px/421px high, even with a saved key. Controls also repeat the model
+ID and explanatory text; saved-review option labels contain full dates, seconds,
+timezone and model ID and are truncated by the native select. Suggestion typography
+and per-suggestion Supporting numbers are already useful; keep them.
+
+Recommended: show the saved result first when present; compact provider status with
+management disclosed; put generation period/model/consent in an explicit New review
+section, while retaining prominent first-time setup when needed. Shorten date and
+saved-review labels; retain detailed generation/model metadata behind Details.
+Visually separate the three suggestions, keep their full text and nearby evidence,
+and use stacked selected/previous comparisons on phones with observed-day coverage.
+
+Scope clarity matters: selecting an older saved review correctly changes its evidence
+table to that snapshot, but generation still targets the latest selected timeframe.
+Label Data used in this saved review separately from Data to share for a new review,
+with each period explicit and the current preview inspectable before consent. Keep
+sharing opt-in and clear, explain disabled generation states, retain the previous
+review during generation and avoid invented progress percentages. Source inspection
+informs loading/empty/error recommendations; those states were not captured here.
+
+The artifact matches the app's DM Sans and Light/Dark green theme tokens. Its
+interactive proposed hierarchy is an illustrative sketch with shortened synthetic
+text, not an implemented UI, a prompt/schema change or a production-account review.
+
+
+### AI Insights cleanup — implemented locally, 27 October 2026
+
+The review above now has a local implementation. The page uses compact period and
+saved-history controls, a provider status disclosure, and a collapsed New review
+section when a saved result exists. The saved suggestions follow immediately.
+First-use generation remains open, and needed provider setup opens automatically;
+app-key availability keeps personal-key setup optional. Suggestion blocks preserve
+all text and nearby Supporting numbers, with labelled selected/previous values and
+coverage. Phone evidence tables stack per tracker. Exact daily JSON remains
+inspectable in each scope. Short saved labels and readable dates retain full model,
+exact generation time and timezone under Review details.
+
+Saved-review evidence and current data-to-share have separate components and date
+labels; selecting an old report never substitutes current data into its evidence.
+Consent is tied to the current preview object and model, and resets when either or
+the selected period changes. Pending generation keeps the prior review visible,
+errors retain it for retry, and success focuses the new result. Progress uses status text rather than invented percentages. Backend, prompts and
+API contracts are unchanged; verification used intercepted APIs with no real
+provider calls.
+
+Final captures cover Light/Dark at 320/390/1440px in ignored
+`.lavish/ai-insights-cleanup/assets/`. The saved-review section begins around y=489px
+on 390px (original 1625px), 510px on 320px and 493px on desktop (original 1298px).
+A screenshot check caught a narrow caption layout and clipped selectors; phone
+captions now span the table width and the history selector uses its own row.
+These are actual React captures with synthetic data, not production deployment.
+
+Final validation: 757 frontend tests across 116 files, nine AI browser journeys,
+ESLint, Prettier and production build pass. The implementation is local only.
+
+
+### AI Insights copy reduction and key actions — 27 October 2026
+
+User feedback requested a cleaner expanded provider area and less interface text.
+The key form now groups Replace/Save and Remove in one compact action row with
+matching control heights and a quiet outlined removal action. Disabled replacement
+is neutral; a valid draft restores its primary state. The repeated key heading and
+instructions are replaced by one storage/quota line and a replacement placeholder.
+
+The page subtitle, saved badge, visible duplicate generation timestamp, repeated
+period explanation and idle readiness hint are removed. New review shows its date
+range and a short comparison; model/timezone details stay disclosed. Consent reads
+Share this data with NVIDIA, with a concise visible inclusion/exclusion notice.
+Buttons and disclosure labels are shorter. Exact metadata and causal/diagnostic
+context remain in Review details. Suggestion bodies are preserved in full.
+
+Fixture captures verify the compact key row in both themes at 320/390/560/1440px,
+including the width near the supplied screenshot. Nine main browser journeys and
+two additional 560px journeys pass, with no overflow or script errors. Existing
+sharing, provider storage/removal and generation behavior remain unchanged. Updated
+actual captures are in ignored `.lavish/ai-insights-cleanup/assets/`, including
+`provider-*.png`. The saved section now starts around y=453px at 390/560px,
+449px at 320px and 457px on desktop. These are local synthetic-data checks.
+
+Minimal-copy final validation: 758 frontend tests, 11 browser journeys, build,
+lint and formatting pass. No deployment was performed.
+
+### Consistency overview cleanup — 27 October 2026
+
+Reviewed the actual React view using synthetic metric fixtures. Replaced the
+verbose introduction and repeated Pro labels with the exact seven-day UTC range
+and a Dashboard link. Day links now show weekday, date, and a check/dash, with
+64px height, visible keyboard focus, and a short legend. Desktop columns remain
+aligned; phone summaries use compact rows so metric history appears sooner.
+
+The explanatory note is available under How this works, including UTC presence
+and the seven-day streak limit. Recent gaps replaces the judgmental Needs attention
+heading and warning styling; existing gap thresholds and calculations are unchanged.
+An empty metric library links to Browse metrics. This page still covers active
+metrics only; it does not measure adherence across Diet, Recovery, or Workouts.
+
+Six focused route tests and eight browser checks at 320/390/768/1440px in both
+themes pass, including disclosure and keyboard date navigation. Build, targeted
+ESLint, and formatting pass. Browser captures are ignored under
+`frontend/test-results/layout-Consistency-overview-*/consistency.png` and use no
+account data. The existing cross-page layout check stopped on its outdated
+Metrics edit-button selector before reaching Consistency; it is not counted as
+passing. No deployment was performed.
+
+### Sleep Insights cleanup — 27 October 2026
+
+The exact UTC date range replaces the introduction and repeated Pro badge. The
+nightly target editor starts collapsed when records exist; empty, saving, saved,
+and save-error states expose it. Shortfall and recorded-night coverage stay above
+the chart, with missing nights explicitly unknown. Target help is shorter and
+How this works preserves the calculation and personal-target limitations.
+Phone summaries use two columns, and chart dates include the day of month.
+The phone chart key replaces a crowded inline target label.
+
+Browser checks reproduced focus loss when changing the target: a new query key
+unmounted the form behind the page loading state. Keeping previous query data
+preserves the editor during recalculation and displays Updating preview. A
+separate geometry check caught target-line/bar scale differences; both now use
+the same plot area, with dates outside that scale. Screen-reader chart summaries
+include full dates and distinguish missing records from durations.
+
+Nineteen focused tests and twelve browser checks pass, including four widths
+in both themes, target-editor alignment, focus through delayed recalculation,
+and target/bar geometry. Build, targeted lint and formatting pass. Captures use
+synthetic fixtures under ignored `frontend/test-results/layout-Sleep-overview-*`.
+These changes are local; no backend contracts or sleep calculations changed.
+
+### Settings cleanup — 27 October 2026
+
+Personal info now starts collapsed, with a short description that exposes no
+saved personal values. Native disclosure preserves drafts across closing and
+reopening. The route observes `#personal-info` so BMR/profile links reveal the
+editor automatically. Save, clear, estimate and retry behaviour remain inside
+the expanded panel; Clear uses a secondary action.
+
+Current-plan details use aligned columns rather than nested boxes and capability
+badges. Paid accounts use their existing billing-management action without a
+redundant Available Plans card; the same billing guidance is next to that action.
+For other accounts the plan catalog follows Current Plan, ahead of data tools.
+Billing errors also stay near the plan area. CSV and full-account JSON tools now
+state their formats clearly. Account download has a compact button and deletion
+occupies a separate row with an outlined danger action. Confirmation is unchanged.
+
+Forty focused tests and twelve browser checks pass. Browser coverage includes
+320/390/768/1440px in both themes, draft preservation, hash links, CSV dialog and
+focus return, Free-plan availability, account download and confirmed deletion
+with a rejected-password retry. Build, targeted lint, formatting and diff checks
+pass. Captures use synthetic fixtures in ignored `frontend/test-results/`.
+No API or account data changed, and no deployment was performed.
+
+### Compact tracking dates — 27 October 2026
+
+Recovery, Diet and Stretching now share `TrackingDateControls`. The seven-day
+strip is the primary date navigation; the separate previous/input/next row is
+removed. A 44px calendar action and Today sit beside the selected-date heading.
+The calendar reveals a labelled native date input for arbitrary dates. Selection
+closes it and returns focus; Escape and outside clicks dismiss it. Its panel
+fits within the header even at 320px. Today and the recent-day strip retain their
+existing behaviour, and the recent week stays anchored to today when viewing an
+older date. Workouts retains its existing navigation because it has no duplicate
+seven-day strip in that layout.
+
+Thirty-five focused tests pass, alongside nine compact-control browser checks
+(all three views at 320/390/560/1440px in both themes plus a Diet field check)
+and five existing Recovery/Diet logging journeys. Build, lint, formatting and
+diff checks pass. Old Recovery browser assertions for checklist-first order and
+the former dashboard card were corrected to match the existing date-first layout
+and Today's logs link. Captures use synthetic data, not account records.
+
+### Current Plan layout refinement — 27 October 2026
+
+User feedback identified loose capability text and inconsistent desktop spacing.
+Current Plan now places price beside the plan name and groups six labelled
+features in a definition list: metrics, wearable connections, sync, analytics,
+CSV import and CSV export. Desktop uses three aligned columns; phones use two.
+Billing guidance and Manage subscription share a separated footer. Available-plan
+catalog content and billing behaviour are unchanged.
+
+Thirty-three Settings tests and fourteen browser cases pass, covering six widths
+in both themes plus Free-plan discovery. Feature-column alignment is asserted;
+1024px captures match the supplied desktop-width example. Build, lint, formatting
+and diff checks pass. The initial concurrent run stalled and hit timeouts; a
+separate test run and the one affected browser rerun passed without extending
+timeouts. Checks and captures use synthetic fixtures.

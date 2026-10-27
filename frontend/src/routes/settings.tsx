@@ -56,6 +56,9 @@ function SettingsRoute() {
     select: (state) => state.location.search.checkout,
   });
   const meQuery = useMeQuery();
+  const personalInfoRequested = useRouterState({
+    select: (state) => state.location.hash === "personal-info",
+  });
   const [confirmationExpired, setConfirmationExpired] = useState(false);
   const currentSubscriptionQuery = useCurrentSubscriptionQuery({
     confirmCheckout: checkoutStatus === "success" && !confirmationExpired,
@@ -124,7 +127,7 @@ function SettingsRoute() {
         description={`Signed in as ${meQuery.data.email}`}
       />
 
-      <PersonalInfoPanel />
+      <PersonalInfoPanel reveal={personalInfoRequested} />
 
       {checkoutStatus === "success" ? (
         <p className="settings-alert" role="status">
@@ -187,72 +190,126 @@ function SettingsRoute() {
         ) : null}
         {currentSubscriptionQuery.data ? (
           <>
-            <div>
-              <h3>{currentSubscriptionQuery.data.plan.name}</h3>
-              {currentSubscriptionQuery.data.cancel_at ? (
-                <p className="subscription-renewal">
-                  Cancels{" "}
-                  {formatSubscriptionDate(
-                    currentSubscriptionQuery.data.cancel_at,
-                  )}
-                </p>
-              ) : currentSubscriptionQuery.data.current_period_end ? (
-                <p className="subscription-renewal">
-                  Renews{" "}
-                  {formatSubscriptionDate(
-                    currentSubscriptionQuery.data.current_period_end,
-                  )}
-                </p>
-              ) : (
-                <p className="subscription-renewal subscription-renewal-empty">
-                  No paid billing period yet.
-                </p>
-              )}
-              <div className="subscription-detail-grid">
+            <div className="current-plan-body">
+              <div className="current-plan-summary">
                 <div>
-                  <span className="subscription-detail-label">Metrics</span>
-                  <strong>
-                    {
-                      currentSubscriptionQuery.data.plan
-                        .active_custom_metric_limit
-                    }{" "}
-                    custom metrics
-                  </strong>
-                </div>
-                <div>
-                  <span className="subscription-detail-label">Sync</span>
-                  <strong>
-                    {formatSyncPolicy(currentSubscriptionQuery.data.plan)}
-                  </strong>
+                  <h3>{currentSubscriptionQuery.data.plan.name}</h3>
+                  {currentSubscriptionQuery.data.cancel_at ? (
+                    <p className="subscription-renewal">
+                      Cancels{" "}
+                      {formatSubscriptionDate(
+                        currentSubscriptionQuery.data.cancel_at,
+                      )}
+                    </p>
+                  ) : currentSubscriptionQuery.data.current_period_end ? (
+                    <p className="subscription-renewal">
+                      Renews{" "}
+                      {formatSubscriptionDate(
+                        currentSubscriptionQuery.data.current_period_end,
+                      )}
+                    </p>
+                  ) : (
+                    <p className="subscription-renewal subscription-renewal-empty">
+                      No paid billing period yet.
+                    </p>
+                  )}
                 </div>
                 {currentSubscriptionQuery.data.price ? (
-                  <div className="subscription-detail-wide">
-                    <span className="subscription-detail-label">Price</span>
-                    <strong>
-                      {formatSubscriptionPrice(
-                        currentSubscriptionQuery.data.price.unit_amount,
-                        currentSubscriptionQuery.data.price.currency,
-                      )}{" "}
+                  <p className="current-plan-price">
+                    {formatSubscriptionPrice(
+                      currentSubscriptionQuery.data.price.unit_amount,
+                      currentSubscriptionQuery.data.price.currency,
+                    )}
+                    <span>
+                      {" "}
                       / {currentSubscriptionQuery.data.price.billing_interval}
-                    </strong>
-                  </div>
+                    </span>
+                  </p>
                 ) : null}
               </div>
-              <PlanCapabilityList plan={currentSubscriptionQuery.data.plan} />
+              <CurrentPlanFeatures plan={currentSubscriptionQuery.data.plan} />
             </div>
             {currentSubscriptionQuery.data.billing_portal_available ? (
-              <button
-                className="subscription-primary-action"
-                type="button"
-                disabled={portalMutation.isPending}
-                onClick={() => void handlePortal()}
-              >
-                Manage subscription
-              </button>
+              <div className="current-plan-footer">
+                {managesPaidPlanInPortal ? (
+                  <p className="subscription-help-text">
+                    Use Manage subscription to change billing details.
+                  </p>
+                ) : null}
+                <button
+                  className="subscription-primary-action"
+                  type="button"
+                  disabled={portalMutation.isPending}
+                  onClick={() => void handlePortal()}
+                >
+                  Manage subscription
+                </button>
+              </div>
             ) : null}
           </>
         ) : null}
       </section>
+
+      {!managesPaidPlanInPortal ? (
+        <section
+          id="available-plans"
+          className="subscription-card"
+          aria-label="Available plans"
+        >
+          <div className="subscription-card-header">
+            <div>
+              <h2>Available Plans</h2>
+            </div>
+          </div>
+          {subscriptionPlansQuery.isPending ? (
+            <SubscriptionLoadingSkeleton label="Loading available plans" />
+          ) : null}
+          {subscriptionPlansQuery.isError ? (
+            <p className="settings-inline-error" role="alert">
+              Available plans failed to load.
+            </p>
+          ) : null}
+          {paidPlans.map((plan) => (
+            <article className="subscription-plan-card" key={plan.code}>
+              <div>
+                <h3>{plan.name}</h3>
+                <p>{plan.active_custom_metric_limit} custom metrics</p>
+                <p>{formatSyncPolicy(plan)}</p>
+                <PlanCapabilityList plan={plan} />
+              </div>
+              <ul className="subscription-price-list">
+                {plan.prices.map((price) => (
+                  <li key={price.id}>
+                    <span>
+                      {formatSubscriptionPrice(
+                        price.unit_amount,
+                        price.currency,
+                      )}{" "}
+                      / {price.billing_interval}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={
+                        checkoutMutation.isPending ||
+                        (checkoutStatus === "success" && !paidConfirmed)
+                      }
+                      onClick={() => void handleCheckout(price.id)}
+                    >
+                      Upgrade to {plan.name} {price.billing_interval}ly
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          ))}
+        </section>
+      ) : null}
+
+      {errorMessage ? (
+        <p className="settings-inline-error" role="alert">
+          {errorMessage}
+        </p>
+      ) : null}
 
       <MetricExportPanel
         enabled={
@@ -269,73 +326,6 @@ function SettingsRoute() {
           await navigate({ to: "/login", replace: true });
         }}
       />
-
-      <section
-        id="available-plans"
-        className="subscription-card"
-        aria-label="Available plans"
-      >
-        <div className="subscription-card-header">
-          <div>
-            <p className="meta-label">Plan catalog</p>
-            <h2>Available Plans</h2>
-          </div>
-        </div>
-        {subscriptionPlansQuery.isPending ? (
-          <SubscriptionLoadingSkeleton label="Loading available plans" />
-        ) : null}
-        {subscriptionPlansQuery.isError ? (
-          <p className="settings-inline-error" role="alert">
-            Available plans failed to load.
-          </p>
-        ) : null}
-        {managesPaidPlanInPortal ? (
-          <p className="subscription-help-text">
-            Use Manage subscription to change billing details.
-          </p>
-        ) : null}
-        {managesPaidPlanInPortal
-          ? null
-          : paidPlans.map((plan) => (
-              <article className="subscription-plan-card" key={plan.code}>
-                <div>
-                  <h3>{plan.name}</h3>
-                  <p>{plan.active_custom_metric_limit} custom metrics</p>
-                  <p>{formatSyncPolicy(plan)}</p>
-                  <PlanCapabilityList plan={plan} />
-                </div>
-                <ul className="subscription-price-list">
-                  {plan.prices.map((price) => (
-                    <li key={price.id}>
-                      <span>
-                        {formatSubscriptionPrice(
-                          price.unit_amount,
-                          price.currency,
-                        )}{" "}
-                        / {price.billing_interval}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={
-                          checkoutMutation.isPending ||
-                          (checkoutStatus === "success" && !paidConfirmed)
-                        }
-                        onClick={() => void handleCheckout(price.id)}
-                      >
-                        Upgrade to {plan.name} {price.billing_interval}ly
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </article>
-            ))}
-      </section>
-
-      {errorMessage ? (
-        <p className="settings-inline-error" role="alert">
-          {errorMessage}
-        </p>
-      ) : null}
     </section>
   );
 }
@@ -348,6 +338,30 @@ function SubscriptionLoadingSkeleton({ label }: { label: string }) {
       <span className="settings-skeleton settings-skeleton-row" />
       <span className="settings-skeleton settings-skeleton-row" />
     </div>
+  );
+}
+
+function CurrentPlanFeatures({ plan }: { plan: SubscriptionPlan }) {
+  const features = [
+    ["Metrics", `${plan.active_custom_metric_limit} custom metrics`],
+    [
+      "Wearables",
+      `${plan.wearable_connection_limit} ${plan.wearable_connection_limit === 1 ? "connection" : "connections"}`,
+    ],
+    ["Sync", formatSyncPolicy(plan)],
+    ["Analytics", plan.analytics_enabled ? "Included" : "Not included"],
+    ["CSV import", plan.csv_import_enabled ? "Included" : "Not included"],
+    ["CSV export", plan.csv_export_enabled ? "Included" : "Not included"],
+  ];
+  return (
+    <dl className="current-plan-features">
+      {features.map(([label, value]) => (
+        <div key={label}>
+          <dt>{label}</dt>
+          <dd>{value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 

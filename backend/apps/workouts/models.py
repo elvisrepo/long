@@ -72,6 +72,11 @@ class WorkoutPreferences(models.Model):
     plates_kg = models.JSONField(default=metric_plates)
     plates_lb = models.JSONField(default=imperial_plates)
     exercise_bars = models.JSONField(default=list)
+    category_order = models.CharField(
+        max_length=12,
+        choices=[("alphabetical", "Alphabetical"), ("manual", "Manual")],
+        default="alphabetical",
+    )
 
 
 class ExerciseCategory(models.Model):
@@ -84,6 +89,7 @@ class ExerciseCategory(models.Model):
     name = models.CharField(max_length=120)
     display_order = models.PositiveIntegerField(default=100)
     is_active = models.BooleanField(default=True)
+    colour = models.CharField(max_length=7, default="#2785b4")
 
     class Meta:
         ordering = ["display_order", "name", "id"]

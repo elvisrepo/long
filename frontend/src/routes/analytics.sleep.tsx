@@ -85,110 +85,123 @@ function SleepInsightsRoute() {
     <section className="sleep-insights-screen">
       <PageHeader
         title="Sleep Insights"
-        eyebrow="Pro Insights · Sleep"
+        eyebrow="Sleep · Last 7 nights"
         breadcrumb={
           <nav aria-label="Breadcrumb" className="metric-detail-breadcrumb">
             <Link to="/metrics/$slug" params={{ slug: "sleep_duration" }}>
-              Sleep Duration
+              ← Sleep Duration
             </Link>
-            <span aria-hidden="true">/</span>
-            <span>insights</span>
           </nav>
         }
         description={
           <p className="weight-steps-subtitle">
-            Your recent duration, timing, and estimated shortfall across seven
-            nights.
+            {formatDateRange(analytics.series)} · UTC
           </p>
         }
-        actions={<span className="status-pill">Pro · Analytics</span>}
       />
 
       <section
         className="sleep-insights-card"
         aria-label="Seven-night sleep insights"
       >
-        <div className="sleep-target-control">
-          <fieldset
-            aria-describedby="sleep-target-help"
-            className="sleep-target-duration"
-          >
-            <legend>Nightly sleep target</legend>
-            <div className="sleep-target-fields">
-              <label>
-                Hours
-                <input
-                  inputMode="numeric"
-                  max="23"
-                  min="1"
-                  onChange={(event) =>
-                    setDraftTarget({
-                      hours: event.currentTarget.value,
-                      minutes: targetMinuteField,
-                    })
-                  }
-                  type="number"
-                  value={targetHours}
-                />
-              </label>
-              <label>
-                Minutes
-                <input
-                  inputMode="numeric"
-                  max="59"
-                  min="0"
-                  onChange={(event) =>
-                    setDraftTarget({
-                      hours: targetHours,
-                      minutes: event.currentTarget.value,
-                    })
-                  }
-                  type="number"
-                  value={targetMinuteField}
-                />
-              </label>
-            </div>
-          </fieldset>
-          <button
-            disabled={
-              updatePreferenceMutation.isPending ||
-              parsedDraftTarget === null ||
-              targetMinutes === savedTargetMinutes
-            }
-            onClick={() => void saveTarget()}
-            type="button"
-          >
-            {updatePreferenceMutation.isPending ? "Saving…" : "Save target"}
-          </button>
-          <p id="sleep-target-help">
-            Enter a duration in hours and minutes. Default 7h 30m. Preview
-            changes immediately; save the target to your account. It is not a
-            medical prescription.
-          </p>
-          {updatePreferenceMutation.isSuccess ? (
-            <p className="sleep-target-success" role="status">
-              Target saved.
+        <details
+          className="sleep-target-settings"
+          open={
+            analytics.summary.tracked_nights === 0 ||
+            updatePreferenceMutation.isPending ||
+            updatePreferenceMutation.isError ||
+            updatePreferenceMutation.isSuccess
+          }
+        >
+          <summary>
+            Nightly target · {formatMinutes(savedTargetMinutes)}
+          </summary>
+          <div className="sleep-target-control">
+            <fieldset
+              aria-describedby="sleep-target-help"
+              className="sleep-target-duration"
+            >
+              <legend>Nightly sleep target</legend>
+              <div className="sleep-target-fields">
+                <label>
+                  Hours
+                  <input
+                    inputMode="numeric"
+                    max="23"
+                    min="1"
+                    onChange={(event) =>
+                      setDraftTarget({
+                        hours: event.currentTarget.value,
+                        minutes: targetMinuteField,
+                      })
+                    }
+                    type="number"
+                    value={targetHours}
+                  />
+                </label>
+                <label>
+                  Minutes
+                  <input
+                    inputMode="numeric"
+                    max="59"
+                    min="0"
+                    onChange={(event) =>
+                      setDraftTarget({
+                        hours: targetHours,
+                        minutes: event.currentTarget.value,
+                      })
+                    }
+                    type="number"
+                    value={targetMinuteField}
+                  />
+                </label>
+              </div>
+            </fieldset>
+            <button
+              disabled={
+                updatePreferenceMutation.isPending ||
+                parsedDraftTarget === null ||
+                targetMinutes === savedTargetMinutes
+              }
+              onClick={() => void saveTarget()}
+              type="button"
+            >
+              {updatePreferenceMutation.isPending ? "Saving…" : "Save target"}
+            </button>
+            <p id="sleep-target-help">
+              Preview updates as you edit. Save to keep your target.
             </p>
-          ) : null}
-          {updatePreferenceMutation.isError ? (
-            <p className="form-error" role="alert">
-              {updatePreferenceMutation.error instanceof Error
-                ? updatePreferenceMutation.error.message
-                : "Sleep target failed to save"}
-            </p>
-          ) : null}
-        </div>
+            {analyticsQuery.isFetching ? (
+              <p role="status">Updating preview…</p>
+            ) : null}
+            {updatePreferenceMutation.isSuccess ? (
+              <p className="sleep-target-success" role="status">
+                Target saved.
+              </p>
+            ) : null}
+            {updatePreferenceMutation.isError ? (
+              <p className="form-error" role="alert">
+                {updatePreferenceMutation.error instanceof Error
+                  ? updatePreferenceMutation.error.message
+                  : "Sleep target failed to save"}
+              </p>
+            ) : null}
+          </div>
+        </details>
 
         {analytics.summary.tracked_nights === 0 ? (
           <div className="empty-state">
             <h2>No Sleep data in the last seven nights</h2>
             <p>Sync or log Sleep Duration, then return here.</p>
+            <Link to="/metrics/$slug" params={{ slug: "sleep_duration" }}>
+              Log sleep →
+            </Link>
           </div>
         ) : (
           <>
             <div className="sleep-shortfall-summary">
               <div>
-                <p className="meta-label">Estimated 7-day sleep shortfall</p>
+                <p className="meta-label">Estimated shortfall</p>
                 {analytics.summary.total_shortfall_minutes === 0 ? (
                   <p className="sleep-shortfall-value sleep-shortfall-none">
                     No shortfall
@@ -200,7 +213,7 @@ function SleepInsightsRoute() {
                 )}
                 <p className="weight-steps-note">
                   Calculated from {analytics.summary.tracked_nights} of 7
-                  nights. Longer nights do not subtract from shorter nights.
+                  nights. Missing nights are unknown.
                 </p>
               </div>
               <p className="sleep-target-value">
@@ -212,6 +225,11 @@ function SleepInsightsRoute() {
               series={analytics.series}
               targetMinutes={analytics.target_minutes}
             />
+            <div className="sleep-chart-legend" aria-label="Chart key">
+              <span>Solid bar · Recorded sleep</span>
+              <span>Dotted mark · No record</span>
+              <span>Dashed line · Target</span>
+            </div>
             <SleepInsightsSummary
               series={analytics.series}
               summary={analytics.summary}
@@ -219,6 +237,15 @@ function SleepInsightsRoute() {
             <p className="weight-steps-note">
               Bedtimes and wake times shown in your local timezone.
             </p>
+            <details className="sleep-method-note">
+              <summary>How this works</summary>
+              <p>
+                Shortfall adds the time below your target on recorded nights.
+                Longer nights do not subtract from shorter nights. Missing
+                nights are excluded. Your target is a personal comparison, not a
+                medical prescription. Chart dates use UTC.
+              </p>
+            </details>
           </>
         )}
       </section>
@@ -334,6 +361,18 @@ function formatDate(date: string): string {
     day: "numeric",
     timeZone: "UTC",
   }).format(new Date(`${date}T00:00:00Z`));
+}
+
+function formatDateRange(series: SleepInsightsPoint[]): string {
+  const first = series.at(0)?.date;
+  const last = series.at(-1)?.date;
+  if (!first || !last) return "Last 7 nights";
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).formatRange(new Date(`${first}T00:00:00Z`), new Date(`${last}T00:00:00Z`));
 }
 
 function formatAverageClockTime(timestamps: string[]): string {

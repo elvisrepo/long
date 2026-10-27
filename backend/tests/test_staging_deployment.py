@@ -123,3 +123,12 @@ def test_ai_worker_and_broker_are_private_and_gate_api_startup() -> None:
     assert "redis://redis:6379/0" in compose
     assert "redis-cli" in redis and "ping" in redis
     assert "healthcheck:" in worker
+
+
+def test_staging_uses_the_validated_ai_model_for_all_backend_services() -> None:
+    compose = STAGING_COMPOSE_FILE.read_text()
+    assert (
+        "  NVIDIA_INSIGHTS_MODEL: nvidia/nemotron-3.5-super-vl-120b-a12b"
+        in compose
+    )
+    assert compose.count("environment: *backend-environment") == 3

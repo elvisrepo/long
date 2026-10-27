@@ -1,5 +1,33 @@
 #### Security (OWASP Top 10 addressed)
 
+- Calendar workspace (2026-10-26): filtering and inspection use existing
+  authenticated, owner-scoped bounded month/day/session reads. Browsing introduces
+  no workout writes or external requests. Device display preferences are keyed by
+  owner and contain only presentation flags, never credentials or workout data;
+  they are not an authorization boundary. Numeric filters validate finite bounded
+  decimals/integers and match completed sets in frozen units. Full source workouts
+  remain unchanged. Backend ownership and pagination protections still apply.
+
+- Category appearance/order (2026-10-23): category colour POST/PATCH is owner-scoped
+  and accepts only six-digit hex colours. Reorder requires JWT and the shared
+  owner row lock. Unique UUID lists are bounded to 1000 each, include every owned
+  category including archives, and match expected order before writes. Stale
+  membership/order returns 409; invalid selections return 400 without partial
+  ranks or preference changes. Reordering/recolouring never modifies workout
+  occurrences, sets or routine snapshots. Calendar colours match saved category
+  names; unmatched historical names get a neutral marker rather than being
+  reassigned using an exercise's current category.
+
+- Exercise library deletion (2026-10-23): JWT ownership and the existing owner
+  row lock guard DELETE on the exercise detail endpoint. Any saved workout
+  occurrence (even empty/planned), routine occurrence or goal blocks deletion
+  with 409; foreign/missing exercises return 404. UI eligibility is advisory and
+  rechecked server-side in the transaction. Catalog computes can_delete using
+  Exists subqueries, independently of completed-only usage counts. Exercise bar
+  preferences are cleaned in the same transaction. Existing workouts, sets,
+  routines and goals are never cascaded by this endpoint; Archive remains the
+  history-preserving action. Account deletion retains its existing full cascade.
+
 - AI data periods (2026-10-18): GET/POST timeframe is allowlisted to day/week/month
   (1/7/30 completed local dates), default week. Preview/history remain owner-scoped
   and history is filtered by selected timeframe. Period changes make no provider
@@ -550,3 +578,34 @@ an expanded database constraint. Estimated achievement uses unrounded values;
 planned sets remain excluded. Graph export serializes only the chart and title
 into a local PNG; native sharing/download requires an explicit Share action.
 No automatic provider calls, external posting or observed-lift writes are added.
+
+Routine management (2026-10-25): copy, delete and complete-list reorder hold the
+shared user row lock and resolve owned parents before request validation. Foreign
+parents return 404. Reordering requires an active template, bounded unique UUID
+lists (1000), complete child membership and matching expected order; failures
+write nothing. Copy creates new template rows, preserves null quantities and
+frozen exercise/group snapshots, and validates owner-wide name uniqueness.
+Confirmed routine deletion cascades only its template tree: generated workouts
+have no template foreign key and remain untouched. Colour edits accept only
+hexadecimal #RRGGBB. Inline exercise creation retries attachment using the saved
+library ID after a partial failure rather than creating duplicate exercises.
+
+Routine preset replacement (2026-10-26): PUT resolves the owned active occurrence
+before body validation and holds the shared owner lock. Unique template ownership
+is unchanged; foreign/missing returns 404. Both lists are capped at 1000. A full
+prior-set snapshot must match or the operation returns 409. Quantity-only rows
+reject unknown/performance fields and all validate before any deletion/insertion.
+Replacement creates fresh template IDs and cannot alter independent workout sets.
+Routine selection is device-only and keyed by account; it is not authorization.
+
+
+### AI provider failure diagnostics — 27 October 2026
+
+Provider HTTP errors log model ID and numeric status only. Non-HTTP errors log
+model, a fixed failure stage and exception class, without exception messages or
+tracebacks. Provider bodies, API keys, request/response text and health values must
+never appear in these diagnostics. User-facing messages are fixed application
+strings with the validated model ID where applicable. Strict evidence validation
+still rejects unknown or duplicate citations. Diagnostic model probes used synthetic
+summaries and did not create or replace saved reviews. No automatic fallback or
+additional provider request is introduced into production generation.

@@ -1,4 +1,5 @@
 import type { AiReviewResult, ReviewPoint } from "./ai-insights-api";
+import { formatEvidencePeriod } from "./ai-review-format";
 
 export function AiWeeklyReview({ result }: { result: AiReviewResult }) {
   const days = result.snapshot.days ?? 7;
@@ -10,16 +11,21 @@ export function AiWeeklyReview({ result }: { result: AiReviewResult }) {
           {keys.map((key) => {
             const row = result.snapshot.evidence[key];
             if (!row) return null;
-            const format = (period: typeof row.current) =>
-              period.observed_days !== undefined
-                ? period.daily_average == null
-                  ? "No measurements"
-                  : `${period.daily_average.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${row.unit} · ${period.observed_days}/${days} ${days === 1 ? "day" : "days"}`
-                : `${period.count ?? 0} logged · ${period.logged_days ?? 0}/${days} ${days === 1 ? "day" : "days"}`;
             return (
               <li key={key}>
-                <strong>{row.label}:</strong> {format(row.current)}; previous:{" "}
-                {format(row.previous)}
+                <strong>{row.label}</strong>
+                <dl className="ai-support-comparison">
+                  <div>
+                    <dt>Selected period</dt>
+                    <dd>{formatEvidencePeriod(row.current, row.unit, days)}</dd>
+                  </div>
+                  <div>
+                    <dt>Previous period</dt>
+                    <dd>
+                      {formatEvidencePeriod(row.previous, row.unit, days)}
+                    </dd>
+                  </div>
+                </dl>
               </li>
             );
           })}
@@ -36,6 +42,7 @@ export function AiWeeklyReview({ result }: { result: AiReviewResult }) {
   function point(item: ReviewPoint, index: number) {
     return (
       <li key={index}>
+        <h3>Suggestion {index + 1}</h3>
         {paragraphs(item.text)}
         {evidence(item.evidence_keys)}
       </li>
@@ -59,7 +66,7 @@ export function AiWeeklyReview({ result }: { result: AiReviewResult }) {
           ];
   return (
     <div className="ai-weekly-review">
-      <ol>{suggestions.map(point)}</ol>
+      <ol role="list">{suggestions.map(point)}</ol>
     </div>
   );
 }

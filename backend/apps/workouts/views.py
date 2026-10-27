@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Max, Count, Q
+from django.db.models import Max, Count, Q, Exists, OuterRef
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.permissions import IsAuthenticated
@@ -18,6 +18,8 @@ from .models import (
     WorkoutExercise,
     WorkoutSet,
     WorkoutPreferences,
+    RoutineExercise,
+    ExerciseGoal,
 )
 from .serializers import (
     CategorySerializer,
@@ -32,7 +34,12 @@ from .serializers import (
     GroupNameSerializer,
     PreferencesSerializer,
 )
-from .services import initialize_catalog, copy_workout
+from .services import (
+    initialize_catalog,
+    copy_workout,
+    exercise_can_be_deleted,
+    next_category_colour,
+)
 
 
 def catalog_response(request: Request) -> Response:
@@ -44,6 +51,11 @@ def catalog_response(request: Request) -> Response:
         Exercise.objects.filter(category__user=request.user)
         .select_related("category")
         .annotate(
+            deletion_allowed=(
+                ~Exists(WorkoutExercise.objects.filter(exercise_id=OuterRef("pk")))
+                & ~Exists(RoutineExercise.objects.filter(exercise_id=OuterRef("pk")))
+                & ~Exists(ExerciseGoal.objects.filter(exercise_id=OuterRef("pk")))
+            ),
             trained_session_count=Count(
                 "workout_exercises__workout",
                 distinct=True,
@@ -122,6 +134,32 @@ class ExerciseDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
     @transaction.atomic
+    def delete(self, request: Request, exercise_id: str) -> Response:
+        User.objects.select_for_update().get(pk=request.user.pk)
+        exercise = get_object_or_404(
+            Exercise, pk=exercise_id, category__user=request.user
+        )
+        if not exercise_can_be_deleted(exercise):
+            return Response(
+                {
+                    "detail": "This exercise is linked to a workout, routine or goal. Archive it instead to keep your data."
+                },
+                status=409,
+            )
+        preferences = WorkoutPreferences.objects.filter(user=request.user).first()
+        if preferences:
+            bars = [
+                bar
+                for bar in preferences.exercise_bars
+                if bar["exercise_id"] != str(exercise.pk)
+            ]
+            if bars != preferences.exercise_bars:
+                preferences.exercise_bars = bars
+                preferences.save(update_fields=["exercise_bars"])
+        exercise.delete()
+        return Response(status=204)
+
+    @transaction.atomic
     def patch(self, request: Request, exercise_id: str) -> Response:
         User.objects.select_for_update().get(pk=request.user.pk)
         exercise = get_object_or_404(
@@ -152,6 +190,9 @@ class CategoriesView(APIView):
         serializer.save(
             user=request.user,
             is_active=True,
+            colour=serializer.validated_data.get(
+                "colour", next_category_colour(request.user)
+            ),
             display_order=serializer.validated_data.get("display_order", order),
         )
         return Response(serializer.data, status=201)

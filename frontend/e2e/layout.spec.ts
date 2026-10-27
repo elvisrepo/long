@@ -221,25 +221,89 @@ test("metric dialogs retain backdrop dismissal without dismissing on dialog padd
   await expect(opener).toBeFocused();
 });
 
-test("Diet date buttons align with the input rather than its label", async ({
+test("Diet reveals its date field from a compact calendar control", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 900 });
   await page.goto("/diet");
   const field = page.getByLabel("Tracking date", { exact: true });
-  await expect(field).toBeVisible();
-  const input = (await field.boundingBox())!;
-  for (const name of ["Previous day", "Next day"]) {
-    const box = (await page
-      .getByRole("button", { name, exact: true })
-      .boundingBox())!;
-    expect(box.y + box.height).toBeCloseTo(input.y + input.height, 0);
-    expect(box.height).toBeCloseTo(44, 0);
-    expect(box.width).toBeGreaterThanOrEqual(44);
-  }
+  await expect(field).not.toBeVisible();
+  await page.getByRole("button", { name: "Choose date" }).click();
+  await expect(field).toBeFocused();
   await expect(field).toHaveCSS("font-size", "16px");
-  expect(input.height).toBeCloseTo(44, 0);
+  expect((await field.boundingBox())!.height).toBeCloseTo(44, 0);
 });
+
+for (const width of [320, 390, 560, 1440]) {
+  for (const theme of ["light", "dark"]) {
+    test(`Compact tracking dates at ${width}px ${theme}`, async ({
+      page,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.addInitScript(
+        (theme) => localStorage.setItem("longevity-theme", theme),
+        theme,
+      );
+      await page.route("**/api/v1/stretching/**", (route) => {
+        const path = new URL(route.request().url()).pathname;
+        const json = path.endsWith("exercises/")
+          ? {
+              phases: [
+                { slug: "lower-body", name: "Lower body", exercises: [] },
+                { slug: "upper-body", name: "Upper body", exercises: [] },
+              ],
+            }
+          : path.endsWith("preferences/")
+            ? { show_shared_exercises: true, hidden_exercise_ids: [] }
+            : [];
+        return route.fulfill({ json });
+      });
+      for (const path of ["/recovery", "/diet", "/stretching"]) {
+        await page.goto(path);
+        const context = page.getByRole("region", {
+          name: "Daily tracking",
+          exact: true,
+        });
+        const field = context.getByLabel("Tracking date");
+        await expect(field).toBeAttached();
+        await expect(field).not.toBeVisible();
+        await expect(
+          context.getByRole("button", { name: "Previous day" }),
+        ).toHaveCount(0);
+        await expect(
+          context.getByRole("button", { name: "Next day" }),
+        ).toHaveCount(0);
+        const days = context
+          .getByRole("group", { name: "Last 7 days" })
+          .getByRole("button");
+        await expect(days).toHaveCount(7);
+        const today = await field.inputValue();
+        const labels = await days.allTextContents();
+        await context.getByRole("button", { name: "Choose date" }).click();
+        await expect(field).toBeFocused();
+        const fieldBox = (await field.boundingBox())!;
+        expect(fieldBox.x).toBeGreaterThanOrEqual(0);
+        expect(fieldBox.x + fieldBox.width).toBeLessThanOrEqual(width);
+        await field.fill("2026-09-01");
+        await expect(field).not.toBeVisible();
+        await expect(field).toHaveValue("2026-09-01");
+        expect(await days.allTextContents()).toEqual(labels);
+        await days.first().click();
+        await expect(days.first()).toHaveAttribute("aria-pressed", "true");
+        await context
+          .getByRole("button", { name: "Today", exact: true })
+          .click();
+        await expect(field).toHaveValue(today);
+        await context.screenshot({
+          path: testInfo.outputPath(`${path.slice(1)}-dates.png`),
+        });
+        expect(
+          await page.evaluate(() => document.documentElement.scrollWidth),
+        ).toBeLessThanOrEqual(width);
+      }
+    });
+  }
+}
 
 test("mobile Diet puts daily context before its food checklist", async ({
   page,
@@ -358,10 +422,13 @@ for (const theme of ["dark", "light"]) {
             ? "Workouts · Longevity"
             : `${path === "/diet" ? "Diet" : "Recovery"} · Longevity`;
         await expect(page).toHaveTitle(expectedTitle);
+        const compact = path === "/diet" || path === "/recovery";
+        if (compact)
+          await page.getByRole("button", { name: "Choose date" }).click();
         const field = page.getByLabel("Tracking date", { exact: true });
         await expect(field).toBeVisible();
         const input = (await field.boundingBox())!;
-        for (const name of ["Previous day", "Next day"]) {
+        for (const name of compact ? [] : ["Previous day", "Next day"]) {
           const box = (await page
             .getByRole("button", { name, exact: true })
             .boundingBox())!;
@@ -374,7 +441,7 @@ for (const theme of ["dark", "light"]) {
         }
         await expect(field).toHaveCSS("font-size", "16px");
         expect(input.height, path).toBeCloseTo(44, 0);
-        expect(input.width, path).toBeCloseTo(160, 0);
+        if (!compact) expect(input.width, path).toBeCloseTo(160, 0);
         expect(
           await page.evaluate(
             () => document.documentElement.scrollWidth <= innerWidth,
@@ -598,15 +665,13 @@ async function mockApi(page: Page) {
       json = {
         range_days: 7,
         target_minutes: 450,
-        series: [
-          {
-            date,
-            duration_minutes: 450,
-            shortfall_minutes: 0,
-            recorded_at: recordedAt,
-            period_start: "2026-09-20T23:30:00Z",
-          },
-        ],
+        series: Array.from({ length: 7 }, (_, index) => ({
+          date: `2026-09-${15 + index}`,
+          duration_minutes: index === 6 ? 450 : null,
+          shortfall_minutes: index === 6 ? 0 : null,
+          recorded_at: index === 6 ? recordedAt : null,
+          period_start: index === 6 ? "2026-09-20T23:30:00Z" : null,
+        })),
         summary: {
           tracked_nights: 1,
           nights_under_target: 0,
@@ -670,6 +735,7 @@ for (const width of [390, 1440]) {
     await expect(
       page.getByRole("heading", { name: "Sleep Insights", exact: true }),
     ).toBeVisible();
+    await page.locator(".sleep-target-settings > summary").click();
     const hours = page.getByLabel("Hours", { exact: true });
     const minutes = page.getByLabel("Minutes", { exact: true });
     await expect(hours).toHaveValue("7");
@@ -705,6 +771,118 @@ for (const width of [390, 1440]) {
       fullPage: true,
     });
   });
+}
+
+test("Sleep target editing keeps focus while recalculating", async ({
+  page,
+}) => {
+  await page.route("**/api/v1/metrics/analytics/sleep/?*", async (route) => {
+    if (
+      new URL(route.request().url()).searchParams.get("target_minutes") ===
+      "510"
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    }
+    await route.fallback();
+  });
+  await page.goto("/analytics/sleep");
+  await page.locator(".sleep-target-settings > summary").click();
+  const hours = page.getByLabel("Hours", { exact: true });
+  const recalculated = page.waitForResponse((response) =>
+    response.url().includes("/analytics/sleep/?target_minutes=510"),
+  );
+  await hours.fill("8");
+  await expect(
+    page.getByRole("status", { name: "Loading Sleep insights" }),
+  ).not.toBeVisible();
+  await expect(hours).toBeVisible();
+  await expect(hours).toBeFocused();
+  await recalculated;
+  await expect(hours).toBeFocused();
+});
+
+test("Sleep chart aligns a target-length bar with the target line", async ({
+  page,
+}) => {
+  await page.goto("/analytics/sleep");
+  const line = page.locator(".sleep-target-line");
+  await expect(line).toBeVisible();
+  const lineBox = (await line.boundingBox())!;
+  const barBox = (await page
+    .locator(".sleep-night-bar")
+    .first()
+    .boundingBox())!;
+  expect(Math.abs(lineBox.y + lineBox.height - barBox.y)).toBeLessThan(1);
+});
+
+for (const width of [320, 390, 768, 1440]) {
+  for (const theme of ["light", "dark"]) {
+    test(`Sleep overview at ${width}px ${theme}`, async ({
+      page,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.addInitScript(
+        (theme) => localStorage.setItem("longevity-theme", theme),
+        theme,
+      );
+      await page.route(
+        "**/api/v1/metrics/analytics/sleep/?*",
+        async (route) => {
+          const durations = [null, 360, 480, 450, null, 390, 510];
+          await route.fulfill({
+            json: {
+              range_days: 7,
+              target_minutes: 450,
+              series: durations.map((duration, index) => ({
+                date: `2026-09-${15 + index}`,
+                duration_minutes: duration,
+                shortfall_minutes:
+                  duration === null ? null : Math.max(450 - duration, 0),
+                recorded_at:
+                  duration === null ? null : `2026-09-${15 + index}T07:00:00Z`,
+                period_start:
+                  duration === null
+                    ? null
+                    : new Date(
+                        Date.parse(`2026-09-${15 + index}T07:00:00Z`) -
+                          duration * 60000,
+                      ).toISOString(),
+              })),
+              summary: {
+                tracked_nights: 5,
+                nights_under_target: 2,
+                total_shortfall_minutes: 150,
+                average_duration_minutes: 438,
+                worst_night: { date: "2026-09-16", duration_minutes: 360 },
+              },
+            },
+          });
+        },
+      );
+      await page.goto("/analytics/sleep");
+      const chart = page.getByRole("img", { name: /Nightly sleep durations/ });
+      await expect(chart).toBeVisible();
+      await expect(page.getByLabel("Hours", { exact: true })).not.toBeVisible();
+      expect((await chart.boundingBox())!.y).toBeLessThan(650);
+      await expect(
+        page.getByText(/Calculated from 5 of 7 nights/),
+      ).toBeVisible();
+      await expect(
+        page.getByText(/Longer nights do not subtract/),
+      ).not.toBeVisible();
+      await page.screenshot({
+        path: testInfo.outputPath("sleep.png"),
+        fullPage: true,
+      });
+      await page.getByText("How this works", { exact: true }).click();
+      await expect(
+        page.getByText(/Longer nights do not subtract/),
+      ).toBeVisible();
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth),
+      ).toBeLessThanOrEqual(width);
+    });
+  }
 }
 
 for (const width of [320, 390, 1440]) {
@@ -815,8 +993,8 @@ for (const width of [320, 390, 1440]) {
     if (width === 320) {
       const dailySummary = page.getByRole("region", { name: "Daily tracking" });
       await expect(dailySummary).toBeVisible();
-      expect((await checkbox.boundingBox())!.y).toBeLessThan(
-        (await dailySummary.boundingBox())!.y,
+      expect((await dailySummary.boundingBox())!.y).toBeLessThan(
+        (await checkbox.boundingBox())!.y,
       );
     }
     await checkbox.click();
@@ -835,8 +1013,8 @@ for (const width of [320, 390, 1440]) {
     await checkbox.click();
     await expect(checkbox).toBeChecked();
     await page.goto("/");
-    const recoveryPanel = page.getByRole("region", {
-      name: "Recovery activities",
+    const recoveryPanel = page.getByRole("link", {
+      name: /^Recovery 1 activity today/,
     });
     await expect(
       recoveryPanel.getByText("1 activity today", { exact: true }),
@@ -850,7 +1028,7 @@ for (const width of [320, 390, 1440]) {
       path: `test-results/layout/dashboard-recovery-${width}.png`,
       fullPage: true,
     });
-    await recoveryPanel.getByRole("link", { name: "Track recovery →" }).click();
+    await recoveryPanel.click();
     await expect(checkbox).toBeChecked();
     await expect(
       page.getByText("Not research-rated", { exact: true }),
@@ -970,6 +1148,7 @@ for (const width of [320, 1440]) {
     // Controlled checkboxes update only after the server-confirmed save/refetch.
     await chicken.click();
     await expect(chicken).toBeChecked();
+    await page.getByRole("button", { name: "Choose date" }).click();
     await page.getByLabel("Tracking date").fill("2026-09-20");
     await expect(chicken).not.toBeChecked();
     await expect(page.locator(".diet-week button").last()).toHaveAttribute(
@@ -1117,6 +1296,268 @@ const views = [
   ["/analytics/sleep", "Sleep Insights"],
   ["/analytics/consistency", "Consistency & Coverage"],
 ];
+
+for (const width of [320, 680, 681, 768, 873, 1024, 1120, 1121, 1440]) {
+  for (const theme of ["light", "dark"]) {
+    test(`Header navigation fits at ${width}px ${theme}`, async ({
+      page,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.addInitScript(
+        (theme) => localStorage.setItem("longevity-theme", theme),
+        theme,
+      );
+      await page.goto("/");
+      await page.evaluate(() => document.fonts.ready);
+      const logo = page.locator(".app-logo");
+      const toggle = page.getByRole("combobox", { name: "Color theme" });
+      const menu = page.getByRole("button", { name: "Menu", exact: true });
+      const nav = page.getByRole("navigation", { name: "Primary navigation" });
+      const logoBox = (await logo.boundingBox())!;
+      const toggleBox = (await toggle.boundingBox())!;
+      if (width <= 1120) {
+        await expect(menu).toBeVisible();
+        await expect(nav).not.toBeVisible();
+        const menuBox = (await menu.boundingBox())!;
+        expect(logoBox.x + logoBox.width).toBeLessThanOrEqual(toggleBox.x);
+        expect(toggleBox.x + toggleBox.width).toBeLessThanOrEqual(menuBox.x);
+        await menu.click();
+        await expect(
+          nav.getByRole("link", { name: "Stretching & Posture", exact: true }),
+        ).toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(nav).not.toBeVisible();
+        await expect(menu).toBeFocused();
+      } else {
+        await expect(menu).not.toBeVisible();
+        await expect(nav).toBeVisible();
+        const navBox = (await nav.boundingBox())!;
+        expect(logoBox.x + logoBox.width).toBeLessThanOrEqual(navBox.x);
+        expect(navBox.x + navBox.width).toBeLessThanOrEqual(toggleBox.x);
+        expect(await nav.evaluate((el) => el.scrollWidth)).toBeLessThanOrEqual(
+          await nav.evaluate((el) => el.clientWidth),
+        );
+      }
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth),
+      ).toBeLessThanOrEqual(width);
+      await page
+        .locator(".app-header")
+        .screenshot({ path: testInfo.outputPath("header.png") });
+    });
+  }
+}
+
+for (const width of [320, 390, 560, 768, 1024, 1440]) {
+  for (const theme of ["light", "dark"]) {
+    test(`Settings overview at ${width}px ${theme}`, async ({
+      page,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.addInitScript(
+        (theme) => localStorage.setItem("longevity-theme", theme),
+        theme,
+      );
+      await page.goto("/settings");
+      const personal = page.getByRole("region", {
+        name: "Personal info",
+        exact: true,
+      });
+      const birthDate = personal.getByLabel("Date of birth");
+      await expect(birthDate).toBeAttached();
+      await page.addStyleTag({
+        content:
+          '[aria-label="Open TanStack Router Devtools"] { display: none !important; }',
+      });
+      const plan = page.getByRole("region", {
+        name: "Current subscription",
+        exact: true,
+      });
+      await expect(plan.getByText("Wearables", { exact: true })).toBeVisible();
+      const features = plan.locator(".current-plan-features > div");
+      await expect(features).toHaveCount(6);
+      if (width >= 768) {
+        for (let index = 0; index < 3; index++) {
+          const firstRow = (await features.nth(index).boundingBox())!;
+          const secondRow = (await features.nth(index + 3).boundingBox())!;
+          expect(Math.abs(firstRow.x - secondRow.x)).toBeLessThan(1);
+          expect(
+            Math.abs(firstRow.y - (await features.first().boundingBox())!.y),
+          ).toBeLessThan(1);
+        }
+      }
+      await plan.screenshot({ path: testInfo.outputPath("current-plan.png") });
+      const account = page.getByRole("region", {
+        name: "Account data",
+        exact: true,
+      });
+      const downloadBox = (await account
+        .getByRole("button", { name: "Download account data" })
+        .boundingBox())!;
+      const deleteBox = (await account
+        .getByRole("button", { name: "Delete account", exact: true })
+        .boundingBox())!;
+      expect(Math.abs(downloadBox.x - deleteBox.x)).toBeLessThan(1);
+      expect(Math.abs(downloadBox.width - deleteBox.width)).toBeLessThan(1);
+      await page.screenshot({
+        path: testInfo.outputPath("settings.png"),
+        fullPage: true,
+      });
+      await expect(birthDate).not.toBeVisible();
+      await personal.locator("summary").click();
+      await expect(birthDate).toBeVisible();
+      await personal.getByLabel("Height (cm)").fill("180");
+      await personal.locator("summary").click();
+      await personal.locator("summary").click();
+      await expect(personal.getByLabel("Height (cm)")).toHaveValue("180");
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth),
+      ).toBeLessThanOrEqual(width);
+      await page.goto("/settings#personal-info");
+      await expect(birthDate).toBeVisible();
+      const exportButton = page.getByRole("button", {
+        name: "Export health data",
+        exact: true,
+      });
+      await exportButton.click();
+      const exportDialog = page.getByRole("dialog", {
+        name: "Export health data",
+        exact: true,
+      });
+      await expect(exportDialog).toBeVisible();
+      expect(
+        await exportDialog.evaluate((el) => el.scrollWidth <= el.clientWidth),
+      ).toBe(true);
+      await exportDialog.getByRole("button", { name: "Close dialog" }).click();
+      await expect(exportButton).toBeFocused();
+    });
+  }
+}
+
+for (const width of [320, 1440]) {
+  test(`Settings Free-plan tools at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.route("**/api/v1/subscriptions/current/", (route) =>
+      route.fulfill({
+        json: {
+          id: "free",
+          status: "active",
+          billing_portal_available: false,
+          current_period_end: null,
+          cancel_at: null,
+          price: null,
+          plan: {
+            code: "free",
+            name: "Free",
+            active_custom_metric_limit: 3,
+            wearable_connection_limit: 1,
+            automatic_sync_enabled: false,
+            sync_interval_minutes: 30,
+            analytics_enabled: false,
+            csv_import_enabled: false,
+            csv_export_enabled: false,
+          },
+        },
+      }),
+    );
+    await page.route("**/api/v1/subscriptions/plans/", (route) =>
+      route.fulfill({
+        json: [
+          {
+            code: "pro",
+            name: "Pro",
+            is_default: false,
+            active_custom_metric_limit: 10,
+            wearable_connection_limit: 2,
+            automatic_sync_enabled: true,
+            sync_interval_minutes: 15,
+            analytics_enabled: true,
+            csv_import_enabled: true,
+            csv_export_enabled: true,
+            prices: [
+              {
+                id: "month",
+                currency: "usd",
+                unit_amount: 1000,
+                billing_interval: "month",
+              },
+              {
+                id: "year",
+                currency: "usd",
+                unit_amount: 10000,
+                billing_interval: "year",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    await page.goto("/settings");
+    await expect(
+      page.getByRole("button", { name: "Upgrade to Pro monthly" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Export health data" }),
+    ).not.toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Download account data" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Manage subscription" }),
+    ).not.toBeVisible();
+    await page.getByRole("link", { name: "View plans →" }).click();
+    await expect(page).toHaveURL(/#available-plans$/);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(width);
+    await page.screenshot({
+      path: testInfo.outputPath("settings-free.png"),
+      fullPage: true,
+    });
+  });
+}
+
+for (const width of [320, 390, 768, 1440]) {
+  for (const theme of ["light", "dark"]) {
+    test(`Consistency overview at ${width}px ${theme}`, async ({
+      page,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.addInitScript(
+        (theme) => localStorage.setItem("longevity-theme", theme),
+        theme,
+      );
+      await page.goto("/analytics/consistency");
+      await expect(
+        page.getByRole("heading", { name: "Consistency & Coverage" }),
+      ).toBeVisible();
+      await page.screenshot({
+        path: testInfo.outputPath("consistency.png"),
+        fullPage: true,
+      });
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth),
+      ).toBeLessThanOrEqual(width);
+      const days = page.getByRole("link", { name: /^Body Weight on/ });
+      await expect(days).toHaveCount(7);
+      for (const day of await days.all()) {
+        expect((await day.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      }
+      await expect(days.last()).toHaveAttribute(
+        "href",
+        "/metrics/body_weight?date=2026-09-21",
+      );
+      const explanation = page.getByText(/Multiple entries still count/);
+      await expect(explanation).not.toBeVisible();
+      await page.getByText("How this works", { exact: true }).click();
+      await expect(explanation).toBeVisible();
+      await days.last().focus();
+      await expect(days.last()).toBeFocused();
+      await page.keyboard.press("Enter");
+      await expect(page).toHaveURL(/\/metrics\/body_weight\?date=2026-09-21$/);
+    });
+  }
+}
 
 const layoutCases = [
   ...[320, 390, 640, 768, 1024, 1440, 1920].map((width) => ({
@@ -1295,6 +1736,7 @@ for (const width of [320, 1440]) {
     );
     let deletionAttempts = 0;
     await page.route("**/api/v1/me/", (route) => {
+      if (route.request().method() !== "DELETE") return route.fallback();
       expect(route.request().method()).toBe("DELETE");
       expect(route.request().postDataJSON()).toEqual({
         password: "test-password",

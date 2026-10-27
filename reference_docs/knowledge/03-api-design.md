@@ -32,6 +32,17 @@
 
 ## AI insights and personal NVIDIA keys — 2026-10-17
 
+- UI refinement (2026-10-27): `/analytics/ai` presents a saved review after compact
+  period/history/provider controls. New generation is a disclosed section when
+  history exists and open for first use. Provider-key setup is prominent only when
+  generation needs configuration; an available app key does not require a personal
+  key. Saved evidence always uses that review's snapshot; the new-generation data
+  preview uses the current completed-period snapshot. Both remain separately
+  inspectable, including exact daily JSON. Client consent resets on model, period
+  or preview changes, and stale/error previews cannot enable generation. Pending
+  generation retains the saved result and locks its controls. Short date labels
+  retain exact model/timestamp/timezone metadata under Review details. This changes
+  presentation only: routes, request payloads, prompts and backend rules are unchanged.
 - Frontend `/analytics/ai`, linked from Dashboard → Pro Insights, displays actual
   tracker summaries and an explicit Generate action. No production demo data or
   fabricated fallback review. Day uses yesterday, Week the last seven completed local dates, and Month the
@@ -95,7 +106,7 @@
   provider-side quota/errors can still be returned. Provider network timeout 90s;
   worker soft/hard limits 110s/120s and broker expiry one hour keep calls off web workers.
 - Backend-only fixed provider URL `https://integrate.api.nvidia.com/v1/chat/completions`,
-  model from validated selection or backend `NVIDIA_INSIGHTS_MODEL` (fallback `deepseek-ai/deepseek-v4.1-flash`),
+  model from validated selection or backend `NVIDIA_INSIGHTS_MODEL` (fallback `nvidia/nemotron-3.5-super-vl-120b-a12b`),
   bounded output 8000 tokens and 128KiB
   response limit. Legacy `weekly-v2` output is JSON with `overview`, exactly six `sections`
   (`key,text,evidence_keys`, keys health/activity/workouts/diet/recovery/stretching),
@@ -106,8 +117,8 @@
   explicit uncertainty and concrete next-week actions. All labels are untrusted data.
   Frontend keeps legacy v1 cached reports readable. Evidence shown with sections is
   server-computed; schema checks cannot prove the generated prose is correct.
-- Timeout remediation: the local/model example configuration uses
-  `nvidia/nemotron-3-super-120b-a12b`, verified with a real weekly report. For that
+- Historical timeout remediation (2026-10-17): the local/model example configuration used
+  `nvidia/nemotron-3-super-120b-a12b`, verified then with a real weekly report. For that
   model and Nemotron 3.5 Super VL send `chat_template_kwargs:{enable_thinking:false}` and temperature 1.0,
   per NVIDIA documentation; statistical calculations already happen in the app.
   Reports and previews identify the configured model, with no silent provider
@@ -227,8 +238,8 @@ These are UI state, not new REST contracts. Invalid training links fall back Hom
 foreign/deleted UUIDs still rely on backend authorization and show read errors.
 Date controls preserve the selected library exercise in History/Progress/Overview.
 Calendar filters (2026-10-03) are client-side UI state over the existing fully
-paginated month read. Exercise ID, saved category name and training/planned status
-are not new session-list query parameters. Exercise/category criteria match the
+paginated month read. Exercise ID, saved category names, Any/All matching, training/planned status and
+completed-set weight/reps conditions are not new session-list query parameters. Exercise/category criteria match the
 same frozen occurrence; training means a completed set among matching entries,
 not the Workout's finished flag. Opening/copying still uses the full session.
 `view=exercises` without `session` is read-only browsing: exercise clicks open
@@ -272,14 +283,17 @@ persisted routine-to-workout occurrence lineage is introduced.
 | Method | Endpoint | Contract |
 |---|---|---|
 | GET/POST | `/api/v1/workouts/routines/` | GET own routines including archives with nested days/exercises/sets; POST `{name, notes?, display_order?}` creates an active routine `201` |
-| PATCH | `/api/v1/workouts/routines/{uuid}/` | Own name/notes/order/archive; no hard-delete routine endpoint |
+| PATCH/DELETE | `/api/v1/workouts/routines/{uuid}/` | PATCH own name/notes/order/archive; DELETE `204` permanently removes only the template tree, preserving existing workouts |
+| POST | `/api/v1/workouts/routines/{uuid}/copy/` | `{name}` creates an active independent deep copy with new template IDs, preserved notes/snapshots/groups/null quantities, and no Workout; archived sources allowed, `201` |
+| POST | `/api/v1/workouts/routines/{uuid}/days/reorder/` | Atomic complete day order `{ids, expected_order}` |
+| POST | `/api/v1/workouts/routine-days/{uuid}/exercises/reorder/` | Atomic complete exercise order `{ids, expected_order}` |
 | POST | `/api/v1/workouts/routines/{uuid}/days/` | `{name, source_workout_id?, notes?, display_order?}`; `201` empty day, or independent snapshot of an own saved workout containing at least one exercise |
 | PATCH/DELETE | `/api/v1/workouts/routine-days/{uuid}/` | PATCH own name/notes/order; optional `source_workout_id` atomically replaces exercise/set template; DELETE `204` removes only template, never previously created sessions |
 | GET | `/api/v1/workouts/routine-days/{uuid}/preview/` | Required `performed_on`, optional `carry_forward=false`; read-only resolved start plan with provenance and `preview_token` |
 | POST | `/api/v1/workouts/routine-days/{uuid}/start/` | `{performed_on, carry_forward?, preview_token?, selection?}` creates independent planned Workout `201`; legacy date-only starts retain fixed template behavior |
 | POST | `/api/v1/workouts/routine-days/{uuid}/exercises/` | `{exercise_id, display_order?}` adds active own library exercise with server-frozen snapshots, `201` |
-| PATCH/DELETE | `/api/v1/workouts/routine-exercises/{uuid}/` | PATCH `{display_order?, group_name?}` with at least one field; DELETE occurrence and its template sets, `204` |
-| POST | `/api/v1/workouts/routine-exercises/{uuid}/sets/` | Planned quantities and optional order, `201`; no performance fields |
+| PATCH/DELETE | `/api/v1/workouts/routine-exercises/{uuid}/` | PATCH `{display_order?, group_name?, group_colour?}` with at least one field; DELETE occurrence and its template sets, `204` |
+| POST/PUT | `/api/v1/workouts/routine-exercises/{uuid}/sets/` | POST planned quantities and optional order, `201`; PUT atomic full preset draft `{sets, expected_sets}`, `200`; no performance fields |
 | PATCH/DELETE | `/api/v1/workouts/routine-sets/{uuid}/` | Combined-value validation on partial quantity/order edits; DELETE `204` |
 
 Routine JSON: `{id, name, notes, display_order, is_active, days}`. Day JSON:
@@ -349,20 +363,42 @@ Account workout preferences: authenticated `GET/PATCH /api/v1/workouts/preferenc
 
 Catalog responses additionally include `preferences`. Exercises accept `is_favorite` and `default_graph` (an existing graph metric, `personal_records`, or blank for automatic). Read-only catalog hints `trained_session_count` and `last_used_on` count only owned sessions containing completed sets, not planned entries. Account export includes these library fields and owned `workout_preferences`. Migration `0007_workout_preferences` is additive; no logged set snapshots are rewritten.
 
+Exercise responses also include read-only `can_delete`: true only when there are
+no saved workout occurrences, routine occurrences or goals for the exercise.
+Unlike training usage counts, this includes empty and planned occurrences and
+archived routines. DELETE rechecks eligibility under the shared owner lock and
+returns 409 with an Archive explanation if references now exist. Successful
+deletion also removes matching exercise-specific bar preferences atomically;
+it never deletes workouts, sets, routine templates or goals. Catalog computes
+eligibility with Exists subqueries without per-exercise follow-up queries.
+
+Category appearance (2026-10-23): category responses and POST/PATCH accept `colour`
+as a six-digit `#RRGGBB` string. New categories receive an available palette colour
+when omitted. Migration `0015_category_appearance` assigns initial colours per
+owner without changing manual ranks or workout snapshots. Preferences GET/PATCH
+includes `category_order` (`alphabetical` by default, or `manual`). GET still
+creates no preferences row. Reordering locks the owner and compares the raw
+catalog sequence before writing. Manual mode normalizes ranks to 10,20,30,...;
+alphabetical mode preserves those ranks for switching back. Catalog category
+order remains the raw saved sequence; clients sort names for alphabetical
+display. Both colour and mode are included in account export.
+
 | Method | Endpoint | Contract |
 |---|---|---|
 | GET | `/api/v1/workouts/catalog/` | `{categories, exercises, preferences}`, own catalog including archives; optional case-insensitive `search` (max 120 chars); does not seed |
 | POST | `/api/v1/workouts/catalog/initialize/` | Empty body; owner-locked, once-only starter samples; returns catalog `200` |
-| POST | `/api/v1/workouts/categories/` | `{name, display_order?}`; `201` active private category |
-| PATCH | `/api/v1/workouts/categories/{uuid}/` | `{name?, display_order?, is_active?}`; own category |
+| POST | `/api/v1/workouts/categories/` | `{name, display_order?, colour?}`; `201` active private category |
+| PATCH | `/api/v1/workouts/categories/{uuid}/` | `{name?, display_order?, is_active?, colour?}`; own category |
+| POST | `/api/v1/workouts/categories/reorder/` | `{mode, category_ids: UUID[], expected_order: UUID[]}`; mode alphabetical/manual; unique complete lists of all owned categories including archived, max 1000 IDs each; `200` catalog, stale order/membership `409`, invalid/foreign selection `400`; no partial writes |
 | POST | `/api/v1/workouts/exercises/` | `{category_id, name, tracking_type, ...defaults}`; `201`, own active category |
 | PATCH | `/api/v1/workouts/exercises/{uuid}/` | Editable library fields including category, type, units, notes, increments, rest and archive; never changes existing snapshots |
+| DELETE | `/api/v1/workouts/exercises/{uuid}/` | Own unused exercise only; `204`; `409` if any workout occurrence, routine occurrence or goal references it; foreign/missing `404` |
 | GET | `/api/v1/workouts/sessions/` | Required `date_from`, `date_to`, inclusive 1–366 days; optional own `exercise_id`; `{count, next, previous, results}`; limit default 25/max 100, offset default 0 |
 | POST | `/api/v1/workouts/sessions/` | `{performed_on, name?, notes?, is_finished?}`; `201`; multiple sessions on a day allowed |
 | GET/PATCH/DELETE | `/api/v1/workouts/sessions/{uuid}/` | Own detail; PATCH date/name/notes/is_finished; DELETE session and its sets `204` |
 | POST | `/api/v1/workouts/sessions/{uuid}/exercises/` | `{exercise_id, display_order?}`; `201` ordered occurrence with server snapshots; active own exercise/category required |
 | POST | `/api/v1/workouts/sessions/{uuid}/copy/` | `{performed_on, selection?}`; `201` independent planned session; no completion, session notes or performance comments copied |
-| PATCH/DELETE | `/api/v1/workouts/session-exercises/{uuid}/` | PATCH `{display_order?, group_name?}` with at least one field; DELETE occurrence and sets `204`; snapshots/reference immutable |
+| PATCH/DELETE | `/api/v1/workouts/session-exercises/{uuid}/` | PATCH `{display_order?, group_name?, group_colour?}` with at least one field; DELETE occurrence and sets `204`; snapshots/reference immutable |
 | POST | `/api/v1/workouts/session-exercises/{uuid}/sets/` | Set fields below; `201` individual set; completion defaults true |
 | PATCH/DELETE | `/api/v1/workouts/sets/{uuid}/` | Partial set edit validated against combined values, or DELETE `204` |
 | POST | `/api/v1/workouts/sets/bulk/` | Atomic history update/delete of 1–100 sets with expected snapshots; `{affected_count}` `200` |
@@ -451,7 +487,7 @@ or null; weight/distance have 3 decimal places. Duration is integer seconds.
   exercises/sets. Finishing does not mark planned sets completed. Only completed
   sets contribute to `completed_set_count`.
 - Catalog archive does not block editing existing history or copying snapshots.
-  Catalog has no hard-delete API. Foreign detail access returns `404`, foreign
+  Library deletion is limited to unreferenced exercises. Foreign detail access returns `404`, foreign
   creation references `400`, validation errors `400`. Session/exercise/set DELETE
   is not idempotent: subsequent deletion of an absent row returns `404`.
 - Initialization is idempotent. Other POSTs create new resources on each request;
@@ -577,7 +613,17 @@ SQL aggregation/window functions avoid loading raw workout histories in Python o
 the browser. No migration or automatic unit conversion is introduced.
 
 Calendar reads the displayed month through the existing bounded, safely paginated
-session API. Windowed progress reads 30/90/180/365 days ending on the selected date
+session API. Month and List share that bounded read, filters and matching-session
+count. Previous/next matching workout-day navigation is restricted to the displayed
+month. Inspection highlights a local date without changing Home's working date;
+Go to workout explicitly navigates. Month browsing/jump retains the existing
+`view=calendar&date=YYYY-MM-DD` route, with no new query parameters.
+Category All requires category presence within one session. Weight/reps predicates
+must match the same completed strength/bodyweight set and its frozen weight unit;
+unknown values never become zero. No automatic kg/lb conversion. Previews retain
+full original sessions. Display mode, dots, category labels, list set details and
+the optional wide-screen panel are owner-keyed device preferences, not API fields.
+Windowed progress reads 30/90/180/365 days ending on the selected date
 with the owned library `exercise_id` filter. The browser derives daily maxima/
 observed records from completed sets only and partitions frozen type/unit
 combinations. All time uses the summary endpoints above, not expanded raw session
@@ -1504,3 +1550,49 @@ open a focused section without adding route paths.
 With `per_workout=true`, progress point JSON includes the supporting `workout_id`
 and session name where available. The graph uses this owned ID for its workout
 preview; points without a session ID retain the date-based preview fallback.
+
+Routine management (2026-10-25): both reorder endpoints require unique UUID lists
+(maximum 1000 each), an active owned parent, and every current child exactly once.
+Stale `expected_order` returns 409 without writes; invalid membership returns 400.
+Successful orders normalize ranks to 10, 20, … under the shared owner lock.
+Missing/foreign parents return 404. Routine group colours require `#RRGGBB`.
+Routine deletion and copying also hold the owner lock; neither modifies logged
+workouts. Copy names follow existing owner-wide uniqueness, including archives.
+
+Routine preset draft replacement (2026-10-26): PUT accepts up to 1000 quantity-only
+rows and the exact previously read `RoutineSet[]` snapshot in `expected_sets`.
+The owned active occurrence is resolved under the user row lock before validation.
+Any mismatch returns 409; unknown/performance fields, invalid types/units/values,
+or oversized lists return 400 with no writes. Every row validates before replacing
+the collection. Saved rows have new UUIDs and normalized 10-step order. Empty
+`sets` clears presets; null fields and explicit zero weight retain their meaning.
+Only template sets are replaced; started workouts have independent snapshots.
+POST/PATCH/DELETE per-set clients remain supported. No schema migration is needed.
+
+
+### AI provider model availability remediation — 27 October 2026
+
+The configured Nemotron 3 Super endpoint returned HTTP 404 during a diagnostic.
+All four offered IDs remained listed by NVIDIA's live `/v1/models` endpoint; listing
+does not guarantee that a model's generation endpoint is currently usable. This
+is not evidence that the older model has been permanently retired. The local
+`.env`, example and code fallback now select `nvidia/nemotron-3.5-super-vl-120b-a12b`.
+A representative synthetic tracker request returned HTTP 200, completed normally
+and passed the unchanged `weekly-v3` schema/evidence validator. An earlier tiny
+single-tracker fixture produced invalid evidence references and was rejected;
+validation was not loosened. No real tracker data was sent during these probes.
+
+HTTP 404 now identifies the unavailable model and asks the user to choose another
+under New review. Format failures explain an unreadable response, evidence failures
+explain that suggestions could not be matched, and connection failures explain
+provider reachability. Key errors point to Provider settings. Safe logs contain
+only validated model IDs, HTTP status, failure stage and exception type, never
+provider bodies, prompts, credentials or tracker values. Existing error response
+shape, status codes, time limits, strict validation and saved-success behavior are
+unchanged. No automatic model fallback, provider retry or silent key switch occurs.
+
+Idle local web/Celery/Beat services were recreated to load the configuration; both
+web and worker report the new default. The existing seven saved reviews remained.
+Refresh the AI page to load the new default; explicit model selection still wins.
+New jobs use the new handling; previously cached failure messages are not rewritten.
+Official current model page: https://build.nvidia.com/nvidia/nemotron-3.5-super-vl-120b-a12b

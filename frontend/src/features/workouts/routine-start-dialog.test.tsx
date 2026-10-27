@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 import * as api from "./workout-api";
@@ -195,4 +195,43 @@ it("locks pending confirmation and requires a refreshed token after a stale-prev
     preview_token: "c".repeat(64),
     selection: [{ item_id: "i", set_ids: ["s"] }],
   });
+});
+
+it("changes the target date inside the preview and starts only after a valid refreshed plan", async () => {
+  vi.mocked(api.getRoutineStartPreview).mockImplementation(
+    async (_id, date) => ({ ...preview, performed_on: date }),
+  );
+  vi.mocked(api.startRoutineDay).mockResolvedValue({
+    performed_on: "2026-10-05",
+  } as api.Workout);
+  const { navigate } = mount();
+  await screen.findByText("8 reps");
+  fireEvent.change(screen.getByLabelText("Workout date"), {
+    target: { value: "" },
+  });
+  expect(
+    screen.getByRole("button", { name: "Start planned workout" }),
+  ).toBeDisabled();
+  expect(screen.getByRole("alert")).toHaveTextContent("Choose a workout date");
+  fireEvent.change(screen.getByLabelText("Workout date"), {
+    target: { value: "2026-10-05" },
+  });
+  await waitFor(() =>
+    expect(api.getRoutineStartPreview).toHaveBeenCalledWith(
+      "d",
+      "2026-10-05",
+      false,
+    ),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Start planned workout" }),
+  );
+  await waitFor(() =>
+    expect(navigate).toHaveBeenCalledWith({ view: "home", date: "2026-10-05" }),
+  );
+  expect(api.startRoutineDay).toHaveBeenCalledWith(
+    "d",
+    "2026-10-05",
+    expect.objectContaining({ selection: [{ item_id: "i", set_ids: ["s"] }] }),
+  );
 });
