@@ -2408,3 +2408,24 @@ sharing inclusion/exclusion context remain. No backend/API or provider call chan
 Final minimal-copy checks: all 758 frontend tests across 116 files pass, along
 with 11 AI browser journeys, build, lint and formatting checks. Verification uses
 synthetic fixtures with no real provider calls. Changes remain local.
+
+
+### AI generation failure remediation — 27 October 2026
+
+A mocked provider 404 first reproduced the generic message. Regression checks now
+verify a model-specific Choose another model action and safe numeric-status logs.
+Parameterized malformed-content and invalid-evidence cases reproduce the generic
+format/validation failure paths and verify actionable messages and safe stage/type
+metadata. Sentinel provider contents and credentials are absent from logs and UI.
+The complete AI backend slice passes 49 tests; Ruff and focused mypy pass. Mypy first
+failed while initializing its read-only SQLite cache; a fresh task cache at
+`/tmp/longevity-ai-mypy` resolves the tooling issue without changing application code.
+
+Read-only cache inspection found two generic failed jobs. A synthetic request to
+the configured Nemotron 3 Super endpoint returned 404 although the live catalog
+still listed it. Nemotron 3.5 returned 200 and passed strict validation with a
+representative synthetic tracker fixture. No user health values were sent and no
+review rows were created. Both reloaded local web and worker processes report the
+new default; saved-review count remains seven. This is local remediation, not a
+staging/production deployment or a claim that every provider/model is available.
+The user's next actual review still requires their explicit sharing action in UI.

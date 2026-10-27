@@ -106,7 +106,7 @@
   provider-side quota/errors can still be returned. Provider network timeout 90s;
   worker soft/hard limits 110s/120s and broker expiry one hour keep calls off web workers.
 - Backend-only fixed provider URL `https://integrate.api.nvidia.com/v1/chat/completions`,
-  model from validated selection or backend `NVIDIA_INSIGHTS_MODEL` (fallback `deepseek-ai/deepseek-v4.1-flash`),
+  model from validated selection or backend `NVIDIA_INSIGHTS_MODEL` (fallback `nvidia/nemotron-3.5-super-vl-120b-a12b`),
   bounded output 8000 tokens and 128KiB
   response limit. Legacy `weekly-v2` output is JSON with `overview`, exactly six `sections`
   (`key,text,evidence_keys`, keys health/activity/workouts/diet/recovery/stretching),
@@ -117,8 +117,8 @@
   explicit uncertainty and concrete next-week actions. All labels are untrusted data.
   Frontend keeps legacy v1 cached reports readable. Evidence shown with sections is
   server-computed; schema checks cannot prove the generated prose is correct.
-- Timeout remediation: the local/model example configuration uses
-  `nvidia/nemotron-3-super-120b-a12b`, verified with a real weekly report. For that
+- Historical timeout remediation (2026-10-17): the local/model example configuration used
+  `nvidia/nemotron-3-super-120b-a12b`, verified then with a real weekly report. For that
   model and Nemotron 3.5 Super VL send `chat_template_kwargs:{enable_thinking:false}` and temperature 1.0,
   per NVIDIA documentation; statistical calculations already happen in the app.
   Reports and previews identify the configured model, with no silent provider
@@ -1568,3 +1568,31 @@ the collection. Saved rows have new UUIDs and normalized 10-step order. Empty
 `sets` clears presets; null fields and explicit zero weight retain their meaning.
 Only template sets are replaced; started workouts have independent snapshots.
 POST/PATCH/DELETE per-set clients remain supported. No schema migration is needed.
+
+
+### AI provider model availability remediation — 27 October 2026
+
+The configured Nemotron 3 Super endpoint returned HTTP 404 during a diagnostic.
+All four offered IDs remained listed by NVIDIA's live `/v1/models` endpoint; listing
+does not guarantee that a model's generation endpoint is currently usable. This
+is not evidence that the older model has been permanently retired. The local
+`.env`, example and code fallback now select `nvidia/nemotron-3.5-super-vl-120b-a12b`.
+A representative synthetic tracker request returned HTTP 200, completed normally
+and passed the unchanged `weekly-v3` schema/evidence validator. An earlier tiny
+single-tracker fixture produced invalid evidence references and was rejected;
+validation was not loosened. No real tracker data was sent during these probes.
+
+HTTP 404 now identifies the unavailable model and asks the user to choose another
+under New review. Format failures explain an unreadable response, evidence failures
+explain that suggestions could not be matched, and connection failures explain
+provider reachability. Key errors point to Provider settings. Safe logs contain
+only validated model IDs, HTTP status, failure stage and exception type, never
+provider bodies, prompts, credentials or tracker values. Existing error response
+shape, status codes, time limits, strict validation and saved-success behavior are
+unchanged. No automatic model fallback, provider retry or silent key switch occurs.
+
+Idle local web/Celery/Beat services were recreated to load the configuration; both
+web and worker report the new default. The existing seven saved reviews remained.
+Refresh the AI page to load the new default; explicit model selection still wins.
+New jobs use the new handling; previously cached failure messages are not rewritten.
+Official current model page: https://build.nvidia.com/nvidia/nemotron-3.5-super-vl-120b-a12b

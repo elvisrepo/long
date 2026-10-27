@@ -2,6 +2,7 @@
 
 from datetime import date, datetime, time, timedelta
 import json
+import logging
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from typing import Any
@@ -23,6 +24,7 @@ from apps.metrics.views import (
 from apps.workouts.models import Workout
 
 PROMPT_VERSION = "weekly-v3"
+logger = logging.getLogger(__name__)
 TIMEFRAME_DAYS = {"day": 1, "week": 7, "month": 30}
 
 SUPPORTED_MODELS = {
@@ -161,9 +163,11 @@ def generate_weekly_review(
         },
         method="POST",
     )
+    stage = "transport"
     try:
         with urlopen(request, timeout=90) as response:
             raw = response.read(131073)
+        stage = "format"
         if len(raw) > 131072:
             raise ValueError("Oversized response")
         content = json.loads(raw)["choices"][0]["message"]["content"]
@@ -171,15 +175,24 @@ def generate_weekly_review(
         if content.startswith("```json\n") and content.rstrip().endswith("```"):
             content = content.strip()[8:-3].strip()
         review = json.loads(content)
+        stage = "validation"
         return validate_review(review, snapshot)
     except HTTPError as error:
+        logger.warning(
+            "AI provider request failed: model=%s status=%s", selected_model, error.code
+        )
+        if error.code == 404:
+            raise WeeklyReviewFailed(
+                f"NVIDIA could not serve {selected_model}. "
+                "Choose another model in New review and try again."
+            ) from None
         if error.code in {502, 503, 504}:
             raise WeeklyReviewFailed(
                 "NVIDIA's model service is temporarily unavailable. Please try again later."
             ) from None
         if error.code in {401, 403}:
             raise WeeklyReviewFailed(
-                "NVIDIA rejected the API key. Replace it in Your API key and try again."
+                "NVIDIA rejected the API key. Replace it in Provider settings and try again."
             ) from None
         if error.code in {402, 429}:
             raise WeeklyReviewFailed(
@@ -187,6 +200,10 @@ def generate_weekly_review(
             ) from None
         raise WeeklyReviewFailed() from None
     except TimeoutError:
+        logger.warning(
+            "AI review failed: model=%s stage=transport error=TimeoutError",
+            selected_model,
+        )
         raise WeeklyReviewFailed(
             f"NVIDIA did not respond in time for {selected_model} (90 seconds). "
             "Your saved reviews are unchanged. Try another model or retry later."
@@ -199,9 +216,26 @@ def generate_weekly_review(
         IndexError,
         TypeError,
         AttributeError,
-    ):
+    ) as error:
         # Never propagate provider bodies, request contents, or credentials to logs/UI.
-        raise WeeklyReviewFailed() from None
+        logger.warning(
+            "AI review failed: model=%s stage=%s error=%s",
+            selected_model,
+            stage,
+            type(error).__name__,
+        )
+        if stage == "validation":
+            raise WeeklyReviewFailed(
+                "The model returned suggestions that could not be matched to your recorded data. "
+                "Try again or choose another model."
+            ) from None
+        if stage == "format":
+            raise WeeklyReviewFailed(
+                "The model returned an unreadable review. Try again or choose another model."
+            ) from None
+        raise WeeklyReviewFailed(
+            "Could not reach NVIDIA. Please try again later."
+        ) from None
 
 
 def validate_review(review: Any, snapshot: dict[str, Any]) -> dict[str, Any]:

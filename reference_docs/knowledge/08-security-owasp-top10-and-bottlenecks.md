@@ -597,3 +597,15 @@ prior-set snapshot must match or the operation returns 409. Quantity-only rows
 reject unknown/performance fields and all validate before any deletion/insertion.
 Replacement creates fresh template IDs and cannot alter independent workout sets.
 Routine selection is device-only and keyed by account; it is not authorization.
+
+
+### AI provider failure diagnostics — 27 October 2026
+
+Provider HTTP errors log model ID and numeric status only. Non-HTTP errors log
+model, a fixed failure stage and exception class, without exception messages or
+tracebacks. Provider bodies, API keys, request/response text and health values must
+never appear in these diagnostics. User-facing messages are fixed application
+strings with the validated model ID where applicable. Strict evidence validation
+still rejects unknown or duplicate citations. Diagnostic model probes used synthetic
+summaries and did not create or replace saved reviews. No automatic fallback or
+additional provider request is introduced into production generation.
