@@ -2441,3 +2441,19 @@ and keyboard navigation to the correct metric/date. Production build, targeted
 ESLint and Prettier checks pass. Synthetic API fixtures only; no backend or API
 contract changes. The broader pre-existing cross-page check currently stops on
 the Metrics page's obsolete Edit-button selector, before reaching Consistency.
+
+### Sleep UI verification — 27 October 2026
+
+Nineteen tests across the Sleep route, chart, insights API and target-preference
+API pass. The route verifies exact UTC range and a collapsed editor when data
+exists while retaining save, validation, pending/error, and empty-state checks.
+The chart test verifies full dates in its accessible description.
+
+Twelve focused browser checks pass: overview/disclosure/overflow at
+320/390/768/1440px in Light and Dark, editor alignment at 390/1440px, target-line
+geometry, and focus preservation through a delayed target recalculation. The
+focus and geometry checks reproduced failures before the fixes. Sparse and
+mixed recorded/missing-night fixtures avoid real health data. Build, targeted
+ESLint, Prettier and diff checks pass. A final browser rerun needed unrestricted
+local-server startup after the sandboxed test server failed to start; it passed.
+No backend/API changes or provider calls were involved.

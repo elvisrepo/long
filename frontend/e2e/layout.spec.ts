@@ -598,15 +598,13 @@ async function mockApi(page: Page) {
       json = {
         range_days: 7,
         target_minutes: 450,
-        series: [
-          {
-            date,
-            duration_minutes: 450,
-            shortfall_minutes: 0,
-            recorded_at: recordedAt,
-            period_start: "2026-09-20T23:30:00Z",
-          },
-        ],
+        series: Array.from({ length: 7 }, (_, index) => ({
+          date: `2026-09-${15 + index}`,
+          duration_minutes: index === 6 ? 450 : null,
+          shortfall_minutes: index === 6 ? 0 : null,
+          recorded_at: index === 6 ? recordedAt : null,
+          period_start: index === 6 ? "2026-09-20T23:30:00Z" : null,
+        })),
         summary: {
           tracked_nights: 1,
           nights_under_target: 0,
@@ -670,6 +668,7 @@ for (const width of [390, 1440]) {
     await expect(
       page.getByRole("heading", { name: "Sleep Insights", exact: true }),
     ).toBeVisible();
+    await page.locator(".sleep-target-settings > summary").click();
     const hours = page.getByLabel("Hours", { exact: true });
     const minutes = page.getByLabel("Minutes", { exact: true });
     await expect(hours).toHaveValue("7");
@@ -705,6 +704,118 @@ for (const width of [390, 1440]) {
       fullPage: true,
     });
   });
+}
+
+test("Sleep target editing keeps focus while recalculating", async ({
+  page,
+}) => {
+  await page.route("**/api/v1/metrics/analytics/sleep/?*", async (route) => {
+    if (
+      new URL(route.request().url()).searchParams.get("target_minutes") ===
+      "510"
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    }
+    await route.fallback();
+  });
+  await page.goto("/analytics/sleep");
+  await page.locator(".sleep-target-settings > summary").click();
+  const hours = page.getByLabel("Hours", { exact: true });
+  const recalculated = page.waitForResponse((response) =>
+    response.url().includes("/analytics/sleep/?target_minutes=510"),
+  );
+  await hours.fill("8");
+  await expect(
+    page.getByRole("status", { name: "Loading Sleep insights" }),
+  ).not.toBeVisible();
+  await expect(hours).toBeVisible();
+  await expect(hours).toBeFocused();
+  await recalculated;
+  await expect(hours).toBeFocused();
+});
+
+test("Sleep chart aligns a target-length bar with the target line", async ({
+  page,
+}) => {
+  await page.goto("/analytics/sleep");
+  const line = page.locator(".sleep-target-line");
+  await expect(line).toBeVisible();
+  const lineBox = (await line.boundingBox())!;
+  const barBox = (await page
+    .locator(".sleep-night-bar")
+    .first()
+    .boundingBox())!;
+  expect(Math.abs(lineBox.y + lineBox.height - barBox.y)).toBeLessThan(1);
+});
+
+for (const width of [320, 390, 768, 1440]) {
+  for (const theme of ["light", "dark"]) {
+    test(`Sleep overview at ${width}px ${theme}`, async ({
+      page,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.addInitScript(
+        (theme) => localStorage.setItem("longevity-theme", theme),
+        theme,
+      );
+      await page.route(
+        "**/api/v1/metrics/analytics/sleep/?*",
+        async (route) => {
+          const durations = [null, 360, 480, 450, null, 390, 510];
+          await route.fulfill({
+            json: {
+              range_days: 7,
+              target_minutes: 450,
+              series: durations.map((duration, index) => ({
+                date: `2026-09-${15 + index}`,
+                duration_minutes: duration,
+                shortfall_minutes:
+                  duration === null ? null : Math.max(450 - duration, 0),
+                recorded_at:
+                  duration === null ? null : `2026-09-${15 + index}T07:00:00Z`,
+                period_start:
+                  duration === null
+                    ? null
+                    : new Date(
+                        Date.parse(`2026-09-${15 + index}T07:00:00Z`) -
+                          duration * 60000,
+                      ).toISOString(),
+              })),
+              summary: {
+                tracked_nights: 5,
+                nights_under_target: 2,
+                total_shortfall_minutes: 150,
+                average_duration_minutes: 438,
+                worst_night: { date: "2026-09-16", duration_minutes: 360 },
+              },
+            },
+          });
+        },
+      );
+      await page.goto("/analytics/sleep");
+      const chart = page.getByRole("img", { name: /Nightly sleep durations/ });
+      await expect(chart).toBeVisible();
+      await expect(page.getByLabel("Hours", { exact: true })).not.toBeVisible();
+      expect((await chart.boundingBox())!.y).toBeLessThan(650);
+      await expect(
+        page.getByText(/Calculated from 5 of 7 nights/),
+      ).toBeVisible();
+      await expect(
+        page.getByText(/Longer nights do not subtract/),
+      ).not.toBeVisible();
+      await page.screenshot({
+        path: testInfo.outputPath("sleep.png"),
+        fullPage: true,
+      });
+      await page.getByText("How this works", { exact: true }).click();
+      await expect(
+        page.getByText(/Longer nights do not subtract/),
+      ).toBeVisible();
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth),
+      ).toBeLessThanOrEqual(width);
+    });
+  }
 }
 
 for (const width of [320, 390, 1440]) {

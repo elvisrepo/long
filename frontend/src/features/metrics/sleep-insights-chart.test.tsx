@@ -16,6 +16,7 @@ it("uses the shared chart surface while preserving target and duration labels", 
 
   const chart = screen.getByRole("img", { name: /nightly sleep durations/i });
   expect(chart).toHaveClass("chart-surface");
+  expect(chart).toHaveAccessibleName(expect.stringContaining("2026-10-05"));
   expect(screen.getByText("7h 00m")).toBeInTheDocument();
   expect(screen.getByText("target")).toBeInTheDocument();
   expect(screen.getByTitle("No sleep record")).toBeInTheDocument();

@@ -672,3 +672,26 @@ ESLint, and formatting pass. Browser captures are ignored under
 account data. The existing cross-page layout check stopped on its outdated
 Metrics edit-button selector before reaching Consistency; it is not counted as
 passing. No deployment was performed.
+
+### Sleep Insights cleanup — 27 October 2026
+
+The exact UTC date range replaces the introduction and repeated Pro badge. The
+nightly target editor starts collapsed when records exist; empty, saving, saved,
+and save-error states expose it. Shortfall and recorded-night coverage stay above
+the chart, with missing nights explicitly unknown. Target help is shorter and
+How this works preserves the calculation and personal-target limitations.
+Phone summaries use two columns, and chart dates include the day of month.
+The phone chart key replaces a crowded inline target label.
+
+Browser checks reproduced focus loss when changing the target: a new query key
+unmounted the form behind the page loading state. Keeping previous query data
+preserves the editor during recalculation and displays Updating preview. A
+separate geometry check caught target-line/bar scale differences; both now use
+the same plot area, with dates outside that scale. Screen-reader chart summaries
+include full dates and distinguish missing records from durations.
+
+Nineteen focused tests and twelve browser checks pass, including four widths
+in both themes, target-editor alignment, focus through delayed recalculation,
+and target/bar geometry. Build, targeted lint and formatting pass. Captures use
+synthetic fixtures under ignored `frontend/test-results/layout-Sleep-overview-*`.
+These changes are local; no backend contracts or sleep calculations changed.

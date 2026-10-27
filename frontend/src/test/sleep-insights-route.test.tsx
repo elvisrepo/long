@@ -77,6 +77,8 @@ describe("Sleep Insights route", () => {
       await screen.findByRole("heading", { level: 1, name: /sleep insights/i }),
     ).toBeInTheDocument();
     expect(screen.getByText("2h 00m")).toBeInTheDocument();
+    expect(screen.getByText(/15\s*–\s*21 Sept 2026 · UTC/)).toBeVisible();
+    expect(screen.getByLabelText("Hours", { exact: true })).not.toBeVisible();
     expect(
       screen.getByText(/calculated from 3 of 7 nights/i),
     ).toBeInTheDocument();

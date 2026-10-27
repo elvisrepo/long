@@ -16,7 +16,7 @@ export function SleepInsightsChart({
   const accessibleSummary = series
     .map(
       (point) =>
-        `${formatWeekday(point.date)}: ${point.duration_minutes === null ? "no record" : formatMinutes(point.duration_minutes)}`,
+        `${point.date} (${formatWeekday(point.date)}): ${point.duration_minutes === null ? "no record" : formatMinutes(point.duration_minutes)}`,
     )
     .join(", ");
 
@@ -26,30 +26,32 @@ export function SleepInsightsChart({
       className="chart-surface sleep-insights-chart"
       role="img"
     >
-      <div
-        aria-hidden="true"
-        className="sleep-target-line"
-        style={{ bottom: `${targetPosition}%` }}
-      />
-      <span
-        aria-hidden="true"
-        className="sleep-target-label"
-        style={{ bottom: `${targetPosition}%` }}
-      >
-        target
-      </span>
-      {series.map((point) => {
-        const duration = point.duration_minutes;
-        const height = duration === null ? 0 : (duration / scaleMaximum) * 100;
+      <div className="sleep-chart-plot">
+        <div
+          aria-hidden="true"
+          className="sleep-target-line"
+          style={{ bottom: `${targetPosition}%` }}
+        />
+        <span
+          aria-hidden="true"
+          className="sleep-target-label"
+          style={{ bottom: `${targetPosition}%` }}
+        >
+          target
+        </span>
+        {series.map((point) => {
+          const duration = point.duration_minutes;
+          const height =
+            duration === null ? 0 : (duration / scaleMaximum) * 100;
 
-        return (
-          <div className="sleep-night" key={point.date}>
-            <div className="sleep-night-bar-area">
+          return (
+            <div className="sleep-night-bar-area" key={point.date}>
               {duration === null ? (
                 <span className="sleep-night-missing" title="No sleep record" />
               ) : (
                 <>
                   <span
+                    style={{ bottom: `${height}%` }}
                     className={
                       duration < targetMinutes
                         ? "sleep-night-value sleep-night-value-short"
@@ -70,10 +72,18 @@ export function SleepInsightsChart({
                 </>
               )}
             </div>
-            <span>{formatWeekday(point.date)}</span>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
+      <div className="sleep-chart-dates" aria-hidden="true">
+        {series.map((point) => (
+          <span key={point.date}>
+            {formatWeekday(point.date)}
+            <br />
+            {Number(point.date.slice(-2))}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
