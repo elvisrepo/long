@@ -226,6 +226,13 @@ for (const width of [320, 390, 560, 1440])
         .evaluate((el) => Math.round(el.getBoundingClientRect().top + scrollY));
       expect(top).toBeLessThan(650);
       await page.evaluate(() => document.fonts.ready);
+      const generatorBox = (await generator.boundingBox())!;
+      const suggestionCards = page.locator(".ai-weekly-review > ol > li");
+      for (const card of await suggestionCards.all()) {
+        const cardBox = (await card.boundingBox())!;
+        expect(Math.abs(cardBox.x - generatorBox.x)).toBeLessThan(1);
+        expect(Math.abs(cardBox.width - generatorBox.width)).toBeLessThan(1);
+      }
       const dir = "../.lavish/ai-insights-cleanup/assets";
       mkdirSync(dir, { recursive: true });
       const provider = page.locator(".ai-provider-settings");

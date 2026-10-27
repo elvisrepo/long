@@ -154,7 +154,7 @@
   flex-basis: 100%;
 }
 .ai-workspace .ai-weekly-review {
-  max-width: 76ch;
+  max-width: none;
 }
 .ai-workspace .ai-weekly-review > ol {
   list-style: none;
