@@ -557,3 +557,96 @@ Actual fixture captures cover Light/Dark at 320/390/1440px in the ignored
 `.lavish/calendar-cleanup/assets/` directory, with geometry/selection evidence in
 `metrics.json`. They use synthetic data and demonstrate local implementation,
 not production deployment. No page overflow or browser script errors were found.
+
+
+### AI Insights hierarchy review — 27 October 2026
+
+Recommendations only; application behavior/UI is unchanged. Actual React captures
+use intercepted synthetic saved reviews, a connected personal-key status and two
+models at 390×900 and 1440×900 in Light/Dark. No generation/provider call, credential
+write or application mutation occurred; no page overflow or browser script errors
+were observed. The ignored artifact is `.lavish/ai-insights-review/index.html`, with
+capture geometry in `metrics.json` and the capture/build probes under `playground/`.
+
+Saved suggestions begin around y=1625px on phone and y=1298px on desktop. The API-key
+card alone is 505px/421px high, even with a saved key. Controls also repeat the model
+ID and explanatory text; saved-review option labels contain full dates, seconds,
+timezone and model ID and are truncated by the native select. Suggestion typography
+and per-suggestion Supporting numbers are already useful; keep them.
+
+Recommended: show the saved result first when present; compact provider status with
+management disclosed; put generation period/model/consent in an explicit New review
+section, while retaining prominent first-time setup when needed. Shorten date and
+saved-review labels; retain detailed generation/model metadata behind Details.
+Visually separate the three suggestions, keep their full text and nearby evidence,
+and use stacked selected/previous comparisons on phones with observed-day coverage.
+
+Scope clarity matters: selecting an older saved review correctly changes its evidence
+table to that snapshot, but generation still targets the latest selected timeframe.
+Label Data used in this saved review separately from Data to share for a new review,
+with each period explicit and the current preview inspectable before consent. Keep
+sharing opt-in and clear, explain disabled generation states, retain the previous
+review during generation and avoid invented progress percentages. Source inspection
+informs loading/empty/error recommendations; those states were not captured here.
+
+The artifact matches the app's DM Sans and Light/Dark green theme tokens. Its
+interactive proposed hierarchy is an illustrative sketch with shortened synthetic
+text, not an implemented UI, a prompt/schema change or a production-account review.
+
+
+### AI Insights cleanup — implemented locally, 27 October 2026
+
+The review above now has a local implementation. The page uses compact period and
+saved-history controls, a provider status disclosure, and a collapsed New review
+section when a saved result exists. The saved suggestions follow immediately.
+First-use generation remains open, and needed provider setup opens automatically;
+app-key availability keeps personal-key setup optional. Suggestion blocks preserve
+all text and nearby Supporting numbers, with labelled selected/previous values and
+coverage. Phone evidence tables stack per tracker. Exact daily JSON remains
+inspectable in each scope. Short saved labels and readable dates retain full model,
+exact generation time and timezone under Review details.
+
+Saved-review evidence and current data-to-share have separate components and date
+labels; selecting an old report never substitutes current data into its evidence.
+Consent is tied to the current preview object and model, and resets when either or
+the selected period changes. Pending generation keeps the prior review visible,
+errors retain it for retry, and success focuses the new result. Progress uses status text rather than invented percentages. Backend, prompts and
+API contracts are unchanged; verification used intercepted APIs with no real
+provider calls.
+
+Final captures cover Light/Dark at 320/390/1440px in ignored
+`.lavish/ai-insights-cleanup/assets/`. The saved-review section begins around y=489px
+on 390px (original 1625px), 510px on 320px and 493px on desktop (original 1298px).
+A screenshot check caught a narrow caption layout and clipped selectors; phone
+captions now span the table width and the history selector uses its own row.
+These are actual React captures with synthetic data, not production deployment.
+
+Final validation: 757 frontend tests across 116 files, nine AI browser journeys,
+ESLint, Prettier and production build pass. The implementation is local only.
+
+
+### AI Insights copy reduction and key actions — 27 October 2026
+
+User feedback requested a cleaner expanded provider area and less interface text.
+The key form now groups Replace/Save and Remove in one compact action row with
+matching control heights and a quiet outlined removal action. Disabled replacement
+is neutral; a valid draft restores its primary state. The repeated key heading and
+instructions are replaced by one storage/quota line and a replacement placeholder.
+
+The page subtitle, saved badge, visible duplicate generation timestamp, repeated
+period explanation and idle readiness hint are removed. New review shows its date
+range and a short comparison; model/timezone details stay disclosed. Consent reads
+Share this data with NVIDIA, with a concise visible inclusion/exclusion notice.
+Buttons and disclosure labels are shorter. Exact metadata and causal/diagnostic
+context remain in Review details. Suggestion bodies are preserved in full.
+
+Fixture captures verify the compact key row in both themes at 320/390/560/1440px,
+including the width near the supplied screenshot. Nine main browser journeys and
+two additional 560px journeys pass, with no overflow or script errors. Existing
+sharing, provider storage/removal and generation behavior remain unchanged. Updated
+actual captures are in ignored `.lavish/ai-insights-cleanup/assets/`, including
+`provider-*.png`. The saved section now starts around y=453px at 390/560px,
+449px at 320px and 457px on desktop. These are local synthetic-data checks.
+
+Minimal-copy final validation: 758 frontend tests, 11 browser journeys, build,
+lint and formatting pass. No deployment was performed.

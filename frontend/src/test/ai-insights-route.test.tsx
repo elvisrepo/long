@@ -1,4 +1,10 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getMe } from "../features/auth/auth-me-api";
 import {
@@ -36,6 +42,59 @@ const snapshot = {
     },
   },
 };
+
+it("groups replacement and removal together without repeating provider instructions", async () => {
+  vi.clearAllMocks();
+  vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+  vi.mocked(getPersonalAiKey).mockResolvedValue({ has_personal_key: true });
+  vi.mocked(getAiPreview).mockResolvedValue({ available: true, snapshot });
+  renderRoute("/analytics/ai");
+  await screen.findByText(/NVIDIA · Personal key saved/);
+  fireEvent.click(
+    screen.getByText("Provider settings", { selector: "summary span" }),
+  );
+  const form = screen.getByLabelText("NVIDIA API key").closest("form")!;
+  expect(
+    within(form).getByRole("button", { name: "Replace key", exact: true }),
+  ).toBeDisabled();
+  expect(
+    within(form).getByRole("button", { name: "Remove key", exact: true }),
+  ).toBeVisible();
+  expect(
+    screen.queryByRole("heading", { name: "Your API key" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByText("Your suggestions and their supporting data."),
+  ).not.toBeInTheDocument();
+});
+
+it("puts saved suggestions before a collapsed generation and provider form", async () => {
+  vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+  vi.mocked(getPersonalAiKey).mockResolvedValue({ has_personal_key: true });
+  vi.mocked(getAiPreview).mockResolvedValue({
+    available: true,
+    snapshot,
+    latest_review: {
+      id: "saved",
+      snapshot,
+      generated_at: "2026-10-17T12:00:00Z",
+      review: {
+        suggestions: [
+          { text: "Keep a convenient workout slot.", evidence_keys: ["hrv"] },
+        ],
+      },
+    },
+  });
+  renderRoute("/analytics/ai");
+  expect(
+    await screen.findByText("Keep a convenient workout slot."),
+  ).toBeVisible();
+  expect(screen.getByLabelText("NVIDIA API key")).not.toBeVisible();
+  expect(
+    screen.getByRole("group", { name: "Generate a new review" }),
+  ).not.toHaveAttribute("open");
+  expect(generateAiReview).not.toHaveBeenCalled();
+});
 
 describe("Weekly AI insights", () => {
   afterEach(() => vi.resetAllMocks());
@@ -158,7 +217,7 @@ describe("Weekly AI insights", () => {
       screen.queryByText("Examine aligned activity and sleep dates."),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Your tracker summary" }),
+      screen.getByText("Data used in this saved review"),
     ).toBeInTheDocument();
   });
 
@@ -189,9 +248,11 @@ describe("Weekly AI insights", () => {
     const selector = await screen.findByRole("combobox", {
       name: "Review model",
     });
+    fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.change(selector, {
       target: { value: "deepseek-ai/deepseek-v4.1-flash" },
     });
+    expect(screen.getByRole("checkbox")).not.toBeChecked();
     fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.click(
       screen.getByRole("button", { name: "Generate suggestions" }),
@@ -338,16 +399,27 @@ it("loads an older saved review with its original evidence", async () => {
     await screen.findByText("Compare the prior week."),
   ).toBeInTheDocument();
   expect(getSavedAiReview).toHaveBeenCalledWith("older");
-  expect(screen.getByRole("table")).toHaveTextContent("55 ms · 7/7 days");
+  fireEvent.click(screen.getByText("New review", { selector: "summary" }));
+  fireEvent.click(screen.getByText("Data to share", { selector: "summary" }));
+  expect(
+    screen.getByRole("table", { name: "Data to share for a new review" }),
+  ).toHaveTextContent("44 ms · 1/7 days");
+  expect(
+    screen.getByRole("table", { name: "Data to share for a new review" }),
+  ).not.toHaveTextContent("55 ms");
+  fireEvent.click(screen.getByText("Data used in this saved review"));
+  expect(
+    screen.getByRole("table", { name: "Data used in this saved review" }),
+  ).toHaveTextContent("55 ms · 7/7 days");
   expect(
     screen.getByText("Based on data: 2026-10-03 – 2026-10-09 · UTC"),
   ).toBeInTheDocument();
-  expect(screen.getByRole("table")).toHaveTextContent(
-    "2026-10-03 – 2026-10-09",
-  );
+  expect(
+    screen.getByRole("table", { name: "Data used in this saved review" }),
+  ).toHaveTextContent("2026-10-03 – 2026-10-09");
   expect(
     screen.getByRole("combobox", { name: "Saved reviews" }),
-  ).toHaveTextContent("Generated:");
+  ).toHaveTextContent("10 Oct, 12:00");
   expect(generateAiReview).not.toHaveBeenCalled();
 });
 
@@ -399,4 +471,157 @@ it("uses the selected data period for preview, generation and coverage without r
     screen.queryByText("A monthly routine suggestion."),
   ).not.toBeInTheDocument();
   expect(screen.getByRole("checkbox")).not.toBeChecked();
+});
+
+it("retains the saved review during pending and failed generation and shows a successful retry", async () => {
+  vi.clearAllMocks();
+  vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+  vi.mocked(getPersonalAiKey).mockResolvedValue({ has_personal_key: true });
+  const saved = {
+    id: "saved",
+    snapshot,
+    generated_at: "2026-10-17T12:00:00Z",
+    review: {
+      suggestions: [
+        { text: "Existing saved suggestion.", evidence_keys: ["hrv"] },
+      ],
+    },
+  };
+  vi.mocked(getAiPreview).mockResolvedValue({
+    available: true,
+    snapshot,
+    latest_review: saved,
+  });
+  let fail!: (error: Error) => void;
+  vi.mocked(generateAiReview)
+    .mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          fail = reject;
+        }),
+    )
+    .mockResolvedValueOnce({
+      ...saved,
+      id: "new",
+      review: {
+        suggestions: [
+          { text: "New suggestion after retry.", evidence_keys: ["hrv"] },
+        ],
+      },
+    });
+  renderRoute("/analytics/ai");
+  await screen.findByText("Existing saved suggestion.");
+  fireEvent.click(screen.getByText("New review", { selector: "summary" }));
+  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Generate suggestions", exact: true }),
+  );
+  expect(
+    await screen.findByRole("button", { name: "Generating your suggestions…" }),
+  ).toBeDisabled();
+  expect(screen.getByText("Existing saved suggestion.")).toBeVisible();
+  expect(screen.getByRole("combobox", { name: "Data period" })).toBeDisabled();
+  await act(async () => fail(Error("Provider unavailable")));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Provider unavailable",
+  );
+  expect(screen.getByText("Existing saved suggestion.")).toBeVisible();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Generate suggestions", exact: true }),
+  );
+  expect(await screen.findByText("New suggestion after retry.")).toBeVisible();
+  expect(generateAiReview).toHaveBeenCalledTimes(2);
+  expect(
+    screen.getByRole("group", { name: "Generate a new review" }),
+  ).not.toHaveAttribute("open");
+});
+
+it("requires fresh consent when the tracker preview changes", async () => {
+  vi.clearAllMocks();
+  vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+  vi.mocked(getPersonalAiKey).mockResolvedValue({ has_personal_key: true });
+  vi.mocked(getAiPreview).mockResolvedValue({ available: true, snapshot });
+  const { router } = renderRoute("/analytics/ai");
+  const checkbox = await screen.findByRole("checkbox");
+  fireEvent.click(checkbox);
+  expect(checkbox).toBeChecked();
+  const timezone = vi.mocked(getAiPreview).mock.calls.at(-1)![0];
+  act(() =>
+    router.options.context!.queryClient.setQueryData(
+      ["ai-insights-preview", timezone, "week"],
+      {
+        available: true,
+        snapshot: {
+          ...snapshot,
+          evidence: {
+            hrv: {
+              ...snapshot.evidence.hrv,
+              current: { daily_average: 50, observed_days: 2 },
+            },
+          },
+        },
+      },
+    ),
+  );
+  await waitFor(() => expect(checkbox).not.toBeChecked());
+  expect(
+    screen.getByRole("button", { name: "Generate suggestions", exact: true }),
+  ).toBeDisabled();
+  expect(generateAiReview).not.toHaveBeenCalled();
+});
+
+it("keeps personal-key setup optional when an app key is available", async () => {
+  vi.clearAllMocks();
+  vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+  vi.mocked(getPersonalAiKey).mockResolvedValue({ has_personal_key: false });
+  vi.mocked(getAiPreview).mockResolvedValue({ available: true, snapshot });
+  vi.mocked(generateAiReview).mockResolvedValue({
+    snapshot,
+    generated_at: "2026-10-17T12:00:00Z",
+    review: {
+      suggestions: [
+        { text: "Suggestions using the app key.", evidence_keys: ["hrv"] },
+      ],
+    },
+  });
+  renderRoute("/analytics/ai");
+  expect(await screen.findByText(/NVIDIA · App key available/)).toBeVisible();
+  expect(screen.getByLabelText("NVIDIA API key")).not.toBeVisible();
+  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Generate suggestions", exact: true }),
+  );
+  expect(
+    await screen.findByText("Suggestions using the app key."),
+  ).toBeVisible();
+  expect(savePersonalAiKey).not.toHaveBeenCalled();
+});
+
+it("explains empty data and keeps generation disabled after consent", async () => {
+  vi.clearAllMocks();
+  vi.mocked(getMe).mockResolvedValue({ email: "user@example.com" });
+  vi.mocked(getPersonalAiKey).mockResolvedValue({ has_personal_key: false });
+  vi.mocked(getAiPreview).mockResolvedValue({
+    available: true,
+    snapshot: {
+      ...snapshot,
+      evidence: {
+        hrv: {
+          ...snapshot.evidence.hrv,
+          current: { daily_average: null, observed_days: 0 },
+        },
+      },
+    },
+  });
+  renderRoute("/analytics/ai");
+  expect(
+    await screen.findByText(
+      "No tracker data in the selected completed period yet.",
+    ),
+  ).toBeVisible();
+  fireEvent.click(screen.getByRole("checkbox"));
+  expect(
+    screen.getByRole("button", { name: "Generate suggestions", exact: true }),
+  ).toBeDisabled();
+  expect(generateAiReview).not.toHaveBeenCalled();
 });

@@ -32,6 +32,17 @@
 
 ## AI insights and personal NVIDIA keys — 2026-10-17
 
+- UI refinement (2026-10-27): `/analytics/ai` presents a saved review after compact
+  period/history/provider controls. New generation is a disclosed section when
+  history exists and open for first use. Provider-key setup is prominent only when
+  generation needs configuration; an available app key does not require a personal
+  key. Saved evidence always uses that review's snapshot; the new-generation data
+  preview uses the current completed-period snapshot. Both remain separately
+  inspectable, including exact daily JSON. Client consent resets on model, period
+  or preview changes, and stale/error previews cannot enable generation. Pending
+  generation retains the saved result and locks its controls. Short date labels
+  retain exact model/timestamp/timezone metadata under Review details. This changes
+  presentation only: routes, request payloads, prompts and backend rules are unchanged.
 - Frontend `/analytics/ai`, linked from Dashboard → Pro Insights, displays actual
   tracker summaries and an explicit Generate action. No production demo data or
   fabricated fallback review. Day uses yesterday, Week the last seven completed local dates, and Month the

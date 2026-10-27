@@ -2367,3 +2367,44 @@ Calendar cleanup final validation: all 750 frontend tests across 115 files and
 all 28 calendar/workout browser journeys pass. ESLint, the production build and
 formatting checks pass. Visual fixtures cover Light/Dark at 320/390/1440px with
 no page overflow or browser script errors. This is local verification only.
+
+
+### AI Insights UI refinement — 27 October 2026
+
+Ignored scenario list: `playground/ai-insights-cleanup-scenarios.md`. Focused tests
+cover collapsed provider/new-review setup with a saved result, first-use and app-key
+availability, empty data, explicit consent, model/period/preview consent resets,
+pending and failed generation preserving the saved result, successful retry,
+legacy review formats and original saved evidence. Date/number formatting covers
+cross-month/year boundaries, saved timezone, missing versus zero and observed-day
+coverage. The existing API-helper checks remain in the focused slice; 19 tests pass.
+
+Nine dedicated browser journeys use intercepted fixture APIs, never NVIDIA. They
+cover Light/Dark at 320/390/1440px, no implicit generation or key writes, distinct
+saved/current evidence, model/timeframe changes, generation failure/retry/success,
+result focus, initial key setup and clearing the credential after save, and saved-
+read failure/retry. The read-error assertion allows the existing automatic retries
+to finish; production retry policy is unchanged. No horizontal overflow or browser
+script errors occurred. Current snapshots are in ignored
+`.lavish/ai-insights-cleanup/assets/`. Final saved-review section starts at y≈510px
+at 320px, 489px at 390px and 493px on desktop, versus the original fixture's
+1625px at 390px and 1298px on desktop. Different fixture text does not affect this
+above-result geometry. No backend/schema changes or real provider calls were made.
+
+Final AI UI validation: all 757 frontend tests across 116 files pass, as do the
+nine AI browser journeys, ESLint, Prettier and the production build. Validation
+used synthetic API fixtures; there were no real provider requests or deployment.
+
+
+AI minimal-copy follow-up (2026-10-27): a failing component test first reproduced
+Remove key living outside the replacement form. It now checks the shared form,
+disabled replacement, visible removal and absence of repeated provider/page copy.
+Browser checks assert matched button top/height and compact widths, alongside the
+existing consent, saved/current scope and retry checks. Nine main journeys plus two
+560px theme cases pass. Copy changes preserve accessible control names; concise
+visible labels do not change request payloads. Encryption/quota context and visible
+sharing inclusion/exclusion context remain. No backend/API or provider call changes.
+
+Final minimal-copy checks: all 758 frontend tests across 116 files pass, along
+with 11 AI browser journeys, build, lint and formatting checks. Verification uses
+synthetic fixtures with no real provider calls. Changes remain local.
