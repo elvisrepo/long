@@ -1439,3 +1439,24 @@ captured.
   formatting, build and 11 workout browser journeys passed after the patches.
 - Topology remains v020. Previous immutable image retained for recovery; database
   migrations are not automatically reversed when rolling back the application.
+
+### EC2-041 — Staging AI model bundle aligned with the application default
+
+- Date: 2026-10-27. Bundle source: `592468f1757f2978165076b02abc8246d8bb41d4`.
+- During staging promotion, a read-only check found the old model pinned in Compose,
+  overriding the updated application default. Secrets Manager has no model field;
+  the guarded secret-update probe stopped before changing any secret version.
+- Compose now pins `nvidia/nemotron-3.5-super-vl-120b-a12b` for migration/API/worker.
+  No other bundle content changed. Regression test reproduced the old pin; all
+  42 focused runtime/bundle/deployment tests and Ruff passed.
+- Archive SHA-256: `e59209c53309d6cdddffd8e8a24f3b084d314558522b23ecbdd05d718ad58612`.
+- SSM command: `89808cfe-9083-4f22-97d7-83d21b2f0a9f` (Success).
+- Installer verified every existing allowlisted file against `d2fb29a`, acquired
+  the deployment lock, verified database storage, checked archive/member hashes
+  and Python compilation, and retained the previous bundle at
+  `/opt/syncvitals/deployment-before-model-592468f` before replacement.
+- Installed files match the source manifest; the instance-role runtime loader
+  passed without exposing secrets. `.installed_host_bundle_commit` records the
+  full source commit above. The workflow pin is advanced through normal review.
+- No containers restarted, account records changed, secrets changed or AWS resources
+  created by this install. Application/image promotion is pending at this checkpoint.
