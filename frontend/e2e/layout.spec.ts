@@ -1229,6 +1229,157 @@ const views = [
   ["/analytics/consistency", "Consistency & Coverage"],
 ];
 
+for (const width of [320, 390, 560, 768, 1440]) {
+  for (const theme of ["light", "dark"]) {
+    test(`Settings overview at ${width}px ${theme}`, async ({
+      page,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.addInitScript(
+        (theme) => localStorage.setItem("longevity-theme", theme),
+        theme,
+      );
+      await page.goto("/settings");
+      const personal = page.getByRole("region", {
+        name: "Personal info",
+        exact: true,
+      });
+      const birthDate = personal.getByLabel("Date of birth");
+      await expect(birthDate).toBeAttached();
+      await page.addStyleTag({
+        content:
+          '[aria-label="Open TanStack Router Devtools"] { display: none !important; }',
+      });
+      const account = page.getByRole("region", {
+        name: "Account data",
+        exact: true,
+      });
+      const downloadBox = (await account
+        .getByRole("button", { name: "Download account data" })
+        .boundingBox())!;
+      const deleteBox = (await account
+        .getByRole("button", { name: "Delete account", exact: true })
+        .boundingBox())!;
+      expect(Math.abs(downloadBox.x - deleteBox.x)).toBeLessThan(1);
+      expect(Math.abs(downloadBox.width - deleteBox.width)).toBeLessThan(1);
+      await page.screenshot({
+        path: testInfo.outputPath("settings.png"),
+        fullPage: true,
+      });
+      await expect(birthDate).not.toBeVisible();
+      await personal.locator("summary").click();
+      await expect(birthDate).toBeVisible();
+      await personal.getByLabel("Height (cm)").fill("180");
+      await personal.locator("summary").click();
+      await personal.locator("summary").click();
+      await expect(personal.getByLabel("Height (cm)")).toHaveValue("180");
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth),
+      ).toBeLessThanOrEqual(width);
+      await page.goto("/settings#personal-info");
+      await expect(birthDate).toBeVisible();
+      const exportButton = page.getByRole("button", {
+        name: "Export health data",
+        exact: true,
+      });
+      await exportButton.click();
+      const exportDialog = page.getByRole("dialog", {
+        name: "Export health data",
+        exact: true,
+      });
+      await expect(exportDialog).toBeVisible();
+      expect(
+        await exportDialog.evaluate((el) => el.scrollWidth <= el.clientWidth),
+      ).toBe(true);
+      await exportDialog.getByRole("button", { name: "Close dialog" }).click();
+      await expect(exportButton).toBeFocused();
+    });
+  }
+}
+
+for (const width of [320, 1440]) {
+  test(`Settings Free-plan tools at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.route("**/api/v1/subscriptions/current/", (route) =>
+      route.fulfill({
+        json: {
+          id: "free",
+          status: "active",
+          billing_portal_available: false,
+          current_period_end: null,
+          cancel_at: null,
+          price: null,
+          plan: {
+            code: "free",
+            name: "Free",
+            active_custom_metric_limit: 3,
+            wearable_connection_limit: 1,
+            automatic_sync_enabled: false,
+            sync_interval_minutes: 30,
+            analytics_enabled: false,
+            csv_import_enabled: false,
+            csv_export_enabled: false,
+          },
+        },
+      }),
+    );
+    await page.route("**/api/v1/subscriptions/plans/", (route) =>
+      route.fulfill({
+        json: [
+          {
+            code: "pro",
+            name: "Pro",
+            is_default: false,
+            active_custom_metric_limit: 10,
+            wearable_connection_limit: 2,
+            automatic_sync_enabled: true,
+            sync_interval_minutes: 15,
+            analytics_enabled: true,
+            csv_import_enabled: true,
+            csv_export_enabled: true,
+            prices: [
+              {
+                id: "month",
+                currency: "usd",
+                unit_amount: 1000,
+                billing_interval: "month",
+              },
+              {
+                id: "year",
+                currency: "usd",
+                unit_amount: 10000,
+                billing_interval: "year",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    await page.goto("/settings");
+    await expect(
+      page.getByRole("button", { name: "Upgrade to Pro monthly" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Export health data" }),
+    ).not.toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Download account data" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Manage subscription" }),
+    ).not.toBeVisible();
+    await page.getByRole("link", { name: "View plans →" }).click();
+    await expect(page).toHaveURL(/#available-plans$/);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(width);
+    await page.screenshot({
+      path: testInfo.outputPath("settings-free.png"),
+      fullPage: true,
+    });
+  });
+}
+
 for (const width of [320, 390, 768, 1440]) {
   for (const theme of ["light", "dark"]) {
     test(`Consistency overview at ${width}px ${theme}`, async ({
@@ -1448,6 +1599,7 @@ for (const width of [320, 1440]) {
     );
     let deletionAttempts = 0;
     await page.route("**/api/v1/me/", (route) => {
+      if (route.request().method() !== "DELETE") return route.fallback();
       expect(route.request().method()).toBe("DELETE");
       expect(route.request().postDataJSON()).toEqual({
         password: "test-password",

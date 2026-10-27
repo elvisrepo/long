@@ -388,8 +388,16 @@ describe("settings route", () => {
 
     const alerts = await screen.findAllByRole("alert");
     expect(alerts).toHaveLength(3);
-    expect(alerts[0]).toHaveTextContent(/current plan failed to load/i);
-    expect(alerts[2]).toHaveTextContent(/available plans failed to load/i);
+    expect(
+      within(
+        screen.getByRole("region", { name: "Current subscription" }),
+      ).getByRole("alert"),
+    ).toHaveTextContent(/current plan failed to load/i);
+    expect(
+      within(screen.getByRole("region", { name: "Available plans" })).getByRole(
+        "alert",
+      ),
+    ).toHaveTextContent(/available plans failed to load/i);
   });
 
   it("hides portal management when no Stripe billing customer exists", async () => {

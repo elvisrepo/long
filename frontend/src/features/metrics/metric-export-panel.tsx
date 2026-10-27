@@ -18,9 +18,7 @@ export function MetricExportPanel({
       <div className="entries-toolbar">
         <div>
           <h2>Data & Privacy</h2>
-          <p className="settings-data-copy">
-            Download your health records for your own analysis.
-          </p>
+          <p className="settings-data-copy">Export metric entries as CSV.</p>
         </div>
         {pending ? (
           <p role="status">Loading export availability…</p>

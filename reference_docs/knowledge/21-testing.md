@@ -2457,3 +2457,21 @@ mixed recorded/missing-night fixtures avoid real health data. Build, targeted
 ESLint, Prettier and diff checks pass. A final browser rerun needed unrestricted
 local-server startup after the sandboxed test server failed to start; it passed.
 No backend/API changes or provider calls were involved.
+
+### Settings UI verification — 27 October 2026
+
+Forty focused tests across Settings, PersonalInfoPanel and AccountPanel pass.
+Personal info is initially hidden and must be expanded before editing; existing
+save/clear/failure/retry checks remain. Settings error assertions now target their
+regions rather than the old section order. Checkout, portal and confirmation-state
+tests continue to pass after moving plan discovery ahead of data tools.
+
+Twelve browser checks cover the overview at 320/390/768/1440px in both themes,
+draft preservation, direct `#personal-info` access, CSV modal overflow/focus return,
+Free-plan discovery at 320/1440px and account download/deletion at both widths.
+The initial collapsed-state assertion reproduced the expanded form. The older
+deletion fixture rejected personal-info GETs to `/api/v1/me/`; an ignored mocked
+request probe confirmed GET and DELETE share that path. The fixture now falls
+back for reads and still asserts deletion method/body and password-error retry.
+All browser calls use synthetic fixtures. Build, targeted ESLint, Prettier and
+diff checks pass; local Vite startup required running outside the sandbox.

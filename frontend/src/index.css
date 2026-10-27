@@ -573,6 +573,134 @@ button {
   gap: 18px;
 }
 
+.settings-screen .subscription-card {
+  border-radius: 12px;
+  gap: 16px;
+}
+
+.settings-screen .subscription-card h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.settings-screen .subscription-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.settings-disclosure > summary {
+  min-height: 44px;
+  align-content: center;
+  cursor: pointer;
+}
+
+.settings-disclosure > summary h2 {
+  display: inline;
+}
+
+.settings-disclosure > summary > span {
+  float: right;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 2;
+}
+
+.settings-disclosure-content {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.settings-disclosure-content > .metric-meta {
+  margin: 0;
+}
+
+.settings-screen .subscription-detail-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.settings-screen .subscription-detail-grid > div {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  grid-column: auto;
+}
+
+.settings-screen .subscription-capability-list li {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: none;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.settings-screen .subscription-capability-list {
+  gap: 6px 18px;
+}
+
+.settings-screen .subscription-help-text {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 13px;
+}
+
+.settings-account-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 200px;
+  align-items: center;
+  gap: 16px;
+}
+
+.settings-account-row > button {
+  width: 200px;
+  max-width: 100%;
+  justify-self: start;
+}
+
+.settings-account-row > p {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.settings-account-delete {
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 680px) {
+  .settings-account-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+}
+
+.settings-account-delete .metric-danger-action {
+  color: var(--warn);
+  background: transparent;
+  border: 1px solid var(--warn);
+}
+
+@media (max-width: 480px) {
+  .settings-disclosure > summary > span {
+    display: block;
+    float: none;
+    margin-top: 4px;
+    padding-left: 18px;
+    line-height: 1.5;
+  }
+}
+
 .personal-info-fields {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));

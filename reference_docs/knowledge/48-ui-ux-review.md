@@ -695,3 +695,26 @@ in both themes, target-editor alignment, focus through delayed recalculation,
 and target/bar geometry. Build, targeted lint and formatting pass. Captures use
 synthetic fixtures under ignored `frontend/test-results/layout-Sleep-overview-*`.
 These changes are local; no backend contracts or sleep calculations changed.
+
+### Settings cleanup — 27 October 2026
+
+Personal info now starts collapsed, with a short description that exposes no
+saved personal values. Native disclosure preserves drafts across closing and
+reopening. The route observes `#personal-info` so BMR/profile links reveal the
+editor automatically. Save, clear, estimate and retry behaviour remain inside
+the expanded panel; Clear uses a secondary action.
+
+Current-plan details use aligned columns rather than nested boxes and capability
+badges. Paid accounts use their existing billing-management action without a
+redundant Available Plans card; the same billing guidance is next to that action.
+For other accounts the plan catalog follows Current Plan, ahead of data tools.
+Billing errors also stay near the plan area. CSV and full-account JSON tools now
+state their formats clearly. Account download has a compact button and deletion
+occupies a separate row with an outlined danger action. Confirmation is unchanged.
+
+Forty focused tests and twelve browser checks pass. Browser coverage includes
+320/390/768/1440px in both themes, draft preservation, hash links, CSV dialog and
+focus return, Free-plan availability, account download and confirmed deletion
+with a rejected-password retry. Build, targeted lint, formatting and diff checks
+pass. Captures use synthetic fixtures in ignored `frontend/test-results/`.
+No API or account data changed, and no deployment was performed.

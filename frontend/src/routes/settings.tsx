@@ -56,6 +56,9 @@ function SettingsRoute() {
     select: (state) => state.location.search.checkout,
   });
   const meQuery = useMeQuery();
+  const personalInfoRequested = useRouterState({
+    select: (state) => state.location.hash === "personal-info",
+  });
   const [confirmationExpired, setConfirmationExpired] = useState(false);
   const currentSubscriptionQuery = useCurrentSubscriptionQuery({
     confirmCheckout: checkoutStatus === "success" && !confirmationExpired,
@@ -124,7 +127,7 @@ function SettingsRoute() {
         description={`Signed in as ${meQuery.data.email}`}
       />
 
-      <PersonalInfoPanel />
+      <PersonalInfoPanel reveal={personalInfoRequested} />
 
       {checkoutStatus === "success" ? (
         <p className="settings-alert" role="status">
@@ -240,6 +243,11 @@ function SettingsRoute() {
               </div>
               <PlanCapabilityList plan={currentSubscriptionQuery.data.plan} />
             </div>
+            {managesPaidPlanInPortal ? (
+              <p className="subscription-help-text">
+                Use Manage subscription to change billing details.
+              </p>
+            ) : null}
             {currentSubscriptionQuery.data.billing_portal_available ? (
               <button
                 className="subscription-primary-action"
@@ -253,6 +261,67 @@ function SettingsRoute() {
           </>
         ) : null}
       </section>
+
+      {!managesPaidPlanInPortal ? (
+        <section
+          id="available-plans"
+          className="subscription-card"
+          aria-label="Available plans"
+        >
+          <div className="subscription-card-header">
+            <div>
+              <h2>Available Plans</h2>
+            </div>
+          </div>
+          {subscriptionPlansQuery.isPending ? (
+            <SubscriptionLoadingSkeleton label="Loading available plans" />
+          ) : null}
+          {subscriptionPlansQuery.isError ? (
+            <p className="settings-inline-error" role="alert">
+              Available plans failed to load.
+            </p>
+          ) : null}
+          {paidPlans.map((plan) => (
+            <article className="subscription-plan-card" key={plan.code}>
+              <div>
+                <h3>{plan.name}</h3>
+                <p>{plan.active_custom_metric_limit} custom metrics</p>
+                <p>{formatSyncPolicy(plan)}</p>
+                <PlanCapabilityList plan={plan} />
+              </div>
+              <ul className="subscription-price-list">
+                {plan.prices.map((price) => (
+                  <li key={price.id}>
+                    <span>
+                      {formatSubscriptionPrice(
+                        price.unit_amount,
+                        price.currency,
+                      )}{" "}
+                      / {price.billing_interval}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={
+                        checkoutMutation.isPending ||
+                        (checkoutStatus === "success" && !paidConfirmed)
+                      }
+                      onClick={() => void handleCheckout(price.id)}
+                    >
+                      Upgrade to {plan.name} {price.billing_interval}ly
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          ))}
+        </section>
+      ) : null}
+
+      {errorMessage ? (
+        <p className="settings-inline-error" role="alert">
+          {errorMessage}
+        </p>
+      ) : null}
 
       <MetricExportPanel
         enabled={
@@ -269,73 +338,6 @@ function SettingsRoute() {
           await navigate({ to: "/login", replace: true });
         }}
       />
-
-      <section
-        id="available-plans"
-        className="subscription-card"
-        aria-label="Available plans"
-      >
-        <div className="subscription-card-header">
-          <div>
-            <p className="meta-label">Plan catalog</p>
-            <h2>Available Plans</h2>
-          </div>
-        </div>
-        {subscriptionPlansQuery.isPending ? (
-          <SubscriptionLoadingSkeleton label="Loading available plans" />
-        ) : null}
-        {subscriptionPlansQuery.isError ? (
-          <p className="settings-inline-error" role="alert">
-            Available plans failed to load.
-          </p>
-        ) : null}
-        {managesPaidPlanInPortal ? (
-          <p className="subscription-help-text">
-            Use Manage subscription to change billing details.
-          </p>
-        ) : null}
-        {managesPaidPlanInPortal
-          ? null
-          : paidPlans.map((plan) => (
-              <article className="subscription-plan-card" key={plan.code}>
-                <div>
-                  <h3>{plan.name}</h3>
-                  <p>{plan.active_custom_metric_limit} custom metrics</p>
-                  <p>{formatSyncPolicy(plan)}</p>
-                  <PlanCapabilityList plan={plan} />
-                </div>
-                <ul className="subscription-price-list">
-                  {plan.prices.map((price) => (
-                    <li key={price.id}>
-                      <span>
-                        {formatSubscriptionPrice(
-                          price.unit_amount,
-                          price.currency,
-                        )}{" "}
-                        / {price.billing_interval}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={
-                          checkoutMutation.isPending ||
-                          (checkoutStatus === "success" && !paidConfirmed)
-                        }
-                        onClick={() => void handleCheckout(price.id)}
-                      >
-                        Upgrade to {plan.name} {price.billing_interval}ly
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </article>
-            ))}
-      </section>
-
-      {errorMessage ? (
-        <p className="settings-inline-error" role="alert">
-          {errorMessage}
-        </p>
-      ) : null}
     </section>
   );
 }
