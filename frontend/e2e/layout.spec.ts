@@ -1348,7 +1348,7 @@ for (const width of [320, 680, 681, 768, 873, 1024, 1120, 1121, 1440]) {
   }
 }
 
-for (const width of [320, 390, 560, 768, 1440]) {
+for (const width of [320, 390, 560, 768, 1024, 1440]) {
   for (const theme of ["light", "dark"]) {
     test(`Settings overview at ${width}px ${theme}`, async ({
       page,
@@ -1369,6 +1369,24 @@ for (const width of [320, 390, 560, 768, 1440]) {
         content:
           '[aria-label="Open TanStack Router Devtools"] { display: none !important; }',
       });
+      const plan = page.getByRole("region", {
+        name: "Current subscription",
+        exact: true,
+      });
+      await expect(plan.getByText("Wearables", { exact: true })).toBeVisible();
+      const features = plan.locator(".current-plan-features > div");
+      await expect(features).toHaveCount(6);
+      if (width >= 768) {
+        for (let index = 0; index < 3; index++) {
+          const firstRow = (await features.nth(index).boundingBox())!;
+          const secondRow = (await features.nth(index + 3).boundingBox())!;
+          expect(Math.abs(firstRow.x - secondRow.x)).toBeLessThan(1);
+          expect(
+            Math.abs(firstRow.y - (await features.first().boundingBox())!.y),
+          ).toBeLessThan(1);
+        }
+      }
+      await plan.screenshot({ path: testInfo.outputPath("current-plan.png") });
       const account = page.getByRole("region", {
         name: "Account data",
         exact: true,

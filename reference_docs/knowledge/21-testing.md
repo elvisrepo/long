@@ -2492,3 +2492,14 @@ order and a removed dashboard card; a local fixture-snapshot probe confirmed the
 current date-first view and Today's logs link, and the assertions now target them.
 Build, targeted ESLint, Prettier and diff checks pass. API fixtures are synthetic;
 no backend contracts or data models changed.
+
+### Current Plan layout checks — 27 October 2026
+
+Thirty-three Settings tests pass, including an explicit Wearables label and
+connection value, paid price/interval text, renewal/cancellation, portal and
+checkout flows. Fourteen browser cases pass: the Settings overview at
+320/390/560/768/1024/1440px in Light and Dark, plus two Free-plan cases. The
+six-cell plan grid verifies matching desktop column positions. Build, targeted
+ESLint, formatting and diff checks pass. An initial stalled concurrent run caused
+unit and browser timeouts; separate reruns passed with the original timeouts.
+No backend contracts or billing logic changed.

@@ -737,3 +737,19 @@ and five existing Recovery/Diet logging journeys. Build, lint, formatting and
 diff checks pass. Old Recovery browser assertions for checklist-first order and
 the former dashboard card were corrected to match the existing date-first layout
 and Today's logs link. Captures use synthetic data, not account records.
+
+### Current Plan layout refinement — 27 October 2026
+
+User feedback identified loose capability text and inconsistent desktop spacing.
+Current Plan now places price beside the plan name and groups six labelled
+features in a definition list: metrics, wearable connections, sync, analytics,
+CSV import and CSV export. Desktop uses three aligned columns; phones use two.
+Billing guidance and Manage subscription share a separated footer. Available-plan
+catalog content and billing behaviour are unchanged.
+
+Thirty-three Settings tests and fourteen browser cases pass, covering six widths
+in both themes plus Free-plan discovery. Feature-column alignment is asserted;
+1024px captures match the supplied desktop-width example. Build, lint, formatting
+and diff checks pass. The initial concurrent run stalled and hit timeouts; a
+separate test run and the one affected browser rerun passed without extending
+timeouts. Checks and captures use synthetic fixtures.

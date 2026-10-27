@@ -355,7 +355,7 @@ describe("settings route", () => {
     expect(
       screen.getByText(/manual sync every 30 minutes/i),
     ).toBeInTheDocument();
-    expect(screen.getByText(/^1 wearable connection$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^1 connection$/i)).toBeInTheDocument();
   });
 
   it("shows accessible subscription skeletons while settings data loads", async () => {
@@ -438,6 +438,8 @@ describe("settings route", () => {
     expect(
       within(current).queryByText("Current subscription", { exact: true }),
     ).not.toBeInTheDocument();
+    const wearables = within(current).getByText("Wearables").closest("div")!;
+    expect(within(wearables).getByText("2 connections")).toBeVisible();
   });
 
   it("renders paid subscription price and renewal date without a separate interval tile", async () => {
@@ -452,7 +454,9 @@ describe("settings route", () => {
     expect(
       await screen.findByRole("heading", { name: /^pro$/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/\$10\.00 \/ month/i)).toBeInTheDocument();
+    expect(screen.getByText("$10.00").closest("p")).toHaveTextContent(
+      /\$10\.00 \/ month/i,
+    );
     expect(screen.queryByText("Interval")).not.toBeInTheDocument();
     expect(screen.getByText(/renews aug 2, 2026/i)).toBeInTheDocument();
   });
