@@ -1297,6 +1297,57 @@ const views = [
   ["/analytics/consistency", "Consistency & Coverage"],
 ];
 
+for (const width of [320, 680, 681, 768, 873, 1024, 1120, 1121, 1440]) {
+  for (const theme of ["light", "dark"]) {
+    test(`Header navigation fits at ${width}px ${theme}`, async ({
+      page,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.addInitScript(
+        (theme) => localStorage.setItem("longevity-theme", theme),
+        theme,
+      );
+      await page.goto("/");
+      await page.evaluate(() => document.fonts.ready);
+      const logo = page.locator(".app-logo");
+      const toggle = page.getByRole("combobox", { name: "Color theme" });
+      const menu = page.getByRole("button", { name: "Menu", exact: true });
+      const nav = page.getByRole("navigation", { name: "Primary navigation" });
+      const logoBox = (await logo.boundingBox())!;
+      const toggleBox = (await toggle.boundingBox())!;
+      if (width <= 1120) {
+        await expect(menu).toBeVisible();
+        await expect(nav).not.toBeVisible();
+        const menuBox = (await menu.boundingBox())!;
+        expect(logoBox.x + logoBox.width).toBeLessThanOrEqual(toggleBox.x);
+        expect(toggleBox.x + toggleBox.width).toBeLessThanOrEqual(menuBox.x);
+        await menu.click();
+        await expect(
+          nav.getByRole("link", { name: "Stretching & Posture", exact: true }),
+        ).toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(nav).not.toBeVisible();
+        await expect(menu).toBeFocused();
+      } else {
+        await expect(menu).not.toBeVisible();
+        await expect(nav).toBeVisible();
+        const navBox = (await nav.boundingBox())!;
+        expect(logoBox.x + logoBox.width).toBeLessThanOrEqual(navBox.x);
+        expect(navBox.x + navBox.width).toBeLessThanOrEqual(toggleBox.x);
+        expect(await nav.evaluate((el) => el.scrollWidth)).toBeLessThanOrEqual(
+          await nav.evaluate((el) => el.clientWidth),
+        );
+      }
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth),
+      ).toBeLessThanOrEqual(width);
+      await page
+        .locator(".app-header")
+        .screenshot({ path: testInfo.outputPath("header.png") });
+    });
+  }
+}
+
 for (const width of [320, 390, 560, 768, 1440]) {
   for (const theme of ["light", "dark"]) {
     test(`Settings overview at ${width}px ${theme}`, async ({
