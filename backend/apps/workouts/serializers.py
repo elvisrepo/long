@@ -14,6 +14,7 @@ from .models import (
     WorkoutPreferences,
 )
 from .progress_queries import METRICS
+from .services import exercise_can_be_deleted
 
 
 class PlateSerializer(serializers.Serializer):
@@ -96,6 +97,7 @@ class PreferencesSerializer(serializers.ModelSerializer):
             "plates_kg",
             "plates_lb",
             "exercise_bars",
+            "category_order",
         ]
 
     def validate(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -113,9 +115,11 @@ class PreferencesSerializer(serializers.ModelSerializer):
 
 
 class CategorySerializer(serializers.ModelSerializer):
+    colour = serializers.RegexField(r"^#[0-9a-fA-F]{6}$", required=False)
+
     class Meta:
         model = ExerciseCategory
-        fields = ["id", "name", "display_order", "is_active"]
+        fields = ["id", "name", "display_order", "is_active", "colour"]
         read_only_fields = ["id"]
 
     def validate_name(self, value: str) -> str:
@@ -132,6 +136,12 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class ExerciseSerializer(serializers.ModelSerializer):
+    can_delete = serializers.SerializerMethodField()
+
+    def get_can_delete(self, exercise: Exercise) -> bool:
+        hint = getattr(exercise, "deletion_allowed", None)
+        return bool(hint) if hint is not None else exercise_can_be_deleted(exercise)
+
     default_graph = serializers.ChoiceField(
         choices=["", *METRICS, "personal_records"], required=False, allow_blank=True
     )
@@ -163,6 +173,7 @@ class ExerciseSerializer(serializers.ModelSerializer):
             "default_graph",
             "trained_session_count",
             "last_used_on",
+            "can_delete",
         ]
         read_only_fields = ["id"]
 

@@ -1,342 +1,316 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useMeQuery } from "../auth/use-me-query";
+import { useRef, useState } from "react";
+import { Modal } from "../../components/modal";
 import * as api from "./workout-api";
-import { setLabel, type RunAction } from "./workout-navigation";
+import type { RunAction } from "./workout-navigation";
+import { RoutineExercisePicker } from "./routine-exercise-picker";
+import { RoutineSetEditor } from "./routine-set-editor";
+import { RoutineGroupDialog } from "./routine-group-dialog";
+import { RoutineOrderDialog } from "./routine-order-dialog";
 
-type Quantity = "weight" | "reps" | "distance" | "duration_seconds";
-
+type Editor =
+  | { kind: "sets" | "group" | "actions" | "remove"; item: api.RoutineExercise }
+  | { kind: "picker" }
+  | { kind: "order" };
 export function RoutineDayBuilder({
   day,
   busy,
   run,
+  editing,
+  onDayDetails,
+  onStart,
+  onOpenLibrary,
+  initialPicker = false,
 }: {
   day: api.RoutineDay;
   busy: boolean;
   run: RunAction;
+  editing: boolean;
+  onDayDetails: () => void;
+  onStart: () => void;
+  onOpenLibrary?: () => void;
+  initialPicker?: boolean;
 }) {
-  const owner = useMeQuery().data?.email;
-  const catalog = useQuery({
-    queryKey: ["workouts", owner, "catalog"],
-    queryFn: api.getWorkoutCatalog,
-    enabled: !!owner,
-  });
-  const [itemId, setItemId] = useState("");
-  const [setId, setSetId] = useState("");
-  const [version, setVersion] = useState(0);
+  const [editor, setEditor] = useState<Editor | undefined>(
+    initialPicker ? { kind: "picker" } : undefined,
+  );
   const [error, setError] = useState("");
-  const [confirm, setConfirm] = useState<{
-    kind: "routine-exercises" | "routine-sets";
-    id: string;
-  }>();
-  const item = day.exercises.find((i) => i.id === itemId) ?? day.exercises[0];
-  const editing = item?.sets.find((s) => s.id === setId);
-  const execute = (action: () => Promise<void>) => {
-    setError("");
+  const skipClick = useRef(false);
+  const drag = useRef<{ id: string; target?: string } | null>(null);
+  const item =
+    editor && "item" in editor
+      ? (day.exercises.find((row) => row.id === editor.item.id) ?? editor.item)
+      : undefined;
+  function drop() {
+    const current = drag.current;
+    drag.current = null;
+    if (!current?.target || current.target === current.id) return;
+    skipClick.current = true;
+    const before = day.exercises.map((row) => row.id);
+    const next = [...before];
+    const from = next.indexOf(current.id);
+    const to = next.indexOf(current.target);
+    if (from < 0 || to < 0) return;
+    next.splice(to, 0, next.splice(from, 1)[0]);
     run(async () => {
-      try {
-        await action();
-      } catch (cause) {
-        setError(
-          cause instanceof Error ? cause.message : "Template change failed.",
-        );
-        throw cause;
-      }
+      await api.reorderRoutineItems("exercises", day.id, next, before);
     });
-  };
-  const fields: { name: Quantity; label: string; min: number; step: string }[] =
-    !item
-      ? []
-      : item.tracking_type === "duration"
-        ? [
-            {
-              name: "duration_seconds",
-              label: "Duration (seconds)",
-              min: 1,
-              step: "1",
-            },
-          ]
-        : item.tracking_type === "cardio"
-          ? [
-              {
-                name: "distance",
-                label: `Distance (${item.distance_unit})`,
-                min: 0.001,
-                step: ".001",
-              },
-              {
-                name: "duration_seconds",
-                label: "Duration (seconds)",
-                min: 1,
-                step: "1",
-              },
-            ]
-          : [
-              {
-                name: "weight",
-                label: `Weight (${item.weight_unit})`,
-                min: 0,
-                step: ".001",
-              },
-              { name: "reps", label: "Reps", min: 1, step: "1" },
-            ];
+  }
   return (
-    <section className="workout-stack" aria-label="Routine exercises">
-      <h3>Exercises & planned sets</h3>
-      <p>Blank quantities are unknown. Changes affect this template only.</p>
-      {catalog.isPending ? (
-        <p role="status">Loading exercises…</p>
-      ) : catalog.isError ? (
-        <>
-          <p role="alert">Exercises couldn't load.</p>
-          <button onClick={() => void catalog.refetch()}>
-            Retry exercises
-          </button>
-        </>
-      ) : (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const fd = new FormData(e.currentTarget);
-            execute(async () => {
-              const saved = await api.addRoutineExercise(
-                day.id,
-                String(fd.get("exercise")),
-              );
-              setItemId(saved.id);
-              setSetId("");
-            });
-          }}
-        >
-          <label>
-            Add an exercise
-            <select name="exercise" required disabled={busy} defaultValue="">
-              <option value="" disabled>
-                Choose exercise…
-              </option>
-              {catalog.data.exercises
-                .filter(
-                  (e) =>
-                    e.is_active &&
-                    catalog.data.categories.some(
-                      (c) => c.id === e.category_id && c.is_active,
-                    ),
-                )
-                .map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.name}
-                  </option>
-                ))}
-            </select>
-          </label>
-          <button disabled={busy}>Add exercise to day</button>
-        </form>
-      )}
-      {!day.exercises.length && (
-        <p>
-          No exercises yet. Use All exercises to create or initialize your
-          library.
-        </p>
-      )}
-      <div className="workout-actions">
-        {day.exercises.map((i) => (
-          <button
-            key={i.id}
-            disabled={busy}
-            aria-pressed={i.id === item?.id}
-            onClick={() => {
-              setItemId(i.id);
-              setSetId("");
-              setConfirm(undefined);
-            }}
-          >
-            {i.exercise_name}
-          </button>
-        ))}
-      </div>
-      {item && (
-        <div className="workout-inset">
-          <h3>{item.exercise_name}</h3>
-          <form
-            key={`order:${item.id}:${item.display_order}`}
-            onSubmit={(e) => {
-              e.preventDefault();
-              const fd = new FormData(e.currentTarget);
-              execute(async () => {
-                await api.reorderRoutineExercise(
-                  item.id,
-                  Number(fd.get("order")),
-                  String(fd.get("group")),
-                );
-              });
-            }}
-          >
-            <label>
-              Exercise order
-              <input
-                aria-describedby="routine-exercise-order-help"
-                name="order"
-                type="number"
-                min="0"
-                max="2147483647"
-                step="1"
-                required
-                defaultValue={item.display_order}
-                disabled={busy}
-              />
-            </label>
-            <small id="routine-exercise-order-help">
-              Position in this template, not a count. Lower numbers appear
-              first: 10, 20, 30. Use 15 to place an exercise between 10 and 20.
-            </small>
-            <label>
-              Superset / circuit name
-              <input
-                name="group"
-                maxLength={120}
-                defaultValue={item.group_name ?? ""}
-                disabled={busy}
-              />
-            </label>
-            <small>
-              Matching names link exercises within this day. Blank removes the
-              group.
-            </small>
-            <button disabled={busy}>Save exercise order</button>
-          </form>
-          <div className="workout-stack">
-            {item.sets.map((s, n) => (
-              <button
-                key={s.id}
-                disabled={busy}
-                aria-pressed={s.id === editing?.id}
-                onClick={() => setSetId(s.id === setId ? "" : s.id)}
-              >
-                Set {n + 1}: {setLabel(item, s)}
-              </button>
-            ))}
-          </div>
-          <form
-            key={`${item.id}:${editing?.id ?? "new"}:${JSON.stringify(editing)}:${version}`}
-            onSubmit={(e) => {
-              e.preventDefault();
-              const fd = new FormData(e.currentTarget);
-              const data: Partial<Omit<api.RoutineSet, "id">> = {
-                display_order: Number(fd.get("order")),
-              };
-              for (const field of fields) {
-                const value = String(fd.get(field.name) ?? "");
-                Object.assign(data, {
-                  [field.name]:
-                    value === ""
-                      ? null
-                      : field.name === "weight" || field.name === "distance"
-                        ? value
-                        : Number(value),
-                });
-              }
-              execute(async () => {
-                await api.saveRoutineSet(item.id, editing?.id, data);
-                setSetId("");
-                setVersion((value) => value + 1);
-              });
-            }}
-          >
-            <h4>{editing ? "Edit planned set" : "Add planned set"}</h4>
-            <div className="workout-set-fields">
-              {fields.map((f) => (
-                <label key={f.name}>
-                  {f.label}
-                  <input
-                    name={f.name}
-                    type="number"
-                    min={f.min}
-                    step={f.step}
-                    defaultValue={editing?.[f.name] ?? ""}
-                    disabled={busy}
-                  />
-                </label>
-              ))}
-            </div>
-            <label>
-              Set order
-              <input
-                aria-describedby="routine-set-order-help"
-                name="order"
-                type="number"
-                min="0"
-                max="2147483647"
-                step="1"
-                required
-                defaultValue={
-                  editing?.display_order ??
-                  Math.max(0, ...item.sets.map((s) => s.display_order)) + 10
-                }
-                disabled={busy}
-              />
-            </label>
-            <small id="routine-set-order-help">
-              Position within this exercise, not reps or number of sets. Lower
-              numbers appear first.
-            </small>
-            <button className="primary-button" disabled={busy}>
-              {editing ? "Update planned set" : "Add planned set"}
+    <section className="routine-day" aria-label={`${day.name} day`}>
+      <header className="routine-day-header">
+        <h2>{day.name}</h2>
+        {editing ? (
+          <>
+            <button
+              aria-label={`Add exercise to ${day.name}`}
+              disabled={busy}
+              onClick={() => setEditor({ kind: "picker" })}
+            >
+              ＋
             </button>
-          </form>
-          <div className="workout-actions">
-            {editing && (
-              <>
-                <button disabled={busy} onClick={() => setSetId("")}>
-                  Cancel set edit
-                </button>
-                <button
-                  disabled={busy}
-                  onClick={() =>
-                    setConfirm({ kind: "routine-sets", id: editing.id })
-                  }
-                >
-                  Remove planned set
-                </button>
-              </>
-            )}
+            <button
+              aria-label={`Edit ${day.name} day details`}
+              disabled={busy}
+              onClick={onDayDetails}
+            >
+              ⋯
+            </button>
+          </>
+        ) : (
+          <button
+            className="routine-start"
+            aria-label={`Start ${day.name}`}
+            disabled={busy || !day.exercises.length}
+            onClick={onStart}
+          >
+            Start
+          </button>
+        )}
+      </header>
+      {!day.exercises.length && (
+        <div className="routine-empty-day">
+          <p>No exercises yet.</p>
+          {editing && (
             <button
               disabled={busy}
+              onClick={() => setEditor({ kind: "picker" })}
+            >
+              Add exercises
+            </button>
+          )}
+        </div>
+      )}
+      {day.exercises.map((row) => (
+        <div
+          key={row.id}
+          className={`routine-exercise-row${row.group_name ? " has-group" : ""}`}
+          data-routine-row-id={row.id}
+          style={
+            row.group_name
+              ? { borderInlineStartColor: row.group_colour ?? "#007f68" }
+              : undefined
+          }
+        >
+          {editing ? (
+            <button
+              className="routine-exercise-name"
+              disabled={busy}
+              aria-label={`Options for ${row.exercise_name}`}
+              onClick={() => setEditor({ kind: "actions", item: row })}
+            >
+              <span>{row.exercise_name}</span>
+              <small>
+                {row.sets.length
+                  ? `${row.sets.length} ${row.sets.length === 1 ? "set" : "sets"}`
+                  : "No predefined sets"}
+                {row.group_name ? ` · ${row.group_name}` : ""}
+              </small>
+            </button>
+          ) : (
+            <div className="routine-exercise-name">
+              <span>{row.exercise_name}</span>
+              <small>
+                {row.sets.length
+                  ? `${row.sets.length} ${row.sets.length === 1 ? "set" : "sets"}`
+                  : "No predefined sets"}
+                {row.group_name ? ` · ${row.group_name}` : ""}
+              </small>
+            </div>
+          )}
+          {editing && (
+            <>
+              <button
+                disabled={busy}
+                aria-label={`Remove ${row.exercise_name} from ${day.name}`}
+                onClick={() => setEditor({ kind: "remove", item: row })}
+              >
+                ×
+              </button>
+              <button
+                className="routine-drag-handle"
+                disabled={busy}
+                aria-label={`Reorder ${row.exercise_name}`}
+                title="Drag, or open ordering controls"
+                onClick={() => {
+                  if (skipClick.current) {
+                    skipClick.current = false;
+                    return;
+                  }
+                  setEditor({ kind: "order" });
+                }}
+                onPointerDown={(event) => {
+                  if (event.button !== 0) return;
+                  skipClick.current = false;
+                  drag.current = { id: row.id };
+                  event.currentTarget.setPointerCapture?.(event.pointerId);
+                }}
+                onPointerMove={(event) => {
+                  if (drag.current) {
+                    const target = document
+                      .elementFromPoint(event.clientX, event.clientY)
+                      ?.closest<HTMLElement>("[data-routine-row-id]")
+                      ?.dataset.routineRowId;
+                    if (target) drag.current.target = target;
+                  }
+                }}
+                onPointerUp={drop}
+                onPointerCancel={() => {
+                  drag.current = null;
+                }}
+                onLostPointerCapture={() => {
+                  drag.current = null;
+                }}
+              >
+                ⠿
+              </button>
+            </>
+          )}
+        </div>
+      ))}
+      {editor?.kind === "picker" && (
+        <Modal
+          labelledBy={`picker-${day.id}`}
+          className="routine-dialog"
+          busy={busy}
+          onClose={() => setEditor(undefined)}
+        >
+          <header className="routine-dialog-header">
+            <h2 id={`picker-${day.id}`}>Add exercise</h2>
+            <p>{day.name}</p>
+          </header>
+          <div className="routine-dialog-body">
+            <RoutineExercisePicker
+              dayId={day.id}
+              busy={busy}
+              run={run}
+              onOpenLibrary={onOpenLibrary}
+              onAdded={(saved) => setEditor({ kind: "sets", item: saved })}
+            />
+          </div>
+          <footer className="routine-dialog-footer">
+            <button disabled={busy} onClick={() => setEditor(undefined)}>
+              Done
+            </button>
+          </footer>
+        </Modal>
+      )}
+      {editor?.kind === "sets" && item && (
+        <RoutineSetEditor
+          key={item.id}
+          item={item}
+          busy={busy}
+          run={run}
+          onClose={() => setEditor(undefined)}
+        />
+      )}
+      {editor?.kind === "group" && item && (
+        <RoutineGroupDialog
+          item={item}
+          day={day}
+          busy={busy}
+          run={run}
+          onClose={() => setEditor(undefined)}
+        />
+      )}
+      {editor?.kind === "actions" && item && (
+        <Modal
+          labelledBy="routine-exercise-actions"
+          onClose={() => setEditor(undefined)}
+        >
+          <h2 id="routine-exercise-actions">{item.exercise_name}</h2>
+          <div className="routine-action-list">
+            <button onClick={() => setEditor({ kind: "sets", item })}>
+              Edit predefined sets
+            </button>
+            <button onClick={() => setEditor({ kind: "group", item })}>
+              Add to group
+            </button>
+            <button onClick={() => setEditor(undefined)}>Cancel</button>
+          </div>
+        </Modal>
+      )}
+      {editor?.kind === "remove" && item && (
+        <Modal
+          labelledBy="routine-remove-exercise"
+          busy={busy}
+          onClose={() => {
+            setEditor(undefined);
+            setError("");
+          }}
+        >
+          <h2 id="routine-remove-exercise">Remove {item.exercise_name}?</h2>
+          <p>
+            Remove this exercise and its predefined sets from {day.name}?
+            Existing workouts are kept.
+          </p>
+          {error && <p role="alert">{error}</p>}
+          <div className="workout-actions">
+            <button
+              disabled={busy}
+              onClick={() => {
+                setEditor(undefined);
+                setError("");
+              }}
+            >
+              Keep exercise
+            </button>
+            <button
+              className="workout-danger"
+              disabled={busy}
               onClick={() =>
-                setConfirm({ kind: "routine-exercises", id: item.id })
+                run(async () => {
+                  try {
+                    await api.removeRoutineItem("routine-exercises", item.id);
+                    setEditor(undefined);
+                  } catch (cause) {
+                    setError(
+                      cause instanceof Error
+                        ? cause.message
+                        : "Could not remove exercise.",
+                    );
+                    throw cause;
+                  }
+                })
               }
             >
-              Remove exercise from day
+              Confirm template removal
             </button>
           </div>
-        </div>
+        </Modal>
       )}
-      {confirm && (
-        <div className="workout-context">
-          <p>
-            Remove{" "}
-            {confirm.kind === "routine-exercises"
-              ? "this exercise and its planned sets"
-              : "this planned set"}
-            ? Existing workouts are kept.
-          </p>
-          <button
-            disabled={busy}
-            onClick={() =>
-              execute(async () => {
-                await api.removeRoutineItem(confirm.kind, confirm.id);
-                setConfirm(undefined);
-                setSetId("");
-              })
-            }
-          >
-            Confirm template removal
-          </button>
-          <button disabled={busy} onClick={() => setConfirm(undefined)}>
-            Keep template item
-          </button>
-        </div>
+      {editor?.kind === "order" && (
+        <RoutineOrderDialog
+          kind="exercises"
+          parentId={day.id}
+          items={day.exercises.map((row) => ({
+            id: row.id,
+            name: row.exercise_name,
+          }))}
+          busy={busy}
+          run={run}
+          onClose={() => setEditor(undefined)}
+        />
       )}
-      {error && <p role="alert">{error}</p>}
     </section>
   );
 }

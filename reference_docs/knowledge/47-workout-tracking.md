@@ -7,6 +7,47 @@ catalog ownership, session/set semantics, history preservation, and phased deliv
 
 ## Status and agreed product direction
 
+Category order and colours (2026-10-23): Display options also offers a device-local
+Category colours checkbox (off by default) and Reorder categories. Names sort
+alphabetically by default; manual mode reuses the account's saved display order.
+The order dialog supports mouse/touch drag handles and labelled up/down buttons.
+Edits remain drafts until Save; Cancel, pointer cancellation and lost capture do
+not persist a moved order. Saving validates all categories including archived
+ones and rejects stale membership/order atomically. Mode is account-backed;
+alphabetical mode preserves manual ranks. New categories receive palette colours;
+Edit category includes a colour picker. Migration 0015 initializes colours without
+changing recorded workouts or existing manual ranks. Colours and mode are exported.
+
+The Calendar retains training/planned counts and adds a named category key and
+coloured dots for categories containing completed sets that day. It matches saved
+category names to library colours, including archives. Historical names without
+a match use neutral grey; identity is not inferred from an exercise's current
+category after moves/renames. Compact copying calendars keep status-only layouts.
+Category names remain available as text; colour is never the only identifier.
+
+Exercise library actions (2026-10-23): All exercises and Add exercise retain
+category headings, search and filters, with compact name-only rows by default.
+Display options opens a compact anchored dropdown with Workout count and Last
+used checkboxes. Toggling applies immediately without closing the dropdown or
+requiring a Done step. Escape returns focus to the trigger; outside clicks and
+tabbing out dismiss the controls. Both preferences are independently remembered
+on the device for both library browsing and Add exercise. Count and last use
+continue to derive only from completed sets; last use displays local-calendar
+relative days (today/yesterday/N days ago), with the recorded date available
+as a tooltip. Enabled details are muted and wrap on narrow screens. Archived
+status remains visible regardless of these preferences. The heading button says
+Edit category; the row menu's Edit changes only the exercise.
+Favorites stay directly accessible; each row's overflow menu offers Edit,
+History and Archive (or Restore). Delete is additionally offered only when the
+server's read-only can_delete flag is true: no workout occurrence (including
+empty or planned work), routine occurrence or goal references the exercise.
+Permanent deletion requires confirmation; a stale reference returns 409 and the
+dialog retains the explanation. Archive preserves recorded history using the
+existing is_active update. Restoring still requires an active parent category. Menu actions
+never select/add the exercise. Existing workout exercises show a selected
+checkmark/highlight and open their existing occurrence. Keyboard arrows, Home/End,
+Escape, focus return, outside clicks and focus leaving the menu are supported.
+
 Combined cardio goals (2026-10-05): Overview → Goals offers Distance within a time
 limit, e.g. at least 5 km within 25 minutes. Both raw thresholds must hold in one
 completed cardio set; no split estimates, summed sets, pace extrapolation or unit
@@ -75,7 +116,8 @@ schema changes. Filters do not trim an export. Full account JSON export remains
 separate. Session timing is implemented above; offline logging and background
 alerts are future slices.
 
-Calendar filters (2026-10-03): shared Calendar and copy-picker controls select
+Calendar filters (initial 2026-10-03 implementation; superseded by the full-page
+workspace below): shared Calendar and copy-picker controls selected
 exercise, saved category name and completed training versus planned-only/empty
 drafts. Filtering uses the existing complete month read, not a new API contract.
 Exercise/category criteria must match the same frozen occurrence; training requires
@@ -313,7 +355,7 @@ Supporter-tier restrictions.
 | [Exercises](https://www.fitnotesapp.com/exercises/) | Editable samples, categories, search, exercise types and unit preferences. |
 | [Progress Tracking](https://www.fitnotesapp.com/progress_tracking/) | Exercise history, charts, records and goals; observed records versus estimates. |
 | [Routines](https://www.fitnotesapp.com/routines/) | Reusable plans, named routine days, ordered exercises and planned sets. |
-| [Calendar](https://www.fitnotesapp.com/calendar/) | Month/list history with drill-down to workouts; richer filters later. |
+| [Calendar](https://www.fitnotesapp.com/calendar/) | Shared month/list browsing, workout drill-down, category Any/All and completed-set weight/reps filters. |
 | [Body Tracker](https://www.fitnotesapp.com/body_tracker/) | Measurement history/graphs overlap with existing Metrics. |
 | [Settings](https://www.fitnotesapp.com/settings/) | Units, increments, completion preferences, exports and preservation of data. |
 | [Workout Tools](https://www.fitnotesapp.com/workout_tools/) | Rest timer, estimated 1RM, percentage-based sets and equipment-aware plates. |
@@ -377,8 +419,12 @@ Set PATCH validates combined values. Ordering uses nonnegative numeric order
 with ID tie-breaking; appends use the current maximum plus ten. Adjacent moves
 normalize sibling orders to multiples of ten in a single owner-locked transaction.
 
-The library has no hard-delete endpoint. RESTRICT protects exercises referenced
-by history, but account deletion can cascade all owned rows together. Archive
+Library DELETE removes only an owned unreferenced exercise; linked workouts,
+routines and goals return 409 with an Archive suggestion. Eligibility is checked
+under the shared owner row lock; catalog usage counts are not deletion criteria.
+Both metric and imperial exercise-specific bar preferences are cleaned atomically.
+RESTRICT protects workout/routine references as well. Account deletion can still
+cascade all owned rows together. Archive
 prevents newly adding the exercise to a session; existing snapshots remain
 editable. Finished sessions require reopening before exercise/set edits. Finishing
 does not complete planned sets. Copies reset completion and clear session notes
@@ -905,3 +951,85 @@ existing bodyweight/cardio/timed types. Tapping a goal title opens its editor.
 Estimated goals explicitly use a fixed 1–10-rep Epley rule, preserving unrounded
 achievement checks. The additive API/constraint migration is documented in
 03-api-design.md; the local development database has been migrated.
+
+### Routine management checkpoint — 2026-10-25
+
+Creating a routine continues directly into its first named day and exercise editor.
+The editor searches active exercises, filters by category and can create a library
+exercise inline. If attachment fails after creation, retry reuses that exercise;
+it does not create duplicates. Predefined sets remain optional, blank quantities
+remain unknown, and carry-forward is explicit at the existing start preview.
+Home links to routines, and Browse routines selects a plan or the exercise library.
+
+Routine actions include edit, copy, archive/restore, permanent confirmed deletion
+and day reordering. Copy preserves the entire template, notes, frozen snapshots,
+group labels/colours and null fields with new IDs; it never creates a workout.
+Deletion removes only the template tree, leaving previously started workouts intact.
+Days and exercises have drag handles and accessible arrow controls; edits stay
+local until Save order. Atomic complete-list writes reject stale order with 409.
+Routine exercise group editing now validates and persists the colour as well as
+the matching group name. Existing numeric ordering remains available.
+No database migration or staging deployment is required or performed by this slice.
+
+### Compact routine workspace — 2026-10-26
+
+The routine view now prioritizes one selected plan, remembered per account on the
+device. All routines and archives are a secondary library view. Help holds the
+routine notes/explanation. Date selection is in the start dialog. Day headers
+contain Start; rows show exercise name, preset count and optional group label/rail.
+Edit mode exposes add, metadata, remove and reorder controls. Days use focused
+name/notes dialogs; numeric ranks are not exposed in the normal routine editor.
+
+Exercise selection is a focused searchable/category-filtered list, with inline
+library creation and attachment retry retained. Selecting an exercise opens its
+optional predefined-set editor. All set rows are a local draft until one atomic
+PUT with an expected prior snapshot; Cancel never writes. Rows can be reordered
+by drag or keyboard arrows. A named group chooser reuses saved group colours and
+supports new groups or ungrouping. These operations never rewrite existing workouts.
+
+The start dialog is compact, retains explicit carry-forward, selection/provenance,
+planned status and stale-preview handling, and allows choosing the date there.
+Quantity overrides before starting remain a separate follow-up; quantities are
+edited after starting. Existing capture/copy/archive/delete flows remain available.
+
+Routine group chooser refinement (2026-10-26): Groups now lists named groups,
+member exercises, a colour rail and a pressed/check marker for the current exercise.
+Tapping an unchecked group links this exercise with that group's saved colour;
+tapping the checked group unlinks it. The chooser stays open to show the confirmed
+membership. New group opens a focused name/ten-swatch editor, starting with the
+first available `Group N` name. Save creates the label/colour on this occurrence;
+Cancel discards the draft. Duplicate names reject without writes, and failures
+retain the name/colour for retry. This uses the existing routine occurrence PATCH;
+no group table, new API route or schema change is added. Names and colours still
+copy into independent planned workouts when starting the day.
+
+
+### Calendar workspace — implemented locally, 26 October 2026
+
+The full Calendar now opens directly on a compact month toolbar and grid. Filters,
+display options and guidance are dialogs. Month/List share the displayed month's
+bounded, fully paginated read, matching-session count and transient filters.
+Previous/next matching day controls stay within that explicitly labelled month;
+month arrows, a month jump and Today browse other dates. Multiple sessions on the
+same day remain separate list cards. This is not an all-history timeline.
+
+Inspection highlights the inspected date locally. Opening details does not change
+Home's working workout date; Go to workout does. Phones use a popup; an optional
+wide-screen panel shares the same read-only workout and exercise-stat components.
+Calendar day previews include the full day; list cards open the specific session.
+Filters locate sessions without trimming exercises/sets in previews or copy sources.
+The compact copy picker keeps its existing date-selection callback and source flow.
+
+Filters use Apply/Cancel drafts, removable active chips and explicit Reset. Options
+include recorded snapshots and the owned exercise library; selected historical
+labels survive month browsing. Category Any accepts any selected category; All
+requires every selected category within one session. A selected exercise still
+intersects its saved category occurrence. Completed/planned classification uses
+matching entries, not unrelated completed exercises or the finished-session flag.
+Weight/reps comparisons apply to the same completed strength/bodyweight set in its
+frozen unit. No unit conversion, unknown-to-zero substitution or planned-set match.
+Combining planned-only status with performance conditions is rejected visibly.
+
+Month/List mode, category dots, category labels, list set details and panel choices
+are stored per owner/device. Unavailable or malformed storage falls back safely;
+filters are transient. No backend schema, endpoints or route parameters changed.

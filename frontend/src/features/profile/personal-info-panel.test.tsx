@@ -46,6 +46,8 @@ it("loads personal info and explicitly saves date of birth, sex and height", asy
       <PersonalInfoPanel />
     </QueryClientProvider>,
   );
+  expect(await screen.findByLabelText("Date of birth")).not.toBeVisible();
+  await user.click(screen.getByText("Personal info", { exact: true }));
   fireEvent.change(await screen.findByLabelText("Date of birth"), {
     target: { value: "1990-04-20" },
   });
@@ -91,6 +93,7 @@ it("clears saved personal details and updates the cached estimate", async () => 
       <PersonalInfoPanel />
     </QueryClientProvider>,
   );
+  await user.click(screen.getByText("Personal info", { exact: true }));
   expect(await screen.findByDisplayValue("180")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Clear personal info" }));
   expect(updatePersonalInfo).toHaveBeenCalledWith({
@@ -123,6 +126,7 @@ it("preserves the draft when saving fails", async () => {
       <PersonalInfoPanel />
     </QueryClientProvider>,
   );
+  await user.click(screen.getByText("Personal info", { exact: true }));
   await user.type(await screen.findByLabelText("Height (cm)"), "180");
   await user.click(screen.getByRole("button", { name: "Save personal info" }));
   expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -146,6 +150,7 @@ it("offers retry when personal info cannot load", async () => {
       <PersonalInfoPanel />
     </QueryClientProvider>,
   );
+  await user.click(screen.getByText("Personal info", { exact: true }));
   await user.click(
     await screen.findByRole("button", { name: "Retry personal info" }),
   );

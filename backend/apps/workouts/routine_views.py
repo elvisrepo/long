@@ -13,9 +13,12 @@ from .routine_serializers import (
     RoutineExerciseInputSerializer,
     RoutineExerciseSerializer,
     RoutineSetInputSerializer,
+    RoutineExerciseSettingsSerializer,
+    RoutineSetDraftInput,
+    RoutineSetSerializer,
 )
 from .routine_services import capture_day, start_day
-from .serializers import WorkoutSerializer, ExerciseSettingsSerializer
+from .serializers import WorkoutSerializer
 from .routine_preview import (
     load_start_day,
     start_preview,
@@ -44,6 +47,13 @@ class RoutinesView(APIView):
 
 class RoutineDetailView(APIView):
     permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def delete(self, request: Request, routine_id: str) -> Response:
+        User.objects.select_for_update().get(pk=request.user.pk)
+        routine = get_object_or_404(WorkoutRoutine, pk=routine_id, user=request.user)
+        routine.delete()
+        return Response(status=204)
 
     @transaction.atomic
     def patch(self, request: Request, routine_id: str) -> Response:
@@ -190,7 +200,7 @@ class RoutineExerciseDetailView(APIView):
     def patch(self, request: Request, item_id: str) -> Response:
         User.objects.select_for_update().get(pk=request.user.pk)
         item = owned_item(request, item_id)
-        serializer = ExerciseSettingsSerializer(data=request.data)
+        serializer = RoutineExerciseSettingsSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         for field, value in serializer.validated_data.items():
             setattr(item, field, value)
@@ -206,6 +216,35 @@ class RoutineExerciseDetailView(APIView):
 
 class RoutineSetsView(APIView):
     permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def put(self, request: Request, item_id: str) -> Response:
+        User.objects.select_for_update().get(pk=request.user.pk)
+        item = owned_item(request, item_id)
+        parameters = RoutineSetDraftInput(data=request.data)
+        parameters.is_valid(raise_exception=True)
+        current = list(RoutineSetSerializer(item.sets.all(), many=True).data)
+        if parameters.validated_data["expected_sets"] != current:
+            return Response(
+                {
+                    "detail": "Predefined sets changed. Close and reopen the editor before saving."
+                },
+                status=409,
+            )
+        serializer = RoutineSetInputSerializer(
+            data=parameters.validated_data["sets"],
+            many=True,
+            context={"routine_exercise": item},
+        )
+        serializer.is_valid(raise_exception=True)
+        item.sets.all().delete()
+        RoutineSet.objects.bulk_create(
+            [
+                RoutineSet(routine_exercise=item, display_order=index * 10, **row)
+                for index, row in enumerate(serializer.validated_data, start=1)
+            ]
+        )
+        return Response(RoutineExerciseSerializer(item).data)
 
     @transaction.atomic
     def post(self, request: Request, item_id: str) -> Response:

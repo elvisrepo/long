@@ -248,18 +248,14 @@ describe("Recovery", () => {
     expect(getRecoveryEntries).toHaveBeenCalledWith("2026-09-24", "2026-09-30");
   });
 
-  it("moves between days, selects history, and returns to today", async () => {
+  it("selects calendar dates and history, and returns to today", async () => {
     const user = userEvent.setup();
     renderRecovery();
     await screen.findByRole("checkbox", { name: "Massage" });
     const input = screen.getByLabelText("Tracking date");
     const today = (input as HTMLInputElement).value;
+    await user.click(screen.getByRole("button", { name: "Choose date" }));
     fireEvent.change(input, { target: { value: "2026-09-20" } });
-    await user.click(
-      await screen.findByRole("button", { name: "Previous day" }),
-    );
-    await waitFor(() => expect(input).toHaveValue("2026-09-19"));
-    await user.click(screen.getByRole("button", { name: "Next day" }));
     await waitFor(() => expect(input).toHaveValue("2026-09-20"));
     await user.click(screen.getByRole("button", { name: /2026-09-25:/ }));
     await waitFor(() => expect(input).toHaveValue("2026-09-25"));

@@ -54,30 +54,6 @@
 .recovery-save-status:empty {
   display: none;
 }
-.recovery-date-navigation {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-}
-.recovery-date {
-  --field-font-size: 0.875rem;
-  width: 9.25rem;
-  min-width: 0;
-}
-.recovery-date input {
-  width: 100%;
-  min-width: 0;
-  min-height: 2.75rem;
-  box-sizing: border-box;
-  padding: 0.625rem;
-  border: 1px solid var(--border);
-  border-radius: 0.625rem;
-  background: var(--panel-bg);
-  color: var(--text);
-  font: inherit;
-  font-size: 0.875rem;
-}
 .recovery-action {
   min-height: 2.75rem;
   padding: 0.625rem 0.875rem;
@@ -88,17 +64,12 @@
   cursor: pointer;
   margin: 0;
 }
-.recovery-date-navigation .recovery-action {
-  min-width: 2.75rem;
-  padding: 0.5rem 0.75rem;
-}
 .recovery-action:disabled {
   opacity: 0.55;
   cursor: wait;
 }
 .recovery-action:focus-visible,
 .recovery-history button:focus-visible,
-.recovery-date input:focus-visible,
 .recovery-evidence-details summary:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
@@ -393,15 +364,6 @@
   }
 }
 @media (max-width: 350px) {
-  .recovery-date-navigation {
-    gap: 0.25rem;
-  }
-  .recovery-date {
-    width: 8.5rem;
-  }
-  .recovery-date-navigation .recovery-action {
-    padding: 0.5rem;
-  }
   .recovery-history button small {
     font-size: 0.5625rem;
   }

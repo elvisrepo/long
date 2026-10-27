@@ -29,7 +29,7 @@ EMAIL_LOOKUP_KEY = os.environ.get("EMAIL_LOOKUP_KEY", "").strip()
 # Backend-only credentials; never expose through frontend configuration.
 NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY", "").strip()
 NVIDIA_INSIGHTS_MODEL = os.environ.get(
-    "NVIDIA_INSIGHTS_MODEL", "deepseek-ai/deepseek-v4.1-flash"
+    "NVIDIA_INSIGHTS_MODEL", "nvidia/nemotron-3.5-super-vl-120b-a12b"
 ).strip()
 
 # Local reset emails are printed by the backend container for development.

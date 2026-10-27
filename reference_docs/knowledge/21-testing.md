@@ -1,5 +1,57 @@
 ## 6. Testing
 
+- Vite development module race (2026-10-23): a running dev server cached an empty
+  transform of workout-calendar.tsx during a truncate/write save, while the source
+  and a fresh query URL correctly exported WorkoutCalendar. The ignored
+  playground/probe_vite_writes.mjs reproduces the watcher observing an empty
+  temporary module before a completed write. Vite server.watch.awaitWriteFinish
+  now uses a 150ms stability threshold and 20ms polling interval. The probe changes
+  from two events (incomplete/complete) to one complete event, and the original
+  failing URL again serves the export after the config-triggered server restart.
+  This changes local development/HMR only; no backend route or migration changed.
+
+- Category order/colours (2026-10-23): API tests cover owner-locked manual order,
+  alphabetical mode preserving ranks, stale/foreign/missing/duplicate lists without
+  partial writes, colour validation/export and starter colour stability. Components
+  cover alphabetical defaults, optional markers, keyboard moves, cancel/save,
+  colour editing and stale errors. Calendar tests retain status counts and
+  distinguish matched, unmatched historical and planned-only categories.
+  The browser journey performs actual pointer dragging at 320/390/1440px,
+  saves/reloads manual mode, cancels a draft and switches to alphabetical.
+  All 302 workout/account lifecycle backend tests and 15 workout browser journeys
+  pass. Migration 0015 is additive; no recorded sets are rewritten.
+
+- Exercise display options (2026-10-23): component coverage checks names-only
+  defaults, independent count/last-use toggles, relative today labels, empty
+  history, remembered options shared with Add exercise, malformed saved values
+  and unavailable storage. The category action is visibly labelled Edit category
+  and retains its existing editor. Browser coverage checks independent toggles,
+  reload persistence, category editing and enabled details at 320/390/1440px.
+  The controls use a compact dropdown rather than a dialog: both checkboxes stay
+  available while toggling, Escape restores trigger focus, and outside clicks or
+  Tab leaving the dropdown dismiss it. Browser checks verify dropdown bounds at
+  all three viewport widths.
+  Counts still reflect completed sets; no backend API or migration changed.
+
+- Unused exercise deletion (2026-10-23): API regressions cover 204 deletion,
+  repeat/foreign 404, anonymous 401, stale eligibility, and 409 protection of
+  empty/planned/completed workout occurrences, archived routines and goals.
+  Rejected deletion preserves saved quantities and workout completion; successful
+  deletion removes only matching exercise bar preferences. UI tests cover server
+  eligibility (missing/false fails closed), permanent-delete confirmation/cancel,
+  successful deletion and inline stale-state errors. All 710 frontend tests and
+  13 workout browser journeys pass; backend protection suites pass. No database
+  migration is required.
+
+- Exercise library actions (2026-10-23): component checks cover direct History,
+  Edit, archive confirmation/cancellation, restore, favorites independent of row
+  selection, keyboard navigation, Escape/focus return and outside dismissal.
+  The existing archived-category edit regression now opens the overflow menu.
+  Browser coverage checks menu bounds, keyboard focus, Edit/History navigation
+  and absence of horizontal overflow at 320/390/1440px; all 12 workout browser
+  journeys pass. Archive reuses the existing API. The later unused-delete
+  addition uses DELETE on the existing exercise detail path; no migration changed.
+
 - Distance detail proposals 02–04 (2026-10-20): 30-day defaults, recorded-day
   averages, missing-date/null versus measured-zero chart values, DST calendar
   iteration, UTC date links, daily-history expansion/reset, source disclosure,
@@ -2219,3 +2271,235 @@ sheets are not exercised in this environment. Graph layouts are checked at
 screenshots and workout/summary previews were visually reviewed. Browser APIs use
 fixtures; PostgreSQL integration tests independently verify analytics contracts
 and goal constraints.
+
+### Routine management — 2026-10-25
+
+Focused tests cover guided routine → day creation, searched/category-filtered
+exercise selection, inline creation with attachment retry, independent copy,
+confirmed template deletion preserving started workouts, complete-list day/exercise
+ordering and stale/partial/foreign rejection. Component tests verify no writes
+before order confirmation, no duplicate library creation on retry, and no workout
+creation while building templates. Browser regression journeys exercise the new
+actions menu when archiving/restoring and retain the routine preview/start checks.
+
+Validation: 307 backend workout/account-lifecycle tests, 724 frontend tests,
+15 existing workout browser journeys and three new routine journeys at
+320/390/1440px pass. Frontend lint/build, targeted backend Ruff and the complete
+backend mypy check (194 files) pass. New browser APIs use isolated fixtures;
+PostgreSQL tests verify independent-copy and template-deletion persistence.
+
+### Compact routines — 2026-10-26
+
+Focused coverage checks compact browsing without a preamble/date navigator,
+separate edit/picker/set/group dialogs, local preset drafts and cancellation,
+null/zero retention, failed-save retry, named-group colour reuse, and existing
+routine start selection/stale refresh. PostgreSQL tests cover atomic full preset
+replacement, stale/invalid rollback, 1000-row bounds, performance-field rejection,
+anonymous/foreign/archive guards, clearing and started-workout preservation.
+Browser coverage and final validation results are recorded after the checks.
+
+Final compact-routine validation: 310 workout/account-lifecycle backend tests
+and all 730 frontend tests pass. The default parallel frontend rerun suffered
+cross-feature timeouts under runner pressure; rerunning with `--maxWorkers=2`
+passed without changing assertions or the 5-second test timeout. Focused routine
+checks (23 tests) also pass without unhandled pointer errors. All 19 workout browser
+journeys pass across the full 18-case run plus the added direct-row-ordering case;
+the four routine cases were rerun successfully after the final refinements.
+Frontend lint/build/format checks, backend Ruff and full mypy (194 files), and
+`git diff --check` pass. No model changes or database migration were introduced.
+
+Actual screens were captured in Light/Dark at 320/390/1440px, using fixture APIs.
+Headers and action footers remain visible while dialog bodies scroll. The local
+before/after gallery checks all six screen choices and image assets, both themes,
+three source widths and phone/desktop gallery layout, including image enlargement,
+with no page overflow or JavaScript errors. Native mobile keyboards are not part
+of these desktop-Chrome viewport checks. No staging deployment was performed.
+
+Routine group chooser refinement (2026-10-26): five component tests cover focused
+creation, swatch selection, named-group joining and unlinking, cancellation/focus,
+failed-save retry and duplicate-name rejection. Existing workout group tests also
+run because both editors share the same palette. A PostgreSQL integration test
+starts a day containing two group members, verifies both frozen labels/colours and
+planned sets, then unlinks the template occurrence and checks the started workout's
+exercise snapshots remain unchanged. The fresh response clock is intentionally not
+part of that snapshot assertion.
+
+Browser journeys create a group on Dips, link Flat Dumbbell Fly, check the member
+list and pressed marker, verify adjacent same-colour rails, and start the planned
+workout with copied groups. The flow runs at 320/590/1440px in Light/Dark and checks
+44px swatch targets and page containment. Screenshot inspection includes the new
+form, selected group and routine rails. An initial cold page-load timeout occurred
+before UI interaction; a traced rerun completed without application changes.
+
+Final group refinement validation: all 734 frontend tests pass with two workers
+when run on their own. All 25 workout browser journeys pass sequentially (six
+new group journeys plus 19 existing regressions), and 23 focused backend routine
+tests pass. Lint, build, formatting, targeted backend Ruff and diff checks pass.
+The simultaneous broad runs were interrupted after widespread unrelated timeouts
+under measured shared-runner CPU/memory pressure; the isolated sequential reruns
+passed without changing assertions or timeouts. New/group-selected/routine-rail
+captures were inspected at phone and screenshot widths in Light/Dark. No migration
+or staging deployment was performed.
+
+
+### Calendar workspace — 26 October 2026
+
+Focused coverage includes exact decimal comparisons and every operator, same-set
+weight/reps matching, kg/lb separation, zero versus unknown, planned-set exclusion,
+category Any/All within one session and matching-entry completion classification.
+Dialog tests cover invalid numeric drafts, Apply/Cancel and recorded-unit defaults.
+Component tests cover retained saved labels, full untrimmed preview/copy sources,
+read errors versus empty data, disabled pending controls, local inspected-date
+highlighting, explicit Home navigation, matching-day navigation, shared Month/List
+filters, wide panel/phone popup and owner-keyed display preferences. Malformed or
+blocked storage safely defaults. Twenty-one focused tests pass, including the
+retained empty-date preview message.
+
+The dedicated calendar browser fixture checks the month-first phone geometry,
+combined filters, full-source previews, local date selection, matching-day navigation,
+explicit Go to workout, wide panel/phone popup, Escape dismissal and month jump in
+Light/Dark. Its route handler rejects any workout request other than GET. Existing
+workout journeys also exercise logging, copying and source-preview drill-down.
+Screenshots use synthetic data, not live account records. No backend code/schema
+changed; browser reads use the existing owner-scoped API contract.
+
+Calendar cleanup final validation: all 750 frontend tests across 115 files and
+all 28 calendar/workout browser journeys pass. ESLint, the production build and
+formatting checks pass. Visual fixtures cover Light/Dark at 320/390/1440px with
+no page overflow or browser script errors. This is local verification only.
+
+
+### AI Insights UI refinement — 27 October 2026
+
+Ignored scenario list: `playground/ai-insights-cleanup-scenarios.md`. Focused tests
+cover collapsed provider/new-review setup with a saved result, first-use and app-key
+availability, empty data, explicit consent, model/period/preview consent resets,
+pending and failed generation preserving the saved result, successful retry,
+legacy review formats and original saved evidence. Date/number formatting covers
+cross-month/year boundaries, saved timezone, missing versus zero and observed-day
+coverage. The existing API-helper checks remain in the focused slice; 19 tests pass.
+
+Nine dedicated browser journeys use intercepted fixture APIs, never NVIDIA. They
+cover Light/Dark at 320/390/1440px, no implicit generation or key writes, distinct
+saved/current evidence, model/timeframe changes, generation failure/retry/success,
+result focus, initial key setup and clearing the credential after save, and saved-
+read failure/retry. The read-error assertion allows the existing automatic retries
+to finish; production retry policy is unchanged. No horizontal overflow or browser
+script errors occurred. Current snapshots are in ignored
+`.lavish/ai-insights-cleanup/assets/`. Final saved-review section starts at y≈510px
+at 320px, 489px at 390px and 493px on desktop, versus the original fixture's
+1625px at 390px and 1298px on desktop. Different fixture text does not affect this
+above-result geometry. No backend/schema changes or real provider calls were made.
+
+Final AI UI validation: all 757 frontend tests across 116 files pass, as do the
+nine AI browser journeys, ESLint, Prettier and the production build. Validation
+used synthetic API fixtures; there were no real provider requests or deployment.
+
+
+AI minimal-copy follow-up (2026-10-27): a failing component test first reproduced
+Remove key living outside the replacement form. It now checks the shared form,
+disabled replacement, visible removal and absence of repeated provider/page copy.
+Browser checks assert matched button top/height and compact widths, alongside the
+existing consent, saved/current scope and retry checks. Nine main journeys plus two
+560px theme cases pass. Copy changes preserve accessible control names; concise
+visible labels do not change request payloads. Encryption/quota context and visible
+sharing inclusion/exclusion context remain. No backend/API or provider call changes.
+
+Final minimal-copy checks: all 758 frontend tests across 116 files pass, along
+with 11 AI browser journeys, build, lint and formatting checks. Verification uses
+synthetic fixtures with no real provider calls. Changes remain local.
+
+
+### AI generation failure remediation — 27 October 2026
+
+A mocked provider 404 first reproduced the generic message. Regression checks now
+verify a model-specific Choose another model action and safe numeric-status logs.
+Parameterized malformed-content and invalid-evidence cases reproduce the generic
+format/validation failure paths and verify actionable messages and safe stage/type
+metadata. Sentinel provider contents and credentials are absent from logs and UI.
+The complete AI backend slice passes 49 tests; Ruff and focused mypy pass. Mypy first
+failed while initializing its read-only SQLite cache; a fresh task cache at
+`/tmp/longevity-ai-mypy` resolves the tooling issue without changing application code.
+
+Read-only cache inspection found two generic failed jobs. A synthetic request to
+the configured Nemotron 3 Super endpoint returned 404 although the live catalog
+still listed it. Nemotron 3.5 returned 200 and passed strict validation with a
+representative synthetic tracker fixture. No user health values were sent and no
+review rows were created. Both reloaded local web and worker processes report the
+new default; saved-review count remains seven. This is local remediation, not a
+staging/production deployment or a claim that every provider/model is available.
+The user's next actual review still requires their explicit sharing action in UI.
+
+### Consistency UI verification — 27 October 2026
+
+Six route tests cover summaries, exact UTC range, legend, initially collapsed
+explanation, date-specific metric links, neutral recent-gap copy, loading/error,
+and empty states. A browser check first reproduced the 32px day target; it now
+passes with 64px day links. Eight focused browser cases cover 320/390/768/1440px
+in Light and Dark, no horizontal overflow, seven day links, explanation disclosure,
+and keyboard navigation to the correct metric/date. Production build, targeted
+ESLint and Prettier checks pass. Synthetic API fixtures only; no backend or API
+contract changes. The broader pre-existing cross-page check currently stops on
+the Metrics page's obsolete Edit-button selector, before reaching Consistency.
+
+### Sleep UI verification — 27 October 2026
+
+Nineteen tests across the Sleep route, chart, insights API and target-preference
+API pass. The route verifies exact UTC range and a collapsed editor when data
+exists while retaining save, validation, pending/error, and empty-state checks.
+The chart test verifies full dates in its accessible description.
+
+Twelve focused browser checks pass: overview/disclosure/overflow at
+320/390/768/1440px in Light and Dark, editor alignment at 390/1440px, target-line
+geometry, and focus preservation through a delayed target recalculation. The
+focus and geometry checks reproduced failures before the fixes. Sparse and
+mixed recorded/missing-night fixtures avoid real health data. Build, targeted
+ESLint, Prettier and diff checks pass. A final browser rerun needed unrestricted
+local-server startup after the sandboxed test server failed to start; it passed.
+No backend/API changes or provider calls were involved.
+
+### Settings UI verification — 27 October 2026
+
+Forty focused tests across Settings, PersonalInfoPanel and AccountPanel pass.
+Personal info is initially hidden and must be expanded before editing; existing
+save/clear/failure/retry checks remain. Settings error assertions now target their
+regions rather than the old section order. Checkout, portal and confirmation-state
+tests continue to pass after moving plan discovery ahead of data tools.
+
+Twelve browser checks cover the overview at 320/390/768/1440px in both themes,
+draft preservation, direct `#personal-info` access, CSV modal overflow/focus return,
+Free-plan discovery at 320/1440px and account download/deletion at both widths.
+The initial collapsed-state assertion reproduced the expanded form. The older
+deletion fixture rejected personal-info GETs to `/api/v1/me/`; an ignored mocked
+request probe confirmed GET and DELETE share that path. The fixture now falls
+back for reads and still asserts deletion method/body and password-error retry.
+All browser calls use synthetic fixtures. Build, targeted ESLint, Prettier and
+diff checks pass; local Vite startup required running outside the sandbox.
+
+### Compact tracking-date verification — 27 October 2026
+
+Thirty-five focused component/screen tests pass across the shared date control,
+Recovery, Diet and Stretching. Tests retain date-specific logging and the
+today-anchored history checks. Shared-control tests cover initially hidden input,
+older-date selection, focus return, Escape/outside dismissal and Today.
+
+Nine browser checks cover all three views at 320/390/560/1440px in both themes
+plus a focused Diet input check. They verify the absence of the old arrow row,
+calendar focus and bounds, arbitrary dates, unchanged recent-week labels, strip
+selection, Today and no horizontal overflow. Five Recovery/Diet browser logging
+journeys also pass. Their older Recovery assertions had assumed checklist-first
+order and a removed dashboard card; a local fixture-snapshot probe confirmed the
+current date-first view and Today's logs link, and the assertions now target them.
+Build, targeted ESLint, Prettier and diff checks pass. API fixtures are synthetic;
+no backend contracts or data models changed.
+
+### Current Plan layout checks — 27 October 2026
+
+Thirty-three Settings tests pass, including an explicit Wearables label and
+connection value, paid price/interval text, renewal/cancellation, portal and
+checkout flows. Fourteen browser cases pass: the Settings overview at
+320/390/560/768/1024/1440px in Light and Dark, plus two Free-plan cases. The
+six-cell plan grid verifies matching desktop column positions. Build, targeted
+ESLint, formatting and diff checks pass. An initial stalled concurrent run caused
+unit and browser timeouts; separate reruns passed with the original timeouts.
+No backend contracts or billing logic changed.

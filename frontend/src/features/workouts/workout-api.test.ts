@@ -9,11 +9,24 @@ import {
   copyWorkout,
   copyWorkoutSets,
   getExerciseHistoryPage,
+  deleteExercise,
 } from "./workout-api";
 
 afterEach(() => {
   clearAccessToken();
   vi.unstubAllGlobals();
+});
+it("deletes an owned library exercise using the encoded endpoint and accepts 204", async () => {
+  setAccessToken("workout-token");
+  const fetcher = vi
+    .fn()
+    .mockResolvedValue(new Response(null, { status: 204 }));
+  vi.stubGlobal("fetch", fetcher);
+  await expect(deleteExercise("exercise/id")).resolves.toBeUndefined();
+  expect(fetcher).toHaveBeenCalledWith(
+    "/api/v1/workouts/exercises/exercise%2Fid/",
+    expect.objectContaining({ method: "DELETE" }),
+  );
 });
 it("posts selective-copy occurrence IDs and set IDs without performance fields", async () => {
   setAccessToken("workout-token");

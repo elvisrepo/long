@@ -8,7 +8,7 @@ import {
 import { usePersonalInfoQuery } from "./use-personal-info-query";
 import { EstimatedBmrSummary } from "./estimated-bmr-summary";
 
-export function PersonalInfoPanel() {
+export function PersonalInfoPanel({ reveal = false }: { reveal?: boolean }) {
   const query = usePersonalInfoQuery();
   return (
     <section
@@ -16,23 +16,30 @@ export function PersonalInfoPanel() {
       className="subscription-card"
       aria-label="Personal info"
     >
-      <h2>Personal info</h2>
-      <p className="metric-meta">
-        Used to estimate your resting energy needs. Weight comes from your
-        latest recorded body weight.
-      </p>
-      {query.isPending ? (
-        <p>Loading personal info…</p>
-      ) : query.data ? (
-        <PersonalInfoForm profile={query.data} />
-      ) : (
-        <div role="alert">
-          <p>Personal info failed to load.</p>
-          <button type="button" onClick={() => void query.refetch()}>
-            Retry personal info
-          </button>
+      <details className="settings-disclosure" open={reveal}>
+        <summary>
+          <h2>Personal info</h2>
+          <span>Birth date, sex &amp; height</span>
+        </summary>
+        <div className="settings-disclosure-content">
+          <p className="metric-meta">
+            Used to estimate your resting energy needs. Weight comes from your
+            latest recorded body weight.
+          </p>
+          {query.isPending ? (
+            <p>Loading personal info…</p>
+          ) : query.data ? (
+            <PersonalInfoForm profile={query.data} />
+          ) : (
+            <div role="alert">
+              <p>Personal info failed to load.</p>
+              <button type="button" onClick={() => void query.refetch()}>
+                Retry personal info
+              </button>
+            </div>
+          )}
         </div>
-      )}
+      </details>
     </section>
   );
 }
@@ -122,6 +129,7 @@ function PersonalInfoForm({ profile }: { profile: PersonalInfo }) {
             </button>
             <button
               type="button"
+              className="metrics-secondary-action"
               onClick={() =>
                 void save(
                   { date_of_birth: null, sex: null, height_cm: null },
