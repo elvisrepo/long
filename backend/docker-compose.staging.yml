@@ -29,7 +29,7 @@ x-backend-environment: &backend-environment
   LOG_LEVEL: "${LOG_LEVEL:?LOG_LEVEL is required}"
   DJANGO_LOG_LEVEL: "${DJANGO_LOG_LEVEL:?DJANGO_LOG_LEVEL is required}"
   REDIS_URL: redis://redis:6379/0
-  NVIDIA_INSIGHTS_MODEL: nvidia/nemotron-3-super-120b-a12b
+  NVIDIA_INSIGHTS_MODEL: nvidia/nemotron-3.5-super-vl-120b-a12b
   STRETCH_IMAGE_BUCKET: "${STRETCH_IMAGE_BUCKET:-}"
 
 services:
