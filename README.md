@@ -42,23 +42,17 @@ Most captures are from the local app; the AI Insights image is the supplied capt
 
 <p><a href="https://staging.syncvitals.space">Open the staging app</a> (sign-in required).</p>
 
-<p align="center"><strong>Dashboard · Steps · Workouts</strong></p>
+<p align="center"><strong>Dashboard · Steps · Workouts · AI Insights</strong></p>
 
 <p align="center">
-  <a href="https://raw.githubusercontent.com/elvisrepo/long/c7f0aab17650fadef50ab71ddfd37b9a71f93eef/docs/screenshots/readme/dashboard.jpg"><img src="docs/screenshots/readme/dashboard.jpg" alt="SyncVitals mobile dashboard" title="Dashboard" width="200"></a>
+  <a href="https://raw.githubusercontent.com/elvisrepo/long/c7f0aab17650fadef50ab71ddfd37b9a71f93eef/docs/screenshots/readme/dashboard.jpg"><img src="docs/screenshots/readme/dashboard.jpg" alt="SyncVitals mobile dashboard" title="Dashboard" width="180" align="top"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://raw.githubusercontent.com/elvisrepo/long/c7f0aab17650fadef50ab71ddfd37b9a71f93eef/docs/screenshots/readme/steps.jpg"><img src="docs/screenshots/readme/steps.jpg" alt="Mobile Steps metric history and trend" title="Steps" width="200"></a>
+  <a href="https://raw.githubusercontent.com/elvisrepo/long/c7f0aab17650fadef50ab71ddfd37b9a71f93eef/docs/screenshots/readme/steps.jpg"><img src="docs/screenshots/readme/steps.jpg" alt="Mobile Steps metric history and trend" title="Steps" width="180" align="top"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://raw.githubusercontent.com/elvisrepo/long/c7f0aab17650fadef50ab71ddfd37b9a71f93eef/docs/screenshots/readme/workouts.jpg"><img src="docs/screenshots/readme/workouts.jpg" alt="Mobile workout log with recorded sets" title="Workouts" width="200"></a>
+  <a href="https://raw.githubusercontent.com/elvisrepo/long/c7f0aab17650fadef50ab71ddfd37b9a71f93eef/docs/screenshots/readme/workouts.jpg"><img src="docs/screenshots/readme/workouts.jpg" alt="Mobile workout log with recorded sets" title="Workouts" width="180" align="top"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://raw.githubusercontent.com/elvisrepo/long/c7f0aab17650fadef50ab71ddfd37b9a71f93eef/docs/screenshots/readme/ai-insights.png"><img src="docs/screenshots/readme/ai-insights.png" alt="AI Insights with model selection and weekly suggestions" title="AI Insights" width="180" align="top"></a>
 </p>
-
-<details>
-<summary>AI Insights preview</summary>
-
-<p align="center">
-  <a href="https://raw.githubusercontent.com/elvisrepo/long/c7f0aab17650fadef50ab71ddfd37b9a71f93eef/docs/screenshots/readme/ai-insights.png"><img src="docs/screenshots/readme/ai-insights.png" alt="AI Insights with model selection and weekly suggestions" title="AI Insights" width="200"></a>
-</p>
-</details>
 
 ## Architecture
 

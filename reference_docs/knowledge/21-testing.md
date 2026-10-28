@@ -2564,14 +2564,15 @@ staging journey was not performed by the agent. Staging uses HTTPS directly and
 does not depend on the local ADB reverse tunnel. The pilot variant was not updated.
 
 README product previews were refreshed from the authenticated local web app on
-2026-10-28. The gallery uses linked images displayed at 200px wide, with
+2026-10-28. The gallery uses linked images displayed at 180px wide, with
 original-resolution files opening on click. Image links use direct
 `raw.githubusercontent.com` URLs pinned to the existing asset commit, bypassing
 GitHub's internal file navigation and its `?raw=true` redirects. This opens the
 browser's image viewer and survives deletion of the working branch. Update the
-asset commit when replacing screenshots. Dashboard, Steps, and Workouts are
-visible first, with white gutters between them; AI Insights is in an expandable
-section. This replaces the unreadably narrow 200px-high thumbnails.
+asset commit when replacing screenshots. Dashboard, Steps, Workouts, and AI
+Insights share one row at the reviewed 838px content width, with aligned tops
+and white gutters. Narrower viewports can wrap naturally. There is no separate
+expandable AI section. This replaces the unreadably narrow 200px-high thumbnails.
 Three curated JPEGs in
 `docs/screenshots/readme/` use a 390 × 960px mobile viewport at 3× pixel density
 (1170 × 2880px): Dashboard, Steps, and a recorded workout.
