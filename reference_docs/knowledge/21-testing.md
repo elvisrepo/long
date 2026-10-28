@@ -2564,12 +2564,15 @@ staging journey was not performed by the agent. Staging uses HTTPS directly and
 does not depend on the local ADB reverse tunnel. The pilot variant was not updated.
 
 README product previews were refreshed from the authenticated local web app on
-2026-10-28. The eight curated JPEGs in `docs/screenshots/readme/` use a 390 × 960px
-mobile viewport at 3× pixel density (1170 × 2880px). Captures cover Dashboard,
-Body Weight, a recorded workout, bench-press progress, Diet, Recovery, Stretching,
-and a saved AI review. The development-only Router badge is hidden in the capture
+2026-10-28. The compact gallery uses seven linked thumbnails capped at 200px high,
+with original-resolution files opening on click. Six curated JPEGs in
+`docs/screenshots/readme/` use a 390 × 960px mobile viewport at 3× pixel density
+(1170 × 2880px): Dashboard, Steps, a recorded workout, Diet, Recovery, and
+Stretching. The AI Insights PNG is the owner's supplied 636 × 1069px capture,
+copied without edits; it retains its historical logo. Body Weight and workout
+progress previews were removed at the owner's request. The development-only Router badge is hidden in the capture
 browser; app data is not mocked. Workout/date/graph selections are read-only, and
 the capture guard observed no account mutations or runtime errors. The README
-identifies these as local captures rather than staging/demo captures. Raw capture
+identifies the local captures and supplied AI capture separately. Raw capture
 metadata stays under ignored `playground/`; the temporary authenticated browser
 state is removed after capture. Do not store credentials in capture scripts.

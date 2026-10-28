@@ -37,60 +37,46 @@ uses Stripe test mode.
 
 ## Product preview
 
-Mobile screenshots captured from the local web app at a 390px viewport and
-3× pixel density (1170 × 2880 pixels). Click an image to view it at full resolution.
+Mobile previews — click any image to open the full-resolution screenshot.
+Most captures are from the local app; the AI Insights image is the supplied capture.
 
 <p><a href="https://staging.syncvitals.space">Open the staging app</a> (sign-in required).</p>
 
 <table>
   <tr>
-    <td width="50%" align="center">
-      <a href="docs/screenshots/readme/dashboard.jpg"><img src="docs/screenshots/readme/dashboard.jpg" alt="SyncVitals dashboard with metric summaries, trends, recovery and diet checklists, and workout activity" width="100%"></a><br>
-      <strong>Dashboard</strong> — a snapshot of daily health and training.
+    <td width="25%" align="center">
+      <strong>Dashboard</strong><br>
+      <a href="docs/screenshots/readme/dashboard.jpg"><img src="docs/screenshots/readme/dashboard.jpg" alt="SyncVitals mobile dashboard" height="200"></a>
     </td>
-    <td width="50%" align="center">
-      <a href="docs/screenshots/readme/body-weight.jpg"><img src="docs/screenshots/readme/body-weight.jpg" alt="Body Weight metric history with a trend chart and recent entries" width="100%"></a><br>
-      <strong>Metric history</strong> — review recorded values and trends.
+    <td width="25%" align="center">
+      <strong>Steps</strong><br>
+      <a href="docs/screenshots/readme/steps.jpg"><img src="docs/screenshots/readme/steps.jpg" alt="Mobile Steps metric history and trend" height="200"></a>
+    </td>
+    <td width="25%" align="center">
+      <strong>Workouts</strong><br>
+      <a href="docs/screenshots/readme/workouts.jpg"><img src="docs/screenshots/readme/workouts.jpg" alt="Mobile workout log with recorded sets" height="200"></a>
+    </td>
+    <td width="25%" align="center">
+      <strong>Diet</strong><br>
+      <a href="docs/screenshots/readme/diet.jpg"><img src="docs/screenshots/readme/diet.jpg" alt="Mobile Diet food checklist" height="200"></a>
     </td>
   </tr>
   <tr>
-    <td width="50%" align="center">
-      <a href="docs/screenshots/readme/workouts.jpg"><img src="docs/screenshots/readme/workouts.jpg" alt="Workout log showing completed exercises, sets, and recent training activity" width="100%"></a><br>
-      <strong>Workouts</strong> — log sets and review recent sessions.
+    <td align="center">
+      <strong>Recovery</strong><br>
+      <a href="docs/screenshots/readme/recovery.jpg"><img src="docs/screenshots/readme/recovery.jpg" alt="Mobile Recovery activities" height="200"></a>
     </td>
-    <td width="50%" align="center">
-      <a href="docs/screenshots/readme/workout-progress.jpg"><img src="docs/screenshots/readme/workout-progress.jpg" alt="Barbell bench press progress on mobile with a highest logged load chart" width="100%"></a><br>
-      <strong>Workout progress</strong> — follow exercise-specific performance.
+    <td align="center">
+      <strong>Stretching &amp; Posture</strong><br>
+      <a href="docs/screenshots/readme/stretching.jpg"><img src="docs/screenshots/readme/stretching.jpg" alt="Mobile Stretching and Posture checklist" height="200"></a>
     </td>
+    <td align="center">
+      <strong>AI Insights</strong><br>
+      <a href="docs/screenshots/readme/ai-insights.png"><img src="docs/screenshots/readme/ai-insights.png" alt="AI Insights with model selection and weekly suggestions" height="200"></a>
+    </td>
+    <td></td>
   </tr>
 </table>
-
-<details>
-<summary>More mobile previews: Diet, Recovery, Stretching &amp; Posture, and AI Insights</summary>
-
-<table>
-  <tr>
-    <td width="50%" align="center">
-      <a href="docs/screenshots/readme/diet.jpg"><img src="docs/screenshots/readme/diet.jpg" alt="Mobile Diet checklist with food sections and recorded foods for the selected day" width="100%"></a><br>
-      <strong>Diet</strong> — check off foods in your own sections.
-    </td>
-    <td width="50%" align="center">
-      <a href="docs/screenshots/readme/recovery.jpg"><img src="docs/screenshots/readme/recovery.jpg" alt="Mobile Recovery view with a recorded activity and recovery tools" width="100%"></a><br>
-      <strong>Recovery</strong> — record the activities you use.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <a href="docs/screenshots/readme/stretching.jpg"><img src="docs/screenshots/readme/stretching.jpg" alt="Mobile Stretching and Posture view with phases, illustrated stretches, and daily check-offs" width="100%"></a><br>
-      <strong>Stretching &amp; Posture</strong> — find reference cues and log stretches.
-    </td>
-    <td width="50%" align="center">
-      <a href="docs/screenshots/readme/ai-insights.jpg"><img src="docs/screenshots/readme/ai-insights.jpg" alt="Mobile AI Insights view showing a saved weekly review and tracker-based suggestions" width="100%"></a><br>
-      <strong>AI Insights</strong> — revisit saved tracker-based suggestions.
-    </td>
-  </tr>
-</table>
-</details>
 
 ## Architecture
 
