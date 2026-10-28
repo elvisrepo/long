@@ -672,7 +672,7 @@ for (const width of [320, 390, 1440])
     const downloadEvent = page.waitForEvent("download");
     await page.getByRole("button", { name: "Download CSV" }).click();
     const download = await downloadEvent;
-    expect(download.suggestedFilename()).toBe(`longevity-workout-${date}.csv`);
+    expect(download.suggestedFilename()).toBe(`syncvitals-workout-${date}.csv`);
     const csv = await readFile((await download.path())!, "utf8");
     expect(csv).toContain('"65","kg","8"');
     expect(csv).toContain('"Completed","Steady pace"');

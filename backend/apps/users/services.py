@@ -50,9 +50,9 @@ def send_password_reset_email(*, email: str, reset_url_root: str) -> None:
     )
     try:
         send_mail(
-            subject="Reset your Longevity password",
+            subject="Reset your SyncVitals password",
             message=(
-                "Use the link below to reset your Longevity password.\n\n"
+                "Use the link below to reset your SyncVitals password.\n\n"
                 f"{reset_url}\n\n"
                 "If you did not request this, you can ignore this email."
             ),

@@ -52,7 +52,7 @@ function ResetPasswordRoute() {
   return (
     <section className="auth-panel" aria-labelledby="reset-password-title">
       <Link to="/" className="auth-logo">
-        ⬡ longevity
+        ⬡ SyncVitals
       </Link>
       <p className="auth-eyebrow">Account recovery</p>
       <h1 id="reset-password-title">Reset password</h1>

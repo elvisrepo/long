@@ -40,7 +40,7 @@ function RegisterRoute() {
   return (
     <section className="auth-panel" aria-labelledby="register-title">
       <Link to="/" className="auth-logo">
-        ⬡ longevity
+        ⬡ SyncVitals
       </Link>
       <p className="auth-eyebrow">Create account</p>
       <h1 id="register-title">Register</h1>

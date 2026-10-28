@@ -52,7 +52,7 @@ function RootLayout() {
         <header className="app-header">
           <div className="app-header-inner">
             <Link to="/" className="app-logo">
-              ⬡ longevity
+              ⬡ SyncVitals
             </Link>
             <ThemeToggle />
             <AppNavigation />

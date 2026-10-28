@@ -145,7 +145,7 @@ export function downloadWorkoutCsv(
   );
   const link = document.createElement("a");
   link.href = url;
-  link.download = `longevity-workout-${workout.performed_on}.csv`;
+  link.download = `syncvitals-workout-${workout.performed_on}.csv`;
   document.body.append(link);
   try {
     link.click();

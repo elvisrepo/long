@@ -33,7 +33,7 @@ function ForgotPasswordRoute() {
   return (
     <section className="auth-panel" aria-labelledby="forgot-password-title">
       <Link to="/" className="auth-logo">
-        ⬡ longevity
+        ⬡ SyncVitals
       </Link>
       <p className="auth-eyebrow">Account recovery</p>
       <h1 id="forgot-password-title">Forgot password</h1>

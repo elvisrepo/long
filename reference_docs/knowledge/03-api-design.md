@@ -813,7 +813,7 @@ Personal info and estimated BMR (2026-10-16, local):
 
 Account lifecycle checkpoint — 2026-09-30 (local, not deployed):
 - Settings offers **Download account data** independently of the Pro CSV export.
-  `longevity-account.json` has `schema_version=1`, an export timestamp, profile
+  `syncvitals-account.json` has `schema_version=1`, an export timestamp, profile
   and sleep preference, owned custom definitions (including archived ones),
   definitions referenced by owned entries, full raw metric history and provenance,
   wearable connections, sync receipts, local billing and checkout history, and
@@ -920,7 +920,7 @@ Current entry listing behavior:
 Current metric-entry CSV export behavior:
 - `GET /api/v1/metrics/entries/export/` requires bearer authentication and
   streams only the authenticated user's entries as
-  `longevity-metrics.csv`.
+  `syncvitals-metrics.csv`.
 - Optional `metric=<slug>`, `from=<timestamp>`, and `to=<timestamp>` filters
   are cumulative. Invalid date-time filters return `400` rather than reaching
   the database as malformed values.

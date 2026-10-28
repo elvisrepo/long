@@ -2521,3 +2521,55 @@ verified eight SPA deep links, health, new UI assets, anonymous 401s and missing
 asset/API handling. Seven browser journeys used the live staging assets with
 synthetic API interception. No real-account browser sign-in or AI generation is
 claimed. See EC2-041/042 for bundle, image, rollback and SSM evidence.
+
+### SyncVitals branding — 2026-10-28
+
+Browser-title, navigation, account-download, and workout-download expectations
+use SyncVitals. Account JSON and metric CSV responses advertise
+`syncvitals-account.json` and `syncvitals-metrics.csv`; browser workout downloads
+use `syncvitals-workout-<date>.csv`. Password-reset tests check the branded
+subject and body. Legacy browser storage and Android package/Keystore identifiers
+remain unchanged for compatibility.
+
+Validation: 760 frontend tests, lint, build, touched-file formatting, 48 focused
+backend tests and Python lint pass. Android debug assembly and 193 JVM tests
+pass; APK inspection confirms the SyncVitals label and unchanged package ID.
+An additional 23 web/mobile authentication regression tests pass. On 2026-10-28,
+ADB installed debug 1.4/code 5 over debug 1.3/code 4 on the authorized phone,
+without uninstalling. Both APKs have the same signing certificate; package ID
+`com.viridiandome.longevity` and original installation timestamp were retained.
+The `tcp:8000` reverse tunnel is active and the app opens with SyncVitals branding.
+Backend logs confirm phone requests reach local Django; the old refresh token
+was rejected and the app presented login. After the owner signed in, mobile
+login returned 200, subscription and wearable-connection reads returned 200, and
+authenticated wearable uploads returned 201. These checks confirm accepted
+uploads, not a comparison of every imported health value. No
+instrumented Android UI suite was run. The temporary phone screenshot was removed
+because the login form contained visible credentials. A browser
+probe checks all four auth pages at 320/390/873/1024/1440px, with branded titles
+and logos, no horizontal overflow, and no runtime errors. Both account
+export/deletion browser checks pass. Six existing shared-control layout checks
+fail on the Workouts 14px date field (expected 16px) and Diet management/date
+alignment; the probe confirms identical measurements with both app names.
+Those assertions were not weakened or changed by this branding slice.
+
+The same day, staging assembly, vital lint, and 196 staging JVM tests passed with
+`https://staging.syncvitals.space/` as the API origin. ADB installed
+`app/build/outputs/apk/staging/app-staging.apk` over the existing staging app,
+updating 1.3-staging/code 4 to 1.4-staging/code 5 without uninstalling. Package ID
+`com.viridiandome.longevity.staging`, signing certificate, and original installation
+timestamp were retained. The installed APK has the SyncVitals label and was
+launched on the phone. Public staging readiness returned 200; a new authenticated
+staging journey was not performed by the agent. Staging uses HTTPS directly and
+does not depend on the local ADB reverse tunnel. The pilot variant was not updated.
+
+README product previews were refreshed from the authenticated local web app on
+2026-10-28. The eight curated JPEGs in `docs/screenshots/readme/` use a 390 × 960px
+mobile viewport at 3× pixel density (1170 × 2880px). Captures cover Dashboard,
+Body Weight, a recorded workout, bench-press progress, Diet, Recovery, Stretching,
+and a saved AI review. The development-only Router badge is hidden in the capture
+browser; app data is not mocked. Workout/date/graph selections are read-only, and
+the capture guard observed no account mutations or runtime errors. The README
+identifies these as local captures rather than staging/demo captures. Raw capture
+metadata stays under ignored `playground/`; the temporary authenticated browser
+state is removed after capture. Do not store credentials in capture scripts.

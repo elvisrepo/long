@@ -63,7 +63,7 @@ it("downloads account JSON using bearer auth and releases the download URL", asy
   const click = vi
     .spyOn(HTMLAnchorElement.prototype, "click")
     .mockImplementation(function (this: HTMLAnchorElement) {
-      expect(this.download).toBe("longevity-account.json");
+      expect(this.download).toBe("syncvitals-account.json");
     });
   await downloadAccountData();
   expect(fetchMock).toHaveBeenCalledWith("/api/v1/me/export/", {

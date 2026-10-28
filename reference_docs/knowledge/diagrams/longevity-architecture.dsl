@@ -1,9 +1,9 @@
-workspace "Longevity" "Architecture workspace for the Longevity project." {
+workspace "SyncVitals" "Architecture workspace for the SyncVitals project." {
     !identifiers hierarchical
 
     model {
-        user = person "Longevity User" "Uses the platform to view metrics, manage account data, and review synced health information."
-        deploymentOperator = person "Longevity Operator" "Runs the controlled staging deployment and reviews migration and readiness outcomes."
+        user = person "SyncVitals User" "Uses the platform to view metrics, manage account data, and review synced health information."
+        deploymentOperator = person "SyncVitals Operator" "Runs the controlled staging deployment and reviews migration and readiness outcomes."
 
         samsungHealth = softwareSystem "Samsung Health" "On-device source application that writes Samsung-originated health records into Health Connect."
         healthConnect = softwareSystem "Health Connect" "Android on-device health data platform that exposes user-permitted records to the companion app."
@@ -14,7 +14,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         publicDns = softwareSystem "Public DNS" "The client's recursive DNS resolver plus Route 53 authoritative records used to resolve staging.<domain> to CloudFront. DNS discovers the destination; it does not carry the HTTP request."
         awsSecretsManager = softwareSystem "AWS Secrets Manager" "Stores the canonical staging runtime JSON retrieved once through the EC2 instance role."
 
-        longevity = softwareSystem "Longevity Platform" "Tracks user auth, subscriptions, metrics, analytics entitlements, and wearable ingestion." {
+        longevity = softwareSystem "SyncVitals Platform" "Tracks user auth, subscriptions, metrics, analytics entitlements, and wearable ingestion." {
             webapp = container "React Web App" "Implemented browser client for account management, metrics, workouts, diet, recovery, history/progress, and Stripe-backed subscriptions." "React + TypeScript" {
                 webRoutes = component "Routes and Screens" "TanStack Router pages for registration, login, protected Dashboard, Metrics, Metric Detail, and Settings flows." "React + TanStack Router"
                 webAuth = component "Web Auth Session" "Bootstraps CSRF, keeps the access token in memory, relies on an HttpOnly refresh cookie, shares in-flight refreshes, and uses the browser Lock Manager for cross-tab rotation when available." "TypeScript"

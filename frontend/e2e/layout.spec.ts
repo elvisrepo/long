@@ -417,10 +417,10 @@ for (const theme of ["dark", "light"]) {
       ]) {
         await page.goto(path);
         const expectedTitle = path.includes("exercises")
-          ? "All exercises · Longevity"
+          ? "All exercises · SyncVitals"
           : path.startsWith("/workouts")
-            ? "Workouts · Longevity"
-            : `${path === "/diet" ? "Diet" : "Recovery"} · Longevity`;
+            ? "Workouts · SyncVitals"
+            : `${path === "/diet" ? "Diet" : "Recovery"} · SyncVitals`;
         await expect(page).toHaveTitle(expectedTitle);
         const compact = path === "/diet" || path === "/recovery";
         if (compact)
@@ -1729,7 +1729,7 @@ for (const width of [320, 1440]) {
         contentType: "application/json",
         headers: {
           "Content-Disposition":
-            'attachment; filename="longevity-account.json"',
+            'attachment; filename="syncvitals-account.json"',
         },
         body: JSON.stringify({ schema_version: 1, profile: {} }),
       }),
@@ -1753,7 +1753,7 @@ for (const width of [320, 1440]) {
     const downloading = page.waitForEvent("download");
     await page.getByRole("button", { name: "Download account data" }).click();
     expect((await downloading).suggestedFilename()).toBe(
-      "longevity-account.json",
+      "syncvitals-account.json",
     );
     await page
       .getByRole("button", { name: "Delete account", exact: true })

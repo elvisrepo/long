@@ -141,7 +141,7 @@ describe("logout flow", () => {
       await screen.findByRole("heading", { name: /login/i }),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole("link", { name: /longevity/i }));
+    await user.click(screen.getByRole("link", { name: /syncvitals/i }));
 
     expect(
       await screen.findByRole("heading", { name: /login/i }),
@@ -178,7 +178,7 @@ describe("logout flow", () => {
       await screen.findByRole("heading", { name: /login/i }),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole("link", { name: /longevity/i }));
+    await user.click(screen.getByRole("link", { name: /syncvitals/i }));
 
     expect(
       await screen.findByRole("heading", { name: /login/i }),

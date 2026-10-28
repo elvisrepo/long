@@ -34,6 +34,8 @@ def test_password_reset_request_sends_link_for_existing_user(mailoutbox):
     }
     assert len(mailoutbox) == 1
     assert mailoutbox[0].to == ["person@example.com"]
+    assert mailoutbox[0].subject == "Reset your SyncVitals password"
+    assert "reset your SyncVitals password" in mailoutbox[0].body
     assert "/reset-password?uid=" in mailoutbox[0].body
     assert "&token=" in mailoutbox[0].body
 

@@ -582,7 +582,7 @@ class MetricEntryCsvExportView(APIView):
             content_type="text/csv; charset=utf-8",
         )
         response["Content-Disposition"] = (
-            'attachment; filename="longevity-metrics.csv"'
+            'attachment; filename="syncvitals-metrics.csv"'
         )
         return response
 

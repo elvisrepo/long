@@ -42,7 +42,7 @@ function LoginRoute() {
   return (
     <section className="auth-panel" aria-labelledby="login-title">
       <Link to="/" className="auth-logo">
-        ⬡ longevity
+        ⬡ SyncVitals
       </Link>
       <p className="auth-eyebrow">Welcome back</p>
       <h1 id="login-title">Login</h1>

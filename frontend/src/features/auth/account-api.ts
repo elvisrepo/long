@@ -14,7 +14,7 @@ export async function downloadAccountData(): Promise<void> {
   const objectUrl = URL.createObjectURL(await response.blob());
   const link = document.createElement("a");
   link.href = objectUrl;
-  link.download = "longevity-account.json";
+  link.download = "syncvitals-account.json";
   document.body.append(link);
   try {
     link.click();

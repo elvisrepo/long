@@ -85,7 +85,7 @@ it("downloads a UTF-8 CSV and releases its URL even if the browser click fails",
   const click = vi
     .spyOn(HTMLAnchorElement.prototype, "click")
     .mockImplementation(function () {
-      expect(this.download).toBe("longevity-workout-2026-10-03.csv");
+      expect(this.download).toBe("syncvitals-workout-2026-10-03.csv");
       expect(this.href).toBe("blob:csv");
       throw new Error("Blocked");
     });

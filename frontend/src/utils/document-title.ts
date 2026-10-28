@@ -44,5 +44,5 @@ export function getDocumentTitle(
     title = titleCase(pathname.slice("/metrics/".length));
   }
 
-  return `${title ?? "Page not found"} · Longevity`;
+  return `${title ?? "Page not found"} · SyncVitals`;
 }

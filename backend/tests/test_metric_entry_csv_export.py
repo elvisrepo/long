@@ -98,7 +98,7 @@ def test_authenticated_user_can_export_their_metric_entries_as_csv():
     assert response.status_code == 200
     assert response["Content-Type"] == "text/csv; charset=utf-8"
     assert response["Content-Disposition"] == (
-        'attachment; filename="longevity-metrics.csv"'
+        'attachment; filename="syncvitals-metrics.csv"'
     )
     assert read_csv_response(response) == [
         {

@@ -41,7 +41,7 @@ export async function downloadMetricEntriesCsv(
   const objectUrl = URL.createObjectURL(await response.blob());
   const link = document.createElement("a");
   link.href = objectUrl;
-  link.download = "longevity-metrics.csv";
+  link.download = "syncvitals-metrics.csv";
   document.body.append(link);
 
   try {

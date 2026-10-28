@@ -3,7 +3,7 @@ import { getDocumentTitle } from "./document-title";
 
 it("uses the active workout view in the browser title", () => {
   expect(getDocumentTitle("/workouts", { view: "exercises" })).toBe(
-    "All exercises · Longevity",
+    "All exercises · SyncVitals",
   );
 });
 
@@ -16,18 +16,18 @@ it.each([
   ["overview", "Exercise overview"],
   ["training", "Workout training"],
 ])("names the %s workout view", (view, title) => {
-  expect(getDocumentTitle("/workouts", { view })).toBe(`${title} · Longevity`);
+  expect(getDocumentTitle("/workouts", { view })).toBe(`${title} · SyncVitals`);
 });
 
 it("formats metric slugs and static page routes", () => {
   expect(getDocumentTitle("/metrics/body_weight")).toBe(
-    "Body Weight · Longevity",
+    "Body Weight · SyncVitals",
   );
-  expect(getDocumentTitle("/settings")).toBe("Settings · Longevity");
+  expect(getDocumentTitle("/settings")).toBe("Settings · SyncVitals");
 });
 
 it("uses a not-found title for unknown paths", () => {
   expect(getDocumentTitle("/not-a-real-page")).toBe(
-    "Page not found · Longevity",
+    "Page not found · SyncVitals",
   );
 });

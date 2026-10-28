@@ -57,7 +57,7 @@ def test_free_account_export_contains_owned_data_without_credentials():
     assert response["Cache-Control"] == "no-store"
     assert (
         response["Content-Disposition"]
-        == 'attachment; filename="longevity-account.json"'
+        == 'attachment; filename="syncvitals-account.json"'
     )
     data = json.loads(b"".join(response.streaming_content))
     assert data["schema_version"] == 1

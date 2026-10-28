@@ -569,3 +569,15 @@ This is the practical consequence:
 Stateful session contrast:
 - classic Django session auth is stateful because the server stores session state directly
 - deleting the session record invalidates access immediately
+
+### SyncVitals display-name transition — 2026-10-28
+
+The web and Android product display name is **SyncVitals**. Password-reset email
+subjects and bodies use SyncVitals; the default local sender display name also
+uses SyncVitals. Deployed `DEFAULT_FROM_EMAIL` values override that default and
+require separate configuration review when publishing the rename.
+
+Keep the existing Android application IDs, signing identity, Keystore aliases,
+SharedPreferences names, browser storage keys, and cross-tab refresh-lock name.
+These are compatibility identifiers, not display branding; changing them could
+separate installed apps or lose access to existing sessions and preferences.

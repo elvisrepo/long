@@ -116,7 +116,7 @@ function DeleteAccountDialog({
         </button>
       </div>
       <p className="metric-dialog-copy">
-        This permanently removes your Longevity account, health records,
+        This permanently removes your SyncVitals account, health records,
         preferences, and sync history. All devices will lose access. Download
         your account data first if you want to keep it. Records in Health
         Connect and your source app are unaffected.

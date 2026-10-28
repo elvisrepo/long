@@ -121,7 +121,7 @@ fun LoginScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "⬡ Longevity",
+            text = "⬡ SyncVitals",
             style = MaterialTheme.typography.headlineMedium,
         )
 
@@ -263,7 +263,7 @@ private fun AuthenticatedContent(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
-                text = "⬡ Longevity",
+                text = "⬡ SyncVitals",
                 style = MaterialTheme.typography.titleLarge,
             )
             Spacer(modifier = Modifier.weight(1f))

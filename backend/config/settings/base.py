@@ -39,7 +39,7 @@ EMAIL_BACKEND = os.environ.get(
 ).strip()
 DEFAULT_FROM_EMAIL = os.environ.get(
     "DEFAULT_FROM_EMAIL",
-    "Longevity <no-reply@localhost>",
+    "SyncVitals <no-reply@localhost>",
 ).strip()
 PASSWORD_RESET_URL = os.environ.get(
     "PASSWORD_RESET_URL",

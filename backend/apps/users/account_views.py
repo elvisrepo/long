@@ -76,7 +76,7 @@ class AccountExportView(APIView):
             content_type="application/json",
         )
         response["Content-Disposition"] = (
-            'attachment; filename="longevity-account.json"'
+            'attachment; filename="syncvitals-account.json"'
         )
         response["Cache-Control"] = "no-store"
         return response
