@@ -2,7 +2,28 @@
 
 Longevity is a health and wellness tracking app with a React web client, Django
 REST API, and Android companion app. It brings together personal metrics,
-workouts, diet, recovery, subscription settings, and Health Connect sync.
+workouts, diet, recovery, stretching and posture, AI suggestions, subscription
+settings, and Health Connect sync.
+
+This is an actively developed project with a live presentation-staging
+environment. The production architecture below is a future recommendation.
+
+## What you can track
+
+- **Health metrics** — record values, review history and trends, and explore
+  sleep and activity analytics.
+- **Workouts** — log sets, reuse routines, browse your training calendar, and
+  follow exercise progress and goals.
+- **Daily habits** — check off diet, recovery, and stretching and posture
+  activities.
+- **AI suggestions** — request tracker-based suggestions and revisit saved
+  reviews using a personal NVIDIA API key and explicit consent to share a
+  tracker summary.
+- **Android sync** — import supported Health Connect records through the
+  companion app.
+
+Subscription settings include Stripe Checkout and the billing portal; staging
+uses Stripe test mode.
 
 <details>
 <summary>Show Longevity system context</summary>
@@ -71,6 +92,9 @@ flowchart TB
         subgraph DOCKER["Docker Compose"]
             localApi["Django API<br/>(container)"]
             localDb[("PostgreSQL / TimescaleDB<br/>(container)")]
+            localRedis[("Redis<br/>AI queue · temporary job state")]
+            localWorker["Celery AI worker<br/>(container)"]
+            localBeat["Celery Beat<br/>No scheduled tasks configured"]
         end
     end
 
@@ -84,6 +108,9 @@ flowchart TB
     viteServer -->|"proxy :8000"| localApi
     stripeCli -->|"webhooks"| localApi
     localApi -->|"reads / writes"| localDb
+    localApi -->|"queues jobs / polls status"| localRedis
+    localWorker -->|"consumes jobs / updates status"| localRedis
+    localWorker -->|"reads keys / saves AI reviews"| localDb
 
     localHealthConnect ~~~ androidTooling
     localHealthConnect ~~~ adbReverse
@@ -99,6 +126,7 @@ flowchart TB
     classDef health fill:#f8bbd0,stroke:#c2185b,color:#4a0f26,stroke-width:2px
     classDef api fill:#1565c0,stroke:#0d47a1,color:#ffffff,stroke-width:2px
     classDef db fill:#b2ebf2,stroke:#00838f,color:#00363d,stroke-width:2px
+    classDef async fill:#e1bee7,stroke:#6a1b9a,color:#2e0a3d,stroke-width:2px
 
     class localBrowser,localWebapp browser
     class viteServer proxy
@@ -108,6 +136,7 @@ flowchart TB
     class localHealthConnect,localSamsungHealth health
     class localApi api
     class localDb db
+    class localRedis,localWorker,localBeat async
 
     style DEV fill:#f4f7fb,stroke:#6f8aa6,stroke-width:2px
     style BROWSER fill:#eef8ec,stroke:#6ea36a
@@ -124,6 +153,13 @@ flowchart TB
 
 ### Current AWS staging
 
+The [verified V020 deployment model](reference_docs/knowledge/diagrams/current_aws/v020-ai-worker-live.dsl)
+is the current staging architecture source. It includes private Redis, a Celery
+worker for asynchronous AI suggestions, and the external NVIDIA inference API.
+See the
+[deployment guide](reference_docs/knowledge/23-production-deployment.md)
+for the current runtime and its limits.
+
 <details>
 <summary>Show current AWS staging architecture</summary>
 
@@ -132,28 +168,48 @@ flowchart TB
 ```mermaid
 flowchart LR
     B["Browser"]
+    M["Android companion<br/>Health Connect sync"]
+    NVIDIA["NVIDIA API<br/>AI inference"]
+    STRIPE["Stripe test mode<br/>Checkout · Portal · Webhooks"]
 
     subgraph AWS["AWS"]
         CF["CloudFront<br/>Route 53 alias · ACM viewer TLS"]
-        FRONT["Private S3<br/>Frontend"]
+        FRONT["Private S3<br/>React frontend · Android APK"]
+        IMAGES[("Private S3<br/>Custom stretch images")]
 
         subgraph VPC["Default VPC · 172.31.0.0/16"]
             subgraph EC2["EC2 · eu-central-1c · t4g.small ARM64<br/>One host / one failure domain"]
-                NG["Host Nginx<br/>Origin TLS · CloudFront-only inbound"]
-                subgraph DOCKER["Docker Compose"]
+                NG["Host Nginx<br/>Origin TLS · CloudFront-only inbound<br/>Secret origin-header validation"]
+
+                subgraph DOCKER["Docker Compose · private network"]
                     API["Django + Gunicorn<br/>host loopback :18000 → container :8000"]
-                    DB[("PostgreSQL 16<br/>no host port")]
+                    REDIS[("Redis<br/>AI queue · encrypted temporary job state<br/>Shared auth rate-limit counters<br/>No host port · no persistence")]
+                    WORKER["Celery AI worker<br/>Concurrency: 1"]
+                    DB[("PostgreSQL 16<br/>App data · encrypted keys and saved reviews<br/>No host port")]
                 end
             end
+
             EBS["Encrypted EBS<br/>Root + retained PostgreSQL data"]
         end
     end
 
-    B -->|"HTTPS"| CF
-    CF -->|"Frontend"| FRONT
-    CF -->|"/api/* · HTTPS origin"| NG
+    B -->|"HTTPS · app and API"| CF
+    M -->|"HTTPS · authenticated sync API"| CF
+    CF -->|"Static files · signed S3 reads"| FRONT
+    CF -->|"/api/* · uncached HTTPS"| NG
     NG -->|"127.0.0.1:18000"| API
-    API -->|"Compose network"| DB
+
+    API -->|"Read / write"| DB
+    API -->|"Queue AI jobs · poll status<br/>Auth rate-limit counters"| REDIS
+    WORKER -->|"Consume jobs · update status"| REDIS
+    WORKER -->|"Read encrypted key<br/>Save encrypted review"| DB
+    WORKER -->|"HTTPS · tracker summary<br/>Personal API key"| NVIDIA
+
+    API -->|"Upload / read / delete<br/>Instance-role access"| IMAGES
+    API -->|"Create Checkout / Portal sessions"| STRIPE
+    B -->|"Hosted Checkout / Portal"| STRIPE
+    STRIPE -->|"Signed webhook · HTTPS"| CF
+
     DB -->|"Persistent data"| EBS
 
     classDef client fill:#c8e6c9,stroke:#2e7d32,color:#1b3a1e,stroke-width:2px
@@ -161,12 +217,16 @@ flowchart LR
     classDef app fill:#1565c0,stroke:#0d47a1,color:#fff,stroke-width:2px
     classDef db fill:#b2ebf2,stroke:#00838f,color:#00363d,stroke-width:2px
     classDef storage fill:#f8bbd0,stroke:#c2185b,color:#4a0f26,stroke-width:2px
+    classDef async fill:#e1bee7,stroke:#6a1b9a,color:#2e0a3d,stroke-width:2px
+    classDef external fill:#ffe0b2,stroke:#e65100,color:#4a2400,stroke-width:2px
 
-    class B client
+    class B,M client
     class CF,FRONT edge
     class NG,API app
     class DB db
-    class EBS storage
+    class EBS,IMAGES storage
+    class REDIS,WORKER async
+    class NVIDIA,STRIPE external
 
     style AWS fill:#f4f7fb,stroke:#6f8aa6,stroke-width:2px
     style VPC fill:#f4f7fb,stroke:#6f8aa6,stroke-width:2px
@@ -178,6 +238,9 @@ flowchart LR
 
 ```mermaid
 flowchart LR
+    GH["GitHub Actions<br/>CI + staging deployment"]
+    EMAIL["Operator email"]
+
     subgraph HOST["EC2 host · instance role"]
         DEPLOY["Deployment loader"]
         CERT["Certbot · systemd timer"]
@@ -186,25 +249,38 @@ flowchart LR
         MON["CloudWatch Agent"]
         subgraph DOCKER["Docker Compose"]
             API["Django + Gunicorn"]
+            WORKER["Celery AI worker"]
+            REDIS[("Redis")]
             DB[("PostgreSQL")]
         end
     end
 
     subgraph AWS["AWS services"]
+        SSM["Systems Manager"]
         SM["Secrets Manager"]
         ECR["ECR"]
+        FRONT["Private S3<br/>Frontend"]
         DNS["Route 53"]
         S3["Private S3<br/>PostgreSQL backups"]
         CW["CloudWatch<br/>Host / backup / restore metrics + alarms"]
         SNS["SNS"]
-        EMAIL["Operator email"]
         SES["SES"]
     end
 
+    GH -->|"OIDC · publish image"| ECR
+    GH -->|"OIDC · publish frontend"| FRONT
+    GH -->|"OIDC · deploy via Run Command"| SSM
+    SSM --> DEPLOY
+
     DEPLOY -->|"Fetch AWSCURRENT"| SM
-    DEPLOY -->|"Pull image"| ECR
+    DEPLOY -->|"Pull API / worker image"| ECR
     CERT -->|"DNS-01 challenge"| DNS
     CERT -.->|"Renew / reload"| NG
+
+    API -->|"Queue jobs / cache"| REDIS
+    WORKER -->|"Consume jobs / update status"| REDIS
+    WORKER -->|"Save AI reviews"| DB
+
     BACKUP -->|"docker exec / pg_dump"| DB
     BACKUP -->|"Upload / restore read"| S3
     MON -->|"Host metrics"| CW
@@ -213,15 +289,16 @@ flowchart LR
     API -->|"Email · instance role"| SES
 
     classDef ops fill:#e1bee7,stroke:#6a1b9a,color:#2e0a3d,stroke-width:2px
+    classDef app fill:#1565c0,stroke:#0d47a1,color:#fff,stroke-width:2px
     classDef db fill:#b2ebf2,stroke:#00838f,color:#00363d,stroke-width:2px
     classDef email fill:#ffe0b2,stroke:#e65100,color:#4a2400,stroke-width:2px
     classDef edge fill:#bbdefb,stroke:#1565c0,color:#0d2f5c,stroke-width:2px
 
-    class DEPLOY,CERT,NG,BACKUP,MON,SM,ECR,DNS,CW,SNS ops
-    class API app
-    class DB db
+    class GH,SSM,DEPLOY,CERT,NG,BACKUP,MON,SM,ECR,DNS,CW,SNS ops
+    class API,WORKER app
+    class DB,REDIS db
     class EMAIL,SES email
-    class S3 edge
+    class S3,FRONT edge
 
     style HOST fill:#eef8ec,stroke:#6ea36a,stroke-width:2px
     style DOCKER fill:#edf2ff,stroke:#6980c7,stroke-width:2px
