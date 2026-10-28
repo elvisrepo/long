@@ -2564,8 +2564,11 @@ staging journey was not performed by the agent. Staging uses HTTPS directly and
 does not depend on the local ADB reverse tunnel. The pilot variant was not updated.
 
 README product previews were refreshed from the authenticated local web app on
-2026-10-28. The compact gallery uses seven linked thumbnails capped at 200px high,
-with original-resolution files opening on click. Six curated JPEGs in
+2026-10-28. The gallery uses linked images displayed at 200px wide, with
+original-resolution files opening on click. Dashboard, Steps, and Workouts are
+visible first, with white gutters between them; the other four previews are in
+an expandable section. This replaces the unreadably narrow 200px-high thumbnails.
+Six curated JPEGs in
 `docs/screenshots/readme/` use a 390 × 960px mobile viewport at 3× pixel density
 (1170 × 2880px): Dashboard, Steps, a recorded workout, Diet, Recovery, and
 Stretching. The AI Insights PNG is the owner's supplied 636 × 1069px capture,
