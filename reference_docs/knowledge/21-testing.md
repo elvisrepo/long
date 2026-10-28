@@ -2565,7 +2565,9 @@ does not depend on the local ADB reverse tunnel. The pilot variant was not updat
 
 README product previews were refreshed from the authenticated local web app on
 2026-10-28. The gallery uses linked images displayed at 200px wide, with
-original-resolution files opening on click. Dashboard, Steps, and Workouts are
+original-resolution files opening on click. Image links append `?raw=true` so
+GitHub serves the image directly for the browser's image viewer instead of its
+repository file viewer. Dashboard, Steps, and Workouts are
 visible first, with white gutters between them; the other four previews are in
 an expandable section. This replaces the unreadably narrow 200px-high thumbnails.
 Six curated JPEGs in

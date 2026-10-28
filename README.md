@@ -45,11 +45,11 @@ Most captures are from the local app; the AI Insights image is the supplied capt
 <p align="center"><strong>Dashboard · Steps · Workouts</strong></p>
 
 <p align="center">
-  <a href="docs/screenshots/readme/dashboard.jpg"><img src="docs/screenshots/readme/dashboard.jpg" alt="SyncVitals mobile dashboard" title="Dashboard" width="200"></a>
+  <a href="docs/screenshots/readme/dashboard.jpg?raw=true"><img src="docs/screenshots/readme/dashboard.jpg" alt="SyncVitals mobile dashboard" title="Dashboard" width="200"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="docs/screenshots/readme/steps.jpg"><img src="docs/screenshots/readme/steps.jpg" alt="Mobile Steps metric history and trend" title="Steps" width="200"></a>
+  <a href="docs/screenshots/readme/steps.jpg?raw=true"><img src="docs/screenshots/readme/steps.jpg" alt="Mobile Steps metric history and trend" title="Steps" width="200"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="docs/screenshots/readme/workouts.jpg"><img src="docs/screenshots/readme/workouts.jpg" alt="Mobile workout log with recorded sets" title="Workouts" width="200"></a>
+  <a href="docs/screenshots/readme/workouts.jpg?raw=true"><img src="docs/screenshots/readme/workouts.jpg" alt="Mobile workout log with recorded sets" title="Workouts" width="200"></a>
 </p>
 
 <details>
@@ -58,9 +58,9 @@ Most captures are from the local app; the AI Insights image is the supplied capt
 <p align="center"><strong>Diet · Recovery</strong></p>
 
 <p align="center">
-  <a href="docs/screenshots/readme/diet.jpg"><img src="docs/screenshots/readme/diet.jpg" alt="Mobile Diet food checklist" title="Diet" width="200"></a>
+  <a href="docs/screenshots/readme/diet.jpg?raw=true"><img src="docs/screenshots/readme/diet.jpg" alt="Mobile Diet food checklist" title="Diet" width="200"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="docs/screenshots/readme/recovery.jpg"><img src="docs/screenshots/readme/recovery.jpg" alt="Mobile Recovery activities" title="Recovery" width="200"></a>
+  <a href="docs/screenshots/readme/recovery.jpg?raw=true"><img src="docs/screenshots/readme/recovery.jpg" alt="Mobile Recovery activities" title="Recovery" width="200"></a>
 </p>
 
 <br>
@@ -68,9 +68,9 @@ Most captures are from the local app; the AI Insights image is the supplied capt
 <p align="center"><strong>Stretching &amp; Posture · AI Insights</strong></p>
 
 <p align="center">
-  <a href="docs/screenshots/readme/stretching.jpg"><img src="docs/screenshots/readme/stretching.jpg" alt="Mobile Stretching and Posture checklist" title="Stretching &amp; Posture" width="200"></a>
+  <a href="docs/screenshots/readme/stretching.jpg?raw=true"><img src="docs/screenshots/readme/stretching.jpg" alt="Mobile Stretching and Posture checklist" title="Stretching &amp; Posture" width="200"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="docs/screenshots/readme/ai-insights.png"><img src="docs/screenshots/readme/ai-insights.png" alt="AI Insights with model selection and weekly suggestions" title="AI Insights" width="200"></a>
+  <a href="docs/screenshots/readme/ai-insights.png?raw=true"><img src="docs/screenshots/readme/ai-insights.png" alt="AI Insights with model selection and weekly suggestions" title="AI Insights" width="200"></a>
 </p>
 </details>
 
