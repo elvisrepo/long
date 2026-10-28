@@ -317,10 +317,13 @@ flowchart LR
 flowchart LR
     B["Browser"]
     M["Android app"]
+    NVIDIA["NVIDIA API<br/>AI inference"]
+    STRIPE["Stripe<br/>Checkout · Portal · Webhooks"]
 
     subgraph AWS["AWS"]
         CF["CloudFront + AWS WAF"]
         S3["Private S3<br/>React frontend"]
+        IMAGES[("Private S3<br/>Custom stretch images")]
 
         subgraph VPC["Production VPC · two Availability Zones"]
             ALB["Public ALB · spans AZs<br/>HTTPS · health-based routing"]
@@ -332,7 +335,10 @@ flowchart LR
                 C["ECS Fargate task B<br/>Django + Gunicorn"]
             end
 
-            subgraph DATA["Private database subnets"]
+            WORKER["ECS Fargate worker service<br/>Celery AI jobs · private app subnets"]
+
+            subgraph DATA["Private data subnets"]
+                REDIS[("Managed Redis<br/>AI queue · temporary job state<br/>Shared auth rate-limit counters")]
                 DB[("RDS PostgreSQL<br/>Multi-AZ primary")]
                 STANDBY["Synchronous standby<br/>automatic failover"]
             end
@@ -347,6 +353,17 @@ flowchart LR
     ALB -->|"Healthy targets"| C
     A --> DB
     C --> DB
+    A -->|"Queue jobs / cache"| REDIS
+    C -->|"Queue jobs / cache"| REDIS
+    WORKER -->|"Consume jobs / update status"| REDIS
+    WORKER -->|"Read keys / save reviews"| DB
+    WORKER -->|"HTTPS · tracker summary"| NVIDIA
+    A -->|"Image storage"| IMAGES
+    C -->|"Image storage"| IMAGES
+    A -->|"Checkout / Portal"| STRIPE
+    C -->|"Checkout / Portal"| STRIPE
+    B -->|"Hosted Checkout / Portal"| STRIPE
+    STRIPE -->|"Signed webhook · HTTPS"| ALB
     DB -->|"Synchronous replication"| STANDBY
 
     classDef client fill:#c8e6c9,stroke:#2e7d32,color:#1b3a1e,stroke-width:2px
@@ -356,8 +373,10 @@ flowchart LR
 
     class B,M client
     class CF,S3,ALB edge
-    class A,C app
-    class DB,STANDBY db
+    class A,C,WORKER app
+    class DB,STANDBY,REDIS db
+    class IMAGES edge
+    class NVIDIA,STRIPE edge
 
     style AWS fill:#f4f7fb,stroke:#6f8aa6,stroke-width:2px
     style VPC fill:#f4f7fb,stroke:#6f8aa6,stroke-width:2px
@@ -374,6 +393,7 @@ flowchart LR
         A["Fargate API task A"]
         B["Fargate API task B"]
         MIG["One-off migration task"]
+        WORKER["Fargate Celery worker service"]
         NAT_A["NAT Gateway A"]
         NAT_B["NAT Gateway B"]
     end
@@ -384,31 +404,37 @@ flowchart LR
         CW["CloudWatch<br/>Logs · metrics · alarms · rollback signals"]
         BACKUP["RDS automated backups<br/>point-in-time recovery"]
         IGW["Internet Gateway"]
+        SES["SES<br/>Account email"]
     end
 
-    EXT["External APIs<br/>e.g. Stripe / SES"]
+    EXT["External APIs<br/>Stripe · NVIDIA"]
 
     SM -.->|"Task execution role · inject config"| A
     SM -.->|"Task execution role · inject config"| B
     SM -.->|"Inject migration config"| MIG
-    MIG -->|"Run migrations before release"| DB
-    A -->|"Application data"| DB
-    B -->|"Application data"| DB
-    A -->|"Logs / metrics"| CW
-    B -->|"Logs / metrics"| CW
-    MIG -->|"Migration result"| CW
+    SM -.->|"Inject worker config"| WORKER
+    MIG -->|"Migrate before release"| DB
+    A --> DB
+    B --> DB
+    A --> CW
+    B --> CW
+    MIG --> CW
+    WORKER --> CW
     DB -->|"Managed recovery"| BACKUP
     A --> NAT_A --> IGW
     B --> NAT_B --> IGW
+    WORKER -->|"Tasks placed in AZ-a"| NAT_A
+    WORKER -->|"Tasks placed in AZ-b"| NAT_B
     IGW -->|"Outbound HTTPS"| EXT
+    IGW -->|"Account email · task-role access"| SES
 
     classDef app fill:#1565c0,stroke:#0d47a1,color:#fff,stroke-width:2px
     classDef ops fill:#e1bee7,stroke:#6a1b9a,color:#2e0a3d,stroke-width:2px
     classDef db fill:#b2ebf2,stroke:#00838f,color:#00363d,stroke-width:2px
     classDef edge fill:#bbdefb,stroke:#1565c0,color:#0d2f5c,stroke-width:2px
 
-    class A,B,MIG app
-    class SM,CW ops
+    class A,B,MIG,WORKER app
+    class SM,CW,SES ops
     class DB,BACKUP db
     class NAT_A,NAT_B,IGW edge
     class EXT edge
@@ -422,8 +448,10 @@ This is a future recommendation, not deployed infrastructure or a current
 provisioning plan. Two API tasks across AZs provide horizontal application
 capacity and task/AZ resilience; the RDS standby provides failover, not read
 scaling. Autoscaling policies and database read scaling still need design.
-The canonical C4 model contains the full production deployment view and
-security boundaries.
+Redis availability, durability, and capacity, plus worker count and concurrency,
+still need sizing and cost review. Celery Beat is omitted until scheduled jobs
+are needed. The [canonical C4 model](reference_docs/knowledge/diagrams/longevity-architecture.dsl)
+contains the full production deployment view and security boundaries.
 
 ## Run locally
 

@@ -8,6 +8,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         samsungHealth = softwareSystem "Samsung Health" "On-device source application that writes Samsung-originated health records into Health Connect."
         healthConnect = softwareSystem "Health Connect" "Android on-device health data platform that exposes user-permitted records to the companion app."
         stripe = softwareSystem "Stripe" "External billing provider for hosted Checkout and Customer Portal sessions, subscription payment collection, and billing webhooks."
+        nvidia = softwareSystem "NVIDIA API" "External AI inference provider called by the Celery worker with a user-consented tracker summary and a personal API key."
         uptimeMonitor = softwareSystem "Uptime Monitoring" "External availability monitor that checks the public Django health endpoint and alerts operators."
         letsEncrypt = softwareSystem "Let's Encrypt" "Public certificate authority used only for the current presentation-staging Nginx origin certificate through automated ACME DNS validation."
         publicDns = softwareSystem "Public DNS" "The client's recursive DNS resolver plus Route 53 authoritative records used to resolve staging.<domain> to CloudFront. DNS discovers the destination; it does not carry the HTTP request."
@@ -65,9 +66,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 wearablesApi = component "Wearables" "Plan-limited Health Connect lifecycle plus synchronous idempotent ingestion with version-aware provider-record upserts." "Django REST Framework"
             }
 
-            worker = container "Celery Worker" "Prepared local/future runtime for asynchronous wearable processing, exports, deletion, and other background jobs; no current product flow depends on it." "Celery" {
-                tags "PreparedInfrastructure"
-            }
+            worker = container "Celery Worker" "Runs asynchronous AI suggestions, calls NVIDIA, and saves encrypted reviews in PostgreSQL." "Celery"
 
             beat = container "Celery Beat" "Prepared local/future scheduler; no current product flow depends on scheduled Celery work." "Celery Beat" {
                 tags "PreparedInfrastructure"
@@ -75,9 +74,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
 
             db = container "PostgreSQL / TimescaleDB" "System of record for encrypted user identity, JWT revocation state, subscriptions, Stripe receipts, metric data, wearable connections, and sync receipts. Timescale-specific features are not enabled yet." "PostgreSQL + TimescaleDB"
 
-            redis = container "Redis" "Running-capable Celery broker infrastructure reserved for future asynchronous work; current product requests do not depend on it." "Redis" {
-                tags "PreparedInfrastructure"
-            }
+            redis = container "Redis" "Celery AI broker and encrypted temporary job state; deployed settings also share authentication rate-limit counters across API processes." "Redis"
         }
 
         user -> longevity "Views metrics, manages account, and reviews health data"
@@ -175,15 +172,10 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
           longevity.api.wearablesApi -> longevity.db "Reads and writes connections, SyncRuns, and normalized MetricEntries"
           longevity.api.wearablesApi -> longevity.api.subscriptionsApi "Checks wearable connection entitlements"
 
-          longevity.api -> longevity.redis "Planned: publishes asynchronous work through the broker" {
-              tags "PreparedTraffic"
-          }
-          longevity.worker -> longevity.db "Planned: reads and writes durable job state" {
-              tags "PreparedTraffic"
-          }
-          longevity.worker -> longevity.redis "Prepared broker connection" {
-              tags "PreparedTraffic"
-          }
+          longevity.api -> longevity.redis "Queues AI jobs and polls encrypted status; shares deployed auth counters"
+          longevity.worker -> longevity.db "Reads encrypted personal keys and saves encrypted AI reviews"
+          longevity.worker -> longevity.redis "Consumes AI jobs and updates encrypted status"
+          longevity.worker -> nvidia "Requests AI suggestions for the consented tracker summary" "HTTPS"
           longevity.beat -> longevity.redis "Prepared scheduled-work publisher" {
               tags "PreparedTraffic"
           }
@@ -1192,6 +1184,15 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         }
 
             recommendedProduction = deploymentEnvironment "[RECOMMENDED] Production - CloudFront + ALB + Two Fargate Tasks + RDS Multi-AZ" {
+                externalServices = deploymentNode "External Services" "Production billing and inference providers." {
+                    tags "ExternalZone"
+                    nvidiaApi = infrastructureNode "NVIDIA API" "Receives explicitly consented tracker summaries from AI workers over HTTPS." {
+                        tags "ExternalService"
+                    }
+                    stripeApi = infrastructureNode "Stripe Checkout, Portal, and Webhooks" "Hosts billing flows and delivers signed production webhooks." {
+                        tags "ExternalService"
+                    }
+                }
                 userDevices = deploymentNode "User Devices" "Production users run the browser or Android client." {
                     tags "ClientZone"
                     browserNode = deploymentNode "Browser" "Uses production.<domain> as the single React and /api/* browser origin." {
@@ -1204,7 +1205,7 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                     }
                 }
 
-                aws = deploymentNode "AWS Account" "Recommended production architecture: managed edge, two replaceable API tasks, and a managed Multi-AZ relational database." {
+                aws = deploymentNode "AWS Account" "Recommended production architecture: managed edge, two replaceable API tasks, separate AI workers, managed Redis, private image storage, and a managed Multi-AZ relational database." {
                     tags "CloudZone"
 
                     dns = deploymentNode "Route 53 Public DNS" {
@@ -1256,6 +1257,13 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                             tags "SecurityService"
                         }
 
+                        stretchImages = infrastructureNode "Private S3 Custom Stretch Images" "Task-role scoped image upload, read, and delete access; Block Public Access enabled." {
+                            tags "StorageService"
+                        }
+                        ses = infrastructureNode "Amazon SES" "Sends account email through scoped API task-role permissions." {
+                            tags "OpsService"
+                        }
+
                         vpc = deploymentNode "Production VPC" "Separates public load-balancing, private application, and private database tiers across two Availability Zones." {
                             tags "NetworkZone"
                             internetGateway = infrastructureNode "Internet Gateway" "Connects the public ALB and NAT subnet routes to the internet." {
@@ -1289,6 +1297,10 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
 
                             privateAppTier = deploymentNode "Private Application Subnets" "Two stateless API tasks provide app-host and Availability Zone failure tolerance." {
                                 tags "ComputeZone"
+                                workerService = deploymentNode "ECS Fargate AI Worker Service" "Separate private worker service eligible for placement in either AZ; worker count and concurrency require sizing and cost review." {
+                                    tags "ComputeZone"
+                                    workerInstance = containerInstance longevity.worker
+                                }
                                 privateAppSubnetA = deploymentNode "Private App Subnet A" {
                                     tags "ComputeZone"
                                     apiTaskA = deploymentNode "ECS Fargate API Task A" "Replaceable ARM64 task in AZ-a." {
@@ -1315,8 +1327,12 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                                 }
                             }
 
-                            privateDataTier = deploymentNode "Private Database Subnets" "Database endpoints have no public route." {
+                            privateDataTier = deploymentNode "Private Data Subnets" "Database and Redis endpoints have no public route." {
                                 tags "DataZone"
+                                redisService = deploymentNode "Managed Redis" "Private AI broker, temporary job state, and shared auth counters; availability, durability, and capacity require sizing and cost review." {
+                                    tags "ManagedZone"
+                                    redisInstance = containerInstance longevity.redis
+                                }
                                 rdsCluster = deploymentNode "Amazon RDS PostgreSQL Multi-AZ" "Managed PostgreSQL with synchronous standby, automatic failover, encryption, backups, and point-in-time recovery." {
                                     tags "ManagedZone"
                                     dbInstance = containerInstance longevity.db
@@ -1337,7 +1353,13 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                                 apiSecurityGroup = infrastructureNode "Fargate API Security Group" "Allows the Gunicorn application port only from the ALB security group." {
                                     tags "SecurityService"
                                 }
-                                dbSecurityGroup = infrastructureNode "RDS Security Group" "Allows PostgreSQL only from the Fargate API security group." {
+                                workerSecurityGroup = infrastructureNode "Fargate Worker Security Group" "No inbound application port; permits scoped database, Redis, and HTTPS egress." {
+                                    tags "SecurityService"
+                                }
+                                redisSecurityGroup = infrastructureNode "Redis Security Group" "Allows Redis connections only from API and worker security groups." {
+                                    tags "SecurityService"
+                                }
+                                dbSecurityGroup = infrastructureNode "RDS Security Group" "Allows PostgreSQL only from the API, migration, and worker tasks." {
                                     tags "SecurityService"
                                 }
                             }
@@ -1369,13 +1391,13 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 recommendedProduction.aws.region.frontendOrigin.originAccessControl -> recommendedProduction.aws.region.frontendOrigin.s3Bucket "Restricts reads to CloudFront" "OAC" "SecurityTraffic"
                 recommendedProduction.aws.globalEdge.cloudFront.apiBehavior -> recommendedProduction.aws.dns.apiDns "Resolves the regional API origin" "DNS" "EdgeTraffic"
                 recommendedProduction.userDevices.androidNode.androidClient -> recommendedProduction.aws.dns.apiDns "Resolves the production mobile API hostname" "DNS" "ClientTraffic"
-                stripe -> recommendedProduction.aws.dns.apiDns "Resolves the signed webhook destination" "DNS" "EdgeTraffic"
+                recommendedProduction.externalServices.stripeApi -> recommendedProduction.aws.dns.apiDns "Resolves the signed webhook destination" "DNS" "EdgeTraffic"
                 uptimeMonitor -> recommendedProduction.aws.dns.apiDns "Resolves the liveness endpoint" "DNS" "OpsTraffic"
                 recommendedProduction.aws.dns.apiDns -> recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener "Aliases api.<domain> to the ALB" "DNS" "EdgeTraffic"
                 recommendedProduction.aws.region.albCertificate -> recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener "Supplies and automatically renews ALB TLS" "TLS" "SecurityTraffic"
                 recommendedProduction.aws.globalEdge.cloudFront.apiBehavior -> recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener "Forwards uncached browser API requests" "HTTPS" "EdgeTraffic"
                 recommendedProduction.userDevices.androidNode.androidClient -> recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener "Calls the API directly" "HTTPS" "ClientTraffic"
-                stripe -> recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener "POSTs signed production webhooks" "HTTPS" "EdgeTraffic"
+                recommendedProduction.externalServices.stripeApi -> recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener "POSTs signed production webhooks" "HTTPS" "EdgeTraffic"
                 uptimeMonitor -> recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener "Checks /api/v1/health/live/" "HTTPS" "OpsTraffic"
                 recommendedProduction.aws.region.vpc.networkControls.albSecurityGroup -> recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener "Governs public TCP 443 ingress" "Security group" "SecurityTraffic"
                 recommendedProduction.aws.region.vpc.publicTier.alb.httpsListener -> recommendedProduction.aws.region.vpc.publicTier.alb.targetGroup "Terminates TLS and selects a healthy task" "HTTP" "EdgeTraffic"
@@ -1384,14 +1406,25 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
                 recommendedProduction.aws.region.vpc.publicTier.alb.targetGroup -> recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.gunicornB "Routes to healthy task B" "HTTP" "EdgeTraffic"
                 recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.gunicornA -> recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.apiInstanceA "Invokes Django through WSGI" "WSGI" "EdgeTraffic"
                 recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.gunicornB -> recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.apiInstanceB "Invokes Django through WSGI" "WSGI" "EdgeTraffic"
-                recommendedProduction.aws.region.vpc.networkControls.apiSecurityGroup -> recommendedProduction.aws.region.vpc.networkControls.dbSecurityGroup "Is the only allowed PostgreSQL source" "Security group reference" "SecurityTraffic"
+                recommendedProduction.aws.region.vpc.networkControls.apiSecurityGroup -> recommendedProduction.aws.region.vpc.networkControls.dbSecurityGroup "Allows API and migration PostgreSQL access" "Security group reference" "SecurityTraffic"
+                recommendedProduction.aws.region.vpc.networkControls.workerSecurityGroup -> recommendedProduction.aws.region.vpc.networkControls.dbSecurityGroup "Allows worker PostgreSQL access" "Security group reference" "SecurityTraffic"
+                recommendedProduction.aws.region.vpc.networkControls.apiSecurityGroup -> recommendedProduction.aws.region.vpc.networkControls.redisSecurityGroup "Allows API Redis access" "Security group reference" "SecurityTraffic"
+                recommendedProduction.aws.region.vpc.networkControls.workerSecurityGroup -> recommendedProduction.aws.region.vpc.networkControls.redisSecurityGroup "Allows worker Redis access" "Security group reference" "SecurityTraffic"
+                recommendedProduction.aws.region.security.secretsNode -> recommendedProduction.aws.region.vpc.privateAppTier.workerService.workerInstance "Injects worker configuration through the task execution role" "ECS secret injection" "SecurityTraffic"
+                recommendedProduction.aws.region.vpc.privateAppTier.workerService.workerInstance -> recommendedProduction.aws.region.ops.cloudWatch "Writes worker logs and metrics" "awslogs" "OpsTraffic"
+                recommendedProduction.aws.region.vpc.privateAppTier.workerService.workerInstance -> recommendedProduction.externalServices.nvidiaApi "Requests AI inference through the NAT gateway in the task's AZ" "HTTPS" "EdgeTraffic"
+                recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.apiInstanceA -> recommendedProduction.aws.region.stretchImages "Uploads, reads, and deletes private images using task-role access" "HTTPS via NAT A" "StorageTraffic"
+                recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.apiInstanceB -> recommendedProduction.aws.region.stretchImages "Uploads, reads, and deletes private images using task-role access" "HTTPS via NAT B" "StorageTraffic"
+                recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.apiInstanceA -> recommendedProduction.aws.region.ses "Sends account email using task-role access" "HTTPS via NAT A" "EdgeTraffic"
+                recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.apiInstanceB -> recommendedProduction.aws.region.ses "Sends account email using task-role access" "HTTPS via NAT B" "EdgeTraffic"
                 recommendedProduction.aws.region.vpc.privateDataTier.rdsCluster.dbInstance -> recommendedProduction.aws.region.vpc.privateDataTier.rdsCluster.standby "Replicates synchronously across Availability Zones" "PostgreSQL replication" "DataTraffic"
                 recommendedProduction.aws.region.vpc.privateDataTier.rdsCluster.dbInstance -> recommendedProduction.aws.region.vpc.privateDataTier.rdsCluster.managedBackups "Creates encrypted backups and recovery points" "Managed backup" "StorageTraffic"
                 recommendedProduction.aws.region.security.secretsNode -> recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.apiInstanceA "Injects production secrets through the task execution role" "ECS secret injection" "SecurityTraffic"
                 recommendedProduction.aws.region.security.secretsNode -> recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.apiInstanceB "Injects the same production configuration" "ECS secret injection" "SecurityTraffic"
                 recommendedProduction.aws.region.security.secretsNode -> recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.migrationTask.migrationInstance "Injects migration configuration" "ECS secret injection" "SecurityTraffic"
-                recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.apiInstanceA -> stripe "Creates Checkout and Customer Portal Sessions" "HTTPS via NAT A" "EdgeTraffic"
-                recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.apiInstanceB -> stripe "Creates Checkout and Customer Portal Sessions" "HTTPS via NAT B" "EdgeTraffic"
+                recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.apiInstanceA -> recommendedProduction.externalServices.stripeApi "Creates Checkout and Customer Portal Sessions" "HTTPS via NAT A" "EdgeTraffic"
+                recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.apiInstanceB -> recommendedProduction.externalServices.stripeApi "Creates Checkout and Customer Portal Sessions" "HTTPS via NAT B" "EdgeTraffic"
+                recommendedProduction.userDevices.browserNode.browserClient -> recommendedProduction.externalServices.stripeApi "Uses hosted Checkout and Customer Portal" "HTTPS" "ClientTraffic"
                 recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.apiTaskA.apiInstanceA -> recommendedProduction.aws.region.ops.cloudWatch "Writes logs and metrics" "awslogs" "OpsTraffic"
                 recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetB.apiTaskB.apiInstanceB -> recommendedProduction.aws.region.ops.cloudWatch "Writes logs and metrics" "awslogs" "OpsTraffic"
                 recommendedProduction.aws.region.vpc.privateAppTier.privateAppSubnetA.migrationTask.migrationInstance -> recommendedProduction.aws.region.ops.cloudWatch "Writes migration logs and exit status" "awslogs" "OpsTraffic"
@@ -2071,6 +2104,12 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         }
 
         deployment * recommendedProduction "recommended-production-compact" "[RECOMMENDED PRODUCTION / COMPACT] Resilient request and data path: CloudFront/WAF to private S3 or ALB, ALB to two healthy Fargate API tasks, and both tasks to RDS PostgreSQL Multi-AZ." {
+            include recommendedProduction.aws.region.vpc.privateAppTier.workerService.workerInstance
+            include recommendedProduction.aws.region.vpc.privateDataTier.redisService.redisInstance
+            include recommendedProduction.aws.region.stretchImages
+            include recommendedProduction.aws.region.ses
+            include recommendedProduction.externalServices.nvidiaApi
+            include recommendedProduction.externalServices.stripeApi
             include recommendedProduction.userDevices.browserNode.browserClient
             include recommendedProduction.userDevices.androidNode.androidClient
             include recommendedProduction.aws.globalEdge.webAcl
@@ -2092,6 +2131,12 @@ workspace "Longevity" "Architecture workspace for the Longevity project." {
         }
 
         deployment * recommendedProduction "readme-recommended-production" "[FUTURE RECOMMENDATION / README] Compact resilient path: CloudFront/WAF and private S3, ALB to two Fargate API tasks across AZs, then RDS PostgreSQL Multi-AZ." {
+            include recommendedProduction.aws.region.vpc.privateAppTier.workerService.workerInstance
+            include recommendedProduction.aws.region.vpc.privateDataTier.redisService.redisInstance
+            include recommendedProduction.aws.region.stretchImages
+            include recommendedProduction.aws.region.ses
+            include recommendedProduction.externalServices.nvidiaApi
+            include recommendedProduction.externalServices.stripeApi
             include recommendedProduction.aws.globalEdge.webAcl
             include recommendedProduction.aws.globalEdge.cloudFront.endpoint
             include recommendedProduction.aws.globalEdge.cloudFront.staticBehavior

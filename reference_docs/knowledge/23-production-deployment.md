@@ -37,10 +37,20 @@ Recommended production:
 | Edge | CloudFront + AWS WAF + private S3 | Public frontend and API entry |
 | API routing | Public ALB across two AZs | TLS termination and healthy-target routing |
 | Application | Two private ECS Fargate API tasks across AZs | Independent replacement and host failure domains |
+| AI workers | Separate private ECS Fargate Celery service | Calls NVIDIA with consented tracker summaries; saves encrypted reviews in PostgreSQL |
+| AI queue and shared counters | Private managed Redis | Broker, encrypted temporary AI job state, and shared authentication rate-limit counters |
+| Custom stretch images | Private S3 bucket | API task-role scoped upload, read, and delete access |
+| Account email and billing | SES and Stripe | API task-role email access; hosted Checkout/Portal and signed billing webhooks |
 | Database | RDS PostgreSQL Multi-AZ | Managed failover, backups, and point-in-time recovery |
 | Migrations | One-off Fargate task | Same immutable backend image and configuration contract |
 | Egress | One NAT Gateway per AZ | Resilient private-task outbound access |
 | Configuration/operations | Secrets Manager + CloudWatch | Separate production identities and secrets |
+
+Redis availability, durability, and capacity, plus worker count and concurrency,
+remain subject to sizing and cost review. Workers use the same backend image as
+the API, with separate configuration and scaling. Private API and worker tasks
+use the NAT gateway in their Availability Zone for required external HTTPS
+access. Celery Beat is omitted until scheduled jobs are introduced.
 
 ### Production readiness status — 2026-10-08
 
